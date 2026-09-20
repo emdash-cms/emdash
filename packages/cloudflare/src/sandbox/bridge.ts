@@ -10,27 +10,47 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type {
+	CommentCountOptions,
+	CommentListOptions,
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
+	ContentActionCallbacks,
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
 	I18nConfig,
+	PluginComment,
+	PluginCommentStatus,
+	SandboxCommentModerateCallback,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectUpdateInput,
 	PluginContentItem,
 	SandboxContentCreateCallback,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
+	Storage,
+	TaxonomyAccessWithWrite,
+	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
+import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import type {
 	ContentItem,
 	ContentListOptions,
 	OptionsRepository,
 	PaginatedResult,
 	PluginStorageRepository,
+	SettingField,
 } from "emdash/plugins/host";
+import {
+	createPluginSecretRedactor,
+	type PluginSecretRedactor,
+} from "emdash/plugins/secret-redactor";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
-import type { StorageUpdateIfResponse } from "./types.js";
+import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
 
 let bridgeRuntimePromise: Promise<typeof import("./bridge-runtime.js")> | undefined;
 
@@ -63,6 +83,12 @@ const SYSTEM_COLUMNS = new Set([
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
+const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
+
+function invalidCommentStatus(value: string, name: string): string | null {
+	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
+}
 
 /**
  * Module-level email send callback.
@@ -75,8 +101,13 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
+const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
+const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
+let commentModerateCallback: SandboxCommentModerateCallback | null = null;
+let mediaStorageCallback: Pick<Storage, "download"> | null = null;
+const httpFetchCallbacks = new Map<string, typeof fetch>();
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -87,6 +118,30 @@ function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	}
 	const callbacks = new Map<string, SandboxContentCreateCallback>();
 	store[CONTENT_CREATE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
+
+function taxonomyWriteCallbacks(): Map<string, TaxonomyAccessWithWrite> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[TAXONOMY_WRITE_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, TaxonomyAccessWithWrite>;
+	}
+	const callbacks = new Map<string, TaxonomyAccessWithWrite>();
+	store[TAXONOMY_WRITE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
+
+function contentActionCallbacks(): Map<string, ContentActionCallbacks> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[CONTENT_ACTION_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, ContentActionCallbacks>;
+	}
+	const callbacks = new Map<string, ContentActionCallbacks>();
+	store[CONTENT_ACTION_CALLBACKS_KEY] = callbacks;
 	return callbacks;
 }
 
@@ -106,6 +161,35 @@ export function setContentCreateCallback(
 	else contentCreateCallbacks().delete(runtimeId);
 }
 
+export function setContentActionsCallback(
+	runtimeId: string,
+	callback: ContentActionCallbacks | null,
+): void {
+	if (callback) contentActionCallbacks().set(runtimeId, callback);
+	else contentActionCallbacks().delete(runtimeId);
+}
+
+export function beginContentActionCallbacks(
+	runtimeId: string,
+	pluginId: string,
+	invocationId: string,
+	invalidateContentCache?: (tags: string[]) => Promise<void>,
+): void {
+	contentActionCallbacks().get(runtimeId)?.begin?.(pluginId, invocationId, invalidateContentCache);
+}
+
+export function flushContentActionCallbacks(
+	runtimeId: string,
+	pluginId: string,
+	invocationId: string,
+	final: boolean,
+): Promise<void> {
+	return (
+		contentActionCallbacks().get(runtimeId)?.flush(pluginId, invocationId, final) ??
+		Promise.resolve()
+	);
+}
+
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
 	cronRescheduleCallback = callback;
 }
@@ -114,11 +198,51 @@ export function setCronNowCallback(callback: (() => Date) | null): void {
 	cronNowCallback = callback;
 }
 
+export function setCommentModerateCallback(callback: SandboxCommentModerateCallback | null): void {
+	commentModerateCallback = callback;
+}
+
+export function setMediaStorageCallback(storage: Pick<Storage, "download"> | null): void {
+	mediaStorageCallback = storage;
+}
+
+export function setTaxonomyWriteCallback(
+	runtimeId: string,
+	callback: TaxonomyAccessWithWrite | null,
+): void {
+	if (callback) taxonomyWriteCallbacks().set(runtimeId, callback);
+	else taxonomyWriteCallbacks().delete(runtimeId);
+}
+
+export function setHttpFetchCallback(key: string, callback: typeof fetch | null): void {
+	if (callback) httpFetchCallbacks.set(key, callback);
+	else httpFetchCallbacks.delete(key);
+}
+
 function serializeValue(value: unknown): unknown {
 	if (value === null || value === undefined) return null;
 	if (typeof value === "boolean") return value ? 1 : 0;
 	if (typeof value === "object") return JSON.stringify(value);
 	return value;
+}
+
+async function forwardContentAction<T>(fn: () => Promise<T>): Promise<T | Record<string, unknown>> {
+	try {
+		return await fn();
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			typeof error.code === "string" &&
+			CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+		) {
+			return {
+				__emdashContentActionError: true,
+				error: { code: error.code, message: error.message },
+			};
+		}
+		throw error;
+	}
 }
 
 function rowToContentItem(collection: string, row: Record<string, unknown>) {
@@ -219,12 +343,25 @@ function rowToTaxonomyTerm(row: Record<string, unknown>): {
 	};
 }
 
+async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<RedirectBridgeResult<T>> {
+	try {
+		return { ok: true, value: await action() };
+	} catch (error) {
+		const { RedirectAccessError } = await loadBridgeRuntime();
+		if (error instanceof RedirectAccessError) {
+			return { ok: false, error: { code: error.code, message: error.message } };
+		}
+		throw error;
+	}
+}
+
 /**
  * Environment bindings required by PluginBridge
  */
 export interface PluginBridgeEnv {
 	DB: D1Database;
 	MEDIA?: R2Bucket;
+	EMDASH_ENCRYPTION_KEY?: string;
 }
 
 /**
@@ -237,6 +374,8 @@ export interface PluginBridgeProps {
 	allowedHosts: string[];
 	storageCollections: string[];
 	contentCreateRuntimeId?: string;
+	contentActionsRuntimeId?: string;
+	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
 		name: string;
@@ -244,11 +383,13 @@ export interface PluginBridgeProps {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	httpFetchKey?: string;
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
 	>;
+	settingsSchema?: Record<string, SettingField>;
 }
 
 /**
@@ -263,6 +404,8 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	private readonly secretRedactor: PluginSecretRedactor = createPluginSecretRedactor();
+
 	private async db() {
 		const { D1Dialect, Kysely } = await loadBridgeRuntime();
 		return new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
@@ -295,8 +438,28 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		);
 	}
 
-	private pluginOptionKey(key: string): string {
-		return `plugin:${this.ctx.props.pluginId}:${key}`;
+	private async getSettingsAccess() {
+		const { createSettingsAccess, resolvePluginEncryptionKeys } = await loadBridgeRuntime();
+		const keys =
+			this.env.EMDASH_ENCRYPTION_KEY === undefined
+				? undefined
+				: await resolvePluginEncryptionKeys({
+						EMDASH_ENCRYPTION_KEY: this.env.EMDASH_ENCRYPTION_KEY,
+					});
+		return createSettingsAccess(
+			await this.getOptionsRepo(),
+			this.ctx.props.pluginId,
+			this.ctx.props.settingsSchema ?? {},
+			keys,
+			this.secretRedactor.add,
+		);
+	}
+
+	private observeSecretSetting(key: string, value: unknown): void {
+		const name = key.slice(SETTINGS_KEY_PREFIX.length);
+		if (this.ctx.props.settingsSchema?.[name]?.type === "secret" && typeof value === "string") {
+			this.secretRedactor.add(name, value);
+		}
 	}
 
 	private async deleteLegacyKV(key: string): Promise<boolean> {
@@ -361,7 +524,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	async kvGet(key: string): Promise<unknown> {
 		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const value = await (await this.getOptionsRepo()).get(this.pluginOptionKey(key));
+			const value = await (
+				await this.getSettingsAccess()
+			).get(key.slice(SETTINGS_KEY_PREFIX.length));
 			if (value !== null) return value;
 		}
 		const result = await this.env.DB.prepare(
@@ -371,8 +536,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.first<{ data: string }>();
 		if (!result) return null;
 		try {
-			return JSON.parse(result.data);
+			const value: unknown = JSON.parse(result.data);
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
+			return value;
 		} catch {
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, result.data);
 			return result.data;
 		}
 	}
@@ -380,7 +548,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	async kvSet(key: string, value: unknown): Promise<void> {
 		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			await (await this.getOptionsRepo()).set(this.pluginOptionKey(key), value);
+			await (await this.getSettingsAccess()).set(key.slice(SETTINGS_KEY_PREFIX.length), value);
 			await this.deleteLegacyKV(key);
 			return;
 		}
@@ -393,10 +561,16 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async kvGetVersioned(key: string): Promise<VersionedValue | null> {
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const value = await (await this.getOptionsRepo()).getVersioned(this.pluginOptionKey(key));
+			const value = await (
+				await this.getSettingsAccess()
+			).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
 			if (value !== null) return value;
 		}
-		return (await this.getStorageRepo("__kv")).getVersioned(key);
+		const legacy = await (await this.getStorageRepo("__kv")).getVersioned(key);
+		if (legacy && key.startsWith(SETTINGS_KEY_PREFIX)) {
+			this.observeSecretSetting(key, legacy.value);
+		}
+		return legacy;
 	}
 
 	async kvCompareAndSet(
@@ -406,8 +580,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	): Promise<ConditionalWriteResult> {
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
 			const result = await (
-				await this.getOptionsRepo()
-			).compareAndSet(this.pluginOptionKey(key), expectedRevision, value);
+				await this.getSettingsAccess()
+			).compareAndSet(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision, value);
 			if (result.applied) await this.deleteLegacyKV(key);
 			return result;
 		}
@@ -420,8 +594,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	): Promise<ConditionalDeleteResult> {
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
 			const result = await (
-				await this.getOptionsRepo()
-			).compareAndDelete(this.pluginOptionKey(key), expectedRevision);
+				await this.getSettingsAccess()
+			).compareAndDelete(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision);
 			if (result.applied) await this.deleteLegacyKV(key);
 			return result;
 		}
@@ -431,7 +605,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	async kvDelete(key: string): Promise<boolean> {
 		const { pluginId } = this.ctx.props;
 		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
-			const optionDeleted = await (await this.getOptionsRepo()).delete(this.pluginOptionKey(key));
+			const optionDeleted = await (
+				await this.getSettingsAccess()
+			).delete(key.slice(SETTINGS_KEY_PREFIX.length));
 			const legacyDeleted = await this.deleteLegacyKV(key);
 			return optionDeleted || legacyDeleted;
 		}
@@ -454,18 +630,60 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const entries = new Map(
 			(results.results ?? []).map((row) => [row.id, JSON.parse(row.data) as unknown]),
 		);
-		const optionPrefix = `plugin:${pluginId}:`;
-		const settingsPrefix = SETTINGS_KEY_PREFIX.startsWith(prefix)
-			? `${optionPrefix}${SETTINGS_KEY_PREFIX}`
-			: prefix.startsWith(SETTINGS_KEY_PREFIX)
-				? `${optionPrefix}${prefix}`
-				: null;
-		if (settingsPrefix) {
-			for (const [name, value] of await (await this.getOptionsRepo()).getByPrefix(settingsPrefix)) {
-				entries.set(name.slice(optionPrefix.length), value);
+		const includesSettings =
+			SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
+		if (includesSettings) {
+			const settingPrefix = prefix.startsWith(SETTINGS_KEY_PREFIX)
+				? prefix.slice(SETTINGS_KEY_PREFIX.length)
+				: "";
+			for (const { key, value } of await (await this.getSettingsAccess()).list(settingPrefix)) {
+				const fullKey = `${SETTINGS_KEY_PREFIX}${key}`;
+				if (fullKey.startsWith(prefix)) entries.set(fullKey, value);
 			}
 		}
+		for (const [key, value] of entries) {
+			if (key.startsWith(SETTINGS_KEY_PREFIX)) this.observeSecretSetting(key, value);
+		}
 		return Array.from(entries, ([key, value]) => ({ key, value }));
+	}
+
+	async settingsGet(key: string): Promise<unknown> {
+		return this.kvGet(`${SETTINGS_KEY_PREFIX}${key}`);
+	}
+
+	async settingsSet(key: string, value: unknown): Promise<void> {
+		return this.kvSet(`${SETTINGS_KEY_PREFIX}${key}`, value);
+	}
+
+	async settingsGetVersioned(key: string): Promise<VersionedValue | null> {
+		return this.kvGetVersioned(`${SETTINGS_KEY_PREFIX}${key}`);
+	}
+
+	async settingsCompareAndSet(
+		key: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult> {
+		return this.kvCompareAndSet(`${SETTINGS_KEY_PREFIX}${key}`, expectedRevision, value);
+	}
+
+	async settingsCompareAndDelete(
+		key: string,
+		expectedRevision: string,
+	): Promise<ConditionalDeleteResult> {
+		return this.kvCompareAndDelete(`${SETTINGS_KEY_PREFIX}${key}`, expectedRevision);
+	}
+
+	async settingsDelete(key: string): Promise<boolean> {
+		return this.kvDelete(`${SETTINGS_KEY_PREFIX}${key}`);
+	}
+
+	async settingsList(prefix = ""): Promise<Array<{ key: string; value: unknown }>> {
+		const entries = await this.kvList(`${SETTINGS_KEY_PREFIX}${prefix}`);
+		return entries.map(({ key, value }) => ({
+			key: key.slice(SETTINGS_KEY_PREFIX.length),
+			value,
+		}));
 	}
 
 	// =========================================================================
@@ -931,8 +1149,186 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (result.meta?.changes ?? 0) > 0;
 	}
 
+	async commentGet(id: string): Promise<PluginComment | null> {
+		if (!this.ctx.props.capabilities.includes("comments:read")) {
+			throw new Error("Missing capability: comments:read");
+		}
+		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createCommentAccess(db).get(id);
+	}
+
+	async commentList(opts: CommentListOptions = {}): Promise<PaginatedResult<PluginComment>> {
+		if (!this.ctx.props.capabilities.includes("comments:read")) {
+			throw new Error("Missing capability: comments:read");
+		}
+		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createCommentAccess(db).list(opts);
+	}
+
+	async commentCount(opts: CommentCountOptions = {}): Promise<number> {
+		if (!this.ctx.props.capabilities.includes("comments:read")) {
+			throw new Error("Missing capability: comments:read");
+		}
+		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createCommentAccess(db).count(opts);
+	}
+
+	async commentSetStatus(
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	): Promise<
+		| PluginComment
+		| {
+				__emdashCommentError: {
+					code:
+						| "COMMENT_STATUS_CONFLICT"
+						| "COMMENT_MODERATION_IN_PROGRESS"
+						| "COMMENT_STATUS_INVALID";
+					message: string;
+					currentStatus?: string;
+				};
+		  }
+	> {
+		if (!this.ctx.props.capabilities.includes("comments:moderate")) {
+			throw new Error("Missing capability: comments:moderate");
+		}
+		const invalid =
+			invalidCommentStatus(status, "status") ??
+			invalidCommentStatus(expectedStatus, "expectedStatus");
+		if (invalid) {
+			return {
+				__emdashCommentError: {
+					code: "COMMENT_STATUS_INVALID",
+					message: invalid,
+				},
+			};
+		}
+		if (!commentModerateCallback) throw new Error("Comment moderation is unavailable");
+		try {
+			return await commentModerateCallback(this.ctx.props.pluginId, id, status, expectedStatus);
+		} catch (error) {
+			if (typeof error === "object" && error !== null && "code" in error) {
+				const code = error.code;
+				const currentStatus = "currentStatus" in error ? error.currentStatus : undefined;
+				if (
+					(code === "COMMENT_STATUS_CONFLICT" && typeof currentStatus === "string") ||
+					code === "COMMENT_MODERATION_IN_PROGRESS"
+				) {
+					return {
+						__emdashCommentError: {
+							code,
+							message: error instanceof Error ? error.message : "Comment moderation failed",
+							...(typeof currentStatus === "string" ? { currentStatus } : {}),
+						},
+					};
+				}
+			}
+			throw error;
+		}
+	}
+
+	private requireContentActions(capability: "content:publish" | "content:restore") {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+		const runtimeId = this.ctx.props.contentActionsRuntimeId;
+		const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
+		if (!callbacks) throw new Error("Content actions are not configured");
+		return callbacks;
+	}
+
+	contentGetVersioned(collection: string, id: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").getVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
+		);
+	}
+
+	contentPublish(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").publish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentUnpublish(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unpublish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		revision: string,
+		invocationId?: string,
+	) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").schedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ scheduledAt, _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentUnschedule(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unschedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentGetTrashedVersioned(collection: string, id: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").getTrashedVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
+		);
+	}
+
+	contentRestore(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").restore(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
 	// =========================================================================
-	// Taxonomy Operations (read-only) - gated on taxonomies:read
+	// Taxonomy Operations - capability-gated
 	// =========================================================================
 
 	async taxonomyList(opts: { locale?: string } = {}): Promise<
@@ -1045,103 +1441,153 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
+	async taxonomyCreateTerm(
+		taxonomy: string,
+		input: Parameters<TaxonomyAccessWithWrite["createTerm"]>[1],
+	) {
+		return this.getTaxonomyWriteAccess().createTerm(taxonomy, input);
+	}
+
+	async taxonomyAddEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	) {
+		return this.getTaxonomyWriteAccess().addEntryTerms(collection, entryId, taxonomy, termIds);
+	}
+
+	async taxonomyRemoveEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	) {
+		return this.getTaxonomyWriteAccess().removeEntryTerms(collection, entryId, taxonomy, termIds);
+	}
+
+	private getTaxonomyWriteAccess(): TaxonomyAccessWithWrite {
+		if (!this.ctx.props.capabilities.includes("taxonomies:write")) {
+			throw new Error("Missing capability: taxonomies:write");
+		}
+		const runtimeId = this.ctx.props.taxonomyWriteRuntimeId;
+		const access = runtimeId ? taxonomyWriteCallbacks().get(runtimeId) : undefined;
+		if (!access) throw new Error("Taxonomy mutations are not available");
+		return access;
+	}
+
+	// =========================================================================
+	// Redirect Operations - runtime-owned, capability-gated
+	// =========================================================================
+
+	async redirectList(
+		options: RedirectListOptions = {},
+	): Promise<RedirectBridgeResult<PaginatedResult<RedirectInfo>>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:read")) {
+			throw new Error("Missing capability: redirects:read");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db).list(options));
+	}
+
+	async redirectGet(id: string): Promise<RedirectBridgeResult<VersionedRedirect | null>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:read")) {
+			throw new Error("Missing capability: redirects:read");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db).get(id));
+	}
+
+	async redirectCreate(
+		input: RedirectCreateInput,
+	): Promise<RedirectBridgeResult<VersionedRedirect>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db, true).create(input));
+	}
+
+	async redirectUpdate(
+		id: string,
+		input: RedirectUpdateInput & { _rev: string },
+	): Promise<RedirectBridgeResult<VersionedRedirect>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db, true).update(id, input));
+	}
+
+	async redirectDelete(id: string, revision: string): Promise<RedirectBridgeResult<boolean>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() =>
+			createRedirectAccess(db, true).delete(id, { _rev: revision }),
+		);
+	}
+
 	// =========================================================================
 	// Media Operations - capability-gated
 	// =========================================================================
 
-	async mediaGet(id: string): Promise<{
-		id: string;
-		filename: string;
-		mimeType: string;
-		size: number | null;
-		url: string;
-		createdAt: string;
-	} | null> {
+	async mediaGet(id: string): Promise<PluginMediaItem | null> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:read")) {
 			throw new Error("Missing capability: media:read");
 		}
-		const result = await this.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<{
-			id: string;
-			filename: string;
-			mime_type: string;
-			size: number | null;
-			storage_key: string;
-			created_at: string;
-		}>();
-		if (!result) return null;
-		return {
-			id: result.id,
-			filename: result.filename,
-			mimeType: result.mime_type,
-			size: result.size,
-			url: `/_emdash/api/media/file/${result.storage_key}`,
-			createdAt: result.created_at,
-		};
+		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createMediaAccess(db).get(id);
 	}
 
-	async mediaList(opts: { limit?: number; cursor?: string; mimeType?: string } = {}): Promise<{
-		items: Array<{
-			id: string;
-			filename: string;
-			mimeType: string;
-			size: number | null;
-			url: string;
-			createdAt: string;
-		}>;
-		cursor?: string;
-		hasMore: boolean;
-	}> {
+	async mediaList(
+		opts: { limit?: number; cursor?: string; mimeType?: string } = {},
+	): Promise<{ items: PluginMediaItem[]; cursor?: string; hasMore: boolean }> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:read")) {
 			throw new Error("Missing capability: media:read");
 		}
-		const limit = Math.min(opts.limit ?? 50, 100);
-		// Only return ready items (matching core's MediaRepository.findMany default)
-		let sql = "SELECT * FROM media WHERE status = 'ready'";
-		const params: unknown[] = [];
+		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createMediaAccess(db).list(opts);
+	}
 
-		if (opts.mimeType) {
-			sql += " AND mime_type LIKE ?";
-			params.push(opts.mimeType + "%");
+	async mediaReadBytes(id: string, maxBytes?: number): Promise<MediaBytes> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("media:bytes:read")) {
+			throw new Error("Missing capability: media:bytes:read");
 		}
-
-		if (opts.cursor) {
-			sql += " AND id < ?";
-			params.push(opts.cursor);
+		if (maxBytes !== undefined && typeof maxBytes !== "number") {
+			throw new TypeError("media/readBytes: maxBytes must be a number");
 		}
+		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return readPluginMediaBytes(db, mediaStorageCallback ?? undefined, id, { maxBytes });
+	}
 
-		sql += " ORDER BY id DESC LIMIT ?";
-		params.push(limit + 1);
-
-		const results = await this.env.DB.prepare(sql)
-			.bind(...params)
-			.all<{
-				id: string;
-				filename: string;
-				mime_type: string;
-				size: number | null;
-				storage_key: string;
-				created_at: string;
-			}>();
-
-		const rows = results.results ?? [];
-		const pageRows = rows.slice(0, limit);
-		const items = pageRows.map((row) => ({
-			id: row.id,
-			filename: row.filename,
-			mimeType: row.mime_type,
-			size: row.size,
-			url: `/_emdash/api/media/file/${row.storage_key}`,
-			createdAt: row.created_at,
-		}));
-		const hasMore = rows.length > limit;
-
-		return {
-			items,
-			cursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
-			hasMore,
-		};
+	async mediaUpdateMetadata(id: string, patch: unknown): Promise<PluginMediaItem> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("media:metadata:write")) {
+			throw new Error("Missing capability: media:metadata:write");
+		}
+		const { D1Dialect, Kysely, parsePluginMediaMetadataPatch, updatePluginMediaMetadata } =
+			await loadBridgeRuntime();
+		const parsed: MediaMetadataPatch = parsePluginMediaMetadataPatch(patch);
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return updatePluginMediaMetadata(db, id, parsed);
 	}
 
 	/**
@@ -1252,16 +1698,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// Network Operations - capability-gated + host validation
 	// =========================================================================
 
-	async httpFetch(
-		url: string,
-		init?: RequestInit,
-	): Promise<{
-		status: number;
-		headers: Record<string, string>;
-		text: string;
-	}> {
-		const { capabilities, allowedHosts } = this.ctx.props;
-		return sandboxHttpFetch(url, init, { capabilities, allowedHosts });
+	async httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire> {
+		const { capabilities, allowedHosts, httpFetchKey } = this.ctx.props;
+		const fetchImpl = httpFetchKey ? httpFetchCallbacks.get(httpFetchKey) : undefined;
+		if (httpFetchKey && !fetchImpl) {
+			throw new Error("Plugin HTTP transport is unavailable");
+		}
+		return sandboxHttpFetch(url, init, { capabilities, allowedHosts, fetchImpl });
 	}
 
 	// =========================================================================
@@ -1449,6 +1892,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	log(level: "debug" | "info" | "warn" | "error", msg: string, data?: unknown): void {
 		const { pluginId } = this.ctx.props;
-		console[level](`[plugin:${pluginId}]`, msg, data ?? "");
+		console[level](
+			`[plugin:${pluginId}]`,
+			this.secretRedactor.redact(msg),
+			this.secretRedactor.redact(data ?? ""),
+		);
 	}
 }

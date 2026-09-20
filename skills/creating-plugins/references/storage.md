@@ -1,14 +1,14 @@
-# Storage, KV, and encrypted settings
+# Storage and KV
 
 Sandboxed plugins have three plugin-scoped data APIs:
 
-| API                        | Use                                                        |
-| -------------------------- | ---------------------------------------------------------- |
-| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc`        |
-| `ctx.settings`             | User configuration, including encrypted secrets            |
-| `ctx.kv`                   | Cursors, cached values, and other internal key-value state |
+| API                        | Use                                                     |
+| -------------------------- | ------------------------------------------------------- |
+| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc`     |
+| `ctx.settings`             | User-configurable settings, including encrypted secrets |
+| `ctx.kv`                   | Cursors, cached values, and other key-value state       |
 
-All three use the host database and are isolated by runtime plugin ID. None needs a capability.
+All three stores use the host database and are isolated by runtime plugin ID. None needs a capability.
 
 ## Declare storage collections
 
@@ -206,8 +206,8 @@ await ctx.kv.set("cache:summary", summary);
 const settings = await ctx.settings.list();
 ```
 
-The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route `ctx.settings` through the same options records as the generated form. The API supports `get`, `set`, `delete`, `list`, `getVersioned`, `compareAndSet`, and `compareAndDelete`.
+The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route `ctx.settings` through the same options records as the generated admin form. Values saved in that form are available through `ctx.settings.get("<key>")`. The complete settings API supports `set`, `delete`, `list`, `getVersioned`, `compareAndSet`, and `compareAndDelete`.
 
-Fields declared as `secret` use a versioned AES-GCM envelope with plugin ID and setting key as authenticated data. `EMDASH_ENCRYPTION_KEY` may contain a comma-separated rotation list: the first key encrypts new values and the envelope `kid` selects older keys. Missing, wrong, and tampered keys fail closed. Existing plaintext secrets become encrypted when saved again.
+Fields declared as `secret` use a versioned AES-GCM envelope with the plugin ID and setting key as authenticated data. `EMDASH_ENCRYPTION_KEY` may contain a comma-separated rotation list: the first key encrypts new values and the envelope's `kid` selects a key for reads. Missing, wrong, and tampered keys fail closed without exposing plaintext. Existing plaintext secrets remain readable and become encrypted when saved again.
 
-Keep the full key list with operational backups. Restoring a database without every referenced key leaves those settings unreadable. `ctx.kv.get("settings:<key>")` remains a compatibility alias throughout EmDash 0.x; new code uses `ctx.settings`.
+Keep the full encryption-key list with operational backups. Restoring the database without every key referenced by its encrypted settings leaves those values unreadable. `ctx.kv.get("settings:<key>")` remains a compatibility alias throughout EmDash 0.x; new plugins should use `ctx.settings`.

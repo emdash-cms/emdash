@@ -1117,8 +1117,14 @@ const sbomSchema = _sbomSchema;
 //#endregion
 //#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/releaseExtension.js
 var releaseExtension_exports = /* @__PURE__ */ __exportAll({
+	commentsAccessSchema: () => commentsAccessSchema,
+	commentsModerateConstraintsSchema: () => commentsModerateConstraintsSchema,
+	commentsReadConstraintsSchema: () => commentsReadConstraintsSchema,
 	contentAccessSchema: () => contentAccessSchema,
+	contentPolicyConstraintsSchema: () => contentPolicyConstraintsSchema,
+	contentPublishConstraintsSchema: () => contentPublishConstraintsSchema,
 	contentReadConstraintsSchema: () => contentReadConstraintsSchema,
+	contentRestoreConstraintsSchema: () => contentRestoreConstraintsSchema,
 	contentRevisionsReadConstraintsSchema: () => contentRevisionsReadConstraintsSchema,
 	contentWriteConstraintsSchema: () => contentWriteConstraintsSchema,
 	declaredAccessSchema: () => declaredAccessSchema$1,
@@ -1128,6 +1134,8 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	emailTransportConstraintsSchema: () => emailTransportConstraintsSchema,
 	mainSchema: () => mainSchema,
 	mediaAccessSchema: () => mediaAccessSchema,
+	mediaBytesReadConstraintsSchema: () => mediaBytesReadConstraintsSchema,
+	mediaMetadataWriteConstraintsSchema: () => mediaMetadataWriteConstraintsSchema,
 	mediaReadConstraintsSchema: () => mediaReadConstraintsSchema,
 	mediaWriteConstraintsSchema: () => mediaWriteConstraintsSchema,
 	networkAccessSchema: () => networkAccessSchema,
@@ -1135,17 +1143,41 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	pageAccessSchema: () => pageAccessSchema,
 	pageFragmentsConstraintsSchema: () => pageFragmentsConstraintsSchema,
 	provenanceSchema: () => provenanceSchema,
+	redirectsAccessSchema: () => redirectsAccessSchema,
+	redirectsReadConstraintsSchema: () => redirectsReadConstraintsSchema,
+	redirectsWriteConstraintsSchema: () => redirectsWriteConstraintsSchema,
 	schemaAccessSchema: () => schemaAccessSchema,
 	schemaReadConstraintsSchema: () => schemaReadConstraintsSchema,
 	taxonomiesAccessSchema: () => taxonomiesAccessSchema,
 	taxonomiesReadConstraintsSchema: () => taxonomiesReadConstraintsSchema,
+	taxonomiesWriteConstraintsSchema: () => taxonomiesWriteConstraintsSchema,
 	usersAccessSchema: () => usersAccessSchema,
 	usersReadConstraintsSchema: () => usersReadConstraintsSchema
 });
+const _commentsAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsAccess")),
+	get moderate() {
+		return /* @__PURE__ */ optional$1(commentsModerateConstraintsSchema);
+	},
+	get read() {
+		return /* @__PURE__ */ optional$1(commentsReadConstraintsSchema);
+	}
+});
+const _commentsModerateConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsModerateConstraints")) });
+const _commentsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsReadConstraints")) });
 const _contentAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentAccess")),
+	get policy() {
+		return /* @__PURE__ */ optional$1(contentPolicyConstraintsSchema);
+	},
+	get publish() {
+		return /* @__PURE__ */ optional$1(contentPublishConstraintsSchema);
+	},
 	get read() {
 		return /* @__PURE__ */ optional$1(contentReadConstraintsSchema);
+	},
+	get restore() {
+		return /* @__PURE__ */ optional$1(contentRestoreConstraintsSchema);
 	},
 	get revisionsRead() {
 		return /* @__PURE__ */ optional$1(contentRevisionsReadConstraintsSchema);
@@ -1154,11 +1186,17 @@ const _contentAccessSchema = /* @__PURE__ */ object$1({
 		return /* @__PURE__ */ optional$1(contentWriteConstraintsSchema);
 	}
 });
+const _contentPolicyConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPolicyConstraints")) });
+const _contentPublishConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPublishConstraints")) });
 const _contentReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentReadConstraints")) });
+const _contentRestoreConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentRestoreConstraints")) });
 const _contentRevisionsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentRevisionsReadConstraints")) });
 const _contentWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
 const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
+	get comments() {
+		return /* @__PURE__ */ optional$1(commentsAccessSchema);
+	},
 	get content() {
 		return /* @__PURE__ */ optional$1(contentAccessSchema);
 	},
@@ -1173,6 +1211,9 @@ const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	},
 	get page() {
 		return /* @__PURE__ */ optional$1(pageAccessSchema);
+	},
+	get redirects() {
+		return /* @__PURE__ */ optional$1(redirectsAccessSchema);
 	},
 	get schema() {
 		return /* @__PURE__ */ optional$1(schemaAccessSchema);
@@ -1210,6 +1251,12 @@ const _mainSchema = /* @__PURE__ */ object$1({
 });
 const _mediaAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#mediaAccess")),
+	get bytesRead() {
+		return /* @__PURE__ */ optional$1(mediaBytesReadConstraintsSchema);
+	},
+	get metadataWrite() {
+		return /* @__PURE__ */ optional$1(mediaMetadataWriteConstraintsSchema);
+	},
 	get read() {
 		return /* @__PURE__ */ optional$1(mediaReadConstraintsSchema);
 	},
@@ -1217,6 +1264,8 @@ const _mediaAccessSchema = /* @__PURE__ */ object$1({
 		return /* @__PURE__ */ optional$1(mediaWriteConstraintsSchema);
 	}
 });
+const _mediaBytesReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#mediaBytesReadConstraints")) });
+const _mediaMetadataWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#mediaMetadataWriteConstraints")) });
 const _mediaReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#mediaReadConstraints")) });
 const _mediaWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#mediaWriteConstraints")) });
 const _networkAccessSchema = /* @__PURE__ */ object$1({
@@ -1244,6 +1293,17 @@ const _provenanceSchema = /* @__PURE__ */ object$1({
 	sourceRepository: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 1024)]),
 	url: /* @__PURE__ */ constrain(/* @__PURE__ */ genericUriString(), [/* @__PURE__ */ stringLength(0, 2048)])
 });
+const _redirectsAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#redirectsAccess")),
+	get read() {
+		return /* @__PURE__ */ optional$1(redirectsReadConstraintsSchema);
+	},
+	get write() {
+		return /* @__PURE__ */ optional$1(redirectsWriteConstraintsSchema);
+	}
+});
+const _redirectsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#redirectsReadConstraints")) });
+const _redirectsWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#redirectsWriteConstraints")) });
 const _schemaAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#schemaAccess")),
 	get read() {
@@ -1255,9 +1315,13 @@ const _taxonomiesAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#taxonomiesAccess")),
 	get read() {
 		return /* @__PURE__ */ optional$1(taxonomiesReadConstraintsSchema);
+	},
+	get write() {
+		return /* @__PURE__ */ optional$1(taxonomiesWriteConstraintsSchema);
 	}
 });
 const _taxonomiesReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#taxonomiesReadConstraints")) });
+const _taxonomiesWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#taxonomiesWriteConstraints")) });
 const _usersAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersAccess")),
 	get read() {
@@ -1265,8 +1329,14 @@ const _usersAccessSchema = /* @__PURE__ */ object$1({
 	}
 });
 const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
+const commentsAccessSchema = _commentsAccessSchema;
+const commentsModerateConstraintsSchema = _commentsModerateConstraintsSchema;
+const commentsReadConstraintsSchema = _commentsReadConstraintsSchema;
 const contentAccessSchema = _contentAccessSchema;
+const contentPolicyConstraintsSchema = _contentPolicyConstraintsSchema;
+const contentPublishConstraintsSchema = _contentPublishConstraintsSchema;
 const contentReadConstraintsSchema = _contentReadConstraintsSchema;
+const contentRestoreConstraintsSchema = _contentRestoreConstraintsSchema;
 const contentRevisionsReadConstraintsSchema = _contentRevisionsReadConstraintsSchema;
 const contentWriteConstraintsSchema = _contentWriteConstraintsSchema;
 const declaredAccessSchema$1 = _declaredAccessSchema;
@@ -1276,6 +1346,8 @@ const emailSendConstraintsSchema = _emailSendConstraintsSchema;
 const emailTransportConstraintsSchema = _emailTransportConstraintsSchema;
 const mainSchema = _mainSchema;
 const mediaAccessSchema = _mediaAccessSchema;
+const mediaBytesReadConstraintsSchema = _mediaBytesReadConstraintsSchema;
+const mediaMetadataWriteConstraintsSchema = _mediaMetadataWriteConstraintsSchema;
 const mediaReadConstraintsSchema = _mediaReadConstraintsSchema;
 const mediaWriteConstraintsSchema = _mediaWriteConstraintsSchema;
 const networkAccessSchema = _networkAccessSchema;
@@ -1283,10 +1355,14 @@ const networkRequestConstraintsSchema = _networkRequestConstraintsSchema;
 const pageAccessSchema = _pageAccessSchema;
 const pageFragmentsConstraintsSchema = _pageFragmentsConstraintsSchema;
 const provenanceSchema = _provenanceSchema;
+const redirectsAccessSchema = _redirectsAccessSchema;
+const redirectsReadConstraintsSchema = _redirectsReadConstraintsSchema;
+const redirectsWriteConstraintsSchema = _redirectsWriteConstraintsSchema;
 const schemaAccessSchema = _schemaAccessSchema;
 const schemaReadConstraintsSchema = _schemaReadConstraintsSchema;
 const taxonomiesAccessSchema = _taxonomiesAccessSchema;
 const taxonomiesReadConstraintsSchema = _taxonomiesReadConstraintsSchema;
+const taxonomiesWriteConstraintsSchema = _taxonomiesWriteConstraintsSchema;
 const usersAccessSchema = _usersAccessSchema;
 const usersReadConstraintsSchema = _usersReadConstraintsSchema;
 
@@ -7788,6 +7864,83 @@ const meta = meta$1;
 
 //#endregion
 //#region ../../packages/plugin-types/dist/index.js
+const PLUGIN_ROUTE_MAX_BODY_BYTES = 8 * 1024 * 1024;
+const PLUGIN_ROUTE_DEFAULT_BODY_BYTES = 1024 * 1024;
+const PLUGIN_ROUTE_MAX_MULTIPART_PART_BYTES = 1024 * 1024;
+const PLUGIN_ROUTE_MAX_DECLARED_HEADERS = 32;
+const PLUGIN_ROUTE_METHODS = [
+	"GET",
+	"HEAD",
+	"POST",
+	"PUT",
+	"PATCH",
+	"DELETE"
+];
+const PLUGIN_ROUTE_BODY_MODES = [
+	"none",
+	"json",
+	"text",
+	"bytes",
+	"form-data"
+];
+const PLUGIN_ROUTE_RESPONSE_MODES = ["json", "raw"];
+const HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const FORBIDDEN_REQUEST_HEADERS = new Set([
+	"authorization",
+	"cookie",
+	"cf-access-client-id",
+	"cf-access-client-secret",
+	"cf-access-jwt-assertion",
+	"proxy-authorization",
+	"set-cookie",
+	"x-emdash-request"
+]);
+const declaredHeadersSchema = array(string().min(1).max(128).regex(HEADER_NAME_PATTERN, "Invalid HTTP header name")).max(PLUGIN_ROUTE_MAX_DECLARED_HEADERS).superRefine((headers, ctx) => {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [index, header] of headers.entries()) {
+		const normalized = header.toLowerCase();
+		if (FORBIDDEN_REQUEST_HEADERS.has(normalized) || normalized.startsWith("cf-access-")) ctx.addIssue({
+			code: "custom",
+			message: `Header "${header}" cannot be exposed to a sandboxed route`,
+			path: [index]
+		});
+		if (seen.has(normalized)) ctx.addIssue({
+			code: "custom",
+			message: `Header "${header}" is declared more than once`,
+			path: [index]
+		});
+		seen.add(normalized);
+	}
+});
+const pluginRouteRequestSchema = object({
+	body: _enum(PLUGIN_ROUTE_BODY_MODES),
+	maxBytes: number().int().positive().max(PLUGIN_ROUTE_MAX_BODY_BYTES).optional(),
+	headers: declaredHeadersSchema.optional()
+}).superRefine((request, ctx) => {
+	if (request.body === "none" && request.maxBytes !== void 0) ctx.addIssue({
+		code: "custom",
+		message: "maxBytes cannot be set when request.body is none",
+		path: ["maxBytes"]
+	});
+});
+const routeOptionsSchema = object({
+	methods: array(_enum(PLUGIN_ROUTE_METHODS)).min(1).max(PLUGIN_ROUTE_METHODS.length).optional(),
+	request: pluginRouteRequestSchema.optional(),
+	response: _enum(PLUGIN_ROUTE_RESPONSE_MODES).optional(),
+	public: boolean().optional(),
+	permission: string().min(1).optional(),
+	cacheControl: string().min(1).optional()
+}).superRefine((route, ctx) => {
+	if (route.methods && new Set(route.methods).size !== route.methods.length) ctx.addIssue({
+		code: "custom",
+		message: "Route methods must not contain duplicates"
+	});
+});
+const routeNameSchema = string().min(1).regex(/^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/, "Route name must be a safe path segment");
+const manifestRouteEntrySchema = routeOptionsSchema.extend({ name: routeNameSchema });
+function isJsonPostRouteContract(route) {
+	return route.response !== "raw" && (route.methods === void 0 || route.methods.includes("POST")) && (route.request === void 0 || route.request.body === "json");
+}
 /**
 * Zod schema for PluginManifest validation
 *
@@ -7807,9 +7960,19 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
+	"comments:read",
+	"comments:moderate",
 	"schema:read",
+	"hooks.content-policy:register",
 	"taxonomies:read",
+	"taxonomies:write",
+	"redirects:read",
+	"redirects:write",
 	"media:read",
+	"media:bytes:read",
+	"media:metadata:write",
 	"media:write",
 	"users:read",
 	"email:send",
@@ -7870,6 +8033,9 @@ const HOOK_NAMES = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
 	"content:afterPublish",
 	"content:afterUnpublish",
 	"content:afterRestore",
@@ -7905,14 +8071,6 @@ const manifestHookEntrySchema = object({
 * Both plain strings and objects are accepted; strings are normalized
 * to `{ name }` objects via `normalizeManifestRoute()`.
 */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-const manifestRouteEntrySchema = object({
-	name: string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: boolean().optional(),
-	permission: string().min(1).optional(),
-	cacheControl: string().min(1).optional()
-});
 const pluginJsonSchema = record(string(), unknown());
 const pluginMcpConfigSchema = object({ tools: array(object({
 	name: string().min(1),
@@ -7992,11 +8150,56 @@ const dashboardWidgetSchema = object({
 	]).optional(),
 	title: string().optional()
 });
+const editorExtensionIdPattern = /^[a-z][a-z0-9_-]*$/;
+const editorCollectionsSchema = array(string().max(63).regex(/^[a-z][a-z0-9_]*$/, "Invalid collection slug")).max(64).refine((collections) => new Set(collections).size === collections.length, { message: "Editor extension collections must be unique" });
+const editorPanelSchema = object({
+	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
+	title: string().min(1).max(128),
+	route: routeNameSchema.max(128),
+	collections: editorCollectionsSchema.optional(),
+	order: number().int().min(-1e3).max(1e3).optional()
+});
+const editorActionConfirmSchema = object({
+	title: string().min(1).max(128),
+	text: string().min(1).max(1024),
+	confirm: string().min(1).max(64),
+	deny: string().min(1).max(64),
+	style: literal("danger").optional()
+});
+const editorActionSchema = object({
+	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
+	label: string().min(1).max(128),
+	route: routeNameSchema.max(128),
+	placement: _enum(["toolbar", "overflow"]),
+	collections: editorCollectionsSchema.optional(),
+	style: _enum(["default", "danger"]).optional(),
+	confirm: editorActionConfirmSchema.optional()
+}).refine((action) => action.style !== "danger" || action.confirm !== void 0, {
+	message: "Danger editor actions require confirmation",
+	path: ["confirm"]
+});
+function uniqueExtensionIds(items, ctx, path) {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [index, item] of (items ?? []).entries()) {
+		if (seen.has(item.id)) ctx.addIssue({
+			code: "custom",
+			message: `Duplicate ${path} id`,
+			path: [
+				path,
+				index,
+				"id"
+			]
+		});
+		seen.add(item.id);
+	}
+}
 const pluginAdminConfigSchema = object({
 	entry: string().optional(),
 	settingsSchema: record(string(), settingFieldSchema).optional(),
 	pages: array(adminPageSchema).optional(),
 	widgets: array(dashboardWidgetSchema).optional(),
+	editorPanels: array(editorPanelSchema).max(32).optional(),
+	editorActions: array(editorActionSchema).max(32).optional(),
 	fieldWidgets: array(object({
 		name: string().min(1),
 		label: string().min(1),
@@ -8007,6 +8210,9 @@ const pluginAdminConfigSchema = object({
 			label: string().optional()
 		}).loose()).optional()
 	})).optional()
+}).superRefine((admin, ctx) => {
+	uniqueExtensionIds(admin.editorPanels, ctx, "editorPanels");
+	uniqueExtensionIds(admin.editorActions, ctx, "editorActions");
 });
 /**
 * An operation's constraint object. Open vocabulary: keys the runtime
@@ -8023,12 +8229,28 @@ const declaredAccessSchema = object({
 	content: object({
 		read: accessConstraints.optional(),
 		revisionsRead: accessConstraints.optional(),
-		write: accessConstraints.optional()
+		write: accessConstraints.optional(),
+		publish: accessConstraints.optional(),
+		restore: accessConstraints.optional(),
+		policy: accessConstraints.optional()
+	}).optional(),
+	comments: object({
+		read: accessConstraints.optional(),
+		moderate: accessConstraints.optional()
 	}).optional(),
 	schema: object({ read: accessConstraints.optional() }).optional(),
-	taxonomies: object({ read: accessConstraints.optional() }).optional(),
+	taxonomies: object({
+		read: accessConstraints.optional(),
+		write: accessConstraints.optional()
+	}).optional(),
+	redirects: object({
+		read: accessConstraints.optional(),
+		write: accessConstraints.optional()
+	}).optional(),
 	media: object({
 		read: accessConstraints.optional(),
+		bytesRead: accessConstraints.optional(),
+		metadataWrite: accessConstraints.optional(),
 		write: accessConstraints.optional()
 	}).optional(),
 	network: object({ request: object({ allowedHosts: array(string()).min(1).optional() }).optional() }).optional(),
@@ -8050,7 +8272,7 @@ const declaredAccessSchema = object({
 * to make them consistent (declaredAccess authoritative when present). Kept a
 * plain object (no `.transform`) because callers `.pick()`/`.extend()` it.
 */
-const pluginManifestSchema = object({
+const pluginManifestBaseSchema = object({
 	id: string().min(1),
 	version: string().min(1),
 	declaredAccess: declaredAccessSchema.optional(),
@@ -8058,9 +8280,94 @@ const pluginManifestSchema = object({
 	allowedHosts: array(string()),
 	storage: record(string(), storageCollectionSchema),
 	hooks: array(union([_enum(HOOK_NAMES), manifestHookEntrySchema])),
-	routes: array(union([string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"), manifestRouteEntrySchema])),
+	routes: array(union([routeNameSchema, manifestRouteEntrySchema])),
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema
+});
+function validateEditorExtensionRoutes(manifest, ctx) {
+	for (const [kind, extensions] of [["editorPanels", manifest.admin.editorPanels], ["editorActions", manifest.admin.editorActions]]) for (const [index, extension] of (extensions ?? []).entries()) {
+		const matches = manifest.routes.filter((route) => (typeof route === "string" ? route : route.name) === extension.route);
+		if (matches.length !== 1) {
+			ctx.addIssue({
+				code: "custom",
+				message: matches.length === 0 ? "Editor extension route is not declared" : "Editor extension route must be declared exactly once",
+				path: [
+					"admin",
+					kind,
+					index,
+					"route"
+				]
+			});
+			continue;
+		}
+		const route = matches[0];
+		if (!route) continue;
+		if (typeof route !== "string" && route.public === true) ctx.addIssue({
+			code: "custom",
+			message: "Editor extension routes must be private",
+			path: [
+				"admin",
+				kind,
+				index,
+				"route"
+			]
+		});
+		if (typeof route !== "string" && !isJsonPostRouteContract(route)) ctx.addIssue({
+			code: "custom",
+			message: "Editor extension routes must accept POST JSON requests and return JSON",
+			path: [
+				"admin",
+				kind,
+				index,
+				"route"
+			]
+		});
+	}
+}
+function validateUniqueRoutes(manifest, ctx) {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [index, route] of manifest.routes.entries()) {
+		const name = typeof route === "string" ? route : route.name;
+		if (seen.has(name)) ctx.addIssue({
+			code: "custom",
+			message: `Route "${name}" must be declared exactly once`,
+			path: ["routes", index]
+		});
+		seen.add(name);
+	}
+}
+function validateMcpToolRoutes(manifest, ctx) {
+	for (const [index, tool] of (manifest.mcp?.tools ?? []).entries()) {
+		const route = manifest.routes.find((candidate) => (typeof candidate === "string" ? candidate : candidate.name) === tool.route);
+		if (typeof route === "string" || route === void 0 || route.public === true || route.permission !== tool.permission || !isJsonPostRouteContract(route)) ctx.addIssue({
+			code: "custom",
+			message: "MCP tools must reference a private POST-compatible JSON route",
+			path: [
+				"mcp",
+				"tools",
+				index,
+				"route"
+			]
+		});
+	}
+}
+function validateBlockKitAdminRoute(manifest, ctx) {
+	if ((manifest.admin.pages?.length ?? 0) === 0 && (manifest.admin.widgets?.length ?? 0) === 0) return;
+	const routeIndex = manifest.routes.findIndex((route) => (typeof route === "string" ? route : route.name) === "admin");
+	if (routeIndex < 0) return;
+	const route = manifest.routes[routeIndex];
+	if (!route) return;
+	if (typeof route !== "string" && (route.public === true || !isJsonPostRouteContract(route))) ctx.addIssue({
+		code: "custom",
+		message: "Block Kit admin routes must be private POST-compatible JSON routes",
+		path: ["routes", routeIndex]
+	});
+}
+const pluginManifestSchema = pluginManifestBaseSchema.superRefine((manifest, ctx) => {
+	validateUniqueRoutes(manifest, ctx);
+	validateEditorExtensionRoutes(manifest, ctx);
+	validateMcpToolRoutes(manifest, ctx);
+	validateBlockKitAdminRoute(manifest, ctx);
 });
 /**
 * Reconcile a parsed manifest's trust contract with its enforcement currency.
@@ -8133,17 +8440,33 @@ function normalizeCapability(cap) {
 function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out = {};
-	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write")) {
+	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write") || caps.has("content:publish")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("content:publish")) (out.content ??= {}).publish = {};
+	if (caps.has("content:restore")) (out.content ??= {}).restore = {};
+	if (caps.has("comments:read") || caps.has("comments:moderate")) {
+		out.comments = { read: {} };
+		if (caps.has("comments:moderate")) out.comments.moderate = {};
+	}
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
-	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
+	if (caps.has("taxonomies:read") || caps.has("taxonomies:write")) {
+		out.taxonomies = { read: {} };
+		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
+	}
+	if (caps.has("redirects:read") || caps.has("redirects:write")) {
+		out.redirects = { read: {} };
+		if (caps.has("redirects:write")) out.redirects.write = {};
+	}
+	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
 	}
+	if (caps.has("media:bytes:read")) (out.media ??= {}).bytesRead = {};
+	if (caps.has("media:metadata:write")) (out.media ??= {}).metadataWrite = {};
 	if (caps.has("network:request:unrestricted")) out.network = { request: {} };
 	else if (caps.has("network:request")) out.network = { request: { allowedHosts: [...allowedHosts] } };
 	if (caps.has("email:send")) (out.email ??= {}).send = {};
@@ -8164,17 +8487,39 @@ function declaredAccessToCapabilities(declaredAccess) {
 	const caps = /* @__PURE__ */ new Set();
 	let allowedHosts = [];
 	if (declaredAccess.content?.read) caps.add("content:read");
-	if (declaredAccess.content?.write) {
-		caps.add("content:write");
-		caps.add("content:read");
-	}
 	if (declaredAccess.content?.revisionsRead) {
 		caps.add("content:revisions:read");
 		caps.add("content:read");
 	}
+	if (declaredAccess.content?.write) {
+		caps.add("content:write");
+		caps.add("content:read");
+	}
+	if (declaredAccess.content?.publish) {
+		caps.add("content:publish");
+		caps.add("content:read");
+	}
+	if (declaredAccess.content?.restore) caps.add("content:restore");
+	if (declaredAccess.comments?.read) caps.add("comments:read");
+	if (declaredAccess.comments?.moderate) {
+		caps.add("comments:moderate");
+		caps.add("comments:read");
+	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
+	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
+	if (declaredAccess.taxonomies?.write) {
+		caps.add("taxonomies:write");
+		caps.add("taxonomies:read");
+	}
+	if (declaredAccess.redirects?.read) caps.add("redirects:read");
+	if (declaredAccess.redirects?.write) {
+		caps.add("redirects:write");
+		caps.add("redirects:read");
+	}
 	if (declaredAccess.media?.read) caps.add("media:read");
+	if (declaredAccess.media?.bytesRead) caps.add("media:bytes:read");
+	if (declaredAccess.media?.metadataWrite) caps.add("media:metadata:write");
 	if (declaredAccess.media?.write) {
 		caps.add("media:write");
 		caps.add("media:read");

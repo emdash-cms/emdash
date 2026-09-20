@@ -76,8 +76,17 @@ describe("VersionSchema", () => {
 describe("CapabilitySchema", () => {
 	it("accepts a current capability", () => {
 		expect(CapabilitySchema.parse("content:read")).toBe("content:read");
+		expect(CapabilitySchema.parse("hooks.content-policy:register")).toBe(
+			"hooks.content-policy:register",
+		);
 		expect(CapabilitySchema.parse("network:request")).toBe("network:request");
 		expect(CapabilitySchema.parse("email:send")).toBe("email:send");
+		expect(CapabilitySchema.parse("comments:read")).toBe("comments:read");
+		expect(CapabilitySchema.parse("comments:moderate")).toBe("comments:moderate");
+		expect(CapabilitySchema.parse("media:bytes:read")).toBe("media:bytes:read");
+		expect(CapabilitySchema.parse("media:metadata:write")).toBe("media:metadata:write");
+		expect(CapabilitySchema.parse("redirects:read")).toBe("redirects:read");
+		expect(CapabilitySchema.parse("redirects:write")).toBe("redirects:write");
 	});
 
 	it("rejects a deprecated capability with a hint at the replacement", () => {

@@ -46,6 +46,66 @@ describe("AdminSchema", () => {
 
 		expect(AdminSchema.parse(admin)).toEqual(admin);
 	});
+
+	it("accepts bounded saved-entry panels and confirmed actions", () => {
+		const admin = {
+			editorPanels: [
+				{ id: "health", title: "Health", route: "entry/health", collections: ["posts"] },
+			],
+			editorActions: [
+				{
+					id: "repair",
+					label: "Repair",
+					route: "entry/repair",
+					placement: "overflow",
+					style: "danger",
+					confirm: { title: "Repair?", text: "Change entry", confirm: "Repair", deny: "Cancel" },
+				},
+			],
+		};
+		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+
+	it.each([
+		[
+			"duplicate panel ids",
+			{
+				editorPanels: [
+					{ id: "health", title: "Health", route: "health" },
+					{ id: "health", title: "Other", route: "other" },
+				],
+			},
+		],
+		[
+			"danger action without confirmation",
+			{
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "repair",
+						placement: "toolbar",
+						style: "danger",
+					},
+				],
+			},
+		],
+		[
+			"duplicate collection filters",
+			{
+				editorPanels: [
+					{
+						id: "health",
+						title: "Health",
+						route: "health",
+						collections: ["posts", "posts"],
+					},
+				],
+			},
+		],
+	])("rejects %s", (_label, admin) => {
+		expect(AdminSchema.safeParse(admin).success).toBe(false);
+	});
 });
 
 describe("LicenseSchema", () => {
@@ -326,6 +386,15 @@ describe("ManifestSchema (full document)", () => {
 	it("accepts the minimal required shape", () => {
 		const result = ManifestSchema.safeParse(minimal);
 		expect(result.success).toBe(true);
+	});
+
+	it("accepts redirect read and write capabilities", () => {
+		expect(
+			ManifestSchema.safeParse({
+				...minimal,
+				capabilities: ["redirects:read", "redirects:write"],
+			}).success,
+		).toBe(true);
 	});
 
 	it("accepts a manifest with a release.artifacts block", () => {

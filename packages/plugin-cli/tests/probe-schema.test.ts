@@ -9,7 +9,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { BuildPipelineError, parseProbedDefault } from "../src/build/pipeline.js";
+import {
+	BuildPipelineError,
+	parseProbedDefault,
+	validateEditorExtensionRoutes,
+} from "../src/build/pipeline.js";
+import type { ResolvedPlugin } from "../src/bundle/types.js";
 
 const PLUGIN_ENTRY = "src/plugin.ts";
 
@@ -71,12 +76,19 @@ describe("parseProbedDefault", () => {
 			expect(result.routes?.ping).toEqual({ handler });
 		});
 
-		it("preserves config-form route fields including public cache metadata", () => {
+		it("preserves config-form route fields including raw HTTP metadata", () => {
 			const handler = (): void => {};
 			const result = parseProbedDefault(PLUGIN_ENTRY, {
 				routes: {
 					ping: {
 						handler,
+						methods: ["POST", "PUT"],
+						request: {
+							body: "form-data",
+							maxBytes: 2048,
+							headers: ["content-type", "x-signature"],
+						},
+						response: "raw",
 						public: true,
 						permission: "content:read",
 						cacheControl: "public, max-age=60",
@@ -85,6 +97,13 @@ describe("parseProbedDefault", () => {
 			});
 			expect(result.routes?.ping).toEqual({
 				handler,
+				methods: ["POST", "PUT"],
+				request: {
+					body: "form-data",
+					maxBytes: 2048,
+					headers: ["content-type", "x-signature"],
+				},
+				response: "raw",
 				public: true,
 				permission: "content:read",
 				cacheControl: "public, max-age=60",
@@ -298,6 +317,28 @@ describe("parseProbedDefault", () => {
 			});
 			expect(error.message).toContain(`route "ping" has invalid public "yes"`);
 		});
+
+		it("rejects unsupported route methods", () => {
+			const error = expectFailure({
+				routes: { ping: { handler: (): void => {}, methods: ["CONNECT"] } },
+			});
+			expect(error.message).toContain(`route "ping" has invalid methods[0] ["CONNECT"]`);
+		});
+
+		it("rejects forbidden request headers", () => {
+			const error = expectFailure({
+				routes: {
+					ping: {
+						handler: (): void => {},
+						request: { body: "json", headers: ["cookie"] },
+					},
+				},
+			});
+			expect(error.message).toContain(
+				`route "ping" has invalid request.headers[0] {"body":"json","headers":["cookie"]}`,
+			);
+			expect(error.message).toContain("cannot be exposed to a sandboxed route");
+		});
 	});
 
 	describe("non-record collection coercion", () => {
@@ -328,5 +369,50 @@ describe("parseProbedDefault", () => {
 			const result = parseProbedDefault(PLUGIN_ENTRY, { routes: 42 });
 			expect(result.routes).toEqual({});
 		});
+	});
+});
+
+describe("validateEditorExtensionRoutes", () => {
+	function pluginWithRoute(route: ResolvedPlugin["routes"][string] | undefined): ResolvedPlugin {
+		return {
+			id: "content-guard",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: {},
+			routes: route ? { health: route } : {},
+			admin: {
+				editorPanels: [{ id: "health", title: "Health", route: "health" }],
+			},
+		};
+	}
+
+	it("accepts an extension backed by a private route", () => {
+		expect(() =>
+			validateEditorExtensionRoutes(pluginWithRoute({ handler: () => undefined })),
+		).not.toThrow();
+	});
+
+	it.each([
+		["missing", undefined],
+		["public", { public: true, handler: () => undefined }],
+		["raw response", { response: "raw", handler: () => undefined }],
+		["GET-only", { methods: ["GET"], handler: () => undefined }],
+		["form-data", { request: { body: "form-data" }, handler: () => undefined }],
+	])("rejects a %s extension route", (_label, route) => {
+		expect(() => validateEditorExtensionRoutes(pluginWithRoute(route))).toThrow(BuildPipelineError);
+	});
+
+	it.each([
+		{ response: "raw" as const },
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (route) => {
+		const plugin = pluginWithRoute(undefined);
+		plugin.routes.admin = { ...route, handler: () => undefined };
+		plugin.admin.pages = [{ path: "/overview", label: "Overview" }];
+		expect(() => validateEditorExtensionRoutes(plugin)).toThrow(BuildPipelineError);
 	});
 });

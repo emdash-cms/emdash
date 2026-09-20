@@ -1,8 +1,12 @@
 import type { CloudflareAIBinding } from "@flue/runtime/cloudflare";
 
 import { utf8ByteLength } from "./byte-budget.js";
+import { REVIEW_COMPACTION_TRIGGER_TOKENS } from "./review-compaction.js";
 
 export const MAX_AI_PAYLOAD_BYTES = 1024 * 1024;
+export const COMPACT_AI_PAYLOAD_BYTES = 704 * 1024;
+export const FLUE_COMPACTION_SYSTEM_PROMPT =
+	"You are a context summarization assistant. Your task is to read a conversation between a user and an AI coding assistant, then produce a structured summary following the exact format specified.\n\nDo NOT continue the conversation. Do NOT respond to any questions in the conversation. ONLY output the structured summary.";
 
 export interface AiPayloadSummary {
 	readonly totalBytes: number;
@@ -38,18 +42,48 @@ export function createAiPayloadGuard(
 	binding: CloudflareAIBinding,
 	maxBytes = MAX_AI_PAYLOAD_BYTES,
 	report: AiPayloadReporter = reportAiPayload,
+	compactBytes = Math.min(COMPACT_AI_PAYLOAD_BYTES, maxBytes),
 ): CloudflareAIBinding {
 	return {
 		async run(modelId, inputs, options) {
 			const summary = summarizeAiPayload(inputs);
-			const rejected = summary.totalBytes > maxBytes;
+			const tooLarge = summary.totalBytes > maxBytes;
+			const compactionRequired = !isCompactionPayload(inputs) && summary.totalBytes > compactBytes;
+			const rejected = tooLarge || compactionRequired;
 			try {
 				report(summary, maxBytes, rejected);
 			} catch {}
-			if (rejected) throw new ModelPayloadTooLargeError(summary.totalBytes, maxBytes);
+			if (tooLarge) throw new ModelPayloadTooLargeError(summary.totalBytes, maxBytes);
+			if (compactionRequired) return compactionRequiredResponse(modelId);
 			return binding.run(modelId, inputs, options);
 		},
 	};
+}
+
+function isCompactionPayload(inputs: unknown): boolean {
+	if (!isRecord(inputs) || !Array.isArray(inputs.messages)) return false;
+	return inputs.messages.some(
+		(message) =>
+			isRecord(message) &&
+			message.role === "system" &&
+			typeof message.content === "string" &&
+			message.content === FLUE_COMPACTION_SYSTEM_PROMPT,
+	);
+}
+
+function compactionRequiredResponse(modelId: string): Response {
+	const chunk = {
+		model: modelId,
+		choices: [{ delta: {}, finish_reason: "stop" }],
+		usage: {
+			prompt_tokens: REVIEW_COMPACTION_TRIGGER_TOKENS + 1,
+			completion_tokens: 0,
+			total_tokens: REVIEW_COMPACTION_TRIGGER_TOKENS + 1,
+		},
+	};
+	return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, {
+		headers: { "content-type": "text/event-stream" },
+	});
 }
 
 export function summarizeAiPayload(inputs: unknown): AiPayloadSummary {

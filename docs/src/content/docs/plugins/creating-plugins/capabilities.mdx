@@ -32,9 +32,19 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `content:read`                      | `ctx.content.get()`, `ctx.content.list()`, `ctx.content.getTranslations()`, `ctx.content.getPublicUrl()` |
 | `content:revisions:read`            | `ctx.content.listRevisions()`, `ctx.content.getRevision()` (implies `content:read`) |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `content:publish`                   | Versioned publish, unpublish, schedule, and unschedule operations (implies `content:read`) |
+| `content:restore`                   | Read and restore trashed content                                                   |
+| `comments:read`                     | `ctx.comments.get()`, `ctx.comments.list()`, `ctx.comments.count()` and comment personal data |
+| `comments:moderate`                 | `ctx.comments.setStatus()` with expected-status concurrency control (implies `comments:read`) |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
+| `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
+| `taxonomies:write`                  | `ctx.taxonomies.createTerm()`, `ctx.taxonomies.addEntryTerms()`, `ctx.taxonomies.removeEntryTerms()` (implies `taxonomies:read`) |
+| `redirects:read`                    | `ctx.redirects.list()`, `ctx.redirects.get()`                                |
+| `redirects:write`                   | `ctx.redirects.create()`, `ctx.redirects.update()`, `ctx.redirects.delete()` (implies `redirects:read`) |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
+| `media:bytes:read`                  | `ctx.media.readBytes()` for ready media, with a bounded buffered response         |
+| `media:metadata:write`              | `ctx.media.updateMetadata()` for alt text, captions, and focal points             |
 | `media:write`                       | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` (implies `media:read`) |
 | `network:request`                   | `ctx.http.fetch()` — restricted to `allowedHosts`                                 |
 | `network:request:unrestricted`      | `ctx.http.fetch()` with no host restriction (for user-configured URLs only)       |
@@ -46,8 +56,10 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 The following rules affect which capabilities a plugin needs:
 
-- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
-- **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
+- **Implications.** `content:write`, `content:revisions:read`, and `content:publish` automatically imply `content:read`; `comments:moderate` implies `comments:read`; `taxonomies:write` implies `taxonomies:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Media authorities are separate.** `media:read`, `media:bytes:read`, and `media:metadata:write` do not imply one another. Declare each operation the plugin uses. The existing `media:write` capability continues to imply `media:read` for compatibility.
+- **Taxonomies are separate from content.** Taxonomy capabilities do not grant `content:read` or `content:write`. Declare the matching content capability if the plugin also reads or edits entry fields.
+- **Publication policy is separate from content access.** `hooks.content-policy:register` lets a plugin inspect and reject publication state changes through policy hook events. It does not provide `ctx.content` or grant content editing or publication actions.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
 
@@ -84,6 +96,116 @@ const translatedPost = await ctx.content.create(
 The source must be an active entry in the same collection. The new entry joins its translation group, inherits its byline credits and taxonomy assignments, and starts with the source values for fields marked as non-translatable. A value supplied for a non-translatable field does not replace the source value during translation creation. Content validation and save hooks run through the same runtime path as other content creates. EmDash does not re-enter the creating plugin's own `content:afterSave` hook, and content created from inside a save hook does not run save hooks again.
 
 Each translation group can contain one active entry per locale. Creating a second entry for the same group and locale throws a `CONFLICT` error. A missing source throws `NOT_FOUND`, an invalid or unconfigured locale throws `VALIDATION_ERROR`, and a save hook can stop the create with `SAVE_REJECTED`.
+## Change publication state
+
+Declare `content:publish` to publish, unpublish, schedule, or unschedule an entry. Each action requires the opaque `_rev` returned by `getVersioned()` or the preceding action. EmDash routes these methods through the same policy hooks, revision promotion, locale synchronization, redirects, media-usage updates, cache invalidation, and after-hooks as REST and MCP actions.
+
+The following route publishes the current draft only when the entry has not changed since it was read:
+
+```typescript title="src/plugin.ts"
+const current = await ctx.content!.getVersioned!("posts", postId);
+if (!current) return { ok: false, error: "NOT_FOUND" };
+
+try {
+	const published = await ctx.content!.publish!("posts", postId, {
+		_rev: current._rev,
+	});
+	return { ok: true, content: published.item, _rev: published._rev };
+} catch (error) {
+	return { ok: false, error: "PUBLISH_FAILED" };
+}
+```
+
+`schedule()` accepts `{ scheduledAt, _rev }`; the other publication methods accept `{ _rev }`. These methods do not accept a `publishedAt` override.
+
+Declare `content:restore` separately to read and restore trashed entries. `getTrashedVersioned()` returns `null` for a live or missing entry. Pass its `_rev` to `restore()` so a concurrent change returns a conflict instead of restoring stale state.
+
+### Creating and assigning taxonomy terms
+
+`taxonomies:write` lets a plugin create terms and apply assignment deltas. Pass term row IDs or translation-group IDs. Term slugs are not accepted because they are scoped by taxonomy and locale.
+
+The following example creates a child category and assigns it without replacing the entry's other categories:
+
+```ts
+const releaseNotes = await ctx.taxonomies!.createTerm!("category", {
+	label: "Release notes",
+	parentId: productUpdatesId,
+	locale: "en",
+});
+
+await ctx.taxonomies!.addEntryTerms!("posts", postId, "category", [releaseNotes.id]);
+```
+
+`addEntryTerms()` and `removeEntryTerms()` are idempotent set deltas. Concurrent additions preserve every assignment. EmDash verifies that the taxonomy is attached to the collection, the entry exists, and each term belongs to the named taxonomy. `createTerm()` rejects `parentId` when the taxonomy is not hierarchical instead of ignoring it. Creating a translated term with `translationOf` joins the source term's translation group; the source must belong to the same taxonomy, and the group can contain only one term per locale.
+
+Taxonomy definition creation, collection attachment, replacement, term updates, and term deletion are not available through `taxonomies:write`.
+
+### Reading media metadata and bytes
+
+`media:read` returns ready media records with dimensions, alt text, caption, focal point, blurhash, dominant color, folder ID, and an authenticated ID-based asset URL. Authenticated callers with the `media:read` permission can follow the URL; logged-out requests are rejected before the route reads the media record. The metadata does not return the storage key, author identity, content hash, or file bytes. The content hash is available only from `readBytes()` because it can reveal whether the site stores a known file.
+
+Inside a hook or route handler, the following call reads at most 2 MiB from one ready media item:
+
+```ts title="src/plugin.ts"
+const file = await ctx.media!.readBytes!(mediaId, {
+	maxBytes: 2 * 1024 * 1024,
+});
+
+const digest = file.contentHash;
+const bytes = file.bytes;
+```
+
+`readBytes()` buffers the result. It defaults to 10 MiB when `maxBytes` is omitted and rejects values above the 16 MiB host maximum. EmDash counts bytes while consuming the storage stream, so an incorrect stored size cannot bypass the requested limit. Missing, pending, and failed media are rejected without revealing their storage location.
+
+The following update changes the accessibility text and focal point without granting upload, replacement, or deletion authority:
+
+```ts title="src/plugin.ts"
+const updated = await ctx.media!.updateMetadata!(mediaId, {
+	alt: "Two people reviewing a printed proof",
+	focalX: 0.42,
+	focalY: 0.36,
+});
+```
+
+Provide both focal coordinates as numbers from `0` to `1`, or set both to `null`. Concurrent patches to different metadata fields do not replace one another.
+
+### Managing redirects safely
+
+`redirects:read` provides cursor-paginated rule listing and versioned single-rule reads. Add `redirects:write` when the plugin creates, updates, or deletes rules. Write access can change where visitors are sent.
+
+Pass the `_rev` returned by `get()`, `create()`, or `update()` back unchanged when updating or deleting a rule. EmDash rejects a stale revision so the plugin can re-read the rule and recompute its change instead of overwriting concurrent work.
+
+The revision tracks redirect configuration. Visitor hit counting does not make a revision stale.
+
+The following example updates a redirect only if it has not changed since the read:
+
+```ts title="src/plugin.ts"
+const current = await ctx.redirects!.get(redirectId);
+if (current) {
+	await ctx.redirects!.update!(redirectId, {
+		destination: "/guides/current",
+		_rev: current._rev,
+	});
+}
+```
+
+Create operations validate path patterns, terminal `410` and `451` rules, duplicate sources, self-loops, and multi-hop loops with the same rules as the EmDash redirect API. Updates apply loop validation when the source or destination changes. An enabled-only update can reactivate a pre-existing loop, which the Redirects page reports. The `auto` marker belongs to redirects created from host content changes; plugin input cannot set it.
+
+### Reading and moderating comments
+
+`comments:read` grants access to non-trashed comments. Results include the author name and email address, comment body, pseudonymous IP hash, user agent, moderation metadata, status, target content IDs, and timestamps. They exclude the linked EmDash user-account ID. Declare `users:read` separately when a plugin also needs to look up user accounts.
+
+`list()` returns newest comments first. It accepts `status`, `collection`, and `contentId` filters, a cursor, and a limit from 1 to 100. The default limit is 50. `count()` accepts the same filters without pagination.
+
+The following route approves a comment only if it is still pending:
+
+```ts title="src/plugin.ts"
+const comment = await ctx.comments!.setStatus!(commentId, "approved", {
+	expectedStatus: "pending",
+});
+```
+
+If another moderator changed the status after the plugin read it, `setStatus()` rejects with `COMMENT_STATUS_CONFLICT`. Read the comment again and recompute the decision before retrying. A request that overlaps an earlier transition before its status is visible rejects with `COMMENT_MODERATION_IN_PROGRESS`; wait for that transition to finish, then read the current comment before retrying. A successful transition runs `comment:afterModerate` once with `origin: { source: "plugin", pluginId }`. Approval sends the same core author notification as an administrator approval. Setting a comment to its current status is a no-op and does not run the hook or send another notification.
 
 ## Network host allowlists
 
@@ -101,13 +223,15 @@ The bridge checks the request URL's host against the allowlist before forwarding
 
 `network:request:unrestricted` skips the manifest host allowlist. The sandbox bridge still accepts only HTTP and HTTPS, blocks known internal hosts and private literal addresses, rechecks every redirect, and removes credential headers when a redirect crosses origins. Use unrestricted access only when an operator supplies the destination at runtime. For fixed destinations, declare `network:request` with explicit hosts so the consent dialog names them.
 
+`ctx.http.fetch()` buffers request and response bodies and limits each decoded body to 8 MiB. The returned WHATWG `Response` preserves binary bytes, status text, headers, final URL, redirect state, and `clone()` behavior in both sandbox runners. Read binary data with `arrayBuffer()` or `blob()`.
+
 ## What the sandbox enforces
 
 When a sandbox runner is active, the runtime enforces:
 
 <Steps>
 
-1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.taxonomies`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
+1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.comments`, `ctx.schema`, `ctx.taxonomies`, `ctx.redirects`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
 
 2. **Storage and KV scoping.** Every storage and KV operation is scoped to the runtime plugin ID. A plugin can't read another plugin's KV or storage collections, and it can access only collections declared in its manifest.
 

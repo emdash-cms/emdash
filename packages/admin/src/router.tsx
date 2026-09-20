@@ -1591,6 +1591,13 @@ function ContentEditPage() {
 		},
 		[id],
 	);
+	const handlePluginEntryRefresh = React.useCallback(async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
+			queryClient.invalidateQueries({ queryKey: ["translations", collection, id] }),
+		]);
+	}, [collection, id, queryClient]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -1655,6 +1662,7 @@ function ContentEditPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
+			onEntryRefresh={handlePluginEntryRefresh}
 			readOnly={entryLock.readOnly}
 			notice={
 				<EntryLockNotice

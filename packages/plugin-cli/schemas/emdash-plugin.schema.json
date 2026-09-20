@@ -33,34 +33,34 @@
 			"$ref": "#/$defs/__schema16"
 		},
 		"author": {
-			"$ref": "#/$defs/__schema32"
-		},
-		"authors": {
-			"$ref": "#/$defs/__schema37"
-		},
-		"security": {
-			"$ref": "#/$defs/__schema38"
-		},
-		"securityContacts": {
-			"$ref": "#/$defs/__schema42"
-		},
-		"name": {
-			"$ref": "#/$defs/__schema43"
-		},
-		"description": {
-			"$ref": "#/$defs/__schema44"
-		},
-		"keywords": {
 			"$ref": "#/$defs/__schema45"
 		},
-		"sections": {
-			"$ref": "#/$defs/__schema47"
+		"authors": {
+			"$ref": "#/$defs/__schema50"
 		},
-		"repo": {
+		"security": {
+			"$ref": "#/$defs/__schema51"
+		},
+		"securityContacts": {
+			"$ref": "#/$defs/__schema55"
+		},
+		"name": {
+			"$ref": "#/$defs/__schema56"
+		},
+		"description": {
 			"$ref": "#/$defs/__schema57"
 		},
-		"release": {
+		"keywords": {
 			"$ref": "#/$defs/__schema58"
+		},
+		"sections": {
+			"$ref": "#/$defs/__schema60"
+		},
+		"repo": {
+			"$ref": "#/$defs/__schema70"
+		},
+		"release": {
+			"$ref": "#/$defs/__schema71"
 		}
 	},
 	"required": [
@@ -251,11 +251,17 @@
 				},
 				"fieldWidgets": {
 					"$ref": "#/$defs/__schema30"
+				},
+				"editorPanels": {
+					"$ref": "#/$defs/__schema32"
+				},
+				"editorActions": {
+					"$ref": "#/$defs/__schema38"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Admin surface",
-			"description": "Pages and widgets the plugin exposes in the admin UI. The plugin's `admin` route handler renders Block Kit content for each path / widget id at runtime."
+			"description": "Pages, widgets, and saved-entry extensions the plugin exposes in the admin UI."
 		},
 		"__schema17": {
 			"maxItems": 32,
@@ -629,19 +635,178 @@
 			"additionalProperties": false
 		},
 		"__schema32": {
-			"$ref": "#/$defs/__schema33"
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema33"
+			}
 		},
 		"__schema33": {
 			"type": "object",
 			"properties": {
-				"name": {
+				"id": {
 					"$ref": "#/$defs/__schema34"
 				},
-				"url": {
+				"title": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"route": {
 					"$ref": "#/$defs/__schema35"
 				},
-				"email": {
+				"collections": {
 					"$ref": "#/$defs/__schema36"
+				},
+				"order": {
+					"type": "integer",
+					"minimum": -1000,
+					"maximum": 1000
+				}
+			},
+			"required": [
+				"id",
+				"title",
+				"route"
+			],
+			"additionalProperties": false
+		},
+		"__schema34": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64,
+			"pattern": "^[a-z][a-z0-9_-]*$"
+		},
+		"__schema35": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 128,
+			"pattern": "^[a-zA-Z0-9][a-zA-Z0-9_\\-/]*$"
+		},
+		"__schema36": {
+			"maxItems": 64,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema37"
+			}
+		},
+		"__schema37": {
+			"type": "string",
+			"maxLength": 63,
+			"pattern": "^[a-z][a-z0-9_]*$"
+		},
+		"__schema38": {
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema39"
+			}
+		},
+		"__schema39": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"$ref": "#/$defs/__schema34"
+				},
+				"label": {
+					"$ref": "#/$defs/__schema40"
+				},
+				"route": {
+					"$ref": "#/$defs/__schema35"
+				},
+				"placement": {
+					"$ref": "#/$defs/__schema41"
+				},
+				"collections": {
+					"$ref": "#/$defs/__schema42"
+				},
+				"style": {
+					"$ref": "#/$defs/__schema43"
+				},
+				"confirm": {
+					"$ref": "#/$defs/__schema44"
+				}
+			},
+			"required": [
+				"id",
+				"label",
+				"route",
+				"placement"
+			],
+			"additionalProperties": false
+		},
+		"__schema40": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 128
+		},
+		"__schema41": {
+			"type": "string",
+			"enum": [
+				"toolbar",
+				"overflow"
+			]
+		},
+		"__schema42": {
+			"$ref": "#/$defs/__schema36"
+		},
+		"__schema43": {
+			"type": "string",
+			"enum": [
+				"default",
+				"danger"
+			]
+		},
+		"__schema44": {
+			"type": "object",
+			"properties": {
+				"title": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"text": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 1024
+				},
+				"confirm": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"deny": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"style": {
+					"type": "string",
+					"const": "danger"
+				}
+			},
+			"required": [
+				"title",
+				"text",
+				"confirm",
+				"deny"
+			],
+			"additionalProperties": false
+		},
+		"__schema45": {
+			"$ref": "#/$defs/__schema46"
+		},
+		"__schema46": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"$ref": "#/$defs/__schema47"
+				},
+				"url": {
+					"$ref": "#/$defs/__schema48"
+				},
+				"email": {
+					"$ref": "#/$defs/__schema49"
 				}
 			},
 			"required": [
@@ -651,150 +816,150 @@
 			"title": "Author",
 			"description": "A single author entry. Mirrors the lexicon's author shape."
 		},
-		"__schema34": {
+		"__schema47": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 256,
 			"description": "Display name."
 		},
-		"__schema35": {
+		"__schema48": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
 			"description": "Author's homepage or profile URL. Either this or `email` is recommended."
 		},
-		"__schema36": {
+		"__schema49": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
 			"description": "Author's contact email. Either this or `url` is recommended."
 		},
-		"__schema37": {
+		"__schema50": {
 			"minItems": 1,
 			"maxItems": 32,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema33"
+				"$ref": "#/$defs/__schema46"
 			},
 			"title": "Authors (multiple)",
 			"description": "Multi-author form. Mutually exclusive with `author`. Use the singular `author` if there is only one."
 		},
-		"__schema38": {
-			"$ref": "#/$defs/__schema39"
+		"__schema51": {
+			"$ref": "#/$defs/__schema52"
 		},
-		"__schema39": {
+		"__schema52": {
 			"type": "object",
 			"properties": {
 				"url": {
-					"$ref": "#/$defs/__schema40"
+					"$ref": "#/$defs/__schema53"
 				},
 				"email": {
-					"$ref": "#/$defs/__schema41"
+					"$ref": "#/$defs/__schema54"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Security contact",
 			"description": "A single security contact. At least one of `url` or `email` must be present."
 		},
-		"__schema40": {
+		"__schema53": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
 			"description": "Security disclosure URL (e.g. a security.txt or vulnerability-reporting page). Either this or `email` is required."
 		},
-		"__schema41": {
+		"__schema54": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
 			"description": "Security contact email. Either this or `url` is required."
 		},
-		"__schema42": {
+		"__schema55": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema39"
+				"$ref": "#/$defs/__schema52"
 			},
 			"title": "Security contacts (multiple)",
 			"description": "Multi-contact form. Mutually exclusive with `security`. Use the singular `security` if there is only one."
 		},
-		"__schema43": {
+		"__schema56": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Display name",
 			"description": "Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted."
 		},
-		"__schema44": {
+		"__schema57": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Description",
 			"description": "Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists."
 		},
-		"__schema45": {
+		"__schema58": {
 			"maxItems": 5,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema46"
+				"$ref": "#/$defs/__schema59"
 			},
 			"title": "Keywords",
 			"description": "Search keywords (<= 5 entries, FAIR convention)."
 		},
-		"__schema46": {
+		"__schema59": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 128
 		},
-		"__schema47": {
+		"__schema60": {
 			"type": "object",
 			"properties": {
 				"description": {
-					"$ref": "#/$defs/__schema48"
+					"$ref": "#/$defs/__schema61"
 				},
 				"installation": {
-					"$ref": "#/$defs/__schema53"
+					"$ref": "#/$defs/__schema66"
 				},
 				"faq": {
-					"$ref": "#/$defs/__schema54"
+					"$ref": "#/$defs/__schema67"
 				},
 				"changelog": {
-					"$ref": "#/$defs/__schema55"
+					"$ref": "#/$defs/__schema68"
 				},
 				"security": {
-					"$ref": "#/$defs/__schema56"
+					"$ref": "#/$defs/__schema69"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Profile sections",
 			"description": "Long-form package documentation (description / installation / faq / changelog / security). Each value is CommonMark Markdown (inline or a `{ file }` ref) capped at 20000 bytes / 2000 graphemes. Rendered on the package's registry page."
 		},
-		"__schema48": {
-			"$ref": "#/$defs/__schema49"
+		"__schema61": {
+			"$ref": "#/$defs/__schema62"
 		},
-		"__schema49": {
+		"__schema62": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/__schema50"
+					"$ref": "#/$defs/__schema63"
 				},
 				{
-					"$ref": "#/$defs/__schema51"
+					"$ref": "#/$defs/__schema64"
 				}
 			],
 			"title": "Section value",
 			"description": "Either inline CommonMark Markdown or a `{ file }` reference to a sibling Markdown file."
 		},
-		"__schema50": {
+		"__schema63": {
 			"type": "string",
 			"description": "Inline CommonMark Markdown for this section. Capped at 20000 bytes / 2000 graphemes."
 		},
-		"__schema51": {
+		"__schema64": {
 			"type": "object",
 			"properties": {
 				"file": {
-					"$ref": "#/$defs/__schema52"
+					"$ref": "#/$defs/__schema65"
 				}
 			},
 			"required": [
@@ -804,25 +969,25 @@
 			"title": "Section file reference",
 			"description": "Loads the section's Markdown from a sibling file instead of inlining it in the manifest."
 		},
-		"__schema52": {
+		"__schema65": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"description": "Path to a CommonMark Markdown file, relative to the manifest. Its content is read inline into the section at publish time."
 		},
-		"__schema53": {
-			"$ref": "#/$defs/__schema49"
+		"__schema66": {
+			"$ref": "#/$defs/__schema62"
 		},
-		"__schema54": {
-			"$ref": "#/$defs/__schema49"
+		"__schema67": {
+			"$ref": "#/$defs/__schema62"
 		},
-		"__schema55": {
-			"$ref": "#/$defs/__schema49"
+		"__schema68": {
+			"$ref": "#/$defs/__schema62"
 		},
-		"__schema56": {
-			"$ref": "#/$defs/__schema49"
+		"__schema69": {
+			"$ref": "#/$defs/__schema62"
 		},
-		"__schema57": {
+		"__schema70": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
@@ -833,27 +998,27 @@
 				"https://github.com/emdash-cms/plugin-gallery"
 			]
 		},
-		"__schema58": {
+		"__schema71": {
 			"type": "object",
 			"properties": {
 				"requires": {
-					"$ref": "#/$defs/__schema59"
+					"$ref": "#/$defs/__schema72"
 				},
 				"artifacts": {
-					"$ref": "#/$defs/__schema62"
+					"$ref": "#/$defs/__schema75"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Release",
 			"description": "Per-release fields: environment constraints (`requires`) and media artifacts (icon / screenshot / banner)."
 		},
-		"__schema59": {
+		"__schema72": {
 			"type": "object",
 			"propertyNames": {
-				"$ref": "#/$defs/__schema60"
+				"$ref": "#/$defs/__schema73"
 			},
 			"additionalProperties": {
-				"$ref": "#/$defs/__schema61"
+				"$ref": "#/$defs/__schema74"
 			},
 			"title": "Environment requirements",
 			"description": "Host environment constraints for this release, keyed by `env:*` (e.g. \"env:astro\", \"env:emdash\") with semver-range values. EmDash refuses to install a release whose constraints the host does not satisfy.",
@@ -864,41 +1029,41 @@
 				}
 			]
 		},
-		"__schema60": {
+		"__schema73": {
 			"type": "string"
 		},
-		"__schema61": {
+		"__schema74": {
 			"type": "string",
 			"minLength": 1
 		},
-		"__schema62": {
+		"__schema75": {
 			"type": "object",
 			"properties": {
 				"icon": {
-					"$ref": "#/$defs/__schema63"
+					"$ref": "#/$defs/__schema76"
 				},
 				"banner": {
-					"$ref": "#/$defs/__schema67"
+					"$ref": "#/$defs/__schema80"
 				},
 				"screenshots": {
-					"$ref": "#/$defs/__schema68"
+					"$ref": "#/$defs/__schema81"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Artifacts",
 			"description": "Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array."
 		},
-		"__schema63": {
-			"$ref": "#/$defs/__schema64"
+		"__schema76": {
+			"$ref": "#/$defs/__schema77"
 		},
-		"__schema64": {
+		"__schema77": {
 			"type": "object",
 			"properties": {
 				"file": {
-					"$ref": "#/$defs/__schema65"
+					"$ref": "#/$defs/__schema78"
 				},
 				"lang": {
-					"$ref": "#/$defs/__schema66"
+					"$ref": "#/$defs/__schema79"
 				}
 			},
 			"required": [
@@ -908,13 +1073,13 @@
 			"title": "Artifact file reference",
 			"description": "A PNG, JPEG, or WebP file published as an icon, screenshot, or banner."
 		},
-		"__schema65": {
+		"__schema78": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"description": "Path to the image file, relative to the manifest. Resolved, hashed, measured, and uploaded at publish time."
 		},
-		"__schema66": {
+		"__schema79": {
 			"type": "string",
 			"minLength": 2,
 			"maxLength": 64,
@@ -924,15 +1089,15 @@
 				"pt-BR"
 			]
 		},
-		"__schema67": {
-			"$ref": "#/$defs/__schema64"
+		"__schema80": {
+			"$ref": "#/$defs/__schema77"
 		},
-		"__schema68": {
+		"__schema81": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema64"
+				"$ref": "#/$defs/__schema77"
 			},
 			"title": "Screenshots",
 			"description": "Screenshot gallery for the plugin's detail page (<= 8 entries)."

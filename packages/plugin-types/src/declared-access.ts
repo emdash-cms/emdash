@@ -11,18 +11,31 @@ export type CanonicalJsonValue =
 export type CanonicalAccessConstraints = Readonly<Record<string, CanonicalJsonValue>>;
 
 export interface CanonicalDeclaredAccess {
+	readonly comments?: Readonly<{
+		moderate?: CanonicalAccessConstraints;
+		read?: CanonicalAccessConstraints;
+	}>;
 	readonly content?: Readonly<{
+		policy?: CanonicalAccessConstraints;
+		publish?: CanonicalAccessConstraints;
 		read?: CanonicalAccessConstraints;
 		revisionsRead?: CanonicalAccessConstraints;
+		restore?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
 	readonly schema?: Readonly<{ read?: CanonicalAccessConstraints }>;
+	readonly taxonomies?: Readonly<{
+		read?: CanonicalAccessConstraints;
+		write?: CanonicalAccessConstraints;
+	}>;
 	readonly email?: Readonly<{
 		events?: CanonicalAccessConstraints;
 		send?: CanonicalAccessConstraints;
 		transport?: CanonicalAccessConstraints;
 	}>;
 	readonly media?: Readonly<{
+		bytesRead?: CanonicalAccessConstraints;
+		metadataWrite?: CanonicalAccessConstraints;
 		read?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
@@ -30,6 +43,10 @@ export interface CanonicalDeclaredAccess {
 		request?: CanonicalAccessConstraints & { readonly allowedHosts?: readonly string[] };
 	}>;
 	readonly page?: Readonly<{ fragments?: CanonicalAccessConstraints }>;
+	readonly redirects?: Readonly<{
+		read?: CanonicalAccessConstraints;
+		write?: CanonicalAccessConstraints;
+	}>;
 	readonly users?: Readonly<{ read?: CanonicalAccessConstraints }>;
 }
 
@@ -174,11 +191,19 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 			}
 			defineDataProperty(normalizedOperations, operation, Object.freeze(normalizedConstraints));
 		}
-		if (
-			(category === "content" || category === "media") &&
-			Object.hasOwn(normalizedOperations, "write")
-		) {
+		if (category === "comments" && Object.hasOwn(normalizedOperations, "moderate")) {
 			normalizedOperations.read ??= Object.freeze({});
+		}
+		if (
+			(((category === "content" ||
+				category === "media" ||
+				category === "redirects" ||
+				category === "taxonomies") &&
+				Object.hasOwn(normalizedOperations, "write")) ||
+				(category === "content" && Object.hasOwn(normalizedOperations, "publish"))) &&
+			!Object.hasOwn(normalizedOperations, "read")
+		) {
+			normalizedOperations.read = Object.freeze({});
 		}
 		if (category === "content" && Object.hasOwn(normalizedOperations, "revisionsRead")) {
 			normalizedOperations.read ??= Object.freeze({});

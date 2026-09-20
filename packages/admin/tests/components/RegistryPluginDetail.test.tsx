@@ -149,6 +149,7 @@ function verificationPreview(): RegistryInstallResult {
 		capabilities: ["users:read"],
 		declaredAccess: { users: { read: {} } },
 		mcpTools: [],
+		publicRoutes: ["webhook"],
 		verification: {
 			profileCid: "bafy-profile",
 			releaseCid: "bafy-release",
@@ -423,11 +424,14 @@ describe("RegistryPluginDetail independent install consent", () => {
 		});
 		await expect.element(screen.getByText("Independent verification")).toBeInTheDocument();
 		await expect.element(screen.getByText("Read user accounts")).toBeInTheDocument();
+		await expect.element(screen.getByText("Public routes")).toBeInTheDocument();
+		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByText("bafy-profile")).toBeInTheDocument();
 		await expect.element(screen.getByText("bafy-release")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Accept & Install" }).click();
 		expect(mockInstallRegistryPlugin).toHaveBeenCalledWith(
 			expect.objectContaining({
+				acknowledgedPublicRoutes: ["webhook"],
 				acknowledgedProfileCid: "bafy-profile",
 				acknowledgedReleaseCid: "bafy-release",
 			}),

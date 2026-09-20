@@ -7,6 +7,8 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 Use a JSON backup when you need an offline copy of selected content data. EmDash cannot import that file. A recovery plan needs a raw database backup or point-in-time recovery and a separate copy of media binaries.
 
+If the site stores encrypted plugin settings, keep the complete `EMDASH_ENCRYPTION_KEY` rotation list in a separate secret-manager backup. The key is never stored in the database, D1 Time Travel, a SQL dump, or a JSON export.
+
 ## What's in a backup
 
 A JSON backup includes:
@@ -106,7 +108,7 @@ If recovery is required, stop writes to the site and inspect the available resto
 npx wrangler d1 time-travel restore my-database --timestamp=2026-07-08T13:00:00Z
 ```
 
-Time Travel restores the entire database, including content, users, settings, plugin data, and migration records. It does not restore R2 media objects. After the command completes, deploy the application version that matches the restored database, reopen traffic, and verify sign-in, content reads, schema changes, and a write.
+Time Travel restores the entire database, including content, users, settings, plugin data, and migration records. It does not restore R2 media objects or `EMDASH_ENCRYPTION_KEY`. Before testing plugin integrations, restore every encryption key referenced by the recovered plugin settings. After the command completes, deploy the application version that matches the restored database, reopen traffic, and verify sign-in, content reads, schema changes, an encrypted plugin setting, and a write.
 
 See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for details.
 
@@ -118,7 +120,7 @@ For a complete SQL dump of the raw database (including users and auth tables), u
 npx wrangler d1 export my-database --remote --output=backup.sql
 ```
 
-Keep the SQL file with the matching application version and the media backup created at the same time. Test recovery by importing the dump into a newly provisioned empty D1 database, updating a non-production binding to that database, and verifying the site.
+Keep the SQL file with the matching application version, the media backup created at the same time, and a separately stored copy of the `EMDASH_ENCRYPTION_KEY` rotation list. Test recovery by importing the dump into a newly provisioned empty D1 database, restoring the runtime keys, updating a non-production binding to that database, and verifying the site.
 
 <Aside type="danger">
 	Do not execute a full dump against the existing production database. The dump contains schema and row creation statements that can conflict with existing objects or leave a mixed state. For recovery, create an empty D1 database, import the dump there, verify it, then change the production binding in a controlled deployment.
@@ -138,7 +140,7 @@ For an offline SQLite backup, stop every process that writes the database and co
 sqlite3 emdash.db ".backup backup.db"
 ```
 
-Back up the local upload directory or S3-compatible bucket separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore any required media objects, and start the matching application version. Verify sign-in, public content, an edit, and a media read before reopening traffic.
+Back up the local upload directory or S3-compatible bucket and the `EMDASH_ENCRYPTION_KEY` rotation list separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore the runtime keys and any required media objects, and start the matching application version. Verify sign-in, public content, an encrypted plugin setting, an edit, and a media read before reopening traffic.
 
 ## JSON exports cannot restore a site
 EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw

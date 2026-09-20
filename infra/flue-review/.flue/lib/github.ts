@@ -9,6 +9,7 @@
 // review. The app needs `pull_requests: write`, `checks: write`, and
 // `contents: read`.
 
+import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
@@ -19,6 +20,10 @@ const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
 const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
 const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
 const RATE_LIMIT_ERROR = /\brate limit\b/i;
+const AUTO_FORMAT_MESSAGE = "style: format";
+const EMDASH_BOT_LOGIN = "emdashbot[bot]";
+const AUTO_FORMAT_NAME = "emdashbot[bot]";
+const AUTO_FORMAT_EMAIL = "emdashbot[bot]@users.noreply.github.com";
 const GITHUB_HEADERS = {
 	accept: "application/vnd.github+json",
 	"content-type": "application/json",
@@ -26,11 +31,125 @@ const GITHUB_HEADERS = {
 	"x-github-api-version": "2022-11-28",
 };
 
-function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
-	return fetch(input, {
+export interface GitHubRateLimitGate {
+	permit(category: string, consumer: string): Promise<{ allowed: boolean; retryAt: number }>;
+	record(
+		category: string,
+		consumer: string,
+		metadata: {
+			status: number;
+			limit: number | null;
+			remaining: number | null;
+			resetAt: number | null;
+			retryAfterAt: number | null;
+		},
+	): Promise<void>;
+}
+
+class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
+	constructor(private readonly stub: DurableObjectStub) {}
+
+	async permit(category: string, consumer: string) {
+		const response = await this.stub.fetch("http://github-rate-limit/permit", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ category, consumer }),
+		});
+		if (!response.ok) throw new Error(`GitHub coordinator permit failed: ${response.status}`);
+		const payload = await response.json<unknown>();
+		if (!payload || typeof payload !== "object")
+			throw new Error("GitHub coordinator permit was invalid");
+		const value = Object.fromEntries(Object.entries(payload));
+		if (typeof value.allowed !== "boolean" || typeof value.retryAt !== "number") {
+			throw new Error("GitHub coordinator permit was invalid");
+		}
+		return { allowed: value.allowed, retryAt: value.retryAt };
+	}
+
+	async record(
+		category: string,
+		consumer: string,
+		metadata: Parameters<GitHubRateLimitGate["record"]>[2],
+	): Promise<void> {
+		const response = await this.stub.fetch("http://github-rate-limit/record", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ category, consumer, metadata }),
+		});
+		if (!response.ok) throw new Error(`GitHub coordinator record failed: ${response.status}`);
+	}
+}
+
+export function githubRateLimitGate(env: Env): GitHubRateLimitGate {
+	return new ExternalGitHubRateLimitGate(
+		env.GITHUB_RATE_LIMIT.getByName(`installation:${env.GITHUB_APP_INSTALLATION_ID}`),
+	);
+}
+
+export type GitHubToken =
+	| string
+	| { readonly token: string; readonly gate: GitHubRateLimitGate; readonly consumer: string };
+
+function tokenValue(token: GitHubToken): string {
+	return typeof token === "string" ? token : token.token;
+}
+
+function responseMetadata(response: Response, now = Date.now()) {
+	const numberHeader = (name: string) => {
+		const header = response.headers.get(name);
+		if (header === null) return null;
+		const value = Number(header);
+		return Number.isFinite(value) && value >= 0 ? value : null;
+	};
+	const retryAfter = response.headers.get("retry-after")?.trim() ?? "";
+	const retrySeconds = Number(retryAfter);
+	const retryDate = Date.parse(retryAfter);
+	return {
+		status: response.status,
+		limit: numberHeader("x-ratelimit-limit"),
+		remaining: numberHeader("x-ratelimit-remaining"),
+		resetAt: (() => {
+			const seconds = numberHeader("x-ratelimit-reset");
+			return seconds === null ? null : seconds * 1_000;
+		})(),
+		retryAfterAt: retryAfter
+			? Number.isFinite(retrySeconds)
+				? now + retrySeconds * 1_000
+				: Number.isFinite(retryDate)
+					? retryDate
+					: null
+			: null,
+	};
+}
+
+async function githubFetch(
+	input: string,
+	init: RequestInit = {},
+	token?: GitHubToken,
+): Promise<Response> {
+	const coordinated = token && typeof token !== "string" ? token : null;
+	const category = new URL(input).pathname === "/graphql" ? "graphql" : "review-rest";
+	if (coordinated) {
+		const permit = await coordinated.gate.permit(category, coordinated.consumer);
+		if (!permit.allowed) {
+			throw new GitHubRateLimitError(
+				`GitHub request suppressed until ${new Date(permit.retryAt).toISOString()}`,
+				Math.max(1_000, permit.retryAt - Date.now()),
+			);
+		}
+	}
+	const response = await fetch(input, {
 		...init,
 		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
 	});
+	if (coordinated) {
+		await coordinated.gate.record(category, coordinated.consumer, responseMetadata(response));
+	}
+	return response;
+}
+
+function coordinatedFetch(token: GitHubToken, input: string, init: RequestInit = {}) {
+	return githubFetch(input, init, token);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -53,18 +172,22 @@ function rateLimitRetryDelayMs(
 	now = Date.now(),
 ): number | undefined {
 	const retryAfter = response.headers.get("retry-after");
+	const reset = response.headers.get("x-ratelimit-reset");
 	const remaining = response.headers.get("x-ratelimit-remaining");
 	const rateLimited =
 		response.status === 429 ||
 		(response.status === 403 &&
-			(retryAfter !== null || remaining === "0" || RATE_LIMIT_ERROR.test(errorBody)));
+			(retryAfter !== null ||
+				reset !== null ||
+				remaining === "0" ||
+				RATE_LIMIT_ERROR.test(errorBody)));
 	if (!rateLimited) return undefined;
 
 	const retryAfterDelay = retryAfterMs(retryAfter, now);
 	if (retryAfterDelay !== undefined) {
 		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, retryAfterDelay));
 	}
-	const resetSeconds = Number(response.headers.get("x-ratelimit-reset"));
+	const resetSeconds = Number(reset);
 	if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
 		const resetDelay = resetSeconds * 1_000 - now + REVIEW_RATE_LIMIT_RESET_BUFFER_MS;
 		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, resetDelay));
@@ -84,24 +207,25 @@ export class GitHubRateLimitError extends Error {
 }
 
 interface ReviewRetryOptions {
+	pullRequestAuthorLogin?: string;
 	beforeRetry?: (input: {
 		retry: number;
 		maxRetries: number;
 		delayMs: number;
-	}) => Promise<string | undefined>;
+	}) => Promise<GitHubToken | undefined>;
 }
 
 async function postReviewRequest(
 	url: string,
-	token: string,
+	token: GitHubToken,
 	body: unknown,
 	options?: ReviewRetryOptions,
 ): Promise<{ response: Response; errorBody: string }> {
 	let currentToken = token;
 	for (let retryCount = 0; ; retryCount++) {
-		const response = await githubFetch(url, {
+		const response = await coordinatedFetch(currentToken, url, {
 			method: "POST",
-			headers: { ...GITHUB_HEADERS, authorization: `Bearer ${currentToken}` },
+			headers: { ...GITHUB_HEADERS, authorization: `Bearer ${tokenValue(currentToken)}` },
 			body: JSON.stringify(body),
 		});
 		if (response.ok) return { response, errorBody: "" };
@@ -186,7 +310,10 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 }
 
 /** Mint a short-lived installation access token. */
-export async function mintInstallationToken(creds: GitHubAppCreds): Promise<string> {
+export async function mintInstallationToken(
+	creds: GitHubAppCreds,
+	coordinationToken?: GitHubToken,
+): Promise<string> {
 	const jwt = await signAppJwt(creds);
 	const res = await githubFetch(
 		`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`,
@@ -199,6 +326,7 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 				"x-github-api-version": "2022-11-28",
 			},
 		},
+		coordinationToken,
 	);
 	if (!res.ok) {
 		await requireGitHubResponse(res, "installation token mint");
@@ -208,8 +336,8 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 	return json.token;
 }
 
-function installationHeaders(token: string): Record<string, string> {
-	return { ...GITHUB_HEADERS, authorization: `Bearer ${token}` };
+function installationHeaders(token: GitHubToken): Record<string, string> {
+	return { ...GITHUB_HEADERS, authorization: `Bearer ${tokenValue(token)}` };
 }
 
 function pullRequestUrl(owner: string, repo: string, prNumber: number, files = false): string {
@@ -218,9 +346,8 @@ function pullRequestUrl(owner: string, repo: string, prNumber: number, files = f
 
 async function requireGitHubResponse(res: Response, operation: string): Promise<void> {
 	if (res.ok) return;
-	const errorBody = await res.text();
-	const retryDelay = rateLimitRetryDelayMs(res, errorBody, 0);
-	const message = `${operation} failed: ${res.status} ${errorBody}`;
+	const retryDelay = rateLimitRetryDelayMs(res, "", 0);
+	const message = `${operation} failed: ${res.status}`;
 	if (retryDelay !== undefined) {
 		const hasRetryHint =
 			res.headers.get("retry-after") !== null || res.headers.get("x-ratelimit-reset") !== null;
@@ -230,14 +357,18 @@ async function requireGitHubResponse(res: Response, operation: string): Promise<
 }
 
 export async function getPullRequestHeadSha(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 ): Promise<string> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
-		headers: installationHeaders(token),
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`,
+		{
+			headers: installationHeaders(token),
+		},
+	);
 	await requireGitHubResponse(res, "read pull request head");
 	const body = await res.json<{ head?: { sha?: string } }>();
 	if (!body.head?.sha) throw new Error("read pull request head response had no SHA");
@@ -245,12 +376,12 @@ export async function getPullRequestHeadSha(
 }
 
 export async function createReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	input: { headSha: string; attemptId: string; prNumber: number },
 ): Promise<number> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs`, {
+	const res = await coordinatedFetch(token, `${GITHUB_API}/repos/${owner}/${repo}/check-runs`, {
 		method: "POST",
 		headers: installationHeaders(token),
 		body: JSON.stringify({
@@ -275,7 +406,7 @@ export async function createReviewCheck(
 }
 
 export async function findReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	headSha: string,
@@ -286,7 +417,8 @@ export async function findReviewCheck(
 		filter: "all",
 		per_page: "100",
 	});
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/check-runs?${query.toString()}`,
 		{ headers: installationHeaders(token) },
 	);
@@ -345,7 +477,7 @@ function renderReviewProgress(stage: string, runId: string): string {
 }
 
 export async function updateReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	checkRunId: number,
@@ -371,16 +503,20 @@ export async function updateReviewCheck(
 		},
 	};
 	if (input.runId) body.external_id = input.runId;
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-		method: "PATCH",
-		headers: installationHeaders(token),
-		body: JSON.stringify(body),
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+		{
+			method: "PATCH",
+			headers: installationHeaders(token),
+			body: JSON.stringify(body),
+		},
+	);
 	await requireGitHubResponse(res, "update review check");
 }
 
 export async function completeReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	checkRunId: number,
@@ -397,29 +533,34 @@ export async function completeReviewCheck(
 			: input.conclusion === "timed_out"
 				? `Review timed out for PR #${input.prNumber}`
 				: `Review failed for PR #${input.prNumber}`;
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-		method: "PATCH",
-		headers: installationHeaders(token),
-		body: JSON.stringify({
-			status: "completed",
-			conclusion: input.conclusion,
-			completed_at: new Date().toISOString(),
-			details_url: pullRequestUrl(owner, repo, input.prNumber),
-			external_id: input.runId,
-			output: { title, summary: input.summary, text: `Run: \`${input.runId}\`` },
-		}),
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+		{
+			method: "PATCH",
+			headers: installationHeaders(token),
+			body: JSON.stringify({
+				status: "completed",
+				conclusion: input.conclusion,
+				completed_at: new Date().toISOString(),
+				details_url: pullRequestUrl(owner, repo, input.prNumber),
+				external_id: input.runId,
+				output: { title, summary: input.summary, text: `Run: \`${input.runId}\`` },
+			}),
+		},
+	);
 	await requireGitHubResponse(res, "complete review check");
 }
 
 export async function removePullRequestLabel(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 	label: string,
 ): Promise<void> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent(label)}`,
 		{
 			method: "DELETE",
@@ -439,7 +580,7 @@ export async function fetchUnifiedDiff(
 	owner: string,
 	repo: string,
 	prNumber: number,
-	token?: string,
+	token?: GitHubToken,
 	baseSha?: string,
 	headSha?: string,
 ): Promise<string> {
@@ -448,31 +589,86 @@ export async function fetchUnifiedDiff(
 		"user-agent": USER_AGENT,
 		"x-github-api-version": "2022-11-28",
 	};
-	if (token) headers.authorization = `Bearer ${token}`;
+	if (token) headers.authorization = `Bearer ${tokenValue(token)}`;
 	const path =
 		baseSha && headSha
 			? `/repos/${owner}/${repo}/compare/${encodeURIComponent(baseSha)}...${encodeURIComponent(headSha)}`
 			: `/repos/${owner}/${repo}/pulls/${prNumber}`;
-	const res = await githubFetch(`${GITHUB_API}${path}`, { headers });
+	const res = token
+		? await coordinatedFetch(token, `${GITHUB_API}${path}`, { headers })
+		: await githubFetch(`${GITHUB_API}${path}`, { headers });
 	if (!res.ok) {
-		throw new Error(`unified diff fetch failed: ${res.status} ${await res.text()}`);
+		throw new Error(`unified diff fetch failed: ${res.status}`);
 	}
 	return res.text();
 }
 
-export async function fetchPullRequestHeadSha(
-	token: string,
+export async function fetchPullRequestRevision(
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
-): Promise<string> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
-		headers: installationHeaders(token),
-	});
-	await requireGitHubResponse(res, "fetch pull request head");
-	const pull = await res.json<{ head?: { sha?: string } }>();
-	if (!pull.head?.sha) throw new Error("Pull request response did not include a head SHA");
-	return pull.head.sha;
+): Promise<PullRequestRevision> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`,
+		{
+			headers: installationHeaders(token),
+		},
+	);
+	await requireGitHubResponse(res, "fetch pull request revision");
+	const pull = await res.json<{ head?: { sha?: string }; base?: { sha?: string } }>();
+	if (!pull.head?.sha || !pull.base?.sha) {
+		throw new Error("Pull request response did not include base and head SHAs");
+	}
+	return { headSha: pull.head.sha, baseSha: pull.base.sha };
+}
+
+interface ComparisonCommit {
+	author?: { login?: string; type?: string } | null;
+	commit?: {
+		author?: { name?: string; email?: string } | null;
+		message?: string;
+	};
+}
+
+function isAutoFormatCommit(commit: ComparisonCommit): boolean {
+	return (
+		commit.commit?.message?.split("\n", 1)[0] === AUTO_FORMAT_MESSAGE &&
+		commit.author?.login === EMDASH_BOT_LOGIN &&
+		commit.author.type === "Bot" &&
+		commit.commit.author?.name === AUTO_FORMAT_NAME &&
+		commit.commit.author.email === AUTO_FORMAT_EMAIL
+	);
+}
+
+export async function classifyPullRequestHeadMove(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	fromHeadSha: string,
+	toHeadSha: string,
+): Promise<ReviewHeadMove> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/compare/${encodeURIComponent(fromHeadSha)}...${encodeURIComponent(toHeadSha)}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "compare pull request heads");
+	const comparison = await res.json<{
+		status?: string;
+		total_commits?: number;
+		commits?: ComparisonCommit[];
+	}>();
+	if (
+		comparison.status !== "ahead" ||
+		!Number.isInteger(comparison.total_commits) ||
+		!comparison.total_commits ||
+		comparison.commits?.length !== comparison.total_commits
+	) {
+		return "substantive";
+	}
+	return comparison.commits.every(isAutoFormatCommit) ? "format_only" : "substantive";
 }
 
 /**
@@ -481,17 +677,18 @@ export async function fetchPullRequestHeadSha(
  * a first review or any failure (non-fatal: we just review fresh).
  */
 export async function fetchPriorReview(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 ): Promise<string | undefined> {
 	try {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
 			{
 				headers: {
-					authorization: `Bearer ${token}`,
+					authorization: `Bearer ${tokenValue(token)}`,
 					accept: "application/vnd.github+json",
 					"user-agent": USER_AGENT,
 					"x-github-api-version": "2022-11-28",
@@ -524,18 +721,19 @@ export async function fetchPriorReview(
  * progress marker should never block a review.
  */
 export async function addEyesReaction(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 ): Promise<number | undefined> {
 	try {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions`,
 			{
 				method: "POST",
 				headers: {
-					authorization: `Bearer ${token}`,
+					authorization: `Bearer ${tokenValue(token)}`,
 					accept: "application/vnd.github+json",
 					"content-type": "application/json",
 					"user-agent": USER_AGENT,
@@ -554,19 +752,20 @@ export async function addEyesReaction(
 
 /** Remove a previously-added reaction (the in-progress marker). Non-fatal. */
 export async function removeReaction(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 	reactionId: number,
 ): Promise<void> {
 	try {
-		await githubFetch(
+		await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`,
 			{
 				method: "DELETE",
 				headers: {
-					authorization: `Bearer ${token}`,
+					authorization: `Bearer ${tokenValue(token)}`,
 					accept: "application/vnd.github+json",
 					"user-agent": USER_AGENT,
 					"x-github-api-version": "2022-11-28",
@@ -632,7 +831,7 @@ type ReviewLookup =
 const REVIEW_LOOKUP_MAX_PAGES = 10;
 
 async function reviewWasPosted(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
@@ -642,7 +841,8 @@ async function reviewWasPosted(
 	try {
 		for (let page = 1; page <= REVIEW_LOOKUP_MAX_PAGES; page++) {
 			const suffix = page === 1 ? "" : `&page=${page}`;
-			const res = await githubFetch(
+			const res = await coordinatedFetch(
+				token,
 				`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100${suffix}`,
 				{ headers: installationHeaders(token) },
 			);
@@ -681,7 +881,7 @@ async function reviewWasPosted(
  * The body is always non-empty -- GitHub 422s a blank COMMENT review body.
  */
 export async function postReview(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
@@ -691,7 +891,10 @@ export async function postReview(
 	retryOptions?: ReviewRetryOptions,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews`;
-	const event = verdictToEvent(result.verdict);
+	const event =
+		retryOptions?.pullRequestAuthorLogin === EMDASH_BOT_LOGIN
+			? "COMMENT"
+			: verdictToEvent(result.verdict);
 	const marker = attemptId ? `<!-- emdash-review-attempt:${attemptId} -->` : undefined;
 	const summary = `${result.summary.trim() || FALLBACK_SUMMARY}${marker ? `\n\n${marker}` : ""}`;
 	if (commitId && marker) {
@@ -706,14 +909,8 @@ export async function postReview(
 		comments: result.findings.map(findingToComment),
 	};
 	let res: Response;
-	let firstError: string;
 	try {
-		({ response: res, errorBody: firstError } = await postReviewRequest(
-			url,
-			token,
-			withComments,
-			retryOptions,
-		));
+		({ response: res } = await postReviewRequest(url, token, withComments, retryOptions));
 	} catch (error) {
 		if (commitId && marker) {
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
@@ -731,21 +928,15 @@ export async function postReview(
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
 			if (lookup.status === "present") return;
 		}
-		throw new Error(`postReview failed: ${res.status} ${firstError}`);
+		throw new Error(`postReview failed: ${res.status}`);
 	}
 	const bodyOnly = {
 		body: summary + renderFindingsMarkdown(result.findings),
 		event,
 		...(commitId ? { commit_id: commitId } : {}),
 	};
-	let bodyOnlyError: string;
 	try {
-		({ response: res, errorBody: bodyOnlyError } = await postReviewRequest(
-			url,
-			token,
-			bodyOnly,
-			retryOptions,
-		));
+		({ response: res } = await postReviewRequest(url, token, bodyOnly, retryOptions));
 	} catch (error) {
 		if (commitId && marker) {
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
@@ -758,8 +949,6 @@ export async function postReview(
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
 			if (lookup.status === "present") return;
 		}
-		throw new Error(
-			`postReview failed (with comments: ${firstError}); body-only retry: ${res.status} ${bodyOnlyError}`,
-		);
+		throw new Error(`postReview failed after body-only retry: ${res.status}`);
 	}
 }

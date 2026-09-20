@@ -183,11 +183,28 @@ Returns: `void`
 
 ### Publication policy hooks
 
-`content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` require `hooks.content-policy:register`. This authority is independent of content reads, writes, and publication actions.
+`content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` require `hooks.content-policy:register`. This authority is independent of `content:read`, `content:write`, and publication actions.
 
-Return `void` to allow the action or `{ cancel: true, reason }` to reject it. Reasons contain 1–500 plain-text characters. Events contain `{ content, collection, origin, actor? }`; scheduling also includes `scheduledAt`. Human origins are API, MCP, and visual editing. Other origins identify plugins, the scheduler, or the system.
+Publish and schedule events expose the effective draft in `content.data` and the staged slug in `content.slug`. Unpublish events expose the currently live content that the action would remove.
 
-Scheduled content runs the publish policy again when it becomes due. Rejection unschedules it and records the reason for administrators. There is no before-unschedule hook, so administrators can always cancel a future publication.
+Return `void` to allow the action or `{ cancel: true, reason }` to reject it. The reason must contain 1–500 plain-text characters. Invalid decisions and unexpected abort-policy errors stop the action with a generic failure. Explicit cancellations return `PUBLISH_REJECTED`, `SCHEDULE_REJECTED`, or `UNPUBLISH_REJECTED`.
+
+```typescript
+"content:beforePublish": async (event) => {
+	const data = event.content.data;
+	const approvalStatus =
+		typeof data === "object" && data !== null && "approval_status" in data
+			? data.approval_status
+			: undefined;
+	if (approvalStatus !== "approved") {
+		return { cancel: true, reason: "Approve this entry before publishing." };
+	}
+},
+```
+
+Events contain `{ content, collection, origin, actor? }`; `content:beforeSchedule` also contains `scheduledAt`. Human origins are `api`, `mcp`, or `visual-editor` and include the same value in `actor.source`. The visual-editor origin requires the signed short-lived token from an authenticated toolbar render. Other origins are `plugin` (with `pluginId`), `scheduler`, and `system`.
+
+Scheduled content runs `content:beforePublish` again when it becomes due. An explicit scheduler rejection unschedules the entry and lists its reason on the dashboard until the entry is rescheduled, published, deleted, or the record is dismissed. There is no `content:beforeUnschedule`, so an administrator can always cancel a future publication.
 
 ### `content:afterPublish`
 
@@ -414,7 +431,7 @@ Runs after the comment is stored. The event contains the stored comment, moderat
 
 ### `comment:afterModerate`
 
-Runs after an administrator or plugin changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, moderator identity, and origin. Administrator changes identify the user; `ctx.comments.setStatus()` identifies the plugin. A transition runs the hook once. Returns `void`.
+Runs after an administrator or a plugin changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, the moderator's `{ id, name }`, and `origin`. Administrator changes use `{ source: "admin", userId }`; `ctx.comments.setStatus()` uses `{ source: "plugin", pluginId }`. A transition runs the hook once. Returns `void`.
 
 ## Cron Hook
 

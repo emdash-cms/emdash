@@ -5,6 +5,7 @@ import { Sandbox as BaseSandbox } from "@cloudflare/sandbox";
 
 import { forwardAnonymousRead } from "./lib/anonymous-egress.js";
 import { forwardGithubRequest } from "./lib/github-outbound.js";
+import { githubRateLimitGate } from "./lib/github-rate-limit-client.js";
 
 const GITHUB_TOKEN_BROKER = "github-installation-token";
 
@@ -42,8 +43,10 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 		pushCapabilitySecret: env.GITHUB_WEBHOOK_SECRET,
 		getInstallationToken: () =>
 			env.Orchestrator.getByName(GITHUB_TOKEN_BROKER).getInstallationTokenForGitProxy(),
+		rateLimitGate: githubRateLimitGate(env),
 	});
 }
 
 export { ContainerProxy } from "@cloudflare/sandbox";
+export { GitHubRateLimitDO } from "./lib/github-rate-limit.js";
 export { OrchestratorDO } from "./lib/orchestrator.js";

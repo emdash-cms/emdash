@@ -22,7 +22,9 @@ import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -57,13 +59,17 @@ const configCollections = {
 	},
 };
 
-function buildRuntime(db: Kysely<Database>, config: EmDashConfig = {}): EmDashRuntime {
+function buildRuntime(
+	db: Kysely<Database>,
+	config: EmDashConfig = {},
+	configuredPlugins: ResolvedPlugin[] = [],
+): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
-	const hooks = createHookPipeline([], pipelineFactoryOptions);
+	const hooks = createHookPipeline(configuredPlugins, pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
 	const runtimeDeps = {
 		config,
-		plugins: [],
+		plugins: configuredPlugins,
 		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not used in this test");
@@ -77,11 +83,11 @@ function buildRuntime(db: Kysely<Database>, config: EmDashConfig = {}): EmDashRu
 	return new EmDashRuntime({
 		db,
 		storage: null,
-		configuredPlugins: [],
+		configuredPlugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
 		hooks,
-		enabledPlugins: new Set(),
+		enabledPlugins: new Set(configuredPlugins.map((plugin) => plugin.id)),
 		pluginStates: new Map(),
 		config,
 		mediaProviders: new Map(),
@@ -89,7 +95,7 @@ function buildRuntime(db: Kysely<Database>, config: EmDashConfig = {}): EmDashRu
 		cronExecutor: null,
 		cronScheduler: null,
 		emailPipeline: null,
-		allPipelinePlugins: [],
+		allPipelinePlugins: [...configuredPlugins],
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef,
@@ -372,6 +378,28 @@ describe("EmDashRuntime.getManifest()", () => {
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("exposes configured saved-entry panels and actions to the admin", async () => {
+		const plugin = definePlugin({
+			id: "content-guard",
+			version: "1.0.0",
+			routes: {
+				health: { permission: "content:edit_own", handler: async () => ({ blocks: [] }) },
+				repair: { permission: "content:edit_own", handler: async () => ({ refresh: true }) },
+			},
+			admin: {
+				editorPanels: [{ id: "health", title: "Health", route: "health" }],
+				editorActions: [{ id: "repair", label: "Repair", route: "repair", placement: "overflow" }],
+			},
+		});
+		const runtime = buildRuntime(db, {}, [plugin]);
+
+		expect((await runtime.getManifest()).plugins["content-guard"]).toMatchObject({
+			adminMode: "blocks",
+			editorPanels: [{ id: "health", route: "health" }],
+			editorActions: [{ id: "repair", route: "repair", placement: "overflow" }],
+		});
 	});
 
 	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {

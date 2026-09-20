@@ -9,6 +9,7 @@ export default defineConfig({
 	redirects: {
 		"/introduction": "/why-emdash",
 	},
+	session: false,
 	integrations: [
 		starlight({
 			title: "EmDash",

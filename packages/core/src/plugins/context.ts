@@ -8,17 +8,31 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import {
+	handleRedirectCreate,
+	handleRedirectDelete,
+	handleRedirectList,
+	handleRedirectUpdate,
+} from "../api/handlers/redirects.js";
+import { handleTermCreate } from "../api/handlers/taxonomies.js";
+import { createRedirectBody, updateRedirectBody } from "../api/schemas/redirects.js";
+import { CommentRepository, type Comment } from "../database/repositories/comment.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { EntryLockRepository } from "../database/repositories/entry-locks.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
+import {
+	RedirectRepository,
+	type Redirect,
+	type VersionedRedirectRecord,
+} from "../database/repositories/redirect.js";
 import { SeoRepository } from "../database/repositories/seo.js";
 import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
-import { resolveContentCreateLocale } from "../i18n/config.js";
+import { getI18nConfig, resolveContentCreateLocale } from "../i18n/config.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
@@ -33,16 +47,31 @@ import { assertStorageKey } from "./conditional-storage.js";
 import { createContentAccess } from "./content-access.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
+import {
+	bufferPluginHttpRequest,
+	pluginHttpRedirectAction,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
+	rewritePluginHttpRedirect,
+} from "./http-wire.js";
+import { readPluginMediaBytes, toPluginMediaItem, updatePluginMediaMetadata } from "./media.js";
+import {
+	createPluginSecretRedactor,
+	createSettingsAccess,
+	type PluginSecretRedactor,
+} from "./settings.js";
 import type {
 	ResolvedPlugin,
 	PluginContext,
 	PluginStorageConfig,
 	StorageCollection,
 	KVAccess,
+	SettingsAccess,
 	CronAccess,
 	EmailAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
+	VersionedContentItem,
 	MediaAccess,
 	MediaAccessWithWrite,
 	HttpAccess,
@@ -59,9 +88,23 @@ import type {
 	QueryOptions,
 	MediaListOptions,
 	TaxonomyAccess,
+	TaxonomyAccessWithWrite,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
+	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
+	CommentAccess,
+	CommentListOptions,
+	PluginComment,
+	PluginCommentStatus,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 	SchemaAccess,
 	CollectionSchemaInfo,
 	PluginContentCreateCallback,
@@ -77,43 +120,75 @@ export { createContentAccess } from "./content-access.js";
  * Create KV accessor for a plugin
  * All keys are automatically prefixed with the plugin ID
  */
-export function createKVAccess(optionsRepo: OptionsRepository, pluginId: string): KVAccess {
+export function createKVAccess(
+	optionsRepo: OptionsRepository,
+	pluginId: string,
+	settings: SettingsAccess = createSettingsAccess(optionsRepo, pluginId),
+): KVAccess {
 	const prefix = `plugin:${pluginId}:`;
 
 	return {
 		async get<T>(key: string): Promise<T | null> {
+			if (key.startsWith("settings:")) return settings.get<T>(key.slice("settings:".length));
 			return optionsRepo.get<T>(`${prefix}${key}`);
 		},
 		async getVersioned<T>(key: string) {
 			assertStorageKey(key);
+			if (key.startsWith("settings:")) {
+				return settings.getVersioned<T>(key.slice("settings:".length));
+			}
 			return optionsRepo.getVersioned<T>(`${prefix}${key}`);
 		},
 		async compareAndSet(key, expectedRevision, value) {
 			assertStorageKey(key);
+			if (key.startsWith("settings:")) {
+				return settings.compareAndSet(key.slice("settings:".length), expectedRevision, value);
+			}
 			return optionsRepo.compareAndSet(`${prefix}${key}`, expectedRevision, value);
 		},
 		async compareAndDelete(key, expectedRevision) {
 			assertStorageKey(key);
+			if (key.startsWith("settings:")) {
+				return settings.compareAndDelete(key.slice("settings:".length), expectedRevision);
+			}
 			return optionsRepo.compareAndDelete(`${prefix}${key}`, expectedRevision);
 		},
 
 		async set(key: string, value: unknown): Promise<void> {
+			if (key.startsWith("settings:")) {
+				await settings.set(key.slice("settings:".length), value);
+				return;
+			}
 			await optionsRepo.set(`${prefix}${key}`, value);
 		},
 
 		async delete(key: string): Promise<boolean> {
+			if (key.startsWith("settings:")) return settings.delete(key.slice("settings:".length));
 			return optionsRepo.delete(`${prefix}${key}`);
 		},
 
 		async list(keyPrefix?: string): Promise<Array<{ key: string; value: unknown }>> {
-			const fullPrefix = `${prefix}${keyPrefix ?? ""}`;
+			const requestedPrefix = keyPrefix ?? "";
+			const includesSettings =
+				"settings:".startsWith(requestedPrefix) || requestedPrefix.startsWith("settings:");
+			const fullPrefix = `${prefix}${requestedPrefix}`;
 			const entriesMap = await optionsRepo.getByPrefix(fullPrefix);
 			const result: Array<{ key: string; value: unknown }> = [];
 			for (const [fullKey, value] of entriesMap) {
+				if (includesSettings && fullKey.startsWith(`${prefix}settings:`)) continue;
 				result.push({
 					key: fullKey.slice(prefix.length),
 					value,
 				});
+			}
+			if (includesSettings) {
+				const settingPrefix = requestedPrefix.startsWith("settings:")
+					? requestedPrefix.slice("settings:".length)
+					: "";
+				for (const entry of await settings.list(settingPrefix)) {
+					const key = `settings:${entry.key}`;
+					if (key.startsWith(requestedPrefix)) result.push({ key, value: entry.value });
+				}
 			}
 			return result;
 		},
@@ -349,6 +424,327 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 	};
 }
 
+function toPluginComment(comment: Comment): PluginComment {
+	if (comment.status === "trash") throw new Error("Trashed comments are not plugin-readable");
+	return {
+		id: comment.id,
+		collection: comment.collection,
+		contentId: comment.contentId,
+		parentId: comment.parentId,
+		authorName: comment.authorName,
+		authorEmail: comment.authorEmail,
+		body: comment.body,
+		status: comment.status,
+		ipHash: comment.ipHash,
+		userAgent: comment.userAgent,
+		moderationMetadata: comment.moderationMetadata,
+		createdAt: comment.createdAt,
+		updatedAt: comment.updatedAt,
+	};
+}
+
+export function createCommentAccess(
+	db: Kysely<Database>,
+	moderate?: (
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	) => Promise<PluginComment>,
+): CommentAccess {
+	const repo = new CommentRepository(db);
+	return {
+		async get(id) {
+			const comment = await repo.findById(id);
+			return !comment || comment.status === "trash" ? null : toPluginComment(comment);
+		},
+		async list(options: CommentListOptions = {}) {
+			const result = await repo.findForPlugin(options);
+			return {
+				items: result.items.map(toPluginComment),
+				cursor: result.nextCursor,
+				hasMore: result.nextCursor !== undefined,
+			};
+		},
+		count: (options) => repo.countForPlugin(options),
+		...(moderate
+			? {
+					setStatus: (id, status, options) => moderate(id, status, options.expectedStatus),
+				}
+			: {}),
+	};
+}
+
+export class RedirectAccessError extends Error {
+	override readonly name = "RedirectAccessError";
+
+	constructor(
+		readonly code: string,
+		message: string,
+	) {
+		super(message);
+	}
+}
+
+const REDIRECT_REVISION_PREFIX = "r1.";
+const BASE64_PADDING_RE = /=+$/;
+
+function encodeRedirectRevision(id: string, revision: string): string {
+	const payload = `${id}\0${revision}`;
+	return `${REDIRECT_REVISION_PREFIX}${btoa(payload)
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replace(BASE64_PADDING_RE, "")}`;
+}
+
+function decodeRedirectRevision(id: string, revision: string): string {
+	if (typeof revision !== "string" || !revision.startsWith(REDIRECT_REVISION_PREFIX)) {
+		throw new RedirectAccessError("INVALID_PRECONDITION", "Invalid redirect revision");
+	}
+	try {
+		const encoded = revision
+			.slice(REDIRECT_REVISION_PREFIX.length)
+			.replaceAll("-", "+")
+			.replaceAll("_", "/");
+		const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+		const [revisionId, updatedAt, extra] = atob(padded).split("\0");
+		if (revisionId !== id || !updatedAt || extra !== undefined) throw new Error("invalid");
+		return updatedAt;
+	} catch (error) {
+		if (error instanceof RedirectAccessError) throw error;
+		throw new RedirectAccessError("INVALID_PRECONDITION", "Invalid redirect revision");
+	}
+}
+
+function toRedirectInfo(redirect: Redirect): RedirectInfo {
+	return {
+		...redirect,
+		type: redirect.type as RedirectStatus,
+	};
+}
+
+function toVersionedRedirect(record: VersionedRedirectRecord): VersionedRedirect {
+	return {
+		redirect: toRedirectInfo(record.redirect),
+		_rev: encodeRedirectRevision(record.redirect.id, record.configRevision),
+	};
+}
+
+async function readVersionedRedirect(
+	repo: RedirectRepository,
+	id: string,
+): Promise<VersionedRedirect | null> {
+	const record = await repo.findVersionedById(id);
+	return record ? toVersionedRedirect(record) : null;
+}
+
+function throwRedirectResult(error: { code: string; message: string }): never {
+	throw new RedirectAccessError(error.code, error.message);
+}
+
+function assertNoAutomaticRedirectMarker(input: object): void {
+	if (typeof input !== "object" || input === null || Array.isArray(input)) {
+		throw new RedirectAccessError("VALIDATION_ERROR", "Redirect input must be an object");
+	}
+	if (Object.hasOwn(input, "auto")) {
+		throw new RedirectAccessError(
+			"VALIDATION_ERROR",
+			"The automatic redirect marker is managed by EmDash",
+		);
+	}
+}
+
+export function createRedirectAccess(db: Kysely<Database>): RedirectAccess;
+export function createRedirectAccess(db: Kysely<Database>, writable: true): RedirectAccessWithWrite;
+export function createRedirectAccess(
+	db: Kysely<Database>,
+	writable = false,
+): RedirectAccess | RedirectAccessWithWrite {
+	const repo = new RedirectRepository(db);
+	const readAccess: RedirectAccess = {
+		async list(options: RedirectListOptions = {}) {
+			const result = await handleRedirectList(db, options);
+			if (!result.success) return throwRedirectResult(result.error);
+			return {
+				items: result.data.items.map(toRedirectInfo),
+				cursor: result.data.nextCursor,
+				hasMore: result.data.nextCursor !== undefined,
+			};
+		},
+		get: (id: string) => readVersionedRedirect(repo, id),
+	};
+	if (!writable) return readAccess;
+
+	return {
+		...readAccess,
+		async create(input: RedirectCreateInput) {
+			assertNoAutomaticRedirectMarker(input);
+			const parsed = createRedirectBody.safeParse(input);
+			if (!parsed.success) {
+				throw new RedirectAccessError(
+					"VALIDATION_ERROR",
+					parsed.error.issues[0]?.message ?? "Invalid redirect",
+				);
+			}
+			const result = await handleRedirectCreate(db, parsed.data);
+			if (!result.success) return throwRedirectResult(result.error);
+			const current = await readVersionedRedirect(repo, result.data.id);
+			if (!current) throw new RedirectAccessError("NOT_FOUND", "Created redirect not found");
+			return current;
+		},
+		async update(id: string, input: RedirectUpdateInput & { _rev: string }) {
+			assertNoAutomaticRedirectMarker(input);
+			const { _rev, ...patch } = input;
+			const expectedRevision = decodeRedirectRevision(id, _rev);
+			const parsed = updateRedirectBody.safeParse(patch);
+			if (!parsed.success) {
+				throw new RedirectAccessError(
+					"VALIDATION_ERROR",
+					parsed.error.issues[0]?.message ?? "Invalid redirect",
+				);
+			}
+			const result = await handleRedirectUpdate(db, id, parsed.data, { expectedRevision });
+			if (!result.success) return throwRedirectResult(result.error);
+			const current = await readVersionedRedirect(repo, result.data.id);
+			if (!current) throw new RedirectAccessError("NOT_FOUND", "Updated redirect not found");
+			return current;
+		},
+		async delete(id: string, options: { _rev: string }) {
+			if (typeof options !== "object" || options === null) {
+				throw new RedirectAccessError("INVALID_PRECONDITION", "Invalid redirect revision");
+			}
+			const expectedRevision = decodeRedirectRevision(id, options._rev);
+			const result = await handleRedirectDelete(db, id, { expectedRevision });
+			if (!result.success) return throwRedirectResult(result.error);
+			return result.data.deleted;
+		},
+	};
+}
+
+const MAX_TAXONOMY_DELTA_TERMS = 64;
+
+function taxonomyAccessError(code: string, message: string): Error {
+	return Object.assign(new Error(message), { code });
+}
+
+async function resolveTaxonomyDelta(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	taxonomy: string,
+	termIds: string[],
+): Promise<{ repo: TaxonomyRepository; groups: string[]; locale: string }> {
+	if (termIds.length > MAX_TAXONOMY_DELTA_TERMS) {
+		throw taxonomyAccessError(
+			"VALIDATION_ERROR",
+			`A taxonomy assignment delta can contain at most ${MAX_TAXONOMY_DELTA_TERMS} term IDs`,
+		);
+	}
+	if (termIds.some((id) => typeof id !== "string" || id.length === 0)) {
+		throw taxonomyAccessError("VALIDATION_ERROR", "Taxonomy term IDs must be non-empty strings");
+	}
+
+	const defs = await db
+		.selectFrom("_emdash_taxonomy_defs")
+		.select(["collections"])
+		.where("name", "=", taxonomy)
+		.execute();
+	if (defs.length === 0) {
+		throw taxonomyAccessError("NOT_FOUND", `Taxonomy '${taxonomy}' not found`);
+	}
+	const attached = defs.some((def) => parseCollectionsColumn(def.collections).includes(collection));
+	if (!attached) {
+		throw taxonomyAccessError(
+			"VALIDATION_ERROR",
+			`Taxonomy '${taxonomy}' is not attached to collection '${collection}'`,
+		);
+	}
+
+	const entry = await new ContentRepository(db).findById(collection, entryId);
+	if (!entry) {
+		throw taxonomyAccessError(
+			"NOT_FOUND",
+			`Content entry '${entryId}' not found in '${collection}'`,
+		);
+	}
+
+	const repo = new TaxonomyRepository(db);
+	const groups: string[] = [];
+	for (const id of new Set(termIds)) {
+		const term = await repo.findByIdOrTranslationGroup(id);
+		if (!term) throw taxonomyAccessError("NOT_FOUND", `Taxonomy term '${id}' not found`);
+		if (term.name !== taxonomy) {
+			throw taxonomyAccessError(
+				"VALIDATION_ERROR",
+				`Taxonomy term '${id}' belongs to '${term.name}', not '${taxonomy}'`,
+			);
+		}
+		groups.push(term.translationGroup ?? term.id);
+	}
+
+	return { repo, groups, locale: entry.locale ?? getI18nConfig()?.defaultLocale ?? "en" };
+}
+
+async function readResolvedEntryTerms(
+	repo: TaxonomyRepository,
+	collection: string,
+	entryId: string,
+	taxonomy: string,
+	locale: string,
+): Promise<TaxonomyTermInfo[]> {
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? locale;
+	const assignments = await repo.getTermAssignmentsForEntry(
+		collection,
+		entryId,
+		taxonomy,
+		locale,
+		defaultLocale,
+	);
+	return assignments.flatMap(({ term }) => (term ? [taxonomyToTermInfo(term)] : []));
+}
+
+export function createTaxonomyAccessWithWrite(db: Kysely<Database>): TaxonomyAccessWithWrite {
+	return {
+		...createTaxonomyAccess(db),
+		async createTerm(taxonomy: string, input: TaxonomyTermCreateInput) {
+			const result = await handleTermCreate(db, taxonomy, input);
+			if (!result.success) throw taxonomyAccessError(result.error.code, result.error.message);
+			const { term } = result.data;
+			return {
+				id: term.id,
+				taxonomy: term.name,
+				slug: term.slug,
+				label: term.label,
+				parentId: term.parentId,
+				data: term.description ? { description: term.description } : null,
+				locale: term.locale,
+				translationGroup: term.translationGroup,
+			};
+		},
+		async addEntryTerms(collection, entryId, taxonomy, termIds) {
+			const { repo, groups, locale } = await resolveTaxonomyDelta(
+				db,
+				collection,
+				entryId,
+				taxonomy,
+				termIds,
+			);
+			await repo.attachGroupsToEntry(collection, entryId, groups);
+			return readResolvedEntryTerms(repo, collection, entryId, taxonomy, locale);
+		},
+		async removeEntryTerms(collection, entryId, taxonomy, termIds) {
+			const { repo, groups, locale } = await resolveTaxonomyDelta(
+				db,
+				collection,
+				entryId,
+				taxonomy,
+				termIds,
+			);
+			await repo.detachGroupsFromEntry(collection, entryId, groups);
+			return readResolvedEntryTerms(repo, collection, entryId, taxonomy, locale);
+		},
+	};
+}
+
 /**
  * Create full content access with write operations.
  *
@@ -526,17 +922,7 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 	return {
 		async get(id: string): Promise<MediaItem | null> {
 			const item = await mediaRepo.findById(id);
-			if (!item) return null;
-
-			return {
-				id: item.id,
-				filename: item.filename,
-				mimeType: item.mimeType,
-				size: item.size,
-				// Construct URL from storage key (or use a sensible default path)
-				url: `/media/${item.id}/${item.filename}`,
-				createdAt: item.createdAt,
-			};
+			return item?.status === "ready" ? toPluginMediaItem(item) : null;
 		},
 
 		async list(options?: MediaListOptions): Promise<PaginatedResult<MediaItem>> {
@@ -547,18 +933,22 @@ export function createMediaAccess(db: Kysely<Database>): MediaAccess {
 			});
 
 			return {
-				items: result.items.map((item) => ({
-					id: item.id,
-					filename: item.filename,
-					mimeType: item.mimeType,
-					size: item.size,
-					url: `/media/${item.id}/${item.filename}`,
-					createdAt: item.createdAt,
-				})),
+				items: result.items.map(toPluginMediaItem),
 				cursor: result.nextCursor,
 				hasMore: !!result.nextCursor,
 			};
 		},
+	};
+}
+
+function mediaReadDenied(): never {
+	throw new Error("Missing capability: media:read");
+}
+
+function createBlockedMediaReadAccess(): MediaAccess {
+	return {
+		get: async () => mediaReadDenied(),
+		list: async () => mediaReadDenied(),
 	};
 }
 
@@ -695,20 +1085,28 @@ export function createMediaAccessWithWrite(
 /** Maximum number of redirects to follow in plugin HTTP access */
 const MAX_PLUGIN_REDIRECTS = 5;
 
+function stripTrailingDots(value: string): string {
+	let end = value.length;
+	while (end > 0 && value.charCodeAt(end - 1) === 46) end--;
+	return end === value.length ? value : value.slice(0, end);
+}
+
 /**
  * Check if a hostname matches any pattern in the allowed list.
  * Patterns: "*" matches all, "*.example.com" matches subdomains AND bare "example.com",
  * "api.example.com" matches exactly.
  */
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
+	const normalizedHost = stripTrailingDots(host.toLowerCase());
 	return allowedHosts.some((pattern) => {
-		if (pattern === "*") return true;
-		if (pattern.startsWith("*.")) {
-			const suffix = pattern.slice(1); // ".example.com"
+		const normalizedPattern = stripTrailingDots(pattern.toLowerCase());
+		if (normalizedPattern === "*") return true;
+		if (normalizedPattern.startsWith("*.")) {
+			const suffix = normalizedPattern.slice(1); // ".example.com"
 			// Match subdomains (foo.example.com) and bare domain (example.com)
-			return host.endsWith(suffix) || host === pattern.slice(2);
+			return normalizedHost.endsWith(suffix) || normalizedHost === normalizedPattern.slice(2);
 		}
-		return host === pattern;
+		return normalizedHost === normalizedPattern;
 	});
 }
 
@@ -738,7 +1136,11 @@ async function validatePluginHttpTarget(pluginId: string, url: string): Promise<
  *
  * Uses redirect: "manual" to re-validate each redirect target before dispatch.
  */
-export function createHttpAccess(pluginId: string, allowedHosts: string[]): HttpAccess {
+export function createHttpAccess(
+	pluginId: string,
+	allowedHosts: string[],
+	fetchImpl: typeof fetch = globalThis.fetch,
+): HttpAccess {
 	return {
 		async fetch(url: string, init?: RequestInit): Promise<Response> {
 			// Deny by default — plugins must declare allowed hosts
@@ -751,6 +1153,8 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 
 			let currentUrl = url;
 			let currentInit = init;
+			let requestBuffered = false;
+			let redirected = false;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
 				const target = tryParsePluginHttpTarget(currentUrl);
@@ -761,27 +1165,39 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 					);
 				}
 				await validatePluginHttpTarget(pluginId, currentUrl);
+				if (!requestBuffered) {
+					currentInit = await bufferPluginHttpRequest(currentInit);
+					requestBuffered = true;
+				}
 
-				const response = await globalThis.fetch(currentUrl, {
+				const response = await fetchImpl(currentUrl, {
 					...currentInit,
 					redirect: "manual",
 				});
 
-				// Not a redirect -- return directly
-				if (response.status < 300 || response.status >= 400) {
-					return response;
-				}
-
-				// Extract redirect target
 				const location = response.headers.get("Location");
-				if (!location) {
-					return response;
+				if (location === null) {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				const redirectAction = pluginHttpRedirectAction(response.status, true, currentInit);
+				if (redirectAction === "return") {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				await response.body?.cancel();
+				if (redirectAction === "error") {
+					throw new Error(`Plugin "${pluginId}": redirect mode is "error"`);
 				}
 
 				// Resolve relative redirects; strip credentials on cross-origin hops
 				const previousOrigin = new URL(currentUrl).origin;
 				currentUrl = new URL(location, currentUrl).href;
+				redirected = true;
 				const nextOrigin = new URL(currentUrl).origin;
+				currentInit = rewritePluginHttpRedirect(response.status, currentInit);
 
 				if (previousOrigin !== nextOrigin && currentInit) {
 					currentInit = stripCredentialHeaders(currentInit);
@@ -794,39 +1210,56 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 }
 
 /**
- * Create unrestricted HTTP access (for plugins with network:fetch:any capability).
+ * Create unrestricted HTTP access (for plugins with network:request:unrestricted capability).
  * No host validation, but applies SSRF protection on redirect targets to
  * prevent plugins from being tricked into reaching internal services.
  */
-export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
+export function createUnrestrictedHttpAccess(
+	pluginId: string,
+	fetchImpl: typeof fetch = globalThis.fetch,
+): HttpAccess {
 	return {
 		async fetch(url: string, init?: RequestInit): Promise<Response> {
 			let currentUrl = url;
 			let currentInit = init;
+			let requestBuffered = false;
+			let redirected = false;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
 				await validatePluginHttpTarget(pluginId, currentUrl);
+				if (!requestBuffered) {
+					currentInit = await bufferPluginHttpRequest(currentInit);
+					requestBuffered = true;
+				}
 
-				const response = await globalThis.fetch(currentUrl, {
+				const response = await fetchImpl(currentUrl, {
 					...currentInit,
 					redirect: "manual",
 				});
 
-				// Not a redirect -- return directly
-				if (response.status < 300 || response.status >= 400) {
-					return response;
-				}
-
-				// Extract redirect target
 				const location = response.headers.get("Location");
-				if (!location) {
-					return response;
+				if (location === null) {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				const redirectAction = pluginHttpRedirectAction(response.status, true, currentInit);
+				if (redirectAction === "return") {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				await response.body?.cancel();
+				if (redirectAction === "error") {
+					throw new Error(`Plugin "${pluginId}": redirect mode is "error"`);
 				}
 
 				// Resolve relative redirects; strip credentials on cross-origin hops
 				const previousOrigin = new URL(currentUrl).origin;
 				currentUrl = new URL(location, currentUrl).href;
+				redirected = true;
 				const nextOrigin = new URL(currentUrl).origin;
+				currentInit = rewritePluginHttpRedirect(response.status, currentInit);
 
 				if (previousOrigin !== nextOrigin && currentInit) {
 					currentInit = stripCredentialHeaders(currentInit);
@@ -859,39 +1292,40 @@ export function createBlockedHttpAccess(pluginId: string): HttpAccess {
 /**
  * Create logger for a plugin
  */
-export function createLogAccess(pluginId: string): LogAccess {
+export function createLogAccess(pluginId: string, redactor?: PluginSecretRedactor): LogAccess {
 	const prefix = `[plugin:${pluginId}]`;
+	const redact = <T>(value: T): T => redactor?.redact(value) ?? value;
 
 	return {
 		debug(message: string, data?: unknown): void {
 			if (data !== undefined) {
-				console.debug(prefix, message, data);
+				console.debug(prefix, redact(message), redact(data));
 			} else {
-				console.debug(prefix, message);
+				console.debug(prefix, redact(message));
 			}
 		},
 
 		info(message: string, data?: unknown): void {
 			if (data !== undefined) {
-				console.info(prefix, message, data);
+				console.info(prefix, redact(message), redact(data));
 			} else {
-				console.info(prefix, message);
+				console.info(prefix, redact(message));
 			}
 		},
 
 		warn(message: string, data?: unknown): void {
 			if (data !== undefined) {
-				console.warn(prefix, message, data);
+				console.warn(prefix, redact(message), redact(data));
 			} else {
-				console.warn(prefix, message);
+				console.warn(prefix, redact(message));
 			}
 		},
 
 		error(message: string, data?: unknown): void {
 			if (data !== undefined) {
-				console.error(prefix, message, data);
+				console.error(prefix, redact(message), redact(data));
 			} else {
-				console.error(prefix, message);
+				console.error(prefix, redact(message));
 			}
 		},
 	};
@@ -1023,6 +1457,7 @@ export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	contentCreate?: PluginContentCreateCallback;
+	contentActions?: ContentActionCallbacks;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1072,6 +1507,73 @@ export interface PluginContextFactoryOptions {
 	 * client IP the core auth path does.
 	 */
 	trustedProxyHeaders?: string[];
+	commentModerate?: (
+		pluginId: string,
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	) => Promise<PluginComment>;
+}
+
+export interface ContentActionCallbacks {
+	/** Register a sandbox invocation before it can call a content action. */
+	begin?(
+		pluginId: string,
+		invocationId: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): void;
+	/** Release queued after-hooks; `final: false` keeps late actions self-scheduling after timeout. */
+	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
+	getVersioned(
+		pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null>;
+	publish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	unpublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	schedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	unschedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	getTrashedVersioned(
+		pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null>;
+	restore(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
 }
 
 /**
@@ -1081,6 +1583,7 @@ export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
 	private beforeContentWrite?: () => Promise<void>;
 	private contentCreate?: PluginContentCreateCallback;
+	private contentActions?: ContentActionCallbacks;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1091,6 +1594,7 @@ export class PluginContextFactory {
 	private cronReschedule?: () => void;
 	private now: () => Date;
 	private emailPipeline?: EmailPipeline;
+	private commentModerate?: PluginContextFactoryOptions["commentModerate"];
 	/**
 	 * Plugin IDs already warned about a missing media-write backend, so the
 	 * warning fires once per factory instead of on every hook/route context
@@ -1103,6 +1607,7 @@ export class PluginContextFactory {
 		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.beforeContentWrite = options.beforeContentWrite;
 		this.contentCreate = options.contentCreate;
+		this.contentActions = options.contentActions;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1110,6 +1615,7 @@ export class PluginContextFactory {
 		this.cronReschedule = options.cronReschedule;
 		this.now = options.now ?? (() => new Date());
 		this.emailPipeline = options.emailPipeline;
+		this.commentModerate = options.commentModerate;
 	}
 
 	/**
@@ -1126,8 +1632,16 @@ export class PluginContextFactory {
 		const optionsRepo = new OptionsRepository(db);
 
 		// Always available
-		const kv = createKVAccess(optionsRepo, plugin.id);
-		const log = createLogAccess(plugin.id);
+		const secretRedactor = createPluginSecretRedactor();
+		const settings = createSettingsAccess(
+			optionsRepo,
+			plugin.id,
+			plugin.admin.settingsSchema ?? {},
+			undefined,
+			secretRedactor.add,
+		);
+		const kv = createKVAccess(optionsRepo, plugin.id, settings);
+		const log = createLogAccess(plugin.id, secretRedactor);
 		const storage = createStorageAccess(db, plugin.id, plugin.storage);
 
 		// Capability-gated: content
@@ -1153,13 +1667,57 @@ export class PluginContextFactory {
 				revisions: capabilities.has("content:revisions:read"),
 			});
 		}
+		if (capabilities.has("content:publish") && this.contentActions) {
+			content = Object.assign(content ?? createContentAccess(db), {
+				getVersioned: (collection: string, id: string) =>
+					this.contentActions!.getVersioned(plugin.id, collection, id),
+				publish: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.publish(plugin.id, collection, id, options),
+				unpublish: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.unpublish(plugin.id, collection, id, options),
+				schedule: (
+					collection: string,
+					id: string,
+					options: { scheduledAt: string; _rev: string },
+				) => this.contentActions!.schedule(plugin.id, collection, id, options),
+				unschedule: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.unschedule(plugin.id, collection, id, options),
+			});
+		}
+		if (capabilities.has("content:restore") && this.contentActions) {
+			content = Object.assign(
+				content ?? {
+					get: async () => {
+						throw new Error("Missing capability: content:read");
+					},
+					list: async () => {
+						throw new Error("Missing capability: content:read");
+					},
+				},
+				{
+					getTrashedVersioned: (collection: string, id: string) =>
+						this.contentActions!.getTrashedVersioned(plugin.id, collection, id),
+					restore: (collection: string, id: string, options: { _rev: string }) =>
+						this.contentActions!.restore(plugin.id, collection, id, options),
+				},
+			);
+		}
 
 		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;
 
-		// Capability-gated: taxonomies (read-only)
-		let taxonomies: TaxonomyAccess | undefined;
-		if (capabilities.has("taxonomies:read")) {
+		// Capability-gated: taxonomies
+		let taxonomies: TaxonomyAccess | TaxonomyAccessWithWrite | undefined;
+		if (capabilities.has("taxonomies:write")) {
+			taxonomies = createTaxonomyAccessWithWrite(db);
+		} else if (capabilities.has("taxonomies:read")) {
 			taxonomies = createTaxonomyAccess(db);
+		}
+
+		let redirects: RedirectAccess | RedirectAccessWithWrite | undefined;
+		if (capabilities.has("redirects:write")) {
+			redirects = createRedirectAccess(db, true);
+		} else if (capabilities.has("redirects:read")) {
+			redirects = createRedirectAccess(db);
 		}
 
 		// Capability-gated: media
@@ -1168,6 +1726,17 @@ export class PluginContextFactory {
 		// either avoids silently degrading media:write to read-only — the bug
 		// where the runtime threads `storage` but not `getUploadUrl`.
 		let media: MediaAccess | MediaAccessWithWrite | undefined;
+		const hasMediaAccess =
+			capabilities.has("media:read") ||
+			capabilities.has("media:write") ||
+			capabilities.has("media:bytes:read") ||
+			capabilities.has("media:metadata:write");
+		if (hasMediaAccess) {
+			media =
+				capabilities.has("media:read") || capabilities.has("media:write")
+					? createMediaAccess(db)
+					: createBlockedMediaReadAccess();
+		}
 		if (capabilities.has("media:write")) {
 			if (this.getUploadUrl || this.storage) {
 				media = createMediaAccessWithWrite(db, this.getUploadUrl, this.storage);
@@ -1178,12 +1747,14 @@ export class PluginContextFactory {
 						"declares the media:write capability but no storage backend is configured; upload() is unavailable.",
 					);
 				}
-				if (capabilities.has("media:read")) {
-					media = createMediaAccess(db);
-				}
+				media ??= createMediaAccess(db);
 			}
-		} else if (capabilities.has("media:read")) {
-			media = createMediaAccess(db);
+		}
+		if (capabilities.has("media:bytes:read") && media) {
+			media.readBytes = (id, options) => readPluginMediaBytes(db, this.storage, id, options);
+		}
+		if (capabilities.has("media:metadata:write") && media) {
+			media.updateMetadata = (id, patch) => updatePluginMediaMetadata(db, id, patch);
 		}
 
 		// Capability-gated: http
@@ -1198,6 +1769,16 @@ export class PluginContextFactory {
 		let users: UserAccess | undefined;
 		if (capabilities.has("users:read")) {
 			users = createUserAccess(db);
+		}
+
+		let comments: CommentAccess | undefined;
+		if (capabilities.has("comments:moderate")) {
+			comments = createCommentAccess(db, (id, status, expectedStatus) => {
+				if (!this.commentModerate) throw new Error("Comment moderation is unavailable");
+				return this.commentModerate(plugin.id, id, status, expectedStatus);
+			});
+		} else if (capabilities.has("comments:read")) {
+			comments = createCommentAccess(db);
 		}
 
 		// Cron access — always available (scoped to plugin), but only if
@@ -1224,15 +1805,18 @@ export class PluginContextFactory {
 			},
 			storage,
 			kv,
+			settings,
 			content,
 			schema,
 			taxonomies,
+			redirects,
 			media,
 			http,
 			log,
 			site: this.site,
 			url: this.urlHelper,
 			users,
+			comments,
 			cron,
 			email,
 		};

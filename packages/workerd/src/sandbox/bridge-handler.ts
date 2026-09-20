@@ -14,28 +14,51 @@
  * must produce same outputs, same return shapes, same error messages.
  */
 
+import { Buffer } from "node:buffer";
+
 import {
 	ContentRepository,
 	CronAccessImpl,
+	createCommentAccess,
 	createContentAccess,
+	createRedirectAccess,
 	createSchemaAccess,
 	createHttpAccess,
+	createPluginSecretRedactor,
+	createSettingsAccess,
+	createMediaAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
-	normalizeCapabilities,
+	normalizePluginCapabilities,
 	OptionsRepository,
+	parsePluginMediaMetadataPatch,
 	PluginStorageRepository,
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
+	readPluginMediaBytes,
+	RedirectAccessError,
 	StorageSerializationError,
 	resolveContentCreateLocale,
+	updatePluginMediaMetadata,
 } from "emdash";
 import type {
+	ContentActionCallbacks,
 	ContentFieldFilters,
 	ContentListOptions,
 	Database,
 	I18nConfig,
+	CommentListOptions,
+	PluginCommentStatus,
+	SandboxCommentModerateCallback,
+	RedirectCreateInput,
+	RedirectListOptions,
+	RedirectUpdateInput,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
+	PluginSecretRedactor,
+	SettingField,
 	SandboxContentCreateCallback,
 	SiteInfo,
+	TaxonomyAccessWithWrite,
 } from "emdash";
 import type { Kysely } from "kysely";
 
@@ -53,6 +76,17 @@ function contentCreateErrorDetails(error: unknown): { code: string; message: str
 		? { code, message: error.message }
 		: null;
 }
+
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
+const CONTENT_ACTION_METHODS = new Set([
+	"content/getVersioned",
+	"content/publish",
+	"content/unpublish",
+	"content/schedule",
+	"content/unschedule",
+	"content/getTrashedVersioned",
+	"content/restore",
+]);
 
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
@@ -115,9 +149,14 @@ const SYSTEM_COLUMNS = new Set([
 	"translation_group",
 ]);
 
-/** Minimal storage interface for media uploads and deletes */
+/** Minimal storage interface for sandboxed media operations. */
 export interface BridgeStorage {
 	upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+	download(key: string): Promise<{
+		body: ReadableStream<Uint8Array>;
+		contentType: string;
+		size: number;
+	}>;
 	delete(key: string): Promise<unknown>;
 }
 
@@ -136,17 +175,51 @@ export interface BridgeHandlerOptions {
 	storageCollections: string[];
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
+	settingsSchema?: Record<string, SettingField>;
+	secretRedactor?: PluginSecretRedactor;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	contentCreate?: SandboxContentCreateCallback;
 	contentCreateProvider?: () => SandboxContentCreateCallback | null;
+	taxonomyWrite?: TaxonomyAccessWithWrite;
+	contentActions?: () => ContentActionCallbacks | null;
 	emailSend: () => SandboxEmailSendCallback | null;
+	commentModerate?: () => SandboxCommentModerateCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
+	httpFetch?: typeof fetch;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
+}
+
+type RedirectBridgeResult<T> =
+	| { ok: true; value: T }
+	| { ok: false; error: { code: string; message: string } };
+
+async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<RedirectBridgeResult<T>> {
+	try {
+		return { ok: true, value: await action() };
+	} catch (error) {
+		if (error instanceof RedirectAccessError) {
+			return { ok: false, error: { code: error.code, message: error.message } };
+		}
+		throw error;
+	}
+}
+
+function bridgeJsonReplacer(_key: string, value: unknown): unknown {
+	if (value instanceof Uint8Array) {
+		return { __emdashBytes: Buffer.from(value).toString("base64") };
+	}
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		const keys = Object.keys(value);
+		if (keys.length === 1 && (keys[0] === "__emdashBytes" || keys[0] === "__emdashEscapedObject")) {
+			return { __emdashEscapedObject: Object.entries(value) };
+		}
+	}
+	return value;
 }
 
 /**
@@ -156,11 +229,17 @@ export interface BridgeHandlerOptions {
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
-	const normalizedOpts = { ...opts, capabilities: normalizeCapabilities(opts.capabilities) };
+	const capabilities = normalizePluginCapabilities(opts.capabilities);
+	const normalizedOpts = {
+		...opts,
+		capabilities,
+		secretRedactor: opts.secretRedactor ?? createPluginSecretRedactor(),
+	};
 	return async (request: Request): Promise<Response> => {
+		let method = "";
 		try {
 			const url = new URL(request.url);
-			const method = url.pathname.slice(1);
+			method = url.pathname.slice(1);
 
 			let body: Record<string, unknown> = {};
 			if (request.method === "POST") {
@@ -175,8 +254,30 @@ export function createBridgeHandler(
 			}
 
 			const result = await dispatch(normalizedOpts, method, body);
-			return Response.json({ result });
+			return new Response(JSON.stringify({ result }, bridgeJsonReplacer), {
+				headers: { "Content-Type": "application/json" },
+			});
 		} catch (error) {
+			if (typeof error === "object" && error !== null && "code" in error) {
+				const code = error.code;
+				const currentStatus = "currentStatus" in error ? error.currentStatus : undefined;
+				if (
+					(code === "COMMENT_STATUS_CONFLICT" && typeof currentStatus === "string") ||
+					code === "COMMENT_MODERATION_IN_PROGRESS" ||
+					code === "COMMENT_STATUS_INVALID"
+				) {
+					return Response.json(
+						{
+							error: {
+								code,
+								message: error instanceof Error ? error.message : "Comment moderation failed",
+								...(typeof currentStatus === "string" ? { currentStatus } : {}),
+							},
+						},
+						{ status: 409 },
+					);
+				}
+			}
 			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
 			if (sandboxRouteError) {
 				return Response.json(
@@ -201,7 +302,9 @@ export function createBridgeHandler(
 					{ status: 503 },
 				);
 			}
-			const contentCreateError = contentCreateErrorDetails(error);
+			const contentCreateError = CONTENT_ACTION_METHODS.has(method)
+				? null
+				: contentCreateErrorDetails(error);
 			if (contentCreateError) {
 				const status =
 					contentCreateError.code === "NOT_FOUND"
@@ -213,6 +316,20 @@ export function createBridgeHandler(
 					{ error: { name: contentCreateError.code, ...contentCreateError } },
 					{ status },
 				);
+			}
+			if (
+				CONTENT_ACTION_METHODS.has(method) &&
+				error instanceof Error &&
+				"code" in error &&
+				typeof error.code === "string" &&
+				CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+			) {
+				return Response.json({
+					result: {
+						__emdashContentActionError: true,
+						error: { code: error.code, message: error.message },
+					},
+				});
 			}
 			const message = error instanceof Error ? error.message : "Internal error";
 			return new Response(JSON.stringify({ error: message }), {
@@ -235,9 +352,22 @@ async function dispatch(
 	switch (method) {
 		// ── KV (stored in _plugin_storage with collection='__kv') ────────
 		case "kv/get":
-			return kvGet(db, pluginId, requireString(body, "key"));
+			return kvGet(
+				db,
+				pluginId,
+				requireString(body, "key"),
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
 		case "kv/set":
-			return kvSet(db, pluginId, requireString(body, "key"), body.value);
+			return kvSet(
+				db,
+				pluginId,
+				requireString(body, "key"),
+				body.value,
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
 		case "kv/getVersioned":
 			return kvGetVersioned(db, pluginId, requireString(body, "key"), opts);
 		case "kv/compareAndSet":
@@ -258,9 +388,83 @@ async function dispatch(
 				opts,
 			);
 		case "kv/delete":
-			return kvDelete(db, pluginId, requireString(body, "key"));
+			return kvDelete(
+				db,
+				pluginId,
+				requireString(body, "key"),
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
 		case "kv/list":
-			return kvList(db, pluginId, optionalString(body, "prefix") ?? "");
+			return kvList(
+				db,
+				pluginId,
+				optionalString(body, "prefix") ?? "",
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
+		case "settings/get":
+			return kvGet(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${requireString(body, "key")}`,
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
+		case "settings/set":
+			return kvSet(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${requireString(body, "key")}`,
+				body.value,
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
+		case "settings/getVersioned":
+			return kvGetVersioned(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${requireString(body, "key")}`,
+				opts,
+			);
+		case "settings/compareAndSet":
+			return kvCompareAndSet(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${requireString(body, "key")}`,
+				requireExpectedRevision(body),
+				body.value,
+				opts,
+			);
+		case "settings/compareAndDelete":
+			return kvCompareAndDelete(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${requireString(body, "key")}`,
+				requireString(body, "expectedRevision"),
+				opts,
+			);
+		case "settings/delete":
+			return kvDelete(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${requireString(body, "key")}`,
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
+		case "settings/list": {
+			const entries = await kvList(
+				db,
+				pluginId,
+				`${SETTINGS_KEY_PREFIX}${optionalString(body, "prefix") ?? ""}`,
+				opts.settingsSchema,
+				opts.secretRedactor,
+			);
+			return entries.map(({ key, value }) => ({
+				key: key.slice(SETTINGS_KEY_PREFIX.length),
+				value,
+			}));
+		}
 
 		// ── Content ─────────────────────────────────────────────────────
 		case "content/get":
@@ -358,6 +562,68 @@ async function dispatch(
 			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
+		case "content/getVersioned":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).getVersioned(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/publish":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).publish(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
+		case "content/unpublish":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).unpublish(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
+		case "content/schedule":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).schedule(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{
+					scheduledAt: requireString(body, "scheduledAt"),
+					_rev: requireString(body, "revision"),
+				},
+				optionalString(body, "invocationId"),
+			);
+		case "content/unschedule":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).unschedule(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
+		case "content/getTrashedVersioned":
+			requireCapability(opts, "content:restore");
+			return requireContentActions(opts).getTrashedVersioned(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/restore":
+			requireCapability(opts, "content:restore");
+			return requireContentActions(opts).restore(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
 		case "content/createMany":
 			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
@@ -385,7 +651,29 @@ async function dispatch(
 				requireStringArray(body, "ids"),
 			);
 
-		// ── Taxonomies (read-only) ──────────────────────────────────────
+		// ── Comments ────────────────────────────────────────────────────
+		case "comments/get":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).get(requireString(body, "id"));
+		case "comments/list":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).list(commentListOptions(body));
+		case "comments/count":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).count(commentCountOptions(body));
+		case "comments/setStatus": {
+			requireCapability(opts, "comments:moderate");
+			const moderate = opts.commentModerate?.();
+			if (!moderate) throw new Error("Comment moderation is unavailable");
+			return moderate(
+				pluginId,
+				requireString(body, "id"),
+				requireCommentStatus(body, "status"),
+				requireCommentStatus(body, "expectedStatus"),
+			);
+		}
+
+		// ── Taxonomies ──────────────────────────────────────────────────
 		// `taxonomies:read` is a post-rename capability: it has no legacy
 		// alias, so the canonical name is checked directly.
 		case "taxonomy/list":
@@ -403,6 +691,61 @@ async function dispatch(
 				optionalString(body, "taxonomy"),
 				optionalString(body, "locale"),
 			);
+		case "taxonomy/createTerm":
+			requireCapability(opts, "taxonomies:write");
+			if (!opts.taxonomyWrite) throw new Error("Taxonomy mutations are not available");
+			return opts.taxonomyWrite.createTerm(
+				requireString(body, "taxonomy"),
+				requireTaxonomyTermCreateInput(body, "input"),
+			);
+		case "taxonomy/addEntryTerms":
+			requireCapability(opts, "taxonomies:write");
+			if (!opts.taxonomyWrite) throw new Error("Taxonomy mutations are not available");
+			return opts.taxonomyWrite.addEntryTerms(
+				requireString(body, "collection"),
+				requireString(body, "entryId"),
+				requireString(body, "taxonomy"),
+				requireStringArray(body, "termIds"),
+			);
+		case "taxonomy/removeEntryTerms":
+			requireCapability(opts, "taxonomies:write");
+			if (!opts.taxonomyWrite) throw new Error("Taxonomy mutations are not available");
+			return opts.taxonomyWrite.removeEntryTerms(
+				requireString(body, "collection"),
+				requireString(body, "entryId"),
+				requireString(body, "taxonomy"),
+				requireStringArray(body, "termIds"),
+			);
+
+		// ── Redirects ─────────────────────────────────────────────────────
+		case "redirect/list":
+			requireCapability(opts, "redirects:read");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db).list(requireRedirectListOptions(body)),
+			);
+		case "redirect/get":
+			requireCapability(opts, "redirects:read");
+			return redirectBridgeResult(() => createRedirectAccess(db).get(requireString(body, "id")));
+		case "redirect/create":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).create(requireRedirectCreateInput(body)),
+			);
+		case "redirect/update":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).update(
+					requireString(body, "id"),
+					requireRedirectUpdateInput(body),
+				),
+			);
+		case "redirect/delete":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).delete(requireString(body, "id"), {
+					_rev: requireString(body, "revision"),
+				}),
+			);
 
 		// ── Media ───────────────────────────────────────────────────────
 		case "media/get":
@@ -411,6 +754,31 @@ async function dispatch(
 		case "media/list":
 			requireCapability(opts, "media:read");
 			return mediaList(db, body);
+		case "media/readBytes": {
+			requireCapability(opts, "media:bytes:read");
+			const maxBytes = body.maxBytes;
+			if (maxBytes !== undefined && typeof maxBytes !== "number") {
+				throw new TypeError("media/readBytes: maxBytes must be a number");
+			}
+			const result = await readPluginMediaBytes(
+				db,
+				opts.storage ?? undefined,
+				requireString(body, "id"),
+				{ maxBytes },
+			);
+			return {
+				...result,
+				bytes: Buffer.from(result.bytes).toString("base64"),
+				encoding: "base64",
+			};
+		}
+		case "media/updateMetadata":
+			requireCapability(opts, "media:metadata:write");
+			return updatePluginMediaMetadata(
+				db,
+				requireString(body, "id"),
+				parsePluginMediaMetadataPatch(body.patch),
+			);
 		case "media/upload":
 			requireCapability(opts, "media:write");
 			return mediaUpload(
@@ -540,7 +908,11 @@ async function dispatch(
 		case "log": {
 			const level = requireLogLevel(body, "level");
 			const msg = requireString(body, "msg");
-			console[level](`[plugin:${pluginId}]`, msg, body.data ?? "");
+			console[level](
+				`[plugin:${pluginId}]`,
+				opts.secretRedactor?.redact(msg) ?? msg,
+				opts.secretRedactor?.redact(body.data ?? "") ?? body.data ?? "",
+			);
 			return null;
 		}
 
@@ -574,6 +946,7 @@ type UpdateManyItem = { id: string; data: Record<string, unknown> };
 type StorageItem = { id: string; data: unknown };
 
 const LOG_LEVELS = new Set<string>(["debug", "info", "warn", "error"]);
+const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
 
 function requireExpectedRevision(body: Record<string, unknown>): string | null {
 	const value = body.expectedRevision;
@@ -642,11 +1015,143 @@ function requireString(body: Record<string, unknown>, key: string): string {
 	return value;
 }
 
+const REDIRECT_STATUSES = new Set([301, 302, 307, 308, 410, 451]);
+
+function hasOptionalString(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || typeof value[key] === "string";
+}
+
+function hasOptionalNullableString(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || value[key] === null || typeof value[key] === "string";
+}
+
+function hasOptionalBoolean(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || typeof value[key] === "boolean";
+}
+
+function hasOptionalRedirectStatus(value: Record<string, unknown>): boolean {
+	return (
+		value.type === undefined ||
+		(typeof value.type === "number" && REDIRECT_STATUSES.has(value.type))
+	);
+}
+
+function isRedirectCreateInput(value: unknown): value is RedirectCreateInput {
+	return (
+		isRecord(value) &&
+		typeof value.source === "string" &&
+		hasOptionalString(value, "destination") &&
+		hasOptionalRedirectStatus(value) &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalNullableString(value, "groupName")
+	);
+}
+
+function isRedirectUpdateInput(value: unknown): value is RedirectUpdateInput & { _rev: string } {
+	return (
+		isRecord(value) &&
+		typeof value._rev === "string" &&
+		hasOptionalString(value, "source") &&
+		hasOptionalString(value, "destination") &&
+		hasOptionalRedirectStatus(value) &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalNullableString(value, "groupName")
+	);
+}
+
+function isRedirectListOptions(value: unknown): value is RedirectListOptions {
+	return (
+		isRecord(value) &&
+		(value.limit === undefined || typeof value.limit === "number") &&
+		hasOptionalString(value, "cursor") &&
+		hasOptionalString(value, "search") &&
+		hasOptionalString(value, "group") &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalBoolean(value, "auto")
+	);
+}
+
+function requireRedirectListOptions(body: Record<string, unknown>): RedirectListOptions {
+	if (!isRedirectListOptions(body)) throw new Error("Invalid redirect list options");
+	return body;
+}
+
+function requireRedirectCreateInput(body: Record<string, unknown>): RedirectCreateInput {
+	const value = body.input;
+	if (!isRedirectCreateInput(value)) throw new Error("Invalid redirect create input");
+	return value;
+}
+
+function requireRedirectUpdateInput(
+	body: Record<string, unknown>,
+): RedirectUpdateInput & { _rev: string } {
+	const value = body.input;
+	if (!isRedirectUpdateInput(value)) throw new Error("Invalid redirect update input");
+	return value;
+}
+
 function optionalString(body: Record<string, unknown>, key: string): string | undefined {
 	const value = body[key];
 	if (value === undefined) return undefined;
 	if (typeof value !== "string") throw new Error(`Parameter ${key} must be a string when provided`);
 	return value;
+}
+
+function isCommentStatus(value: string): value is PluginCommentStatus {
+	return COMMENT_STATUSES.has(value);
+}
+
+function requireCommentStatus(body: Record<string, unknown>, key: string): PluginCommentStatus {
+	const value = requireString(body, key);
+	if (!isCommentStatus(value)) {
+		throw Object.assign(new Error(`${key} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+	return value;
+}
+
+function optionalCommentStatus(
+	body: Record<string, unknown>,
+	key: string,
+): PluginCommentStatus | undefined {
+	const value = optionalString(body, key);
+	if (value === undefined) return undefined;
+	if (!isCommentStatus(value)) {
+		throw Object.assign(new Error(`${key} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+	return value;
+}
+
+function optionalLimit(body: Record<string, unknown>): number | undefined {
+	const value = body.limit;
+	if (value === undefined) return undefined;
+	if (!Number.isInteger(value) || typeof value !== "number" || value < 1 || value > 100) {
+		throw new Error("Parameter limit must be an integer between 1 and 100");
+	}
+	return value;
+}
+
+function commentListOptions(body: Record<string, unknown>): CommentListOptions {
+	return {
+		status: optionalCommentStatus(body, "status"),
+		collection: optionalString(body, "collection"),
+		contentId: optionalString(body, "contentId"),
+		limit: optionalLimit(body),
+		cursor: optionalString(body, "cursor"),
+	};
+}
+
+function commentCountOptions(
+	body: Record<string, unknown>,
+): Omit<CommentListOptions, "limit" | "cursor"> {
+	return {
+		status: optionalCommentStatus(body, "status"),
+		collection: optionalString(body, "collection"),
+		contentId: optionalString(body, "contentId"),
+	};
 }
 
 function requireRecord(body: Record<string, unknown>, key: string): Record<string, unknown> {
@@ -711,6 +1216,29 @@ function requireEmailMessage(body: Record<string, unknown>, key: string): EmailM
 	return value;
 }
 
+function requireTaxonomyTermCreateInput(
+	body: Record<string, unknown>,
+	key: string,
+): Parameters<TaxonomyAccessWithWrite["createTerm"]>[1] {
+	const input = requireRecord(body, key);
+	const parentId = input.parentId;
+	if (parentId !== undefined && parentId !== null && typeof parentId !== "string") {
+		throw new Error("Parameter input.parentId must be a string or null");
+	}
+	const slug = optionalString(input, "slug");
+	const description = optionalString(input, "description");
+	const locale = optionalString(input, "locale");
+	const translationOf = optionalString(input, "translationOf");
+	return {
+		label: requireString(input, "label"),
+		...(slug !== undefined ? { slug } : {}),
+		...(parentId !== undefined ? { parentId } : {}),
+		...(description !== undefined ? { description } : {}),
+		...(locale !== undefined ? { locale } : {}),
+		...(translationOf !== undefined ? { translationOf } : {}),
+	};
+}
+
 function requireLogLevel(body: Record<string, unknown>, key: string): LogLevel {
 	const value = body[key];
 	if (!isLogLevel(value)) {
@@ -742,6 +1270,12 @@ function requireCapability(opts: BridgeHandlerOptions, capability: string): void
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
 	}
+}
+
+function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {
+	const actions = opts.contentActions?.();
+	if (!actions) throw new Error("Content actions are not configured");
+	return actions;
 }
 
 function validateStorageCollection(opts: BridgeHandlerOptions, collection: string): void {
@@ -829,17 +1363,37 @@ function rowToContentItem(
 
 const SETTINGS_KEY_PREFIX = "settings:";
 
-function pluginOptionKey(pluginId: string, key: string): string {
-	return `plugin:${pluginId}:${key}`;
-}
-
 function isSettingsKey(key: string): boolean {
 	return key.startsWith(SETTINGS_KEY_PREFIX);
 }
 
-async function kvGet(db: Kysely<Database>, pluginId: string, key: string): Promise<unknown> {
+function observeSecretSetting(
+	key: string,
+	value: unknown,
+	settingsSchema: Record<string, SettingField>,
+	secretRedactor?: PluginSecretRedactor,
+): void {
+	const name = key.slice(SETTINGS_KEY_PREFIX.length);
+	if (settingsSchema[name]?.type === "secret" && typeof value === "string") {
+		secretRedactor?.add(name, value);
+	}
+}
+
+async function kvGet(
+	db: Kysely<Database>,
+	pluginId: string,
+	key: string,
+	settingsSchema: Record<string, SettingField> = {},
+	secretRedactor?: PluginSecretRedactor,
+): Promise<unknown> {
 	if (isSettingsKey(key)) {
-		const value = await new OptionsRepository(db).get(pluginOptionKey(pluginId, key));
+		const value = await createSettingsAccess(
+			new OptionsRepository(db),
+			pluginId,
+			settingsSchema,
+			undefined,
+			secretRedactor?.add,
+		).get(key.slice(SETTINGS_KEY_PREFIX.length));
 		if (value !== null) return value;
 	}
 	const row = await db
@@ -851,8 +1405,11 @@ async function kvGet(db: Kysely<Database>, pluginId: string, key: string): Promi
 		.executeTakeFirst();
 	if (!row) return null;
 	try {
-		return JSON.parse(row.data);
+		const value: unknown = JSON.parse(row.data);
+		if (isSettingsKey(key)) observeSecretSetting(key, value, settingsSchema, secretRedactor);
+		return value;
 	} catch {
+		if (isSettingsKey(key)) observeSecretSetting(key, row.data, settingsSchema, secretRedactor);
 		return row.data;
 	}
 }
@@ -862,9 +1419,17 @@ async function kvSet(
 	pluginId: string,
 	key: string,
 	value: unknown,
+	settingsSchema: Record<string, SettingField> = {},
+	secretRedactor?: PluginSecretRedactor,
 ): Promise<void> {
 	if (isSettingsKey(key)) {
-		await new OptionsRepository(db).set(pluginOptionKey(pluginId, key), value);
+		await createSettingsAccess(
+			new OptionsRepository(db),
+			pluginId,
+			settingsSchema,
+			undefined,
+			secretRedactor?.add,
+		).set(key.slice(SETTINGS_KEY_PREFIX.length), value);
 		await kvDeleteLegacy(db, pluginId, key);
 		return;
 	}
@@ -878,10 +1443,20 @@ async function kvGetVersioned(
 	opts: BridgeHandlerOptions,
 ) {
 	if (isSettingsKey(key)) {
-		const value = await new OptionsRepository(db).getVersioned(pluginOptionKey(pluginId, key));
+		const value = await createSettingsAccess(
+			new OptionsRepository(db),
+			pluginId,
+			opts.settingsSchema,
+			undefined,
+			opts.secretRedactor?.add,
+		).getVersioned(key.slice(SETTINGS_KEY_PREFIX.length));
 		if (value !== null) return value;
 	}
-	return getStorageRepo(opts, "__kv").getVersioned(key);
+	const legacy = await getStorageRepo(opts, "__kv").getVersioned(key);
+	if (legacy && isSettingsKey(key)) {
+		observeSecretSetting(key, legacy.value, opts.settingsSchema ?? {}, opts.secretRedactor);
+	}
+	return legacy;
 }
 
 async function kvCompareAndSet(
@@ -895,11 +1470,13 @@ async function kvCompareAndSet(
 	if (!isSettingsKey(key)) {
 		return getStorageRepo(opts, "__kv").compareAndSet(key, expectedRevision, value);
 	}
-	const result = await new OptionsRepository(db).compareAndSet(
-		pluginOptionKey(pluginId, key),
-		expectedRevision,
-		value,
-	);
+	const result = await createSettingsAccess(
+		new OptionsRepository(db),
+		pluginId,
+		opts.settingsSchema,
+		undefined,
+		opts.secretRedactor?.add,
+	).compareAndSet(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision, value);
 	if (result.applied) await kvDeleteLegacy(db, pluginId, key);
 	return result;
 }
@@ -914,10 +1491,11 @@ async function kvCompareAndDelete(
 	if (!isSettingsKey(key)) {
 		return getStorageRepo(opts, "__kv").compareAndDelete(key, expectedRevision);
 	}
-	const result = await new OptionsRepository(db).compareAndDelete(
-		pluginOptionKey(pluginId, key),
-		expectedRevision,
-	);
+	const result = await createSettingsAccess(
+		new OptionsRepository(db),
+		pluginId,
+		opts.settingsSchema,
+	).compareAndDelete(key.slice(SETTINGS_KEY_PREFIX.length), expectedRevision);
 	if (result.applied) await kvDeleteLegacy(db, pluginId, key);
 	return result;
 }
@@ -936,10 +1514,18 @@ async function kvDeleteLegacy(
 	return BigInt(result.numDeletedRows) > 0n;
 }
 
-async function kvDelete(db: Kysely<Database>, pluginId: string, key: string): Promise<boolean> {
+async function kvDelete(
+	db: Kysely<Database>,
+	pluginId: string,
+	key: string,
+	settingsSchema: Record<string, SettingField> = {},
+	_secretRedactor?: PluginSecretRedactor,
+): Promise<boolean> {
 	if (isSettingsKey(key)) {
 		const [optionDeleted, legacyDeleted] = await Promise.all([
-			new OptionsRepository(db).delete(pluginOptionKey(pluginId, key)),
+			createSettingsAccess(new OptionsRepository(db), pluginId, settingsSchema).delete(
+				key.slice(SETTINGS_KEY_PREFIX.length),
+			),
 			kvDeleteLegacy(db, pluginId, key),
 		]);
 		return optionDeleted || legacyDeleted;
@@ -951,6 +1537,8 @@ async function kvList(
 	db: Kysely<Database>,
 	pluginId: string,
 	prefix: string,
+	settingsSchema: Record<string, SettingField> = {},
+	secretRedactor?: PluginSecretRedactor,
 ): Promise<Array<{ key: string; value: unknown }>> {
 	const rows = await db
 		.selectFrom("_plugin_storage")
@@ -961,16 +1549,25 @@ async function kvList(
 		.execute();
 
 	const entries = new Map(rows.map((row) => [row.id, JSON.parse(row.data) as unknown]));
-	const optionPrefix = `plugin:${pluginId}:`;
-	const settingsPrefix = SETTINGS_KEY_PREFIX.startsWith(prefix)
-		? `${optionPrefix}${SETTINGS_KEY_PREFIX}`
-		: prefix.startsWith(SETTINGS_KEY_PREFIX)
-			? `${optionPrefix}${prefix}`
-			: null;
-	if (settingsPrefix) {
-		for (const [name, value] of await new OptionsRepository(db).getByPrefix(settingsPrefix)) {
-			entries.set(name.slice(optionPrefix.length), value);
+	const includesSettings =
+		SETTINGS_KEY_PREFIX.startsWith(prefix) || prefix.startsWith(SETTINGS_KEY_PREFIX);
+	if (includesSettings) {
+		const settingPrefix = prefix.startsWith(SETTINGS_KEY_PREFIX)
+			? prefix.slice(SETTINGS_KEY_PREFIX.length)
+			: "";
+		for (const { key, value } of await createSettingsAccess(
+			new OptionsRepository(db),
+			pluginId,
+			settingsSchema,
+			undefined,
+			secretRedactor?.add,
+		).list(settingPrefix)) {
+			const fullKey = `${SETTINGS_KEY_PREFIX}${key}`;
+			if (fullKey.startsWith(prefix)) entries.set(fullKey, value);
 		}
+	}
+	for (const [key, value] of entries) {
+		if (isSettingsKey(key)) observeSecretSetting(key, value, settingsSchema, secretRedactor);
 	}
 	return Array.from(entries, ([key, value]) => ({ key, value }));
 }
@@ -1226,7 +1823,7 @@ async function contentDeleteMany(
 	});
 }
 
-// ── Taxonomy Operations (read-only) ──────────────────────────────────────
+// ── Taxonomy Operations ──
 
 /** Type guard for plain JSON objects. */
 function isJsonObject(value: unknown): value is Record<string, unknown> {
@@ -1334,82 +1931,16 @@ async function taxonomyEntryTerms(
 
 // ── Media Operations ─────────────────────────────────────────────────────
 
-function rowToMediaItem(row: {
-	id: string;
-	filename: string;
-	mime_type: string;
-	size: number | null;
-	storage_key: string;
-	created_at: string;
-}) {
-	return {
-		id: row.id,
-		filename: row.filename,
-		mimeType: row.mime_type,
-		size: row.size,
-		url: `/_emdash/api/media/file/${row.storage_key}`,
-		createdAt: row.created_at,
-	};
+async function mediaGet(db: Kysely<Database>, id: string) {
+	return createMediaAccess(db).get(id);
 }
 
-async function mediaGet(
-	db: Kysely<Database>,
-	id: string,
-): Promise<{
-	id: string;
-	filename: string;
-	mimeType: string;
-	size: number | null;
-	url: string;
-	createdAt: string;
-} | null> {
-	const row = await db.selectFrom("media").where("id", "=", id).selectAll().executeTakeFirst();
-	if (!row) return null;
-	return rowToMediaItem(row);
-}
-
-async function mediaList(
-	db: Kysely<Database>,
-	opts: Record<string, unknown>,
-): Promise<{
-	items: Array<{
-		id: string;
-		filename: string;
-		mimeType: string;
-		size: number | null;
-		url: string;
-		createdAt: string;
-	}>;
-	cursor?: string;
-	hasMore: boolean;
-}> {
-	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
-
-	// Only return ready items (matching Cloudflare bridge)
-	let query = db
-		.selectFrom("media")
-		.where("status", "=", "ready")
-		.selectAll()
-		.orderBy("id", "desc");
-
-	if (typeof opts.mimeType === "string") {
-		query = query.where("mime_type", "like", `${opts.mimeType}%`);
-	}
-
-	if (typeof opts.cursor === "string") {
-		query = query.where("id", "<", opts.cursor);
-	}
-
-	const rows = await query.limit(limit + 1).execute();
-	const pageRows = rows.slice(0, limit);
-	const items = pageRows.map((row) => rowToMediaItem(row));
-	const hasMore = rows.length > limit;
-
-	return {
-		items,
-		cursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
-		hasMore,
-	};
+async function mediaList(db: Kysely<Database>, opts: Record<string, unknown>) {
+	return createMediaAccess(db).list({
+		limit: typeof opts.limit === "number" ? opts.limit : undefined,
+		cursor: optionalString(opts, "cursor"),
+		mimeType: optionalString(opts, "mimeType"),
+	});
 }
 
 const ALLOWED_MIME_PREFIXES = ["image/", "video/", "audio/", "application/pdf"];
@@ -1529,14 +2060,7 @@ async function mediaDelete(
 
 // ── HTTP Operations ──────────────────────────────────────────────────────
 
-/** A multipart form part as marshaled by the wrapper. */
-interface MarshaledFormDataPart {
-	name: string;
-	value: string;
-	filename?: string;
-	type?: string;
-	isBlob?: boolean;
-}
+const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /** Marshaled RequestInit shape sent over the bridge from the wrapper. */
 interface MarshaledRequestInit {
@@ -1544,28 +2068,8 @@ interface MarshaledRequestInit {
 	redirect?: RequestRedirect;
 	/** List of [name, value] pairs to preserve multi-value headers */
 	headers?: Array<[string, string]>;
-	/**
-	 * Body is discriminated by bodyType. The wrapper (see wrapper.ts:
-	 * marshalRequestInit) guarantees the shape, but we validate defensively
-	 * at unmarshal time so a misbehaving plugin can't smuggle unexpected
-	 * data into the host fetch.
-	 */
-	bodyType?: "string" | "base64" | "formdata";
-	body?: string | MarshaledFormDataPart[];
-}
-
-function isFormDataPart(value: unknown): value is MarshaledFormDataPart {
-	if (!isRecord(value)) return false;
-	if (typeof value.name !== "string") return false;
-	if (typeof value.value !== "string") return false;
-	if (value.filename !== undefined && typeof value.filename !== "string") return false;
-	if (value.type !== undefined && typeof value.type !== "string") return false;
-	if (value.isBlob !== undefined && typeof value.isBlob !== "boolean") return false;
-	return true;
-}
-
-function isFormDataPartArray(value: unknown): value is MarshaledFormDataPart[] {
-	return Array.isArray(value) && value.every(isFormDataPart);
+	bodyType?: "base64";
+	body?: string;
 }
 
 function isMarshaledHeaders(value: unknown): value is Array<[string, string]> {
@@ -1606,34 +2110,26 @@ function parseMarshaledRequestInit(value: unknown): MarshaledRequestInit | undef
 		out.headers = value.headers;
 	}
 	if (value.bodyType !== undefined) {
-		if (
-			value.bodyType !== "string" &&
-			value.bodyType !== "base64" &&
-			value.bodyType !== "formdata"
-		) {
-			throw new Error('http/fetch: init.bodyType must be "string", "base64", or "formdata"');
+		if (value.bodyType !== "base64") {
+			throw new Error('http/fetch: init.bodyType must be "base64"');
 		}
 		out.bodyType = value.bodyType;
 	}
 	if (value.body !== undefined) {
-		if (out.bodyType === "formdata") {
-			if (!isFormDataPartArray(value.body)) {
-				throw new Error("http/fetch: formdata body must be an array of form parts");
-			}
-			out.body = value.body;
-		} else {
-			if (typeof value.body !== "string") {
-				throw new Error("http/fetch: string/base64 body must be a string");
-			}
-			out.body = value.body;
+		if (typeof value.body !== "string") {
+			throw new Error("http/fetch: base64 body must be a string");
 		}
+		out.body = value.body;
+	}
+	if ((out.bodyType === undefined) !== (out.body === undefined)) {
+		throw new Error("http/fetch: init.bodyType and init.body must be present together");
 	}
 	return out;
 }
 
 /**
  * Reverse the wrapper's marshalRequestInit() to reconstruct a real RequestInit
- * with proper Headers, binary bodies, and FormData.
+ * with proper Headers and a buffered binary body.
  */
 function unmarshalRequestInit(
 	marshaled: MarshaledRequestInit | undefined,
@@ -1651,32 +2147,18 @@ function unmarshalRequestInit(
 		}
 		init.headers = headers;
 	}
-	if (marshaled.bodyType && marshaled.body !== undefined) {
-		switch (marshaled.bodyType) {
-			case "string":
-				if (typeof marshaled.body !== "string") break;
-				init.body = marshaled.body;
-				break;
-			case "base64":
-				if (typeof marshaled.body !== "string") break;
-				init.body = Buffer.from(marshaled.body, "base64");
-				break;
-			case "formdata": {
-				if (!Array.isArray(marshaled.body)) break;
-				const fd = new FormData();
-				for (const part of marshaled.body) {
-					if (part.isBlob) {
-						const bytes = Buffer.from(part.value, "base64");
-						const blob = new Blob([bytes], { type: part.type || "application/octet-stream" });
-						fd.append(part.name, blob, part.filename);
-					} else {
-						fd.append(part.name, part.value);
-					}
-				}
-				init.body = fd;
-				break;
-			}
+	if (marshaled.bodyType === "base64" && marshaled.body !== undefined) {
+		if (marshaled.body.length % 4 !== 0 || !BASE64_BODY_PATTERN.test(marshaled.body)) {
+			throw new Error("http/fetch: body is not valid base64");
 		}
+		const padding = marshaled.body.endsWith("==") ? 2 : marshaled.body.endsWith("=") ? 1 : 0;
+		const decodedLength = (marshaled.body.length / 4) * 3 - padding;
+		if (decodedLength > PLUGIN_HTTP_MAX_REQUEST_BYTES) {
+			throw new Error(
+				`Plugin HTTP request body exceeds the ${PLUGIN_HTTP_MAX_REQUEST_BYTES} byte limit`,
+			);
+		}
+		init.body = Buffer.from(marshaled.body, "base64");
 	}
 	return init;
 }
@@ -1685,30 +2167,25 @@ async function httpFetch(
 	url: string,
 	marshaledInit: unknown,
 	opts: BridgeHandlerOptions,
-): Promise<{
-	status: number;
-	statusText: string;
-	headers: Record<string, string>;
-	bodyBase64: string;
-}> {
+): Promise<PluginHttpResponseWire> {
 	const hasAnyFetch = opts.capabilities.includes("network:request:unrestricted");
 	const httpAccess = hasAnyFetch
-		? createUnrestrictedHttpAccess(opts.pluginId)
-		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);
+		? createUnrestrictedHttpAccess(opts.pluginId, opts.httpFetch)
+		: createHttpAccess(opts.pluginId, opts.allowedHosts || [], opts.httpFetch);
 
 	const init = unmarshalRequestInit(parseMarshaledRequestInit(marshaledInit));
 	const res = await httpAccess.fetch(url, init);
 	// Read as bytes to preserve binary content (images, audio, etc.)
 	const bytes = new Uint8Array(await res.arrayBuffer());
-	const headers: Record<string, string> = {};
-	res.headers.forEach((v, k) => {
-		headers[k] = v;
-	});
+	const headers: Array<[string, string]> = [];
+	res.headers.forEach((value, key) => headers.push([key, value]));
 	return {
 		status: res.status,
 		statusText: res.statusText,
 		headers,
-		bodyBase64: Buffer.from(bytes).toString("base64"),
+		finalUrl: res.url || url,
+		redirected: res.redirected,
+		body: bytes,
 	};
 }
 

@@ -17,13 +17,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { getI18nConfig } from "emdash";
+import { PLUGIN_HTTP_MAX_REQUEST_BYTES } from "emdash/plugins/http-wire";
 
 import { createBridgeHandler } from "./bridge-handler.js";
 import type { WorkerdSandboxRunner } from "./runner.js";
 
 export interface BackingServiceHandler {
 	handler: (req: IncomingMessage, res: ServerResponse) => void;
-	removePlugin: (pluginId: string) => void;
+	removePlugin: (pluginId: string, version: string) => void;
 }
 
 /** Error carrying an HTTP status code, used to surface request-level failures. */
@@ -40,7 +41,8 @@ class HttpError extends Error {
  * Create an HTTP request handler for the backing service.
  */
 export function createBackingServiceHandler(runner: WorkerdSandboxRunner): BackingServiceHandler {
-	// Cache bridge handlers per pluginId to avoid re-creation
+	// Cache bridge handlers per installed plugin version so an update cannot
+	// retain the previous manifest's capabilities, storage, or settings schema.
 	const handlerCache = new Map<string, (request: Request) => Promise<Response>>();
 
 	const handler = async (req: IncomingMessage, res: ServerResponse) => {
@@ -62,7 +64,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 			}
 
 			// Get or create bridge handler for this plugin
-			const cacheKey = claims.pluginId;
+			const cacheKey = `${claims.pluginId}:${claims.version}`;
 			let bridgeHandler = handlerCache.get(cacheKey);
 			if (!bridgeHandler) {
 				bridgeHandler = createBridgeHandler({
@@ -72,14 +74,19 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					allowedHosts: claims.allowedHosts,
 					storageCollections: claims.storageCollections,
 					storageConfig: runner.getPluginStorageConfig(claims.pluginId, claims.version),
+					settingsSchema: runner.getPluginSettingsSchema(claims.pluginId, claims.version),
 					i18nConfig: getI18nConfig(),
 					siteInfo: runner.getSiteInfo(),
 					db: runner.db,
 					beforeContentWrite: runner.beforeContentWrite,
 					contentCreate: runner.contentCreate ?? undefined,
+					taxonomyWrite: runner.taxonomyWrite,
+					contentActions: () => runner.contentActions,
 					emailSend: () => runner.emailSend,
+					commentModerate: () => runner.commentModerate,
 					cronReschedule: () => runner.cronReschedule?.(),
 					now: runner.now,
+					httpFetch: runner.httpFetch,
 					storage: runner.mediaStorage,
 				});
 				handlerCache.set(cacheKey, bridgeHandler);
@@ -110,13 +117,13 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 
 	return {
 		handler,
-		removePlugin(pluginId: string) {
-			handlerCache.delete(pluginId);
+		removePlugin(pluginId: string, version: string) {
+			handlerCache.delete(`${pluginId}:${version}`);
 		},
 	};
 }
 
-const MAX_BRIDGE_BODY_BYTES = 10 * 1024 * 1024;
+const MAX_BRIDGE_BODY_BYTES = Math.ceil((PLUGIN_HTTP_MAX_REQUEST_BYTES * 4) / 3) + 64 * 1024;
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);

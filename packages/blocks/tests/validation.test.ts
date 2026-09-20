@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { validateBlocks } from "../src/validation.js";
+import {
+	validateBlockResponse,
+	validateBlocks,
+	validateContentEditorActionResponse,
+	validateContentEditorPanelInteraction,
+} from "../src/validation.js";
 
 describe("validateBlocks", () => {
 	// ── Valid blocks ─────────────────────────────────────────────────────────
@@ -133,6 +138,43 @@ describe("validateBlocks", () => {
 		it("accordion with empty blocks array", () => {
 			const result = validateBlocks([{ type: "accordion", label: "Empty", blocks: [] }]);
 			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("tab", () => {
+			const result = validateBlocks([
+				{
+					type: "tab",
+					panels: [{ label: "Overview", blocks: [{ type: "section", text: "Summary" }] }],
+					default_tab: 0,
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it.each([
+			[{ type: "tab", panels: [] }, "blocks[0].panels"],
+			[
+				{
+					type: "tab",
+					panels: [{ label: "Overview", blocks: [] }],
+					default_tab: -1,
+				},
+				"blocks[0].default_tab",
+			],
+			[
+				{
+					type: "tab",
+					panels: [{ label: "Overview", blocks: [] }],
+					default_tab: 1,
+				},
+				"blocks[0].default_tab",
+			],
+		])("rejects a tab that cannot render an initial panel", (block, errorPath) => {
+			const result = validateBlocks([block]);
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual(
+				expect.arrayContaining([expect.objectContaining({ path: errorPath })]),
+			);
 		});
 
 		it("repeater", () => {
@@ -817,5 +859,322 @@ describe("validateBlocks", () => {
 			expect(paths).toContain("blocks[0].rows");
 			expect(paths).toContain("blocks[0].page_action_id");
 		});
+	});
+
+	describe("host browser policy", () => {
+		const policy = {
+			allowedImageHosts: ["images.example.com", "*.cdn.example.com"],
+			pluginPagePaths: ["/settings"],
+		};
+
+		it("accepts declared links and approved image resources", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{ type: "image", url: "https://images.example.com/report.png", alt: "Report" },
+						{
+							type: "actions",
+							elements: [
+								{
+									type: "link",
+									label: "Settings",
+									target: { kind: "plugin-page", path: "/settings" },
+								},
+								{
+									type: "link",
+									label: "Documentation",
+									target: { kind: "external", url: "https://docs.example.com" },
+								},
+							],
+						},
+					],
+					toast: { type: "success", message: "Loaded" },
+				},
+				policy,
+			);
+
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("normalizes plugin-page paths and validates links nested in tab panels", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "tab",
+							panels: [
+								{
+									label: "Configuration",
+									blocks: [
+										{
+											type: "actions",
+											elements: [
+												{
+													type: "link",
+													label: "Settings",
+													target: { kind: "plugin-page", path: "settings" },
+												},
+											],
+										},
+									],
+								},
+							],
+						},
+					],
+				},
+				{ pluginPagePaths: ["settings"] },
+			);
+
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("accepts HTTPS images under an unrestricted browser policy", () => {
+			expect(
+				validateBlockResponse(
+					{
+						blocks: [
+							{ type: "image", url: "https://assets.example.test/report.png", alt: "Report" },
+						],
+					},
+					{ allowedImageHosts: ["*"], pluginPagePaths: [] },
+				),
+			).toEqual({ valid: true, errors: [] });
+		});
+
+		it("matches wildcard image hosts using the sandbox network-host rules", () => {
+			for (const url of [
+				"https://cdn.example.com/report.png",
+				"https://assets.cdn.example.com/report.png",
+			]) {
+				expect(
+					validateBlockResponse(
+						{ blocks: [{ type: "image", url, alt: "Report" }] },
+						{ allowedImageHosts: ["*.cdn.example.com"], pluginPagePaths: [] },
+					),
+				).toEqual({ valid: true, errors: [] });
+			}
+		});
+
+		it.each([
+			["unapproved image host", { type: "image", url: "https://tracker.test/pixel", alt: "" }],
+			[
+				"unapproved chart image",
+				{
+					type: "chart",
+					config: {
+						chart_type: "custom",
+						options: {
+							series: [{ type: "scatter", symbol: "image://https://tracker.test/pixel" }],
+						},
+					},
+				},
+			],
+			[
+				"undeclared plugin page",
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Secret",
+							target: { kind: "plugin-page", path: "/secret" },
+						},
+					],
+				},
+			],
+			[
+				"active external protocol",
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Run",
+							target: { kind: "external", url: "javascript:alert(1)" },
+						},
+					],
+				},
+			],
+		])("rejects %s", (_label, block) => {
+			const result = validateBlockResponse({ blocks: [block] }, policy);
+			expect(result.valid).toBe(false);
+		});
+
+		it("rejects encoded traversal in plugin-page links", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "actions",
+							elements: [
+								{
+									type: "link",
+									label: "Escape",
+									target: { kind: "plugin-page", path: "/%2e%2e/%2e%2e/settings" },
+								},
+							],
+						},
+					],
+				},
+				{ pluginPagePaths: ["/%2e%2e/%2e%2e/settings"] },
+			);
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ path: "blocks[0].elements[0].target.path" }),
+				]),
+			);
+		});
+
+		it("rejects links in form fields and links carrying action ids", () => {
+			const result = validateBlocks([
+				{
+					type: "form",
+					fields: [
+						{
+							type: "link",
+							label: "Not a field",
+							action_id: "escape",
+							target: { kind: "external", url: "https://example.com" },
+						},
+					],
+					submit: { label: "Save", action_id: "save" },
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((error) => error.path)).toEqual(
+				expect.arrayContaining(["blocks[0].fields[0].action_id", "blocks[0].fields[0].type"]),
+			);
+		});
+
+		it("rejects deeply nested responses without recursing on the host stack", () => {
+			let nested: unknown = { type: "context", text: "end" };
+			for (let i = 0; i < 5_000; i++) {
+				nested = { type: "accordion", label: `Level ${i}`, blocks: [nested] };
+			}
+
+			const result = validateBlockResponse({ blocks: [nested] }, policy);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]?.message).toContain("maximum depth");
+		});
+
+		it("bounds response arrays, strings, and validation errors", () => {
+			const wide = validateBlockResponse(
+				{ blocks: Array.from({ length: 1_001 }, () => ({ type: "divider" })) },
+				policy,
+			);
+			expect(wide.errors[0]?.message).toContain("maximum length");
+
+			const longString = validateBlockResponse(
+				{ blocks: [{ type: "context", text: "x".repeat(64 * 1024 + 1) }] },
+				policy,
+			);
+			expect(longString.errors[0]?.message).toContain("String exceeds maximum size");
+			const longUtf8String = validateBlockResponse(
+				{ blocks: [{ type: "context", text: "€".repeat(30_000) }] },
+				policy,
+			);
+			expect(longUtf8String.errors[0]?.message).toContain("String exceeds maximum size");
+			const oversizedKey = validateBlockResponse(
+				{ blocks: [], ["x".repeat(64 * 1024 + 1)]: true },
+				policy,
+			);
+			expect(oversizedKey.errors[0]?.message).toContain("Property name exceeds maximum size");
+
+			const largeResponse = validateBlockResponse(
+				{
+					blocks: Array.from({ length: 900 }, (_, index) => ({
+						type: "context",
+						text: `${index}:${"x".repeat(400)}`,
+					})),
+				},
+				policy,
+			);
+			expect(largeResponse.errors[0]?.message).toContain("maximum size");
+
+			const primitiveHeavy = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "chart",
+							config: {
+								chart_type: "custom",
+								options: {
+									series: Array.from({ length: 1_000 }, () =>
+										Array(1_000).fill(Number.MAX_SAFE_INTEGER),
+									),
+								},
+							},
+						},
+					],
+				},
+				policy,
+			);
+			expect(primitiveHeavy.errors[0]?.message).toContain("maximum node count");
+
+			const malformed = validateBlockResponse(
+				{ blocks: Array.from({ length: 100 }, () => ({ type: "unknown" })) },
+				policy,
+			);
+			expect(malformed.errors).toHaveLength(50);
+		});
+	});
+});
+
+describe("validateContentEditorActionResponse", () => {
+	const policy = { pluginPagePaths: ["/reports"] };
+
+	it("accepts one bounded host effect and an optional toast", () => {
+		expect(
+			validateContentEditorActionResponse(
+				{ refresh: true, toast: { message: "Entry updated", type: "success" } },
+				policy,
+			),
+		).toEqual({ valid: true, errors: [] });
+		expect(
+			validateContentEditorActionResponse(
+				{ navigate: { kind: "plugin-page", path: "/reports" } },
+				policy,
+			),
+		).toEqual({ valid: true, errors: [] });
+	});
+
+	it.each([
+		["false refresh", { refresh: false }],
+		["multiple terminal effects", { refresh: true, navigate: { kind: "plugin-settings" } }],
+		["unknown command", { reload: true }],
+		["undeclared plugin page", { navigate: { kind: "plugin-page", path: "/secret" } }],
+		["active external URL", { navigate: { kind: "external", url: "javascript:alert(1)" } }],
+	])("rejects %s", (_label, response) => {
+		expect(validateContentEditorActionResponse(response, policy).valid).toBe(false);
+	});
+
+	it("applies the shared response bounds", () => {
+		const result = validateContentEditorActionResponse(
+			{ toast: { message: "x".repeat(64 * 1024 + 1), type: "info" } },
+			policy,
+		);
+		expect(result.valid).toBe(false);
+		expect(result.errors[0]?.message).toContain("maximum size");
+	});
+});
+
+describe("validateContentEditorPanelInteraction", () => {
+	it.each([
+		{ type: "panel_load" },
+		{ type: "block_action", action_id: "refresh", value: 1 },
+		{ type: "form_submit", action_id: "save", values: { enabled: true } },
+	])("accepts bounded editor interactions", (interaction) => {
+		expect(validateContentEditorPanelInteraction(interaction)).toEqual({ valid: true, errors: [] });
+	});
+
+	it.each([
+		{ type: "panel_load", entry: { id: "forged" } },
+		{ type: "block_action", action_id: "" },
+		{ type: "form_submit", action_id: "save", values: [] },
+		{ type: "page_load", page: "/forged" },
+	])("rejects malformed or host-owned fields", (interaction) => {
+		expect(validateContentEditorPanelInteraction(interaction).valid).toBe(false);
 	});
 });

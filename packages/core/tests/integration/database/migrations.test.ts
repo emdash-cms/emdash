@@ -175,6 +175,15 @@ describe("Database Migrations (Integration)", () => {
 	});
 
 	describe("exact migration status", () => {
+		it("registers each migration under a unique increasing sequence number", () => {
+			const sequence = MIGRATION_NAMES.map((name) => Number(name.slice(0, 3)));
+
+			expect(MIGRATION_NAMES).toEqual(MIGRATION_NAMES.toSorted());
+			expect(sequence.every(Number.isInteger)).toBe(true);
+			expect(new Set(sequence)).toHaveLength(sequence.length);
+			expect(sequence).toEqual(sequence.toSorted((left, right) => left - right));
+		});
+
 		it("exports the registered migration names in execution order", async () => {
 			await runMigrations(db);
 			const rows = await db

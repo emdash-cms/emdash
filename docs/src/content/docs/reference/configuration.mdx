@@ -450,12 +450,13 @@ emdash({
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
 
-On **Cloudflare Workers**, the env-var fallback reads `process.env`, which is empty unless the `nodejs_compat_populate_process_env` compatibility flag is enabled. To use the env var instead of the config option there, set both:
+On **Cloudflare Workers**, the env-var fallback reads `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env`.
 
 ```jsonc
 // wrangler.jsonc
 {
-	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
 	"vars": { "EMDASH_SITE_URL": "https://cms.example.com" },
 }
 ```

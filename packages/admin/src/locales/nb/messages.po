@@ -49,7 +49,7 @@ msgstr ""
 msgid "\"{0}\" will be permanently deleted."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:596
+#: packages/admin/src/components/RegistryPluginDetail.tsx:597
 msgid "(pre-release)"
 msgstr "(forhåndsutgivelse)"
 
@@ -57,7 +57,7 @@ msgstr "(forhåndsutgivelse)"
 msgid "(synced)"
 msgstr "(synkronisert)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:599
+#: packages/admin/src/components/RegistryPluginDetail.tsx:600
 msgid "(too new)"
 msgstr "(for ny)"
 
@@ -69,12 +69,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# oppføring)} other {(# oppføringer)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:1956
+#: packages/admin/src/components/ContentEditor.tsx:1978
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr ""
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:1961
+#: packages/admin/src/components/ContentEditor.tsx:1983
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr ""
 
@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2090
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# kommentar oppdatert} other {# kommentarer oppdatert}}"
 
@@ -138,7 +138,7 @@ msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# oppføring} other {# oppføringer}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:481
+#: packages/admin/src/components/PluginManager.tsx:478
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr ""
 
@@ -164,7 +164,7 @@ msgstr "{0, plural, one {# meny vil bli importert} other {# menyer vil bli impor
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:495
+#: packages/admin/src/components/PluginManager.tsx:492
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# tillatelse} other {# tillatelser}}"
 
@@ -224,7 +224,7 @@ msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:1966
+#: packages/admin/src/components/ContentEditor.tsx:1988
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr ""
 
@@ -239,8 +239,13 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {felt} other {felt}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:220
+#: packages/admin/src/components/Dashboard.tsx:319
 msgid "{0, plural, one {Media file} other {Media files}}"
+msgstr ""
+
+#. placeholder {0}: policyRejected - policyRejections.length
+#: packages/admin/src/components/Dashboard.tsx:198
+msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr ""
 
 #. placeholder {0}: state.rows
@@ -249,14 +254,14 @@ msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:224
+#: packages/admin/src/components/Dashboard.tsx:323
 msgid "{0, plural, one {User} other {Users}}"
 msgstr ""
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:702
+#: packages/admin/src/components/RegistryPluginDetail.tsx:703
 msgid "{0} {1} required — you have {2}."
 msgstr "{0} {1} påkrevd — du har {2}."
 
@@ -272,7 +277,7 @@ msgid "{0} added to this post."
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:506
+#: packages/admin/src/components/RegistryPluginDetail.tsx:507
 msgid "{0} banner"
 msgstr "{0}-banner"
 
@@ -297,17 +302,17 @@ msgid "{0} has been deactivated"
 msgstr "{0} er deaktivert"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:376
+#: packages/admin/src/components/PluginManager.tsx:373
 msgid "{0} has been removed"
 msgstr "{0} er fjernet"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:518
+#: packages/admin/src/components/RegistryPluginDetail.tsx:519
 msgid "{0} icon"
 msgstr "{0}-ikon"
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:223
 msgid "{0} installs"
 msgstr "{0} installasjoner"
 
@@ -385,7 +390,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 tegn"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:419
+#: packages/admin/src/lib/api/marketplace.ts:463
 msgid "{base} to: {0}"
 msgstr "{base} til: {0}"
 
@@ -476,11 +481,11 @@ msgstr "{needsNewCollections, plural, one {# ny samling vil bli opprettet} other
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Felt vil bli lagt til i # eksisterende samling} other {Felt vil bli lagt til i # eksisterende samlinger}}"
 
-#: packages/admin/src/components/Dashboard.tsx:109
+#: packages/admin/src/components/Dashboard.tsx:138
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:104
+#: packages/admin/src/components/Dashboard.tsx:133
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
@@ -488,11 +493,11 @@ msgstr ""
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:100
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} ber om flere tillatelser:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:99
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:101
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} krever følgende tillatelser:"
 
@@ -500,6 +505,10 @@ msgstr "{pluginName} krever følgende tillatelser:"
 #: packages/admin/src/components/PluginSettings.tsx:142
 #: packages/admin/src/components/PluginSettings.tsx:170
 msgid "{pluginName} Settings"
+msgstr ""
+
+#: packages/admin/src/components/Dashboard.tsx:152
+msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:304
@@ -550,11 +559,11 @@ msgstr "{total, plural, one {# oppføring} other {# oppføringer}}"
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {# totalt} other {# totalt}}"
 
-#: packages/admin/src/components/Dashboard.tsx:208
+#: packages/admin/src/components/Dashboard.tsx:307
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:214
+#: packages/admin/src/components/Dashboard.tsx:313
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
@@ -716,13 +725,13 @@ msgstr "Et fullbredde hero-banner med overskrift, tekst og CTA-knapp"
 msgid "A media folder with this name already exists"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:167
-#: packages/admin/src/components/ContentSettingsPanel.tsx:214
-#: packages/admin/src/components/ContentSettingsPanel.tsx:236
+#: packages/admin/src/components/ContentSettingsPanel.tsx:169
+#: packages/admin/src/components/ContentSettingsPanel.tsx:216
+#: packages/admin/src/components/ContentSettingsPanel.tsx:238
 msgid "A publication time has not been selected"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:733
+#: packages/admin/src/components/ContentEditor.tsx:738
 msgid "A publishing action is already in progress"
 msgstr ""
 
@@ -742,11 +751,11 @@ msgstr ""
 msgid "About inferred bylines"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:277
 msgid "Accept & Install"
 msgstr "Godta og installer"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:272
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Accept & Update"
 msgstr "Godta og oppdater"
 
@@ -759,12 +768,12 @@ msgstr "Godta invitasjon"
 msgid "Access denied"
 msgstr "Tilgang nektet"
 
-#: packages/admin/src/router.tsx:2102
+#: packages/admin/src/router.tsx:2110
 msgid "Access Denied"
 msgstr "Tilgang nektet"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:430
+#: packages/admin/src/lib/api/marketplace.ts:440
 msgid "Access your media library"
 msgstr "Få tilgang til mediebiblioteket ditt"
 
@@ -996,12 +1005,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
-#: packages/admin/src/components/Sidebar.tsx:602
+#: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administrasjon"
 
-#: packages/admin/src/components/Sidebar.tsx:550
+#: packages/admin/src/components/Sidebar.tsx:552
 msgid "Admin navigation"
 msgstr "Administrasjonsnavigasjon"
 
@@ -1017,16 +1026,16 @@ msgstr ""
 msgid "After send:"
 msgstr "Etter sending:"
 
-#: packages/admin/src/components/PluginManager.tsx:590
+#: packages/admin/src/components/PluginManager.tsx:587
 msgid "Agent access"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:387
+#: packages/admin/src/components/PluginManager.tsx:384
 msgid "Agent access for {0} has been updated"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:211
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:215
 msgid "Agent-callable MCP tools"
 msgstr ""
 
@@ -1105,7 +1114,7 @@ msgstr "Alle typer"
 msgid "All uploads finished"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:592
+#: packages/admin/src/components/PluginManager.tsx:589
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
@@ -1130,7 +1139,7 @@ msgstr "Tillatte typer"
 msgid "Already have an account?"
 msgstr "Har du allerede en konto?"
 
-#: packages/admin/src/components/PluginManager.tsx:787
+#: packages/admin/src/components/PluginManager.tsx:784
 msgid "Also delete plugin storage data"
 msgstr "Slett også lagrede data for utvidelsen"
 
@@ -1214,10 +1223,10 @@ msgstr ""
 #: packages/admin/src/router.tsx:1296
 #: packages/admin/src/router.tsx:1327
 #: packages/admin/src/router.tsx:1348
-#: packages/admin/src/router.tsx:2047
-#: packages/admin/src/router.tsx:2063
-#: packages/admin/src/router.tsx:2088
-#: packages/admin/src/router.tsx:2589
+#: packages/admin/src/router.tsx:2055
+#: packages/admin/src/router.tsx:2071
+#: packages/admin/src/router.tsx:2096
+#: packages/admin/src/router.tsx:2597
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1289,6 +1298,10 @@ msgstr "Bruk lenke"
 msgid "Approve"
 msgstr "Godkjenn"
 
+#: packages/admin/src/lib/api/marketplace.ts:423
+msgid "Approve comments and mark them as pending or spam"
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
 msgstr ""
@@ -1354,11 +1367,11 @@ msgstr "Tilordne WordPress-forfattere til EmDash-brukere. Innlegg blir tilskreve
 msgid "Astro"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1989
+#: packages/admin/src/components/ContentEditor.tsx:2011
 msgid "At least {min}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1986
+#: packages/admin/src/components/ContentEditor.tsx:2008
 msgid "At most {max}"
 msgstr ""
 
@@ -1393,7 +1406,7 @@ msgstr "Autentiseringen ble avbrutt eller tidsavbrutt. Prøv på nytt."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:279
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1258
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1419,7 +1432,7 @@ msgstr "Autoriser"
 msgid "Authorize Device"
 msgstr "Autoriser enhet"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:150
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:152
 msgid "Authorized approvers"
 msgstr ""
 
@@ -1427,7 +1440,7 @@ msgstr ""
 msgid "Authorizing..."
 msgstr "Autoriserer …"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:751
+#: packages/admin/src/components/RegistryPluginDetail.tsx:752
 msgid "Authors"
 msgstr "Forfattere"
 
@@ -1500,7 +1513,7 @@ msgstr ""
 msgid "Back"
 msgstr "Tilbake"
 
-#: packages/admin/src/components/ContentEditor.tsx:959
+#: packages/admin/src/components/ContentEditor.tsx:968
 msgid "Back to {collectionLabel} list"
 msgstr "Tilbake til {collectionLabel}-listen"
 
@@ -1520,13 +1533,13 @@ msgstr "Tilbake til innlogging"
 msgid "Back to Main library"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:126
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:404
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:136
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:416
 msgid "Back to marketplace"
 msgstr "Tilbake til markedsplassen"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:891
+#: packages/admin/src/components/RegistryPluginDetail.tsx:893
 msgid "Back to plugins"
 msgstr "Tilbake til utvidelser"
 
@@ -1582,7 +1595,7 @@ msgstr "Før sending:"
 msgid "Before you continue:"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1983
+#: packages/admin/src/components/ContentEditor.tsx:2005
 msgid "Between {min} and {max}"
 msgstr ""
 
@@ -1658,14 +1671,14 @@ msgstr ""
 msgid "Byline schema"
 msgstr "Byline-skjema"
 
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 msgid "Byline Schema"
 msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1037
-#: packages/admin/src/components/Sidebar.tsx:428
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1062
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1066
+#: packages/admin/src/components/Sidebar.tsx:429
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "Bylines"
@@ -1704,14 +1717,14 @@ msgstr "Kan vise innhold"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1012
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:264
-#: packages/admin/src/components/ConfirmDialog.tsx:99
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:268
+#: packages/admin/src/components/ConfirmDialog.tsx:102
 #: packages/admin/src/components/ContentList.tsx:545
 #: packages/admin/src/components/ContentList.tsx:1378
 #: packages/admin/src/components/ContentList.tsx:1560
 #: packages/admin/src/components/ContentPickerModal.tsx:240
-#: packages/admin/src/components/ContentSettingsPanel.tsx:312
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1220
+#: packages/admin/src/components/ContentSettingsPanel.tsx:314
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1280
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:311
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:312
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:539
@@ -1726,7 +1739,7 @@ msgstr "Kan vise innhold"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/PluginManager.tsx:793
+#: packages/admin/src/components/PluginManager.tsx:790
 #: packages/admin/src/components/PortableTextEditor.tsx:4688
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:183
@@ -1770,11 +1783,11 @@ msgstr "Kan ikke slette temaseksjoner"
 msgid "Canonical URL"
 msgstr "Kanonisk URL"
 
-#: packages/admin/src/components/PluginManager.tsx:566
+#: packages/admin/src/components/PluginManager.tsx:563
 msgid "Capabilities"
 msgstr "Egenskaper"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:78
 msgid "Capability consent"
 msgstr "Samtykke til egenskaper"
 
@@ -1793,7 +1806,7 @@ msgstr "Bildetekster / undertekster"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:192
+#: packages/admin/src/components/AdminCommandPalette.tsx:193
 #: packages/admin/src/components/Widgets.tsx:135
 msgid "Categories"
 msgstr "Kategorier"
@@ -1857,12 +1870,16 @@ msgstr ""
 msgid "Change publication date: {formattedValue}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:506
+#: packages/admin/src/components/ContentSettingsPanel.tsx:508
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
 msgid "Change schedule"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:879
+#: packages/admin/src/lib/api/marketplace.ts:429
+msgid "Change where visitors are sent"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:881
 msgid "Changelog"
 msgstr "Endringslogg"
 
@@ -2060,7 +2077,7 @@ msgstr "Klikk på lenken i e-posten for å logge inn."
 #: packages/admin/src/components/FieldEditor.tsx:381
 #: packages/admin/src/components/FieldEditor.tsx:387
 #: packages/admin/src/components/FieldEditor.tsx:391
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:449
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:461
 #: packages/admin/src/components/MediaDetailPanel.tsx:1116
 #: packages/admin/src/components/MediaDetailPanel.tsx:1835
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
@@ -2128,7 +2145,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Lukk panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:1488
+#: packages/admin/src/components/ContentEditor.tsx:1510
 msgid "Close settings"
 msgstr ""
 
@@ -2148,8 +2165,8 @@ msgstr "Kodeblokk"
 msgid "Code block actions"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:549
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:546
+#: packages/admin/src/components/PluginManager.tsx:551
 msgid "Collapse details"
 msgstr "Skjul detaljer"
 
@@ -2223,7 +2240,7 @@ msgstr "Kommentardetaljer"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:148
 #: packages/admin/src/components/ContentTypeEditor.tsx:540
-#: packages/admin/src/components/Sidebar.tsx:414
+#: packages/admin/src/components/Sidebar.tsx:415
 msgid "Comments"
 msgstr "Kommentarer"
 
@@ -2277,6 +2294,16 @@ msgstr "Koble til og analyser"
 msgid "Connect to {0}"
 msgstr "Koble til {0}"
 
+#: packages/admin/src/lib/api/marketplace.ts:436
+#: packages/admin/src/lib/api/marketplace.ts:444
+msgid "Connect to any network host and load external plugin admin images (unrestricted)"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:435
+#: packages/admin/src/lib/api/marketplace.ts:443
+msgid "Connect to network hosts and load external plugin admin images"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1389
 msgid "Connect with WordPress"
 msgstr "Koble til med WordPress"
@@ -2286,17 +2313,17 @@ msgstr "Koble til med WordPress"
 msgid "Connected {0}"
 msgstr "Koblet til {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:435
+#: packages/admin/src/components/ContentSettingsPanel.tsx:437
 msgid "content"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:378
+#: packages/admin/src/components/AdminCommandPalette.tsx:380
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
-#: packages/admin/src/components/Dashboard.tsx:276
+#: packages/admin/src/components/Dashboard.tsx:375
 #: packages/admin/src/components/PortableTextEditor.tsx:2925
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:586
+#: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/components/Widgets.tsx:899
 msgid "Content"
 msgstr "Innhold"
@@ -2330,7 +2357,7 @@ msgstr "Innholds-ID:"
 msgid "Content is now live"
 msgstr "Innholdet er nå publisert"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:880
+#: packages/admin/src/components/ContentSettingsPanel.tsx:909
 msgid "Content locale"
 msgstr ""
 
@@ -2354,9 +2381,9 @@ msgstr "Innholdsøyeblikksbilde:"
 msgid "Content to Import"
 msgstr "Innhold som skal importeres"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:184
+#: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:116
-#: packages/admin/src/components/Sidebar.tsx:454
+#: packages/admin/src/components/Sidebar.tsx:455
 msgid "Content Types"
 msgstr "Innholdstyper"
 
@@ -2462,7 +2489,7 @@ msgstr "Kunne ikke kopiere automatisk. Merk URL-en ovenfor og kopier manuelt."
 msgid "Could not insert section"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:131
+#: packages/admin/src/components/Dashboard.tsx:230
 msgid "Could not load dashboard data"
 msgstr ""
 
@@ -2658,6 +2685,10 @@ msgstr "Opprett seksjoner i seksjonsbiblioteket for å bruke dem her"
 msgid "Create Taxonomy"
 msgstr "Opprett taksonomi"
 
+#: packages/admin/src/lib/api/marketplace.ts:427
+msgid "Create taxonomy terms and change content classifications"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
 msgid "Create Token"
@@ -2687,8 +2718,8 @@ msgstr "Opprett din første"
 msgid "Create your first reusable content section to get started."
 msgstr "Opprett din første gjenbrukbare innholdsseksjon for å komme i gang."
 
-#: packages/admin/src/lib/api/marketplace.ts:385
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:419
+#: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Create, update, and delete content"
 msgstr "Opprett, oppdater og slett innhold"
 
@@ -2705,7 +2736,7 @@ msgid "Create, update, delete content"
 msgstr "Opprett, oppdater, slett innhold"
 
 #: packages/admin/src/components/ContentList.tsx:868
-#: packages/admin/src/components/ContentSettingsPanel.tsx:993
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
@@ -2726,7 +2757,7 @@ msgstr "Opprettet {0}"
 msgid "Created {0} translation"
 msgstr "Opprettet {0}-oversettelse"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:972
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
 msgid "Created and updated"
 msgstr ""
 
@@ -2823,11 +2854,11 @@ msgstr ""
 msgid "Dark mode variant"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:130
+#: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:358
-#: packages/admin/src/components/Dashboard.tsx:63
-#: packages/admin/src/components/Sidebar.tsx:393
-#: packages/admin/src/components/Sidebar.tsx:577
+#: packages/admin/src/components/Dashboard.tsx:65
+#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:579
 msgid "Dashboard"
 msgstr "Dashbord"
 
@@ -2861,7 +2892,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr "Desimaltall"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:816
+#: packages/admin/src/components/RegistryPluginDetail.tsx:817
 msgid "Declared permissions"
 msgstr "Deklarerte tillatelser"
 
@@ -3147,7 +3178,7 @@ msgid "Describe what this section is for..."
 msgstr "Beskriv hva denne seksjonen er til for …"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:424
-#: packages/admin/src/components/RegistryPluginDetail.tsx:876
+#: packages/admin/src/components/RegistryPluginDetail.tsx:878
 #: packages/admin/src/components/SectionEditor.tsx:295
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:438
@@ -3166,8 +3197,8 @@ msgstr "Mål"
 msgid "Destination path"
 msgstr "Målsti"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:611
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:229
+#: packages/admin/src/components/PluginManager.tsx:608
 msgid "Destructive"
 msgstr ""
 
@@ -3208,11 +3239,11 @@ msgstr "Dimensjoner:"
 msgid "Disable"
 msgstr "Deaktiver"
 
-#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:540
 msgid "Disable plugin"
 msgstr "Deaktiver utvidelse"
 
-#: packages/admin/src/components/PluginManager.tsx:601
+#: packages/admin/src/components/PluginManager.tsx:598
 msgid "Disable plugin MCP tools"
 msgstr ""
 
@@ -3228,14 +3259,14 @@ msgstr "Deaktiver bruker"
 msgid "Disable User?"
 msgstr "Deaktivere bruker?"
 
-#: packages/admin/src/components/PluginManager.tsx:436
+#: packages/admin/src/components/PluginManager.tsx:433
 #: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "Deaktivert"
 
-#: packages/admin/src/components/PluginManager.tsx:661
+#: packages/admin/src/components/PluginManager.tsx:658
 msgid "Disabled:"
 msgstr "Deaktivert:"
 
@@ -3252,8 +3283,8 @@ msgstr "Deaktiverer …"
 msgid "Discard"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:299
-#: packages/admin/src/components/ContentSettingsPanel.tsx:319
+#: packages/admin/src/components/ContentSettingsPanel.tsx:301
+#: packages/admin/src/components/ContentSettingsPanel.tsx:321
 msgid "Discard changes"
 msgstr "Forkast endringer"
 
@@ -3261,7 +3292,7 @@ msgstr "Forkast endringer"
 msgid "Discard changes?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:304
+#: packages/admin/src/components/ContentSettingsPanel.tsx:306
 msgid "Discard draft changes?"
 msgstr "Forkaste kladdendringer?"
 
@@ -3269,6 +3300,7 @@ msgstr "Forkaste kladdendringer?"
 msgid "Discarding..."
 msgstr ""
 
+#: packages/admin/src/components/Dashboard.tsx:188
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
 msgid "Dismiss"
 msgstr "Lukk"
@@ -3323,7 +3355,7 @@ msgstr ""
 msgid "Displayed below the image as a visible caption."
 msgstr "Vises under bildet som en synlig bildetekst."
 
-#: packages/admin/src/components/ContentEditor.tsx:1033
+#: packages/admin/src/components/ContentEditor.tsx:1055
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Distraksjonsfri modus (⌘⇧\\)"
 
@@ -3399,7 +3431,7 @@ msgstr ""
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:559
+#: packages/admin/src/components/RegistryPluginDetail.tsx:560
 msgid "Download SBOM"
 msgstr "Last ned SBOM"
 
@@ -3412,12 +3444,12 @@ msgstr "Laster ned"
 msgid "Draft"
 msgstr "Kladd"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
-#: packages/admin/src/components/ContentSettingsPanel.tsx:213
+#: packages/admin/src/components/ContentSettingsPanel.tsx:193
+#: packages/admin/src/components/ContentSettingsPanel.tsx:215
 msgid "Draft changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:157
+#: packages/admin/src/components/ContentSettingsPanel.tsx:159
 msgid "Draft version"
 msgstr ""
 
@@ -3426,7 +3458,7 @@ msgid "draft, published, or archived"
 msgstr "kladd, publisert eller arkivert"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:310
+#: packages/admin/src/components/Dashboard.tsx:409
 msgid "Drafts"
 msgstr "Kladder"
 
@@ -3527,6 +3559,7 @@ msgstr "f.eks. MacBook Pro, iPhone"
 #: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Sections.tsx:392
+#: packages/admin/src/components/Shell.tsx:86
 #: packages/admin/src/components/TranslationsPanel.tsx:93
 msgid "Edit"
 msgstr "Rediger"
@@ -3549,7 +3582,7 @@ msgstr "Rediger {0}"
 msgid "Edit {0} field"
 msgstr "Rediger feltet {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:975
 msgid "Edit {itemLabel}"
 msgstr ""
 
@@ -3610,6 +3643,10 @@ msgstr "Rediger lenke"
 msgid "Edit locking"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:432
+msgid "Edit media alt text, captions, and focal points"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:573
 msgid "Edit Menu Item"
 msgstr "Rediger menyelement"
@@ -3617,6 +3654,11 @@ msgstr "Rediger menyelement"
 #: packages/admin/src/components/MenuEditor.tsx:369
 msgid "Edit menu items"
 msgstr "Rediger menyelementer"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:30
+msgid "visualEditing.editMode"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:872
 #: packages/admin/src/components/BylineCreditsEditor.tsx:966
@@ -3644,6 +3686,11 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 msgid "Edit URL"
 msgstr "Rediger URL"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:21
+msgid "visualEditing.sessionExpired"
+msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -3768,11 +3815,11 @@ msgstr "Aktiver kommentarer"
 msgid "Enable full-text search on this collection"
 msgstr "Aktiver fulltekstsøk på denne samlingen"
 
-#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:540
 msgid "Enable plugin"
 msgstr "Aktiver utvidelse"
 
-#: packages/admin/src/components/PluginManager.tsx:602
+#: packages/admin/src/components/PluginManager.tsx:599
 msgid "Enable plugin MCP tools"
 msgstr ""
 
@@ -3793,7 +3840,7 @@ msgstr ""
 msgid "Enabled"
 msgstr "Aktivert"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:886
+#: packages/admin/src/components/ContentSettingsPanel.tsx:915
 msgid "English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language."
 msgstr ""
 
@@ -3806,7 +3853,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Skriv inn en URL (https://…) eller en relativ sti (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2030
+#: packages/admin/src/components/ContentEditor.tsx:2052
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Skriv inn en gyldig URL (f.eks. https://example.com)"
 
@@ -3814,7 +3861,7 @@ msgstr "Skriv inn en gyldig URL (f.eks. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Skriv inn legitimasjon manuelt"
 
-#: packages/admin/src/components/ContentEditor.tsx:1032
+#: packages/admin/src/components/ContentEditor.tsx:1054
 msgid "Enter distraction-free mode"
 msgstr "Gå inn i distraksjonsfri modus"
 
@@ -3826,7 +3873,7 @@ msgstr "Skriv inn e-post"
 msgid "Enter HTML..."
 msgstr "Skriv inn HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/ContentEditor.tsx:1728
 msgid "Enter markdown content..."
 msgstr "Skriv inn markdown-innhold..."
 
@@ -3861,7 +3908,7 @@ msgstr "Skriv inn URL-en til WordPress-nettstedet ditt"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2806
+#: packages/admin/src/router.tsx:2814
 msgid "Error"
 msgstr "Feil"
 
@@ -3889,7 +3936,7 @@ msgstr ""
 msgid "Every place using this image will update to the selected version."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:662
+#: packages/admin/src/components/RegistryPluginDetail.tsx:663
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "Alle publiserte utgivelser av denne utvidelsen er trukket tilbake eller kunne ikke verifiseres. Sjekk igjen senere, eller kontakt utgiveren."
 
@@ -3910,16 +3957,16 @@ msgstr ""
 msgid "Exists"
 msgstr "Finnes"
 
-#: packages/admin/src/components/ContentEditor.tsx:1100
+#: packages/admin/src/components/ContentEditor.tsx:1122
 msgid "Exit distraction-free mode"
 msgstr "Avslutt distraksjonsfri modus"
 
-#: packages/admin/src/components/ContentEditor.tsx:1101
+#: packages/admin/src/components/ContentEditor.tsx:1123
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:549
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:546
+#: packages/admin/src/components/PluginManager.tsx:551
 msgid "Expand details"
 msgstr "Vis detaljer"
 
@@ -3948,7 +3995,7 @@ msgstr "Mislykket"
 msgid "Failed"
 msgstr "Mislyktes"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:199
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:209
 msgid "Failed security audit"
 msgstr "Sikkerhetsrevisjon mislyktes"
 
@@ -3964,7 +4011,7 @@ msgstr ""
 msgid "Failed to analyze WordPress site"
 msgstr "Kunne ikke analysere WordPress-nettstedet"
 
-#: packages/admin/src/components/SandboxedPluginPage.tsx:54
+#: packages/admin/src/components/SandboxedPluginPage.tsx:74
 msgid "Failed to communicate with plugin"
 msgstr "Kunne ikke kommunisere med utvidelsen"
 
@@ -4038,7 +4085,7 @@ msgid "Failed to delete collection"
 msgstr "Kunne ikke slette samling"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2062
+#: packages/admin/src/router.tsx:2070
 msgid "Failed to delete comment"
 msgstr "Kunne ikke slette kommentar"
 
@@ -4112,6 +4159,11 @@ msgstr "Kunne ikke deaktivere bruker"
 msgid "Failed to discard changes"
 msgstr "Kunne ikke forkaste endringer"
 
+#: packages/admin/src/components/Dashboard.tsx:207
+#: packages/admin/src/lib/api/dashboard.ts:71
+msgid "Failed to dismiss scheduled publication rejection"
+msgstr ""
+
 #: packages/admin/src/components/WelcomeModal.tsx:76
 msgid "Failed to dismiss welcome"
 msgstr "Kunne ikke lukke velkomstmelding"
@@ -4137,7 +4189,7 @@ msgstr "Kunne ikke aktivere bruker"
 msgid "Failed to execute import"
 msgstr "Kunne ikke kjøre import"
 
-#: packages/admin/src/lib/api/client.ts:338
+#: packages/admin/src/lib/api/client.ts:354
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -4150,7 +4202,7 @@ msgstr ""
 msgid "Failed to fetch collection"
 msgstr "Kunne ikke hente samling"
 
-#: packages/admin/src/lib/api/dashboard.ts:47
+#: packages/admin/src/lib/api/dashboard.ts:56
 msgid "Failed to fetch dashboard stats"
 msgstr ""
 
@@ -4162,7 +4214,7 @@ msgstr ""
 msgid "Failed to fetch entry terms"
 msgstr "Kunne ikke hente termer for oppføring"
 
-#: packages/admin/src/lib/api/client.ts:321
+#: packages/admin/src/lib/api/client.ts:337
 msgid "Failed to fetch manifest"
 msgstr "Kunne ikke hente manifest"
 
@@ -4236,7 +4288,7 @@ msgstr "Kunne ikke hente termer"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:953
-#: packages/admin/src/router.tsx:1993
+#: packages/admin/src/router.tsx:2001
 msgid "Failed to fetch user"
 msgstr "Kunne ikke hente bruker"
 
@@ -4269,8 +4321,8 @@ msgstr "Kunne ikke importere fra WordPress"
 msgid "Failed to import media"
 msgstr "Kunne ikke importere medier"
 
-#: packages/admin/src/lib/api/marketplace.ts:310
-#: packages/admin/src/lib/api/registry.ts:795
+#: packages/admin/src/lib/api/marketplace.ts:344
+#: packages/admin/src/lib/api/registry.ts:797
 msgid "Failed to install plugin"
 msgstr "Kunne ikke installere utvidelse"
 
@@ -4309,7 +4361,7 @@ msgstr "Kunne ikke laste inn bilde"
 msgid "Failed to load passkeys"
 msgstr "Kunne ikke laste inn passnøkler"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:121
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:131
 msgid "Failed to load plugin"
 msgstr "Kunne ikke laste inn utvidelse"
 
@@ -4343,7 +4395,7 @@ msgstr "Kunne ikke laste inn tema"
 msgid "Failed to load users: {0}"
 msgstr "Kunne ikke laste inn brukere: {0}"
 
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:46
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:58
 msgid "Failed to load widget"
 msgstr "Kunne ikke laste inn modul"
 
@@ -4351,7 +4403,7 @@ msgstr "Kunne ikke laste inn modul"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2087
+#: packages/admin/src/router.tsx:2095
 msgid "Failed to perform bulk action"
 msgstr "Kunne ikke utføre masseoperasjon"
 
@@ -4437,7 +4489,7 @@ msgstr "Kunne ikke skrive om URL-er"
 
 #: packages/admin/src/router.tsx:733
 #: packages/admin/src/router.tsx:1070
-#: packages/admin/src/router.tsx:2588
+#: packages/admin/src/router.tsx:2596
 msgid "Failed to save"
 msgstr "Kunne ikke lagre"
 
@@ -4482,8 +4534,8 @@ msgstr "Kunne ikke sende bekreftelses-e-post"
 msgid "Failed to set entry terms"
 msgstr "Kunne ikke angi termer for oppføring"
 
-#: packages/admin/src/lib/api/marketplace.ts:353
-#: packages/admin/src/lib/api/registry.ts:1009
+#: packages/admin/src/lib/api/marketplace.ts:387
+#: packages/admin/src/lib/api/registry.ts:1011
 msgid "Failed to uninstall plugin"
 msgstr "Kunne ikke avinstallere utvidelse"
 
@@ -4521,8 +4573,8 @@ msgid "Failed to update media"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:314
-#: packages/admin/src/lib/api/marketplace.ts:336
-#: packages/admin/src/lib/api/registry.ts:884
+#: packages/admin/src/lib/api/marketplace.ts:370
+#: packages/admin/src/lib/api/registry.ts:886
 msgid "Failed to update plugin"
 msgstr "Kunne ikke oppdatere utvidelse"
 
@@ -4542,7 +4594,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2054
 msgid "Failed to update status"
 msgstr "Kunne ikke oppdatere status"
 
@@ -4562,7 +4614,7 @@ msgstr ""
 msgid "Failed to verify authentication"
 msgstr "Kunne ikke bekrefte autentisering"
 
-#: packages/admin/src/lib/api/registry.ts:767
+#: packages/admin/src/lib/api/registry.ts:769
 msgid "Failed to verify plugin"
 msgstr ""
 
@@ -4570,7 +4622,7 @@ msgstr ""
 msgid "Failed to verify registration"
 msgstr "Kunne ikke bekrefte registrering"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:878
+#: packages/admin/src/components/RegistryPluginDetail.tsx:880
 msgid "FAQ"
 msgstr "Ofte stilte spørsmål"
 
@@ -4711,7 +4763,7 @@ msgstr ""
 msgid "First page"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "First publication"
 msgstr ""
 
@@ -4719,11 +4771,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Kun førstegangskommentatorer"
 
-#: packages/admin/src/components/ContentEditor.tsx:786
+#: packages/admin/src/components/ContentEditor.tsx:791
 msgid "Fix invalid fields before changing the publication date"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:737
+#: packages/admin/src/components/ContentEditor.tsx:742
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
@@ -4749,7 +4801,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1716
+#: packages/admin/src/router.tsx:1724
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4874,7 +4926,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2826
+#: packages/admin/src/router.tsx:2834
 msgid "Go to Dashboard"
 msgstr "Gå til dashbordet"
 
@@ -5004,6 +5056,15 @@ msgstr "Skjul for søkemotorer"
 msgid "Hide token"
 msgstr "Skjul token"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:32
+msgid "visualEditing.hideToolbar"
+msgstr ""
+
+#: packages/admin/src/components/Shell.tsx:86
+msgid "Hide toolbar"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomyManager.tsx:839
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Hierarkisk (som kategorier, med foreldre/barn-relasjoner)"
@@ -5025,7 +5086,7 @@ msgstr "Hjem"
 msgid "Homepage"
 msgstr "Hjemmeside"
 
-#: packages/admin/src/components/PluginManager.tsx:475
+#: packages/admin/src/components/PluginManager.tsx:472
 msgid "Hooks"
 msgstr "Hooks"
 
@@ -5079,7 +5140,7 @@ msgid "I've set it up — check again"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:153
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:163
 msgid "Icon blurred due to image audit"
 msgstr "Ikonet er uskarpt på grunn av bildekontroll"
 
@@ -5156,8 +5217,8 @@ msgstr "Bilde-URL"
 msgid "Images"
 msgstr "Bilder"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:226
-#: packages/admin/src/components/Sidebar.tsx:480
+#: packages/admin/src/components/AdminCommandPalette.tsx:227
+#: packages/admin/src/components/Sidebar.tsx:481
 #: packages/admin/src/components/WordPressImport.tsx:756
 msgid "Import"
 msgstr "Importer"
@@ -5275,7 +5336,7 @@ msgstr "Inkompatibel"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:115
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:117
 msgid "Independent verification"
 msgstr ""
 
@@ -5284,7 +5345,7 @@ msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:491
-#: packages/admin/src/components/RegistryPluginDetail.tsx:573
+#: packages/admin/src/components/RegistryPluginDetail.tsx:574
 msgid "Indexed"
 msgstr "Indeksert"
 
@@ -5392,8 +5453,8 @@ msgstr ""
 msgid "Instagram"
 msgstr "Instagram"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
-#: packages/admin/src/components/RegistryPluginDetail.tsx:624
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
+#: packages/admin/src/components/RegistryPluginDetail.tsx:625
 msgid "Install"
 msgstr "Installer"
 
@@ -5401,7 +5462,7 @@ msgstr "Installer"
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "Installer og aktiver en utvidelse for e-postleverandør for å aktivere e-postfunksjoner som invitasjoner, magiske lenker og passordgjenoppretting."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:197
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:207
 msgid "Install blocked"
 msgstr "Installasjon blokkert"
 
@@ -5409,7 +5470,7 @@ msgstr "Installasjon blokkert"
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:877
+#: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Installation"
 msgstr "Installasjon"
 
@@ -5418,22 +5479,22 @@ msgid "Installation is unavailable."
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:184
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:194
 #: packages/admin/src/components/RegistryBrowse.tsx:234
-#: packages/admin/src/components/RegistryPluginDetail.tsx:609
+#: packages/admin/src/components/RegistryPluginDetail.tsx:610
 msgid "Installed"
 msgstr "Installert"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:627
 msgid "Installed from marketplace (v{0})"
 msgstr "Installert fra markedsplass (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:649
+#: packages/admin/src/components/PluginManager.tsx:646
 msgid "Installed:"
 msgstr "Installert:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:270
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:274
 msgid "Installing..."
 msgstr "Installerer …"
 
@@ -5450,7 +5511,7 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr "Ugyldig invitasjonslenke"
 
-#: packages/admin/src/components/ContentEditor.tsx:2099
+#: packages/admin/src/components/ContentEditor.tsx:2121
 msgid "Invalid JSON"
 msgstr "Ugyldig JSON"
 
@@ -5514,7 +5575,7 @@ msgstr "Element slettet"
 msgid "Item updated"
 msgstr "Element oppdatert"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:477
+#: packages/admin/src/components/RegistryPluginDetail.tsx:478
 msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
@@ -5574,7 +5635,7 @@ msgstr ""
 msgid "Keep typing to narrow the list."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:304
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:314
 #: packages/admin/src/components/SectionEditor.tsx:304
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
@@ -5620,7 +5681,7 @@ msgstr "Språk"
 msgid "Large section heading"
 msgstr "Stor seksjonsoverskrift"
 
-#: packages/admin/src/components/PluginManager.tsx:655
+#: packages/admin/src/components/PluginManager.tsx:652
 msgid "Last enabled:"
 msgstr "Sist aktivert:"
 
@@ -5722,16 +5783,16 @@ msgstr "Lenker"
 msgid "List view"
 msgstr "Listevisning"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:175
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
-#: packages/admin/src/components/ContentSettingsPanel.tsx:207
-#: packages/admin/src/components/ContentSettingsPanel.tsx:229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
+#: packages/admin/src/components/ContentSettingsPanel.tsx:187
+#: packages/admin/src/components/ContentSettingsPanel.tsx:209
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1006
-#: packages/admin/src/components/ContentEditor.tsx:1057
-#: packages/admin/src/components/ContentSettingsPanel.tsx:660
+#: packages/admin/src/components/ContentEditor.tsx:1015
+#: packages/admin/src/components/ContentEditor.tsx:1079
+#: packages/admin/src/components/ContentSettingsPanel.tsx:662
 msgid "Live View"
 msgstr "Live-visning"
 
@@ -5759,7 +5820,7 @@ msgstr "Last inn mer"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2781
+#: packages/admin/src/router.tsx:2789
 msgid "Loading"
 msgstr ""
 
@@ -5775,8 +5836,8 @@ msgstr "Laster samlinger..."
 msgid "Loading comments..."
 msgstr "Laster kommentarer..."
 
-#: packages/admin/src/router.tsx:2783
-#: packages/admin/src/router.tsx:2795
+#: packages/admin/src/router.tsx:2791
+#: packages/admin/src/router.tsx:2803
 msgid "Loading configuration..."
 msgstr "Laster konfigurasjon..."
 
@@ -5813,6 +5874,10 @@ msgstr "Laster meny..."
 #: packages/admin/src/components/MenuList.tsx:95
 msgid "Loading menus..."
 msgstr "Laster menyer..."
+
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:160
+msgid "Loading plugin panel"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:158
 msgid "Loading plugins..."
@@ -5914,7 +5979,7 @@ msgstr "Lås sideforhold"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Låst fordi dette feltet har lagrede verdier. Slett verdiene (eller feltet) for å endre dette."
 
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:110
 msgid "Log out"
 msgstr "Logg ut"
 
@@ -5957,17 +6022,7 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Hovedsidefelt"
 
-#: packages/admin/src/lib/api/marketplace.ts:391
-#: packages/admin/src/lib/api/marketplace.ts:399
-msgid "Make network requests"
-msgstr "Send nettverksforespørsler"
-
-#: packages/admin/src/lib/api/marketplace.ts:392
-#: packages/admin/src/lib/api/marketplace.ts:400
-msgid "Make network requests to any host (unrestricted)"
-msgstr "Send nettverksforespørsler til alle verter (ubegrenset)"
-
-#: packages/admin/src/components/Sidebar.tsx:594
+#: packages/admin/src/components/Sidebar.tsx:596
 msgid "Manage"
 msgstr "Administrer"
 
@@ -6041,15 +6096,15 @@ msgid "Markdown"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:437
+#: packages/admin/src/components/PluginManager.tsx:434
 msgid "Marketplace"
 msgstr "Markedsplass"
 
-#: packages/admin/src/router.tsx:2326
+#: packages/admin/src/router.tsx:2334
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2301
+#: packages/admin/src/router.tsx:2309
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6080,7 +6135,7 @@ msgstr ""
 #: packages/admin/src/components/PortableTextEditor.tsx:2895
 #: packages/admin/src/components/PortableTextEditor.tsx:2910
 #: packages/admin/src/components/Settings.tsx:70
-#: packages/admin/src/components/Sidebar.tsx:405
+#: packages/admin/src/components/Sidebar.tsx:406
 #: packages/admin/src/components/WordPressImport.tsx:770
 #: packages/admin/src/components/WordPressImport.tsx:1163
 #: packages/admin/src/components/WordPressImport.tsx:1350
@@ -6112,7 +6167,7 @@ msgstr "Medieimport ble hoppet over"
 msgid "Media in this folder will return to Main library. No files will be deleted."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:153
+#: packages/admin/src/components/AdminCommandPalette.tsx:154
 #: packages/admin/src/components/MediaLibrary.tsx:819
 #: packages/admin/src/components/MediaLibrary.tsx:834
 msgid "Media Library"
@@ -6208,9 +6263,9 @@ msgstr "Fant ikke menyen"
 msgid "Menu order has been updated."
 msgstr "Menyrekkefølgen er oppdatert."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:160
+#: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:104
-#: packages/admin/src/components/Sidebar.tsx:419
+#: packages/admin/src/components/Sidebar.tsx:420
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Menus"
 msgstr "Menyer"
@@ -6388,14 +6443,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:556
 #: packages/admin/src/components/ContentList.tsx:1385
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1207
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1227
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1287
 msgid "Move to Trash"
 msgstr "Flytt til papirkurven"
 
 #: packages/admin/src/components/ContentList.tsx:534
 #: packages/admin/src/components/ContentList.tsx:1370
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1212
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1272
 msgid "Move to Trash?"
 msgstr "Flytte til papirkurven?"
 
@@ -6478,7 +6533,7 @@ msgstr "Navn og etikett er påkrevd"
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "Navnet må starte med en bokstav og kan kun inneholde små bokstaver, tall og understreker"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:340
+#: packages/admin/src/components/AdminCommandPalette.tsx:342
 #: packages/admin/src/components/ContentTypeEditor.tsx:479
 msgid "Navigation"
 msgstr "Navigasjon"
@@ -6507,7 +6562,7 @@ msgstr "ny"
 msgid "New"
 msgstr "Ny"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:183
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:185
 msgid "NEW"
 msgstr "NY"
 
@@ -6516,7 +6571,7 @@ msgstr "NY"
 msgid "New {0}"
 msgstr "Ny {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:975
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -6545,7 +6600,7 @@ msgstr ""
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:194
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:196
 msgid "New public routes"
 msgstr "Nye offentlige ruter"
 
@@ -6562,7 +6617,7 @@ msgstr ""
 msgid "New Section"
 msgstr "Ny seksjon"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:479
+#: packages/admin/src/components/AdminCommandPalette.tsx:481
 msgid "new tab"
 msgstr "ny fane"
 
@@ -6597,7 +6652,7 @@ msgstr "Neste"
 msgid "Next page"
 msgstr "Neste side"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:476
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:488
 msgid "Next screenshot"
 msgstr "Neste skjermbilde"
 
@@ -6682,7 +6737,7 @@ msgstr ""
 msgid "No bylines found"
 msgstr "Fant ingen bylines"
 
-#: packages/admin/src/components/Dashboard.tsx:282
+#: packages/admin/src/components/Dashboard.tsx:381
 msgid "No collections configured"
 msgstr "Ingen samlinger konfigurert"
 
@@ -6694,7 +6749,7 @@ msgstr "Ingen kommentarer venter på moderering."
 msgid "No comments match your search."
 msgstr "Ingen kommentarer samsvarer med søket ditt."
 
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:82
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:96
 msgid "No content"
 msgstr "Ingen innhold"
 
@@ -6714,7 +6769,7 @@ msgstr "Ingen innholdstyper ennå."
 msgid "No custom fields yet"
 msgstr "Ingen egendefinerte felt ennå"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:275
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:285
 msgid "No detailed description available."
 msgstr "Ingen detaljert beskrivelse tilgjengelig."
 
@@ -6758,7 +6813,7 @@ msgstr "Ingen overskrifter i dokumentet"
 msgid "No images in this gallery yet."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:660
+#: packages/admin/src/components/RegistryPluginDetail.tsx:661
 msgid "No installable releases"
 msgstr "Ingen installerbare utgivelser"
 
@@ -6860,7 +6915,7 @@ msgstr "Ingen utvidelser samsvarer med \"{debouncedQuery}\"."
 msgid "No preview"
 msgstr "Ingen forhåndsvisning"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:119
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:121
 msgid "No provenance was supplied; the signed publisher policy permits this."
 msgstr ""
 
@@ -6868,7 +6923,7 @@ msgstr ""
 msgid "No public URL available"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:361
+#: packages/admin/src/components/Dashboard.tsx:460
 msgid "No recent activity"
 msgstr "Ingen nylig aktivitet"
 
@@ -6891,7 +6946,7 @@ msgstr "Ingen resultater for \"{activeSearch}\""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Ingen resultater for \"{debouncedQuery}\". Prøv et annet søkeord."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:465
+#: packages/admin/src/components/AdminCommandPalette.tsx:467
 #: packages/admin/src/components/Settings.tsx:156
 msgid "No results found"
 msgstr "Fant ingen resultater"
@@ -6954,7 +7009,7 @@ msgstr ""
 msgid "None (top level)"
 msgstr "Ingen (øverste nivå)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:695
+#: packages/admin/src/components/RegistryPluginDetail.tsx:696
 msgid "Not compatible with this environment"
 msgstr "Ikke kompatibel med dette miljøet"
 
@@ -7028,6 +7083,11 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:1458
 #: packages/admin/src/components/MediaLibrary.tsx:1529
 msgid "Open folder {0}"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:31
+msgid "visualEditing.openInAdmin"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:510
@@ -7145,7 +7205,7 @@ msgstr ""
 msgid "Original:"
 msgstr "Original:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "Disposisjon"
@@ -7158,16 +7218,16 @@ msgstr ""
 msgid "Overrides the page title in search engine results"
 msgstr "Overstyrer sidetittelen i søkemotorresultater"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1021
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1050
 msgid "Ownership"
 msgstr "Eierskap"
 
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:636
 msgid "Package"
 msgstr "Pakke"
 
-#: packages/admin/src/router.tsx:2821
+#: packages/admin/src/router.tsx:2829
 msgid "Page Not Found"
 msgstr "Fant ikke siden"
 
@@ -7181,7 +7241,7 @@ msgstr ""
 msgid "Page size"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/WordPressImport.tsx:1344
 msgid "Pages"
 msgstr "Sider"
@@ -7343,7 +7403,7 @@ msgstr "Slette «{title}» permanent? Dette kan ikke angres."
 msgid "Permanently delete {title}"
 msgstr "Slett {title} permanent"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:284
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:294
 msgid "Permissions"
 msgstr "Tillatelser"
 
@@ -7392,11 +7452,20 @@ msgstr ""
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr ""
 
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:101
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:129
+msgid "Plugin action failed"
+msgstr ""
+
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:209
+msgid "Plugin actions"
+msgstr ""
+
 #: packages/admin/src/lib/content-list-columns.tsx:236
 msgid "Plugin column unavailable"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:828
+#: packages/admin/src/components/RegistryPluginDetail.tsx:829
 msgid "Plugin details"
 msgstr "Detaljer om utvidelse"
 
@@ -7408,16 +7477,20 @@ msgstr "Utvidelse deaktivert"
 msgid "Plugin enabled"
 msgstr "Utvidelse aktivert"
 
-#: packages/admin/src/components/SandboxedPluginPage.tsx:89
+#: packages/admin/src/components/SandboxedPluginPage.tsx:114
 msgid "Plugin Error"
 msgstr "Feil i utvidelse"
 
 #. placeholder {0}: response.status
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:37
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:48
 msgid "Plugin error ({0})"
 msgstr "Feil i utvidelse ({0})"
 
-#: packages/admin/src/components/PluginManager.tsx:386
+#: packages/admin/src/lib/api/marketplace.ts:120
+msgid "Plugin installation requires explicit consent"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:383
 msgid "Plugin MCP access updated"
 msgstr ""
 
@@ -7425,27 +7498,28 @@ msgstr ""
 msgid "Plugin MCP Tools"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:108
+#: packages/admin/src/lib/api/marketplace.ts:109
 msgid "Plugin MCP tools require explicit consent"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:123
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:133
 msgid "Plugin not found"
 msgstr "Utvidelse ikke funnet"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:492
+#: packages/admin/src/components/RegistryPluginDetail.tsx:493
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:532
+#: packages/admin/src/components/PluginManager.tsx:529
 msgid "Plugin pages"
 msgstr ""
 
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:166
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:92
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:94
 msgid "Plugin Permissions"
 msgstr "Tillatelser for utvidelse"
 
@@ -7458,13 +7532,13 @@ msgstr "Utvidelsesregister"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2261
-#: packages/admin/src/router.tsx:2292
+#: packages/admin/src/router.tsx:2269
+#: packages/admin/src/router.tsx:2300
 msgid "Plugin registry is not configured."
 msgstr ""
 
 #. placeholder {0}: response.status
-#: packages/admin/src/components/SandboxedPluginPage.tsx:40
+#: packages/admin/src/components/SandboxedPluginPage.tsx:55
 msgid "Plugin responded with {0}: {text}"
 msgstr "Utvidelsen svarte med {0}: {text}"
 
@@ -7474,12 +7548,12 @@ msgstr "Utvidelsen svarte med {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:375
+#: packages/admin/src/components/PluginManager.tsx:372
 msgid "Plugin uninstalled"
 msgstr "Utvidelse avinstallert"
 
-#: packages/admin/src/lib/api/marketplace.ts:198
-#: packages/admin/src/lib/api/registry.ts:924
+#: packages/admin/src/lib/api/marketplace.ts:232
+#: packages/admin/src/lib/api/registry.ts:926
 msgid "Plugin update requires re-consent"
 msgstr "Oppdatering av utvidelse krever nytt samtykke"
 
@@ -7491,12 +7565,12 @@ msgstr "Utvidelse oppdatert"
 msgid "Plugin widget error"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:218
+#: packages/admin/src/components/AdminCommandPalette.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:157
 #: packages/admin/src/components/PluginManager.tsx:166
 #: packages/admin/src/components/PluginManager.tsx:176
-#: packages/admin/src/components/Sidebar.tsx:462
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:463
+#: packages/admin/src/components/Sidebar.tsx:612
 msgid "Plugins"
 msgstr "Utvidelser"
 
@@ -7529,7 +7603,7 @@ msgstr ""
 msgid "Posts Per Page"
 msgstr "Innlegg per side"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:545
+#: packages/admin/src/components/RegistryPluginDetail.tsx:546
 msgid "Pre-release"
 msgstr "Forhåndsutgivelse"
 
@@ -7550,7 +7624,7 @@ msgstr "Forbereder …"
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:387
+#: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:1676
 #: packages/admin/src/components/MediaLibrary.tsx:1204
@@ -7561,7 +7635,7 @@ msgstr "Forhåndsvisning"
 msgid "Preview content before publishing"
 msgstr "Forhåndsvis innhold før publisering"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:387
+#: packages/admin/src/components/ContentSettingsPanel.tsx:389
 msgid "Preview draft"
 msgstr "Forhåndsvis kladd"
 
@@ -7576,7 +7650,7 @@ msgstr "Forrige"
 msgid "Previous page"
 msgstr "Forrige side"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:458
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:470
 msgid "Previous screenshot"
 msgstr "Forrige skjermbilde"
 
@@ -7588,19 +7662,19 @@ msgstr "Hovednavigasjon"
 msgid "Private"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:127
 msgid "Profile CID"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:118
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:120
 msgid "Provenance is verified against the signed release and artifact."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:141
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:143
 msgid "Provenance optional"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:140
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:142
 msgid "Provenance required"
 msgstr ""
 
@@ -7608,43 +7682,65 @@ msgstr ""
 msgid "Provider:"
 msgstr "Leverandør:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:935
-#: packages/admin/src/components/ContentSettingsPanel.tsx:940
-#: packages/admin/src/components/ContentSettingsPanel.tsx:951
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:196
+msgid "Public routes"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:964
+#: packages/admin/src/components/ContentSettingsPanel.tsx:969
+#: packages/admin/src/components/ContentSettingsPanel.tsx:980
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:621
 msgid "Publication date"
 msgstr ""
 
+#: packages/admin/src/components/Dashboard.tsx:151
+msgid "Publication policy blocked scheduled content"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:19
+msgid "visualEditing.publish"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:505
-#: packages/admin/src/components/ContentSettingsPanel.tsx:526
-#: packages/admin/src/components/ContentSettingsPanel.tsx:550
-#: packages/admin/src/components/ContentSettingsPanel.tsx:866
-#: packages/admin/src/components/ContentSettingsPanel.tsx:869
+#: packages/admin/src/components/ContentSettingsPanel.tsx:528
+#: packages/admin/src/components/ContentSettingsPanel.tsx:552
+#: packages/admin/src/components/ContentSettingsPanel.tsx:895
+#: packages/admin/src/components/ContentSettingsPanel.tsx:898
 msgid "Publish"
 msgstr "Publiser"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:543
+#: packages/admin/src/components/ContentSettingsPanel.tsx:545
 msgid "Publish changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:479
+#: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "Publish changes now"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:479
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:26
+msgid "visualEditing.publishFailed"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "Publish now"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:420
+msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:859
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:304
+#: packages/admin/src/components/Dashboard.tsx:403
 #: packages/admin/src/router.tsx:1177
 msgid "Published"
 msgstr "Publisert"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:337
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:347
 msgid "Published {0}"
 msgstr "Publisert {0}"
 
@@ -7656,28 +7752,33 @@ msgstr ""
 msgid "Published At"
 msgstr "Publisert"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:537
+#: packages/admin/src/components/RegistryPluginDetail.tsx:538
 msgid "Published by <0/>"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:146
 msgid "Publisher approval required for every delegated release"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:147
 msgid "Publisher approval required only for permission escalation"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:645
+#: packages/admin/src/components/RegistryPluginDetail.tsx:646
 msgid "Publisher handle verification failed"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:137
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 msgid "Publisher release policy"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:910
+#: packages/admin/src/components/ContentSettingsPanel.tsx:939
 msgid "Publishing summary"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:20
+msgid "visualEditing.publishing"
 msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
@@ -7703,7 +7804,11 @@ msgstr "Sitat"
 msgid "Raw meta"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:386
+#: packages/admin/src/lib/api/marketplace.ts:421
+msgid "Read and restore trashed content"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:424
 msgid "Read collection and field definitions"
 msgstr ""
 
@@ -7711,15 +7816,27 @@ msgstr ""
 msgid "Read collection schemas"
 msgstr "Les samlingsskjemaer"
 
+#: packages/admin/src/lib/api/marketplace.ts:422
+msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
 msgstr "Les innholdsoppføringer"
+
+#: packages/admin/src/lib/api/marketplace.ts:431
+msgid "Read media file contents"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
 msgstr "Les mediefiler"
 
-#: packages/admin/src/lib/api/marketplace.ts:384
+#: packages/admin/src/lib/api/marketplace.ts:428
+msgid "Read redirect rules"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:418
 msgid "Read retained content revision history"
 msgstr ""
 
@@ -7727,17 +7844,17 @@ msgstr ""
 msgid "Read site settings"
 msgstr "Les nettstedsinnstillinger"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:434
+#: packages/admin/src/lib/api/marketplace.ts:442
 msgid "Read user accounts"
 msgstr "Les brukerkontoer"
 
-#: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:438
 msgid "Read your content"
 msgstr "Les innholdet ditt"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
+#: packages/admin/src/lib/api/marketplace.ts:426
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -7755,11 +7872,11 @@ msgstr "Lesing"
 msgid "Ready"
 msgstr "Klar"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:192
+#: packages/admin/src/components/ContentSettingsPanel.tsx:194
 msgid "Ready to publish now or schedule for later"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:355
+#: packages/admin/src/components/Dashboard.tsx:454
 msgid "Recent Activity"
 msgstr "Nylig aktivitet"
 
@@ -7791,7 +7908,7 @@ msgstr "Omdirigerer til innlogging …"
 
 #: packages/admin/src/components/Redirects.tsx:364
 #: packages/admin/src/components/Redirects.tsx:385
-#: packages/admin/src/components/Sidebar.tsx:422
+#: packages/admin/src/components/Sidebar.tsx:423
 msgid "Redirects"
 msgstr "Omdirigeringer"
 
@@ -7807,6 +7924,11 @@ msgstr "Referanse"
 msgid "Referenced favicon unavailable."
 msgstr "Det refererte favikonet er utilgjengelig."
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:25
+msgid "visualEditing.refreshPage"
+msgstr ""
+
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
 msgstr ""
@@ -7815,7 +7937,7 @@ msgstr ""
 msgid "Refresh status before continuing."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:132
+#: packages/admin/src/components/Dashboard.tsx:231
 msgid "Refresh the page or try again."
 msgstr ""
 
@@ -7841,16 +7963,16 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registreringen ble avbrutt eller fikk tidsavbrudd. Prøv på nytt."
 
 #: packages/admin/src/components/PluginManager.tsx:194
-#: packages/admin/src/components/PluginManager.tsx:438
-#: packages/admin/src/components/Sidebar.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:435
+#: packages/admin/src/components/Sidebar.tsx:472
 msgid "Registry"
 msgstr "Register"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:131
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:133
 msgid "Release CID"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:676
+#: packages/admin/src/components/RegistryPluginDetail.tsx:677
 msgid "Release is too new to install"
 msgstr "Utgivelsen er for ny til å installeres"
 
@@ -7860,7 +7982,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2259
+#: packages/admin/src/components/ContentEditor.tsx:2281
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
@@ -7896,7 +8018,7 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Fjern {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2257
+#: packages/admin/src/components/ContentEditor.tsx:2279
 msgid "Remove {label}"
 msgstr "Fjern {label}"
 
@@ -7954,7 +8076,7 @@ msgstr "Fjern passnøkkel"
 msgid "Remove passkey?"
 msgstr "Fjerne passnøkkel?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:517
+#: packages/admin/src/components/ContentSettingsPanel.tsx:519
 msgid "Remove schedule"
 msgstr ""
 
@@ -8009,8 +8131,8 @@ msgstr "Repeater"
 msgid "Repeating group of fields"
 msgstr "Gjentakende gruppe med felt"
 
-#: packages/admin/src/components/ContentEditor.tsx:2249
-#: packages/admin/src/components/ContentEditor.tsx:2286
+#: packages/admin/src/components/ContentEditor.tsx:2271
+#: packages/admin/src/components/ContentEditor.tsx:2308
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
@@ -8023,7 +8145,7 @@ msgstr "Gjentakende gruppe med felt"
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2285
+#: packages/admin/src/components/ContentEditor.tsx:2307
 #: packages/admin/src/components/ImageFieldRenderer.tsx:571
 msgid "Replace {label}"
 msgstr ""
@@ -8080,7 +8202,7 @@ msgstr "Kodelager"
 msgid "Request a new link"
 msgstr "Be om en ny lenke"
 
-#: packages/admin/src/lib/api/client.ts:309
+#: packages/admin/src/lib/api/client.ts:325
 msgid "Request failed"
 msgstr ""
 
@@ -8105,7 +8227,7 @@ msgid "Required for accessibility. Describes the image for screen readers."
 msgstr "Påkrevd for tilgjengelighet. Beskriver bildet for skjermlesere."
 
 #. placeholder {0}: latest.minEmDashVersion
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:335
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:345
 msgid "Requires EmDash {0}"
 msgstr "Krever EmDash {0}"
 
@@ -8167,7 +8289,7 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1310
+#: packages/admin/src/components/ContentEditor.tsx:1332
 msgid "Resize settings panel"
 msgstr ""
 
@@ -8220,9 +8342,10 @@ msgstr "Gjenoppretter …"
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2809
+#: packages/admin/src/router.tsx:2817
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Prøv igjen"
@@ -8268,19 +8391,23 @@ msgstr "Tilbakestilt til publisert versjon"
 msgid "Review"
 msgstr "Gjennomgå"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:91
+#: packages/admin/src/lib/api/marketplace.ts:425
+msgid "Review and block publishing, scheduling, and unpublishing content"
+msgstr ""
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:93
 msgid "Review New Permissions"
 msgstr "Gjennomgå nye tillatelser"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:96
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:89
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:91
 msgid "Review Verified Plugin"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:88
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:90
 msgid "Review Verified Update"
 msgstr ""
 
@@ -8288,7 +8415,7 @@ msgstr ""
 msgid "Revision restored"
 msgstr "Revisjon gjenopprettet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1174
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1234
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
@@ -8330,7 +8457,7 @@ msgid "Right"
 msgstr ""
 
 #. placeholder {0}: latest.audit.riskScore
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:322
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:332
 msgid "Risk score: {0}/100"
 msgstr "Risikoscore: {0}/100"
 
@@ -8365,8 +8492,8 @@ msgstr ""
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:221
-#: packages/admin/src/components/PluginManager.tsx:615
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:225
+#: packages/admin/src/components/PluginManager.tsx:612
 msgid "Route: {0} · Permission: {1}"
 msgstr ""
 
@@ -8420,7 +8547,7 @@ msgstr "Lagre (Enter)"
 msgid "Save alt text"
 msgstr "Lagre alt-tekst"
 
-#: packages/admin/src/components/ContentEditor.tsx:1125
+#: packages/admin/src/components/ContentEditor.tsx:1147
 msgid "Save anyway"
 msgstr ""
 
@@ -8432,6 +8559,11 @@ msgstr "Lagre endringer"
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
 msgstr "Lagre endringer"
+
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:194
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:211
+msgid "Save changes before running plugin actions"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:72
 msgid "Save content as draft before publishing"
@@ -8486,12 +8618,12 @@ msgstr "Lagrer …"
 msgid "Saving…"
 msgstr "Lagrer …"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:549
+#: packages/admin/src/components/RegistryPluginDetail.tsx:550
 msgid "SBOM"
 msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:547
+#: packages/admin/src/components/RegistryPluginDetail.tsx:548
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
@@ -8503,7 +8635,7 @@ msgstr ""
 msgid "Schedule"
 msgstr "Planlegg"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:495
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Schedule changes"
@@ -8513,33 +8645,33 @@ msgstr ""
 msgid "Schedule date"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:487
+#: packages/admin/src/components/ContentSettingsPanel.tsx:489
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
 msgid "Schedule publication"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:861
-#: packages/admin/src/components/ContentSettingsPanel.tsx:545
+#: packages/admin/src/components/ContentSettingsPanel.tsx:547
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1269
 msgid "Scheduled"
 msgstr "Planlagt"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:136
+#: packages/admin/src/components/ContentSettingsPanel.tsx:138
 msgid "Scheduled for {formattedSchedule}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:144
-#: packages/admin/src/components/ContentSettingsPanel.tsx:235
-#: packages/admin/src/components/ContentSettingsPanel.tsx:549
+#: packages/admin/src/components/ContentSettingsPanel.tsx:146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:237
+#: packages/admin/src/components/ContentSettingsPanel.tsx:551
 msgid "Scheduled publication"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:118
+#: packages/admin/src/components/Dashboard.tsx:215
 msgid "Scheduled publishing needs attention"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:547
+#: packages/admin/src/components/ContentSettingsPanel.tsx:549
 msgid "Scheduled update"
 msgstr ""
 
@@ -8566,8 +8698,8 @@ msgstr "Omfang"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
-#: packages/admin/src/components/RegistryPluginDetail.tsx:721
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:264
+#: packages/admin/src/components/RegistryPluginDetail.tsx:722
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -8575,20 +8707,20 @@ msgstr "Skjermbilde {0}"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: screenshots.length
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:466
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:478
 msgid "Screenshot {0} of {1}"
 msgstr "Skjermbilde {0} av {1}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:257
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:267
 msgid "Screenshot blurred due to image audit"
 msgstr "Skjermbildet er gjort uskarpt på grunn av bildevurdering"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:444
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:456
 msgid "Screenshot viewer"
 msgstr "Skjermbildevisning"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
-#: packages/admin/src/components/RegistryPluginDetail.tsx:715
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
+#: packages/admin/src/components/RegistryPluginDetail.tsx:716
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "Skjermbilder"
@@ -8672,7 +8804,7 @@ msgstr ""
 msgid "Search media"
 msgstr "Søk i medier"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:438
+#: packages/admin/src/components/AdminCommandPalette.tsx:440
 msgid "Search pages and content..."
 msgstr "Søk i sider og innhold …"
 
@@ -8758,9 +8890,9 @@ msgstr "Seksjon ikke funnet"
 msgid "Section title"
 msgstr "Seksjonstittel"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:176
+#: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:427
+#: packages/admin/src/components/Sidebar.tsx:428
 msgid "Sections"
 msgstr "Seksjoner"
 
@@ -8768,12 +8900,12 @@ msgstr "Seksjoner"
 msgid "Secure your account"
 msgstr "Sikre kontoen din"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:880
+#: packages/admin/src/components/RegistryPluginDetail.tsx:882
 #: packages/admin/src/components/Settings.tsx:85
 msgid "Security"
 msgstr "Sikkerhet"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:318
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:328
 msgid "Security Audit"
 msgstr "Sikkerhetsvurdering"
 
@@ -8785,11 +8917,11 @@ msgstr "Sikkerhetsvurdering mislyktes"
 msgid "Security audit flagged concerns"
 msgstr "Sikkerhetsvurderingen flagget bekymringer"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:251
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:255
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "Sikkerhetsvurderingen flagget mulige bekymringer ved denne utvidelsen."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:252
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:256
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "Sikkerhetsvurderingen flagget denne utvidelsen som potensielt utrygg."
 
@@ -8797,7 +8929,7 @@ msgstr "Sikkerhetsvurderingen flagget denne utvidelsen som potensielt utrygg."
 msgid "Security audit passed"
 msgstr "Sikkerhetsvurderingen ble bestått"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:784
+#: packages/admin/src/components/RegistryPluginDetail.tsx:785
 msgid "Security contacts"
 msgstr "Sikkerhetskontakter"
 
@@ -8806,8 +8938,8 @@ msgstr "Sikkerhetskontakter"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Sikkerhetsfeil. Sørg for at du er på en sikker tilkobling."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:242
-#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/AdminCommandPalette.tsx:243
+#: packages/admin/src/components/Header.tsx:94
 #: packages/admin/src/components/Settings.tsx:81
 #: packages/admin/src/components/settings/SecuritySettings.tsx:88
 #: packages/admin/src/components/settings/SecuritySettings.tsx:110
@@ -8827,8 +8959,8 @@ msgid "Select"
 msgstr "Velg"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2269
-#: packages/admin/src/components/ContentEditor.tsx:2285
+#: packages/admin/src/components/ContentEditor.tsx:2291
+#: packages/admin/src/components/ContentEditor.tsx:2307
 #: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Select {label}"
 msgstr "Velg {label}"
@@ -8890,7 +9022,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Velg favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:2273
+#: packages/admin/src/components/ContentEditor.tsx:2295
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Velg fil"
@@ -9003,8 +9135,8 @@ msgstr "Send test-e-post"
 msgid "Sending..."
 msgstr "Sender …"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1120
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1149
 #: packages/admin/src/components/ContentTypeEditor.tsx:527
 #: packages/admin/src/components/Settings.tsx:64
 msgid "SEO"
@@ -9077,14 +9209,14 @@ msgstr ""
 msgid "Setting up..."
 msgstr "Setter opp …"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:1175
-#: packages/admin/src/components/ContentEditor.tsx:1474
+#: packages/admin/src/components/AdminCommandPalette.tsx:235
+#: packages/admin/src/components/ContentEditor.tsx:1197
+#: packages/admin/src/components/ContentEditor.tsx:1496
 #: packages/admin/src/components/ContentTypeEditor.tsx:392
-#: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:521
+#: packages/admin/src/components/Header.tsx:102
+#: packages/admin/src/components/PluginManager.tsx:518
 #: packages/admin/src/components/Settings.tsx:44
-#: packages/admin/src/components/Sidebar.tsx:484
+#: packages/admin/src/components/Sidebar.tsx:485
 #: packages/admin/src/components/WordPressImport.tsx:1827
 msgid "Settings"
 msgstr "Innstillinger"
@@ -9159,7 +9291,7 @@ msgstr "Vis token"
 msgid "Showing {pageShowingRange} of {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
 msgid "Shown to readers in this order."
 msgstr ""
 
@@ -9282,7 +9414,7 @@ msgid "Skipped"
 msgstr "Hoppet over"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:873
+#: packages/admin/src/components/ContentSettingsPanel.tsx:902
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
 #: packages/admin/src/components/ContentTypeEditor.tsx:413
 #: packages/admin/src/components/ContentTypeList.tsx:181
@@ -9360,8 +9492,8 @@ msgstr "Sorter temaer"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:496
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:500
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:704
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:627
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:235
+#: packages/admin/src/components/PluginManager.tsx:624
 #: packages/admin/src/components/Redirects.tsx:475
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
@@ -9405,7 +9537,7 @@ msgstr ""
 msgid "Start Import"
 msgstr "Start import"
 
-#: packages/admin/src/components/ContentEditor.tsx:1670
+#: packages/admin/src/components/ContentEditor.tsx:1692
 #: packages/admin/src/components/PortableTextEditor.tsx:2757
 #: packages/admin/src/components/PortableTextEditor.tsx:2758
 msgid "Start writing, or type '/' for commands"
@@ -9425,7 +9557,7 @@ msgstr "Status"
 msgid "Status code"
 msgstr "Statuskode"
 
-#: packages/admin/src/components/Dashboard.tsx:408
+#: packages/admin/src/components/Dashboard.tsx:507
 msgid "Status: {status}"
 msgstr ""
 
@@ -9539,7 +9671,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "Slagord"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:201
+#: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/Widgets.tsx:143
 msgid "Tags"
 msgstr "Stikkord"
@@ -9568,7 +9700,7 @@ msgstr "Mål"
 msgid "Target locale"
 msgstr "Målspråk"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1104
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
 #: packages/admin/src/components/TaxonomySidebar.tsx:683
 msgid "Taxonomies"
 msgstr "Taksonomier"
@@ -9682,7 +9814,7 @@ msgstr "Menyen er slettet."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Navnet på nettstedet ditt, brukt i toppteksten og metadataene"
 
-#: packages/admin/src/router.tsx:2823
+#: packages/admin/src/router.tsx:2831
 msgid "The page you're looking for doesn't exist."
 msgstr "Siden du leter etter, finnes ikke."
 
@@ -9699,7 +9831,7 @@ msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "Den offentlige URL-en til nettstedet ditt (brukes for kanoniske lenker og nettstedskart)"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
-#: packages/admin/src/components/RegistryPluginDetail.tsx:531
+#: packages/admin/src/components/RegistryPluginDetail.tsx:532
 msgid "The publisher identity cannot be verified."
 msgstr ""
 
@@ -9752,7 +9884,7 @@ msgstr "Seksjoner fra temaet kan ikke slettes. Rediger seksjonen for å lage en 
 msgid "Themes"
 msgstr "Temaer"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:213
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:217
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr ""
 
@@ -9774,7 +9906,7 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1121
+#: packages/admin/src/components/ContentEditor.tsx:1143
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
@@ -9799,7 +9931,7 @@ msgstr ""
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2289
+#: packages/admin/src/components/ContentEditor.tsx:2311
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "This field is required"
 msgstr "Dette feltet er påkrevd"
@@ -9858,23 +9990,27 @@ msgstr ""
 msgid "This permanently deletes {0} from storage."
 msgstr ""
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:201
+msgid "This plugin exposes the following routes without authentication:"
+msgstr ""
+
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:475
+#: packages/admin/src/components/RegistryPluginDetail.tsx:476
 msgid "This plugin is not available yet"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:287
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:297
 msgid "This plugin requires no special permissions."
 msgstr "Denne utvidelsen krever ingen spesielle tillatelser."
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:445
 msgid "This publisher identity no longer resolves."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:647
+#: packages/admin/src/components/RegistryPluginDetail.tsx:648
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr ""
 
@@ -9882,7 +10018,7 @@ msgstr ""
 msgid "This redirect rule will be permanently removed."
 msgstr "Denne omdirigeringsregelen vil bli fjernet permanent."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:697
+#: packages/admin/src/components/RegistryPluginDetail.tsx:698
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Denne versjonen krever et nyere miljø enn nettstedet ditt kjører på nå. Oppgrader før du installerer."
 
@@ -9919,11 +10055,11 @@ msgstr ""
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:197
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:200
 msgid "This update exposes the following routes without authentication:"
 msgstr "Denne oppdateringen eksponerer følgende ruter uten autentisering:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
 msgid "This version is not visible on the site"
 msgstr ""
 
@@ -9935,7 +10071,7 @@ msgstr "Dette sletter widgetområdet og alle widgetene i det. Denne handlingen k
 msgid "This will grant CLI access with your permissions."
 msgstr "Dette gir CLI-tilgang med dine tillatelser."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1214
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1274
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Dette flytter elementet til papirkurven. Du kan gjenopprette det senere fra papirkurven."
 
@@ -9953,11 +10089,11 @@ msgstr "Dette sletter \"{0}\" permanent. Denne handlingen kan ikke angres."
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Dette sletter denne kommentaren permanent. Denne handlingen kan ikke angres."
 
-#: packages/admin/src/components/PluginManager.tsx:782
+#: packages/admin/src/components/PluginManager.tsx:779
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Dette fjerner utvidelsen og pakken dens fra nettstedet ditt."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:306
+#: packages/admin/src/components/ContentSettingsPanel.tsx:308
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Dette tilbakestiller til den publiserte versjonen. Kladdeendringene dine går tapt."
 
@@ -9994,11 +10130,11 @@ msgstr "Tittel (verktøytips)"
 msgid "Title Separator"
 msgstr "Tittelskilletegn"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:483
+#: packages/admin/src/components/AdminCommandPalette.tsx:485
 msgid "to close"
 msgstr "for å lukke"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:473
+#: packages/admin/src/components/AdminCommandPalette.tsx:475
 msgid "to select"
 msgstr "for å velge"
 
@@ -10072,7 +10208,7 @@ msgstr "Oversetter …"
 msgid "Translation created"
 msgstr "Oversettelse opprettet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Oversettelser"
@@ -10203,8 +10339,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "Får ikke kontakt med markedet"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1250
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1310
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1327
 msgid "Unassigned"
 msgstr "Ikke tildelt"
 
@@ -10217,21 +10353,21 @@ msgstr "Understreking"
 msgid "Undo"
 msgstr "Angre"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:191
-#: packages/admin/src/components/PluginManager.tsx:677
-#: packages/admin/src/components/PluginManager.tsx:796
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:201
+#: packages/admin/src/components/PluginManager.tsx:674
+#: packages/admin/src/components/PluginManager.tsx:793
 msgid "Uninstall"
 msgstr "Avinstaller"
 
-#: packages/admin/src/components/PluginManager.tsx:780
+#: packages/admin/src/components/PluginManager.tsx:777
 msgid "Uninstall {pluginName}?"
 msgstr "Avinstallere {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:775
+#: packages/admin/src/components/PluginManager.tsx:772
 msgid "Uninstall confirmation"
 msgstr "Bekreft avinstallering"
 
-#: packages/admin/src/components/PluginManager.tsx:796
+#: packages/admin/src/components/PluginManager.tsx:793
 msgid "Uninstalling..."
 msgstr "Avinstallerer …"
 
@@ -10263,7 +10399,7 @@ msgstr "Lås opp sideforhold"
 msgid "Unnamed passkey"
 msgstr "Tilgangsnøkkel uten navn"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:470
+#: packages/admin/src/components/ContentSettingsPanel.tsx:472
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
@@ -10293,12 +10429,12 @@ msgstr "Widgetelementtype som ikke støttes: {0}"
 msgid "Until {0}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:375
+#: packages/admin/src/components/Dashboard.tsx:474
 #: packages/admin/src/components/MediaUsedIn.tsx:255
 msgid "Untitled"
 msgstr "Uten tittel"
 
-#: packages/admin/src/components/ContentEditor.tsx:2191
+#: packages/admin/src/components/ContentEditor.tsx:2213
 msgid "Untitled file"
 msgstr "Fil uten navn"
 
@@ -10338,13 +10474,13 @@ msgid "Update this redirect rule."
 msgstr "Oppdater denne omdirigeringsregelen."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:513
+#: packages/admin/src/components/PluginManager.tsx:510
 msgid "Update to v{0}"
 msgstr "Oppdater til v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:869
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1000
-#: packages/admin/src/components/RegistryPluginDetail.tsx:568
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1029
+#: packages/admin/src/components/RegistryPluginDetail.tsx:569
 msgid "Updated"
 msgstr "Oppdatert"
 
@@ -10360,8 +10496,8 @@ msgstr "Oppdaterer innholds-URL-er …"
 msgid "Updating usage"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:269
-#: packages/admin/src/components/PluginManager.tsx:513
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
+#: packages/admin/src/components/PluginManager.tsx:510
 msgid "Updating..."
 msgstr "Oppdaterer …"
 
@@ -10385,8 +10521,8 @@ msgstr "Last opp et bilde for å komme i gang"
 msgid "Upload and delete media"
 msgstr "Last opp og slett medier"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:433
+#: packages/admin/src/lib/api/marketplace.ts:441
 msgid "Upload and manage media"
 msgstr "Last opp og administrer medier"
 
@@ -10414,7 +10550,7 @@ msgstr "Last opp filer"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:170
+#: packages/admin/src/components/Dashboard.tsx:269
 msgid "Upload Media"
 msgstr "Last opp medier"
 
@@ -10558,7 +10694,7 @@ msgstr "Brukes som reserve-Open Graph-bilde når en side mangler bilde. Anbefalt
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Brukes som identifikator. Kun små bokstaver, tall og understreker."
 
-#: packages/admin/src/components/ContentEditor.tsx:1790
+#: packages/admin/src/components/ContentEditor.tsx:1812
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Brukes som hovedbildet for dette innlegget på listesider og øverst i innlegget"
 
@@ -10582,8 +10718,8 @@ msgid "Used to identify this section. Lowercase letters, numbers, and hyphens on
 msgstr "Brukes til å identifisere denne seksjonen. Kun små bokstaver, tall og bindestreker."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:223
-#: packages/admin/src/components/Header.tsx:43
-#: packages/admin/src/components/Header.tsx:83
+#: packages/admin/src/components/Header.tsx:44
+#: packages/admin/src/components/Header.tsx:84
 #: packages/admin/src/components/users/UserList.tsx:91
 msgid "User"
 msgstr "Bruker"
@@ -10601,8 +10737,8 @@ msgstr "Brukerdetaljer"
 msgid "User not found"
 msgstr "Fant ikke brukeren"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/AdminCommandPalette.tsx:211
+#: packages/admin/src/components/Sidebar.tsx:460
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Brukere"
@@ -10616,7 +10752,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Brukere med e-postadresser fra disse domenene kan registrere seg uten en invitasjon. De tildeles automatisk den angitte rollen."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:441
+#: packages/admin/src/components/PluginManager.tsx:438
 msgid "v{0} available"
 msgstr "v{0} tilgjengelig"
 
@@ -10643,18 +10779,18 @@ msgstr "Verifiserer lenken din …"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
-#: packages/admin/src/components/RegistryPluginDetail.tsx:624
+#: packages/admin/src/components/RegistryPluginDetail.tsx:625
 msgid "Verifying..."
 msgstr "Verifiserer …"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:331
-#: packages/admin/src/components/RegistryPluginDetail.tsx:582
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:105
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:341
+#: packages/admin/src/components/RegistryPluginDetail.tsx:583
 msgid "Version"
 msgstr "Versjon"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:544
+#: packages/admin/src/components/RegistryPluginDetail.tsx:545
 msgid "Version {0}"
 msgstr "Versjon {0}"
 
@@ -10682,15 +10818,15 @@ msgstr "Vis publisert {title}"
 msgid "View setup"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:60
 msgid "View Site"
 msgstr "Vis nettsted"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:742
+#: packages/admin/src/components/RegistryPluginDetail.tsx:743
 msgid "View source"
 msgstr "Vis kilde"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:983
+#: packages/admin/src/components/RegistryPluginDetail.tsx:985
 msgid "View the {license} license on spdx.org"
 msgstr "Vis {license}-lisensen på spdx.org"
 
@@ -10698,16 +10834,16 @@ msgstr "Vis {license}-lisensen på spdx.org"
 msgid "Visitors hitting these paths will see an error."
 msgstr "Besøkende som åpner disse stiene, vil se en feil."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:208
+#: packages/admin/src/components/ContentSettingsPanel.tsx:210
 msgid "Visitors see the published version until the scheduled update"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:176
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
+#: packages/admin/src/components/ContentSettingsPanel.tsx:178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:232
 msgid "Visitors see this published version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:186
+#: packages/admin/src/components/ContentSettingsPanel.tsx:188
 msgid "Visitors still see the published version"
 msgstr ""
 
@@ -10758,8 +10894,8 @@ msgstr "Nettadresse"
 msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn støttes ikke i denne nettleseren"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/RegistryPluginDetail.tsx:767
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:246
+#: packages/admin/src/components/RegistryPluginDetail.tsx:768
 msgid "Website"
 msgstr "Nettsted"
 
@@ -10791,7 +10927,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "Hva som skjer når du importerer"
 
-#: packages/admin/src/components/ContentEditor.tsx:1122
+#: packages/admin/src/components/ContentEditor.tsx:1144
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 
@@ -10819,7 +10955,7 @@ msgstr "Hvilke innholdstyper som kan bruke denne taksonomien"
 msgid "Whole number"
 msgstr "Heltall"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1084
 msgid "Why are bylines shown in this order?"
 msgstr ""
 
@@ -10827,7 +10963,7 @@ msgstr ""
 msgid "Why can't this be changed?"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:899
+#: packages/admin/src/components/ContentSettingsPanel.tsx:928
 msgid "Why English is used"
 msgstr ""
 
@@ -10888,9 +11024,9 @@ msgstr "Widgettittel"
 msgid "Widget updated"
 msgstr "Widget oppdatert"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:469
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/AdminCommandPalette.tsx:169
+#: packages/admin/src/components/PluginManager.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:427
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1175
 msgid "Widgets"
@@ -10939,6 +11075,10 @@ msgstr "WordPress-brukernavn"
 
 #: packages/admin/src/components/ContentList.tsx:493
 msgid "Working on {selectedCount} items…"
+msgstr ""
+
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
+msgid "Working…"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:904
@@ -11025,7 +11165,7 @@ msgstr "Du trenger administratortillatelser for å administrere byline-skjema."
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2103
+#: packages/admin/src/router.tsx:2111
 msgid "You need Editor permissions to moderate comments."
 msgstr "Du trenger redaktørtillatelser for å moderere kommentarer."
 
@@ -11147,7 +11287,7 @@ msgid "Your Role"
 msgstr "Rollen din"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:678
+#: packages/admin/src/components/RegistryPluginDetail.tsx:679
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "Nettstedet ditt krever at utgivelser er minst {0} gamle før de kan installeres. Denne utgivelsen blir installerbar senere."
 

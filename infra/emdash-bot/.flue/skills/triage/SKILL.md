@@ -7,11 +7,11 @@ description: Classify an issue, identify missing information, and decide whether
 
 Produce a useful first response without editing code or starting expensive verification. Read the issue, recent discussion, repository guidance, and the smallest relevant source area.
 
-Use `auto-work` only when the expected behaviour is unambiguous, the cause and change are localized, and the task does not require a product, compatibility, security, migration, dependency, release, or CI decision. Automatic work must still reproduce a reported bug when practical and pass the normal candidate verification.
+Use `auto-work` for a bug when the report gives a clear expected and actual behaviour and the work can proceed without a product, compatibility, security, migration, dependency, release, or CI decision. Triage does not need to prove the cause or know the final patch: the work run reproduces the report, diagnoses it, verifies the expected behaviour, and abandons unsafe fixes. Prefer spending agent work over asking a maintainer to approve routine investigation.
 
 Use `needs-info` when the reporter can supply a specific missing fact that determines whether or how the issue reproduces. Ask the smallest number of concrete questions in the summary.
 
-Use `await-approval` for deeper investigations, design choices, risky areas, likely duplicates, apparently resolved reports, or any task whose scope may expand. State what was established and what the next run would do. Do not close the issue or claim a duplicate as certain.
+Use `await-approval` for enhancements and tasks without a maintainer-approved specification, design choices, risky areas, likely duplicates, apparently resolved reports, or work that requires one of the decisions above. Do not use it merely because a bug needs deeper investigation. State what was established and what the next run would do. Do not close the issue or claim a duplicate as certain.
 
 Return:
 

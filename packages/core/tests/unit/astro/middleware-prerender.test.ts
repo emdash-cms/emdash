@@ -72,6 +72,7 @@ const {
 			handleRevisionGet: ok,
 			handleRevisionRestore: ok,
 			getPluginRouteMeta,
+			getPluginEditorExtension: () => null,
 			handlePluginApiRoute,
 			getPluginMcpTools: async () => [],
 			getEnabledPluginMcpTools: async () => [],
@@ -340,6 +341,7 @@ describe("astro middleware prerendered routes", () => {
 		expect(response.status).toBe(200);
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
+		expect(typeof emdash.getPluginEditorExtension).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
 		// Regression for #1462: the author filter route reads
 		// `locals.emdash.handleContentAuthors`; it must be wired onto the

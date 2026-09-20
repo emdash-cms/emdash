@@ -67,6 +67,13 @@ async function invalidatePublishedTags(
 	await provider.invalidate({ tags });
 }
 
+async function invalidateContentTags(tags: string[]): Promise<void> {
+	if (tags.length === 0) return;
+	const provider = await getCacheProvider();
+	if (!provider) return;
+	await provider.invalidate({ tags });
+}
+
 /**
  * Build a Worker `scheduled()` handler for general maintenance.
  */
@@ -99,6 +106,7 @@ export function createScheduledHandler(
 					// purge that may never run.
 					const { published } = await runScheduledTasks({
 						onPublished: invalidatePublishedTags,
+						invalidateContentCache: invalidateContentTags,
 					});
 					if (published.length > 0) {
 						console.log(`[scheduled] Published ${published.length} scheduled item(s)`);

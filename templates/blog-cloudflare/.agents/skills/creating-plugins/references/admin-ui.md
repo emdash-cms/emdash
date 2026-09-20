@@ -87,19 +87,49 @@ export default plugin;
 
 Validate interactions before production side effects; `routeCtx.input` is `unknown`. Read [Block Kit](./block-kit.md) for exact interaction, block, and element shapes.
 
-The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor. Both sandbox bridges route `ctx.settings` through the same records as the generated form.
+The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. Both sandbox bridges route `ctx.settings` through the same options records as that form. Read a generated setting with `ctx.settings.get("<key>")`; writes, deletes, list operations, and revision-based operations use the same namespace on Cloudflare and Node/workerd.
 
-Secret fields are write-only in admin responses and encrypted before persistence. The site needs matching `EMDASH_ENCRYPTION_KEY` material to read them. Keep the key list with database backups. Legacy `ctx.kv.get("settings:<key>")` reads remain compatible through EmDash 0.x.
+The `secret` settings field is write-only in the admin response and encrypted before persistence. The site must provide `EMDASH_ENCRYPTION_KEY`; missing, wrong, or tampered key material fails closed. Keep the encryption-key list with database backups. Existing `ctx.kv.get("settings:<key>")` reads remain compatible through EmDash 0.x.
 
 ## Sandboxed saved-entry extensions
 
-Declare `admin.editorPanels` and `admin.editorActions` in `emdash-plugin.jsonc`. Every declaration names a private route and may restrict itself to exact collection slugs.
+Declare saved-entry panels and actions in `emdash-plugin.jsonc`:
 
-The host reloads and ownership-authorizes the saved entry before invoking the route. `routeCtx.ui.entry` contains only collection, ID, locale, and version; `routeCtx.ui.extensionId` identifies the declaration. Field values and unsaved editor state never cross the boundary.
+```jsonc title="emdash-plugin.jsonc"
+{
+	"admin": {
+		"editorPanels": [
+			{
+				"id": "health",
+				"title": "Content health",
+				"route": "editor/health",
+				"collections": ["posts"],
+			},
+		],
+		"editorActions": [
+			{
+				"id": "repair",
+				"label": "Repair metadata",
+				"route": "editor/repair",
+				"placement": "overflow",
+				"style": "danger",
+				"confirm": {
+					"title": "Repair?",
+					"text": "This changes the saved entry.",
+					"confirm": "Repair",
+					"deny": "Cancel",
+				},
+			},
+		],
+	},
+}
+```
 
-Panels load lazily and return Block Kit for `panel_load`, `block_action`, and `form_submit`. Actions are disabled while edits are unsaved and return only a bounded toast, `refresh: true`, or structured navigation. Danger actions require a manifest confirmation.
+Every referenced route must be private. EmDash reloads the saved entry and checks ownership plus the route permission before invoking it. `routeCtx.ui.entry` contains only the canonical collection, ID, locale, and version. The host does not send field values or unsaved editor state.
 
-Use the runtime host's admin helpers to load and interact with panels and invoke editor actions through the production ownership and permission boundary.
+Panels start collapsed. They receive `panel_load`, then ordinary `block_action` and `form_submit` interactions, and return `BlockResponse`. Actions are disabled while the editor has unsaved changes. They receive `editor_action` and return an optional toast plus either `refresh: true` or a structured `navigate` target. Action responses cannot request refresh and navigation together.
+
+Use `createPluginRuntimeTestHost().admin` to exercise this boundary with `loadEditorPanel()`, `actEditorPanel()`, `submitEditorPanel()`, and `invokeEditorAction()`.
 
 ## Sandboxed declarative field widgets
 
@@ -137,7 +167,7 @@ Other Block Kit element types display an unsupported-element message in this sur
 
 `emdash-plugin.jsonc` accepts `admin.fieldWidgets`, and the plugin CLI carries the definitions through the bundle manifest and generated descriptor for registry installation. The artifact round-trip is covered by plugin CLI, shared manifest, and plugin-test tests. The browser E2E fixture still tests a native React color picker rather than a registry-installed declarative widget, so verify the real editor render and value persistence for the chosen elements.
 
-Sandboxed admin routes receive host-attested locale, direction, and surface in `routeCtx.ui`. Use it to select localized runtime Block Kit text. Manifest labels remain static strings; registry plugins do not hand translation catalogs to the host.
+The sandbox admin route receives `routeCtx.ui` with the host-attested admin locale, text direction, and surface. Use it to select localized text in a runtime Block Kit response. Labels in manifest metadata remain static strings; registry plugins do not hand translation catalogs to the host.
 
 ## Native React pages, widgets, and fields
 

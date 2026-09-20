@@ -134,25 +134,30 @@ describe("OrchestratorDO (workers-pool)", () => {
 						headers: { "content-type": "application/json" },
 					}),
 				);
-			if (method === "GET" && url.endsWith("/pulls/99")) {
+			if (method === "POST" && url.endsWith("/graphql")) {
 				return json({
-					number: 99,
-					html_url: "https://github.com/emdash-cms/emdash-test/pull/99",
-					state: "open",
-					draft: false,
-					merged: false,
-					mergeable: true,
-					head: { sha: "green-head" },
+					data: {
+						repository: {
+							pullRequest: {
+								number: 99,
+								url: "https://github.com/emdash-cms/emdash-test/pull/99",
+								state: "OPEN",
+								isDraft: false,
+								merged: false,
+								mergeable: "MERGEABLE",
+								headRefOid: "green-head",
+								reviewDecision: null,
+								commits: {
+									nodes: [
+										{
+											commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } } },
+										},
+									],
+								},
+							},
+						},
+					},
 				});
-			}
-			if (method === "GET" && url.includes("/pulls/99/reviews?")) return json([]);
-			if (method === "GET" && url.includes("/commits/green-head/check-runs?")) {
-				return json({
-					check_runs: [{ name: "Typecheck", status: "completed", conclusion: "success" }],
-				});
-			}
-			if (method === "GET" && url.endsWith("/commits/green-head/status")) {
-				return json({ state: "success", statuses: [] });
 			}
 			if (method === "GET" && url.includes("/issues/42/labels?")) {
 				return json([{ name: "bot:in-review" }, { name: "bot:bug" }]);
@@ -182,7 +187,71 @@ describe("OrchestratorDO (workers-pool)", () => {
 			mergeability: "mergeable",
 			checks: "passing",
 		});
+		const safetyPollAt = await runInDurableObject(stub, async (_instance, state) =>
+			state.storage.get<number>("o:prPollNextAt"),
+		);
+		expect(safetyPollAt).toBeGreaterThan(Date.now() + 9 * 60_000);
 		expect((await stub.getEventLog()).at(-1)).toMatchObject({ event: "pr.green" });
+	});
+
+	test("keeps unknown mergeability on a slow safety poll without repeated GitHub reads", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		let graphqlRequests = 0;
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if ((init?.method ?? "GET") === "POST" && url.endsWith("/graphql")) {
+				graphqlRequests += 1;
+				return Promise.resolve(
+					Response.json({
+						data: {
+							repository: {
+								pullRequest: {
+									number: 99,
+									state: "OPEN",
+									isDraft: false,
+									merged: false,
+									mergeable: "UNKNOWN",
+									headRefOid: "pending-head",
+									reviewDecision: "APPROVED",
+									commits: {
+										nodes: [
+											{
+												commit: {
+													statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } },
+												},
+											},
+										],
+									},
+								},
+							},
+						},
+					}),
+				);
+			}
+			if (url.includes("/issues/42/labels?")) {
+				return Promise.resolve(Response.json([{ name: "bot:in-review" }, { name: "bot:bug" }]));
+			}
+			return Promise.resolve(Response.json({}));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:prNumber": 99,
+				"o:prPollNextAt": Date.now() - 1_000,
+				"o:state": "in_review",
+				"o:kind": "bug",
+			});
+		});
+
+		expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+		const nextAt = await runInDurableObject(stub, async (_instance, state) =>
+			state.storage.get<number>("o:prPollNextAt"),
+		);
+		expect(nextAt).toBeGreaterThan(Date.now() + 9 * 60_000);
+		expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+		expect(graphqlRequests).toBe(1);
 	});
 
 	test.each([
