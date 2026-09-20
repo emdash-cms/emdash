@@ -782,7 +782,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 					</code>
 				</div>
 				<div className="flex items-center space-x-2 mt-1">
-					<span className="text-xs text-kumo-subtle">
+					<span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}>
 						{field.unsupportedType?.type ?? field.type}
 					</span>
 					{field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>}
