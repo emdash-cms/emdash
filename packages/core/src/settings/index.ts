@@ -380,7 +380,11 @@ export async function setSiteSettings(
 					(await transactionOptions.get<SeoSettings>(`${SETTINGS_PREFIX}seo`)) ?? {};
 				const nextSeo = { ...existingSeo, ...seo };
 				delete nextSeo.defaultOgImage;
-				await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+				if (Object.keys(nextSeo).length === 0) {
+					await transactionOptions.delete(`${SETTINGS_PREFIX}seo`);
+				} else {
+					await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+				}
 			}
 		});
 	} finally {

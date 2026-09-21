@@ -117,6 +117,16 @@ describe("Site Settings", () => {
 			expect(storedSeo).not.toHaveProperty("defaultOgImage");
 		});
 
+		it("deletes the SEO option when its only media reference is removed", async () => {
+			await setSiteSettings({ seo: { defaultOgImage: { mediaId: "med_og" } } }, db);
+
+			await setSiteSettings({ seo: { defaultOgImage: null } }, db);
+
+			const settings = await getSiteSettingsWithDb(db);
+			expect(settings.seo).toBeUndefined();
+			expect(await new OptionsRepository(db).exists("site:seo")).toBe(false);
+		});
+
 		it("rolls back updates when a media-setting deletion fails", async () => {
 			await setSiteSettings({ title: "Original", logo: { mediaId: "med_logo" } }, db);
 			await sql`
