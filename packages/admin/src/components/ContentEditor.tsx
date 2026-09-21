@@ -38,7 +38,7 @@ import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
-import { formatFileSize, getFileIcon } from "../lib/media-utils";
+import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { resolveSandboxedEditorActions } from "../lib/sandboxed-editor-extensions.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
@@ -2242,12 +2242,13 @@ function FileFieldRenderer({
 		const directUrl = value.src ?? value.url;
 		const localSrc =
 			typeof directUrl === "string" && directUrl.startsWith("/_emdash/") ? directUrl : undefined;
-		// Clients can write meta.storageKey, so encode it before interpolation to
-		// keep query or fragment delimiters from escaping the route path.
+		// Clients can write meta.storageKey, so it is encoded per path segment: query or
+		// fragment delimiters cannot escape the route path, and a key with folders still
+		// reaches the [...key] route.
 		const localUrl = isLocal
 			? storageKey
-				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
-				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
+				? localMediaFileUrl(storageKey)
+				: (localSrc ?? localMediaFileUrl(value.id))
 			: undefined;
 		const externalUrl = !isLocal && directUrl && isSafeUrl(directUrl) ? directUrl : undefined;
 		return {

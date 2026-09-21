@@ -114,6 +114,48 @@ describe("Editor image alignment", () => {
 		},
 	);
 
+	it.each([
+		{ displayWidth: 300, displayHeight: 300 },
+		{ displayWidth: 600, displayHeight: 200 },
+	])("crops without distorting a $displayWidth × $displayHeight image", async (attrs) => {
+		const source = document.createElement("canvas");
+		source.width = 1200;
+		source.height = 800;
+		const sourceContext = source.getContext("2d")!;
+		sourceContext.fillStyle = "black";
+		sourceContext.fillRect(0, 0, 1200, 800);
+		sourceContext.fillStyle = "red";
+		sourceContext.fillRect(500, 300, 200, 200);
+		const { image } = await renderImage({ ...attrs, src: source.toDataURL() });
+		const bounds = image.getBoundingClientRect();
+		expect(bounds.width / bounds.height).toBeCloseTo(attrs.displayWidth / attrs.displayHeight, 2);
+
+		const screenshot = new Image();
+		screenshot.src = `data:image/png;base64,${await page.screenshot({ element: image, save: false })}`;
+		await screenshot.decode();
+		const canvas = document.createElement("canvas");
+		canvas.width = screenshot.naturalWidth;
+		canvas.height = screenshot.naturalHeight;
+		const context = canvas.getContext("2d")!;
+		context.drawImage(screenshot, 0, 0);
+		const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+		const redAt = (x: number, y: number) => {
+			const offset = (y * canvas.width + x) * 4;
+			return data[offset]! > 200 && data[offset + 1]! < 50 && data[offset + 2]! < 50;
+		};
+		let horizontal = 0;
+		let vertical = 0;
+		for (let x = 0; x < canvas.width; x++) {
+			if (redAt(x, Math.floor(canvas.height / 2))) horizontal++;
+		}
+		for (let y = 0; y < canvas.height; y++) {
+			if (redAt(Math.floor(canvas.width / 2), y)) vertical++;
+		}
+		const expectedSide = 200 * Math.max(canvas.width / 1200, canvas.height / 800);
+		expect(Math.abs(horizontal - expectedSide)).toBeLessThanOrEqual(2);
+		expect(Math.abs(vertical - expectedSide)).toBeLessThanOrEqual(2);
+	});
+
 	it.each(["ltr", "rtl"])("distinguishes None from Center in %s", async (direction) => {
 		const { image, editor, host } = await renderImage({ displayWidth: 120, displayHeight: 80 });
 		host.dir = direction;

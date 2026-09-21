@@ -220,7 +220,7 @@ function ImageNodeView({
 					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className="rounded-lg max-w-full h-auto"
+					className="rounded-lg max-w-full h-auto object-cover"
 					width={renderWidth}
 					height={renderHeight}
 					style={{

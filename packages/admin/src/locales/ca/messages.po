@@ -872,7 +872,7 @@ msgstr "Afegeix contingut"
 msgid "Add Custom Link"
 msgstr "Afegeix un enllaç personalitzat"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:451
+#: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Add dark mode variant"
 msgstr ""
 
@@ -2850,7 +2850,7 @@ msgid "Daily automatic backups"
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:688
-#: packages/admin/src/components/ImageFieldRenderer.tsx:395
+#: packages/admin/src/components/ImageFieldRenderer.tsx:396
 msgid "Dark mode variant"
 msgstr ""
 
@@ -3036,8 +3036,8 @@ msgid "Delete folder"
 msgstr ""
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:309
-#: packages/admin/src/components/editor/GalleryNode.tsx:253
 #: packages/admin/src/components/editor/GalleryNode.tsx:254
+#: packages/admin/src/components/editor/GalleryNode.tsx:255
 msgid "Delete gallery"
 msgstr ""
 
@@ -3592,9 +3592,9 @@ msgstr "Edita {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:460
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
-#: packages/admin/src/components/ImageFieldRenderer.tsx:302
-#: packages/admin/src/components/ImageFieldRenderer.tsx:358
-#: packages/admin/src/components/ImageFieldRenderer.tsx:426
+#: packages/admin/src/components/ImageFieldRenderer.tsx:303
+#: packages/admin/src/components/ImageFieldRenderer.tsx:359
+#: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
 msgstr ""
@@ -3603,7 +3603,7 @@ msgstr ""
 msgid "Edit byline field"
 msgstr "Edita el camp de signatura"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:424
+#: packages/admin/src/components/ImageFieldRenderer.tsx:425
 msgid "Edit dark mode asset"
 msgstr ""
 
@@ -3631,7 +3631,7 @@ msgid "Edit image"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/editor/GalleryNode.tsx:214
+#: packages/admin/src/components/editor/GalleryNode.tsx:215
 msgid "Edit image {0}"
 msgstr ""
 
@@ -3799,7 +3799,7 @@ msgstr ""
 msgid "EmDash will scan existing content to show where media is used."
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryNode.tsx:196
+#: packages/admin/src/components/editor/GalleryNode.tsx:197
 msgid "Empty gallery — open settings to add images"
 msgstr ""
 
@@ -4888,8 +4888,8 @@ msgstr "Accés d'administració complet"
 msgid "Gallery"
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryNode.tsx:241
 #: packages/admin/src/components/editor/GalleryNode.tsx:242
+#: packages/admin/src/components/editor/GalleryNode.tsx:243
 msgid "Gallery settings"
 msgstr ""
 
@@ -5168,8 +5168,8 @@ msgstr "Imatge"
 msgid "Image {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:321
-#: packages/admin/src/components/ImageFieldRenderer.tsx:335
+#: packages/admin/src/components/ImageFieldRenderer.tsx:322
+#: packages/admin/src/components/ImageFieldRenderer.tsx:336
 msgid "Image actions"
 msgstr ""
 
@@ -5178,8 +5178,8 @@ msgid "Image from media library"
 msgstr "Imatge de la biblioteca multimèdia"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:467
-#: packages/admin/src/components/ImageFieldRenderer.tsx:519
+#: packages/admin/src/components/ImageFieldRenderer.tsx:468
+#: packages/admin/src/components/ImageFieldRenderer.tsx:520
 msgid "Image not found"
 msgstr "No s'ha trobat la imatge"
 
@@ -6357,7 +6357,7 @@ msgstr ""
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:504
+#: packages/admin/src/components/ImageFieldRenderer.tsx:505
 msgid "More information about {label}"
 msgstr ""
 
@@ -7982,13 +7982,13 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2323
+#: packages/admin/src/components/ContentEditor.tsx:2324
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
-#: packages/admin/src/components/ImageFieldRenderer.tsx:314
-#: packages/admin/src/components/ImageFieldRenderer.tsx:367
-#: packages/admin/src/components/ImageFieldRenderer.tsx:438
+#: packages/admin/src/components/ImageFieldRenderer.tsx:315
+#: packages/admin/src/components/ImageFieldRenderer.tsx:368
+#: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/PortableTextEditor.tsx:4700
 #: packages/admin/src/components/settings/GeneralSettings.tsx:230
@@ -8018,7 +8018,7 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Treu {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2321
+#: packages/admin/src/components/ContentEditor.tsx:2322
 msgid "Remove {label}"
 msgstr "Treu {label}"
 
@@ -8026,7 +8026,7 @@ msgstr "Treu {label}"
 msgid "Remove assignment"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:436
+#: packages/admin/src/components/ImageFieldRenderer.tsx:437
 msgid "Remove dark mode variant"
 msgstr ""
 
@@ -8043,7 +8043,7 @@ msgid "Remove from post"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:528
-#: packages/admin/src/components/ImageFieldRenderer.tsx:312
+#: packages/admin/src/components/ImageFieldRenderer.tsx:313
 #: packages/admin/src/components/SeoImageField.tsx:66
 msgid "Remove image"
 msgstr "Treu la imatge"
@@ -8131,30 +8131,30 @@ msgstr "Repetidor"
 msgid "Repeating group of fields"
 msgstr "Grup de camps repetible"
 
-#: packages/admin/src/components/ContentEditor.tsx:2313
-#: packages/admin/src/components/ContentEditor.tsx:2350
+#: packages/admin/src/components/ContentEditor.tsx:2314
+#: packages/admin/src/components/ContentEditor.tsx:2351
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:288
-#: packages/admin/src/components/ImageFieldRenderer.tsx:348
-#: packages/admin/src/components/ImageFieldRenderer.tsx:411
-#: packages/admin/src/components/ImageFieldRenderer.tsx:577
-#: packages/admin/src/components/ImageFieldRenderer.tsx:580
+#: packages/admin/src/components/ImageFieldRenderer.tsx:289
+#: packages/admin/src/components/ImageFieldRenderer.tsx:349
+#: packages/admin/src/components/ImageFieldRenderer.tsx:412
+#: packages/admin/src/components/ImageFieldRenderer.tsx:578
+#: packages/admin/src/components/ImageFieldRenderer.tsx:581
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2349
-#: packages/admin/src/components/ImageFieldRenderer.tsx:571
+#: packages/admin/src/components/ContentEditor.tsx:2350
+#: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Replace {label}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:409
+#: packages/admin/src/components/ImageFieldRenderer.tsx:410
 msgid "Replace dark mode image"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:568
+#: packages/admin/src/components/ImageFieldRenderer.tsx:569
 msgid "Replace dark mode variant for {label}"
 msgstr ""
 
@@ -8959,9 +8959,9 @@ msgid "Select"
 msgstr "Selecciona"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2333
-#: packages/admin/src/components/ContentEditor.tsx:2349
-#: packages/admin/src/components/ImageFieldRenderer.tsx:572
+#: packages/admin/src/components/ContentEditor.tsx:2334
+#: packages/admin/src/components/ContentEditor.tsx:2350
+#: packages/admin/src/components/ImageFieldRenderer.tsx:573
 msgid "Select {label}"
 msgstr "Selecciona {label}"
 
@@ -9006,7 +9006,7 @@ msgstr "Selecciona el comentari de {0}"
 msgid "Select Content"
 msgstr "Selecciona contingut"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:569
+#: packages/admin/src/components/ImageFieldRenderer.tsx:570
 msgid "Select dark mode variant for {label}"
 msgstr ""
 
@@ -9022,7 +9022,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Selecciona la icona del lloc"
 
-#: packages/admin/src/components/ContentEditor.tsx:2337
+#: packages/admin/src/components/ContentEditor.tsx:2338
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Selecciona un fitxer"
@@ -9031,7 +9031,7 @@ msgstr "Selecciona un fitxer"
 msgid "Select gallery images"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:552
+#: packages/admin/src/components/ImageFieldRenderer.tsx:553
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 #: packages/admin/src/components/PortableTextEditor.tsx:3791
 msgid "Select image"
@@ -9079,8 +9079,8 @@ msgstr "Selecciona..."
 msgid "Selected {selectedItemTitle}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:249
-#: packages/admin/src/components/ImageFieldRenderer.tsx:264
+#: packages/admin/src/components/ImageFieldRenderer.tsx:250
+#: packages/admin/src/components/ImageFieldRenderer.tsx:265
 msgid "Selected image"
 msgstr ""
 
@@ -9944,8 +9944,8 @@ msgstr ""
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2353
-#: packages/admin/src/components/ImageFieldRenderer.tsx:591
+#: packages/admin/src/components/ContentEditor.tsx:2354
+#: packages/admin/src/components/ImageFieldRenderer.tsx:592
 msgid "This field is required"
 msgstr "Aquest camp és obligatori"
 
@@ -9981,11 +9981,11 @@ msgstr "Aquest enllaç caduca al cap de 7 dies i només es pot utilitzar una veg
 msgid "This may take a while for large exports."
 msgstr "Això pot trigar una estona en exportacions grans."
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:82
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:83
 msgid "This media item could not be loaded. Try again."
 msgstr ""
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:80
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:811
 msgid "This media item no longer exists."
 msgstr ""
@@ -10451,7 +10451,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "Sense títol"
 
-#: packages/admin/src/components/ContentEditor.tsx:2255
+#: packages/admin/src/components/ContentEditor.tsx:2256
 msgid "Untitled file"
 msgstr "Fitxer sense títol"
 
@@ -11161,8 +11161,8 @@ msgstr ""
 msgid "You cannot change your own role"
 msgstr "No pots canviar el teu propi rol"
 
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:69
-#: packages/admin/src/components/media/useMediaAssetEditor.tsx:78
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:70
+#: packages/admin/src/components/media/useMediaAssetEditor.tsx:79
 msgid "You do not have permission to edit this asset."
 msgstr ""
 

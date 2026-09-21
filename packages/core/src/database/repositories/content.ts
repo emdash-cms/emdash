@@ -2,6 +2,7 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
@@ -995,15 +996,35 @@ export class ContentRepository {
 			return this.update(type, id, { ...input, data });
 		}
 
-		const fieldSlugs = new Set(collectionRows.map((row) => row.fieldSlug).filter(Boolean));
-		for (const field of Object.keys(data)) {
+		const fieldSlugs = new Set(
+			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
+		);
+
+		const revisionRepo = new RevisionRepository(this.db);
+		let existing = await this.findById(type, id);
+
+		// A key with no field is rejected unless the entry already stores it: deleting a field
+		// leaves its value in the draft revision, which holds the whole `data`, so a caller that
+		// reads an entry and writes it back would otherwise be refused for a key it never chose
+		// to send. Those keys are dropped here and shed from the merge below.
+		let incoming = data;
+		if (existing) {
+			let stored: Record<string, unknown> = existing.data ?? {};
+			if (existing.draftRevisionId) {
+				const draft = await revisionRepo.findById(existing.draftRevisionId);
+				if (draft?.data) stored = draft.data;
+			}
+			const stale = staleStoredKeys(data, stored, fieldSlugs);
+			if (stale.length > 0) {
+				incoming = { ...data };
+				for (const key of stale) delete incoming[key];
+			}
+		}
+		for (const field of Object.keys(incoming)) {
 			if (!fieldSlugs.has(field)) {
 				throw new EmDashValidationError(`Unknown field '${field}' in collection '${type}'`);
 			}
 		}
-
-		const revisionRepo = new RevisionRepository(this.db);
-		let existing = await this.findById(type, id);
 
 		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 			let baseData = existing.data;
@@ -1012,7 +1033,7 @@ export class ContentRepository {
 				if (draft) baseData = draft.data;
 			}
 
-			const mergedData = { ...baseData, ...data };
+			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
 			const revision = await revisionRepo.create({
 				collection: type,
