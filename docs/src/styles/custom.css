@@ -159,3 +159,32 @@
 	background: var(--emdash-surface);
 	box-shadow: var(--sl-shadow-sm);
 }
+
+@media print {
+	:root,
+	:root[data-theme] {
+		--emdash-canvas: #ffffff;
+		--emdash-canvas-lighter: #ffffff;
+		--emdash-surface: #ffffff;
+		--emdash-surface-raised: #ededed;
+		--emdash-text: #262626;
+		--emdash-border-faint: #ededed;
+		--emdash-border: #e8e8e8;
+		--emdash-border-loud: #e6e6e6;
+		--sl-color-gray-1: #333333;
+		--sl-color-gray-2: #525252;
+		--sl-color-gray-3: #737373;
+		--sl-color-gray-4: #8f8f8f;
+		--sl-color-gray-5: #d6d6d6;
+		--sl-color-gray-6: var(--emdash-border);
+		--sl-color-gray-7: var(--emdash-canvas-lighter);
+		--sl-color-text: var(--emdash-text);
+		--sl-shadow-sm: none;
+		--sl-shadow-md: none;
+		--sl-shadow-lg: none;
+	}
+
+	.sl-link-button.primary {
+		color: var(--emdash-text);
+	}
+}
