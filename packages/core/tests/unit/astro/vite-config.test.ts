@@ -1,11 +1,15 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { basename, isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import {
+	resolveAdminDist,
+	resolveAdminSource,
+} from "../../../src/astro/integration/admin-locales.js";
 import { createViteConfig } from "../../../src/astro/integration/vite-config.js";
 
 describe("createViteConfig admin aliasing", () => {
@@ -258,5 +262,56 @@ describe("createViteConfig Astro logger optimization", () => {
 		const config = buildConfig(projectWithoutConsoleLoggerRoot);
 
 		expect(config.ssr?.optimizeDeps?.include).not.toContain("astro/logger/console");
+	});
+});
+
+describe("createViteConfig Lingui macro resolution in source-mode dev", () => {
+	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
+	const adminSourcePath = resolveAdminSource(fileURLToPath(monorepoDemoRoot));
+	const adminDistPath = resolveAdminDist();
+
+	function buildConfig(root: URL) {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root,
+					adapter: { name: "@astrojs/node" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	function getLinguiMacroPlugin(config: ReturnType<typeof createViteConfig>) {
+		const plugins = Array.isArray(config.plugins) ? config.plugins : [];
+		const plugin = plugins.find((p) => typeof p === "object" && p?.name === "emdash-lingui-macro");
+		if (!plugin || typeof plugin !== "object") {
+			throw new Error("Missing emdash-lingui-macro plugin");
+		}
+		return plugin;
+	}
+
+	it("is active in monorepo source-mode dev", () => {
+		const config = buildConfig(monorepoDemoRoot);
+		expect(getLinguiMacroPlugin(config)).toBeDefined();
+		expect(adminSourcePath).toBeDefined();
+	});
+
+	it.each([
+		["de", "de"],
+		["en-GB", "en-GB"],
+		["pt-BR", "pt-BR"],
+		["sr-Latn", "sr-Latn"],
+		["es-419", "es-419"],
+		["pseudo", "pseudo"],
+	])("resolves ./%s/messages.mjs to the compiled catalog for %s", (locale) => {
+		const config = buildConfig(monorepoDemoRoot);
+		const plugin = getLinguiMacroPlugin(config);
+
+		const result = plugin.resolveId?.(`./${locale}/messages.mjs`, adminSourcePath!);
+		expect(result).toBe(resolve(adminDistPath, "locales", locale, "messages.mjs"));
 	});
 });
