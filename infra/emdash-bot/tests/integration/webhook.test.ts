@@ -16,6 +16,7 @@ const SELF = exports.default;
 
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];
+	GITHUB_RATE_LIMIT: Env["GITHUB_RATE_LIMIT"];
 	GITHUB_APP_INSTALLATION_ID: string;
 	GITHUB_APP_PRIVATE_KEY: string;
 	GITHUB_WEBHOOK_SECRET: string;
@@ -52,6 +53,13 @@ async function generatedPrivateKeyPem(): Promise<string> {
 			.match(/.{1,64}/g)
 			?.join("\n") ?? "";
 	return `-----BEGIN PRIVATE KEY-----\n${body}\n-----END PRIVATE KEY-----`;
+}
+
+async function configureGitHubToken(): Promise<void> {
+	testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+	await testEnv.GITHUB_RATE_LIMIT.getByName(
+		`installation:${testEnv.GITHUB_APP_INSTALLATION_ID}`,
+	).debugSetInstallationToken("test-installation-token", Date.now() + 60 * 60_000);
 }
 
 async function sign(body: string): Promise<string> {
@@ -154,12 +162,11 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(html).toContain("Run trace");
 	});
 
-	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
+	test("dashboard API serves durable local state without GitHub credentials", async () => {
 		const res = await SELF.fetch("https://test/api/dashboard");
-		expect(res.status).toBe(503);
-		expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
-		expect(res.headers.get("cache-control")).toBe("no-store");
-		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toContain("max-age=10");
+		expect(await res.json()).toMatchObject({ issues: [] });
 	});
 
 	test("serves the selected issue's public run trace without GitHub credentials", async () => {
@@ -319,7 +326,7 @@ describe("POST /webhook/github (workers-pool)", () => {
 	test("submitted review batches its body and inline comments before admission", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const pullRequestNumber = uniqueIssueNumber();
-		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		await configureGitHubToken();
 		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			return Promise.resolve(
@@ -393,7 +400,7 @@ describe("POST /webhook/github (workers-pool)", () => {
 		"empty or unavailable review comments do not start partial work (%s)",
 		async (status) => {
 			const issueNumber = uniqueIssueNumber();
-			testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+			await configureGitHubToken();
 			vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) =>
 				Promise.resolve(
 					new Response(
@@ -445,7 +452,7 @@ describe("POST /webhook/github (workers-pool)", () => {
 
 	test("a review on a contributor's PR moves its review label", async () => {
 		const pullRequestNumber = uniqueIssueNumber();
-		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		await configureGitHubToken();
 		const repoUrl = `https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}`;
 		const reads: Record<string, unknown> = {
 			[`${repoUrl}/pulls/${pullRequestNumber}/reviews?per_page=100&page=1`]: [
@@ -512,7 +519,7 @@ describe("POST /webhook/github (workers-pool)", () => {
 	test("top-level bot PR feedback resolves its head branch before durable admission", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const pullRequestNumber = uniqueIssueNumber();
-		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		await configureGitHubToken();
 		const requests: Array<{ url: string; signal: AbortSignal | null | undefined }> = [];
 		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -554,16 +561,14 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(res.status).toBe(202);
 		expect(await res.json()).toMatchObject({ anchor: `issue-${issueNumber}` });
 		expect(requests.map((request) => request.url)).toEqual([
-			`https://api.github.com/app/installations/${testEnv.GITHUB_APP_INSTALLATION_ID}/access_tokens`,
 			`https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}/pulls/${pullRequestNumber}`,
 		]);
 		expect(requests[0]?.signal).toBeInstanceOf(AbortSignal);
-		expect(requests[1]?.signal).toBe(requests[0]?.signal);
 	});
 
 	test("top-level bot PR feedback returns a retryable error when lookup fails", async () => {
 		const pullRequestNumber = uniqueIssueNumber();
-		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		await configureGitHubToken();
 		vi.stubGlobal("fetch", () => Promise.resolve(new Response("unavailable", { status: 503 })));
 
 		const res = await postWebhook({

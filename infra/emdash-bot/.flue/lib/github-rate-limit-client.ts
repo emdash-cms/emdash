@@ -11,9 +11,34 @@ export interface GitHubResponseMetadata {
 	readonly retryAfterAt: number | null;
 }
 
+export interface GitHubRateLimitState {
+	readonly backoffUntil: number;
+	readonly nextPermitAt: number;
+	readonly limit: number | null;
+	readonly remaining: number | null;
+	readonly resetAt: number | null;
+}
+
 export interface GitHubRateLimitGate {
 	permit(category: string, consumer: string): Promise<GitHubPermit>;
 	record(category: string, consumer: string, metadata: GitHubResponseMetadata): Promise<void>;
+	inspect(): Promise<GitHubRateLimitState | null>;
+	getInstallationToken(): Promise<string>;
+}
+
+const INLINE_PERMIT_WAIT_MS = 5_000;
+
+export async function acquireGitHubPermit(
+	gate: GitHubRateLimitGate,
+	category: string,
+	consumer: string,
+): Promise<GitHubPermit> {
+	const deadline = Date.now() + INLINE_PERMIT_WAIT_MS;
+	for (;;) {
+		const permit = await gate.permit(category, consumer);
+		if (permit.allowed || permit.retryAt > deadline) return permit;
+		await new Promise((resolve) => setTimeout(resolve, Math.max(1, permit.retryAt - Date.now())));
+	}
 }
 
 function finiteHeader(value: string | null): number | null {

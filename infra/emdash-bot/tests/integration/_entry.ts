@@ -16,7 +16,7 @@ import type { ClassifierInput, ClassifyResult } from "../../.flue/lib/classifier
 import { OrchestratorDO as ProductionOrchestratorDO } from "../../.flue/lib/orchestrator.js";
 import { registerCoreRoutes } from "../../.flue/routes.js";
 
-export { ContainerProxy, GitHubRateLimitDO, Sandbox } from "../../.flue/cloudflare.js";
+export { ContainerProxy, DashboardDO, GitHubRateLimitDO, Sandbox } from "../../.flue/cloudflare.js";
 
 export class OrchestratorDO extends ProductionOrchestratorDO {
 	protected override requestClassification(input: ClassifierInput): Promise<ClassifyResult> {

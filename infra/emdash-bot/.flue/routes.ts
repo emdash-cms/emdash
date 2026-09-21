@@ -6,15 +6,12 @@
 import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
-import { DashboardUnavailableError, getDashboardPayload } from "./lib/dashboard.js";
+import { dashboardIssueUpdate, getDashboardPayload } from "./lib/dashboard.js";
 import { githubRateLimitGate } from "./lib/github-rate-limit-client.js";
 import {
 	getPullRequestHeadBranch,
 	getPullRequestReviewComments,
-	mintInstallationToken,
-	readAppCreds,
 	readRepoContext,
-	type GitHubAppCreds,
 	type GitHubToken,
 } from "./lib/github.js";
 import { syncReviewStateLabel } from "./lib/review-state.js";
@@ -27,14 +24,9 @@ import {
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 const OPERATOR_IDEMPOTENCY_KEY = /^[a-zA-Z0-9._-]+$/;
 
-async function coordinatedInstallationToken(
-	env: Env,
-	creds: GitHubAppCreds,
-	signal: AbortSignal,
-	consumer: string,
-): Promise<GitHubToken> {
+async function coordinatedInstallationToken(env: Env, consumer: string): Promise<GitHubToken> {
 	const gate = githubRateLimitGate(env);
-	const token = await mintInstallationToken(creds, signal, { token: "", gate, consumer });
+	const token = await gate.getInstallationToken();
 	return { token, gate, consumer };
 }
 
@@ -148,11 +140,6 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			c.header("cache-control", "public, max-age=10, stale-while-revalidate=30");
 			return c.json(payload);
 		} catch (error) {
-			if (error instanceof DashboardUnavailableError) {
-				const retryAfter = Math.max(1, Math.ceil((error.retryAt - Date.now()) / 1_000));
-				c.header("retry-after", String(retryAfter));
-				c.header("cache-control", "no-store");
-			}
 			console.error("[dashboard] load failed", {
 				error: error instanceof Error ? error.message : String(error),
 			});
@@ -211,6 +198,19 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		} catch {
 			return c.text("invalid JSON", 400);
 		}
+		const dashboardUpdate = dashboardIssueUpdate(payload);
+		if (dashboardUpdate) {
+			const repo = readRepoContext(c.env);
+			if (repo) {
+				c.executionCtx.waitUntil(
+					c.env.DASHBOARD.getByName(`repo:${repo.owner}/${repo.repo}`)
+						.recordIssue(dashboardUpdate)
+						.catch((error: unknown) => {
+							console.error("[dashboard] webhook update failed", error);
+						}),
+				);
+			}
+		}
 
 		let result = normalizeWebhook({ eventType, deliveryId, payload });
 		if (result.kind === "pong") {
@@ -221,15 +221,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		// the trusted link back to the originating issue lifecycle.
 		if (result.kind === "pull_request") {
 			const unresolved = result;
-			const creds = readAppCreds(c.env);
 			const repo = readRepoContext(c.env);
-			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			if (!repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
 				const token = await coordinatedInstallationToken(
 					c.env,
-					creds,
-					signal,
 					`webhook-pr-lookup:${deliveryId ?? unresolved.pullRequestNumber}`,
 				);
 				const headBranch = await getPullRequestHeadBranch(
@@ -250,15 +247,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			}
 		}
 		if (result.kind === "dispatch" && result.event.reviewId && result.event.pullRequestNumber) {
-			const creds = readAppCreds(c.env);
 			const repo = readRepoContext(c.env);
-			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			if (!repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
 				const token = await coordinatedInstallationToken(
 					c.env,
-					creds,
-					signal,
 					`webhook-review-comments:${deliveryId ?? result.event.reviewId}`,
 				);
 				const comments = await getPullRequestReviewComments(
@@ -315,15 +309,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.json({ anchor: result.anchor, cleanup }, 202);
 		}
 		if (result.kind === "review_state") {
-			const creds = readAppCreds(c.env);
 			const repo = readRepoContext(c.env);
-			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			if (!repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
 				const token = await coordinatedInstallationToken(
 					c.env,
-					creds,
-					signal,
 					`webhook-review-state:${deliveryId ?? result.pullRequestNumber}`,
 				);
 				const reviewState = await syncReviewStateLabel(token, repo, result, signal);

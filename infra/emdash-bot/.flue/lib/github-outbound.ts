@@ -7,6 +7,7 @@ import {
 	withGithubAuthorization,
 } from "./github-proxy.js";
 import {
+	acquireGitHubPermit,
 	parseGitHubResponseMetadata,
 	type GitHubRateLimitGate,
 } from "./github-rate-limit-client.js";
@@ -105,7 +106,9 @@ export async function forwardGithubRequest(
 	const category = url.host === "api.github.com" ? "sandbox-api" : "sandbox-git";
 	const installationAuthenticated = gate.authentication === "installation";
 	const permit = installationAuthenticated
-		? await context.rateLimitGate?.permit(category, "sandbox-outbound")
+		? await (context.rateLimitGate
+				? acquireGitHubPermit(context.rateLimitGate, category, "sandbox-outbound")
+				: undefined)
 		: undefined;
 	if (permit && !permit.allowed) {
 		return new Response("GitHub request backed off", {

@@ -48,5 +48,6 @@ async function handleAuthenticatedGithub(request: Request, env: Env): Promise<Re
 }
 
 export { ContainerProxy } from "@cloudflare/sandbox";
+export { DashboardDO } from "./lib/dashboard-do.js";
 export { GitHubRateLimitDO } from "./lib/github-rate-limit.js";
 export { OrchestratorDO } from "./lib/orchestrator.js";
