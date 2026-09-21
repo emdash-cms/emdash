@@ -233,6 +233,42 @@ describe("LinkDestinationInput", () => {
 		expect(onSubmit).not.toHaveBeenCalled();
 	});
 
+	it("searches domain-like text but keeps Enter on the raw URL", async () => {
+		mockSearchResponses([
+			{ collection: "posts", id: "post-5", slug: "vue-js", locale: "en", title: "Vue.js Guide" },
+		]);
+		const onSubmit = vi.fn();
+		const onPick = vi.fn();
+		const screen = await render(<Harness onSubmit={onSubmit} onPick={onPick} />);
+
+		await typeQuery(screen, "vue.js");
+		const option = screen.getByRole("option", { name: /Vue\.js Guide/ });
+		await expect.element(option).toBeVisible();
+
+		const input = screen.getByRole("combobox", { name: "Search or type a URL" }).element();
+		expect(input.getAttribute("aria-activedescendant")).toBeNull();
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+		expect(onPick).not.toHaveBeenCalled();
+	});
+
+	it("picks a result for domain-like text after arrowing into the list", async () => {
+		mockSearchResponses([
+			{ collection: "posts", id: "post-5", slug: "vue-js", locale: "en", title: "Vue.js Guide" },
+		]);
+		const onPick = vi.fn();
+		const screen = await render(<Harness onPick={onPick} />);
+
+		await typeQuery(screen, "vue.js");
+		await expect.element(screen.getByRole("option", { name: /Vue\.js Guide/ })).toBeVisible();
+
+		await userEvent.keyboard("{ArrowDown}");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(onPick).toHaveBeenCalledWith("/blog/vue-js"));
+	});
+
 	it("submits typed URLs on Enter without searching", async () => {
 		mockSearchResponses([helloPost]);
 		const onSubmit = vi.fn();

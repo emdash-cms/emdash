@@ -42,7 +42,10 @@ const DOMAIN_LIKE = /^\S+\.\S{2,}$/;
 /**
  * Anything scheme-like (`https:`, `mailto:`), path-like (`/`, `#`, `?`), or
  * domain-like (`example.com`) is treated as a URL the author is typing, not
- * a search query.
+ * a search query. Domain-like text is ambiguous -- `vue.js` may be a pasted
+ * host or a title -- so only scheme/path input disables search entirely;
+ * domain-like input still searches but Enter keeps applying the raw text
+ * unless the author explicitly selects a result.
  */
 export function looksLikeUrl(value: string): boolean {
 	const trimmed = value.trim();
@@ -112,7 +115,7 @@ export function LinkDestinationInput({
 	const { data: manifest } = useQuery({ queryKey: ["manifest"], queryFn: fetchManifest });
 
 	const query = debouncedValue.trim();
-	const searchEnabled = query.length >= MIN_QUERY_LENGTH && !looksLikeUrl(query);
+	const searchEnabled = query.length >= MIN_QUERY_LENGTH && !SCHEME_OR_PATH.test(query);
 	const {
 		data: rawResults,
 		isFetching,
@@ -136,10 +139,12 @@ export function LinkDestinationInput({
 
 	// Pre-highlight the first result so Enter picks it, like WordPress's
 	// link control; plain text makes a broken href, so it never wins over
-	// a visible result.
+	// a visible result. URL-like text stays unhighlighted: there Enter
+	// applies the text itself and results are opt-in via arrow keys/click.
+	const preHighlight = !looksLikeUrl(query);
 	React.useEffect(() => {
-		setActiveIndex(results.length > 0 ? 0 : -1);
-	}, [results]);
+		setActiveIndex(results.length > 0 && preHighlight ? 0 : -1);
+	}, [results, preHighlight]);
 
 	const [pickError, setPickError] = React.useState<string | null>(null);
 	React.useEffect(() => {
@@ -205,7 +210,7 @@ export function LinkDestinationInput({
 			setActiveIndex((index) => Math.min(index + 1, results.length - 1));
 		} else if (e.key === "ArrowUp" && results.length > 0) {
 			e.preventDefault();
-			setActiveIndex((index) => Math.max(index - 1, 0));
+			setActiveIndex((index) => Math.max(index - 1, preHighlight ? 0 : -1));
 		} else if (e.key === "Enter") {
 			e.preventDefault();
 			const item = activeIndex >= 0 ? results[activeIndex] : undefined;
