@@ -385,7 +385,7 @@ function TaxonomyTermPicker({
 						variant="ghost"
 						size="xs"
 						shape="square"
-						className="ms-auto h-6 w-6 min-w-6 shrink-0"
+						className="ms-auto me-1.5 h-6 w-6 min-w-6 shrink-0 text-kumo-subtle hover:text-kumo-default"
 						title={t`Choose ${label}`}
 						aria-label={t`Choose ${label}`}
 						aria-expanded={isOpen}
