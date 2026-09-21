@@ -632,6 +632,38 @@ describe("TaxonomySidebar", () => {
 			.toBeInTheDocument();
 	});
 
+	it("opens the picker from the selected category field and supports keyboard selection", async () => {
+		const onChange = vi.fn();
+		mockApiFetch({
+			taxonomies: [categoriesTaxonomy],
+			terms: [alphaTerm, betaTerm],
+			entryTerms: [alphaTerm],
+		});
+		const screen = await render(
+			<TaxonomySidebar
+				collection="products"
+				entryId="entry_1"
+				canManageTaxonomies
+				onChange={onChange}
+			/>,
+			{ wrapper: Wrapper },
+		);
+
+		const fieldTrigger = screen.getByRole("button", { name: "Edit Categories" });
+		await screen.getByText("Alpha", { exact: true }).click();
+		const input = screen.getByRole("searchbox", { name: "Search Categories" });
+		await expect.element(input).toHaveFocus();
+
+		await input.fill("Beta");
+		await userEvent.keyboard("{Enter}");
+
+		expect(onChange).toHaveBeenCalledWith("categories", ["term_alpha", "term_beta"]);
+
+		await userEvent.keyboard("{Escape}");
+		await expect.element(fieldTrigger).toHaveFocus();
+		expect(screen.getByRole("searchbox", { name: "Search Categories" }).query()).toBeNull();
+	});
+
 	it("keeps selected chips inside the control and scrolls after three rows", async () => {
 		const selectedTerms = Array.from({ length: 8 }, (_, index) =>
 			makeTerm(`term_${index}`, `Long category ${index + 1}`),

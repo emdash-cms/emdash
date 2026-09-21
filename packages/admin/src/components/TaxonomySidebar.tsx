@@ -208,7 +208,9 @@ function TaxonomyTermPicker({
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [activeIndex, setActiveIndex] = React.useState(0);
 	const anchorRef = React.useRef<HTMLDivElement>(null);
-	const triggerRef = React.useRef<HTMLButtonElement>(null);
+	const fieldTriggerRef = React.useRef<HTMLButtonElement>(null);
+	const addTriggerRef = React.useRef<HTMLButtonElement>(null);
+	const lastTriggerRef = React.useRef<HTMLButtonElement | null>(null);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 	const pastedDelimitedInputRef = React.useRef<string | null>(null);
@@ -262,6 +264,10 @@ function TaxonomyTermPicker({
 		setInput("");
 		setActiveIndex(0);
 		pastedDelimitedInputRef.current = null;
+	};
+	const openPicker = (trigger: HTMLButtonElement | null) => {
+		lastTriggerRef.current = trigger;
+		setIsOpen(true);
 	};
 
 	const toggleTerm = (termId: string) => {
@@ -331,7 +337,7 @@ function TaxonomyTermPicker({
 		if (event.key === "Escape") {
 			event.preventDefault();
 			closePicker();
-			requestAnimationFrame(() => triggerRef.current?.focus());
+			requestAnimationFrame(() => lastTriggerRef.current?.focus());
 			return;
 		}
 		if (event.key === "Backspace" && !input && selectedOptions.length > 0) {
@@ -360,7 +366,7 @@ function TaxonomyTermPicker({
 		} else if (event.key === "Escape") {
 			event.preventDefault();
 			closePicker();
-			requestAnimationFrame(() => triggerRef.current?.focus());
+			requestAnimationFrame(() => lastTriggerRef.current?.focus());
 		}
 	};
 
@@ -379,8 +385,7 @@ function TaxonomyTermPicker({
 						{label}
 					</Text>
 					<Button
-						ref={triggerRef}
-						id={triggerId}
+						ref={addTriggerRef}
 						type="button"
 						variant="ghost"
 						size="xs"
@@ -394,12 +399,29 @@ function TaxonomyTermPicker({
 						loading={isCreating}
 						onClick={() => {
 							if (isOpen) closePicker();
-							else setIsOpen(true);
+							else openPicker(addTriggerRef.current);
 						}}
 						icon={<Plus size={14} aria-hidden="true" />}
 					/>
 				</div>
-				<LayerCard className="flex min-h-9 items-start bg-kumo-control p-1.5 shadow-none">
+				<LayerCard className="relative flex min-h-9 items-start bg-kumo-control p-1.5 shadow-none">
+					<Button
+						ref={fieldTriggerRef}
+						id={triggerId}
+						type="button"
+						variant="ghost"
+						className="absolute inset-0 z-0 h-full w-full min-w-0 rounded-lg bg-transparent p-0 hover:bg-transparent"
+						aria-label={t`Edit ${label}`}
+						aria-expanded={isOpen}
+						aria-controls={listId}
+						disabled={isCreating}
+						onClick={() => {
+							if (isOpen) closePicker();
+							else openPicker(fieldTriggerRef.current);
+						}}
+					>
+						<span className="sr-only">{t`Edit ${label}`}</span>
+					</Button>
 					{selectedOptions.length > 0 ? (
 						<div
 							role="list"
@@ -412,6 +434,10 @@ function TaxonomyTermPicker({
 								scrollbarWidth: "thin",
 							}}
 							className="relative z-1 flex w-full min-w-0 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+							onClick={(event) => {
+								if (isCreating || (event.target as HTMLElement).closest("button")) return;
+								openPicker(fieldTriggerRef.current);
+							}}
 						>
 							{selectedOptions.map((option) => (
 								<span
@@ -429,7 +455,10 @@ function TaxonomyTermPicker({
 										className="h-6 w-6 min-w-6 bg-transparent"
 										disabled={isCreating}
 										aria-label={t`Remove ${option.term.label}`}
-										onClick={() => toggleTerm(option.term.id)}
+										onClick={(event) => {
+											event.stopPropagation();
+											toggleTerm(option.term.id);
+										}}
 										icon={<X size={10} aria-hidden="true" />}
 									/>
 								</span>
