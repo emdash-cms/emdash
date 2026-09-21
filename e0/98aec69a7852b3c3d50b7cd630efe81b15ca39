@@ -1,0 +1,19 @@
+packages/admin/src/components/TaxonomySidebar.tsx
+  s_0df06e584efdf4::t_4c582ef37c2fd8 19,367-373,382,405,407-408,416,437,439-443,446,448,466-467,754-781,785-787,789,791-799,801-803,832
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e098aec69a7852b3c3d50b7cd630efe81b15ca39",
+  "prompts": {},
+  "sessions": {
+    "s_0df06e584efdf4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd9e-f3f6-7e31-be97-b2eb60a9124c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
