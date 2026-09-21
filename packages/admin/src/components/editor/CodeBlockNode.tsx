@@ -144,6 +144,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		() => languageItems.some((item) => filterLanguages(item, draft.trim())),
 		[draft, filterLanguages, languageItems],
 	);
+	const freeFormLanguage = hasLanguageMatches ? undefined : normalizeLanguage(draft);
 
 	const openPicker = React.useCallback(() => {
 		setDraft("");
@@ -228,7 +229,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 							<Popover.Trigger
 								render={
 									<Toolbar.Button
-										className="min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:bg-kumo-tint focus-visible:ring-0"
+										className="min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:relative focus-visible:z-10 focus-visible:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus focus-visible:ring-0"
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Set language (current: ${label})`}
 									>
@@ -266,9 +267,13 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<span className="sr-only" role="status" aria-live="polite">
 						{copyFailed ? t`Copy failed` : copied ? t`Copied` : ""}
 					</span>
-					<Popover.Content side="bottom" className="z-[100] w-80 max-w-[calc(100vw-1rem)] p-3">
+					<Popover.Content
+						side="bottom"
+						className="emdash-code-language-popover z-[100] max-h-[var(--available-height)] w-80 max-w-[calc(100vw-1rem)] overflow-hidden p-3"
+					>
 						<Autocomplete
 							inline
+							label={t`Language`}
 							open={isEditing}
 							onOpenChange={(open: boolean) => {
 								if (!open) closePicker();
@@ -285,17 +290,28 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 									placeholder={t`Search for a language…`}
 								/>
 							</div>
-							<Autocomplete.List className="emdash-code-language-list mt-2 max-h-80">
-								{(item: string) => (
-									<Autocomplete.Item key={item} value={item} onClick={() => commit(item)}>
-										{item}
-									</Autocomplete.Item>
-								)}
+							<Autocomplete.List className="emdash-code-language-list mt-2 max-h-[min(20rem,calc(var(--available-height)-6rem))]">
+								{(item: string) => {
+									const isCurrentLanguage = Boolean(storedLanguage) && item === label;
+									return (
+										<Autocomplete.Item
+											key={item}
+											value={item}
+											aria-selected={isCurrentLanguage}
+											data-selected={isCurrentLanguage ? "" : undefined}
+											onClick={() => commit(item)}
+										>
+											{item}
+										</Autocomplete.Item>
+									);
+								}}
 							</Autocomplete.List>
 							<Autocomplete.Empty
 								className={hasLanguageMatches ? undefined : "px-3 py-2 text-base text-kumo-subtle"}
 							>
-								{t`No matches`}
+								{freeFormLanguage
+									? t`No matches. Press Enter to use “${freeFormLanguage}”.`
+									: t`No matches`}
 							</Autocomplete.Empty>
 						</Autocomplete>
 					</Popover.Content>

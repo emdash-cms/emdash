@@ -372,6 +372,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	border-color: color-mix(in oklab, var(--color-kumo-focus) 50%, transparent);
 }
 
+.emdash-code-language-popover[data-instant] {
+	transition-duration: 150ms;
+}
+
 @media (hover: none), (pointer: coarse) {
 	.emdash-code-block-controls {
 		opacity: 1;
@@ -381,6 +385,16 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 @media (prefers-reduced-motion: reduce) {
 	.emdash-code-block-controls {
 		transition: none;
+	}
+
+	.emdash-code-language-popover,
+	.emdash-code-language-popover[data-instant] {
+		transition: none;
+	}
+
+	.emdash-code-language-popover[data-starting-style],
+	.emdash-code-language-popover[data-ending-style] {
+		scale: 1;
 	}
 }
 /**

@@ -1769,8 +1769,10 @@ describe("Code block copy action", () => {
 		expect(storedLanguage()).toBe("javascript");
 
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
-		await screen.getByPlaceholder("Search for a language…").fill("Custom Language");
-		await expect.element(screen.getByText("No matches")).toBeVisible();
+		await screen.getByRole("combobox", { name: "Language" }).fill("Custom Language");
+		await expect
+			.element(screen.getByText("No matches. Press Enter to use “custom-language”."))
+			.toBeVisible();
 		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
 
@@ -1818,6 +1820,25 @@ describe("Code block copy action", () => {
 			expect(codeBlock?.attrs?.language).toBe("javascript");
 			expect(codeBlock?.content?.[0]?.text).toBe('const greeting = "hello";');
 		});
+	});
+
+	it("identifies the search and marks the stored language", async () => {
+		const { screen } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "Console.WriteLine();",
+					language: "csharp",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: C#)" }).click();
+
+		await expect.element(screen.getByRole("combobox", { name: "Language" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("option", { name: "C#" }))
+			.toHaveAttribute("aria-selected", "true");
 	});
 
 	it("prevents block formatting that cannot survive inside a table cell", async () => {
