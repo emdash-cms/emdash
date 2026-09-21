@@ -41,7 +41,8 @@ model. For example, a collection may support revisions, previews, taxonomies, or
 5. Review the draft. If the collection supports previews, select **Preview** to see the rendered
    page before publishing.
 
-6. Select **Publish**. The saved draft becomes the live version that public content queries return.
+6. Select **Publish now**, then confirm. The saved draft becomes the live version that public
+   content queries return.
 </Steps>
 
 The entry has a stable content ID and a separate slug. The ID continues to identify the same entry
@@ -112,18 +113,18 @@ then **Edit locking**.
 
 ## Publish or schedule changes
 
-The publishing control reflects what will happen to the saved draft:
+Publishing and scheduling use separate controls:
 
-- **Publish** makes a new draft live.
-- **Publish changes now** makes pending changes to a published entry live immediately.
-- **Schedule publication** sets when a new entry becomes live.
-- **Schedule changes** sets when pending changes replace the current live revision.
-- **Change schedule** or **Remove schedule** updates an existing schedule.
+- **Publish now** makes a new draft live after confirmation.
+- **Publish changes** makes pending changes to a published entry live after confirmation.
+- **Schedule** sets when a new entry or pending changes become live.
+- **Change schedule** updates an existing schedule.
+- **Remove schedule** cancels an existing schedule.
 - **Unpublish** removes the live revision from public queries and keeps an editable draft.
 
-To schedule an entry, save it first, open the publishing menu, choose the relevant schedule action,
-and select a future date and time. The editor displays the time zone used for the schedule. Until
-that time, the current live revision stays public; for a new entry, nothing is public yet.
+To schedule an entry, save it first, select **Schedule** below the publishing summary, and choose a
+future date and time. The editor displays the time zone used for the schedule. Until that time, the
+current live revision stays public; for a new entry, nothing is public yet.
 
 Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
 Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow

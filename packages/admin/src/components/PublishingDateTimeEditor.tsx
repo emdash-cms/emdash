@@ -608,7 +608,11 @@ export function PublicationDateDialog({
 						{label}
 					</Text>
 					<span className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap text-end">
-						<time dateTime={publishedAt}>{formattedValue}</time>
+						<time dateTime={publishedAt}>
+							<Text as="span" variant="secondary" size="sm">
+								{formattedValue}
+							</Text>
+						</time>
 						<PencilSimple className="size-3 shrink-0" aria-hidden="true" />
 					</span>
 				</span>

@@ -155,10 +155,9 @@ test.describe("Schedule content", () => {
 		// Verify we're on the edit page with our post
 		await expect(page.locator("#field-title")).toHaveValue("Schedule Test Post");
 
-		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
-		await expect(publishButton).toBeVisible({ timeout: 5000 });
-		await publishButton.click();
-		await page.getByRole("menuitem", { name: /Schedule publication/ }).click();
+		const scheduleButton = page.getByRole("button", { name: "Schedule" });
+		await expect(scheduleButton).toBeVisible({ timeout: 5000 });
+		await scheduleButton.click();
 
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
@@ -184,11 +183,51 @@ test.describe("Schedule content", () => {
 		await expect(page.getByText("First publication", { exact: true })).toBeVisible({
 			timeout: 5000,
 		});
-		const scheduledButton = page.getByRole("button", { name: "Scheduled", exact: true });
-		await expect(scheduledButton).toBeVisible();
-		await scheduledButton.click();
-		await expect(page.getByRole("menuitem", { name: /Change schedule/ })).toBeVisible();
-		await expect(page.getByRole("menuitem", { name: /Remove schedule/ })).toBeVisible();
+		const changeSchedule = page.getByRole("button", { name: "Change schedule" });
+		const removeSchedule = page.getByRole("button", { name: "Remove schedule" });
+		await expect(changeSchedule).toBeVisible();
+		await expect(removeSchedule).toBeVisible();
+		const changeBox = await changeSchedule.boundingBox();
+		const removeBox = await removeSchedule.boundingBox();
+		expect(changeBox).not.toBeNull();
+		expect(removeBox).not.toBeNull();
+		expect(Math.abs(changeBox!.y - removeBox!.y)).toBeLessThanOrEqual(1);
+		expect(Math.abs(changeBox!.width - removeBox!.width)).toBeLessThanOrEqual(1);
+
+		await page.setViewportSize({ width: 320, height: 576 });
+		await page.getByRole("button", { name: "Enter distraction-free mode" }).click();
+		const distractionFreeHeader = page
+			.getByRole("heading", { name: "Edit Post" })
+			.locator("..")
+			.locator("..");
+		const headerBox = await distractionFreeHeader.boundingBox();
+		expect(headerBox).not.toBeNull();
+		for (const action of [
+			distractionFreeHeader.getByRole("button", { name: "Saved" }),
+			distractionFreeHeader.getByRole("button", { name: "Change schedule", exact: true }),
+			distractionFreeHeader.getByRole("button", { name: "Remove schedule", exact: true }),
+			distractionFreeHeader.getByRole("button", { name: "Publish now", exact: true }),
+			distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }),
+		]) {
+			const actionBox = await action.boundingBox();
+			expect(actionBox).not.toBeNull();
+			expect(actionBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
+			expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
+		}
+		const titleBox = await page.locator("#field-title").boundingBox();
+		expect(titleBox).not.toBeNull();
+		expect(titleBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+		await distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }).click();
+		await page.getByRole("button", { name: "Settings" }).click();
+		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
+		const narrowButtons = [
+			settingsPanel.getByRole("button", { name: "Change schedule", exact: true }),
+			settingsPanel.getByRole("button", { name: "Remove schedule", exact: true }),
+		];
+		for (const button of narrowButtons) {
+			await expect(button).toHaveCSS("white-space", "nowrap");
+			await expect(button).toHaveCSS("overflow-x", "hidden");
+		}
 	});
 
 	test("keeps publishing choices usable in a 320-pixel viewport", async ({ admin, page }) => {
@@ -196,24 +235,20 @@ test.describe("Schedule content", () => {
 		await admin.waitForLoading();
 		await page.setViewportSize({ width: 320, height: 576 });
 
-		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
-		await publishButton.focus();
-		await page.keyboard.press("Enter");
-		await page.keyboard.press("ArrowDown");
-		await expect(page.locator('[role="menuitem"][data-highlighted]')).toHaveCount(1);
-		await expect(page.getByText("Choose when this draft goes live", { exact: true })).toHaveCount(
-			0,
-		);
-		await page.keyboard.press("Escape");
-		await expect(publishButton).toBeFocused();
-		await publishButton.click();
-		const menu = page.getByRole("menu", { name: "Publish" });
-		const menuBox = await menu.boundingBox();
-		expect(menuBox).not.toBeNull();
-		expect(menuBox!.x).toBeGreaterThanOrEqual(0);
-		expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(320);
-
-		await page.getByRole("menuitem", { name: /Schedule publication/ }).click();
+		const publishButton = page.getByRole("button", { name: "Publish now", exact: true });
+		await expect(publishButton).toBeVisible();
+		await expect(publishButton).not.toHaveAttribute("aria-haspopup", "menu");
+		await page.getByRole("button", { name: "Settings" }).click();
+		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
+		const publishingSummary = settingsPanel.getByRole("group", { name: "Publishing summary" });
+		const scheduleButton = settingsPanel.getByRole("button", { name: "Schedule" });
+		const summaryBox = await publishingSummary.boundingBox();
+		const scheduleBox = await scheduleButton.boundingBox();
+		expect(summaryBox).not.toBeNull();
+		expect(scheduleBox).not.toBeNull();
+		expect(Math.abs(summaryBox!.x - scheduleBox!.x)).toBeLessThanOrEqual(1);
+		expect(Math.abs(summaryBox!.width - scheduleBox!.width)).toBeLessThanOrEqual(1);
+		await scheduleButton.click();
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		const dialogBox = await dialog.boundingBox();
 		expect(dialogBox).not.toBeNull();
@@ -268,14 +303,13 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await page.getByRole("button", { name: "Scheduled", exact: true }).click();
-		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
+		await page.getByRole("button", { name: "Remove schedule" }).click();
 		await unscheduleResponse;
 
 		await expect(page.getByText("Draft version", { exact: true })).toBeVisible({
 			timeout: 5000,
 		});
-		await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+		await expect(page.getByRole("button", { name: "Publish now", exact: true })).toBeVisible();
 	});
 
 	test("keeps the live version public while a draft update is scheduled and removed", async ({
@@ -363,21 +397,8 @@ test.describe("Schedule content", () => {
 		await expect(publicationDateTrigger).toBeFocused();
 
 		const publishChanges = page.getByRole("button", { name: "Publish changes", exact: true });
-		const publishChangesLayout = await publishChanges.evaluate((element) => {
-			const button = element.getBoundingClientRect();
-			const caret = element.querySelector("svg")!.getBoundingClientRect();
-			const label = element.querySelector("span.truncate")!.getBoundingClientRect();
-			return {
-				labelCenterOffset: Math.abs(
-					button.left + button.width / 2 - (label.left + label.width / 2),
-				),
-				trailingGap: button.right - caret.right,
-			};
-		});
-		expect(publishChangesLayout.labelCenterOffset).toBeLessThanOrEqual(1);
-		expect(publishChangesLayout.trailingGap).toBeLessThanOrEqual(16);
-		await publishChanges.click();
-		await page.getByRole("menuitem", { name: /Schedule changes/ }).click();
+		await expect(publishChanges).not.toHaveAttribute("aria-haspopup", "menu");
+		await page.getByRole("button", { name: "Schedule" }).click();
 		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
 		await expect(
 			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
@@ -394,21 +415,64 @@ test.describe("Schedule content", () => {
 		await dialog.getByRole("button", { name: "Schedule changes", exact: true }).click();
 		await scheduleResponse;
 
-		await expect(page.getByRole("button", { name: "Scheduled update", exact: true })).toBeVisible({
-			timeout: 5000,
-		});
+		const changeSchedule = page.getByRole("button", { name: "Change schedule" });
+		const removeSchedule = page.getByRole("button", { name: "Remove schedule" });
+		await expect(changeSchedule).toBeVisible({ timeout: 5000 });
+		await expect(removeSchedule).toBeVisible();
 		await expect(
 			page.getByText("Visitors see the published version until the scheduled update", {
 				exact: true,
 			}),
 		).toBeVisible();
 		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
+
+		await page.setViewportSize({ width: 1024, height: 768 });
+		await page
+			.context()
+			.addCookies([
+				{ name: "emdash-locale", value: "pt-BR", domain: "localhost", path: "/_emdash" },
+			]);
+		await page.reload();
+		await admin.waitForLoading();
+		await page.getByRole("button", { name: "Entrar no modo sem distrações" }).click();
+
+		const distractionFreeHeader = page
+			.getByRole("heading", { name: "Editar Post" })
+			.locator("..")
+			.locator("..");
+		const headerBox = await distractionFreeHeader.boundingBox();
+		expect(headerBox).not.toBeNull();
+		const headerActions = distractionFreeHeader.locator("button, a");
+		const actionCount = await headerActions.count();
+		expect(actionCount).toBeGreaterThanOrEqual(7);
+		for (let index = 0; index < actionCount; index++) {
+			const actionBox = await headerActions.nth(index).boundingBox();
+			expect(actionBox).not.toBeNull();
+			expect(actionBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
+			expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
+		}
+		const titleBox = await page.locator("#field-title").boundingBox();
+		expect(titleBox).not.toBeNull();
+		expect(titleBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+		await page.locator("form").evaluate((form) => {
+			form.scrollTop = form.scrollHeight;
+		});
+		const scrolledHeaderBox = await distractionFreeHeader.boundingBox();
+		expect(scrolledHeaderBox).not.toBeNull();
+		expect(scrolledHeaderBox!.y).toBeGreaterThanOrEqual(0);
+		expect(scrolledHeaderBox!.y + scrolledHeaderBox!.height).toBeLessThanOrEqual(768);
+
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await admin.waitForLoading();
+
 		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
 		publicHtml = await publicResponse.text();
 		expect(publicHtml).toContain("Schedule Test Post");
 		expect(publicHtml).not.toContain("Scheduled Draft Update");
 
-		await page.getByRole("button", { name: "Scheduled update", exact: true }).click();
 		const unscheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&
@@ -416,7 +480,7 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
+		await removeSchedule.click();
 		await unscheduleResponse;
 
 		await expect(page.getByRole("button", { name: "Publish changes", exact: true })).toBeVisible({

@@ -3,7 +3,6 @@ import {
 	Button,
 	Collapsible,
 	Dialog,
-	DropdownMenu,
 	Input,
 	Label,
 	LayerCard,
@@ -26,7 +25,6 @@ import {
 	Trash,
 	Upload,
 	X,
-	type Icon,
 } from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
@@ -56,6 +54,7 @@ import {
 } from "../lib/publishing-datetime.js";
 import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
 import { cn } from "../lib/utils";
+import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
@@ -340,9 +339,7 @@ export interface SettingsActionBarProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
-	canSchedule?: boolean;
-	isScheduling?: boolean;
-	isUnscheduling?: boolean;
+	publishingPending?: boolean;
 	publishDisabled?: boolean;
 	liveViewUrl?: string | null;
 	supportsPreview?: boolean;
@@ -350,8 +347,6 @@ export interface SettingsActionBarProps {
 	onPreview?: () => void;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
-	onOpenSchedule?: () => void;
-	onUnschedule?: () => void | Promise<void>;
 	onMenuOpenChange?: (open: boolean) => void;
 	announceSaveStatus?: boolean;
 }
@@ -398,25 +393,14 @@ export interface PublishActionsProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
-	canSchedule?: boolean;
-	isScheduling?: boolean;
-	isUnscheduling?: boolean;
-	/** Blocks every publishing action, including those in an already open menu. */
+	isPending?: boolean;
+	/** Blocks every publishing action, including confirmation from an already open dialog. */
 	disabled?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
-	onOpenSchedule?: () => void;
-	onUnschedule?: () => void | Promise<void>;
 	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
 	fullWidth?: boolean;
-}
-
-interface PublishingAction {
-	kind: "publish" | "schedule" | "unschedule";
-	label: string;
-	Icon: Icon;
-	onSelect: () => void;
 }
 
 export function PublishActions({
@@ -425,49 +409,33 @@ export function PublishActions({
 	isLive,
 	hasPendingChanges,
 	publishingState,
-	canSchedule,
-	isScheduling,
-	isUnscheduling,
+	isPending,
 	disabled,
 	onPublish,
 	onUnpublish,
-	onOpenSchedule,
-	onUnschedule,
 	onMenuOpenChange,
 	size,
 	fullWidth,
 }: PublishActionsProps) {
 	const { t } = useLingui();
-	const itemLabel = collectionLabel ?? t`content`;
-	const [open, setOpen] = React.useState(false);
-	const openRef = React.useRef(open);
-	openRef.current = open;
+	const [publishOpen, setPublishOpen] = React.useState(false);
+	const publishOpenRef = React.useRef(publishOpen);
+	publishOpenRef.current = publishOpen;
 	React.useEffect(
 		() => () => {
-			if (openRef.current) onMenuOpenChange?.(false);
+			if (publishOpenRef.current) onMenuOpenChange?.(false);
 		},
 		[onMenuOpenChange],
 	);
+	const setConfirmationOpen = (open: boolean) => {
+		setPublishOpen(open);
+		onMenuOpenChange?.(open);
+	};
+	const itemLabel = collectionLabel ?? t`content`;
 	const state =
 		publishingState ??
 		(isLive ? (hasPendingChanges ? "published-with-changes" : "published") : "draft");
 	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
-	const closeMenu = () => {
-		setOpen(false);
-		onMenuOpenChange?.(false);
-	};
-	const openSchedule = () => {
-		closeMenu();
-		onOpenSchedule?.();
-	};
-	const removeSchedule = () => {
-		closeMenu();
-		void Promise.resolve(onUnschedule?.()).catch(() => undefined);
-	};
-	const publish = () => {
-		closeMenu();
-		onPublish?.();
-	};
 
 	if (isNew) return null;
 	if (state === "published") {
@@ -477,6 +445,7 @@ export function PublishActions({
 				variant="outline"
 				size={size}
 				onClick={onUnpublish}
+				loading={isPending}
 				disabled={disabled}
 				icon={<EyeSlash />}
 			>
@@ -484,135 +453,137 @@ export function PublishActions({
 			</Button>
 		) : null;
 	}
-
-	const actions: PublishingAction[] = [];
-	if (onPublish) {
-		actions.push({
-			kind: "publish",
-			label: hasDraftChanges ? t`Publish changes now` : t`Publish now`,
-			Icon: Upload,
-			onSelect: publish,
-		});
-	}
-	if (state === "draft" && canSchedule && onOpenSchedule) {
-		actions.push({
-			kind: "schedule",
-			label: t`Schedule publication`,
-			Icon: CalendarPlus,
-			onSelect: openSchedule,
-		});
-	}
-	if (state === "published-with-changes" && canSchedule && onOpenSchedule) {
-		actions.push({
-			kind: "schedule",
-			label: t`Schedule changes`,
-			Icon: CalendarPlus,
-			onSelect: openSchedule,
-		});
-	}
-	if (
-		(state === "scheduled" || state === "update-scheduled" || state === "published-scheduled") &&
-		onOpenSchedule
-	) {
-		actions.push({
-			kind: "schedule",
-			label: t`Change schedule`,
-			Icon: CalendarDots,
-			onSelect: openSchedule,
-		});
-	}
-	if (
-		(state === "scheduled" || state === "update-scheduled" || state === "published-scheduled") &&
-		onUnschedule
-	) {
-		actions.push({
-			kind: "unschedule",
-			label: t`Remove schedule`,
-			Icon: CalendarX,
-			onSelect: removeSchedule,
-		});
-	}
-
-	if (actions.length === 0) return null;
-	if (actions.length === 1) {
-		const action = actions[0]!;
-		const label = state === "draft" && action.kind === "publish" ? t`Publish` : action.label;
-		return (
-			<Button
-				type="button"
-				variant="primary"
-				size={size}
-				onClick={action.onSelect}
-				disabled={disabled}
-				icon={<action.Icon aria-hidden="true" />}
-				loading={isScheduling || isUnscheduling}
-			>
-				{label}
-			</Button>
-		);
-	}
-
-	const triggerLabel =
-		state === "published-with-changes"
-			? t`Publish changes`
-			: state === "scheduled"
-				? t`Scheduled`
-				: state === "update-scheduled"
-					? t`Scheduled update`
-					: state === "published-scheduled"
-						? t`Scheduled publication`
-						: t`Publish`;
+	if (!onPublish) return null;
+	const hasSchedule =
+		state === "scheduled" || state === "update-scheduled" || state === "published-scheduled";
+	const publishLabel = hasDraftChanges ? t`Publish changes` : t`Publish now`;
+	const confirmationTitle = hasDraftChanges ? t`Publish changes?` : t`Publish now?`;
+	const confirmationDescription = hasSchedule
+		? t`This removes the schedule and publishes immediately.`
+		: hasDraftChanges
+			? t`Visitors will see these changes immediately.`
+			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<DropdownMenu
-			open={open}
-			onOpenChange={(nextOpen) => {
-				setOpen(nextOpen);
-				onMenuOpenChange?.(nextOpen);
-			}}
-		>
-			<DropdownMenu.Trigger
+		<Dialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
+			<Dialog.Trigger
 				disabled={disabled}
 				render={
 					<Button
 						type="button"
 						variant="primary"
 						size={size}
-						className={cn(fullWidth && "w-full", "[&>span:last-child]:w-full")}
-						loading={isScheduling || isUnscheduling}
-						aria-haspopup="menu"
-						aria-expanded={open}
-					>
-						<span className="relative flex w-full min-w-0 items-center justify-center">
-							<span className="max-w-full truncate px-5 text-center">{triggerLabel}</span>
-							<CaretDown className="absolute end-0 size-3 shrink-0" aria-hidden="true" />
-						</span>
-					</Button>
+						className={cn(fullWidth && "w-full")}
+						icon={<Upload aria-hidden="true" />}
+						loading={isPending}
+						disabled={disabled}
+						aria-label={publishLabel}
+					/>
 				}
-			/>
-			<DropdownMenu.Content
-				align="end"
-				className="w-80 max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
 			>
-				{actions.map(({ kind, label, Icon: ActionIcon, onSelect }) => (
-					<DropdownMenu.Item
-						key={kind}
-						icon={
-							<span className="me-2 flex h-lh shrink-0 items-center">
-								<ActionIcon className="size-4" aria-hidden="true" />
-							</span>
-						}
-						disabled={disabled || isScheduling || isUnscheduling}
-						onClick={onSelect}
-						className="px-2.5 py-1.5"
+				{publishLabel}
+			</Dialog.Trigger>
+			<Dialog className="p-6" size="sm">
+				<Dialog.Title className="text-lg font-semibold">{confirmationTitle}</Dialog.Title>
+				<Dialog.Description className="text-kumo-subtle">
+					{confirmationDescription}
+				</Dialog.Description>
+				<div className="mt-6 flex justify-end gap-2">
+					<Dialog.Close render={(props) => <Button {...props} variant="secondary" />}>
+						{t`Cancel`}
+					</Dialog.Close>
+					<Button
+						variant="primary"
+						loading={isPending}
+						disabled={disabled}
+						aria-label={publishLabel}
+						onClick={() => {
+							setConfirmationOpen(false);
+							onPublish();
+						}}
 					>
-						<Text as="span" bold>
-							{label}
-						</Text>
-					</DropdownMenu.Item>
-				))}
-			</DropdownMenu.Content>
-		</DropdownMenu>
+						{publishLabel}
+					</Button>
+				</div>
+			</Dialog>
+		</Dialog.Root>
+	);
+}
+
+export interface ScheduleActionsProps {
+	publishingState: ContentPublishingState;
+	canSchedule?: boolean;
+	isScheduling?: boolean;
+	isUnscheduling?: boolean;
+	disabled?: boolean;
+	onOpenSchedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
+	inline?: boolean;
+}
+
+export function ScheduleActions({
+	publishingState,
+	canSchedule,
+	isScheduling,
+	isUnscheduling,
+	disabled,
+	onOpenSchedule,
+	onUnschedule,
+	inline,
+}: ScheduleActionsProps) {
+	const { t } = useLingui();
+	const hasSchedule =
+		publishingState === "scheduled" ||
+		publishingState === "update-scheduled" ||
+		publishingState === "published-scheduled";
+	const showSchedule = Boolean(onOpenSchedule && (canSchedule || hasSchedule));
+	const showRemove = Boolean(onUnschedule && hasSchedule);
+	if (!showSchedule && !showRemove) return null;
+
+	return (
+		<div
+			className={cn(
+				inline ? "contents" : "mt-3 grid gap-2",
+				!inline && (showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1"),
+			)}
+		>
+			{showSchedule ? (
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					className={cn(
+						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
+						!inline && "w-full",
+					)}
+					icon={
+						hasSchedule ? <CalendarDots aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />
+					}
+					loading={isScheduling}
+					disabled={disabled || isUnscheduling}
+					onClick={onOpenSchedule}
+				>
+					{hasSchedule ? t`Change schedule` : t`Schedule`}
+				</Button>
+			) : null}
+			{showRemove ? (
+				<Button
+					type="button"
+					variant="secondary-destructive"
+					size="sm"
+					className={cn(
+						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
+						!inline && "w-full",
+					)}
+					icon={<CalendarX aria-hidden="true" />}
+					loading={isUnscheduling}
+					disabled={disabled || isScheduling}
+					onClick={() => void Promise.resolve(onUnschedule?.()).catch(() => undefined)}
+				>
+					{t`Remove schedule`}
+				</Button>
+			) : null}
+		</div>
 	);
 }
 
@@ -635,9 +606,7 @@ export function SettingsActionBar({
 	isLive,
 	hasPendingChanges,
 	publishingState,
-	canSchedule,
-	isScheduling,
-	isUnscheduling,
+	publishingPending,
 	publishDisabled,
 	liveViewUrl,
 	supportsPreview,
@@ -645,8 +614,6 @@ export function SettingsActionBar({
 	onPreview,
 	onPublish,
 	onUnpublish,
-	onOpenSchedule,
-	onUnschedule,
 	onMenuOpenChange,
 	announceSaveStatus,
 }: SettingsActionBarProps) {
@@ -695,14 +662,10 @@ export function SettingsActionBar({
 						isLive={isLive}
 						hasPendingChanges={hasPendingChanges}
 						publishingState={publishingState}
-						canSchedule={canSchedule}
-						isScheduling={isScheduling}
-						isUnscheduling={isUnscheduling}
+						isPending={publishingPending}
 						disabled={publishDisabled}
 						onPublish={onPublish}
 						onUnpublish={onUnpublish}
-						onOpenSchedule={onOpenSchedule}
-						onUnschedule={onUnschedule}
 						onMenuOpenChange={onMenuOpenChange}
 						size="sm"
 						fullWidth
@@ -727,6 +690,12 @@ export interface ContentSettingsPanelProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
+	publishingDisabled?: boolean;
+	canSchedule?: boolean;
+	isScheduling?: boolean;
+	isUnscheduling?: boolean;
+	onOpenSchedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
 	supportsRevisions: boolean;
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
@@ -780,6 +749,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	isLive,
 	hasPendingChanges,
 	publishingState,
+	publishingDisabled,
+	canSchedule,
+	isScheduling,
+	isUnscheduling,
+	onOpenSchedule,
+	onUnschedule,
 	supportsRevisions,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
@@ -907,52 +882,15 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				userId={currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
-				<SortableContentSettingsSection id="publish" label={t`Publish`}>
+				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
 					<div className="p-4">
 						<Text bold as="h3" DANGEROUS_className="mb-4">
 							{t`Publish`}
 						</Text>
-						<div className="space-y-4">
-							<Input
-								label={t`Slug`}
-								value={slug}
-								onChange={(e) => onSlugChange(e.target.value)}
-								placeholder="my-post-slug"
-							/>
-							{contentLocale ? (
-								<div className="flex flex-wrap items-center gap-1.5">
-									<Label>{t`Content locale`}</Label>
-									<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
-									{usesImplicitEnglish ? (
-										<Tooltip
-											content={
-												<span className="block max-w-64 text-pretty">
-													{t`English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.`}
-												</span>
-											}
-											delay={0}
-											closeDelay={0}
-											render={
-												<Button
-													type="button"
-													variant="ghost"
-													shape="square"
-													size="xs"
-													icon={<Info aria-hidden="true" />}
-													className="text-kumo-subtle hover:text-kumo-default"
-													aria-label={t`Why English is used`}
-												/>
-											}
-										/>
-									) : null}
-								</div>
-							) : null}
-						</div>
-
 						{showPublishingRelationship || item ? (
 							<LayerCard
 								render={<div role="group" aria-label={t`Publishing summary`} />}
-								className="mt-5 overflow-hidden p-0"
+								className="overflow-hidden p-0"
 							>
 								{showPublishingRelationship ? (
 									<PublishingVersionRelationship
@@ -1055,6 +993,64 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								) : null}
 							</LayerCard>
 						) : null}
+						<ScheduleActions
+							publishingState={resolvedPublishingState}
+							canSchedule={canSchedule}
+							isScheduling={isScheduling}
+							isUnscheduling={isUnscheduling}
+							disabled={publishingDisabled}
+							onOpenSchedule={onOpenSchedule}
+							onUnschedule={onUnschedule}
+						/>
+					</div>
+				</SortableContentSettingsSection>
+
+				<SortableContentSettingsSection id="url-language" label={t`URL & language`}>
+					<div className="p-4">
+						<Text bold as="h3" DANGEROUS_className="mb-4">
+							{t`URL & language`}
+						</Text>
+						<div className="grid gap-4">
+							<Input
+								label={t`Slug`}
+								value={slug}
+								onChange={(event) => onSlugChange(event.target.value)}
+								placeholder="my-post-slug"
+							/>
+							{contentLocale ? (
+								<div className="flex items-center justify-between gap-3">
+									<div className="flex items-center gap-1.5">
+										<Label>{t`Content language`}</Label>
+										{usesImplicitEnglish ? (
+											<Tooltip
+												content={
+													<span className="block max-w-64 text-pretty">
+														{t`English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.`}
+													</span>
+												}
+												delay={0}
+												closeDelay={0}
+												render={
+													<Button
+														type="button"
+														variant="ghost"
+														shape="square"
+														size="xs"
+														icon={<Info aria-hidden="true" />}
+														className="text-kumo-subtle hover:text-kumo-default"
+														aria-label={t`Why English is used`}
+													/>
+												}
+											/>
+										) : null}
+									</div>
+									<div className="flex items-center gap-2">
+										<Text as="span">{getLocaleLabel(contentLocale)}</Text>
+										<Badge variant="secondary">{contentLocale.toUpperCase()}</Badge>
+									</div>
+								</div>
+							) : null}
+						</div>
 					</div>
 				</SortableContentSettingsSection>
 

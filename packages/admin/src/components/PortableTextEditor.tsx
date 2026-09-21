@@ -129,6 +129,7 @@ import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
+import { LinkDestinationInput } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import { EmDashOrderedList } from "./editor/ordered-list";
 import {
@@ -3848,7 +3849,6 @@ function EditorBubbleMenu({
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const inputRef = React.useRef<HTMLInputElement>(null);
 	const { t } = useLingui();
 	const activeMarks = useEditorState({
 		editor,
@@ -3868,10 +3868,13 @@ function EditorBubbleMenu({
 		if (showLinkInput) {
 			const existingUrl = editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
-			// Focus input after state update
-			setTimeout(() => inputRef.current?.focus(), 0);
 		}
 	}, [showLinkInput, editor]);
+
+	const closeLinkInput = () => {
+		setShowLinkInput(false);
+		setLinkUrl("");
+	};
 
 	const handleSetLink = () => {
 		if (linkUrl.trim() === "") {
@@ -3879,25 +3882,17 @@ function EditorBubbleMenu({
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
 		}
-		setShowLinkInput(false);
-		setLinkUrl("");
+		closeLinkInput();
+	};
+
+	const applyLinkHref = (href: string) => {
+		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		closeLinkInput();
 	};
 
 	const handleRemoveLink = () => {
 		editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		setShowLinkInput(false);
-		setLinkUrl("");
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkInput(false);
-			setLinkUrl("");
-			editor.commands.focus();
-		}
+		closeLinkInput();
 	};
 
 	return (
@@ -3933,16 +3928,17 @@ function EditorBubbleMenu({
 			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
 		>
 			{showLinkInput ? (
-				<div className="flex items-center gap-1">
-					<Input
-						ref={inputRef}
-						type="url"
-						placeholder={t`https://...`}
+				<div className="flex items-start gap-1">
+					<LinkDestinationInput
+						className="w-72"
 						value={linkUrl}
-						onChange={(e) => setLinkUrl(e.target.value)}
-						onKeyDown={handleKeyDown}
-						className="h-8 w-48 text-sm"
-						aria-label={t`URL`}
+						onValueChange={setLinkUrl}
+						onSubmit={handleSetLink}
+						onPick={applyLinkHref}
+						onEscape={() => {
+							closeLinkInput();
+							editor.commands.focus();
+						}}
 					/>
 					<Button
 						type="button"
@@ -4332,7 +4328,6 @@ function EditorToolbar({
 	const { t } = useLingui();
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const linkInputRef = React.useRef<HTMLInputElement>(null);
 
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
@@ -4371,9 +4366,14 @@ function EditorToolbar({
 		if (showLinkPopover) {
 			const existingUrl = editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
-			setTimeout(() => linkInputRef.current?.focus(), 0);
 		}
 	}, [showLinkPopover, editor]);
+
+	const applyLinkHref = (href: string) => {
+		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		setShowLinkPopover(false);
+		setLinkUrl("");
+	};
 
 	const handleSetLink = () => {
 		if (linkUrl.trim() === "") {
@@ -4391,15 +4391,10 @@ function EditorToolbar({
 		setLinkUrl("");
 	};
 
-	const handleLinkKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkPopover(false);
-			setLinkUrl("");
-			editor.commands.focus();
-		}
+	const closeLinkPopover = () => {
+		setShowLinkPopover(false);
+		setLinkUrl("");
+		editor.commands.focus();
 	};
 
 	// Keyboard navigation for toolbar (WAI-ARIA toolbar pattern)
@@ -4662,19 +4657,15 @@ function EditorToolbar({
 					/>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
 						<div className="flex flex-col gap-2">
-							<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
-							<div className="flex items-center gap-1">
-								<Input
-									ref={linkInputRef}
-									type="url"
-									placeholder={t`https://...`}
-									value={linkUrl}
-									onChange={(e) => setLinkUrl(e.target.value)}
-									onKeyDown={handleLinkKeyDown}
-									className="h-8 w-52 text-sm"
-									aria-label={t`URL`}
-								/>
-							</div>
+							<label className="text-xs font-medium text-kumo-subtle">{t`Link`}</label>
+							<LinkDestinationInput
+								className="w-80"
+								value={linkUrl}
+								onValueChange={setLinkUrl}
+								onSubmit={handleSetLink}
+								onPick={applyLinkHref}
+								onEscape={closeLinkPopover}
+							/>
 							<div className="flex justify-between">
 								<Button
 									type="button"
