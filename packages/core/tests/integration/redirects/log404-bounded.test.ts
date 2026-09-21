@@ -101,8 +101,8 @@ describeEachDialect("RedirectRepository.log404 — path upsert", (dialect) => {
 		// UNIQUE index on `path` was added. The fix uses a single atomic
 		// upsert (ON CONFLICT DO UPDATE).
 		//
-		// SQLite's driver is synchronous, so there Promise.all doesn't produce
-		// real parallelism; the test instead sends a batch of concurrent
+		// SQLite's driver is synchronous, so Promise.all doesn't produce real
+		// parallelism there; the test instead sends a batch of concurrent
 		// upserts and asserts the end state: exactly one row, with the full
 		// count reflected in `hits`. Any lost updates or uniqueness errors
 		// would cause this to fail.
