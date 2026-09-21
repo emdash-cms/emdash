@@ -62,7 +62,7 @@
 	--emdash-border: #e8e8e8;
 	--emdash-border-loud: #e6e6e6;
 	--emdash-accent-text: #c43b00;
-	--emdash-accent-foreground: #fffbf5;
+	--emdash-accent-foreground: #ffffff;
 
 	--sl-color-white: var(--emdash-text);
 	--sl-color-gray-1: #333333;
@@ -109,7 +109,7 @@
 }
 
 .sidebar-content a[aria-current="page"] {
-	color: #0a0a0a;
+	color: var(--emdash-accent-foreground);
 	background: var(--emdash-accent);
 }
 
