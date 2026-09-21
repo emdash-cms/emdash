@@ -1,0 +1,19 @@
+packages/admin/src/components/editor/TableControls.tsx
+  s_dff17cd7a57b2b::t_4fb65dddc4a6e0 408-409
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e4787c2f3536b31cef177e30b0416f5578a81ad1",
+  "prompts": {},
+  "sessions": {
+    "s_dff17cd7a57b2b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b6c1-d0e4-7c11-b264-c8c83dfb7e8d",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
