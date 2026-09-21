@@ -102,6 +102,7 @@ function mockApiFetch({
 	entryTerms = [],
 	createdTerm = makeTerm("term_created", "Gamma"),
 	createError,
+	createErrorFor,
 	unresolved = [],
 	saveEntryTerms,
 }: {
@@ -110,6 +111,7 @@ function mockApiFetch({
 	entryTerms?: TestTerm[];
 	createdTerm?: TestTermMutationResponse;
 	createError?: string;
+	createErrorFor?: string;
 	unresolved?: TestUnresolvedAssignment[];
 	saveEntryTerms?: (init?: RequestInit) => Promise<Response>;
 } = {}) {
@@ -162,10 +164,18 @@ function mockApiFetch({
 			(path === "/_emdash/api/taxonomies/tags/terms" ||
 				path === "/_emdash/api/taxonomies/categories/terms")
 		) {
-			if (createError) {
+			const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+			const requestedLabel =
+				body && typeof body === "object" && "label" in body ? body.label : undefined;
+			if (createError || requestedLabel === createErrorFor) {
 				return Promise.resolve(
 					new Response(
-						JSON.stringify({ error: { code: "TERM_CREATE_ERROR", message: createError } }),
+						JSON.stringify({
+							error: {
+								code: "TERM_CREATE_ERROR",
+								message: createError ?? `Could not create ${String(requestedLabel)}`,
+							},
+						}),
 						{ status: 500, headers: { "Content-Type": "application/json" } },
 					),
 				);
@@ -484,6 +494,56 @@ describe("TaxonomySidebar", () => {
 		await userEvent.keyboard("{Enter}");
 
 		await expect.element(screen.getByText("Term could not be created")).toBeInTheDocument();
+	});
+
+	it("selects successful terms and reports failed labels from a partial batch", async () => {
+		const onChange = vi.fn();
+		mockApiFetch({ terms: [], createErrorFor: "Second" });
+		const screen = await render(
+			<TaxonomySidebar collection="products" canManageTaxonomies onChange={onChange} />,
+			{ wrapper: Wrapper },
+		);
+
+		await screen.getByRole("combobox", { name: "Tags" }).fill("First, Second");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => {
+			expect(onChange).toHaveBeenCalledWith("tags", ["term_created"]);
+		});
+		await expect.element(screen.getByText("Failed to create Second")).toBeInTheDocument();
+		expect(
+			vi
+				.mocked(apiFetch)
+				.mock.calls.filter(
+					([url, init]) =>
+						requestUrl(url).endsWith("/taxonomies/tags/terms") && init?.method === "POST",
+				),
+		).toHaveLength(2);
+	});
+
+	it("keeps an existing match when the new label in its batch fails", async () => {
+		const onChange = vi.fn();
+		mockApiFetch({ terms: [alphaTerm], createErrorFor: "Second" });
+		const screen = await render(
+			<TaxonomySidebar collection="products" canManageTaxonomies onChange={onChange} />,
+			{ wrapper: Wrapper },
+		);
+
+		await screen.getByRole("combobox", { name: "Tags" }).fill("Alpha, Second");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => {
+			expect(onChange).toHaveBeenCalledWith("tags", ["term_alpha"]);
+		});
+		await expect.element(screen.getByText("Failed to create Second")).toBeInTheDocument();
+		expect(
+			vi
+				.mocked(apiFetch)
+				.mock.calls.filter(
+					([url, init]) =>
+						requestUrl(url).endsWith("/taxonomies/tags/terms") && init?.method === "POST",
+				),
+		).toHaveLength(1);
 	});
 
 	it("renders hierarchical taxonomies as a searchable category picker", async () => {

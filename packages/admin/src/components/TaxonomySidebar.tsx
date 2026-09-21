@@ -619,6 +619,7 @@ function TaxonomySection({
 	const unresolved = entryTermsData?.unresolved ?? EMPTY_UNRESOLVED_ASSIGNMENTS;
 	const resolvedEntryLocale = entryTermsData?.entryLocale ?? entryLocale;
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+	const [partialCreateError, setPartialCreateError] = React.useState<Error | null>(null);
 	const selectedIdsRef = React.useRef(selectedIds);
 
 	const saveMutation = useMutation({
@@ -654,8 +655,8 @@ function TaxonomySection({
 	};
 
 	const createTermMutation = useMutation({
-		mutationFn: ({ labels }: { labels: string[]; matchedIds: string[] }) =>
-			Promise.all(
+		mutationFn: async ({ labels, matchedIds }: { labels: string[]; matchedIds: string[] }) => {
+			const settled = await Promise.allSettled(
 				labels.map((label) =>
 					createTerm(taxonomy.name, {
 						label,
@@ -663,13 +664,33 @@ function TaxonomySection({
 						...(entryLocale ? { locale: entryLocale } : {}),
 					}),
 				),
-			),
-		onSuccess: (newTerms, { matchedIds }) => {
+			);
+			const newTerms: TaxonomyTerm[] = [];
+			const failedLabels: string[] = [];
+			let firstError: unknown;
+
+			settled.forEach((result, index) => {
+				if (result.status === "fulfilled") {
+					newTerms.push({ ...result.value, children: result.value.children ?? [] });
+					return;
+				}
+				const label = labels[index];
+				if (label) failedLabels.push(label);
+				firstError ??= result.reason;
+			});
+
+			if (newTerms.length === 0 && matchedIds.length === 0 && firstError) {
+				throw firstError instanceof Error ? firstError : new Error(t`Failed to create term`);
+			}
+			return { newTerms, failedLabels };
+		},
+		onMutate: () => setPartialCreateError(null),
+		onSuccess: ({ newTerms, failedLabels }, { matchedIds }) => {
 			queryClient.setQueryData<TaxonomyTerm[]>(
 				["taxonomy-terms", taxonomy.name, entryLocale, { includeCounts: false }],
 				(current = []) => [
 					...current.filter((term) => !newTerms.some((newTerm) => newTerm.id === term.id)),
-					...newTerms.map((term) => ({ ...term, children: term.children ?? [] })),
+					...newTerms,
 				],
 			);
 			void queryClient.invalidateQueries({
@@ -679,6 +700,9 @@ function TaxonomySection({
 			matchedIds.forEach((termId) => newSelected.add(termId));
 			newTerms.forEach((term) => newSelected.add(term.id));
 			updateSelection(newSelected);
+			if (failedLabels.length > 0) {
+				setPartialCreateError(new Error(t`Failed to create ${failedLabels.join(", ")}`));
+			}
 		},
 	});
 
@@ -758,7 +782,9 @@ function TaxonomySection({
 						onChange={handlePickerChange}
 						onCreate={(labels, matchedIds) => createTermMutation.mutate({ labels, matchedIds })}
 						isCreating={createTermMutation.isPending}
-						createError={canManageTaxonomies ? createTermMutation.error : null}
+						createError={
+							canManageTaxonomies ? (partialCreateError ?? createTermMutation.error) : null
+						}
 						label={taxonomy.label}
 						entryLocale={resolvedEntryLocale}
 						canCreate={canManageTaxonomies}
