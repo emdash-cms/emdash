@@ -9,7 +9,16 @@ import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
+import type {
+	PluginEditorExtensionDispatch,
+	ResolvedPluginEditorExtension,
+} from "../emdash-runtime.js";
+import type {
+	PluginContentCacheInvalidator,
+	RouteCallerInput,
+	RouteMeta,
+} from "../plugins/routes.js";
+import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
 
 // Re-export core types
@@ -98,6 +107,8 @@ export interface ManifestPlugin {
 		title?: string;
 		size?: string;
 	}>;
+	editorPanels?: import("../plugins/types.js").PluginEditorPanel[];
+	editorActions?: import("../plugins/types.js").PluginEditorAction[];
 	fieldWidgets?: Array<{
 		name: string;
 		label: string;
@@ -254,6 +265,15 @@ export interface HandlerResponse<T = unknown> {
  * handleContentGet, handleRevisionGet) use narrower types.
  */
 export interface EmDashHandlers {
+	// Comment administration
+	handleCommentModerate?: (
+		id: string,
+		status: "pending" | "approved" | "spam" | "trash",
+		moderator: { id: string; name: string | null },
+		expectedStatus?: "pending" | "approved" | "spam" | "trash",
+		request?: Request,
+	) => Promise<unknown>;
+
 	// Content handlers
 	handleContentList: (
 		collection: string,
@@ -363,22 +383,35 @@ export interface EmDashHandlers {
 	handleContentPublish: (
 		collection: string,
 		id: string,
-		options?: { publishedAt?: string; requireScheduledDue?: boolean; _rev?: string },
+		options?: {
+			publishedAt?: string;
+			requireScheduledDue?: boolean;
+			expectedScheduledAt?: string;
+			_rev?: string;
+			currentTime?: Date;
+			actor?: ActorInfo;
+			origin?: ContentActionOrigin;
+		},
 	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo; origin?: ContentActionOrigin },
 	) => Promise<HandlerResponse>;
 
 	handleContentSchedule: (
 		collection: string,
 		id: string,
 		scheduledAt: string,
+		options?: { _rev?: string; actor?: ActorInfo; origin?: ContentActionOrigin },
 	) => Promise<HandlerResponse>;
 
-	handleContentUnschedule: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentUnschedule: (
+		collection: string,
+		id: string,
+		options?: { _rev?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
 
@@ -477,7 +510,15 @@ export interface EmDashHandlers {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+		editorDispatch?: PluginEditorExtensionDispatch,
 	) => Promise<HandlerResponse>;
+	getPluginEditorExtension: (
+		pluginId: string,
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+	) => ResolvedPluginEditorExtension | null;
 
 	// Public-only plugin API route handler for SSR page components.
 	handlePublicPluginApiRoute: (
@@ -525,6 +566,7 @@ export interface EmDashHandlers {
 		actorId: string,
 		request: Request,
 		caller?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	) => Promise<HandlerResponse>;
 	handlePluginMcpDenied: (
 		pluginId: string,

@@ -276,6 +276,21 @@ describe("ContentTypeEditor", () => {
 		await expect.element(screen.getByText("When the entry was published")).toBeInTheDocument();
 	});
 
+	it("shows an unsupported field's stored type without allowing it to be edited", async () => {
+		const field = makeField({
+			slug: "layout",
+			label: "Layout",
+			unsupportedType: { type: "future_blocks", path: "type" },
+		});
+		const collection = makeCollection({ fields: [field] });
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		await expect.element(screen.getByText("future_blocks")).toBeInTheDocument();
+		await expect.element(screen.getByText("Unsupported", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Edit Layout field" })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Delete Layout field" })).toBeEnabled();
+	});
+
 	// ---- Add field button opens FieldEditor dialog ----
 
 	it("opens FieldEditor dialog when Add Field is clicked", async () => {

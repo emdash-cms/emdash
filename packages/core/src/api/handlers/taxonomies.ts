@@ -29,6 +29,15 @@ function isTermSlugUniqueViolation(error: unknown): boolean {
 	);
 }
 
+function isTermTranslationLocaleUniqueViolation(error: unknown): boolean {
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
+	return (
+		(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+		(message.includes("translation_group") ||
+			message.includes("idx_taxonomies_translation_group_locale_unique"))
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Response types
 // ---------------------------------------------------------------------------
@@ -189,6 +198,18 @@ async function requireTaxonomyDefWithFallback(
 		(defaultLocale ? defs.find((candidate) => candidate.locale === defaultLocale) : undefined) ??
 		defs[0];
 	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
+}
+
+function validateHierarchicalParent(
+	def: Selectable<TaxonomyDefTable>,
+	taxonomyName: string,
+	parentId: string | null | undefined,
+): { code: "VALIDATION_ERROR"; message: string } | null {
+	if (parentId === undefined || parentId === null || def.hierarchical === 1) return null;
+	return {
+		code: "VALIDATION_ERROR",
+		message: `Taxonomy '${taxonomyName}' is not hierarchical and cannot have parent terms`,
+	};
 }
 
 /** The subset of `slugs` that still has a row in `_emdash_collections`. */
@@ -890,12 +911,11 @@ export async function handleTermCreate(
 	},
 ): Promise<ApiResult<TermResponse>> {
 	let attemptedSlug = input.slug;
+	let effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
 	try {
 		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
-		// Taxonomy definitions are per-locale, but terms can exist in any locale
-		// regardless of whether the def has been translated there. Look up the
-		// def across all locales — we only care that it *exists*.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		effectiveLocale = locale;
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
@@ -903,6 +923,8 @@ export async function handleTermCreate(
 		// Coerce empty-string parentId to undefined (treat as "no parent").
 		const parentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+		const hierarchyError = validateHierarchicalParent(lookup.def, taxonomyName, parentId);
+		if (hierarchyError) return { success: false, error: hierarchyError };
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
 		const existing =
@@ -928,7 +950,35 @@ export async function handleTermCreate(
 		let selfGroup: string | null = null;
 		if (input.translationOf) {
 			const source = await repo.findById(input.translationOf);
-			selfGroup = source ? (source.translationGroup ?? source.id) : null;
+			if (!source) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Translation source '${input.translationOf}' not found`,
+					},
+				};
+			}
+			if (source.name !== taxonomyName) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Translation source '${input.translationOf}' belongs to taxonomy '${source.name}', not '${taxonomyName}'`,
+					},
+				};
+			}
+			selfGroup = source.translationGroup ?? source.id;
+			const translations = await repo.findTranslations(selfGroup);
+			if (translations.some((translation) => translation.locale === locale)) {
+				return {
+					success: false,
+					error: {
+						code: "CONFLICT",
+						message: `Term translation already exists for locale '${locale}'`,
+					},
+				};
+			}
 		}
 
 		// Validate parentId: must exist AND belong to the same taxonomy.
@@ -991,6 +1041,15 @@ export async function handleTermCreate(
 			},
 		};
 	} catch (error) {
+		if (isTermTranslationLocaleUniqueViolation(error)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Term translation already exists for locale '${effectiveLocale}'`,
+				},
+			};
+		}
 		if (isTermSlugUniqueViolation(error)) {
 			return {
 				success: false,
@@ -1147,6 +1206,12 @@ export async function handleTermUpdate(
 		const newSlug = input.slug === "" || input.slug === undefined ? undefined : input.slug;
 		const newParentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+		if (newParentId !== undefined && newParentId !== null) {
+			const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, term.locale);
+			if (!lookup.success) return lookup;
+			const hierarchyError = validateHierarchicalParent(lookup.def, taxonomyName, newParentId);
+			if (hierarchyError) return { success: false, error: hierarchyError };
+		}
 
 		// Check if new slug conflicts (per-locale uniqueness).
 		if (newSlug !== undefined && newSlug !== termSlug) {

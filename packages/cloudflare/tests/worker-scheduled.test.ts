@@ -22,7 +22,7 @@ vi.mock("astro/app/entrypoint", () => ({
 	}),
 }));
 vi.mock("emdash/middleware", () => ({ runScheduledTasks: scheduled.general }));
-vi.mock("../src/sandbox/index.js", () => ({ PluginBridge: vi.fn() }));
+vi.mock("../src/sandbox/bridge.js", () => ({ PluginBridge: vi.fn() }));
 
 import { createScheduledHandler } from "../src/worker.js";
 
@@ -85,6 +85,25 @@ it("invalidates cache tags after scheduled content is published", async () => {
 
 	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({
 		tags: ["posts", "post-1", "post-2"],
+	});
+});
+
+it("provides cache invalidation to plugin actions in scheduled hooks", async () => {
+	scheduled.general.mockImplementationOnce(async (options) => {
+		const invalidateContentCache = (
+			options as {
+				invalidateContentCache: (tags: string[]) => Promise<void>;
+			}
+		).invalidateContentCache;
+		await invalidateContentCache(["posts", "post-1"]);
+		return { published: [] };
+	});
+	const handler = createScheduledHandler();
+
+	await invoke(handler, "custom expression");
+
+	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({
+		tags: ["posts", "post-1"],
 	});
 });
 

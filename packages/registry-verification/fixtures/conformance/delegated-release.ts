@@ -1,4 +1,8 @@
-import { declaredAccessToCapabilities, type DeclaredAccess } from "@emdash-cms/plugin-types";
+import {
+	declaredAccessToCapabilities,
+	type DeclaredAccess,
+	type ManifestRouteEntry,
+} from "@emdash-cms/plugin-types";
 import type { PackageProfile, PackageRelease } from "@emdash-cms/registry-lexicons";
 import { packTar, type TarEntry } from "modern-tar";
 
@@ -21,6 +25,7 @@ export interface DelegatedReleaseFixtureOptions {
 	releaseVersion?: string;
 	declaredAccess?: DeclaredAccess;
 	manifestDeclaredAccess?: DeclaredAccess;
+	routes?: Array<ManifestRouteEntry | string>;
 	provenanceDigestAlgorithm?: "sha256" | "sha384" | "sha512";
 	provenance?: Partial<ReleaseProvenance>;
 }
@@ -96,7 +101,7 @@ export async function createDelegatedReleaseConformanceFixture(
 				allowedHosts: enforcement.allowedHosts,
 				storage: {},
 				hooks: [],
-				routes: [],
+				routes: options.routes ?? [],
 				admin: {},
 			}),
 		),

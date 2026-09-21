@@ -41,6 +41,7 @@ import { getEntryTitle } from "../lib/entryTitle.js";
 import { getFieldLabel } from "../lib/field-label.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { resolveSandboxedEditorActions } from "../lib/sandboxed-editor-extensions.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
@@ -59,6 +60,7 @@ import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { SandboxedContentEditorActions } from "./SandboxedContentEditorActions.js";
 import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -121,6 +123,7 @@ export interface FieldDescriptor {
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
+	unsupportedType?: { type: string; path: string };
 }
 
 /** Simplified user info for current user context */
@@ -260,6 +263,8 @@ export interface ContentEditorProps {
 	onSeoChange?: (seo: ContentSeoInput) => void;
 	/** Admin manifest for resolving plugin field widgets */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
+	/** Re-fetch host state after a plugin action requests an entry refresh. */
+	onEntryRefresh?: () => void | Promise<void>;
 	/** Show the entry without accepting edits. */
 	readOnly?: boolean;
 	/** Rendered above the fields; carries the edit-lock dialog and banner. */
@@ -318,12 +323,15 @@ export function ContentEditor({
 	hasSeo = false,
 	onSeoChange,
 	manifest,
-	readOnly = false,
+	onEntryRefresh,
+	readOnly: readOnlyProp = false,
 	notice,
 	timezone = "UTC",
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const unsupportedFields = Object.entries(fields).filter(([, field]) => field.unsupportedType);
+	const readOnly = readOnlyProp || unsupportedFields.length > 0;
 	const itemLabel = collectionLabel;
 	const settingsPanelId = React.useId();
 	// Kumo Sidebar's `side` is physical, not logical.
@@ -889,6 +897,10 @@ export function ContentEditor({
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
+	const sandboxedEditorActions = React.useMemo(
+		() => (!isNew && item ? resolveSandboxedEditorActions(manifest?.plugins, collection) : []),
+		[collection, isNew, item, manifest?.plugins],
+	);
 
 	// The title advertises ⌘⇧\\ as the shortcut, so register it globally.
 	// It toggles both into and out of the mode, but is disabled while a
@@ -1025,6 +1037,19 @@ export function ContentEditor({
 											<MobileSettingsButton />
 										</fieldset>
 									)}
+									{item && sandboxedEditorActions.length > 0 ? (
+										<fieldset disabled={readOnly} className="contents">
+											<SandboxedContentEditorActions
+												actions={sandboxedEditorActions}
+												collection={collection}
+												entryId={item.id}
+												locale={item.locale ?? entryLocale}
+												isMobile={isBelowLg}
+												disabled={isDirty || isSaving || Boolean(isAutosaving)}
+												onEntryRefresh={onEntryRefresh}
+											/>
+										</fieldset>
+									) : null}
 									<Button
 										variant="ghost"
 										shape="square"
@@ -1115,6 +1140,19 @@ export function ContentEditor({
 					>
 						{notice}
 						<fieldset disabled={readOnly} className="contents">
+							{unsupportedFields.length > 0 && (
+								<Banner
+									variant="error"
+									role="alert"
+									title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
+									description={unsupportedFields
+										.map(
+											([name, field]) =>
+												`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
+										)
+										.join(", ")}
+								/>
+							)}
 							{hasSaveConflict && (
 								<Banner
 									variant="error"
@@ -1539,6 +1577,16 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+	if (field.kind === "unsupported") {
+		return (
+			<div className="grid gap-2">
+				<p className="text-base font-medium">{label}</p>
+				<p className="text-kumo-subtle text-sm">
+					{t`This field cannot be edited by this version of EmDash.`}
+				</p>
+			</div>
+		);
+	}
 
 	// Check for plugin field widget override
 	if (field.widget) {

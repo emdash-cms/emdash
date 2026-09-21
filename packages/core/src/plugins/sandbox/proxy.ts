@@ -119,6 +119,8 @@ export function createSandboxedPluginProxy(
 			storage: manifest.storage as never,
 			adminPages: manifest.admin.pages,
 			adminWidgets: manifest.admin.widgets,
+			editorPanels: manifest.admin.editorPanels,
+			editorActions: manifest.admin.editorActions,
 			settingsSchema: manifest.admin.settingsSchema,
 			portableTextBlocks: manifest.admin.portableTextBlocks,
 			fieldWidgets: manifest.admin.fieldWidgets,

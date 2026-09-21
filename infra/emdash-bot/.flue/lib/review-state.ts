@@ -13,6 +13,7 @@ import {
 	type PullRequestCommit,
 	type PullRequestReview,
 	type RepoContext,
+	type GitHubToken,
 } from "./github.js";
 
 export const REVIEW_STATE_LABELS = [
@@ -79,7 +80,7 @@ export interface ReviewStateTarget {
 }
 
 export async function syncReviewStateLabel(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	target: ReviewStateTarget,
 	signal?: AbortSignal,

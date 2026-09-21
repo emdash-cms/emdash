@@ -10,7 +10,7 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
-import type { Element } from "@emdash-cms/blocks";
+import type { ConfirmDialog, Element, PluginUiContext } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
 // (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
@@ -33,7 +33,12 @@ import {
 	type ManifestRouteEntry,
 	type PluginMcpManifestConfig,
 	type PluginCapability,
+	type PluginFormData,
+	type PluginRouteBodyMode,
+	type PluginRouteQuery,
+	type PluginRouteRequest,
 	type PluginStorageConfig,
+	type RouteOptions,
 	type StorageCollectionConfig,
 } from "@emdash-cms/plugin-types";
 import type { JSX } from "astro/jsx-runtime";
@@ -43,7 +48,7 @@ import type { z } from "astro/zod";
 // =============================================================================
 
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { FieldType } from "../schema/types.js";
+import type { FieldType, FieldValidation, FieldWidgetOptions } from "../schema/types.js";
 
 export type {
 	ContentFieldFilterScalar,
@@ -71,6 +76,31 @@ export {
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 };
+
+export const PLUGIN_CAPABILITY_IMPLICATIONS: ReadonlyArray<
+	readonly [PluginCapability, PluginCapability]
+> = [
+	["content:write", "content:read"],
+	["content:revisions:read", "content:read"],
+	["taxonomies:write", "taxonomies:read"],
+	["content:publish", "content:read"],
+	["media:write", "media:read"],
+	["comments:moderate", "comments:read"],
+	["redirects:write", "redirects:read"],
+	["network:request:unrestricted", "network:request"],
+];
+
+export function normalizePluginCapabilities(
+	capabilities: readonly PluginCapability[],
+): PluginCapability[];
+export function normalizePluginCapabilities(capabilities: readonly string[]): string[];
+export function normalizePluginCapabilities(capabilities: readonly string[]): string[] {
+	const normalized = new Set(normalizeCapabilities(capabilities));
+	for (const [granted, implied] of PLUGIN_CAPABILITY_IMPLICATIONS) {
+		if (normalized.has(granted)) normalized.add(implied);
+	}
+	return [...normalized];
+}
 
 // =============================================================================
 // Storage Types
@@ -259,16 +289,34 @@ export type PluginStorage<T extends PluginStorageConfig> = {
 // =============================================================================
 
 /**
- * KV store interface - unified replacement for settings + options
+ * Plugin-scoped key-value state.
  *
  * Convention:
- * - `settings:*` - User-configurable preferences (shown in admin UI)
  * - `state:*` - Internal plugin state (not shown to users)
+ * - `cache:*` - Reusable computed or remote data
+ *
+ * The `settings:*` namespace remains a compatibility alias through EmDash
+ * 0.x. New code uses `PluginContext.settings` for user configuration.
  */
 export interface KVAccess {
 	get<T>(key: string): Promise<T | null>;
 	getVersioned<T>(key: string): Promise<VersionedValue<T> | null>;
 	/** A null expected revision creates only when absent. Errors reject; conflicts return applied: false. */
+	compareAndSet(
+		key: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult>;
+	compareAndDelete(key: string, expectedRevision: string): Promise<ConditionalDeleteResult>;
+	set(key: string, value: unknown): Promise<void>;
+	delete(key: string): Promise<boolean>;
+	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
+}
+
+/** Plugin settings. Fields declared as `secret` in `admin.settingsSchema` are encrypted. */
+export interface SettingsAccess {
+	get<T>(key: string): Promise<T | null>;
+	getVersioned<T>(key: string): Promise<VersionedValue<T> | null>;
 	compareAndSet(
 		key: string,
 		expectedRevision: string | null,
@@ -328,6 +376,63 @@ export interface ContentItem {
 	publishedAt: string | null;
 	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
 	scheduledAt?: string | null;
+	authorId?: string | null;
+	translationGroup?: string | null;
+	liveRevisionId?: string | null;
+	draftRevisionId?: string | null;
+	version?: number;
+}
+
+export interface ContentTranslationSummary {
+	id: string;
+	locale: string | null;
+	slug: string | null;
+	status: string;
+	updatedAt: string;
+}
+
+export interface ContentRevisionInfo {
+	id: string;
+	collection: string;
+	entryId: string;
+	data: Record<string, unknown>;
+	createdAt: string;
+}
+
+export interface FieldSchemaInfo {
+	slug: string;
+	label: string;
+	type: FieldType;
+	required: boolean;
+	unique: boolean;
+	default?: unknown;
+	validation?: FieldValidation;
+	widget?: string;
+	options?: FieldWidgetOptions;
+	searchable: boolean;
+	indexed: boolean;
+	translatable: boolean;
+	sortOrder: number;
+}
+
+export interface CollectionSchemaInfo {
+	slug: string;
+	label: string;
+	labelSingular: string | null;
+	description: string | null;
+	supports: string[];
+	hasSeo: boolean;
+	titleField: string | null;
+	dateField: string | null;
+	urlPattern: string | null;
+	routable: boolean;
+	hidden: boolean;
+	fields: FieldSchemaInfo[];
+}
+
+export interface SchemaAccess {
+	listCollections(): Promise<CollectionSchemaInfo[]>;
+	getCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 }
 
 export interface ContentListWhere {
@@ -365,7 +470,20 @@ export type ContentWriteInput = Record<string, unknown> & {
 export interface ContentCreateOptions {
 	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
 	locale?: string;
+	/** Existing row in the same collection whose translation group the new row joins. */
+	translationOf?: string;
 }
+
+export type PluginContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		/** Save-hook origin supplied by sandbox transports to prevent hook re-entry. */
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
 
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
@@ -406,6 +524,15 @@ export interface TaxonomyReadOptions {
 	locale?: string;
 }
 
+export interface TaxonomyTermCreateInput {
+	label: string;
+	slug?: string;
+	parentId?: string | null;
+	description?: string;
+	locale?: string;
+	translationOf?: string;
+}
+
 /**
  * Content access interface - capability-gated
  */
@@ -413,6 +540,21 @@ export interface ContentAccess {
 	// Read operations (requires read:content)
 	get(collection: string, id: string): Promise<ContentItem | null>;
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
+	getTranslations?(
+		collection: string,
+		id: string,
+	): Promise<{ translationGroup: string; translations: ContentTranslationSummary[] }>;
+	getPublicUrl?(collection: string, id: string): Promise<string | null>;
+	listRevisions?(
+		collection: string,
+		id: string,
+		options?: { limit?: number },
+	): Promise<ContentRevisionInfo[]>;
+	getRevision?(
+		collection: string,
+		id: string,
+		revisionId: string,
+	): Promise<ContentRevisionInfo | null>;
 
 	// Write operations (requires write:content) - optional on interface
 	create?(
@@ -422,11 +564,67 @@ export interface ContentAccess {
 	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+	getVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	unpublish?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule?(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	getTrashedVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
+export interface VersionedContentItem {
+	item: ContentItem;
+	_rev: string;
+}
+
+export interface ContentPublicationAccess extends ContentAccess {
+	getVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish(collection: string, id: string, options: { _rev: string }): Promise<VersionedContentItem>;
+	unpublish(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
+export interface ContentRestoreAccess {
+	getTrashedVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore(collection: string, id: string, options: { _rev: string }): Promise<VersionedContentItem>;
 }
 
 /**
  * Taxonomy access interface — capability-gated on `taxonomies:read`.
- * Read-only: there is no plugin-facing taxonomy write API.
  */
 export interface TaxonomyAccess {
 	/** List taxonomy definitions. */
@@ -439,6 +637,98 @@ export interface TaxonomyAccess {
 		entryId: string,
 		options?: TaxonomyReadOptions & { taxonomy?: string },
 	): Promise<TaxonomyTermInfo[]>;
+	createTerm?(taxonomy: string, input: TaxonomyTermCreateInput): Promise<TaxonomyTermInfo>;
+	addEntryTerms?(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+	removeEntryTerms?(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+}
+
+/** Taxonomy mutations available with `taxonomies:write`. */
+export interface TaxonomyAccessWithWrite extends TaxonomyAccess {
+	createTerm(taxonomy: string, input: TaxonomyTermCreateInput): Promise<TaxonomyTermInfo>;
+	addEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+	removeEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+}
+
+export type RedirectStatus = 301 | 302 | 307 | 308 | 410 | 451;
+
+export interface RedirectInfo {
+	id: string;
+	source: string;
+	destination: string;
+	type: RedirectStatus;
+	isPattern: boolean;
+	enabled: boolean;
+	hits: number;
+	lastHitAt: string | null;
+	groupName: string | null;
+	auto: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface VersionedRedirect {
+	redirect: RedirectInfo;
+	/** Opaque host revision. Pass it back unchanged for update or delete. */
+	_rev: string;
+}
+
+export interface RedirectListOptions {
+	limit?: number;
+	cursor?: string;
+	search?: string;
+	group?: string;
+	enabled?: boolean;
+	auto?: boolean;
+}
+
+export interface RedirectCreateInput {
+	source: string;
+	destination?: string;
+	type?: RedirectStatus;
+	enabled?: boolean;
+	groupName?: string | null;
+}
+
+export interface RedirectUpdateInput {
+	source?: string;
+	destination?: string;
+	type?: RedirectStatus;
+	enabled?: boolean;
+	groupName?: string | null;
+}
+
+export interface RedirectAccess {
+	list(options?: RedirectListOptions): Promise<PaginatedResult<RedirectInfo>>;
+	get(id: string): Promise<VersionedRedirect | null>;
+	create?(input: RedirectCreateInput): Promise<VersionedRedirect>;
+	update?(id: string, input: RedirectUpdateInput & { _rev: string }): Promise<VersionedRedirect>;
+	delete?(id: string, options: { _rev: string }): Promise<boolean>;
+}
+
+export interface RedirectAccessWithWrite extends RedirectAccess {
+	create(input: RedirectCreateInput): Promise<VersionedRedirect>;
+	update(id: string, input: RedirectUpdateInput & { _rev: string }): Promise<VersionedRedirect>;
+	delete(id: string, options: { _rev: string }): Promise<boolean>;
 }
 
 /**
@@ -464,6 +754,31 @@ export interface MediaItem {
 	size: number | null;
 	url: string;
 	createdAt: string;
+	width?: number | null;
+	height?: number | null;
+	alt?: string | null;
+	caption?: string | null;
+	focalX?: number | null;
+	focalY?: number | null;
+	blurhash?: string | null;
+	dominantColor?: string | null;
+	folderId?: string | null;
+	status?: "ready";
+}
+
+export interface MediaBytes {
+	bytes: Uint8Array;
+	filename: string;
+	mimeType: string;
+	size: number;
+	contentHash?: string;
+}
+
+export interface MediaMetadataPatch {
+	alt?: string | null;
+	caption?: string | null;
+	focalX?: number | null;
+	focalY?: number | null;
 }
 
 /**
@@ -482,6 +797,10 @@ export interface MediaAccess {
 	// Read operations (requires read:media)
 	get(id: string): Promise<MediaItem | null>;
 	list(options?: MediaListOptions): Promise<PaginatedResult<MediaItem>>;
+	/** Read ready media bytes, bounded by the caller's limit and the host maximum. */
+	readBytes?(id: string, options?: { maxBytes?: number }): Promise<MediaBytes>;
+	/** Change only alt text, caption, or the complete focal-point pair. */
+	updateMetadata?(id: string, patch: MediaMetadataPatch): Promise<MediaItem>;
 
 	// Write operations (requires write:media) - optional on interface
 	getUploadUrl?(
@@ -518,9 +837,13 @@ export interface MediaAccessWithWrite extends MediaAccess {
 }
 
 /**
- * HTTP client interface - requires network:fetch capability
+ * HTTP client interface - requires network:request capability
  */
 export interface HttpAccess {
+	/**
+	 * Fetch an allowed external URL and return a buffered response.
+	 * Decoded request and response bodies are each limited to 8 MiB.
+	 */
 	fetch(url: string, init?: RequestInit): Promise<Response>;
 }
 
@@ -585,6 +908,50 @@ export interface UserAccess {
 	}>;
 }
 
+export type PluginCommentStatus = "approved" | "pending" | "spam";
+
+/** Comment data exposed by the explicit personal-data `comments:read` capability. */
+export interface PluginComment {
+	id: string;
+	collection: string;
+	contentId: string;
+	parentId: string | null;
+	authorName: string;
+	authorEmail: string;
+	body: string;
+	status: PluginCommentStatus;
+	ipHash: string | null;
+	userAgent: string | null;
+	moderationMetadata: Record<string, unknown> | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface CommentListOptions {
+	status?: PluginCommentStatus;
+	collection?: string;
+	contentId?: string;
+	limit?: number;
+	cursor?: string;
+}
+
+export interface CommentCountOptions {
+	status?: PluginCommentStatus;
+	collection?: string;
+	contentId?: string;
+}
+
+export interface CommentAccess {
+	get(id: string): Promise<PluginComment | null>;
+	list(options?: CommentListOptions): Promise<PaginatedResult<PluginComment>>;
+	count(options?: CommentCountOptions): Promise<number>;
+	setStatus?(
+		id: string,
+		status: PluginCommentStatus,
+		options: { expectedStatus: PluginCommentStatus },
+	): Promise<PluginComment>;
+}
+
 // =============================================================================
 // Plugin Context
 // =============================================================================
@@ -602,19 +969,27 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	/** Storage collections - only if plugin declares storage */
 	storage: PluginStorage<TStorage>;
 
-	/** Key-value store for config and state */
+	/** Key-value store for internal state */
 	kv: KVAccess;
+
+	/** Plugin settings. Secret schema fields are encrypted by the host. */
+	settings: SettingsAccess;
 
 	/** Content access - only if read:content or write:content capability */
 	content?: ContentAccess | ContentAccessWithWrite;
+	/** Schema discovery - only if schema:read capability */
+	schema?: SchemaAccess;
 
-	/** Taxonomy access (read-only) - only if taxonomies:read capability */
-	taxonomies?: TaxonomyAccess;
+	/** Taxonomy access - only if a taxonomy capability is declared. */
+	taxonomies?: TaxonomyAccess | TaxonomyAccessWithWrite;
+
+	/** Redirect access - only if redirects:read or redirects:write capability */
+	redirects?: RedirectAccess | RedirectAccessWithWrite;
 
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;
 
-	/** HTTP client - only if network:fetch capability */
+	/** HTTP client - only if network:request capability */
 	http?: HttpAccess;
 
 	/** Logger - always available */
@@ -628,6 +1003,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** User access - only if read:users capability */
 	users?: UserAccess;
+
+	/** Comment access — only if comments:read or comments:moderate is declared. */
+	comments?: CommentAccess;
 
 	/** Cron task scheduling - always available, scoped to plugin */
 	cron?: CronAccess;
@@ -842,6 +1220,8 @@ export interface CommentAfterModerateEvent {
 	newStatus: string;
 	/** The admin who moderated */
 	moderator: { id: string; name: string | null };
+	/** Identifies whether an administrator or a plugin initiated the transition. */
+	origin?: { source: "admin"; userId: string } | { source: "plugin"; pluginId: string };
 }
 
 /**
@@ -910,7 +1290,16 @@ export interface HookConfig<THandler> {
 export interface ActorInfo {
 	readonly id: string;
 	readonly role: number;
+	readonly source?: "api" | "mcp" | "visual-editor";
 }
+
+export type ContentActionOrigin =
+	| { source: "api" | "mcp" | "visual-editor" }
+	| { source: "plugin"; pluginId: string }
+	| { source: "scheduler" }
+	| { source: "system" };
+
+export type ContentPolicyDecision = void | { cancel: true; reason: string };
 
 /**
  * Content hook event
@@ -967,6 +1356,15 @@ export type ContentRestoreStateChangeEvent = ContentStateChangeEvent;
  */
 export type ContentScheduleStateChangeEvent = ContentStateChangeEvent;
 
+export interface ContentPolicyEvent extends ContentStateChangeEvent {
+	origin: ContentActionOrigin;
+	actor?: ActorInfo;
+}
+
+export interface ContentSchedulePolicyEvent extends ContentPolicyEvent {
+	scheduledAt: string;
+}
+
 /**
  * Media hook event
  */
@@ -1015,6 +1413,21 @@ export type ContentAfterDeleteHandler = (
 	event: ContentDeleteEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
+
+export type ContentBeforePublishHandler = (
+	event: ContentPolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
+export type ContentBeforeScheduleHandler = (
+	event: ContentSchedulePolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
+export type ContentBeforeUnpublishHandler = (
+	event: ContentPolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
 
 export type ContentAfterPublishHandler = (
 	event: ContentPublishStateChangeEvent,
@@ -1222,6 +1635,13 @@ export interface PluginHooks {
 	"content:afterSave"?: HookConfig<ContentAfterSaveHandler> | ContentAfterSaveHandler;
 	"content:beforeDelete"?: HookConfig<ContentBeforeDeleteHandler> | ContentBeforeDeleteHandler;
 	"content:afterDelete"?: HookConfig<ContentAfterDeleteHandler> | ContentAfterDeleteHandler;
+	"content:beforePublish"?: HookConfig<ContentBeforePublishHandler> | ContentBeforePublishHandler;
+	"content:beforeSchedule"?:
+		| HookConfig<ContentBeforeScheduleHandler>
+		| ContentBeforeScheduleHandler;
+	"content:beforeUnpublish"?:
+		| HookConfig<ContentBeforeUnpublishHandler>
+		| ContentBeforeUnpublishHandler;
 	"content:afterPublish"?: HookConfig<ContentAfterPublishHandler> | ContentAfterPublishHandler;
 	"content:afterUnpublish"?:
 		| HookConfig<ContentAfterUnpublishHandler>
@@ -1320,6 +1740,8 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 	/**
 	 * Authenticated caller, if the route is private. The host has already
 	 * authenticated and authorized this user before dispatch, so the value
@@ -1337,7 +1759,7 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 /**
  * Route definition
  */
-export interface PluginRoute<TInput = unknown> {
+export interface PluginRoute<TInput = unknown> extends Omit<RouteOptions, "request"> {
 	/** Zod schema for input validation */
 	input?: z.ZodType<TInput>;
 	/**
@@ -1354,9 +1776,28 @@ export interface PluginRoute<TInput = unknown> {
 	 * keep the default `private, no-store`. Errors are never cached.
 	 */
 	cacheControl?: string;
+	/** Bounded request parsing and incoming-header declaration. */
+	request?: PluginRouteRequest;
 	/** Route handler */
-	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
+	handler: { bivarianceHack(ctx: RouteContext<TInput>): Promise<unknown> }["bivarianceHack"];
 }
+
+export type PluginRouteInput<TMode extends PluginRouteBodyMode> = TMode extends "none"
+	? PluginRouteQuery
+	: TMode extends "text"
+		? string
+		: TMode extends "bytes"
+			? Uint8Array
+			: TMode extends "form-data"
+				? PluginFormData
+				: unknown;
+
+export type PluginRouteDefinition<TMode extends PluginRouteBodyMode = PluginRouteBodyMode> = Omit<
+	PluginRoute<PluginRouteInput<TMode>>,
+	"request"
+> & {
+	request: PluginRouteRequest & { body: TMode };
+};
 
 export interface PluginMcpToolDefinition {
 	description: string;
@@ -1390,6 +1831,24 @@ export interface PluginDashboardWidget {
 	id: string;
 	size?: "full" | "half" | "third";
 	title?: string;
+}
+
+export interface PluginEditorPanel {
+	id: string;
+	title: string;
+	route: string;
+	collections?: string[];
+	order?: number;
+}
+
+export interface PluginEditorAction {
+	id: string;
+	label: string;
+	route: string;
+	placement: "toolbar" | "overflow";
+	collections?: string[];
+	style?: "default" | "danger";
+	confirm?: ConfirmDialog;
 }
 
 /**
@@ -1521,6 +1980,10 @@ export interface PluginAdminConfig {
 	pages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	widgets?: PluginDashboardWidget[];
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginEditorAction[];
 	/** Portable Text block types this plugin provides */
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types this plugin provides */
@@ -1539,7 +2002,7 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** Declared capabilities */
 	capabilities?: PluginCapability[];
 
-	/** Allowed hosts for network:fetch (wildcards supported: *.example.com) */
+	/** Allowed hosts for network:request (wildcards supported: *.example.com) */
 	allowedHosts?: string[];
 
 	/** Storage collections with indexes */
@@ -1585,6 +2048,9 @@ export interface ResolvedPluginHooks {
 	"content:afterSave"?: ResolvedHook<ContentAfterSaveHandler>;
 	"content:beforeDelete"?: ResolvedHook<ContentBeforeDeleteHandler>;
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
+	"content:beforePublish"?: ResolvedHook<ContentBeforePublishHandler>;
+	"content:beforeSchedule"?: ResolvedHook<ContentBeforeScheduleHandler>;
+	"content:beforeUnpublish"?: ResolvedHook<ContentBeforeUnpublishHandler>;
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;

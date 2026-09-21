@@ -46,7 +46,7 @@ type ValidationResult =
 	| {
 			ok: false;
 			error: {
-				code: "VALIDATION_ERROR" | "COLLECTION_NOT_FOUND";
+				code: "VALIDATION_ERROR" | "COLLECTION_NOT_FOUND" | "UNSUPPORTED_FIELD_TYPE";
 				message: string;
 				details?: { issues: ContentValidationIssue[] };
 			};
@@ -165,6 +165,17 @@ export async function validateContentData(
 	}
 
 	const issues: ContentValidationIssue[] = [];
+	const unsupportedField = collectionWithFields.fields.find((field) => field.unsupportedType);
+	if (unsupportedField?.unsupportedType) {
+		const { type, path } = unsupportedField.unsupportedType;
+		return {
+			ok: false,
+			error: {
+				code: "UNSUPPORTED_FIELD_TYPE",
+				message: `Collection '${collection}' field '${unsupportedField.slug}' uses unsupported field type '${type}' at '${path}'`,
+			},
+		};
+	}
 
 	// Detect unknown keys explicitly so callers get a useful error rather
 	// than silently dropped data. Leading-underscore keys (e.g. `_slug`,
