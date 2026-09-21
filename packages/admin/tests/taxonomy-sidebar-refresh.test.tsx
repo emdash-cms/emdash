@@ -224,6 +224,7 @@ describe("taxonomy sidebar after deletion", () => {
 		await expect
 			.element(screen.getByRole("heading", { name: "Delete Taxonomy" }))
 			.toBeInTheDocument();
+		// Direct DOM click to bypass Base UI inert overlay
 		screen.getByRole("button", { name: "Delete" }).element().click();
 
 		await expect.element(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
