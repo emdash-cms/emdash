@@ -10,6 +10,15 @@ export function RegistryConfigurationBanner({ error }: { error: RegistryConfigur
 	let description: string;
 
 	switch (error.field) {
+		case "registry.aggregatorUrl":
+			description = t`Check registry.aggregatorUrl in astro.config.mjs, then restart EmDash.`;
+			break;
+		case "registry.policy.minimumReleaseAge":
+			description = t`Check registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash.`;
+			break;
+		case "registry.policy.minimumReleaseAgeExclude":
+			description = t`Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash.`;
+			break;
 		case "experimental.registry.aggregatorUrl":
 			description = t`Check experimental.registry.aggregatorUrl in astro.config.mjs, then restart EmDash.`;
 			break;
@@ -19,8 +28,12 @@ export function RegistryConfigurationBanner({ error }: { error: RegistryConfigur
 		case "experimental.registry.policy.minimumReleaseAgeExclude":
 			description = t`Check experimental.registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash.`;
 			break;
-		default:
-			description = t`Check experimental.registry in astro.config.mjs, then restart EmDash.`;
+		default: {
+			const field = error.field as string;
+			description = field.startsWith("registry.")
+				? t`Check registry in astro.config.mjs, then restart EmDash.`
+				: t`Check experimental.registry in astro.config.mjs, then restart EmDash.`;
+		}
 	}
 
 	return (

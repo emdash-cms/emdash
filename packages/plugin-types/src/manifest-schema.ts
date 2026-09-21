@@ -12,6 +12,12 @@ import { z } from "zod";
 
 import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "./index.js";
 import type { PluginManifest } from "./index.js";
+import {
+	isJsonPostRouteContract,
+	manifestRouteEntrySchema,
+	normalizeManifestRoute,
+	routeNameSchema,
+} from "./routes.js";
 
 // ── Enum values (must stay in sync with types.ts) ───────────────
 
@@ -23,9 +29,21 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"network:request",
 	"network:request:unrestricted",
 	"content:read",
+	"content:revisions:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
+	"comments:read",
+	"comments:moderate",
+	"schema:read",
+	"hooks.content-policy:register",
 	"taxonomies:read",
+	"taxonomies:write",
+	"redirects:read",
+	"redirects:write",
 	"media:read",
+	"media:bytes:read",
+	"media:metadata:write",
 	"media:write",
 	"users:read",
 	"email:send",
@@ -93,6 +111,9 @@ export const HOOK_NAMES = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
 	"content:afterPublish",
 	"content:afterUnpublish",
 	"content:afterRestore",
@@ -121,6 +142,8 @@ const manifestHookEntrySchema = z.object({
 	exclusive: z.boolean().optional(),
 	priority: z.number().int().optional(),
 	timeout: z.number().int().positive().optional(),
+	dependencies: z.array(z.string().min(1)).optional(),
+	errorPolicy: z.enum(["continue", "abort"]).optional(),
 });
 
 /**
@@ -128,12 +151,20 @@ const manifestHookEntrySchema = z.object({
  * Both plain strings and objects are accepted; strings are normalized
  * to `{ name }` objects via `normalizeManifestRoute()`.
  */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
+const pluginJsonSchema = z.record(z.string(), z.unknown());
 
-const manifestRouteEntrySchema = z.object({
-	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: z.boolean().optional(),
+const pluginMcpConfigSchema = z.object({
+	tools: z.array(
+		z.object({
+			name: z.string().min(1),
+			description: z.string().min(1),
+			route: z.string().min(1),
+			permission: z.string().min(1),
+			destructive: z.boolean(),
+			inputSchema: pluginJsonSchema,
+			outputSchema: pluginJsonSchema.optional(),
+		}),
+	),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -199,32 +230,90 @@ const dashboardWidgetSchema = z.object({
 	title: z.string().optional(),
 });
 
-const pluginAdminConfigSchema = z.object({
-	entry: z.string().optional(),
-	settingsSchema: z.record(z.string(), settingFieldSchema).optional(),
-	pages: z.array(adminPageSchema).optional(),
-	widgets: z.array(dashboardWidgetSchema).optional(),
-	fieldWidgets: z
-		.array(
-			z.object({
-				name: z.string().min(1),
-				label: z.string().min(1),
-				fieldTypes: z.array(z.enum(FIELD_TYPES)),
-				elements: z
-					.array(
-						z
-							.object({
-								type: z.string(),
-								action_id: z.string(),
-								label: z.string().optional(),
-							})
-							.loose(),
-					)
-					.optional(),
-			}),
-		)
-		.optional(),
+const editorExtensionIdPattern = /^[a-z][a-z0-9_-]*$/;
+const collectionSlugPattern = /^[a-z][a-z0-9_]*$/;
+const editorCollectionsSchema = z
+	.array(z.string().max(63).regex(collectionSlugPattern, "Invalid collection slug"))
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "Editor extension collections must be unique",
+	});
+const editorPanelSchema = z.object({
+	id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
+	title: z.string().min(1).max(128),
+	route: routeNameSchema.max(128),
+	collections: editorCollectionsSchema.optional(),
+	order: z.number().int().min(-1_000).max(1_000).optional(),
 });
+const editorActionConfirmSchema = z.object({
+	title: z.string().min(1).max(128),
+	text: z.string().min(1).max(1_024),
+	confirm: z.string().min(1).max(64),
+	deny: z.string().min(1).max(64),
+	style: z.literal("danger").optional(),
+});
+const editorActionSchema = z
+	.object({
+		id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
+		label: z.string().min(1).max(128),
+		route: routeNameSchema.max(128),
+		placement: z.enum(["toolbar", "overflow"]),
+		collections: editorCollectionsSchema.optional(),
+		style: z.enum(["default", "danger"]).optional(),
+		confirm: editorActionConfirmSchema.optional(),
+	})
+	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
+		message: "Danger editor actions require confirmation",
+		path: ["confirm"],
+	});
+
+function uniqueExtensionIds(
+	items: readonly { id: string }[] | undefined,
+	ctx: z.RefinementCtx,
+	path: "editorPanels" | "editorActions",
+): void {
+	const seen = new Set<string>();
+	for (const [index, item] of (items ?? []).entries()) {
+		if (seen.has(item.id)) {
+			ctx.addIssue({ code: "custom", message: `Duplicate ${path} id`, path: [path, index, "id"] });
+		}
+		seen.add(item.id);
+	}
+}
+
+const pluginAdminConfigSchema = z
+	.object({
+		entry: z.string().optional(),
+		settingsSchema: z.record(z.string(), settingFieldSchema).optional(),
+		pages: z.array(adminPageSchema).optional(),
+		widgets: z.array(dashboardWidgetSchema).optional(),
+		editorPanels: z.array(editorPanelSchema).max(32).optional(),
+		editorActions: z.array(editorActionSchema).max(32).optional(),
+		fieldWidgets: z
+			.array(
+				z.object({
+					name: z.string().min(1),
+					label: z.string().min(1),
+					fieldTypes: z.array(z.enum(FIELD_TYPES)),
+					elements: z
+						.array(
+							z
+								.object({
+									type: z.string(),
+									action_id: z.string(),
+									label: z.string().optional(),
+								})
+								.loose(),
+						)
+						.optional(),
+				}),
+			)
+			.optional(),
+	})
+	.superRefine((admin, ctx) => {
+		uniqueExtensionIds(admin.editorPanels, ctx, "editorPanels");
+		uniqueExtensionIds(admin.editorActions, ctx, "editorActions");
+	});
 
 // ── declaredAccess ──────────────────────────────────────────────
 
@@ -242,11 +331,32 @@ const accessConstraints = z.record(z.string(), z.unknown());
  */
 const declaredAccessSchema = z.object({
 	content: z
+		.object({
+			read: accessConstraints.optional(),
+			revisionsRead: accessConstraints.optional(),
+			write: accessConstraints.optional(),
+			publish: accessConstraints.optional(),
+			restore: accessConstraints.optional(),
+			policy: accessConstraints.optional(),
+		})
+		.optional(),
+	comments: z
+		.object({ read: accessConstraints.optional(), moderate: accessConstraints.optional() })
+		.optional(),
+	schema: z.object({ read: accessConstraints.optional() }).optional(),
+	taxonomies: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
-	taxonomies: z.object({ read: accessConstraints.optional() }).optional(),
-	media: z
+	redirects: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
+		.optional(),
+	media: z
+		.object({
+			read: accessConstraints.optional(),
+			bytesRead: accessConstraints.optional(),
+			metadataWrite: accessConstraints.optional(),
+			write: accessConstraints.optional(),
+		})
 		.optional(),
 	network: z
 		.object({
@@ -280,7 +390,7 @@ const declaredAccessSchema = z.object({
  * to make them consistent (declaredAccess authoritative when present). Kept a
  * plain object (no `.transform`) because callers `.pick()`/`.extend()` it.
  */
-export const pluginManifestSchema = z.object({
+export const pluginManifestBaseSchema = z.object({
 	id: z.string().min(1),
 	version: z.string().min(1),
 	declaredAccess: declaredAccessSchema.optional(),
@@ -298,13 +408,123 @@ export const pluginManifestSchema = z.object({
 	 * structured objects with public metadata.
 	 * Plain strings are normalized to `{ name }` objects after parsing.
 	 */
-	routes: z.array(
-		z.union([
-			z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			manifestRouteEntrySchema,
-		]),
-	),
+	routes: z.array(z.union([routeNameSchema, manifestRouteEntrySchema])),
+	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
+});
+
+function validateEditorExtensionRoutes(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	for (const [kind, extensions] of [
+		["editorPanels", manifest.admin.editorPanels],
+		["editorActions", manifest.admin.editorActions],
+	] as const) {
+		for (const [index, extension] of (extensions ?? []).entries()) {
+			const matches = manifest.routes.filter(
+				(route) => (typeof route === "string" ? route : route.name) === extension.route,
+			);
+			if (matches.length !== 1) {
+				ctx.addIssue({
+					code: "custom",
+					message:
+						matches.length === 0
+							? "Editor extension route is not declared"
+							: "Editor extension route must be declared exactly once",
+					path: ["admin", kind, index, "route"],
+				});
+				continue;
+			}
+			const route = matches[0];
+			if (!route) continue;
+			if (typeof route !== "string" && route.public === true) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Editor extension routes must be private",
+					path: ["admin", kind, index, "route"],
+				});
+			}
+			if (typeof route !== "string" && !isJsonPostRouteContract(route)) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Editor extension routes must accept POST JSON requests and return JSON",
+					path: ["admin", kind, index, "route"],
+				});
+			}
+		}
+	}
+}
+
+function validateUniqueRoutes(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	const seen = new Set<string>();
+	for (const [index, route] of manifest.routes.entries()) {
+		const name = typeof route === "string" ? route : route.name;
+		if (seen.has(name)) {
+			ctx.addIssue({
+				code: "custom",
+				message: `Route "${name}" must be declared exactly once`,
+				path: ["routes", index],
+			});
+		}
+		seen.add(name);
+	}
+}
+
+function validateMcpToolRoutes(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	for (const [index, tool] of (manifest.mcp?.tools ?? []).entries()) {
+		const route = manifest.routes.find(
+			(candidate) => (typeof candidate === "string" ? candidate : candidate.name) === tool.route,
+		);
+		if (
+			typeof route === "string" ||
+			route === undefined ||
+			route.public === true ||
+			route.permission !== tool.permission ||
+			!isJsonPostRouteContract(route)
+		) {
+			ctx.addIssue({
+				code: "custom",
+				message: "MCP tools must reference a private POST-compatible JSON route",
+				path: ["mcp", "tools", index, "route"],
+			});
+		}
+	}
+}
+
+function validateBlockKitAdminRoute(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	if ((manifest.admin.pages?.length ?? 0) === 0 && (manifest.admin.widgets?.length ?? 0) === 0) {
+		return;
+	}
+	const routeIndex = manifest.routes.findIndex(
+		(route) => (typeof route === "string" ? route : route.name) === "admin",
+	);
+	if (routeIndex < 0) return;
+	const route = manifest.routes[routeIndex];
+	if (!route) return;
+	if (typeof route !== "string" && (route.public === true || !isJsonPostRouteContract(route))) {
+		ctx.addIssue({
+			code: "custom",
+			message: "Block Kit admin routes must be private POST-compatible JSON routes",
+			path: ["routes", routeIndex],
+		});
+	}
+}
+
+export const pluginManifestSchema = pluginManifestBaseSchema.superRefine((manifest, ctx) => {
+	validateUniqueRoutes(manifest, ctx);
+	validateEditorExtensionRoutes(manifest, ctx);
+	validateMcpToolRoutes(manifest, ctx);
+	validateBlockKitAdminRoute(manifest, ctx);
 });
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
@@ -331,23 +551,28 @@ export function reconcileManifestAccess(manifest: ValidatedPluginManifest): Plug
  * Normalize a manifest hook entry — plain strings become `{ name }` objects.
  */
 export function normalizeManifestHook(
-	entry: string | { name: string; exclusive?: boolean; priority?: number; timeout?: number },
-): { name: string; exclusive?: boolean; priority?: number; timeout?: number } {
-	if (typeof entry === "string") {
-		return { name: entry };
-	}
-	return entry;
-}
-
-/**
- * Normalize a manifest route entry — plain strings become `{ name }` objects.
- */
-export function normalizeManifestRoute(entry: string | { name: string; public?: boolean }): {
+	entry:
+		| string
+		| {
+				name: string;
+				exclusive?: boolean;
+				priority?: number;
+				timeout?: number;
+				dependencies?: string[];
+				errorPolicy?: "continue" | "abort";
+		  },
+): {
 	name: string;
-	public?: boolean;
+	exclusive?: boolean;
+	priority?: number;
+	timeout?: number;
+	dependencies?: string[];
+	errorPolicy?: "continue" | "abort";
 } {
 	if (typeof entry === "string") {
 		return { name: entry };
 	}
 	return entry;
 }
+
+export { normalizeManifestRoute };

@@ -1,6 +1,7 @@
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
-import { pluginManifestSchema } from "@emdash-cms/plugin-types";
+import { pluginManifestSchema, reconcileManifestAccess } from "@emdash-cms/plugin-types";
 import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import {
@@ -13,6 +14,16 @@ import {
 } from "emdash";
 import { runMigrations } from "emdash/db";
 import { Kysely } from "kysely";
+
+export { createPluginRuntimeTestHost } from "./runtime-host.js";
+export type {
+	PluginRuntimeMediaFixture,
+	PluginRuntimeAdminRequestOptions,
+	PluginRuntimeRouteRequest,
+	PluginRuntimeTestHost,
+	PluginRuntimeTestHostOptions,
+	PluginHttpTestRequest,
+} from "./runtime-host.js";
 
 interface PluginTestBindings {
 	DB: D1Database;
@@ -37,10 +48,15 @@ export interface PluginTestRequest {
 		role: number;
 		createdAt: string;
 	};
+	/** Transport-level UI context. Use runtimeHost.admin for host-attested tests. */
+	ui?: PluginUiContext;
 }
 
 export interface PluginTestCollection extends CreateCollectionInput {
 	fields?: CreateFieldInput[];
+	commentsModeration?: "all" | "first_time" | "none";
+	commentsClosedAfterDays?: number;
+	commentsAutoApproveUsers?: boolean;
 }
 
 export interface PluginStorageTestEntry<T = unknown> {
@@ -102,7 +118,7 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 	);
 	if (!manifestResult.success) throw new Error("EmDash plugin test manifest is invalid");
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the shared runtime schema validates the wire manifest before it enters core's equivalent runtime type
-	const manifest = manifestResult.data as unknown as PluginManifest;
+	const manifest = reconcileManifestAccess(manifestResult.data) as unknown as PluginManifest;
 	const db = new Kysely<Database>({
 		dialect: createDialect({ binding: "DB", session: "disabled" }),
 	});
@@ -160,6 +176,7 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 				headers: request.headers ?? {},
 				meta: request.meta ?? DEFAULT_META,
 				user: request.user,
+				ui: request.ui,
 			});
 		},
 		async createCollection({ fields = [], ...collection }) {

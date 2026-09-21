@@ -167,6 +167,7 @@ export interface AdminManifest {
 					 */
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
+					unsupportedType?: { type: string; path: string };
 				}
 			>;
 		}
@@ -196,6 +197,22 @@ export interface AdminManifest {
 				id: string;
 				title?: string;
 				size?: "full" | "half" | "third";
+			}>;
+			editorPanels?: Array<{
+				id: string;
+				title: string;
+				route: string;
+				collections?: string[];
+				order?: number;
+			}>;
+			editorActions?: Array<{
+				id: string;
+				label: string;
+				route: string;
+				placement: "toolbar" | "overflow";
+				collections?: string[];
+				style?: "default" | "danger";
+				confirm?: import("@emdash-cms/blocks").ConfirmDialog;
 			}>;
 			fieldWidgets?: Array<{
 				name: string;
@@ -254,15 +271,14 @@ export interface AdminManifest {
 		translationGroup?: string | null;
 	}>;
 	/**
-	 * Marketplace registry URL. Present when `marketplace` is configured
-	 * in the EmDash integration. Enables marketplace features in the UI.
+	 * Whether legacy marketplace lifecycle support is configured. The admin
+	 * uses this to show migration guidance; marketplace discovery stays hidden.
+	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
-	marketplace?: string;
+	marketplace?: boolean;
 	/**
-	 * Experimental decentralized plugin registry. Present when
-	 * `experimental.registry` is configured in the EmDash integration.
-	 * When present, the admin UI uses the registry instead of the
-	 * centralized marketplace for browse and install.
+	 * Decentralized plugin registry. Defaults to the hosted aggregator when
+	 * the plugin sandbox is enabled, or reflects an explicit registry config.
 	 */
 	registry?: {
 		aggregatorUrl: string;
@@ -281,6 +297,9 @@ export interface AdminManifest {
 			| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
 			| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
 		field:
+			| "registry.aggregatorUrl"
+			| "registry.policy.minimumReleaseAge"
+			| "registry.policy.minimumReleaseAgeExclude"
 			| "experimental.registry.aggregatorUrl"
 			| "experimental.registry.policy.minimumReleaseAge"
 			| "experimental.registry.policy.minimumReleaseAgeExclude";

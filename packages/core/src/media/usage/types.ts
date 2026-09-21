@@ -1,6 +1,6 @@
 import type { FieldType } from "../../schema/types.js";
 
-export const CONTENT_SOURCE_SCHEMA_VERSION = 1;
+export const CONTENT_SOURCE_SCHEMA_VERSION = 2;
 
 export type MediaKind =
 	| "image"

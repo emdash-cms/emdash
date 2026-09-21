@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { encodeRev } from "../../../src/api/rev.js";
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
@@ -115,5 +116,27 @@ describe("content restore hooks", () => {
 				}),
 			}),
 		);
+	});
+
+	it("fences restore by revision and returns the next revision", async () => {
+		const item = await repo.create({
+			type: "post",
+			slug: "versioned-restore",
+			status: "draft",
+			data: {},
+		});
+		await repo.delete("post", item.id);
+		const trashed = await repo.findByIdOrSlugIncludingTrashed("post", item.id);
+		if (!trashed) throw new Error("trashed item missing");
+		const revision = encodeRev(trashed);
+
+		const restored = await runtime.handleContentRestore("post", item.id, { _rev: revision });
+		expect(restored.success).toBe(true);
+		if (!restored.success) throw new Error("restore failed");
+		expect(restored.data._rev).not.toBe(revision);
+
+		await repo.delete("post", item.id);
+		const stale = await runtime.handleContentRestore("post", item.id, { _rev: revision });
+		expect(stale).toMatchObject({ success: false, error: { code: "CONFLICT" } });
 	});
 });

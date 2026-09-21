@@ -157,6 +157,8 @@ describe("POST /webhook/github (workers-pool)", () => {
 	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
 		const res = await SELF.fetch("https://test/api/dashboard");
 		expect(res.status).toBe(503);
+		expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+		expect(res.headers.get("cache-control")).toBe("no-store");
 		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
 	});
 

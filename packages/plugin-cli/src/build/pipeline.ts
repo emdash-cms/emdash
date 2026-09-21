@@ -38,6 +38,8 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { extractRouteOptions, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
+
 import type { ResolvedPlugin } from "../bundle/types.js";
 import { fileExists } from "../bundle/utils.js";
 import {
@@ -270,6 +272,10 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 		admin: {
 			pages: entries.manifest.admin.pages,
 			widgets: entries.manifest.admin.widgets,
+			settingsSchema: entries.manifest.admin.settingsSchema,
+			fieldWidgets: entries.manifest.admin.fieldWidgets,
+			editorPanels: entries.manifest.admin.editorPanels,
+			editorActions: entries.manifest.admin.editorActions,
 		},
 	};
 
@@ -285,6 +291,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
+			noExternal: ["emdash/plugin"],
 			inlineOnly: false,
 			treeshake: true,
 		});
@@ -340,8 +347,48 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 	if (parsed.mcp) {
 		resolvedPlugin.mcp = parsed.mcp;
 	}
+	validateEditorExtensionRoutes(resolvedPlugin);
 
 	return resolvedPlugin;
+}
+
+export function validateEditorExtensionRoutes(plugin: ResolvedPlugin): void {
+	for (const [kind, extensions] of [
+		["editor panel", plugin.admin.editorPanels],
+		["editor action", plugin.admin.editorActions],
+	] as const) {
+		for (const extension of extensions ?? []) {
+			const route = plugin.routes[extension.route];
+			if (!route) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" references missing route "${extension.route}".`,
+				);
+			}
+			if (route.public === true) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" must reference a private route.`,
+				);
+			}
+			if (!isJsonPostRouteContract(route)) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" must reference a route that accepts POST JSON requests and returns JSON.`,
+				);
+			}
+		}
+	}
+
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new BuildPipelineError(
+				"MANIFEST_INVALID",
+				"Block Kit admin route must accept POST JSON requests and return JSON.",
+			);
+		}
+	}
 }
 
 /**
@@ -482,8 +529,8 @@ function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin[
 function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string] {
 	return {
 		handler: entry.handler,
-		public: entry.public,
-		permission: entry.permission,
+		input: entry.input,
+		...extractRouteOptions(entry),
 	};
 }
 
@@ -515,8 +562,9 @@ export interface RuntimeFiles {
  * stable property-key reads (`default.hooks`, `default.routes`); the
  * runtime build minifies because this output is what runs in the
  * isolate (loader string-embeds it) or is `import`-ed in-process. No
- * `external`, no `alias` — sandboxed plugins must not import from
- * `emdash` at runtime.
+ * Runtime imports from the lightweight `emdash/plugin` authoring subpath are
+ * bundled so helpers such as `pluginResponse()` exist inside the isolate.
+ * Imports from the main `emdash` package remain unsupported.
  */
 export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFiles> {
 	const { entries, outDir, tmpDir, build } = ctx;
@@ -528,13 +576,27 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 			config: false,
 			entry: { plugin: entries.pluginEntry },
 			format: "esm",
-			outExtensions: () => ({ js: ".mjs", dts: ".d.mts" }),
+			outExtensions: () => ({ js: ".mjs" }),
 			outDir: runtimeOutDir,
-			dts: true,
+			dts: false,
 			platform: "neutral",
 			external: [],
+			noExternal: ["emdash/plugin"],
 			inlineOnly: false,
 			minify: true,
+			treeshake: true,
+		});
+		await build({
+			config: false,
+			entry: { plugin: entries.pluginEntry },
+			format: "esm",
+			outExtensions: () => ({ dts: ".d.mts" }),
+			outDir: runtimeOutDir,
+			clean: false,
+			dts: { emitDtsOnly: true },
+			platform: "neutral",
+			external: ["emdash/plugin"],
+			inlineOnly: false,
 			treeshake: true,
 		});
 	} catch (error) {

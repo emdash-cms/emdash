@@ -29,6 +29,7 @@
 	},
 	"dependencies": {
 		"@cloudflare/vitest-plugin": "catalog:",
+		"@emdash-cms/blocks": "workspace:*",
 		"@emdash-cms/cloudflare": "workspace:*",
 		"@emdash-cms/plugin-cli": "workspace:*",
 		"@emdash-cms/plugin-types": "workspace:*",

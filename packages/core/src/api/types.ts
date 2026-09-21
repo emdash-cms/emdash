@@ -67,6 +67,7 @@ export interface ManifestFieldDescriptor extends FieldDescriptor {
 	id?: string;
 	widget?: string;
 	validation?: Record<string, unknown>;
+	unsupportedType?: { type: string; path: string };
 }
 
 export interface FieldDescriptor {

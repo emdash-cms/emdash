@@ -1,194 +1,35 @@
-# Storage, KV & Settings
+# Storage and KV
 
-Plugins have three data mechanisms:
+Sandboxed plugins have three plugin-scoped data APIs:
 
-| Mechanism           | Purpose                                   | Access                 |
-| ------------------- | ----------------------------------------- | ---------------------- |
-| **Storage**         | Document collections with indexed queries | `ctx.storage`          |
-| **KV**              | Key-value pairs for state and settings    | `ctx.kv`               |
-| **Settings Schema** | Auto-generated admin UI for configuration | `admin.settingsSchema` |
+| API                        | Use                                                     |
+| -------------------------- | ------------------------------------------------------- |
+| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc`     |
+| `ctx.settings`             | User-configurable settings, including encrypted secrets |
+| `ctx.kv`                   | Cursors, cached values, and other key-value state       |
 
-## Storage Collections
+All three stores use the host database and are isolated by runtime plugin ID. None needs a capability.
 
-Declare in `definePlugin({ storage })`. EmDash creates the schema automatically — no migrations.
+## Declare storage collections
 
-```typescript
-definePlugin({
-	id: "forms",
-	version: "1.0.0",
+Declare every collection and query index in the manifest:
 
-	storage: {
-		submissions: {
-			indexes: [
-				"formId", // Single-field index
-				"status",
-				"createdAt",
-				["formId", "createdAt"], // Composite index
-			],
-		},
-		forms: {
-			indexes: ["slug"],
+```jsonc title="emdash-plugin.jsonc"
+{
+	"storage": {
+		"submissions": {
+			"indexes": ["formId", "status", "createdAt", ["formId", "createdAt"]],
+			"uniqueIndexes": ["externalId"],
 		},
 	},
-});
-```
-
-Storage is scoped to the plugin — `submissions` in plugin `forms` is separate from `submissions` in another plugin.
-
-### CRUD
-
-```typescript
-const { submissions } = ctx.storage;
-
-await submissions.put("sub_123", { formId: "contact", email: "user@example.com" });
-const item = await submissions.get("sub_123");
-const exists = await submissions.exists("sub_123");
-await submissions.delete("sub_123");
-```
-
-### Batch Operations
-
-```typescript
-const items = await submissions.getMany(["sub_1", "sub_2"]); // Map<string, T>
-
-await submissions.putMany([
-	{ id: "sub_1", data: { formId: "contact", status: "new" } },
-	{ id: "sub_2", data: { formId: "contact", status: "new" } },
-]);
-
-const deletedCount = await submissions.deleteMany(["sub_1", "sub_2"]);
-```
-
-### Querying
-
-Only indexed fields can be queried. Non-indexed queries throw.
-
-```typescript
-const result = await ctx.storage.submissions.query({
-	where: {
-		formId: "contact",
-		status: "pending",
-	},
-	orderBy: { createdAt: "desc" },
-	limit: 20,
-});
-
-// result.items - Array of { id, data }
-// result.cursor - Pagination cursor
-// result.hasMore - Boolean
-```
-
-### Where Operators
-
-```typescript
-// Exact match
-where: { status: "pending" }
-
-// Range — needs at least one defined bound, or it throws StorageQueryError
-where: { createdAt: { gte: "2024-01-01" } }
-where: { score: { gt: 50, lte: 100 } }
-
-// In
-where: { status: { in: ["pending", "approved"] } }
-
-// Starts with
-where: { slug: { startsWith: "blog-" } }
-```
-
-### Pagination
-
-```typescript
-let cursor: string | undefined;
-do {
-	const result = await ctx.storage.submissions!.query({
-		orderBy: { createdAt: "desc" },
-		limit: 100,
-		cursor,
-	});
-	// process result.items
-	cursor = result.cursor;
-} while (cursor);
-```
-
-### Counting
-
-```typescript
-const total = await ctx.storage.submissions!.count();
-const pending = await ctx.storage.submissions!.count({ status: "pending" });
-```
-
-### Conditional Updates
-
-`updateIf()` applies a write only when a guard matches. The guard and the arithmetic run in a single `UPDATE` statement, so concurrent guarded writes serialize correctly. It is available to native plugins and sandboxed plugins on Cloudflare and Workerd.
-
-The following example claims a submission for processing, and succeeds for exactly one caller when several run at once:
-
-```typescript
-const result = await ctx.storage.submissions!.updateIf("sub-123", {
-	where: { status: "pending" },
-	set: { status: "processing" },
-});
-
-if (result.applied) {
-	// result.data holds the updated document
-} else {
-	// The row was absent, or another caller claimed it first
 }
 ```
 
-`where` takes the same operators as `query()`. `set` writes JSON-serializable whole field values. `delta` applies a safe integer `inc` or `dec` to a field, counting from `0` when that field is absent or `null`.
+An undeclared collection is rejected by the sandbox bridge. Fields in `uniqueIndexes` are already queryable; do not repeat them in `indexes`.
 
-The following example records an attempt while the submission is still open:
+## Collection operations
 
-```typescript
-await ctx.storage.submissions!.updateIf("sub-123", {
-	where: { status: { in: ["pending", "processing"] } },
-	set: { lastAttemptAt: new Date().toISOString() },
-	delta: { attempts: { inc: 1 } },
-});
-```
-
-Behavior to account for:
-
-- The call returns `{ applied: true, data }` or `{ applied: false }`. An absent row and a failed guard both return `{ applied: false }`.
-- An absent row is never inserted.
-- `where` is required. Explicit `where: {}` adds no field conditions. Guard fields do not require query indexes because the update targets a document ID.
-- Malformed update arguments reject without writing. The arguments object, `set`, `delta`, and each delta operation must be plain objects.
-- Each delta contains exactly one `inc` or `dec` with a safe integer operand. Negative operands are allowed. Fractions and unsafe integer operands reject the call.
-- Pass at least one defined field in `set` or `delta`. Top-level `undefined` entries are ignored. A field cannot appear in both.
-- Existing non-null counters and all results must be safe integers. Invalid types, fractions, unsafe integers, overflow, and non-object documents return `{ applied: false }` without changing any fields.
-- A `dec` drives a field negative when the guard does not cover it. Pair `dec: k` with a `gte: k` guard to keep the field at or above zero.
-- A range filter in the guard needs at least one defined bound. `{ stock: { gte: undefined } }` rejects the call. Undefined bounds are ignored when another bound is defined. Numeric operands used by a guard must be finite.
-- In native plugins, PostgreSQL serialization failures and deadlocks throw `StorageSerializationError` with `code: "STORAGE_SERIALIZATION_FAILURE"`, `retryable: true`, and optional `sqlState` (`40001` or `40P01`). Deadlocks can occur at READ COMMITTED too. Use bounded retries with backoff; inside an explicit transaction, restart the entire transaction, including its reads.
-
-Sandbox transports preserve the error name and retry metadata, but `instanceof StorageSerializationError` is not guaranteed there. Check `code` and `retryable` across sandbox boundaries.
-
-Import `NumericDelta`, `UpdateIfArgs`, and `UpdateIfResult` as types from `emdash` or `emdash/plugin`. Native plugins can import the runtime `StorageSerializationError` class from `emdash`; `emdash/plugin` supports type imports only.
-
-### Index Design
-
-| Query Pattern                            | Index Needed              |
-| ---------------------------------------- | ------------------------- |
-| Filter by `formId`                       | `"formId"`                |
-| Filter by `formId`, order by `createdAt` | `["formId", "createdAt"]` |
-| Order by `createdAt` only                | `"createdAt"`             |
-
-Composite indexes support filtering on the first field + ordering by the second.
-
-### Type Safety
-
-```typescript
-interface Submission {
-	formId: string;
-	status: "pending" | "approved" | "spam";
-	createdAt: string;
-}
-
-// Cast in hook/route handlers
-const submissions = ctx.storage.submissions as StorageCollection<Submission>;
-```
-
-### Full API
+Every declared collection exposes this portable API in native, Cloudflare-sandboxed, and Node/workerd-sandboxed execution:
 
 ```typescript
 interface StorageCollection<T = unknown> {
@@ -196,18 +37,149 @@ interface StorageCollection<T = unknown> {
 	put(id: string, data: T): Promise<void>;
 	delete(id: string): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
+
+	getVersioned(id: string): Promise<{ value: T; revision: string } | null>;
+	compareAndSet(
+		id: string,
+		expectedRevision: string | null,
+		data: T,
+	): Promise<{ applied: true; revision: string } | { applied: false }>;
+	compareAndDelete(id: string, expectedRevision: string): Promise<{ applied: boolean }>;
+	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
+
 	getMany(ids: string[]): Promise<Map<string, T>>;
 	putMany(items: Array<{ id: string; data: T }>): Promise<void>;
 	deleteMany(ids: string[]): Promise<number>;
-	query(options?: QueryOptions): Promise<PaginatedResult<{ id: string; data: T }>>;
+
+	query(options?: QueryOptions): Promise<{
+		items: Array<{ id: string; data: T }>;
+		cursor?: string;
+		hasMore: boolean;
+	}>;
 	count(where?: WhereClause): Promise<number>;
-	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 }
 ```
 
-## KV Store
+The Node/workerd wrapper also contains content batch methods. They are not part of `StorageCollection`; storage batch methods in the interface above are portable across both runners.
 
-General-purpose key-value store. Use for internal state, cached computations, or programmatic access to settings.
+## Basic and batch writes
+
+```typescript
+const submissions = ctx.storage.submissions as StorageCollection<Submission>;
+
+await submissions.put("sub_123", {
+	formId: "contact",
+	status: "pending",
+	createdAt: new Date().toISOString(),
+});
+
+const item = await submissions.get("sub_123");
+const exists = await submissions.exists("sub_123");
+
+const items = await submissions.getMany(["sub_123", "sub_456"]);
+await submissions.putMany([
+	{ id: "sub_456", data: { formId: "contact", status: "pending" } },
+	{ id: "sub_789", data: { formId: "sales", status: "pending" } },
+]);
+const deleted = await submissions.deleteMany(["sub_456", "sub_789"]);
+```
+
+`getMany()` returns a `Map`, including after crossing either sandbox bridge.
+
+## Revision-based compare and set
+
+Use `getVersioned()`, `compareAndSet()`, and `compareAndDelete()` when concurrent requests may replace the same whole value.
+
+```typescript
+const current = await submissions.getVersioned("sub_123");
+if (!current) throw new Error("Submission not found");
+
+const result = await submissions.compareAndSet("sub_123", current.revision, {
+	...current.value,
+	status: "processing",
+});
+
+if (!result.applied) {
+	// Another request changed or deleted the value. Read it again before retrying.
+}
+```
+
+The operations have these preconditions:
+
+| Operation                             | Behavior                                                  |
+| ------------------------------------- | --------------------------------------------------------- |
+| `getVersioned(key)`                   | Returns `{ value, revision }`, or `null` only when absent |
+| `compareAndSet(key, null, value)`     | Creates only when absent                                  |
+| `compareAndSet(key, revision, value)` | Replaces only when the current revision matches           |
+| `compareAndDelete(key, revision)`     | Deletes only when the current revision matches            |
+
+A stored JSON `null` still returns a versioned envelope. Every successful write changes the revision, including an equal-value `put()` or `set()`. Revisions are opaque, key-specific values; pass them back unchanged.
+
+Conflicts return `applied: false`. Invalid inputs, permission failures, unique-index violations, and database failures reject. After a conflict, re-read and recompute; keep retries bounded. A lost response can leave the write outcome unknown, so CAS is not an exactly-once mechanism for external side effects.
+
+The versioned methods are also available on `ctx.kv`:
+
+```typescript
+const current = await ctx.kv.getVersioned<number>("state:completed");
+const next = (current?.value ?? 0) + 1;
+const result = await ctx.kv.compareAndSet("state:completed", current?.revision ?? null, next);
+```
+
+## Predicate-guarded updates
+
+`updateIf()` changes fields of an existing document when its stored data matches a guard. The guard, field replacements, and integer deltas execute atomically for that record.
+
+```typescript
+const result = await submissions.updateIf("sub_123", {
+	where: { status: "pending", attempts: { lt: 3 } },
+	set: { status: "processing", lastAttemptAt: new Date().toISOString() },
+	delta: { attempts: { inc: 1 } },
+});
+
+if (result.applied) {
+	ctx.log.info("Claimed submission", { submission: result.data });
+}
+```
+
+`updateIf()` returns `{ applied: false }` when the row is absent, the guard fails, the stored document is not an object, or integer arithmetic is unsafe. It never inserts.
+
+Rules:
+
+- `where` is required. An explicit `{}` means “match any existing row.”
+- `set` replaces supplied top-level fields and leaves other fields unchanged.
+- `delta` contains exactly one safe-integer `inc` or `dec` per field. Missing or `null` counters start at zero.
+- A field cannot appear in both `set` and `delta`.
+- At least one defined field must remain in `set` or `delta`.
+- Pair `dec: n` with a `gte: n` guard when the value must stay nonnegative.
+
+Malformed arguments reject without writing. In native PostgreSQL execution, serialization failures and deadlocks throw `StorageSerializationError` with `code: "STORAGE_SERIALIZATION_FAILURE"` and `retryable: true`. Sandbox transports preserve the safe fields but do not guarantee `instanceof`; check `code` and `retryable`. Restart an entire explicit transaction before retrying it.
+
+## Indexed queries
+
+Only declared index fields can be filtered or ordered:
+
+```typescript
+const result = await submissions.query({
+	where: {
+		formId: "contact",
+		status: { in: ["pending", "processing"] },
+		createdAt: { gte: "2026-01-01" },
+	},
+	orderBy: { createdAt: "desc" },
+	limit: 100,
+	cursor,
+});
+```
+
+Supported filters are exact values, `{ in: [...] }`, `{ startsWith: "..." }`, and range objects using `gt`, `gte`, `lt`, or `lte`. A range needs at least one defined bound.
+
+`query()` defaults to 50 items and returns at most 100 per page. Follow `cursor` while `hasMore` is true. `count(where)` accepts the same indexed filters.
+
+Composite index order determines useful query shapes. `['formId', 'createdAt']` supports filtering by `formId` and ordering by `createdAt`; it does not replace a standalone `createdAt` index for queries that omit `formId`.
+
+## KV operations
+
+KV supports unconditional, versioned, delete, and prefix-list operations:
 
 ```typescript
 interface KVAccess {
@@ -215,99 +187,27 @@ interface KVAccess {
 	set(key: string, value: unknown): Promise<void>;
 	delete(key: string): Promise<boolean>;
 	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
+	getVersioned<T>(key: string): Promise<{ value: T; revision: string } | null>;
+	compareAndSet(
+		key: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<{ applied: true; revision: string } | { applied: false }>;
+	compareAndDelete(key: string, expectedRevision: string): Promise<{ applied: boolean }>;
 }
 ```
 
-### Key Naming Conventions
-
-| Prefix      | Purpose                       | Example           |
-| ----------- | ----------------------------- | ----------------- |
-| `settings:` | User-configurable preferences | `settings:apiKey` |
-| `state:`    | Internal plugin state         | `state:lastSync`  |
-| `cache:`    | Cached data                   | `cache:results`   |
+Use stable prefixes to keep internal KV keys discoverable:
 
 ```typescript
-await ctx.kv.set("settings:webhookUrl", url);
+await ctx.settings.set("webhookUrl", url);
 await ctx.kv.set("state:lastRun", new Date().toISOString());
-const allSettings = await ctx.kv.list("settings:");
+await ctx.kv.set("cache:summary", summary);
+const settings = await ctx.settings.list();
 ```
 
-## Settings Schema
+The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route `ctx.settings` through the same options records as the generated admin form. Values saved in that form are available through `ctx.settings.get("<key>")`. The complete settings API supports `set`, `delete`, `list`, `getVersioned`, `compareAndSet`, and `compareAndDelete`.
 
-Declare `admin.settingsSchema` to auto-generate a settings form in the admin UI:
+Fields declared as `secret` use a versioned AES-GCM envelope with the plugin ID and setting key as authenticated data. `EMDASH_ENCRYPTION_KEY` may contain a comma-separated rotation list: the first key encrypts new values and the envelope's `kid` selects a key for reads. Missing, wrong, and tampered keys fail closed without exposing plaintext. Existing plaintext secrets remain readable and become encrypted when saved again.
 
-```typescript
-admin: {
-	settingsSchema: {
-		siteTitle: {
-			type: "string",
-			label: "Site Title",
-			description: "Used in title tags",
-			default: "",
-		},
-		maxItems: {
-			type: "number",
-			label: "Max Items",
-			default: 100,
-			min: 1,
-			max: 1000,
-		},
-		enabled: {
-			type: "boolean",
-			label: "Enabled",
-			default: true,
-		},
-		theme: {
-			type: "select",
-			label: "Theme",
-			options: [
-				{ value: "light", label: "Light" },
-				{ value: "dark", label: "Dark" },
-			],
-			default: "light",
-		},
-		apiKey: {
-			type: "secret",
-			label: "API Key",
-			description: "Encrypted at rest",
-		},
-	},
-}
-```
-
-### Setting Types
-
-| Type      | UI           | Notes                                     |
-| --------- | ------------ | ----------------------------------------- |
-| `string`  | Text input   | Optional `multiline: true` for textarea   |
-| `number`  | Number input | Optional `min`, `max`                     |
-| `boolean` | Toggle       |                                           |
-| `select`  | Dropdown     | Requires `options: [{ value, label }]`    |
-| `secret`  | Masked input | Encrypted at rest, never shown after save |
-
-### Reading Settings
-
-Settings are accessed via KV with `settings:` prefix:
-
-```typescript
-const enabled = (await ctx.kv.get<boolean>("settings:enabled")) ?? true;
-const apiKey = await ctx.kv.get<string>("settings:apiKey");
-```
-
-Schema defaults are UI defaults only — not auto-persisted. Handle missing values with `??` or persist defaults in `plugin:install`:
-
-```typescript
-"plugin:install": async (_event, ctx) => {
-	await ctx.kv.set("settings:enabled", true);
-	await ctx.kv.set("settings:maxItems", 100);
-}
-```
-
-## When to Use What
-
-| Use Case                                     | Mechanism                         |
-| -------------------------------------------- | --------------------------------- |
-| Admin-editable preferences                   | `settingsSchema` + KV `settings:` |
-| Internal state (timestamps, cursors)         | KV `state:`                       |
-| Collections of documents (logs, submissions) | Storage                           |
-| Cached computations                          | KV `cache:`                       |
+Keep the full encryption-key list with operational backups. Restoring the database without every key referenced by its encrypted settings leaves those values unreadable. `ctx.kv.get("settings:<key>")` remains a compatibility alias throughout EmDash 0.x; new plugins should use `ctx.settings`.

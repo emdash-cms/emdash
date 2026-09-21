@@ -15,6 +15,11 @@ blockExoticSubdeps: true
 verifyStoreIntegrity: true
 strictStorePkgContentCheck: true
 verifyDepsBeforeRun: error
+# Worker bundles resolve browser-native packages to their WASM targets.
+supportedArchitectures:
+  cpu:
+    - current
+    - wasm32
 allowBuilds:
   "@parcel/watcher": true
   sharp: true

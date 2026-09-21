@@ -115,19 +115,17 @@ export interface RegistryConfig {
  *
  * @example
  * ```ts
- * experimental: {
- *   registry: "https://registry.emdashcms.com",
- * }
+ * registry: "https://registry.emdashcms.com"
  * ```
  *
  * Equivalent to:
  * ```ts
- * experimental: {
- *   registry: { aggregatorUrl: "https://registry.emdashcms.com" },
- * }
+ * registry: { aggregatorUrl: "https://registry.emdashcms.com" }
  * ```
  */
 export type RegistryConfigInput = string | RegistryConfig;
+
+export type RegistryConfigOption = RegistryConfigInput | false;
 
 /**
  * Experimental EmDash features. See `EmDashConfig.experimental`.
@@ -138,65 +136,10 @@ export type RegistryConfigInput = string | RegistryConfig;
  */
 export interface ExperimentalConfig {
 	/**
-	 * Decentralized plugin registry.
+	 * Deprecated location for registry configuration. Use the top-level
+	 * `registry` option instead. A top-level value takes precedence.
 	 *
-	 * When set, replaces the centralized `marketplace` for the admin UI's
-	 * browse and install flows. The registry is an atproto-backed
-	 * federation: package metadata lives in each publisher's PDS and
-	 * an aggregator (the `aggregatorUrl`) indexes the firehose and
-	 * exposes read-only XRPC endpoints for discovery.
-	 *
-	 * See [RFC 0001](https://github.com/emdash-cms/emdash/pull/694) for
-	 * the protocol design.
-	 *
-	 * **Trust model (v1, experimental).** Today EmDash trusts the
-	 * configured aggregator with these claims, per package and per
-	 * release:
-	 *
-	 *   - The publisher DID associated with a `(did, slug)` pair.
-	 *   - The artifact source fields, checksum, and cache services returned for
-	 *     a release.
-	 *   - The published handle for a DID (used for display only;
-	 *     EmDash separately verifies the DID->handle round-trip in the
-	 *     admin UI before treating a handle as confirmed).
-	 *
-	 * What EmDash verifies independently before activating an
-	 * installed plugin:
-	 *
-	 *   - The artifact bytes hash to the checksum the aggregator
-	 *     returned (so a malicious cache or in-transit tamper can't
-	 *     swap the bundle).
-	 *   - The bundle's `manifest.id` matches the requested slug, and
-	 *     its `manifest.version` matches the release version (so an
-	 *     attacker who controls the aggregator can't trick the
-	 *     sandbox into addressing the wrong plugin id).
-	 *   - The bundle's `manifest.capabilities` matches what the admin
-	 *     acknowledged in the consent dialog (so a publisher can't
-	 *     ship a bundle that requests more permissions than the
-	 *     dialog displayed).
-	 *
-	 * What's NOT yet verified:
-	 *
-	 *   - Full MST proof / publisher signature on the release record.
-	 *     A compromised aggregator can forge a release for any DID
-	 *     and slug, and the install will succeed as long as the
-	 *     bundle matches the (forged) checksum.
-	 *   - Per-release replay / rollback: the aggregator chooses which
-	 *     release version is "latest".
-	 *
-	 * **Recommendation.** Until full signature verification lands,
-	 * point `aggregatorUrl` only at an aggregator you operate
-	 * yourself or one you trust with the same level of authority as
-	 * a centralized plugin source. `policy.minimumReleaseAge` widens
-	 * the detection window for takedowns. `acceptLabelers` declares a
-	 * request and cache identity; it does not change aggregator policy.
-	 *
-	 * Requires `sandboxRunner` to be configured -- registry plugins
-	 * always run sandboxed.
-	 *
-	 * Accepts a bare URL string as shorthand for
-	 * `{ aggregatorUrl: "..." }`. Use the full object form when you
-	 * need `acceptLabelers` or `policy`.
+	 * @deprecated Use `EmDashConfig.registry`.
 	 */
 	registry?: RegistryConfigInput;
 }

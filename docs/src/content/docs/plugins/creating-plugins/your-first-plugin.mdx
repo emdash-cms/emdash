@@ -135,7 +135,7 @@ Hook handlers receive `(event, ctx)`. Route handlers receive `(routeCtx, ctx)`. 
 
 ## Update the generated test
 
-The scaffolded test runs the original `hello` route through the workerd-backed plugin host. Replace it with a test for the `health` route:
+The scaffolded test invokes the original `hello` route through the Worker Loader transport host. Replace it with a test for the `health` route:
 
 ```typescript title="tests/plugin.test.ts"
 import { afterEach, describe, expect, it } from "vitest";
@@ -243,5 +243,5 @@ Save an entry in the EmDash admin. The site log contains `Content save recorded`
 - [Block Kit](/plugins/creating-plugins/block-kit/) adds an admin page without shipping browser JavaScript.
 - [Settings](/plugins/creating-plugins/settings/) stores site-specific plugin configuration.
 - [Storage](/plugins/creating-plugins/storage/) covers indexed queries and pagination.
-- [Testing](/plugins/creating-plugins/testing/) runs hooks and routes through the production sandbox boundary.
+- [Testing](/plugins/creating-plugins/testing/) covers direct sandbox transport tests and runtime-backed host-action tests.
 - [Bundling and publishing](/plugins/creating-plugins/publishing/) publishes the plugin to the registry.

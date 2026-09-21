@@ -1,500 +1,132 @@
 ---
 name: creating-plugins
-description: Create EmDash CMS plugins with hooks, storage, settings, admin UI, API routes, and Portable Text block types. Use this skill when asked to build, scaffold, or implement an EmDash plugin, or when creating plugin features like custom block types, admin pages, or content hooks.
+description: Create EmDash CMS plugins with sandboxed hooks, routes, storage, content and media APIs, MCP tools, and declarative admin UI, or native React and Astro extensions. Use when scaffolding or implementing an EmDash plugin.
 ---
 
-# Creating EmDash Plugins
+# Creating EmDash plugins
 
-EmDash plugins extend the CMS with hooks, storage, settings, admin UI, API routes, and custom Portable Text block types. All plugins are TypeScript packages.
+Build against the API that reaches the intended execution mode. Source types and production-boundary tests take precedence over examples in this skill when they disagree.
 
-## Plugin Types
+## Choose a format
 
-EmDash has two plugin formats:
+| Format    | Runtime source                                      | Admin UI                                                  | Distribution                 |
+| --------- | --------------------------------------------------- | --------------------------------------------------------- | ---------------------------- |
+| Sandboxed | `src/plugin.ts` default-exports a `SandboxedPlugin` | Block Kit pages, widgets, saved-entry panels, and actions | Plugin CLI and registry      |
+| Native    | `definePlugin()` / `createPlugin()`                 | React, Block Kit, and Astro components                    | Trusted site dependency only |
 
-| Type         | Format                                                  | Admin UI           | Where it runs                                 |
-| ------------ | ------------------------------------------------------- | ------------------ | --------------------------------------------- |
-| **Standard** | `definePlugin({ hooks, routes })`                       | Block Kit          | Isolated by a configured runner or in-process |
-| **Native**   | `createPlugin()` / `definePlugin()` with `id`+`version` | React or Block Kit | Always in host isolate                        |
-
-**Standard is the default.** Most plugins should use it. Standard plugins can be published to the marketplace and work in both trusted and sandboxed modes.
-
-**Native is an escape hatch** for plugins that need React admin components, direct DB access, or custom Astro components. Native plugins can only run in `plugins: []` -- they cannot be sandboxed or published to the marketplace.
+Use a sandboxed plugin unless the feature needs host-process access, React admin code, Astro rendering components, raw page fragments, or custom Portable Text block definitions. Native plugins run with the site's authority and cannot be installed from the registry.
 
 ## Scaffold a sandboxed plugin
 
-Start a new sandboxed plugin with `pnpm dlx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
-
-For non-interactive scaffolding, pass `--yes` with `--publisher`, `--author-name`, and either `--security-email` or `--security-url`. Local publisher and Git identity defaults are used only with `--use-detected`.
-
-The scaffold pins `@emdash-cms/plugin-cli` as a development dependency. Add it with `pnpm add -D @emdash-cms/plugin-cli` when adopting an existing plugin, then run build, login, profile, and release commands through `pnpm exec emdash-plugin`. Reserve `pnpm dlx @emdash-cms/plugin-cli` for the one-off `init` command so repeated commands do not change CLI versions.
-
-## Plugin Anatomy
-
-Every plugin has two parts that **run in different contexts**:
-
-1. **Plugin descriptor** (`PluginDescriptor`) — returned by the factory function in `index.ts`. Declares metadata (id, version, capabilities, storage). **Runs at build time in Vite** (imported in `astro.config.mjs`). Must be side-effect-free.
-2. **Plugin definition** (`definePlugin()`) — contains the runtime logic (hooks, routes). **Runs at request time on the deployed server.** Has access to the full plugin context (`ctx`). Lives in a separate file (typically `sandbox-entry.ts`).
-
-These must be in **separate entrypoints** because they execute in completely different environments:
-
-```
-my-plugin/
-├── src/
-│   ├── index.ts            # Descriptor factory (runs in Vite at build time)
-│   ├── sandbox-entry.ts    # Plugin definition with definePlugin() (runs at deploy time)
-│   ├── admin.tsx            # Admin UI exports (React) — optional, native only
-│   └── astro/               # Site-side rendering components — optional, native only
-│       └── index.ts         # Must export `blockComponents`
-├── package.json
-└── tsconfig.json
+```sh
+pnpm dlx @emdash-cms/plugin-cli init my-plugin
+cd my-plugin
+pnpm install
+pnpm run test
 ```
 
-## Minimal Plugin (Standard Format)
+The manifest is the identity and trust contract. Runtime hooks and routes live in `src/plugin.ts`; the CLI generates descriptors, manifests, and bundles. Do not create a separate descriptor factory or `sandbox-entry.ts`.
 
-The simplest possible plugin -- just hooks:
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
 
-```typescript
-// src/index.ts — descriptor factory, runs in Vite at build time
-import type { PluginDescriptor } from "emdash";
-
-export function myPlugin(): PluginDescriptor {
-	return {
-		id: "my-plugin",
-		version: "1.0.0",
-		format: "standard",
-		entrypoint: "@my-org/my-plugin/sandbox",
-		options: {},
-	};
-}
-```
-
-```typescript
-// src/sandbox-entry.ts — plugin definition, runs at request time
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
-
-export default definePlugin({
+const plugin: SandboxedPlugin = {
 	hooks: {
-		"content:afterSave": {
-			handler: async (event: any, ctx: PluginContext) => {
-				ctx.log.info(`Saved ${event.collection}/${event.content.id}`);
-			},
+		"content:afterSave": async (event, ctx) => {
+			ctx.log.info("Content saved", { id: event.content.id });
 		},
 	},
-});
+};
+
+export default plugin;
 ```
 
-The descriptor is what gets imported in `astro.config.mjs`. The `entrypoint` field points to the module containing the `definePlugin()` default export. For standard plugins, this is the `./sandbox` export from `package.json`.
-
-Key differences from native format:
+Import authoring types from `emdash/plugin` with `import type`. Value imports are limited to lightweight helpers such as `pluginRoute()` and `pluginResponse()`, which the CLI bundles. Sandboxed runtime code can use Web APIs but not Node.js built-ins.
 
-- No `id`, `version`, or `capabilities` in `definePlugin()` -- those live in the descriptor
-- `definePlugin()` is an identity function providing type inference
-- Hook handlers use `(event, ctx)` two-arg pattern
-- Route handlers use `(routeCtx, ctx)` two-arg pattern
-- Exported as `default` (not a factory function)
+## Declare access
 
-## Plugin ID Rules
+Declare every host API in `emdash-plugin.jsonc`. Adding authority, exposing a route publicly, or adding MCP tools requires renewed administrator approval.
 
-- Lowercase alphanumeric + hyphens only
-- Simple (`my-plugin`) or scoped (`@my-org/my-plugin`)
-- Unique across all installed plugins
+| Capability                       | Grants                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `schema:read`                    | Public collection and field definitions                                    |
+| `content:read`                   | Content identity, translations, and published public URLs                  |
+| `content:revisions:read`         | Retained revision data; implies content read                               |
+| `content:write`                  | Create, update, delete, and translation creation; implies read             |
+| `content:publish`                | Revision-fenced publish, unpublish, schedule, and unschedule; implies read |
+| `content:restore`                | Revision-fenced reads and restoration of trashed content                   |
+| `hooks.content-policy:register`  | Pre-publish, pre-schedule, and pre-unpublish policy hooks                  |
+| `taxonomies:read`                | Taxonomy definitions, terms, and entry assignments                         |
+| `taxonomies:write`               | Term creation and assignment deltas; implies read                          |
+| `redirects:read`                 | Versioned redirect inspection                                              |
+| `redirects:write`                | Versioned redirect creation, update, and deletion; implies read            |
+| `comments:read`                  | Stored non-trashed comments and their personal data                        |
+| `comments:moderate`              | Expected-status moderation; implies read                                   |
+| `media:read`                     | Ready-media metadata and authenticated asset URLs                          |
+| `media:bytes:read`               | Bounded media bytes and content hashes                                     |
+| `media:metadata:write`           | Alt text, caption, and focal-point updates                                 |
+| `media:write`                    | Upload and delete; implies media read                                      |
+| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                            |
+| `network:request:unrestricted`   | `ctx.http.fetch()` without a host list                                     |
+| `users:read`                     | User directory lookup; also required by comment hooks                      |
+| `email:send`                     | Email delivery when a transport is configured                              |
+| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                             |
+| `hooks.email-events:register`    | Email before/after hooks                                                   |
+| `hooks.page-fragments:register`  | Trusted-only page fragments; excluded from sandbox registration            |
 
-## Registration
+Settings, KV, declared storage, logging, and cron scheduling are plugin-scoped and need no capability. Use `ctx.settings` for user configuration, `ctx.kv` for internal key-value state, and declared `ctx.storage.<collection>` for queryable records.
 
-The descriptor is imported in `astro.config.mjs` (Vite context):
+Read the focused reference for the API being used:
 
-```typescript
-import { myPlugin } from "@my-org/my-plugin";
+- [Content, schema, translations, and publication](./references/content.md)
+- [Taxonomies and redirects](./references/taxonomies-and-redirects.md)
+- [Comments](./references/comments.md)
+- [Media](./references/media.md)
+- [Storage, KV, and encrypted settings](./references/storage.md)
 
-export default defineConfig({
-	integrations: [
-		emdash({
-			plugins: [myPlugin()], // runs in-process
-			// OR
-			sandboxed: [myPlugin()], // runs in isolate on Cloudflare
-		}),
-	],
-});
-```
+## Routes, HTTP, and MCP
 
-Standard plugins work in either array. Native plugins only work in `plugins: []`.
+Routes are private by default and require authentication, their declared RBAC permission, token scope or CSRF as appropriate. Public routes are internet-facing and require explicit install consent.
 
-## Trusted vs Sandboxed Plugins
+Undeclared routes keep the legacy JSON/query envelope. Declare methods and body modes for host-enforced parsing. Use `pluginResponse()` only on a route that declares a raw response. Outbound `ctx.http.fetch()` responses and declared route bodies are buffered and bounded.
 
-EmDash has two execution modes. Plugin code is identical in both — only the enforcement changes.
+MCP tools reference private JSON routes with explicit permissions and Zod input schemas. Mark difficult-to-reverse operations `destructive: true`. Read [API routes and MCP tools](./references/api-routes.md).
 
-|                     | Trusted                                                | Sandboxed                                              |
-| ------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
-| **Runs in**         | Main process                                           | Isolated V8 runtime supplied by the configured runner  |
-| **Install method**  | `astro.config.mjs` (code change + deploy)              | Admin UI (one-click from marketplace)                  |
-| **Capabilities**    | Gated through `PluginContext`; not a security boundary | Enforced at runtime via RPC bridge                     |
-| **Resource limits** | None                                                   | Platform limits on Cloudflare; wall time on Node.js    |
-| **Network access**  | Unrestricted                                           | Blocked; only via `ctx.http` with `allowedHosts`       |
-| **Data access**     | Full database access                                   | Scoped to declared capabilities                        |
-| **Node.js APIs**    | Full access                                            | Not available (V8 isolate only)                        |
-| **Available on**    | All platforms                                          | Cloudflare Workers and Node.js with the workerd runner |
-| **Best for**        | First-party code, reviewed npm packages                | Third-party extensions, marketplace plugins            |
+## Hooks
 
-### Trusted Mode
+Sandboxed hooks enter the same priority, dependency, timeout, error-policy, enablement, exclusive-provider, and capability pipeline as trusted hooks. Publication policy hooks identify action origin and actor without granting publication authority. Comment moderation invoked through `ctx.comments` reports plugin origin and runs the normal after-hook once. Read [Hooks](./references/hooks.md).
 
-Trusted plugins are npm packages or local files added in `astro.config.mjs`. They run in-process with your Astro site.
+## Declarative admin UI
 
-- **`PluginContext` gates capabilities.** Declaring `["content:read"]` exposes only the corresponding context methods, but native code can bypass the context and use process APIs directly.
-- Only install from sources you trust. A malicious trusted plugin has the same access as your application code.
-
-### Sandboxed Mode
-
-Sandboxed plugins run in isolated V8 runtimes through the configured platform runner. Cloudflare Workers uses [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/); Node.js uses the workerd runner. Each plugin gets its own isolate.
-
-- **Capabilities are enforced.** If a plugin declares `["content:read"]`, it can only call `ctx.content.get()` and `ctx.content.list()`. Attempting `ctx.content.create()` throws a permission error.
-- **Network is blocked by default.** Direct `fetch()` calls fail. Plugins must use `ctx.http.fetch()`, which validates against `allowedHosts`.
-- **Storage is scoped.** A plugin can only access its own KV and storage collections.
-- **Admin UI uses Block Kit.** Sandboxed plugins describe their UI as JSON blocks -- no plugin JavaScript runs in the browser. See [Block Kit reference](./references/block-kit.md).
-- **No Portable Text block types.** PT blocks require Astro components for site-side rendering (`componentsEntry`), which are loaded at build time from npm. Sandboxed plugins are installed at runtime and can't ship components. PT blocks are a native-plugin-only feature.
-- **Routes work.** Standard plugin routes are available in both trusted and sandboxed modes via the sandbox runner's `invokeRoute()` RPC.
-
-On Cloudflare Workers, the sandbox runner uses Dynamic Workers through Worker Loader. On Node.js, `@emdash-cms/sandbox-workerd` runs plugins in workerd. Both paths isolate plugin code and enforce the host bridge; only Cloudflare enforces CPU and subrequest limits.
-
-### Developing for Both Modes
-
-Write the same code for trusted and sandboxed execution. Use `@emdash-cms/plugin-test` during development so Vitest builds the plugin and invokes it through Worker Loader, the production sandbox wrapper, and `PluginBridge`. Use an in-process site only when diagnosing whether a failure comes from plugin logic or the sandbox runtime.
-
-```typescript
-// src/sandbox-entry.ts -- works in both trusted and sandboxed modes
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
+Sandboxed pages and widgets return validated Block Kit. Structured links use host-resolved targets; `routeCtx.ui` carries host-attested locale, direction, and surface. External images require matching network authority.
 
-export default definePlugin({
-	hooks: {
-		"content:afterSave": {
-			handler: async (event: any, ctx: PluginContext) => {
-				// Trusted: ctx.http present because descriptor declares network:request
-				// Sandboxed: ctx.http present and enforced via RPC bridge
-				if (!ctx.http) return;
-				await ctx.http.fetch("https://api.analytics.example.com/track", {
-					method: "POST",
-					body: JSON.stringify({ contentId: event.content.id }),
-				});
-			},
-		},
-	},
-});
-```
+Saved-entry panels and actions point to private routes. They receive host-reloaded saved identity and version, never field values or unsaved editor state. Read saved content through capability-gated `ctx.content`.
 
-Key constraint for sandbox compatibility: **no Node.js built-ins** (`fs`, `path`, `child_process`, etc.) in backend code. Use Web APIs instead.
+Declarative field widgets currently compose supported Block Kit elements into a JSON value. Custom Portable Text blocks and Astro render components remain native-only. Read [Admin UI](./references/admin-ui.md), [Block Kit](./references/block-kit.md), and [Portable Text blocks](./references/portable-text-blocks.md).
 
-## Testing sandboxed plugins
+## Runner parity
 
-Add the EmDash test plugin to `vitest.config.ts`:
+Cloudflare Worker Loader and Node/workerd execute the same bundle behind a plugin-scoped bridge. Both return buffered WHATWG responses from `ctx.http.fetch()` with binary bytes preserved and decoded request/response bodies limited to 8 MiB. Write against exported types, not extra methods found in one wrapper.
 
-```typescript
-import { emdashPluginTest } from "@emdash-cms/plugin-test/config";
-import { defineConfig } from "vitest/config";
+Read [Sandbox boundaries](./references/sandbox-boundaries.md) before designing around an API not listed here.
 
-export default defineConfig({
-	plugins: [emdashPluginTest()],
-});
-```
-
-Create a fresh host in each test and dispose it afterward:
-
-```typescript
-import { createPluginTestHost } from "@emdash-cms/plugin-test";
-
-const host = await createPluginTestHost();
-await host.invokeHook("content:afterSave", event);
-await host.invokeRoute("health");
-await host.dispose();
-```
+## Test the production boundary
 
-The host runs the built plugin in a separate workerd isolate. Use `createCollection()` and `seedContent()` for content fixtures, `storage()` for declared plugin storage, and `kv` for key-value assertions. Capability and allowed-host failures cross the same RPC boundary as production. These tests do not render the admin application or reproduce Cloudflare's deployed CPU, memory, and subrequest limits.
-
-## Capabilities
-
-Capabilities control what APIs are available on `ctx`. Always declare what your plugin needs — even in trusted mode, they document intent and are required for sandboxed execution.
-
-| Capability                       | Grants                                                                 | `ctx` property |
-| -------------------------------- | ---------------------------------------------------------------------- | -------------- |
-| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                              | `content`      |
-| `content:write`                  | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` | `content`      |
-| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                  | `media`        |
-| `media:write`                    | `ctx.media.getUploadUrl()`, `ctx.media.delete()`                       | `media`        |
-| `network:request`                | `ctx.http.fetch()` (restricted to `allowedHosts`)                      | `http`         |
-| `network:request:unrestricted`   | `ctx.http.fetch()` (unrestricted — for user-configured URLs)           | `http`         |
-| `users:read`                     | `ctx.users.get()`, `ctx.users.list()`, `ctx.users.getByEmail()`        | `users`        |
-| `email:send`                     | `ctx.email.send()` — send email through the pipeline                   | `email`        |
-| `hooks.email-transport:register` | Can register `email:deliver` exclusive hook (transport provider)       | —              |
-| `hooks.email-events:register`    | Can register `email:beforeSend` / `email:afterSend` hooks              | —              |
-| `hooks.page-fragments:register`  | Can register `page:fragments` hook (inject scripts/styles into pages)  | —              |
-
-Storage (`ctx.storage`) and KV (`ctx.kv`) are **always available** — no capability needed. They're automatically scoped to the plugin.
-
-**Email capabilities are distinct:**
-
-- `email:send` — for plugins that _consume_ email (call `ctx.email.send()`)
-- `hooks.email-transport:register` — for plugins that _deliver_ email (implement the transport, e.g. Resend, SMTP)
-- `hooks.email-events:register` — for plugins that _observe or transform_ email (middleware hooks)
-
-```typescript
-// In the descriptor (index.ts)
-export function myPlugin(): PluginDescriptor {
-	return {
-		id: "my-plugin",
-		version: "1.0.0",
-		format: "standard",
-		entrypoint: "@my-org/my-plugin/sandbox",
-		options: {},
-		capabilities: ["content:read", "network:request"],
-		allowedHosts: ["api.example.com", "*.googleapis.com"], // Wildcards supported
-	};
-}
-```
-
-When a marketplace plugin is installed, the admin sees a capability consent dialog listing what the plugin can access. Users must approve before installation.
-
-## Publishing to the Marketplace
-
-Publish a standard plugin locally with the plugin CLI:
-
-```bash
-pnpm exec emdash-plugin login <atmosphere-handle>
-pnpm exec emdash-plugin publish
-```
-
-CLI output identifies registry packages as `@<publisher-handle>/<slug>`; npm package names appear only when explicitly labelled. After publishing, follow the printed `emdash-plugin info <handle> <slug> --version <version> --watch` command to track the exact profile and release through label checks. The command shows only identifiers and check state before approval, then prints the public plugin-page URL once the aggregator lists it.
-
-For GitHub Actions, run `emdash-plugin release setup` from one plugin package, not the monorepo root. Pass `--dir <plugin-directory>` when running it from elsewhere. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. If the manifest omits `repo`, setup detects a GitHub `origin` remote and pre-fills the repository prompt. When `.changeset/config.json` exists, setup offers **Follow Changesets releases**. The generated reusable workflow accepts the Changesets Action published-package JSON, maps package names to plugin slugs, and publishes matching plugins at the same versions. Otherwise, package tags use `<slug>@<version>`. Select explicitly with `--trigger changesets|tags|manual`.
-
-To connect Changesets manually, expose its `published` and published-package step outputs from the existing release job, then call `./.github/workflows/emdash-release.yml` from a dependent job when `published == 'true'`. Changesets Action v1 uses `publishedPackages`; v2 uses `published-packages`. Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true`. Read [Publishing](./references/publishing.md) for the complete caller blocks.
-
-The first automated release requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`; after publishing the profile, the command prints the manual and GitHub Actions release choices.
-
-Read [Publishing](./references/publishing.md) before configuring local or delegated releases. It defines the manifest, profile, tag, provenance, and approval requirements.
-
-## Package Exports
-
-Configure `package.json` exports so EmDash can load each entry point:
-
-```json
-{
-	"name": "@my-org/my-plugin",
-	"type": "module",
-	"exports": {
-		".": "./src/index.ts",
-		"./sandbox": "./src/sandbox-entry.ts",
-		"./admin": "./src/admin.tsx"
-	},
-	"peerDependencies": {
-		"emdash": "^0.1.0"
-	}
-}
-```
-
-| Export        | Context           | Purpose                                                                |
-| ------------- | ----------------- | ---------------------------------------------------------------------- |
-| `"."`         | Vite (build time) | Descriptor factory -- imported in `astro.config.mjs`                   |
-| `"./sandbox"` | Server (runtime)  | `definePlugin({ hooks, routes })` -- loaded by `entrypoint` at runtime |
-| `"./admin"`   | Browser           | React components for admin pages/widgets (native plugins only)         |
-| `"./astro"`   | Server (SSR)      | Astro components for site-side block rendering (native plugins only)   |
-
-The `"."` export has the descriptor. The `"./sandbox"` export has the implementation. The descriptor's `entrypoint` field points to `"./sandbox"`. Only include `./admin` and `./astro` exports for native-format plugins.
-
-## Plugin Features
-
-Each feature is optional. Add only what your plugin needs:
-
-| Feature             | Where                        | Standard | Native | Purpose                                               |
-| ------------------- | ---------------------------- | -------- | ------ | ----------------------------------------------------- |
-| **Hooks**           | `definePlugin({ hooks })`    | Yes      | Yes    | React to content/media/lifecycle events               |
-| **Storage**         | descriptor `storage`         | Yes      | Yes    | Document collections with indexed queries             |
-| **KV**              | `ctx.kv` in hooks/routes     | Yes      | Yes    | Key-value store for internal state                    |
-| **API Routes**      | `definePlugin({ routes })`   | Yes      | Yes    | REST endpoints at `/_emdash/api/plugins/<id>/<route>` |
-| **Admin Pages**     | Block Kit `admin` route      | Yes      | Yes    | Admin pages via Block Kit (JSON blocks)               |
-| **Widgets**         | Block Kit `admin` route      | Yes      | Yes    | Dashboard cards via Block Kit                         |
-| **React Admin**     | `admin.entry` + React export | No       | Yes    | React-based admin pages and widgets (native only)     |
-| **PT Blocks**       | `admin.portableTextBlocks`   | No       | Yes    | Custom block types in the Portable Text editor        |
-| **Site Components** | `componentsEntry`            | No       | Yes    | Astro components for rendering blocks on the site     |
-
-See the reference files for detailed syntax:
-
-- **[Hooks Reference](./references/hooks.md)** — All hook types, signatures, configuration
-- **[Storage & Settings](./references/storage.md)** — Collections, KV, settings schema
-- **[Admin UI](./references/admin-ui.md)** — Pages, widgets, entry point structure
-- **[API Routes](./references/api-routes.md)** — Route handlers, validation, context
-- **[Block Kit](./references/block-kit.md)** — Declarative UI for sandboxed plugins (similar to Slack Block Kit but not identical)
-- **[Portable Text Blocks](./references/portable-text-blocks.md)** — Custom block types + frontend rendering
-- **[Publishing](./references/publishing.md)** — Bundle format, validation, marketplace publishing
-
-## Complete Example: Standard Plugin with Hooks, Routes, and Storage
-
-```typescript
-// src/index.ts — descriptor factory, runs in Vite at build time
-import type { PluginDescriptor } from "emdash";
-
-export function submissionsPlugin(): PluginDescriptor {
-	return {
-		id: "submissions",
-		version: "1.0.0",
-		format: "standard",
-		entrypoint: "@my-org/plugin-submissions/sandbox",
-		options: {},
-		capabilities: ["content:read"],
-		storage: {
-			submissions: {
-				indexes: ["formId", "status", "createdAt"],
-			},
-		},
-		adminPages: [{ path: "/submissions", label: "Submissions", icon: "list" }],
-		adminWidgets: [{ id: "recent-submissions", title: "Recent Submissions", size: "half" }],
-	};
-}
-```
-
-```typescript
-// src/sandbox-entry.ts — plugin definition, runs at request time
-import { definePlugin } from "emdash";
-import type { PluginContext } from "emdash";
-
-export default definePlugin({
-	hooks: {
-		"plugin:install": {
-			handler: async (_event: any, ctx: PluginContext) => {
-				ctx.log.info("Submissions plugin installed");
-				await ctx.kv.set("settings:maxSubmissions", 1000);
-			},
-		},
-	},
-
-	routes: {
-		submit: {
-			public: true, // No auth required
-			handler: async (routeCtx: any, ctx: PluginContext) => {
-				const { formId, ...data } = routeCtx.input as Record<string, unknown>;
-
-				const count = await ctx.storage.submissions.count({ formId });
-				const max = (await ctx.kv.get<number>("settings:maxSubmissions")) ?? 1000;
-
-				if (count >= max) {
-					return { success: false, error: "Submission limit reached" };
-				}
-
-				const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-				await ctx.storage.submissions.put(id, {
-					formId,
-					data,
-					status: "pending",
-					createdAt: new Date().toISOString(),
-				});
-
-				return { success: true, id };
-			},
-		},
-
-		list: {
-			handler: async (routeCtx: any, ctx: PluginContext) => {
-				const url = new URL(routeCtx.request.url);
-				const limit = Math.max(
-					1,
-					Math.min(parseInt(url.searchParams.get("limit") || "50", 10) || 50, 100),
-				);
-				const cursor = url.searchParams.get("cursor") || undefined;
-
-				const result = await ctx.storage.submissions.query({
-					orderBy: { createdAt: "desc" },
-					limit,
-					cursor,
-				});
-
-				return {
-					items: result.items.map((item: any) => ({ id: item.id, ...item.data })),
-					cursor: result.cursor,
-					hasMore: result.hasMore,
-				};
-			},
-		},
-
-		// Block Kit admin handler for pages and widgets
-		admin: {
-			handler: async (routeCtx: any, ctx: PluginContext) => {
-				const interaction = routeCtx.input as { type: string; page?: string };
-
-				if (interaction.type === "page_load" && interaction.page === "/submissions") {
-					const result = await ctx.storage.submissions.query({
-						orderBy: { createdAt: "desc" },
-						limit: 50,
-					});
-					return {
-						blocks: [
-							{ type: "header", text: "Submissions" },
-							{
-								type: "table",
-								blockId: "submissions-table",
-								columns: [
-									{ key: "formId", label: "Form", format: "text" },
-									{ key: "status", label: "Status", format: "badge" },
-									{ key: "createdAt", label: "Date", format: "relative_time" },
-								],
-								rows: result.items.map((item: any) => item.data),
-							},
-						],
-					};
-				}
-
-				return { blocks: [] };
-			},
-		},
-	},
-});
-```
-
-## Plugin Context
-
-All hooks and routes receive `ctx` (PluginContext):
-
-```typescript
-interface PluginContext {
-	plugin: { id: string; version: string };
-	storage: Record<string, StorageCollection>; // Declared collections
-	kv: KVAccess; // Key-value store
-	log: LogAccess; // Structured logger
-	content?: ContentAccess; // If "content:read" capability
-	media?: MediaAccess; // If "media:read" capability
-	http?: HttpAccess; // If "network:request" capability
-	users?: UserAccess; // If "users:read" capability
-	cron?: CronAccess; // Always available — scoped to plugin
-	email?: EmailAccess; // If "email:send" capability AND a provider is configured
-}
-```
-
-Capabilities are declared in the **descriptor** (not in `definePlugin()` for standard format):
-
-```typescript
-// In the descriptor
-export function myPlugin(): PluginDescriptor {
-	return {
-		id: "my-plugin",
-		version: "1.0.0",
-		format: "standard",
-		entrypoint: "@my-org/my-plugin/sandbox",
-		options: {},
-		capabilities: ["content:read", "network:request"],
-		allowedHosts: ["api.example.com"],
-		storage: { events: { indexes: ["timestamp"] } },
-	};
-}
-```
-
-## Output Checklist
-
-When creating a standard-format plugin, provide:
-
-1. **`src/index.ts`** -- Descriptor factory (runs in Vite at build time)
-2. **`src/sandbox-entry.ts`** -- `definePlugin({ hooks, routes })` as default export (runs at request time)
-3. **`package.json`** -- With exports `"."` (descriptor) and `"./sandbox"` (implementation)
-4. **`tsconfig.json`** -- Standard TypeScript config
-
-For native-format plugins (React admin, PT blocks, Astro components), also provide:
-
-5. **`src/admin.tsx`** -- Admin entry point with React components
-6. **`src/astro/index.ts`** -- Block components export (if PT blocks)
+Use `createPluginTestHost()` for fast hook, route, manifest, capability, KV, settings, and storage transport tests. Use `createPluginRuntimeTestHost()` when the test must exercise real content actions, plugin activation, media, comments, redirects, scheduling, restart, authorization, CSRF, caching, Block Kit validation, or saved-entry extensions.
+
+Runtime fixtures establish state without firing hooks. Runtime actions call production boundaries; inspectors read observable state. Queue outbound HTTP responses with `host.http.respond()` and inspect requests with `host.http.requests()`. Dispose every host after use. Add Node/workerd parity only for runner-sensitive behavior.
+
+## References
+
+- [Content, schema, translations, and publication](./references/content.md)
+- [Taxonomies and redirects](./references/taxonomies-and-redirects.md)
+- [Comments](./references/comments.md)
+- [Media](./references/media.md)
+- [Hooks](./references/hooks.md)
+- [Storage, KV, and encrypted settings](./references/storage.md)
+- [Admin UI and field widgets](./references/admin-ui.md)
+- [API routes and MCP tools](./references/api-routes.md)
+- [Block Kit](./references/block-kit.md)
+- [Portable Text blocks](./references/portable-text-blocks.md)
+- [Sandbox boundaries](./references/sandbox-boundaries.md)
+- [Publishing](./references/publishing.md)

@@ -1,17 +1,19 @@
 import { describe, expect, test, vi } from "vitest";
 
 import { forwardGithubRequest } from "../../.flue/lib/github-outbound.js";
+import type { GitHubRateLimitGate } from "../../.flue/lib/github-rate-limit-client.js";
 
 const OWNER = "emdash-cms";
 const REPO = "emdash";
 const gitInfoRefs = `https://github.com/${OWNER}/${REPO}.git/info/refs?service=git-upload-pack`;
 
-function context(getInstallationToken: () => Promise<string>) {
+function context(getInstallationToken: () => Promise<string>, rateLimitGate?: GitHubRateLimitGate) {
 	return {
 		owner: OWNER,
 		repo: REPO,
 		pushCapabilitySecret: "webhook-secret",
 		getInstallationToken,
+		...(rateLimitGate ? { rateLimitGate } : {}),
 	};
 }
 
@@ -50,15 +52,23 @@ describe("GitHub sandbox outbound authentication", () => {
 
 	test("keeps unrelated public GitHub reads anonymous", async () => {
 		const getInstallationToken = vi.fn(async () => "unused-token");
+		const permit = vi.fn(async () => ({ allowed: true, retryAt: 0 }));
+		const record = vi.fn(async () => undefined);
+		const rateLimitGate = {
+			permit,
+			record,
+		};
 		const upstream = vi.fn<typeof fetch>().mockResolvedValue(new Response("release"));
 
 		await forwardGithubRequest(
 			new Request("https://github.com/another/repo/releases/download/v1/file.tgz"),
-			context(getInstallationToken),
+			context(getInstallationToken, rateLimitGate),
 			upstream,
 		);
 
 		expect(getInstallationToken).not.toHaveBeenCalled();
+		expect(permit).not.toHaveBeenCalled();
+		expect(record).not.toHaveBeenCalled();
 		const forwarded = upstream.mock.calls[0]?.[0];
 		expect((forwarded as Request).headers.has("authorization")).toBe(false);
 	});

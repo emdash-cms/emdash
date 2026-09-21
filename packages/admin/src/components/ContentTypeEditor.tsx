@@ -311,6 +311,7 @@ export function ContentTypeEditor({
 	};
 
 	const handleEditField = (field: SchemaField) => {
+		if (field.unsupportedType) return;
 		setEditingField(field);
 		setFieldEditorOpen(true);
 	};
@@ -781,7 +782,10 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 					</code>
 				</div>
 				<div className="flex items-center space-x-2 mt-1">
-					<span className="text-xs text-kumo-subtle capitalize">{field.type}</span>
+					<span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}>
+						{field.unsupportedType?.type ?? field.type}
+					</span>
+					{field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>}
 					{field.required && <Badge variant="secondary">{t`Required`}</Badge>}
 					{field.unique && <Badge variant="secondary">{t`Unique`}</Badge>}
 					{field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>}
@@ -793,6 +797,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 						variant="ghost"
 						shape="square"
 						onClick={onEdit}
+						disabled={Boolean(field.unsupportedType)}
 						aria-label={t`Edit ${field.label} field`}
 					>
 						<Pencil className="h-4 w-4" />

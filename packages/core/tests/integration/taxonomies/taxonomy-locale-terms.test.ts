@@ -256,6 +256,84 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		expect(term.locale).toBe("zh-TW");
 	});
 
+	it("rejects a parent when creating a term in a flat taxonomy", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const source = await handleTaxonomyCreate(ctx.db, {
+			name: "tags",
+			label: "Tags",
+			hierarchical: true,
+		});
+		if (!source.success) throw new Error(source.error.message);
+		const translated = await handleTaxonomyCreate(ctx.db, {
+			name: "tags",
+			label: "Étiquettes",
+			hierarchical: false,
+			locale: "fr",
+			translationOf: source.data.taxonomy.id,
+		});
+		if (!translated.success) throw new Error(translated.error.message);
+		const parent = await unwrap(
+			handleTermCreate(ctx.db, "tags", { slug: "actualites", label: "Actualités", locale: "fr" }),
+		);
+
+		const result = await handleTermCreate(ctx.db, "tags", {
+			slug: "locales",
+			label: "Locales",
+			locale: "fr",
+			parentId: parent.id,
+		});
+
+		expect(result).toEqual({
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "Taxonomy 'tags' is not hierarchical and cannot have parent terms",
+			},
+		});
+	});
+
+	it("rejects a new parent when updating a term in a flat taxonomy", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const source = await handleTaxonomyCreate(ctx.db, {
+			name: "tags",
+			label: "Tags",
+			hierarchical: true,
+		});
+		if (!source.success) throw new Error(source.error.message);
+		const translated = await handleTaxonomyCreate(ctx.db, {
+			name: "tags",
+			label: "Étiquettes",
+			hierarchical: false,
+			locale: "fr",
+			translationOf: source.data.taxonomy.id,
+		});
+		if (!translated.success) throw new Error(translated.error.message);
+		const parent = await unwrap(
+			handleTermCreate(ctx.db, "tags", { slug: "actualites", label: "Actualités", locale: "fr" }),
+		);
+		await unwrap(
+			handleTermCreate(ctx.db, "tags", { slug: "locales", label: "Locales", locale: "fr" }),
+		);
+
+		const result = await handleTermUpdate(
+			ctx.db,
+			"tags",
+			"locales",
+			{ parentId: parent.id },
+			{ locale: "fr" },
+		);
+
+		expect(result).toEqual({
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "Taxonomy 'tags' is not hierarchical and cannot have parent terms",
+			},
+		});
+		const unchanged = await unwrap(handleTermGet(ctx.db, "tags", "locales", { locale: "fr" }));
+		expect(unchanged.parentId).toBeNull();
+	});
+
 	it("resolves taxonomy reads with the configured locale casing", async () => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
 		const createdDef = await handleTaxonomyCreate(ctx.db, {

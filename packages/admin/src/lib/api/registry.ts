@@ -14,7 +14,7 @@
  *
  * The discovery client is constructed lazily so we only pull
  * `@atcute/client` into the admin bundle when the registry path is
- * actually exercised. Sites with no `experimental.registry` config never
+ * actually exercised. Sites with no active `registry` config never
  * pay the cost (verified at ~2 KB gzip when it does load).
  */
 
@@ -92,6 +92,7 @@ export interface RegistryInstallRequest {
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: PluginMcpConsentTool[];
+	acknowledgedPublicRoutes?: string[];
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -104,6 +105,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: PluginMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -802,7 +804,7 @@ export async function installRegistryPlugin(
 export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
-	confirmRouteVisibilityChanges?: boolean;
+	acknowledgedPublicRoutes?: string[];
 	confirmMcpTools?: boolean;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;

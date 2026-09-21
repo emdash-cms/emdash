@@ -38,8 +38,9 @@ import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
-import { formatFileSize, getFileIcon } from "../lib/media-utils";
+import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { resolveSandboxedEditorActions } from "../lib/sandboxed-editor-extensions.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
@@ -58,6 +59,7 @@ import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { SandboxedContentEditorActions } from "./SandboxedContentEditorActions.js";
 import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -120,6 +122,7 @@ export interface FieldDescriptor {
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
+	unsupportedType?: { type: string; path: string };
 }
 
 /** Simplified user info for current user context */
@@ -259,6 +262,8 @@ export interface ContentEditorProps {
 	onSeoChange?: (seo: ContentSeoInput) => void;
 	/** Admin manifest for resolving plugin field widgets */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
+	/** Re-fetch host state after a plugin action requests an entry refresh. */
+	onEntryRefresh?: () => void | Promise<void>;
 	/** Show the entry without accepting edits. */
 	readOnly?: boolean;
 	/** Rendered above the fields; carries the edit-lock dialog and banner. */
@@ -317,12 +322,15 @@ export function ContentEditor({
 	hasSeo = false,
 	onSeoChange,
 	manifest,
-	readOnly = false,
+	onEntryRefresh,
+	readOnly: readOnlyProp = false,
 	notice,
 	timezone = "UTC",
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const unsupportedFields = Object.entries(fields).filter(([, field]) => field.unsupportedType);
+	const readOnly = readOnlyProp || unsupportedFields.length > 0;
 	const itemLabel = collectionLabel;
 	const settingsPanelId = React.useId();
 	// Kumo Sidebar's `side` is physical, not logical.
@@ -450,7 +458,10 @@ export function ContentEditor({
 			// moment the request was sent. Writing it back into formData would
 			// clobber edits made while the request was in flight, including nested
 			// repeater sub-fields. The pending autosave effect handles lastSavedData.
-			if (!isPublishingRef.current && !autosaveJustCompleted) {
+			// While the notice is up the writer still has to choose between their copy
+			// and the newer version, so a refetch must not put the newer one into the
+			// form under them.
+			if (!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current) {
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
@@ -524,6 +535,8 @@ export function ContentEditor({
 	// last autosave settled would otherwise flush a payload that is already saved.
 	const hasPendingSaveRef = React.useRef(false);
 	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
+	const hasSaveConflictRef = React.useRef(false);
+	hasSaveConflictRef.current = Boolean(hasSaveConflict);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
 		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly;
@@ -681,7 +694,8 @@ export function ContentEditor({
 			isPublishingRef.current ||
 			!onPublish ||
 			hasInvalidUrls(formDataRef.current) ||
-			hasUnsupportedPortableTextMarks
+			hasUnsupportedPortableTextMarks ||
+			hasSaveConflictRef.current
 		)
 			return;
 		cancelPendingAutosave();
@@ -735,6 +749,13 @@ export function ContentEditor({
 			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
 				return Promise.reject(
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
+				);
+			}
+			if (hasSaveConflictRef.current) {
+				return Promise.reject(
+					new Error(
+						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
+					),
 				);
 			}
 
@@ -888,6 +909,10 @@ export function ContentEditor({
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
+	const sandboxedEditorActions = React.useMemo(
+		() => (!isNew && item ? resolveSandboxedEditorActions(manifest?.plugins, collection) : []),
+		[collection, isNew, item, manifest?.plugins],
+	);
 
 	// The title advertises ⌘⇧\\ as the shortcut, so register it globally.
 	// It toggles both into and out of the mode, but is disabled while a
@@ -1015,6 +1040,7 @@ export function ContentEditor({
 												canSchedule={canSchedule}
 												isScheduling={isScheduling}
 												isUnscheduling={isUnscheduling}
+												disabled={hasSaveConflict}
 												onPublish={handlePublish}
 												onUnpublish={handleUnpublish}
 												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
@@ -1024,6 +1050,19 @@ export function ContentEditor({
 											<MobileSettingsButton />
 										</fieldset>
 									)}
+									{item && sandboxedEditorActions.length > 0 ? (
+										<fieldset disabled={readOnly} className="contents">
+											<SandboxedContentEditorActions
+												actions={sandboxedEditorActions}
+												collection={collection}
+												entryId={item.id}
+												locale={item.locale ?? entryLocale}
+												isMobile={isBelowLg}
+												disabled={isDirty || isSaving || Boolean(isAutosaving)}
+												onEntryRefresh={onEntryRefresh}
+											/>
+										</fieldset>
+									) : null}
 									<Button
 										variant="ghost"
 										shape="square"
@@ -1082,6 +1121,7 @@ export function ContentEditor({
 													canSchedule={canSchedule}
 													isScheduling={isScheduling}
 													isUnscheduling={isUnscheduling}
+													disabled={hasSaveConflict}
 													onPublish={handlePublish}
 													onUnpublish={handleUnpublish}
 													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
@@ -1114,6 +1154,19 @@ export function ContentEditor({
 					>
 						{notice}
 						<fieldset disabled={readOnly} className="contents">
+							{unsupportedFields.length > 0 && (
+								<Banner
+									variant="error"
+									role="alert"
+									title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
+									description={unsupportedFields
+										.map(
+											([name, field]) =>
+												`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
+										)
+										.join(", ")}
+								/>
+							)}
 							{hasSaveConflict && (
 								<Banner
 									variant="error"
@@ -1192,6 +1245,7 @@ export function ContentEditor({
 								canSchedule={canSchedule}
 								isScheduling={isScheduling}
 								isUnscheduling={isUnscheduling}
+								publishDisabled={hasSaveConflict}
 								liveViewUrl={liveViewUrl}
 								supportsPreview={supportsPreview}
 								isLoadingPreview={isLoadingPreview}
@@ -1538,6 +1592,16 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+	if (field.kind === "unsupported") {
+		return (
+			<div className="grid gap-2">
+				<p className="text-base font-medium">{label}</p>
+				<p className="text-kumo-subtle text-sm">
+					{t`This field cannot be edited by this version of EmDash.`}
+				</p>
+			</div>
+		);
+	}
 
 	// Check for plugin field widget override
 	if (field.widget) {
@@ -2178,12 +2242,13 @@ function FileFieldRenderer({
 		const directUrl = value.src ?? value.url;
 		const localSrc =
 			typeof directUrl === "string" && directUrl.startsWith("/_emdash/") ? directUrl : undefined;
-		// Clients can write meta.storageKey, so encode it before interpolation to
-		// keep query or fragment delimiters from escaping the route path.
+		// Clients can write meta.storageKey, so it is encoded per path segment: query or
+		// fragment delimiters cannot escape the route path, and a key with folders still
+		// reaches the [...key] route.
 		const localUrl = isLocal
 			? storageKey
-				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
-				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
+				? localMediaFileUrl(storageKey)
+				: (localSrc ?? localMediaFileUrl(value.id))
 			: undefined;
 		const externalUrl = !isLocal && directUrl && isSafeUrl(directUrl) ? directUrl : undefined;
 		return {

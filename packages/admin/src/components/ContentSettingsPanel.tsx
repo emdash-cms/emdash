@@ -54,6 +54,7 @@ import {
 	formatPublishingInstant,
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
+import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
 import { cn } from "../lib/utils";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
@@ -66,6 +67,7 @@ import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
+import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
 import {
@@ -341,6 +343,7 @@ export interface SettingsActionBarProps {
 	canSchedule?: boolean;
 	isScheduling?: boolean;
 	isUnscheduling?: boolean;
+	publishDisabled?: boolean;
 	liveViewUrl?: string | null;
 	supportsPreview?: boolean;
 	isLoadingPreview?: boolean;
@@ -398,6 +401,8 @@ export interface PublishActionsProps {
 	canSchedule?: boolean;
 	isScheduling?: boolean;
 	isUnscheduling?: boolean;
+	/** Blocks every publishing action, including those in an already open menu. */
+	disabled?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	onOpenSchedule?: () => void;
@@ -423,6 +428,7 @@ export function PublishActions({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
+	disabled,
 	onPublish,
 	onUnpublish,
 	onOpenSchedule,
@@ -466,7 +472,14 @@ export function PublishActions({
 	if (isNew) return null;
 	if (state === "published") {
 		return onUnpublish ? (
-			<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
+			<Button
+				type="button"
+				variant="outline"
+				size={size}
+				onClick={onUnpublish}
+				disabled={disabled}
+				icon={<EyeSlash />}
+			>
 				{t`Unpublish ${itemLabel}`}
 			</Button>
 		) : null;
@@ -530,6 +543,7 @@ export function PublishActions({
 				variant="primary"
 				size={size}
 				onClick={action.onSelect}
+				disabled={disabled}
 				icon={<action.Icon aria-hidden="true" />}
 				loading={isScheduling || isUnscheduling}
 			>
@@ -558,6 +572,7 @@ export function PublishActions({
 			}}
 		>
 			<DropdownMenu.Trigger
+				disabled={disabled}
 				render={
 					<Button
 						type="button"
@@ -587,7 +602,7 @@ export function PublishActions({
 								<ActionIcon className="size-4" aria-hidden="true" />
 							</span>
 						}
-						disabled={isScheduling || isUnscheduling}
+						disabled={disabled || isScheduling || isUnscheduling}
 						onClick={onSelect}
 						className="px-2.5 py-1.5"
 					>
@@ -623,6 +638,7 @@ export function SettingsActionBar({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
+	publishDisabled,
 	liveViewUrl,
 	supportsPreview,
 	isLoadingPreview,
@@ -682,6 +698,7 @@ export function SettingsActionBar({
 						canSchedule={canSchedule}
 						isScheduling={isScheduling}
 						isUnscheduling={isUnscheduling}
+						disabled={publishDisabled}
 						onPublish={onPublish}
 						onUnpublish={onUnpublish}
 						onOpenSchedule={onOpenSchedule}
@@ -793,7 +810,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
 	const pluginAdmins = usePluginAdmins();
-	const extensionPanels = React.useMemo(
+	const trustedExtensionPanels = React.useMemo(
 		() =>
 			!isNew && item
 				? resolveContentEditorPanels(
@@ -804,6 +821,33 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					)
 				: [],
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
+	);
+	const sandboxedExtensionPanels = React.useMemo(
+		() => (!isNew && item ? resolveSandboxedEditorPanels(manifest?.plugins, collection) : []),
+		[collection, isNew, item, manifest?.plugins],
+	);
+	const extensionPanels = React.useMemo(
+		() =>
+			[
+				...trustedExtensionPanels.map((panel) => ({
+					kind: "trusted" as const,
+					pluginId: panel.pluginId,
+					id: panel.extension.id,
+					order: panel.extension.order ?? 0,
+					panel,
+				})),
+				...sandboxedExtensionPanels.map((panel) => ({
+					kind: "sandboxed" as const,
+					pluginId: panel.pluginId,
+					id: panel.extension.id,
+					order: panel.extension.order ?? 0,
+					panel,
+				})),
+			].toSorted(
+				(a, b) =>
+					a.order - b.order || a.pluginId.localeCompare(b.pluginId) || a.id.localeCompare(b.id),
+			),
+		[sandboxedExtensionPanels, trustedExtensionPanels],
 	);
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
@@ -1133,10 +1177,41 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				)}
 
 				{item &&
-					extensionPanels.map(({ pluginId, extension }) => {
+					extensionPanels.map(({ kind, pluginId, panel }) => {
+						const sectionId = `${kind === "trusted" ? "plugin" : "sandbox-plugin"}:${pluginId}:${panel.extension.id}`;
+						const title = lingui._({
+							id: panel.extension.title,
+							message: panel.extension.title,
+						});
+						if (kind === "sandboxed") {
+							const extension = panel.extension;
+							return (
+								<SortableContentSettingsSection
+									key={sectionId}
+									id={sectionId}
+									label={title}
+									disclosure
+								>
+									<ContentEditorPanelBoundary
+										key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}`}
+										pluginId={pluginId}
+										panelId={extension.id}
+									>
+										<SandboxedContentEditorPanel
+											pluginId={pluginId}
+											panelId={extension.id}
+											title={title}
+											collection={collection}
+											entryId={item.id}
+											locale={item.locale ?? entryLocale}
+											versionToken={item._rev ?? item.updatedAt}
+										/>
+									</ContentEditorPanelBoundary>
+								</SortableContentSettingsSection>
+							);
+						}
+						const extension = panel.extension;
 						const Panel = extension.component;
-						const sectionId = `plugin:${pluginId}:${extension.id}`;
-						const title = lingui._({ id: extension.title, message: extension.title });
 
 						return (
 							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>

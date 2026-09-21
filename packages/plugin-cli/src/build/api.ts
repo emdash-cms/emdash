@@ -278,12 +278,22 @@ async function writeDescriptor(ctx: WriteDescriptorContext): Promise<DescriptorF
 		version: manifest.version,
 		format: "standard" as const,
 		entrypoint: `${packageName}/sandbox`,
-		capabilities: manifest.capabilities,
-		allowedHosts: manifest.allowedHosts,
+		capabilities: wireManifest.capabilities,
+		allowedHosts: wireManifest.allowedHosts,
 		storage: manifest.storage,
+		hooks: wireManifest.hooks,
+		routes: wireManifest.routes,
 		...(wireManifest.mcp ? { mcp: wireManifest.mcp } : {}),
 		...(manifest.admin.pages.length > 0 ? { adminPages: manifest.admin.pages } : {}),
 		...(manifest.admin.widgets.length > 0 ? { adminWidgets: manifest.admin.widgets } : {}),
+		...(wireManifest.admin.settingsSchema
+			? { settingsSchema: wireManifest.admin.settingsSchema }
+			: {}),
+		...(wireManifest.admin.fieldWidgets ? { fieldWidgets: wireManifest.admin.fieldWidgets } : {}),
+		...(wireManifest.admin.editorPanels ? { editorPanels: wireManifest.admin.editorPanels } : {}),
+		...(wireManifest.admin.editorActions
+			? { editorActions: wireManifest.admin.editorActions }
+			: {}),
 	};
 
 	// Pretty-print so the generated file is human-readable when debugging.

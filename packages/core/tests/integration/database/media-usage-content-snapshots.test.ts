@@ -3,7 +3,10 @@ import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
-import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
+import {
+	CONTENT_SOURCE_SCHEMA_VERSION,
+	loadContentMediaUsageSnapshots,
+} from "../../../src/media/usage/content-snapshots.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
@@ -429,8 +432,8 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		const secondColumns = getSnapshot(secondResult, "columns");
 		const secondOverlay = getSnapshot(secondResult, "draft_overlay");
 
-		expect(firstColumns.source.schemaVersion).toBe(1);
-		expect(firstOverlay.source.schemaVersion).toBe(1);
+		expect(firstColumns.source.schemaVersion).toBe(CONTENT_SOURCE_SCHEMA_VERSION);
+		expect(firstOverlay.source.schemaVersion).toBe(CONTENT_SOURCE_SCHEMA_VERSION);
 		expect(firstColumns.source.sourceFingerprint).toEqual(
 			expect.stringMatching(/^media-usage-projection:v1:sha256:[a-f0-9]{64}$/),
 		);

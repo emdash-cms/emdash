@@ -32,6 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
@@ -109,6 +110,7 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/health",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
+	"/_emdash/api/visual-editing/toolbar-labels",
 	// Public site search — read-only. The query layer hardcodes status='published'
 	// so unauthenticated callers only see published content. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
@@ -291,7 +293,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			response.headers.set(
 				"Content-Security-Policy",
 				buildEmDashCsp(
-					context.locals.emdash?.config.experimental?.registry,
+					getRegistryConfigInput(
+						context.locals.emdash?.config.registry,
+						context.locals.emdash?.config.experimental?.registry,
+					),
 					getConfiguredStorageEndpoint(
 						context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
@@ -309,7 +314,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		response.headers.set(
 			"Content-Security-Policy",
 			buildEmDashCsp(
-				context.locals.emdash?.config.experimental?.registry,
+				getRegistryConfigInput(
+					context.locals.emdash?.config.registry,
+					context.locals.emdash?.config.experimental?.registry,
+				),
 				getConfiguredStorageEndpoint(
 					context.locals.emdash?.config.storage,
 					context.locals.emdash?.storage,

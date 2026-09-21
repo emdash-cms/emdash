@@ -33,6 +33,11 @@ jobs:
           node scripts/query-counts.mjs --target sqlite --update
           node scripts/query-counts.mjs --target d1 --update
 
+      - name: Check Worker startup closure
+        run: |
+          pnpm --dir templates/starter-cloudflare build
+          pnpm startup:check
+
       - name: Detect snapshot drift
         id: drift
         run: |
