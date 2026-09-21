@@ -231,7 +231,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<TooltipProvider>
 						<Toolbar
 							size="sm"
-							className="emdash-code-block-controls max-w-full text-[13px]"
+							className="emdash-code-block-controls max-w-full border border-kumo-line text-[13px] ring-0 shadow-none"
 							data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 							aria-label={t`Code block actions`}
 						>
