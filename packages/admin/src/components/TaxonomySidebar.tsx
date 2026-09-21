@@ -404,7 +404,7 @@ function TaxonomyTermPicker({
 										variant="ghost"
 										size="xs"
 										shape="square"
-										className="h-6 w-6 min-w-6"
+										className="h-6 w-6 min-w-6 bg-transparent"
 										disabled={isCreating}
 										aria-label={t`Remove ${option.term.label}`}
 										onClick={() => toggleTerm(option.term.id)}
