@@ -63,4 +63,24 @@ describe("buildNavItems", () => {
 			"/plugins/audit-log/history",
 		);
 	});
+
+	it("keeps a native plugin root page in navigation", () => {
+		const items = buildNavItems(
+			{
+				collections: {},
+				plugins: {
+					"emdash-forms": {
+						enabled: true,
+						adminPages: [{ path: "/", label: "Forms" }],
+					},
+				},
+			},
+			50,
+			(id) => id,
+		);
+
+		expect(items.find((item) => item.id === "plugin-emdash-forms-/")?.to).toBe(
+			"/plugins/emdash-forms/",
+		);
+	});
 });
