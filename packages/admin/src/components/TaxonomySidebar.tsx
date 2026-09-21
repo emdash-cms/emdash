@@ -9,7 +9,6 @@ import { Badge } from "@cloudflare/kumo/components/badge";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { InputGroup } from "@cloudflare/kumo/components/input-group";
-import { Label } from "@cloudflare/kumo/components/label";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Text } from "@cloudflare/kumo/components/text";
 import { Toast } from "@cloudflare/kumo/components/toast";
@@ -375,7 +374,9 @@ function TaxonomyTermPicker({
 			}}
 		>
 			<div ref={anchorRef} className="grid min-w-0 gap-2">
-				<Label htmlFor={triggerId}>{label}</Label>
+				<Text bold as="span">
+					{label}
+				</Text>
 				<LayerCard className="flex min-h-9 items-start gap-1.5 bg-kumo-control p-1.5 shadow-none focus-within:ring-[1.5px] focus-within:ring-kumo-focus/50">
 					{selectedOptions.length > 0 ? (
 						<div

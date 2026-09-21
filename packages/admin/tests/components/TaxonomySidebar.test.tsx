@@ -230,6 +230,17 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByRole("checkbox", { name: "Beta" })).toBeInTheDocument();
 	});
 
+	it("keeps the visible taxonomy label separate from the picker trigger", async () => {
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
+		const label = screen.getByText("Tags", { exact: true });
+
+		await expect.element(label).toBeVisible();
+		expect(label.element().closest("label")).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Choose Tags" })).toBeInTheDocument();
+	});
+
 	it("hard-bounds large option lists while exact selected matches remain reachable", async () => {
 		const terms = Array.from({ length: 250 }, (_, index) =>
 			makeTerm(`term_${index + 1}`, `Term ${index + 1}`),
