@@ -1,0 +1,43 @@
+.changeset/sleek-taxonomy-tags.md
+  s_d8e9f234e54e68::t_ddc3da9de2ba2f 5
+e2e/tests/form-data-loss.spec.ts
+  s_d8e9f234e54e68::t_1556ca6243087e 131,165
+pnpm-lock.yaml
+  s_6a24d1836b3bff::t_6d217fdb4a143f 85-86,483,660,1486,1832,1847,1902,1973,2507,2611,2648,4353-4354,14878,14880,14884,14890
+pnpm-workspace.yaml
+  s_6a24d1836b3bff::t_1d4a8b13acb08b 102
+packages/admin/tests/components/taxonomy-term-cache.test.tsx
+  s_0df06e584efdf4::t_8175639fbafb5b 5,107,109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "88902de825d7132a8c4664dbc7190db05236d080",
+  "prompts": {},
+  "sessions": {
+    "s_0df06e584efdf4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd9e-f3f6-7e31-be97-b2eb60a9124c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a24d1836b3bff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bb85-b3e3-7b61-b4fa-2125fc41aef8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
