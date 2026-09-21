@@ -1,6 +1,11 @@
 import { expect, test } from "../fixtures";
 
 test.describe("Registry fixture Block Kit", () => {
+	test.skip(
+		process.env.EMDASH_E2E_TARGET === "cloudflare",
+		"The Node fixture owns the configured registry sandbox journey",
+	);
+
 	test.beforeEach(async ({ admin, page }) => {
 		await admin.devBypassAuth();
 		await page
