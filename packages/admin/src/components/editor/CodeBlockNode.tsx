@@ -228,14 +228,14 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<TooltipProvider>
 						<Toolbar
 							size="sm"
-							className="emdash-code-block-controls max-w-full text-[13px] ring-0 shadow-none"
+							className="emdash-code-block-controls max-w-full text-[13px]"
 							data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 							aria-label={t`Code block actions`}
 						>
 							<Popover.Trigger
 								render={
 									<Toolbar.Button
-										className="min-w-0 flex-1 overflow-hidden text-[13px]"
+										className="min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:bg-kumo-tint focus-visible:ring-0"
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Set language (current: ${label})`}
 									>
