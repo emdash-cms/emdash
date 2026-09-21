@@ -83,9 +83,10 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 	await testEnv.DB.prepare(
 		`INSERT INTO packages
 		   (did, slug, type, name, description, license, authors, security, keywords,
-		    sections, emdash_extension, last_updated, latest_version, capabilities,
-		    record_blob, signature_metadata, verified_at, indexed_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		    sections, emdash_extension, installability_status, installability_error,
+		    last_updated, latest_version, capabilities, record_blob, signature_metadata,
+		    verified_at, indexed_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			did,
@@ -104,6 +105,8 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 						$type: NSID.packageProfileExtension,
 						repository: "https://github.com/example/demo",
 					}),
+			opts.installable === false ? "invalid" : "valid",
+			opts.installable === false ? "PROFILE_EXTENSION_MISSING" : null,
 			NOW.toISOString(),
 			opts.latestVersion ?? null,
 			null,

@@ -284,7 +284,9 @@ const ACTIVE_LABEL_SQL = `
 `;
 
 export const ACTIVE_PUBLIC_PACKAGE_SQL = `
-	NOT EXISTS (
+	p.installability_status = 'valid'
+	AND p.emdash_extension IS NOT NULL
+	AND NOT EXISTS (
 		SELECT 1 FROM json_each(?) required_source
 		WHERE NOT EXISTS (
 			SELECT 1 FROM label_state listing_pass

@@ -93,6 +93,7 @@ function latestReleaseSql(policy: ListingPolicyConfig): string {
 		FROM packages p
 		JOIN releases r ON r.did = p.did AND r.package = p.slug
 		WHERE p.did = ? AND p.slug = ?
+		  AND p.installability_status = 'valid'
 		  AND p.emdash_extension IS NOT NULL
 		  AND ${ACTIVE_PROFILE_SQL}
 		  AND ${ACTIVE_PROFILE_REDACTION_SQL}

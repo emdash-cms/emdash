@@ -132,6 +132,12 @@ export class IngestError extends Error {
 	}
 }
 
+export type ProfileInstallabilityError = "PROFILE_EXTENSION_MISSING" | "PROFILE_EXTENSION_INVALID";
+
+export type ProfileInstallability =
+	| { status: "valid"; extension: string; error: null }
+	| { status: "invalid"; extension: null; error: ProfileInstallabilityError };
+
 export async function processBatch(
 	batch: MessageBatchLike<RecordsJob>,
 	env: Env,
@@ -321,7 +327,8 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 
 	switch (job.collection) {
 		case NSID.packageProfile:
-			return ingestPackageProfile(deps.db, job, verified, now);
+			await ingestPackageProfile(deps.db, job, verified, now);
+			return;
 		case NSID.packageRelease:
 			return ingestPackageRelease(deps.db, job, verified, now);
 		case NSID.publisherProfile:
@@ -344,7 +351,7 @@ export async function ingestPackageProfile(
 	job: RecordsJob,
 	verified: VerifiedPdsRecord,
 	now: Date,
-): Promise<void> {
+): Promise<ProfileInstallability> {
 	const validation = safeParse(PackageProfile.mainSchema, verified.record);
 	if (!validation.ok) {
 		throw new IngestError(
@@ -387,8 +394,20 @@ export async function ingestPackageProfile(
 			);
 		}
 	}
-	let emdashExtension: string | null = null;
-	if (isPlainObject(record.extensions)) {
+	let installability: ProfileInstallability = {
+		status: "invalid",
+		extension: null,
+		error: "PROFILE_EXTENSION_MISSING",
+	};
+	if (
+		isPlainObject(record.extensions) &&
+		record.extensions[NSID.packageProfileExtension] !== undefined
+	) {
+		installability = {
+			status: "invalid",
+			extension: null,
+			error: "PROFILE_EXTENSION_INVALID",
+		};
 		const rawExtension = record.extensions[NSID.packageProfileExtension];
 		const extensionValidation = safeParse(PackageProfileExtension.mainSchema, rawExtension);
 		if (extensionValidation.ok) {
@@ -403,7 +422,11 @@ export async function ingestPackageProfile(
 					confirmation === "escalation-only") &&
 				new Set(approvers).size === approvers.length
 			) {
-				emdashExtension = JSON.stringify(extension);
+				installability = {
+					status: "valid",
+					extension: JSON.stringify(extension),
+					error: null,
+				};
 			}
 		}
 	}
@@ -414,11 +437,14 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO package_profile_revisions
 			   (did, slug, cid, type, name, description, license, authors, security,
-			    keywords, sections, last_updated, emdash_extension, record_blob,
-			    signature_metadata, observed_at, last_verified_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    keywords, sections, last_updated, emdash_extension, installability_status,
+			    installability_error, record_blob, signature_metadata, observed_at,
+			    last_verified_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug, cid) DO UPDATE SET
 			   emdash_extension = excluded.emdash_extension,
+			   installability_status = excluded.installability_status,
+			   installability_error = excluded.installability_error,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   last_verified_at = excluded.last_verified_at`,
@@ -436,7 +462,9 @@ export async function ingestPackageProfile(
 			record.keywords ? JSON.stringify(record.keywords) : null,
 			record.sections ? JSON.stringify(record.sections) : null,
 			record.lastUpdated ?? null,
-			emdashExtension,
+			installability.extension,
+			installability.status,
+			installability.error,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -446,9 +474,9 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO packages
 			   (did, slug, type, name, description, license, authors, security, keywords, sections,
-			    last_updated, latest_version, capabilities, emdash_extension, record_blob,
-			    signature_metadata, verified_at, indexed_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    last_updated, latest_version, capabilities, emdash_extension, installability_status,
+			    installability_error, record_blob, signature_metadata, verified_at, indexed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug) DO UPDATE SET
 			   type = excluded.type,
 			   name = excluded.name,
@@ -460,6 +488,8 @@ export async function ingestPackageProfile(
 			   sections = excluded.sections,
 			   last_updated = excluded.last_updated,
 			   emdash_extension = excluded.emdash_extension,
+			   installability_status = excluded.installability_status,
+			   installability_error = excluded.installability_error,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   verified_at = excluded.verified_at`,
@@ -482,7 +512,9 @@ export async function ingestPackageProfile(
 			record.lastUpdated ?? null,
 			null, // latest_version — populated by release writer, not the profile writer
 			null, // capabilities — populated by release writer
-			emdashExtension,
+			installability.extension,
+			installability.status,
+			installability.error,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -518,6 +550,7 @@ export async function ingestPackageProfile(
 	// transactional, so a failure leaves both the old pointer and old mutable
 	// compatibility row intact.
 	await db.batch([retainRevision, updateCurrentPackage, retainReleaseHistory, moveCurrentPointer]);
+	return installability;
 }
 
 export async function ingestPackageRelease(

@@ -29,6 +29,8 @@ interface ProfileRevisionRow {
 	keywords: string | null;
 	sections: string | null;
 	emdash_extension: string;
+	installability_status: "valid";
+	installability_error: null;
 	last_updated: string | null;
 	record_blob: ArrayBuffer | Uint8Array;
 	signature_metadata: string | null;
@@ -226,10 +228,11 @@ export async function rebuildPublicProjection(
 				.prepare(
 					`INSERT INTO public_packages
 					   (generation, did, slug, profile_cid, type, name, description, license,
-					    authors, security, keywords, sections, emdash_extension, last_updated,
-				    latest_version, capabilities, record_blob, signature_metadata, verified_at,
-				    indexed_at, labels_json, projected_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					    authors, security, keywords, sections, emdash_extension,
+					    installability_status, installability_error, last_updated, latest_version,
+					    capabilities, record_blob, signature_metadata, verified_at, indexed_at,
+					    labels_json, projected_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				)
 				.bind(
 					generation,
@@ -245,6 +248,8 @@ export async function rebuildPublicProjection(
 					profile.keywords,
 					profile.sections,
 					profile.emdash_extension,
+					profile.installability_status,
+					profile.installability_error,
 					profile.last_updated,
 					latest?.version ?? null,
 					latest ? capabilitiesFromRelease(latest) : null,
@@ -339,11 +344,15 @@ async function readProfileRevisions(db: D1Database): Promise<ProfileRevisionRow[
 			.prepare(
 				`SELECT r.rowid AS page_rowid, r.did, r.slug, r.cid, r.type, r.name,
 				        r.description, r.license, r.authors, r.security, r.keywords,
-				        r.sections, r.emdash_extension, r.last_updated, r.record_blob, r.signature_metadata,
+				        r.sections, r.emdash_extension, r.installability_status,
+				        r.installability_error, r.last_updated, r.record_blob, r.signature_metadata,
 				        r.observed_at, r.last_verified_at, h.current_cid
-			 FROM package_profile_revisions r
-			 JOIN package_profile_heads h ON h.did = r.did AND h.slug = r.slug
-			 WHERE h.deleted_at IS NULL AND r.emdash_extension IS NOT NULL AND r.rowid > ?
+				 FROM package_profile_revisions r
+				 JOIN package_profile_heads h ON h.did = r.did AND h.slug = r.slug
+				 WHERE h.deleted_at IS NULL
+				   AND r.installability_status = 'valid'
+				   AND r.emdash_extension IS NOT NULL
+				   AND r.rowid > ?
 				 ORDER BY r.rowid ASC LIMIT ?`,
 			)
 			.bind(cursor, REBUILD_READ_PAGE_SIZE)

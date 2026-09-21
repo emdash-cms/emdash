@@ -67,6 +67,13 @@ let upgradeEvidence: {
 	releaseHistoryComplete: number | null;
 	firstObservedSource: string | null;
 	releaseHistoryRows: number;
+	packageCount: number;
+	releaseCount: number;
+	publicPackageCount: number;
+	publicReleaseCount: number;
+	packageInstallability: string | null;
+	revisionInstallability: string | null;
+	publicPackageInstallability: string | null;
 };
 
 beforeAll(async () => {
@@ -108,7 +115,70 @@ beforeAll(async () => {
 	)
 		.bind(LABELER_DID, packageProfileUri(DID_A, "legacy"), PROFILE_CID_1, NOW.toISOString())
 		.run();
-	await applyD1Migrations(testEnv.DB, migrations.slice(2));
+	await applyD1Migrations(testEnv.DB, migrations.slice(2, 11));
+	await testEnv.DB.prepare(
+		`INSERT INTO releases
+		   (did, package, version, rkey, version_sort, artifacts, emdash_extension,
+		    cts, record_blob, signature_metadata, verified_at, indexed_at)
+		 VALUES (?, 'legacy', '1.0.0', 'legacy:1.0.0', '0000000001.0000000000.0000000000~',
+		         '{}', '{}', ?, ?, ?, ?, ?)`,
+	)
+		.bind(
+			DID_A,
+			NOW.toISOString(),
+			new Uint8Array([4, 5, 6]),
+			JSON.stringify({ cid: RELEASE_CID_1 }),
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO public_projection_generations
+		   (generation, policy_mode, policy_version, policy_hash, required_positive_sources,
+		    accepted_state_sources, redaction_sources, source_epoch, rebuild_sequence,
+		    created_at, completed_at)
+		 SELECT 'legacy-generation', 'open', '', '', '[]', '[]', '[]', source_epoch, 0, ?, ?
+		 FROM listing_projection_control WHERE id = 1`,
+	)
+		.bind(NOW.toISOString(), NOW.toISOString())
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO public_packages
+		   (generation, did, slug, profile_cid, type, name, license, authors, security,
+		    record_blob, signature_metadata, verified_at, indexed_at, labels_json, projected_at)
+		 VALUES ('legacy-generation', ?, 'legacy', ?, 'emdash-plugin', 'Legacy', 'MIT',
+		         '[]', '[]', ?, ?, ?, ?, '[]', ?)`,
+	)
+		.bind(
+			DID_A,
+			PROFILE_CID_1,
+			new Uint8Array([1, 2, 3]),
+			JSON.stringify({ cid: PROFILE_CID_1 }),
+			NOW.toISOString(),
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO public_releases
+		   (generation, did, package, version, release_cid, rkey, version_sort, artifacts,
+		    emdash_extension, cts, record_blob, signature_metadata, verified_at, indexed_at,
+		    labels_json, projected_at)
+		 VALUES ('legacy-generation', ?, 'legacy', '1.0.0', ?, 'legacy:1.0.0',
+		         '0000000001.0000000000.0000000000~', '{}', '{}', ?, ?, ?, ?, ?, '[]', ?)`,
+	)
+		.bind(
+			DID_A,
+			RELEASE_CID_1,
+			NOW.toISOString(),
+			new Uint8Array([4, 5, 6]),
+			JSON.stringify({ cid: RELEASE_CID_1 }),
+			NOW.toISOString(),
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+	await applyD1Migrations(testEnv.DB, migrations.slice(11));
 
 	const projectionMigration = migrations[2];
 	if (!projectionMigration) throw new Error("projection migration fixture missing");
@@ -165,6 +235,64 @@ beforeAll(async () => {
 					.bind(DID_A)
 					.first<{ count: number }>()
 			)?.count ?? 0,
+		packageCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM packages WHERE did = ? AND slug = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		releaseCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM releases WHERE did = ? AND package = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		publicPackageCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM public_packages WHERE did = ? AND slug = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		publicReleaseCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM public_releases WHERE did = ? AND package = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		packageInstallability:
+			(
+				await testEnv.DB.prepare(
+					"SELECT installability_status FROM packages WHERE did = ? AND slug = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ installability_status: string }>()
+			)?.installability_status ?? null,
+		revisionInstallability:
+			(
+				await testEnv.DB.prepare(
+					`SELECT installability_status FROM package_profile_revisions
+					 WHERE did = ? AND slug = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ installability_status: string }>()
+			)?.installability_status ?? null,
+		publicPackageInstallability:
+			(
+				await testEnv.DB.prepare(
+					`SELECT installability_status FROM public_packages
+					 WHERE did = ? AND slug = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ installability_status: string }>()
+			)?.installability_status ?? null,
 	};
 });
 
@@ -199,6 +327,13 @@ describe("revision migration and ingest", () => {
 			releaseHistoryComplete: 0,
 			firstObservedSource: "unknown",
 			releaseHistoryRows: 1,
+			packageCount: 1,
+			releaseCount: 1,
+			publicPackageCount: 1,
+			publicReleaseCount: 1,
+			packageInstallability: "pending",
+			revisionInstallability: "pending",
+			publicPackageInstallability: "pending",
 		});
 	});
 
@@ -258,6 +393,12 @@ describe("projection policy", () => {
 		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
 		await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-passed");
 		await putLabel(releaseUri(DID_A, "demo", "1.0.0"), RELEASE_CID_1, "listing-passed");
+		const allowlisted = await xrpc(
+			"allowlist",
+			`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			[packageProfileUri(DID_A, "demo")],
+		);
+		expect(allowlisted.status).toBe(404);
 
 		await rebuild("projection");
 
