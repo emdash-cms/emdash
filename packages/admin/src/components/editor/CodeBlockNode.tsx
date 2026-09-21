@@ -145,15 +145,6 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		[draft, filterLanguages, languageItems],
 	);
 
-	// Sync draft when the stored language changes from outside the node view
-	// (e.g. another collaborator edits the attribute, or the editor reloads
-	// content). Don't clobber an in-progress edit.
-	React.useEffect(() => {
-		if (!isEditing) {
-			setDraft(labelText(storedLanguage));
-		}
-	}, [storedLanguage, isEditing, labelText]);
-
 	const openPicker = React.useCallback(() => {
 		setDraft("");
 		setIsEditing(true);
@@ -161,8 +152,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 
 	const closePicker = React.useCallback(() => {
 		setIsEditing(false);
-		setDraft(labelText(storedLanguage));
-	}, [storedLanguage, labelText]);
+	}, []);
 
 	const commit = React.useCallback(
 		(value?: string) => {

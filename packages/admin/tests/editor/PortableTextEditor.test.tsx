@@ -1761,8 +1761,11 @@ describe("Code block copy action", () => {
 		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("javascript"));
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
-		await screen.getByPlaceholder("Search for a language…").fill("Discarded Language");
+		const discardedInput = screen.getByPlaceholder("Search for a language…");
+		await discardedInput.fill("Discarded Language");
+		const discardedInputElement = discardedInput.element() as HTMLInputElement;
 		await userEvent.keyboard("{Escape}");
+		expect(discardedInputElement.value).toBe("Discarded Language");
 		expect(storedLanguage()).toBe("javascript");
 
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
