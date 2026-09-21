@@ -1,11 +1,8 @@
 ---
 "@emdash-cms/plugin-test": patch
-"@emdash-cms/plugin-cli": patch
 "emdash": patch
 ---
 
-Adds a disposable R2 media binding to `emdashPluginTest()` so sandbox plugin tests can exercise `ctx.media.upload()` and `ctx.media.delete()` through the production Worker Loader bridge.
+Adds a disposable R2 bucket to `emdashPluginTest()` so sandbox plugin tests can exercise `ctx.media.upload()` and `ctx.media.delete()` through the same Worker Loader bridge used in production.
 
-Fixes registry installation rejecting sandbox plugins that declare publication, restore, or publication-policy authority because core dropped those existing `declaredAccess` facets while validating the bundle manifest.
-
-Fixes Zod-backed MCP declarations failing during the plugin CLI's temporary probe import. The probe now bundles Zod, and the generated sandbox entry exports only runtime hooks and routes while preserving Zod for handlers that use it inside the isolate.
+Fixes registry installation rejecting sandbox plugins whose manifests declare `content.publish`, `content.restore`, or `content.policy` access. These permissions now survive bundle-manifest validation and reach the normal installation consent checks.
