@@ -13,7 +13,7 @@
 	--emdash-accent: #ff5e1f;
 	--emdash-accent-soft: #ff5e1f1f;
 	--emdash-accent-text: #ff5e1f;
-	--emdash-accent-foreground: #0a0a0a;
+	--emdash-accent-foreground: #ffffff;
 
 	/* Starlight color roles */
 	--sl-color-white: var(--emdash-text);
@@ -61,7 +61,6 @@
 	--emdash-border-faint: #ededed;
 	--emdash-border: #e8e8e8;
 	--emdash-border-loud: #e6e6e6;
-	--emdash-accent-foreground: #ffffff;
 
 	--sl-color-white: var(--emdash-text);
 	--sl-color-gray-1: #333333;
@@ -141,6 +140,10 @@
 .sidebar-content a[aria-current="page"] {
 	color: var(--emdash-accent-foreground);
 	background: var(--emdash-accent);
+}
+
+.sl-link-button.primary {
+	color: var(--emdash-accent-foreground);
 }
 
 .card-grid > .card {
