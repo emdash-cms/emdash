@@ -348,9 +348,21 @@ For pie charts, gauges, or any ECharts visualization:
 }
 ```
 
-### Unsupported `tab` block
+### Tabs
 
-The package exports a `TabBlock` type and `blocks.tab()` builder, and the React renderer has a tab component. The production `validateBlocks()` allowlist does not include `tab`, so an admin response containing one is rejected. Do not emit `tab` until the validator accepts it.
+Use `tab` to group related blocks into labelled panels:
+
+```json
+{
+	"type": "tab",
+	"panels": [
+		{
+			"label": "General",
+			"blocks": [{ "type": "context", "text": "General settings" }]
+		}
+	]
+}
+```
 
 ### Accordion
 

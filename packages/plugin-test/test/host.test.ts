@@ -1390,22 +1390,30 @@ describe("runtime plugin test host", () => {
 			runtimeHost.admin.loadWidget("status", { locale: "en" }),
 		]);
 
-		expect(pageResponse.blocks[0]).toMatchObject({
-			type: "fields",
-			fields: [
-				{ label: "Surface", value: "admin-page" },
-				{ label: "Locale", value: "ar" },
-				{ label: "Direction", value: "rtl" },
-			],
-		});
-		expect(widgetResponse.blocks[0]).toMatchObject({
-			type: "fields",
-			fields: [
-				{ label: "Surface", value: "dashboard-widget" },
-				{ label: "Locale", value: "en" },
-				{ label: "Direction", value: "ltr" },
-			],
-		});
+		expect(pageResponse.blocks).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: "fields",
+					fields: [
+						{ label: "Surface", value: "admin-page" },
+						{ label: "Locale", value: "ar" },
+						{ label: "Direction", value: "rtl" },
+					],
+				}),
+			]),
+		);
+		expect(widgetResponse.blocks).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					type: "fields",
+					fields: [
+						{ label: "Surface", value: "dashboard-widget" },
+						{ label: "Locale", value: "en" },
+						{ label: "Direction", value: "ltr" },
+					],
+				}),
+			]),
+		);
 	});
 
 	it("rejects undeclared UI surfaces and unsafe browser resources before rendering", async () => {
@@ -1540,7 +1548,7 @@ describe("plugin test host", () => {
 		});
 
 		await expect(host.invokeRoute("hello")).resolves.toEqual({
-			pluginId: "plugin-test-fixture",
+			pluginId: host.manifest.id,
 		});
 		await expect(host.kv.get("last-route")).resolves.toBe("hello");
 

@@ -991,6 +991,8 @@ The site also needs a Worker Loader binding and the plugin bridge entry point. S
 
 Pass media provider descriptors to [`mediaProviders`](#mediaproviders). Both built-in Cloudflare providers are imported from `@emdash-cms/cloudflare`.
 
+Each `*EnvVar` option below names an environment variable. The provider reads it in this order: a Cloudflare Workers binding of that name, then `process.env` on the Node adapter. The matching direct option (`accountId`, `accountHash`, `apiToken`) always takes precedence over both.
+
 ### `cloudflareImages(config)`
 
 Adds Cloudflare Images for browsing, uploading, deleting, and delivering image assets.

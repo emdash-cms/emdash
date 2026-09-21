@@ -38,7 +38,8 @@ import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
-import { formatFileSize, getFileIcon } from "../lib/media-utils";
+import { getFieldLabel } from "../lib/field-label.js";
+import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { resolveSandboxedEditorActions } from "../lib/sandboxed-editor-extensions.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
@@ -52,6 +53,7 @@ import {
 	DiscardDraftDialog,
 	PreviewButton,
 	PublishActions,
+	ScheduleActions,
 	SettingsActionBar,
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
@@ -458,7 +460,10 @@ export function ContentEditor({
 			// moment the request was sent. Writing it back into formData would
 			// clobber edits made while the request was in flight, including nested
 			// repeater sub-fields. The pending autosave effect handles lastSavedData.
-			if (!isPublishingRef.current && !autosaveJustCompleted) {
+			// While the notice is up the writer still has to choose between their copy
+			// and the newer version, so a refetch must not put the newer one into the
+			// form under them.
+			if (!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current) {
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
@@ -532,6 +537,8 @@ export function ContentEditor({
 	// last autosave settled would otherwise flush a payload that is already saved.
 	const hasPendingSaveRef = React.useRef(false);
 	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
+	const hasSaveConflictRef = React.useRef(false);
+	hasSaveConflictRef.current = Boolean(hasSaveConflict);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
 		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly;
@@ -689,7 +696,8 @@ export function ContentEditor({
 			isPublishingRef.current ||
 			!onPublish ||
 			hasInvalidUrls(formDataRef.current) ||
-			hasUnsupportedPortableTextMarks
+			hasUnsupportedPortableTextMarks ||
+			hasSaveConflictRef.current
 		)
 			return;
 		cancelPendingAutosave();
@@ -743,6 +751,13 @@ export function ContentEditor({
 			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
 				return Promise.reject(
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
+				);
+			}
+			if (hasSaveConflictRef.current) {
+				return Promise.reject(
+					new Error(
+						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
+					),
 				);
 			}
 
@@ -885,6 +900,7 @@ export function ContentEditor({
 		hasPendingChanges,
 		scheduledAt: item?.scheduledAt,
 	});
+	const publishingPending = Boolean(isScheduling || isUnscheduling);
 	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
 	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
 	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
@@ -949,13 +965,13 @@ export function ContentEditor({
 				}
 			>
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* In distraction-free mode the header is an always-visible overlay
+					{/* In distraction-free mode the header stays visible while the editor scrolls
 					    so readers can discover the exit affordance without hovering. */}
 					<div
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? "fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
+								? "sticky top-0 z-10 mx-auto w-full max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur"
 								: cn(
 										"mx-auto mb-6 max-w-3xl",
 										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
@@ -986,7 +1002,15 @@ export function ContentEditor({
 						{/* The distraction-free toggles stay outside the disabled fieldsets:
 						    they change the view, not the entry, and a reader must be able to
 						    leave the overlay. */}
-						<div className="flex items-center gap-2">
+						<div
+							className={cn(
+								"flex items-center gap-2",
+								isDistractionFree &&
+									(isBelowLg
+										? "w-full flex-wrap justify-end"
+										: "min-w-0 max-w-full flex-wrap justify-end"),
+							)}
+						>
 							{!isDistractionFree ? (
 								// Below lg, actions move here from the (hidden) panel.
 								<>
@@ -1024,13 +1048,10 @@ export function ContentEditor({
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
 												publishingState={publishingState}
-												canSchedule={canSchedule}
-												isScheduling={isScheduling}
-												isUnscheduling={isUnscheduling}
+												isPending={publishingPending}
+												disabled={hasSaveConflict}
 												onPublish={handlePublish}
 												onUnpublish={handleUnpublish}
-												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-												onUnschedule={onUnschedule ? handleUnschedule : undefined}
 												onMenuOpenChange={setPublishingMenuOpen}
 											/>
 											<MobileSettingsButton />
@@ -1099,18 +1120,25 @@ export function ContentEditor({
 														triggerSize="sm"
 													/>
 												)}
+												<ScheduleActions
+													publishingState={publishingState}
+													canSchedule={canSchedule}
+													isScheduling={isScheduling}
+													isUnscheduling={isUnscheduling}
+													disabled={publishingPending || hasSaveConflict}
+													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+													onUnschedule={onUnschedule ? handleUnschedule : undefined}
+													inline
+												/>
 												<PublishActions
 													collectionLabel={collectionLabel}
 													isLive={isLive}
 													hasPendingChanges={hasPendingChanges}
 													publishingState={publishingState}
-													canSchedule={canSchedule}
-													isScheduling={isScheduling}
-													isUnscheduling={isUnscheduling}
+													isPending={publishingPending}
+													disabled={hasSaveConflict}
 													onPublish={handlePublish}
 													onUnpublish={handleUnpublish}
-													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-													onUnschedule={onUnschedule ? handleUnschedule : undefined}
 													onMenuOpenChange={setPublishingMenuOpen}
 													size="sm"
 												/>
@@ -1133,9 +1161,7 @@ export function ContentEditor({
 					</div>
 
 					<div
-						className={cn(
-							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
-						)}
+						className={cn(isDistractionFree ? "mx-auto max-w-3xl" : "mx-auto max-w-3xl space-y-6")}
 					>
 						{notice}
 						<fieldset disabled={readOnly} className="contents">
@@ -1227,17 +1253,14 @@ export function ContentEditor({
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
 								publishingState={publishingState}
-								canSchedule={canSchedule}
-								isScheduling={isScheduling}
-								isUnscheduling={isUnscheduling}
+								publishingPending={publishingPending}
+								publishDisabled={hasSaveConflict}
 								liveViewUrl={liveViewUrl}
 								supportsPreview={supportsPreview}
 								isLoadingPreview={isLoadingPreview}
 								onPreview={handlePreview}
 								onPublish={handlePublish}
 								onUnpublish={handleUnpublish}
-								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-								onUnschedule={onUnschedule ? handleUnschedule : undefined}
 								onMenuOpenChange={setPublishingMenuOpen}
 								announceSaveStatus={!isDistractionFree}
 							/>
@@ -1264,6 +1287,12 @@ export function ContentEditor({
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
 								publishingState={publishingState}
+								publishingDisabled={publishingPending || hasSaveConflict}
+								canSchedule={canSchedule}
+								isScheduling={isScheduling}
+								isUnscheduling={isUnscheduling}
+								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+								onUnschedule={onUnschedule ? handleUnschedule : undefined}
 								supportsRevisions={supportsRevisions}
 								onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
 								isUpdatingPublishedAt={isUpdatingPublishedAt}
@@ -1571,7 +1600,7 @@ function FieldRenderer({
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
-	const label = field.label || name.charAt(0).toUpperCase() + name.slice(1);
+	const label = getFieldLabel(name, field);
 	const id = `field-${name}`;
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
@@ -2226,12 +2255,13 @@ function FileFieldRenderer({
 		const directUrl = value.src ?? value.url;
 		const localSrc =
 			typeof directUrl === "string" && directUrl.startsWith("/_emdash/") ? directUrl : undefined;
-		// Clients can write meta.storageKey, so encode it before interpolation to
-		// keep query or fragment delimiters from escaping the route path.
+		// Clients can write meta.storageKey, so it is encoded per path segment: query or
+		// fragment delimiters cannot escape the route path, and a key with folders still
+		// reaches the [...key] route.
 		const localUrl = isLocal
 			? storageKey
-				? `/_emdash/api/media/file/${encodeURIComponent(storageKey)}`
-				: (localSrc ?? `/_emdash/api/media/file/${encodeURIComponent(value.id)}`)
+				? localMediaFileUrl(storageKey)
+				: (localSrc ?? localMediaFileUrl(value.id))
 			: undefined;
 		const externalUrl = !isLocal && directUrl && isSafeUrl(directUrl) ? directUrl : undefined;
 		return {

@@ -120,6 +120,10 @@
       "types": "./dist/database/pg-migration-lock.d.mts",
       "default": "./dist/database/pg-migration-lock.mjs"
     },
+    "./database/migration-lock": {
+      "types": "./dist/database/migration-lock.d.mts",
+      "default": "./dist/database/migration-lock.mjs"
+    },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
       "default": "./dist/storage/local.mjs"

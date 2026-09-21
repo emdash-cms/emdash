@@ -344,6 +344,9 @@ const declaredAccessSchema = z.object({
 			read: accessConstraints.optional(),
 			revisionsRead: accessConstraints.optional(),
 			write: accessConstraints.optional(),
+			publish: accessConstraints.optional(),
+			restore: accessConstraints.optional(),
+			policy: accessConstraints.optional(),
 		})
 		.optional(),
 	schema: z.object({ read: accessConstraints.optional() }).optional(),

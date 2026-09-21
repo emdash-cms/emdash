@@ -1,26 +1,38 @@
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
 import {
 	buildDidDocument,
 	createFakePublisherFixture,
 	type FakePublisher,
 	type FakePublisherFixture,
 } from "@emdash-cms/atproto-test-utils";
+import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import { DirectPdsClient } from "@emdash-cms/registry-client/direct-pds";
 import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { buildPlugin } from "../../../../plugin-cli/src/build/api.js";
 import {
 	createDelegatedReleaseConformanceFixture,
 	type DelegatedReleaseConformanceFixture,
 	type DelegatedReleaseFixtureOptions,
 } from "../../../../registry-verification/fixtures/conformance/delegated-release.js";
+import { WorkerdSandboxRunner } from "../../../../workerd/src/sandbox/runner.js";
+import { loadBundleFromR2 } from "../../../src/api/handlers/marketplace.js";
 import { handleRegistryInstall, handleRegistryUpdate } from "../../../src/api/handlers/registry.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 import type { SandboxRunner } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
 import { setDefaultRegistryArtifactTransport } from "../../../src/registry/artifact-fetch.js";
-import type { AuthoritativeRecordReadOptions } from "../../../src/registry/authoritative-records.js";
+import { validateRegistryArtifact } from "../../../src/registry/artifact-verification.js";
+import {
+	readAuthoritativePackageRelease,
+	verifyAuthoritativePackageRelease,
+	type AuthoritativeRecordReadOptions,
+} from "../../../src/registry/authoritative-records.js";
 import { setDefaultDnsResolver } from "../../../src/security/ssrf.js";
 import type {
 	DownloadResult,
@@ -343,6 +355,8 @@ describe("registry delegated-release conformance", () => {
 			version: fixture.version,
 			registryPublisherDid: fixture.publisherDid,
 			registrySlug: fixture.packageSlug,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
 		expect(storage.keys()).toEqual([
 			`registry/${installed.data.pluginId}/${fixture.version}/admin.js`,
@@ -354,6 +368,326 @@ describe("registry delegated-release conformance", () => {
 			expect.objectContaining({ redirect: "manual" }),
 		);
 	});
+
+	it("installs the maximal registry fixture only after exact authority and public-route consent", async () => {
+		const pluginDir = fileURLToPath(
+			new URL("../../../../plugins/marketplace-test", import.meta.url),
+		);
+		const built = await buildPlugin({ dir: pluginDir });
+		const manifest = JSON.parse(
+			await readFile(built.files.manifestJson, "utf8"),
+		) as import("@emdash-cms/plugin-types").PluginManifest;
+		const backendCode = await readFile(built.files.runtime, "utf8");
+		expect(backendCode).toContain('"body-json"');
+		expect(backendCode.charCodeAt(0)).not.toBe(0x1f);
+		const fixture = await createDelegatedReleaseConformanceFixture({
+			manifest: { ...manifest, id: "gallery", version: "1.2.3" },
+			backendCode,
+		});
+		expect(
+			fixture.release.extensions["com.emdashcms.experimental.package.releaseExtension"]
+				.declaredAccess,
+		).toEqual(manifest.declaredAccess);
+		const context = await createContext(fixture);
+		await mockAggregator(fixture, context);
+		artifactFetch(fixture.artifactBytes);
+		const authoritative = await readAuthoritativePackageRelease(
+			fixture.publisherDid,
+			fixture.packageSlug,
+			fixture.version,
+			context.options,
+		);
+		if (!authoritative.success) throw new Error(authoritative.error.message);
+		const recordReport = await verifyAuthoritativePackageRelease(
+			authoritative.value,
+			fixture.artifactDigest,
+			context.options,
+		);
+		if (!recordReport.success) throw new Error(recordReport.reasons[0]?.message);
+		expect(recordReport.value.declaredAccess).toEqual(
+			canonicalizeDeclaredAccess(manifest.declaredAccess ?? {}),
+		);
+		const artifactReport = await validateRegistryArtifact(
+			fixture.artifactBytes,
+			fixture.artifactChecksum,
+			fixture.packageSlug,
+			fixture.version,
+		);
+		if (!artifactReport.success) throw new Error(artifactReport.error.message);
+		expect(
+			canonicalizeDeclaredAccess(artifactReport.value.bundle.manifest.declaredAccess ?? {}),
+		).toEqual(recordReport.value.declaredAccess);
+
+		const preview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		expect(preview).toMatchObject({
+			success: true,
+			data: {
+				capabilities: expect.arrayContaining(manifest.capabilities),
+				publicRoutes: expect.arrayContaining(
+					manifest.routes
+						.filter((route) => typeof route !== "string" && route.public === true)
+						.map((route) => (typeof route === "string" ? route : route.name)),
+				),
+			},
+		});
+		if (!preview.success) return;
+
+		const noAuthorityConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(noAuthorityConsent).toMatchObject({
+			success: false,
+			error: { code: "DECLARED_ACCESS_REQUIRED" },
+		});
+
+		const noPublicRouteConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(noPublicRouteConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: preview.data.publicRoutes } },
+			},
+		});
+
+		const noMcpConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedPublicRoutes: preview.data.publicRoutes,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(noMcpConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "MCP_TOOL_CONSENT_REQUIRED",
+				details: {
+					mcpTools: [
+						expect.objectContaining({ name: "runDiagnostics", destructive: false }),
+						expect.objectContaining({ name: "deleteRecord", destructive: true }),
+					],
+				},
+			},
+		});
+
+		const installed = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedPublicRoutes: preview.data.publicRoutes,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(installed).toMatchObject({ success: true });
+		if (!installed.success) return;
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: fixture.version,
+			registryPublisherDid: fixture.publisherDid,
+			registrySlug: fixture.packageSlug,
+		});
+		expect(storage.keys()).toEqual(
+			expect.arrayContaining([
+				`registry/${installed.data.pluginId}/${fixture.version}/backend.js`,
+				`registry/${installed.data.pluginId}/${fixture.version}/manifest.json`,
+			]),
+		);
+		const installedBundle = await loadBundleFromR2(
+			storage,
+			installed.data.pluginId,
+			fixture.version,
+			"registry",
+		);
+		expect(installedBundle).not.toBeNull();
+		if (!installedBundle) return;
+		expect(installedBundle.manifest.id).toBe(installed.data.pluginId);
+		expect(installedBundle.backendCode).toBe(backendCode);
+		vi.unstubAllGlobals();
+		const installedRunner = new WorkerdSandboxRunner({ db });
+		try {
+			const installedPlugin = await installedRunner.load(
+				installedBundle.manifest,
+				installedBundle.backendCode,
+			);
+			const adminResponse = (await installedPlugin.invokeRoute(
+				"admin",
+				{ type: "page_load", page: "/overview" },
+				{
+					url: "https://plugin.test/admin",
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					ui: { surface: "admin-page", locale: "en", direction: "ltr" },
+				},
+			)) as { blocks: Array<{ type: string; url?: string }> };
+			expect(adminResponse.blocks).toContainEqual(
+				expect.objectContaining({
+					type: "image",
+					url: `/_emdash/api/plugins/${installed.data.pluginId}/fixture-image`,
+				}),
+			);
+			await expect(
+				installedPlugin.invokeRoute(
+					"body-json",
+					{ installed: true },
+					{
+						url: "https://plugin.test/body-json",
+						method: "POST",
+						headers: { "content-type": "application/json" },
+					},
+				),
+			).resolves.toEqual({ input: { installed: true } });
+		} finally {
+			await installedRunner.terminateAll();
+		}
+
+		const next = await createDelegatedReleaseConformanceFixture({
+			version: "1.2.4",
+			manifest: {
+				...manifest,
+				id: "gallery",
+				version: "1.2.4",
+				routes: [...manifest.routes, { name: "post-install-public", public: true }],
+			},
+			backendCode,
+		});
+		await context.publisher.repo.putRecord(
+			"com.emdashcms.experimental.package.release",
+			`${next.packageSlug}:${next.version}`,
+			next.release,
+		);
+		const nextOptions: AuthoritativeRecordReadOptions = {
+			...context.options,
+			provenanceFetch: async () => new Response(next.provenanceDocument),
+			provenanceVerifier: next.provenanceVerifier,
+		};
+		await mockAggregator(next, context);
+		artifactFetch(next.artifactBytes);
+
+		const updatePreflight = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{ authoritativeRecords: nextOptions },
+		);
+		expect(updatePreflight).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["post-install-public"] } },
+			},
+		});
+		if (updatePreflight.success) return;
+		const updateVerification = Reflect.get(updatePreflight.error.details ?? {}, "verification");
+		if (!updateVerification || typeof updateVerification !== "object") {
+			throw new Error("Missing update verification");
+		}
+		const profileCid = Reflect.get(updateVerification, "profileCid");
+		const releaseCid = Reflect.get(updateVerification, "releaseCid");
+		if (typeof profileCid !== "string" || typeof releaseCid !== "string") {
+			throw new Error("Invalid update verification");
+		}
+
+		artifactFetch(next.artifactBytes);
+		const updated = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				acknowledgedPublicRoutes: ["post-install-public"],
+				acknowledgedProfileCid: profileCid,
+				acknowledgedReleaseCid: releaseCid,
+			},
+		);
+		expect(updated).toMatchObject({
+			success: true,
+			data: { oldVersion: fixture.version, newVersion: next.version },
+		});
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: next.version,
+		});
+		const updatedBundle = await loadBundleFromR2(
+			storage,
+			installed.data.pluginId,
+			next.version,
+			"registry",
+		);
+		expect(updatedBundle).not.toBeNull();
+		if (!updatedBundle) return;
+		vi.unstubAllGlobals();
+		const updatedRunner = new WorkerdSandboxRunner({ db });
+		try {
+			const updatedPlugin = await updatedRunner.load(
+				updatedBundle.manifest,
+				updatedBundle.backendCode,
+			);
+			await expect(
+				updatedPlugin.invokeRoute(
+					"body-json",
+					{ updated: true },
+					{
+						url: "https://plugin.test/body-json",
+						method: "POST",
+						headers: { "content-type": "application/json" },
+					},
+				),
+			).resolves.toEqual({ input: { updated: true } });
+		} finally {
+			await updatedRunner.terminateAll();
+		}
+	}, 30_000);
 
 	it.each(["sha384", "sha512"] as const)(
 		"previews provenance whose subject uses %s",

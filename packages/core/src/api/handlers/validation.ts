@@ -8,12 +8,14 @@
  *  - select / multiSelect values must match the configured options
  *  - reference fields must resolve to a real, non-trashed target
  *
- * Errors surface as `{ code: "VALIDATION_ERROR", message }` with all
- * offending fields listed in one message so callers can fix everything in
- * a single round trip.
+ * Errors surface as `{ code: "VALIDATION_ERROR", message, details: { issues } }`.
+ * The message lists every offending field so callers can fix everything in a
+ * single round trip; `issues` carries the same failures one by one, with a
+ * code and any bound that failed, so the admin can word them for editors.
  */
 
 import { sql, type Kysely } from "kysely";
+import type { z } from "zod";
 
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
@@ -23,6 +25,22 @@ import { generateZodSchema } from "../../schema/zod-generator.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 
+/**
+ * One rejected value. `code` is `required`, `unknown_field`,
+ * `reference_not_found` or `invalid_reference_target`, or else the Zod issue
+ * code. Length, range and item-count failures carry `origin` and the bound,
+ * format failures carry `format`.
+ */
+export interface ContentValidationIssue {
+	path: string;
+	code: string;
+	message: string;
+	origin?: string;
+	minimum?: number;
+	maximum?: number;
+	format?: string;
+}
+
 type ValidationResult =
 	| { ok: true }
 	| {
@@ -30,6 +48,7 @@ type ValidationResult =
 			error: {
 				code: "VALIDATION_ERROR" | "COLLECTION_NOT_FOUND" | "UNSUPPORTED_FIELD_TYPE";
 				message: string;
+				details?: { issues: ContentValidationIssue[] };
 			};
 	  };
 
@@ -66,6 +85,59 @@ function formatIssuePath(path: ReadonlyArray<PropertyKey>): string {
 	return path.map((seg) => String(seg)).join(".");
 }
 
+function isSubFieldPath(
+	path: ReadonlyArray<PropertyKey>,
+	fieldTypes: ReadonlyMap<string, string>,
+): boolean {
+	return path.length === 3 && fieldTypes.get(String(path[0])) === "repeater";
+}
+
+function isFieldOrSubFieldPath(
+	path: ReadonlyArray<PropertyKey>,
+	fieldTypes: ReadonlyMap<string, string>,
+): boolean {
+	return path.length === 1 || isSubFieldPath(path, fieldTypes);
+}
+
+function fromZodIssue(
+	issue: z.core.$ZodIssue,
+	fieldTypes: ReadonlyMap<string, string>,
+): ContentValidationIssue {
+	const result: ContentValidationIssue = {
+		path: formatIssuePath(issue.path),
+		code: issue.code,
+		message: issue.message,
+	};
+	switch (issue.code) {
+		case "invalid_type":
+		case "invalid_union":
+		case "invalid_value":
+			// Zod reports a missing or null value as a type, union or option
+			// mismatch. A key missing inside a value, such as a Portable Text
+			// block's `_type`, leaves the value malformed rather than the field empty.
+			if (issue.input == null && isFieldOrSubFieldPath(issue.path, fieldTypes)) {
+				result.code = "required";
+			}
+			break;
+		case "too_small":
+			result.origin = issue.origin;
+			if (typeof issue.minimum === "number") result.minimum = issue.minimum;
+			// A required repeater sub-field rejects "" as a one-character minimum.
+			if (issue.input === "" && isSubFieldPath(issue.path, fieldTypes)) {
+				result.code = "required";
+			}
+			break;
+		case "too_big":
+			result.origin = issue.origin;
+			if (typeof issue.maximum === "number") result.maximum = issue.maximum;
+			break;
+		case "invalid_format":
+			result.format = issue.format;
+			break;
+	}
+	return result;
+}
+
 /**
  * Validate `data` against the collection's field definitions.
  *
@@ -92,6 +164,7 @@ export async function validateContentData(
 		};
 	}
 
+	const issues: ContentValidationIssue[] = [];
 	const unsupportedField = collectionWithFields.fields.find((field) => field.unsupportedType);
 	if (unsupportedField?.unsupportedType) {
 		const { type, path } = unsupportedField.unsupportedType;
@@ -104,8 +177,6 @@ export async function validateContentData(
 		};
 	}
 
-	const issues: string[] = [];
-
 	// Detect unknown keys explicitly so callers get a useful error rather
 	// than silently dropped data. Leading-underscore keys (e.g. `_slug`,
 	// `_rev`) are reserved for internal handler/runtime use and aren't real
@@ -114,7 +185,11 @@ export async function validateContentData(
 	for (const key of Object.keys(data)) {
 		if (key.startsWith("_")) continue;
 		if (!knownFields.has(key)) {
-			issues.push(`${key}: unknown field on collection '${collection}'`);
+			issues.push({
+				path: key,
+				code: "unknown_field",
+				message: `unknown field on collection '${collection}'`,
+			});
 		}
 	}
 
@@ -123,10 +198,11 @@ export async function validateContentData(
 	// done as a separate pass below since Zod's `z.string()` accepts "".
 	const baseSchema = generateZodSchema(collectionWithFields);
 	const schema = options.partial ? baseSchema.partial() : baseSchema;
-	const parsed = schema.safeParse(data);
+	const parsed = schema.safeParse(data, { reportInput: true });
 	if (!parsed.success) {
+		const fieldTypes = new Map(collectionWithFields.fields.map((f) => [f.slug, f.type]));
 		for (const issue of parsed.error.issues) {
-			issues.push(`${formatIssuePath(issue.path)}: ${issue.message}`);
+			issues.push(fromZodIssue(issue, fieldTypes));
 		}
 	}
 
@@ -139,7 +215,11 @@ export async function validateContentData(
 		const present = Object.hasOwn(data, field.slug);
 		if (options.partial && !present) continue;
 		if (data[field.slug] === "") {
-			issues.push(`${field.slug}: required (empty value not allowed)`);
+			issues.push({
+				path: field.slug,
+				code: "required",
+				message: "required (empty value not allowed)",
+			});
 		}
 	}
 
@@ -170,7 +250,11 @@ export async function validateContentData(
 			validateIdentifier(target, "reference target collection");
 		} catch {
 			for (const ref of refs) {
-				issues.push(`${ref.field}: invalid reference target collection '${target}'`);
+				issues.push({
+					path: ref.field,
+					code: "invalid_reference_target",
+					message: `invalid reference target collection '${target}'`,
+				});
 			}
 			continue;
 		}
@@ -206,15 +290,13 @@ export async function validateContentData(
 				throw error;
 			}
 		}
-		if (targetTableMissing) {
-			for (const ref of refs) {
-				issues.push(`${ref.field}: target '${ref.id}' not found in collection '${target}'`);
-			}
-			continue;
-		}
 		for (const ref of refs) {
-			if (!found.has(ref.id)) {
-				issues.push(`${ref.field}: target '${ref.id}' not found in collection '${target}'`);
+			if (targetTableMissing || !found.has(ref.id)) {
+				issues.push({
+					path: ref.field,
+					code: "reference_not_found",
+					message: `target '${ref.id}' not found in collection '${target}'`,
+				});
 			}
 		}
 	}
@@ -224,7 +306,8 @@ export async function validateContentData(
 		ok: false,
 		error: {
 			code: "VALIDATION_ERROR",
-			message: issues.join("; "),
+			message: issues.map((issue) => `${issue.path}: ${issue.message}`).join("; "),
+			details: { issues },
 		},
 	};
 }

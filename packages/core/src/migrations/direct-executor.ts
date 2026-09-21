@@ -1,5 +1,6 @@
 import { type Dialect, Kysely } from "kysely";
 
+import { clearMigrationLock, readMigrationLock } from "../database/migration-lock.js";
 import {
 	getExactMigrationStatus,
 	runMigrations,
@@ -20,18 +21,47 @@ export interface DirectMigrationExecutorOptions {
 	createDialect: () => Dialect | Promise<Dialect>;
 }
 
+const LOCK_ID_PATTERN = /^[1-9]\d{0,15}$/;
+
 function createReport(
 	target: MigrationTarget,
 	status: ExactMigrationStatus,
 	executed: readonly string[],
+	lockHeldSince: number | null = null,
 ): MigrationReport {
-	return {
+	const report: MigrationReport = {
 		target,
 		knownApplied: [...status.knownApplied],
 		pending: [...status.pending],
 		unknownApplied: [...status.unknownApplied],
 		executed: [...executed],
 	};
+	if (lockHeldSince !== null) {
+		report.lock = {
+			id: String(lockHeldSince),
+			heldSince: new Date(lockHeldSince).toISOString(),
+		};
+	}
+	return report;
+}
+
+async function releaseLock(db: Kysely<Database>, lockId: string | undefined): Promise<void> {
+	if (!lockId || !LOCK_ID_PATTERN.test(lockId)) {
+		throw new Error("Releasing the migration lock requires the lock id reported by status.");
+	}
+	const lock = Number(lockId);
+	// Read before writing: on Postgres the lock column is a 32-bit integer that
+	// a lock id does not fit, and no Postgres lock is ever held in it.
+	const heldSince = await readMigrationLock(db);
+	if (heldSince === lock && (await clearMigrationLock(db, lock))) return;
+	const current = heldSince === lock ? await readMigrationLock(db) : heldSince;
+	// No lock ids here: the CLI's redaction can rewrite digits that match an
+	// environment value.
+	throw new Error(
+		current === null
+			? "The migration lock is not held."
+			: "The migration lock has a different id now. Check the status again before releasing it.",
+	);
 }
 
 async function verifyRequest(request: MigrationRequest): Promise<void> {
@@ -53,6 +83,10 @@ async function executeRequest(
 ): Promise<MigrationReport> {
 	const initialStatus = await getExactMigrationStatus(db);
 	if (request.action === "check") {
+		return createReport(target, initialStatus, [], await readMigrationLock(db));
+	}
+	if (request.action === "release-lock") {
+		await releaseLock(db, request.lockId);
 		return createReport(target, initialStatus, []);
 	}
 
@@ -96,7 +130,11 @@ export function createDirectMigrationExecutor(
 			}
 			used = true;
 
-			if (request.action !== "check" && request.action !== "apply") {
+			if (
+				request.action !== "check" &&
+				request.action !== "apply" &&
+				request.action !== "release-lock"
+			) {
 				throw new Error("Unsupported migration action.");
 			}
 			await verifyRequest(request);

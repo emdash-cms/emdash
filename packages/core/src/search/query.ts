@@ -162,6 +162,7 @@ export async function searchWithDb(
 				status,
 				locale: options.locale,
 				limit: perCollectionLimit,
+				scope: options.scope,
 			},
 			config.weights,
 			titleColumns.has(collection),
@@ -222,7 +223,12 @@ export async function searchCollection(
 		db,
 		collection,
 		query,
-		{ status: options.status, locale: options.locale, limit: offset + limit + 1 },
+		{
+			status: options.status,
+			locale: options.locale,
+			limit: offset + limit + 1,
+			scope: options.scope,
+		},
 		config.weights,
 		undefined,
 		config.titleField,
@@ -270,6 +276,25 @@ async function searchSingleCollection(
 
 	// Get searchable fields for snippet generation
 	const searchableFields = await ftsManager.getSearchableFields(collection);
+
+	// Title scope restricts the FTS5 match to the collection's title column.
+	// The scoped column must be one of the indexed searchable fields; a
+	// collection whose title is not indexed cannot match by title. Operators
+	// are disabled so every term stays quoted inside the filter's group.
+	let matchQuery = escapedQuery;
+	if (options.scope === "title") {
+		const titleColumn =
+			titleField && searchableFields.includes(titleField)
+				? titleField
+				: searchableFields.includes("title")
+					? "title"
+					: undefined;
+		if (!titleColumn) {
+			return [];
+		}
+		validateIdentifier(titleColumn, "title field");
+		matchQuery = `${titleColumn} : (${escapeQuery(query, false)})`;
+	}
 
 	// `title` is an optional user-defined field, not a system column. Only
 	// select it when the collection actually has one; otherwise the query
@@ -324,7 +349,7 @@ async function searchSingleCollection(
 			${sql.raw(bm25Expr)} as score
 		FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
-		WHERE "${sql.raw(ftsTable)}" MATCH ${escapedQuery}
+		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
 		${locale ? sql`AND c.locale = ${locale}` : sql``}
@@ -552,7 +577,7 @@ async function getSearchableCollections(db: Kysely<Database>): Promise<string[]>
  *
  * Handles special characters and prevents injection.
  */
-function escapeQuery(query: string): string {
+function escapeQuery(query: string, allowOperators = true): string {
 	if (!query || typeof query !== "string") {
 		return "";
 	}
@@ -574,8 +599,10 @@ function escapeQuery(query: string): string {
 	const escaped = query.replace(DOUBLE_QUOTE_PATTERN, '""');
 
 	// If the query contains FTS5 operators (AND, OR, NOT, NEAR),
-	// pass through with quotes escaped but operators preserved
-	if (FTS_OPERATORS_PATTERN.test(query)) {
+	// pass through with quotes escaped but operators preserved. Not allowed
+	// when the match string is embedded in a column filter: unquoted parens
+	// would let a clause escape the filter's group.
+	if (allowOperators && FTS_OPERATORS_PATTERN.test(query)) {
 		return escaped;
 	}
 
