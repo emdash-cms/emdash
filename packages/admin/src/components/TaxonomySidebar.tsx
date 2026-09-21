@@ -16,7 +16,7 @@ import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown, MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -364,9 +364,13 @@ function TaxonomyTermPicker({
 				else closePicker();
 			}}
 		>
-			<div ref={anchorRef} className="grid min-w-0 gap-1.5">
-				{selectedOptions.length > 0 ? (
-					<LayerCard className="bg-kumo-control p-1.5 shadow-none">
+			<div ref={anchorRef} className="min-w-0">
+				<InputGroup
+					label={label}
+					className="h-auto min-h-9 flex-wrap content-start items-start gap-1.5 px-1.5 py-1.5"
+					disabled={isCreating}
+				>
+					{selectedOptions.length > 0 ? (
 						<div
 							role="list"
 							aria-label={t`Selected ${label}`}
@@ -375,7 +379,7 @@ function TaxonomyTermPicker({
 								scrollbarGutter: "stable",
 								scrollbarWidth: "thin",
 							}}
-							className="flex flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+							className="relative z-1 flex w-full flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
 						>
 							{selectedOptions.map((option) => (
 								<span
@@ -398,14 +402,10 @@ function TaxonomyTermPicker({
 								</span>
 							))}
 						</div>
-					</LayerCard>
-				) : null}
+					) : null}
 
-				<div className="relative">
-					<InputGroup className="w-full" disabled={isCreating}>
-						<InputGroup.Addon>
-							<MagnifyingGlass size={16} aria-hidden="true" />
-						</InputGroup.Addon>
+					<div className="relative z-1 flex h-7 w-full min-w-0 items-center gap-2 px-1 text-kumo-subtle">
+						<MagnifyingGlass className="shrink-0" size={16} aria-hidden="true" />
 						<InputGroup.Input
 							ref={inputRef}
 							id={inputId}
@@ -413,7 +413,7 @@ function TaxonomyTermPicker({
 							aria-label={label}
 							aria-expanded={isOpen}
 							aria-controls={listId}
-							className="pe-9"
+							className="h-7 px-0 py-0"
 							value={input}
 							onChange={(event) => {
 								pastedDelimitedInputRef.current = null;
@@ -434,38 +434,18 @@ function TaxonomyTermPicker({
 								setIsOpen(true);
 							}}
 							onFocus={() => setIsOpen(true)}
+							onClick={() => setIsOpen(true)}
 							onKeyDown={handleInputKeyDown}
-							placeholder={t`Search ${label.toLowerCase()}…`}
+							placeholder={
+								canCreate
+									? t`Add or search ${label.toLowerCase()}…`
+									: t`Search ${label.toLowerCase()}…`
+							}
 						/>
-					</InputGroup>
-					<div className="absolute inset-y-0 end-1 z-2 flex items-center">
-						<Button
-							type="button"
-							variant="ghost"
-							size="xs"
-							shape="square"
-							className="h-6 w-6 min-w-6"
-							title={isOpen ? t`Hide options` : t`Show options`}
-							aria-label={isOpen ? t`Hide ${label}` : t`Show ${label}`}
-							aria-expanded={isOpen}
-							onClick={() => {
-								if (isOpen) closePicker();
-								else {
-									setIsOpen(true);
-									requestAnimationFrame(() => inputRef.current?.focus());
-								}
-							}}
-						>
-							<CaretDown
-								size={14}
-								aria-hidden="true"
-								className={cn("transition-transform", isOpen && "rotate-180")}
-							/>
-						</Button>
 					</div>
-				</div>
+				</InputGroup>
 				{createError ? (
-					<p role="alert" className="text-sm text-kumo-danger">
+					<p role="alert" className="mt-1.5 text-sm text-kumo-danger">
 						{createError.message}
 					</p>
 				) : null}
@@ -483,7 +463,8 @@ function TaxonomyTermPicker({
 					<PopoverPrimitive.Popup
 						initialFocus={false}
 						finalFocus={false}
-						className="w-[18rem] origin-(--transform-origin) outline-none transition-[transform,scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
+						style={{ width: "var(--anchor-width)" }}
+						className="max-w-(--available-width) origin-(--transform-origin) outline-none transition-[transform,scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0"
 					>
 						<LayerCard className="p-0 shadow-md">
 							<PopoverPrimitive.Title className="sr-only">
@@ -770,65 +751,56 @@ function TaxonomySection({
 	};
 
 	return (
-		<div className="grid min-w-0 gap-1.5">
-			<Text as="span" variant="secondary">
-				{taxonomy.label}
-			</Text>
-			<div className="grid min-w-0 gap-2">
-				<div className="[&>div>label]:sr-only [&>div]:gap-0">
-					<TaxonomyTermPicker
-						terms={terms}
-						selectedIds={selectedIds}
-						onChange={handlePickerChange}
-						onCreate={(labels, matchedIds) => createTermMutation.mutate({ labels, matchedIds })}
-						isCreating={createTermMutation.isPending}
-						createError={
-							canManageTaxonomies ? (partialCreateError ?? createTermMutation.error) : null
-						}
-						label={taxonomy.label}
-						entryLocale={resolvedEntryLocale}
-						canCreate={canManageTaxonomies}
-						allowDelimitedValues={!taxonomy.hierarchical}
-						singularLabel={taxonomy.labelSingular || taxonomy.label}
-					/>
-				</div>
-				{activeUnresolved.map((assignment) => {
-					const source = assignment.translations[0];
-					if (!source) return null;
-					return (
-						<div
-							key={assignment.translationGroup}
-							className="space-y-2 rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-3"
-						>
-							<p className="text-sm font-medium text-kumo-warning">{t`Unresolved assignment`}</p>
-							<p className="text-xs text-kumo-subtle">
-								{t`Available in ${assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")}`}
-							</p>
-							<div className="flex flex-wrap gap-2">
-								{canManageTaxonomies && resolvedEntryLocale ? (
-									<Button
-										type="button"
-										size="sm"
-										variant="outline"
-										onClick={() => createTranslationMutation.mutate(assignment)}
-										loading={createTranslationMutation.isPending}
-									>
-										{t`Create ${resolvedEntryLocale.toUpperCase()} translation`}
-									</Button>
-								) : null}
+		<div className="grid min-w-0 gap-2">
+			<TaxonomyTermPicker
+				terms={terms}
+				selectedIds={selectedIds}
+				onChange={handlePickerChange}
+				onCreate={(labels, matchedIds) => createTermMutation.mutate({ labels, matchedIds })}
+				isCreating={createTermMutation.isPending}
+				createError={canManageTaxonomies ? (partialCreateError ?? createTermMutation.error) : null}
+				label={taxonomy.label}
+				entryLocale={resolvedEntryLocale}
+				canCreate={canManageTaxonomies}
+				allowDelimitedValues={!taxonomy.hierarchical}
+				singularLabel={taxonomy.labelSingular || taxonomy.label}
+			/>
+			{activeUnresolved.map((assignment) => {
+				const source = assignment.translations[0];
+				if (!source) return null;
+				return (
+					<div
+						key={assignment.translationGroup}
+						className="space-y-2 rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-3"
+					>
+						<p className="text-sm font-medium text-kumo-warning">{t`Unresolved assignment`}</p>
+						<p className="text-xs text-kumo-subtle">
+							{t`Available in ${assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")}`}
+						</p>
+						<div className="flex flex-wrap gap-2">
+							{canManageTaxonomies && resolvedEntryLocale ? (
 								<Button
 									type="button"
 									size="sm"
-									variant="ghost"
-									onClick={() => handleToggle(source.id)}
+									variant="outline"
+									onClick={() => createTranslationMutation.mutate(assignment)}
+									loading={createTranslationMutation.isPending}
 								>
-									{t`Remove assignment`}
+									{t`Create ${resolvedEntryLocale.toUpperCase()} translation`}
 								</Button>
-							</div>
+							) : null}
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								onClick={() => handleToggle(source.id)}
+							>
+								{t`Remove assignment`}
+							</Button>
 						</div>
-					);
-				})}
-			</div>
+					</div>
+				);
+			})}
 		</div>
 	);
 }
@@ -857,7 +829,7 @@ export function TaxonomySidebar({
 			<Text as="h3" variant="heading">
 				{t`Taxonomies`}
 			</Text>
-			<div className="grid gap-2">
+			<div className="grid gap-4">
 				{applicableTaxonomies.map((taxonomy) => (
 					<TaxonomySection
 						key={taxonomy.name}
