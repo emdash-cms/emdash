@@ -1,11 +1,14 @@
 /**
- * Lightweight mock marketplace server for e2e tests.
+ * Lightweight mock marketplace and registry server for e2e tests.
  *
  * Serves canned JSON responses for the endpoints the admin UI hits:
  *   - GET /api/v1/plugins       (search)
  *   - GET /api/v1/plugins/:id   (detail)
  *   - GET /api/v1/themes        (search)
  *   - GET /api/v1/themes/:id    (detail)
+ *   - GET /xrpc/com.emdashcms.experimental.aggregator.getPackage
+ *   - GET /xrpc/com.emdashcms.experimental.aggregator.listReleases
+ *   - GET /registry/gallery.tgz (checksum-bound package artifact)
  *   - GET /health               (health check)
  *
  * Runs on a configurable port and returns deterministic fixture data.
