@@ -850,7 +850,7 @@ export function TaxonomySidebar({
 
 	return (
 		<div className={cn("grid gap-3", className)}>
-			<Text as="h3" variant="heading">
+			<Text bold as="h3">
 				{t`Taxonomies`}
 			</Text>
 			<div className="grid gap-4">
