@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { apiFetch, fetchContent, fetchManifest, throwResponseError } from "../../lib/api";
+import type { ContentItem } from "../../lib/api";
 import { useDebouncedValue } from "../../lib/hooks";
 import { contentUrl } from "../../lib/url.js";
 import { cn } from "../../lib/utils";
@@ -150,19 +151,21 @@ export function LinkDestinationInput({
 			const collectionConfig = manifest?.collections[item.collection];
 			const urlPattern = collectionConfig?.urlPattern;
 			// Date tokens need the entry's publish date, which search results
-			// don't carry; fetch the entry only for date-token patterns. An
-			// entry without a publish date has no URL yet -- inserting the
-			// pattern with literal tokens would bake a permanently broken
-			// href into the content.
+			// don't carry; fetch the entry only for date-token patterns. Until
+			// the entry is published its dated URL isn't final (a draft can
+			// still carry an old or scheduled publish date), so anything not
+			// currently published has no linkable URL here -- inserting the
+			// pattern with literal or stale tokens would bake a broken href
+			// into the content.
 			if (urlPattern && DATE_TOKEN.test(urlPattern)) {
-				let date: string | null | undefined;
+				let entry: ContentItem;
 				try {
-					const entry = await fetchContent(item.collection, item.id, { locale: item.locale });
-					date = entry.publishedAt;
+					entry = await fetchContent(item.collection, item.id, { locale: item.locale });
 				} catch {
 					return null;
 				}
-				if (!date) return null;
+				const date = entry.publishedAt;
+				if (entry.status !== "published" || !date) return null;
 				return contentUrl(item.collection, item.slug || item.id, urlPattern, {
 					locale: item.locale,
 					i18n: manifest?.i18n,

@@ -199,11 +199,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
 			return handlePublicRouteAuth(context, next);
 		}
-		// Search filters drafts by permission, so resolve the session when one
-		// exists. Anonymous requests skip the lookup entirely and stay on the
-		// zero-query hot path. Session cookies only: bearer tokens are not
-		// resolved on public routes, so token callers always get published
-		// results.
+		// Search filters drafts by permission, so resolve the session user when
+		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
+		// are not resolved on public routes; token callers continue to receive
+		// published results only.
 		if (url.pathname === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}

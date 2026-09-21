@@ -286,6 +286,7 @@ describe("LinkDestinationInput", () => {
 			makeManifest({ posts: { label: "Posts", urlPattern: "/blog/{year}/{month}/{slug}" } }),
 		);
 		vi.mocked(fetchContent).mockResolvedValue({
+			status: "published",
 			publishedAt: "2026-03-05T10:00:00.000Z",
 		} as ContentItem);
 		mockSearchResponses([helloPost]);
@@ -305,7 +306,31 @@ describe("LinkDestinationInput", () => {
 		vi.mocked(fetchManifest).mockResolvedValue(
 			makeManifest({ posts: { label: "Posts", urlPattern: "/blog/{year}/{month}/{slug}" } }),
 		);
-		vi.mocked(fetchContent).mockResolvedValue({ publishedAt: null } as unknown as ContentItem);
+		vi.mocked(fetchContent).mockResolvedValue({
+			status: "draft",
+			publishedAt: null,
+		} as unknown as ContentItem);
+		mockSearchResponses([], [helloPost]);
+		const onPick = vi.fn();
+		const screen = await render(<Harness onPick={onPick} />);
+
+		await typeQuery(screen, "hello");
+		const option = screen.getByRole("option", { name: /Hello World/ });
+		await expect.element(option).toBeVisible();
+		(option.element() as HTMLElement).click();
+
+		await expect.element(screen.getByText(/no URL until it is published/)).toBeVisible();
+		expect(onPick).not.toHaveBeenCalled();
+	});
+
+	it("refuses a date-token draft even when it still carries a publish date", async () => {
+		vi.mocked(fetchManifest).mockResolvedValue(
+			makeManifest({ posts: { label: "Posts", urlPattern: "/blog/{year}/{month}/{slug}" } }),
+		);
+		vi.mocked(fetchContent).mockResolvedValue({
+			status: "draft",
+			publishedAt: "2025-01-01T00:00:00.000Z",
+		} as ContentItem);
 		mockSearchResponses([], [helloPost]);
 		const onPick = vi.fn();
 		const screen = await render(<Harness onPick={onPick} />);
