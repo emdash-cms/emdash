@@ -1,0 +1,19 @@
+packages/admin/src/styles.css
+  s_d8e9f234e54e68::t_b90615ae39e527 367-370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8a5f234c42f650446960036f4743613031f9836b",
+  "prompts": {},
+  "sessions": {
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
