@@ -204,6 +204,17 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 	);
 }
 
+type TestScreen = Awaited<ReturnType<typeof render>>;
+
+async function openPicker(screen: TestScreen, label: string) {
+	const trigger = screen.getByRole("button", { name: `Choose ${label}` });
+	await expect.element(trigger).toBeInTheDocument();
+	await trigger.click();
+	const input = screen.getByRole("searchbox", { name: `Search ${label}` });
+	await expect.element(input).toHaveFocus();
+	return input;
+}
+
 describe("TaxonomySidebar", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -214,10 +225,7 @@ describe("TaxonomySidebar", () => {
 		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
 			wrapper: Wrapper,
 		});
-		const input = screen.getByRole("combobox", { name: "Tags" });
-
-		await expect.element(input).toBeInTheDocument();
-		await input.click();
+		await openPicker(screen, "Tags");
 		await expect.element(screen.getByRole("checkbox", { name: "Alpha" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("checkbox", { name: "Beta" })).toBeInTheDocument();
 	});
@@ -231,11 +239,10 @@ describe("TaxonomySidebar", () => {
 			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
 			{ wrapper: Wrapper },
 		);
-		const input = screen.getByRole("combobox", { name: "Tags" });
+		const input = await openPicker(screen, "Tags");
 		const options = screen.getByRole("group", { name: "Tags options" });
 
 		await expect.element(screen.getByLabelText("Remove Term 250")).toBeInTheDocument();
-		await input.click();
 		await expect.element(options).toBeInTheDocument();
 		expect(options.element().querySelectorAll('[role="checkbox"]')).toHaveLength(100);
 		expect(screen.getByRole("checkbox", { name: "Term 250" }).query()).toBeNull();
@@ -256,7 +263,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Alpha");
+		await (await openPicker(screen, "Tags")).fill("Alpha");
 		await userEvent.keyboard("{Enter}");
 
 		expect(onChange).toHaveBeenCalledWith("tags", ["term_alpha"]);
@@ -270,7 +277,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Alpha, Beta");
+		await (await openPicker(screen, "Tags")).fill("Alpha, Beta");
 		await userEvent.keyboard("{Enter}");
 
 		expect(onChange).toHaveBeenCalledWith("tags", ["term_alpha", "term_beta"]);
@@ -283,14 +290,12 @@ describe("TaxonomySidebar", () => {
 		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
 			wrapper: Wrapper,
 		});
-		const input = screen.getByRole("combobox", { name: "Tags" });
+		const input = await openPicker(screen, "Tags");
 		const paste = new ClipboardEvent("paste", { bubbles: true, cancelable: true });
 		Object.defineProperty(paste, "clipboardData", {
 			value: { getData: () => "First line\rSecond line\nThird line" },
 		});
 
-		await expect.element(input).toBeInTheDocument();
-		await input.click();
 		input.element().dispatchEvent(paste);
 		await expect.element(input).toHaveValue("First line, Second line, Third line");
 		await userEvent.keyboard("{Enter}");
@@ -318,7 +323,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Alpha, Gamma");
+		await (await openPicker(screen, "Tags")).fill("Alpha, Gamma");
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => {
@@ -335,7 +340,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Mexico");
+		await (await openPicker(screen, "Tags")).fill("Mexico");
 		await userEvent.keyboard("{Enter}");
 
 		expect(onChange).toHaveBeenCalledWith("tags", ["term_mexico"]);
@@ -355,7 +360,7 @@ describe("TaxonomySidebar", () => {
 			wrapper: Wrapper,
 		});
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("México, Mexico");
+		await (await openPicker(screen, "Tags")).fill("México, Mexico");
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => {
@@ -377,10 +382,8 @@ describe("TaxonomySidebar", () => {
 			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
 			{ wrapper: Wrapper },
 		);
-		const input = screen.getByRole("combobox", { name: "Tags" });
-
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
-		await input.click();
+		await openPicker(screen, "Tags");
 		await expect.element(screen.getByRole("checkbox", { name: "Alpha" })).toBeChecked();
 		await expect.element(screen.getByRole("checkbox", { name: "Beta" })).not.toBeChecked();
 	});
@@ -400,9 +403,7 @@ describe("TaxonomySidebar", () => {
 		);
 
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
-		const input = screen.getByRole("combobox", { name: "Tags" });
-		await input.click();
-		await expect.element(input).toHaveFocus();
+		await openPicker(screen, "Tags");
 		await userEvent.keyboard("{Backspace}");
 
 		expect(onChange).toHaveBeenCalledWith("tags", []);
@@ -423,9 +424,7 @@ describe("TaxonomySidebar", () => {
 		);
 
 		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
-		const input = screen.getByRole("combobox", { name: "Tags" });
-		await input.click();
-		await expect.element(input).toHaveFocus();
+		const input = await openPicker(screen, "Tags");
 		await userEvent.keyboard("{Backspace}");
 		await input.fill("Beta");
 		await userEvent.keyboard("{Enter}");
@@ -451,7 +450,7 @@ describe("TaxonomySidebar", () => {
 			},
 		);
 
-		const input = screen.getByRole("combobox", { name: "Tags" });
+		const input = await openPicker(screen, "Tags");
 		await input.fill("Gamma");
 		await userEvent.keyboard("{Enter}");
 
@@ -473,7 +472,7 @@ describe("TaxonomySidebar", () => {
 			wrapper: Wrapper,
 		});
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("音楽");
+		await (await openPicker(screen, "Tags")).fill("音楽");
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => {
@@ -490,7 +489,7 @@ describe("TaxonomySidebar", () => {
 			wrapper: Wrapper,
 		});
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Gamma");
+		await (await openPicker(screen, "Tags")).fill("Gamma");
 		await userEvent.keyboard("{Enter}");
 
 		await expect.element(screen.getByText("Term could not be created")).toBeInTheDocument();
@@ -504,7 +503,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("First, Second");
+		await (await openPicker(screen, "Tags")).fill("First, Second");
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => {
@@ -529,7 +528,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Alpha, Second");
+		await (await openPicker(screen, "Tags")).fill("Alpha, Second");
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => {
@@ -552,12 +551,10 @@ describe("TaxonomySidebar", () => {
 		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
 			wrapper: Wrapper,
 		});
-		const input = screen.getByRole("combobox", { name: "Categories" });
-
-		await expect.element(input).toBeInTheDocument();
+		expect(screen.getByRole("searchbox", { name: "Search Categories" }).query()).toBeNull();
 		expect(screen.getByRole("checkbox", { name: "Alpha" }).query()).toBeNull();
 
-		await input.click();
+		await openPicker(screen, "Categories");
 		await expect.element(screen.getByRole("checkbox", { name: "Alpha" })).toBeInTheDocument();
 	});
 
@@ -568,10 +565,9 @@ describe("TaxonomySidebar", () => {
 			<TaxonomySidebar collection="products" canManageTaxonomies onChange={onChange} />,
 			{ wrapper: Wrapper },
 		);
-		const input = screen.getByRole("combobox", { name: "Categories" });
+		await openPicker(screen, "Categories");
 		const alpha = screen.getByRole("checkbox", { name: "Alpha" });
 
-		await input.click();
 		await userEvent.keyboard("{ArrowDown}");
 		await expect.element(alpha).toHaveFocus();
 		await userEvent.keyboard("{Enter}");
@@ -591,7 +587,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Categories" }).fill("Child");
+		await (await openPicker(screen, "Categories")).fill("Child");
 		await userEvent.keyboard("{Enter}");
 
 		expect(onChange).toHaveBeenCalledWith("categories", ["term_child"]);
@@ -618,10 +614,12 @@ describe("TaxonomySidebar", () => {
 		await screen.getByLabelText("Remove Alpha").click();
 
 		expect(onChange).toHaveBeenCalledWith("categories", []);
-		await expect.element(screen.getByRole("combobox", { name: "Categories" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Choose Categories" }))
+			.toBeInTheDocument();
 	});
 
-	it("keeps selected chips above the input and scrolls after three rows", async () => {
+	it("keeps selected chips inside the control and scrolls after three rows", async () => {
 		const selectedTerms = Array.from({ length: 8 }, (_, index) =>
 			makeTerm(`term_${index}`, `Long category ${index + 1}`),
 		);
@@ -638,11 +636,9 @@ describe("TaxonomySidebar", () => {
 		);
 
 		const selectedList = screen.getByRole("list", { name: "Selected Categories" });
-		const input = screen.getByRole("combobox", { name: "Categories" });
 		await expect.element(selectedList).toBeInTheDocument();
 		const listElement = selectedList.element();
 		const listRect = listElement.getBoundingClientRect();
-		const inputRect = input.element().getBoundingClientRect();
 		const chips = [...listElement.querySelectorAll<HTMLElement>('[role="listitem"]')];
 		const firstChip = chips[0];
 		if (!firstChip) {
@@ -650,7 +646,6 @@ describe("TaxonomySidebar", () => {
 		}
 		const firstChipRect = firstChip.getBoundingClientRect();
 
-		expect(inputRect.top).toBeGreaterThanOrEqual(listRect.bottom);
 		expect(listElement.clientHeight).toBeLessThanOrEqual(86);
 		expect(listElement.scrollHeight).toBeGreaterThan(listElement.clientHeight);
 		expect(firstChipRect.left).toBeGreaterThan(listRect.left);
@@ -658,21 +653,22 @@ describe("TaxonomySidebar", () => {
 		expect(listElement.scrollWidth).toBe(listElement.clientWidth);
 	});
 
-	it("closes the category picker with Escape and keeps focus on the field", async () => {
+	it("closes the category picker with Escape and restores focus to its trigger", async () => {
 		mockApiFetch({ taxonomies: [categoriesTaxonomy], terms: [alphaTerm] });
 
 		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
 			wrapper: Wrapper,
 		});
-		const input = screen.getByRole("combobox", { name: "Categories" });
+		const trigger = screen.getByRole("button", { name: "Choose Categories" });
+		const input = await openPicker(screen, "Categories");
 
 		await input.fill("Alpha");
 		await expect.element(screen.getByRole("checkbox", { name: "Alpha" })).toBeInTheDocument();
 		await userEvent.keyboard("{Escape}");
 
 		expect(screen.getByRole("checkbox", { name: "Alpha" }).query()).toBeNull();
-		await expect.element(input).toHaveFocus();
-		await expect.element(input).toHaveValue("");
+		await expect.element(trigger).toHaveFocus();
+		expect(screen.getByRole("searchbox", { name: "Search Categories" }).query()).toBeNull();
 	});
 
 	it("keeps rendering after creating a hierarchical term", async () => {
@@ -694,7 +690,7 @@ describe("TaxonomySidebar", () => {
 			wrapper: Wrapper,
 		});
 
-		await screen.getByRole("combobox", { name: "Categories" }).fill("Gamma");
+		await (await openPicker(screen, "Categories")).fill("Gamma");
 		await userEvent.keyboard("{Enter}");
 
 		await expect.element(screen.getByLabelText("Remove Gamma")).toBeInTheDocument();
@@ -734,9 +730,7 @@ describe("TaxonomySidebar", () => {
 		await expect.element(screen.getByText("Schlagwörter", { exact: true }).first()).toBeVisible();
 		expect(screen.getByText("Tags").query()).toBeNull();
 		expect(screen.getByText("Étiquettes").query()).toBeNull();
-		await expect
-			.element(screen.getByRole("combobox", { name: "Schlagwörter" }))
-			.toBeInTheDocument();
+		await openPicker(screen, "Schlagwörter");
 	});
 
 	it("selects Arabic matches when the interface direction is RTL", async () => {
@@ -755,7 +749,7 @@ describe("TaxonomySidebar", () => {
 			const screen = await render(<TaxonomySidebar collection="products" onChange={onChange} />, {
 				wrapper: Wrapper,
 			});
-			await screen.getByRole("combobox", { name: "Tags" }).fill("أمن المعلومات");
+			await (await openPicker(screen, "Tags")).fill("أمن المعلومات");
 			await userEvent.keyboard("{Enter}");
 
 			expect(onChange).toHaveBeenCalledWith("tags", ["term_information"]);
@@ -791,9 +785,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		const input = screen.getByRole("combobox", { name: "Tags" });
-		await expect.element(input).toBeInTheDocument();
-		await input.click();
+		await openPicker(screen, "Tags");
 		await expect
 			.element(screen.getByRole("checkbox", { name: /Alpha.*EN fallback/ }))
 			.toBeInTheDocument();
@@ -826,7 +818,7 @@ describe("TaxonomySidebar", () => {
 			.element(screen.getByRole("button", { name: "Create FR translation" }))
 			.toBeInTheDocument();
 
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Beta");
+		await (await openPicker(screen, "Tags")).fill("Beta");
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => {
@@ -859,7 +851,7 @@ describe("TaxonomySidebar", () => {
 			/>,
 			{ wrapper: Wrapper },
 		);
-		await expect.element(screen.getByRole("combobox", { name: "Tags" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Choose Tags" })).toBeInTheDocument();
 
 		const termListCall = vi
 			.mocked(apiFetch)
@@ -898,7 +890,7 @@ describe("TaxonomySidebar", () => {
 
 		await expect.element(screen.getByText("Unresolved assignment")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Create FR translation" }).query()).toBeNull();
-		await screen.getByRole("combobox", { name: "Tags" }).fill("Gamma");
+		await (await openPicker(screen, "Tags")).fill("Gamma");
 		await expect.element(screen.getByText("No tags found.")).toBeInTheDocument();
 		await userEvent.keyboard("{Enter}");
 		expect(
@@ -918,7 +910,7 @@ describe("TaxonomySidebar", () => {
 			{ wrapper: Wrapper },
 		);
 
-		await screen.getByRole("combobox", { name: "Categories" }).fill("Gamma");
+		await (await openPicker(screen, "Categories")).fill("Gamma");
 		await expect.element(screen.getByText("No categories found.")).toBeInTheDocument();
 		await userEvent.keyboard("{Enter}");
 		expect(

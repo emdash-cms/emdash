@@ -9,6 +9,7 @@ import { Badge } from "@cloudflare/kumo/components/badge";
 import { Button } from "@cloudflare/kumo/components/button";
 import { Checkbox } from "@cloudflare/kumo/components/checkbox";
 import { InputGroup } from "@cloudflare/kumo/components/input-group";
+import { Label } from "@cloudflare/kumo/components/label";
 import { LayerCard } from "@cloudflare/kumo/components/layer-card";
 import { Text } from "@cloudflare/kumo/components/text";
 import { Toast } from "@cloudflare/kumo/components/toast";
@@ -208,10 +209,12 @@ function TaxonomyTermPicker({
 	const [isOpen, setIsOpen] = React.useState(false);
 	const [activeIndex, setActiveIndex] = React.useState(0);
 	const anchorRef = React.useRef<HTMLDivElement>(null);
+	const triggerRef = React.useRef<HTMLButtonElement>(null);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
 	const pastedDelimitedInputRef = React.useRef<string | null>(null);
 	const listId = React.useId();
+	const triggerId = React.useId();
 	const inputId = React.useId();
 	const trimmedInput = input.trim();
 	const flatTerms = React.useMemo(() => flattenTerms(terms), [terms]);
@@ -248,6 +251,12 @@ function TaxonomyTermPicker({
 	React.useEffect(() => {
 		setActiveIndex((current) => Math.min(current, Math.max(visibleOptions.length - 1, 0)));
 	}, [visibleOptions.length]);
+
+	React.useEffect(() => {
+		if (!isOpen) return;
+		const frame = requestAnimationFrame(() => inputRef.current?.focus());
+		return () => cancelAnimationFrame(frame);
+	}, [isOpen]);
 
 	const closePicker = () => {
 		setIsOpen(false);
@@ -323,6 +332,7 @@ function TaxonomyTermPicker({
 		if (event.key === "Escape") {
 			event.preventDefault();
 			closePicker();
+			requestAnimationFrame(() => triggerRef.current?.focus());
 			return;
 		}
 		if (event.key === "Backspace" && !input && selectedOptions.length > 0) {
@@ -351,25 +361,22 @@ function TaxonomyTermPicker({
 		} else if (event.key === "Escape") {
 			event.preventDefault();
 			closePicker();
-			inputRef.current?.focus();
+			requestAnimationFrame(() => triggerRef.current?.focus());
 		}
 	};
 
 	return (
 		<PopoverPrimitive.Root
 			open={isOpen}
-			triggerId={inputId}
+			triggerId={triggerId}
 			onOpenChange={(open) => {
 				if (open) setIsOpen(true);
 				else closePicker();
 			}}
 		>
-			<div ref={anchorRef} className="min-w-0">
-				<InputGroup
-					label={label}
-					className="h-auto min-h-9 flex-wrap content-start items-start gap-1.5 px-1.5 py-1.5"
-					disabled={isCreating}
-				>
+			<div ref={anchorRef} className="grid min-w-0 gap-2">
+				<Label htmlFor={triggerId}>{label}</Label>
+				<LayerCard className="flex min-h-9 items-start gap-1.5 bg-kumo-control p-1.5 shadow-none focus-within:ring-[1.5px] focus-within:ring-kumo-focus/50">
 					{selectedOptions.length > 0 ? (
 						<div
 							role="list"
@@ -381,7 +388,7 @@ function TaxonomyTermPicker({
 								scrollbarGutter: "stable",
 								scrollbarWidth: "thin",
 							}}
-							className="relative z-1 flex w-full flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+							className="relative z-1 flex min-w-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
 						>
 							{selectedOptions.map((option) => (
 								<span
@@ -397,6 +404,7 @@ function TaxonomyTermPicker({
 										size="xs"
 										shape="square"
 										className="h-6 w-6 min-w-6"
+										disabled={isCreating}
 										aria-label={t`Remove ${option.term.label}`}
 										onClick={() => toggleTerm(option.term.id)}
 										icon={<X size={10} aria-hidden="true" />}
@@ -405,52 +413,27 @@ function TaxonomyTermPicker({
 							))}
 						</div>
 					) : null}
-
-					<div className="relative z-1 flex h-7 w-full min-w-0 items-center gap-2 text-kumo-subtle">
-						<MagnifyingGlass className="shrink-0" size={16} aria-hidden="true" />
-						<InputGroup.Input
-							ref={inputRef}
-							id={inputId}
-							role="combobox"
-							aria-label={label}
-							aria-expanded={isOpen}
-							aria-controls={listId}
-							className="h-7 px-0 py-0"
-							value={input}
-							onChange={(event) => {
-								pastedDelimitedInputRef.current = null;
-								setInput(event.target.value);
-								setActiveIndex(0);
-								setIsOpen(true);
-							}}
-							onPaste={(event) => {
-								const pastedValue = event.clipboardData.getData("text");
-								if (!allowDelimitedValues || !PASTED_LINE_BREAK.test(pastedValue)) return;
-								event.preventDefault();
-								const start = event.currentTarget.selectionStart ?? input.length;
-								const end = event.currentTarget.selectionEnd ?? input.length;
-								const rawValue = `${input.slice(0, start)}${pastedValue}${input.slice(end)}`;
-								pastedDelimitedInputRef.current = rawValue;
-								setInput(rawValue.replace(TERM_VALUE_DISPLAY_SEPARATOR, ", "));
-								setActiveIndex(0);
-								setIsOpen(true);
-							}}
-							onFocus={() => setIsOpen(true)}
-							onClick={() => setIsOpen(true)}
-							onKeyDown={handleInputKeyDown}
-							placeholder={
-								canCreate
-									? t`Add or search ${label.toLowerCase()}…`
-									: t`Search ${label.toLowerCase()}…`
-							}
-						/>
-					</div>
-				</InputGroup>
-				{createError ? (
-					<p role="alert" className="mt-1.5 text-sm text-kumo-danger">
-						{createError.message}
-					</p>
-				) : null}
+					<Button
+						ref={triggerRef}
+						id={triggerId}
+						type="button"
+						variant="ghost"
+						size="xs"
+						shape="square"
+						className="ms-auto h-6 w-6 min-w-6 shrink-0 focus-visible:ring-0"
+						title={t`Choose ${label}`}
+						aria-label={t`Choose ${label}`}
+						aria-expanded={isOpen}
+						aria-controls={listId}
+						disabled={isCreating}
+						loading={isCreating}
+						onClick={() => {
+							if (isOpen) closePicker();
+							else setIsOpen(true);
+						}}
+						icon={<Plus size={14} aria-hidden="true" />}
+					/>
+				</LayerCard>
 			</div>
 
 			<PopoverPrimitive.Portal>
@@ -472,11 +455,50 @@ function TaxonomyTermPicker({
 							<PopoverPrimitive.Title className="sr-only">
 								{t`Choose ${label}`}
 							</PopoverPrimitive.Title>
+							<div className="p-1.5 pb-0">
+								<InputGroup className="w-full" disabled={isCreating}>
+									<InputGroup.Addon>
+										<MagnifyingGlass size={16} aria-hidden="true" />
+									</InputGroup.Addon>
+									<InputGroup.Input
+										ref={inputRef}
+										id={inputId}
+										role="searchbox"
+										aria-label={t`Search ${label}`}
+										aria-controls={listId}
+										value={input}
+										onChange={(event) => {
+											pastedDelimitedInputRef.current = null;
+											setInput(event.target.value);
+											setActiveIndex(0);
+										}}
+										onPaste={(event) => {
+											const pastedValue = event.clipboardData.getData("text");
+											if (!allowDelimitedValues || !PASTED_LINE_BREAK.test(pastedValue)) return;
+											event.preventDefault();
+											const start = event.currentTarget.selectionStart ?? input.length;
+											const end = event.currentTarget.selectionEnd ?? input.length;
+											const rawValue = `${input.slice(0, start)}${pastedValue}${input.slice(end)}`;
+											pastedDelimitedInputRef.current = rawValue;
+											setInput(rawValue.replace(TERM_VALUE_DISPLAY_SEPARATOR, ", "));
+											setActiveIndex(0);
+										}}
+										onKeyDown={handleInputKeyDown}
+										placeholder={t`Search ${label.toLowerCase()}…`}
+									/>
+								</InputGroup>
+							</div>
+							{createError ? (
+								<p role="alert" className="px-3 pt-1.5 text-sm text-kumo-danger">
+									{createError.message}
+								</p>
+							) : null}
 							<div
 								id={listId}
 								role="group"
 								aria-label={t`${label} options`}
-								className="max-h-56 overflow-y-auto overscroll-contain p-1.5"
+								style={{ scrollbarGutter: "stable", scrollbarWidth: "thin" }}
+								className="max-h-56 overflow-y-auto overscroll-contain p-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
 							>
 								{visibleOptions.length > 0 ? (
 									visibleOptions.map((option, index) => (
