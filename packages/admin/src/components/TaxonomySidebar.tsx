@@ -375,7 +375,9 @@ function TaxonomyTermPicker({
 							role="list"
 							aria-label={t`Selected ${label}`}
 							style={{
-								maxHeight: "5.25rem",
+								boxSizing: "border-box",
+								maxHeight: "calc(5.25rem + 2px)",
+								padding: "1px",
 								scrollbarGutter: "stable",
 								scrollbarWidth: "thin",
 							}}
@@ -385,7 +387,7 @@ function TaxonomyTermPicker({
 								<span
 									key={option.term.id}
 									role="listitem"
-									className="flex h-6 min-w-0 items-center gap-1 rounded-sm bg-kumo-overlay ps-2 pe-0.5 text-sm ring-1 ring-kumo-hairline"
+									className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-overlay ps-2 text-sm ring-1 ring-kumo-hairline"
 								>
 									<span className="min-w-0 truncate">{option.term.label}</span>
 									<TermLocaleBadge term={option.term} entryLocale={entryLocale} />
@@ -394,7 +396,7 @@ function TaxonomyTermPicker({
 										variant="ghost"
 										size="xs"
 										shape="square"
-										className="h-5 w-5 min-w-5"
+										className="h-6 w-6 min-w-6"
 										aria-label={t`Remove ${option.term.label}`}
 										onClick={() => toggleTerm(option.term.id)}
 										icon={<X size={10} aria-hidden="true" />}
@@ -404,7 +406,7 @@ function TaxonomyTermPicker({
 						</div>
 					) : null}
 
-					<div className="relative z-1 flex h-7 w-full min-w-0 items-center gap-2 px-1 text-kumo-subtle">
+					<div className="relative z-1 flex h-7 w-full min-w-0 items-center gap-2 text-kumo-subtle">
 						<MagnifyingGlass className="shrink-0" size={16} aria-hidden="true" />
 						<InputGroup.Input
 							ref={inputRef}
@@ -458,7 +460,7 @@ function TaxonomyTermPicker({
 					side="bottom"
 					sideOffset={6}
 					positionMethod="fixed"
-					className="z-50"
+					className="z-[100]"
 				>
 					<PopoverPrimitive.Popup
 						initialFocus={false}

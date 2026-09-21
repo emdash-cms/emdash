@@ -643,10 +643,19 @@ describe("TaxonomySidebar", () => {
 		const listElement = selectedList.element();
 		const listRect = listElement.getBoundingClientRect();
 		const inputRect = input.element().getBoundingClientRect();
+		const chips = [...listElement.querySelectorAll<HTMLElement>('[role="listitem"]')];
+		const firstChip = chips[0];
+		if (!firstChip) {
+			throw new Error("Expected visible selected-term chips");
+		}
+		const firstChipRect = firstChip.getBoundingClientRect();
 
 		expect(inputRect.top).toBeGreaterThanOrEqual(listRect.bottom);
-		expect(listElement.clientHeight).toBeLessThanOrEqual(84);
+		expect(listElement.clientHeight).toBeLessThanOrEqual(86);
 		expect(listElement.scrollHeight).toBeGreaterThan(listElement.clientHeight);
+		expect(firstChipRect.left).toBeGreaterThan(listRect.left);
+		expect(firstChipRect.top).toBeGreaterThan(listRect.top);
+		expect(listElement.scrollWidth).toBe(listElement.clientWidth);
 	});
 
 	it("closes the category picker with Escape and keeps focus on the field", async () => {
