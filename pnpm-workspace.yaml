@@ -99,7 +99,7 @@ catalog:
   # consumer resolve a Kumo whose component classes are absent from that
   # prebuilt CSS, rendering controls invisible. Keep build-time and runtime
   # Kumo identical: bump this version deliberately and rebuild admin.
-  "@cloudflare/kumo": 2.14.0
+  "@cloudflare/kumo": 2.6.0
   "@cloudflare/vite-plugin": ^1.36.3
   "@cloudflare/vitest-plugin": ^1.0.0
   "@cloudflare/workers-types": ^5.20260820.1

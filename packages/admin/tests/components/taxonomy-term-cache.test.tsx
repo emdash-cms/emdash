@@ -2,6 +2,7 @@ import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { TaxonomyManager } from "../../src/components/TaxonomyManager";
 import { TaxonomySidebar } from "../../src/components/TaxonomySidebar";
@@ -103,7 +104,9 @@ describe("taxonomy term cache", () => {
 	it("shows real counts in the manager after the editor cached a count-free list", async () => {
 		const screen = await render(<EditorThenSettings />, { wrapper: makeWrapper() });
 
+		await screen.getByRole("button", { name: "Choose Categories" }).click();
 		await expect.element(screen.getByText("Technology")).toBeInTheDocument();
+		await userEvent.keyboard("{Escape}");
 
 		await screen.getByRole("button", { name: "Open settings" }).click();
 
