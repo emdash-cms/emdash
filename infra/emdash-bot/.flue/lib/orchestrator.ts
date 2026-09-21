@@ -1787,7 +1787,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 	}
 
-	private async immolate(reason: string): Promise<void> {
+	private async cleanupSchedulingState(reason: string): Promise<void> {
 		const [anchorNumber, state, prNumber, alarmAt] = await Promise.all([
 			this.ctx.storage.get<number>(STORAGE.anchorNumber),
 			this.ctx.storage.get<StateId>(STORAGE.state),
@@ -1810,7 +1810,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 		console.info(
 			JSON.stringify({
-				message: "orchestrator immolated",
+				message: "orchestrator self-cleanup completed",
 				anchorNumber: anchorNumber ?? null,
 				state: state ?? null,
 				prNumber: prNumber ?? null,
@@ -1874,7 +1874,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		]);
 		const now = Date.now();
 		if (recoveryTerminal || anchorTerminal) {
-			await this.immolate(recoveryTerminal ? "recovery-exhausted" : "anchor-terminal");
+			await this.cleanupSchedulingState(
+				recoveryTerminal ? "recovery-exhausted" : "anchor-terminal",
+			);
 			return false;
 		}
 		const activeRun = run?.status === "running" ? run : null;
@@ -1915,7 +1917,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			state !== undefined && STATES[state].terminal && !hasImmediateWork && runAlarmAt === null;
 		if (terminalAtRest || (!hasAutomationWork && !hasRecoveryWork)) {
 			const reason = state && STATES[state].terminal ? `terminal:${state}` : idleReason;
-			await this.immolate(reason);
+			await this.cleanupSchedulingState(reason);
 			return false;
 		}
 		const reconcileLabels =

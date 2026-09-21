@@ -2063,7 +2063,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 	});
 
-	test("cleanupOnClose immolates idle state without live credentials", async () => {
+	test("cleanupOnClose clears idle scheduling state without live credentials", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		await runInDurableObject(stub, async (_instance, state) => {
 			await state.storage.put({

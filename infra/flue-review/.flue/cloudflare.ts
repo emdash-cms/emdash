@@ -594,7 +594,8 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			if (Date.now() >= cleanupAt) {
 				console.info(
 					JSON.stringify({
-						message: "review watchdog immolated",
+						message: "review watchdog self-cleanup completed",
+						reason: "terminal-retention-expired",
 						attemptId: attempt.attemptId,
 						runId: attempt.runId,
 						prNumber: attempt.prNumber,

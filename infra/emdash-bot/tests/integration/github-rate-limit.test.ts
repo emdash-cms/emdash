@@ -174,7 +174,7 @@ describe("orchestrator alarm recovery", () => {
 		vi.restoreAllMocks();
 	});
 
-	test("immolates an idle orchestrator instead of rearming label reconciliation", async () => {
+	test("cleans up an idle orchestrator instead of rearming label reconciliation", async () => {
 		const stub = env.Orchestrator.getByName(`issue-idle-${crypto.randomUUID()}`);
 		const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
 		await runInDurableObject(stub, async (_instance, state) => {
@@ -193,7 +193,9 @@ describe("orchestrator alarm recovery", () => {
 			expect(await state.storage.getAlarm()).toBeNull();
 			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
 		});
-		expect(log).toHaveBeenCalledWith(expect.stringContaining('"message":"orchestrator immolated"'));
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"message":"orchestrator self-cleanup completed"'),
+		);
 		expect(log).toHaveBeenCalledWith(expect.stringContaining('"anchorNumber":42'));
 	});
 
@@ -218,7 +220,7 @@ describe("orchestrator alarm recovery", () => {
 		});
 	});
 
-	test("immolates terminal state even when stale retries remain", async () => {
+	test("cleans up terminal state even when stale retries remain", async () => {
 		const stub = env.Orchestrator.getByName(`issue-terminal-${crypto.randomUUID()}`);
 		await runInDurableObject(stub, async (_instance, state) => {
 			await state.storage.put({
