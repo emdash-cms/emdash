@@ -69,12 +69,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# položka)} few {(# položky)} many {(# položky)} other {(# položek)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2032
+#: packages/admin/src/components/ContentEditor.tsx:2033
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr ""
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2037
+#: packages/admin/src/components/ContentEditor.tsx:2038
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr ""
 
@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# komentář importován} few {# komentáře importovány} many {# komentáře importováno} other {# komentářů importováno}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2119
+#: packages/admin/src/router.tsx:2134
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# komentář aktualizován} few {# komentáře aktualizovány} many {# komentáře aktualizováno} other {# komentářů aktualizováno}}"
 
@@ -224,7 +224,7 @@ msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:2042
+#: packages/admin/src/components/ContentEditor.tsx:2043
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr ""
 
@@ -333,17 +333,17 @@ msgid "{0} items will be imported"
 msgstr "{0, plural, one {Bude importována # položka} few {Budou importovány # položky} many {Bude importováno # položky} other {Bude importováno # položek}}"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:579
+#: packages/admin/src/router.tsx:581
 msgid "{0} of {total} could not be deleted"
 msgstr "{0} z {total} se nepodařilo smazat"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:537
 msgid "{0} of {total} could not be published"
 msgstr "{0} z {total} se nepodařilo publikovat"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:558
+#: packages/admin/src/router.tsx:560
 msgid "{0} of {total} could not be updated"
 msgstr "{0} z {total} se nepodařilo aktualizovat"
 
@@ -473,6 +473,58 @@ msgstr "Přiřazeno {matchedCount} z {totalCount}"
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} z {totalCount} autorů spárováno podle e-mailu"
 
+#: packages/admin/src/lib/content-validation-errors.ts:100
+msgid "{maximum, plural, one {{name} can have at most # character.} other {{name} can have at most # characters.}}"
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:106
+msgid "{maximum, plural, one {{name} can have at most # item.} other {{name} can have at most # items.}}"
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:81
+msgid "{minimum, plural, one {{name} needs at least # character.} other {{name} needs at least # characters.}}"
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:87
+msgid "{minimum, plural, one {{name} needs at least # item.} other {{name} needs at least # items.}}"
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:76
+msgid "{name} does not match the required format."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:73
+msgid "{name} has a value that is not one of its options."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:117
+msgid "{name} has an invalid value."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:69
+msgid "{name} is not a field in this collection."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:67
+msgid "{name} is required."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:71
+msgid "{name} links to an entry that does not exist or is in the trash."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:75
+msgid "{name} must be a valid URL."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:94
+msgid "{name} must be at least {bound}."
+msgstr ""
+
+#: packages/admin/src/lib/content-validation-errors.ts:113
+msgid "{name} must be at most {bound}."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1895
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {Bude vytvořena # nová kolekce} few {Budou vytvořeny # nové kolekce} many {Bude vytvořeno # nové kolekce} other {Bude vytvořeno # nových kolekcí}}"
@@ -550,6 +602,10 @@ msgstr "{selectedCount, plural, one {# vybráno} few {# vybráno} many {# vybrá
 #: packages/admin/src/components/ContentList.tsx:536
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Přesunout # položku do koše? Později ji lze obnovit.} few {Přesunout # položky do koše? Později je lze obnovit.} many {Přesunout # položky do koše? Později je lze obnovit.} other {Přesunout # položek do koše? Později je lze obnovit.}}"
+
+#: packages/admin/src/lib/content-validation-errors.ts:57
+msgid "{subLabel} ({label}, item {position})"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1203
 msgid "{total, plural, one {# item} other {# items}}"
@@ -731,7 +787,7 @@ msgstr ""
 msgid "A publication time has not been selected"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:748
+#: packages/admin/src/components/ContentEditor.tsx:749
 msgid "A publishing action is already in progress"
 msgstr ""
 
@@ -768,7 +824,7 @@ msgstr "Přijmout pozvánku"
 msgid "Access denied"
 msgstr "Přístup odepřen"
 
-#: packages/admin/src/router.tsx:2139
+#: packages/admin/src/router.tsx:2154
 msgid "Access Denied"
 msgstr "Přístup odepřen"
 
@@ -1209,24 +1265,24 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:416
 #: packages/admin/src/components/TaxonomySidebar.tsx:476
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:467
-#: packages/admin/src/router.tsx:482
-#: packages/admin/src/router.tsx:496
-#: packages/admin/src/router.tsx:510
-#: packages/admin/src/router.tsx:734
-#: packages/admin/src/router.tsx:1093
-#: packages/admin/src/router.tsx:1185
-#: packages/admin/src/router.tsx:1210
-#: packages/admin/src/router.tsx:1234
-#: packages/admin/src/router.tsx:1258
-#: packages/admin/src/router.tsx:1304
-#: packages/admin/src/router.tsx:1323
-#: packages/admin/src/router.tsx:1354
-#: packages/admin/src/router.tsx:1375
-#: packages/admin/src/router.tsx:2084
-#: packages/admin/src/router.tsx:2100
-#: packages/admin/src/router.tsx:2125
-#: packages/admin/src/router.tsx:2626
+#: packages/admin/src/router.tsx:469
+#: packages/admin/src/router.tsx:484
+#: packages/admin/src/router.tsx:498
+#: packages/admin/src/router.tsx:512
+#: packages/admin/src/router.tsx:740
+#: packages/admin/src/router.tsx:1104
+#: packages/admin/src/router.tsx:1198
+#: packages/admin/src/router.tsx:1223
+#: packages/admin/src/router.tsx:1247
+#: packages/admin/src/router.tsx:1271
+#: packages/admin/src/router.tsx:1317
+#: packages/admin/src/router.tsx:1336
+#: packages/admin/src/router.tsx:1369
+#: packages/admin/src/router.tsx:1390
+#: packages/admin/src/router.tsx:2099
+#: packages/admin/src/router.tsx:2115
+#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:2641
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1367,11 +1423,11 @@ msgstr "Přiřaďte autory z WordPressu uživatelům EmDash. Příspěvky budou 
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:2065
+#: packages/admin/src/components/ContentEditor.tsx:2066
 msgid "At least {min}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2062
+#: packages/admin/src/components/ContentEditor.tsx:2063
 msgid "At most {max}"
 msgstr ""
 
@@ -1474,7 +1530,7 @@ msgstr "Automatické zálohy"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatické zálohy vyžadují úložiště (R2, S3 nebo lokální). Povolíte je nastavením úložiště v konfiguraci EmDash."
 
-#: packages/admin/src/router.tsx:1184
+#: packages/admin/src/router.tsx:1195
 msgid "Autosave failed"
 msgstr "Automatické uložení selhalo"
 
@@ -1513,7 +1569,7 @@ msgstr "Avatar"
 msgid "Back"
 msgstr "Zpět"
 
-#: packages/admin/src/components/ContentEditor.tsx:986
+#: packages/admin/src/components/ContentEditor.tsx:987
 msgid "Back to {collectionLabel} list"
 msgstr "Zpět na seznam: {collectionLabel}"
 
@@ -1595,7 +1651,7 @@ msgstr "Před odesláním:"
 msgid "Before you continue:"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2059
+#: packages/admin/src/components/ContentEditor.tsx:2060
 msgid "Between {min} and {max}"
 msgstr ""
 
@@ -1888,7 +1944,7 @@ msgstr "Seznam změn"
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1250
+#: packages/admin/src/router.tsx:1263
 msgid "Changes discarded"
 msgstr "Změny byly zahozeny"
 
@@ -2146,7 +2202,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Zavřít panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:1554
+#: packages/admin/src/components/ContentEditor.tsx:1555
 msgid "Close settings"
 msgstr "Zavřít nastavení"
 
@@ -2342,7 +2398,7 @@ msgstr "Chyby obsahu ({0})"
 msgid "Content found:"
 msgstr "Nalezený obsah:"
 
-#: packages/admin/src/router.tsx:1297
+#: packages/admin/src/router.tsx:1310
 msgid "Content has been scheduled for publishing"
 msgstr "Obsah byl naplánován k publikování"
 
@@ -2354,7 +2410,7 @@ msgstr "Obsah byl aktualizován na vybranou revizi."
 msgid "Content ID:"
 msgstr "ID obsahu:"
 
-#: packages/admin/src/router.tsx:1204
+#: packages/admin/src/router.tsx:1217
 msgid "Content is now live"
 msgstr "Obsah je nyní veřejný"
 
@@ -2366,11 +2422,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "Čtení obsahu"
 
-#: packages/admin/src/router.tsx:1228
+#: packages/admin/src/router.tsx:1241
 msgid "Content removed from public view"
 msgstr "Obsah byl odebrán z veřejného zobrazení"
 
-#: packages/admin/src/router.tsx:1316
+#: packages/admin/src/router.tsx:1329
 msgid "Content reverted to draft"
 msgstr "Obsah byl vrácen do konceptu"
 
@@ -2758,7 +2814,7 @@ msgid "Created {0}"
 msgstr "Vytvořeno {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1361
 msgid "Created {0} translation"
 msgstr "Překlad vytvořen ({0})"
 
@@ -3360,7 +3416,7 @@ msgstr "Zobrazí mrak štítků"
 msgid "Displayed below the image as a visible caption."
 msgstr "Zobrazí se pod obrázkem jako viditelný popisek."
 
-#: packages/admin/src/components/ContentEditor.tsx:1078
+#: packages/admin/src/components/ContentEditor.tsx:1079
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Režim bez rušivých prvků (⌘⇧\\)"
 
@@ -3587,7 +3643,7 @@ msgstr "Upravit {0}"
 msgid "Edit {0} field"
 msgstr "Upravit pole {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:993
+#: packages/admin/src/components/ContentEditor.tsx:994
 msgid "Edit {itemLabel}"
 msgstr "Upravit položku ({itemLabel})"
 
@@ -3858,7 +3914,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Zadejte URL (https://…) nebo relativní cestu (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2106
+#: packages/admin/src/components/ContentEditor.tsx:2107
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Zadejte platnou URL (např. https://example.com)"
 
@@ -3866,7 +3922,7 @@ msgstr "Zadejte platnou URL (např. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Zadat přihlašovací údaje ručně"
 
-#: packages/admin/src/components/ContentEditor.tsx:1077
+#: packages/admin/src/components/ContentEditor.tsx:1078
 msgid "Enter distraction-free mode"
 msgstr "Zapnout režim bez rušení"
 
@@ -3878,7 +3934,7 @@ msgstr "Zadejte e-mail"
 msgid "Enter HTML..."
 msgstr "Zadejte HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1782
+#: packages/admin/src/components/ContentEditor.tsx:1783
 msgid "Enter markdown content..."
 msgstr "Zadejte obsah v Markdownu..."
 
@@ -3913,7 +3969,7 @@ msgstr "Zadejte URL svého webu na WordPressu"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2843
+#: packages/admin/src/router.tsx:2858
 msgid "Error"
 msgstr "Chyba"
 
@@ -3962,11 +4018,11 @@ msgstr ""
 msgid "Exists"
 msgstr "Existuje"
 
-#: packages/admin/src/components/ContentEditor.tsx:1152
+#: packages/admin/src/components/ContentEditor.tsx:1153
 msgid "Exit distraction-free mode"
 msgstr "Vypnout režim bez rušení"
 
-#: packages/admin/src/components/ContentEditor.tsx:1153
+#: packages/admin/src/components/ContentEditor.tsx:1154
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr ""
 
@@ -4058,14 +4114,14 @@ msgid "Failed to create term"
 msgstr "Nepodařilo se vytvořit položku taxonomie"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
-#: packages/admin/src/router.tsx:1353
+#: packages/admin/src/router.tsx:1366
 msgid "Failed to create translation"
 msgstr "Nepodařilo se vytvořit překlad"
 
-#: packages/admin/src/router.tsx:466
-#: packages/admin/src/router.tsx:495
-#: packages/admin/src/router.tsx:578
-#: packages/admin/src/router.tsx:1374
+#: packages/admin/src/router.tsx:468
+#: packages/admin/src/router.tsx:497
+#: packages/admin/src/router.tsx:580
+#: packages/admin/src/router.tsx:1389
 msgid "Failed to delete"
 msgstr "Nepodařilo se smazat"
 
@@ -4090,7 +4146,7 @@ msgid "Failed to delete collection"
 msgstr "Nepodařilo se smazat kolekci"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2099
+#: packages/admin/src/router.tsx:2114
 msgid "Failed to delete comment"
 msgstr "Nepodařilo se smazat komentář"
 
@@ -4160,7 +4216,7 @@ msgstr "Nepodařilo se vypnout hledání"
 msgid "Failed to disable user"
 msgstr "Nepodařilo se deaktivovat uživatele"
 
-#: packages/admin/src/router.tsx:1257
+#: packages/admin/src/router.tsx:1270
 msgid "Failed to discard changes"
 msgstr "Nepodařilo se zahodit změny"
 
@@ -4173,7 +4229,7 @@ msgstr ""
 msgid "Failed to dismiss welcome"
 msgstr "Nepodařilo se zavřít uvítání"
 
-#: packages/admin/src/router.tsx:509
+#: packages/admin/src/router.tsx:511
 msgid "Failed to duplicate"
 msgstr "Nepodařilo se duplikovat"
 
@@ -4292,8 +4348,8 @@ msgstr "Nepodařilo se načíst položky taxonomie"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:970
-#: packages/admin/src/router.tsx:2030
+#: packages/admin/src/router.tsx:979
+#: packages/admin/src/router.tsx:2045
 msgid "Failed to fetch user"
 msgstr "Nepodařilo se načíst uživatele"
 
@@ -4335,7 +4391,7 @@ msgstr "Nepodařilo se nainstalovat plugin"
 msgid "Failed to list byline fields"
 msgstr "Nepodařilo se načíst pole autorského podpisu"
 
-#: packages/admin/src/router.tsx:306
+#: packages/admin/src/router.tsx:308
 msgid "Failed to load admin"
 msgstr "Nepodařilo se načíst administraci"
 
@@ -4408,7 +4464,7 @@ msgstr "Nepodařilo se načíst widget"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2124
+#: packages/admin/src/router.tsx:2139
 msgid "Failed to perform bulk action"
 msgstr "Nepodařilo se provést hromadnou akci"
 
@@ -4420,8 +4476,8 @@ msgstr "Nepodařilo se trvale smazat obsah"
 msgid "Failed to prepare import"
 msgstr "Nepodařilo se připravit import"
 
-#: packages/admin/src/router.tsx:534
-#: packages/admin/src/router.tsx:1209
+#: packages/admin/src/router.tsx:536
+#: packages/admin/src/router.tsx:1222
 msgid "Failed to publish"
 msgstr "Nepodařilo se publikovat"
 
@@ -4471,7 +4527,7 @@ msgstr "Nepodařilo se přeřadit widgety"
 msgid "Failed to replace media image"
 msgstr ""
 
-#: packages/admin/src/router.tsx:481
+#: packages/admin/src/router.tsx:483
 msgid "Failed to restore"
 msgstr "Nepodařilo se obnovit"
 
@@ -4492,9 +4548,9 @@ msgstr "Nepodařilo se zrušit API token"
 msgid "Failed to rewrite URLs"
 msgstr "Nepodařilo se přepsat URL"
 
-#: packages/admin/src/router.tsx:733
-#: packages/admin/src/router.tsx:1092
-#: packages/admin/src/router.tsx:2625
+#: packages/admin/src/router.tsx:735
+#: packages/admin/src/router.tsx:1101
+#: packages/admin/src/router.tsx:2640
 msgid "Failed to save"
 msgstr "Nepodařilo se uložit"
 
@@ -4513,7 +4569,7 @@ msgstr "Nepodařilo se uložit pole"
 msgid "Failed to save settings"
 msgstr "Nepodařilo se uložit nastavení"
 
-#: packages/admin/src/router.tsx:1303
+#: packages/admin/src/router.tsx:1316
 msgid "Failed to schedule"
 msgstr "Nepodařilo se naplánovat"
 
@@ -4544,15 +4600,15 @@ msgstr "Nepodařilo se nastavit položky taxonomie přiřazené k obsahu"
 msgid "Failed to uninstall plugin"
 msgstr "Nepodařilo se odinstalovat plugin"
 
-#: packages/admin/src/router.tsx:1233
+#: packages/admin/src/router.tsx:1246
 msgid "Failed to unpublish"
 msgstr "Nepodařilo se zrušit publikování"
 
-#: packages/admin/src/router.tsx:1322
+#: packages/admin/src/router.tsx:1335
 msgid "Failed to unschedule"
 msgstr "Nepodařilo se zrušit naplánování"
 
-#: packages/admin/src/router.tsx:557
+#: packages/admin/src/router.tsx:559
 msgid "Failed to update"
 msgstr "Nepodařilo se aktualizovat"
 
@@ -4599,7 +4655,7 @@ msgstr "Nepodařilo se aktualizovat sekci"
 msgid "Failed to update settings"
 msgstr "Nepodařilo se aktualizovat nastavení"
 
-#: packages/admin/src/router.tsx:2083
+#: packages/admin/src/router.tsx:2098
 msgid "Failed to update status"
 msgstr "Nepodařilo se aktualizovat stav"
 
@@ -4776,11 +4832,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Pouze komentáře od nových komentujících"
 
-#: packages/admin/src/components/ContentEditor.tsx:808
+#: packages/admin/src/components/ContentEditor.tsx:809
 msgid "Fix invalid fields before changing the publication date"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:752
+#: packages/admin/src/components/ContentEditor.tsx:753
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
@@ -4806,7 +4862,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1753
+#: packages/admin/src/router.tsx:1768
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4931,7 +4987,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2863
+#: packages/admin/src/router.tsx:2878
 msgid "Go to Dashboard"
 msgstr "Přejít na přehled"
 
@@ -5511,7 +5567,7 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr "Neplatný odkaz na pozvánku"
 
-#: packages/admin/src/components/ContentEditor.tsx:2175
+#: packages/admin/src/components/ContentEditor.tsx:2176
 msgid "Invalid JSON"
 msgstr "Neplatný JSON"
 
@@ -5794,8 +5850,8 @@ msgstr "Zobrazení seznamu"
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1041
-#: packages/admin/src/components/ContentEditor.tsx:1102
+#: packages/admin/src/components/ContentEditor.tsx:1042
+#: packages/admin/src/components/ContentEditor.tsx:1103
 #: packages/admin/src/components/ContentSettingsPanel.tsx:643
 msgid "Live View"
 msgstr "Živý náhled"
@@ -5824,7 +5880,7 @@ msgstr "Načíst další"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2818
+#: packages/admin/src/router.tsx:2833
 msgid "Loading"
 msgstr "Načítání"
 
@@ -5840,8 +5896,8 @@ msgstr "Načítání kolekcí..."
 msgid "Loading comments..."
 msgstr "Načítání komentářů..."
 
-#: packages/admin/src/router.tsx:2820
-#: packages/admin/src/router.tsx:2832
+#: packages/admin/src/router.tsx:2835
+#: packages/admin/src/router.tsx:2847
 msgid "Loading configuration..."
 msgstr "Načítání konfigurace..."
 
@@ -6104,11 +6160,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Tržiště"
 
-#: packages/admin/src/router.tsx:2363
+#: packages/admin/src/router.tsx:2378
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2338
+#: packages/admin/src/router.tsx:2353
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6467,11 +6523,11 @@ msgstr "Přesunout nahoru"
 msgid "Moved {filename} to position {0}."
 msgstr ""
 
-#: packages/admin/src/router.tsx:554
+#: packages/admin/src/router.tsx:556
 msgid "Moved {total} items to draft"
 msgstr "{total, plural, one {Přesunuta # položka do konceptů} few {Přesunuty # položky do konceptů} many {Přesunuto # položky do konceptů} other {Přesunuto # položek do konceptů}}"
 
-#: packages/admin/src/router.tsx:575
+#: packages/admin/src/router.tsx:577
 msgid "Moved {total} items to trash"
 msgstr "{total, plural, one {Přesunuta # položka do koše} few {Přesunuty # položky do koše} many {Přesunuto # položky do koše} other {Přesunuto # položek do koše}}"
 
@@ -6558,7 +6614,7 @@ msgstr ""
 msgid "Never"
 msgstr "Nikdy"
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1361
 msgid "new"
 msgstr "nový"
 
@@ -6575,7 +6631,7 @@ msgstr "NOVÉ"
 msgid "New {0}"
 msgstr "Nová položka: {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:993
+#: packages/admin/src/components/ContentEditor.tsx:994
 msgid "New {itemLabel}"
 msgstr "Nová položka: {itemLabel}"
 
@@ -7235,7 +7291,7 @@ msgstr "Vlastnictví"
 msgid "Package"
 msgstr "Balíček"
 
-#: packages/admin/src/router.tsx:2858
+#: packages/admin/src/router.tsx:2873
 msgid "Page Not Found"
 msgstr "Stránka nenalezena"
 
@@ -7540,8 +7596,8 @@ msgstr "Registr pluginů"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2298
-#: packages/admin/src/router.tsx:2329
+#: packages/admin/src/router.tsx:2313
+#: packages/admin/src/router.tsx:2344
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -7745,7 +7801,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:403
-#: packages/admin/src/router.tsx:1204
+#: packages/admin/src/router.tsx:1217
 msgid "Published"
 msgstr "Publikováno"
 
@@ -7754,7 +7810,7 @@ msgstr "Publikováno"
 msgid "Published {0}"
 msgstr "Publikováno {0}"
 
-#: packages/admin/src/router.tsx:531
+#: packages/admin/src/router.tsx:533
 msgid "Published {total} items"
 msgstr "{total, plural, one {Publikována # položka} few {Publikovány # položky} many {Publikováno # položky} other {Publikováno # položek}}"
 
@@ -7992,7 +8048,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2336
+#: packages/admin/src/components/ContentEditor.tsx:2337
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
@@ -8028,7 +8084,7 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Odebrat {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2334
+#: packages/admin/src/components/ContentEditor.tsx:2335
 msgid "Remove {label}"
 msgstr "Odebrat {label}"
 
@@ -8141,8 +8197,8 @@ msgstr "Opakovaná skupina"
 msgid "Repeating group of fields"
 msgstr "Opakující se skupina polí"
 
-#: packages/admin/src/components/ContentEditor.tsx:2326
-#: packages/admin/src/components/ContentEditor.tsx:2363
+#: packages/admin/src/components/ContentEditor.tsx:2327
+#: packages/admin/src/components/ContentEditor.tsx:2364
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
@@ -8155,7 +8211,7 @@ msgstr "Opakující se skupina polí"
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2362
+#: packages/admin/src/components/ContentEditor.tsx:2363
 #: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Replace {label}"
 msgstr ""
@@ -8299,7 +8355,7 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1376
+#: packages/admin/src/components/ContentEditor.tsx:1377
 msgid "Resize settings panel"
 msgstr ""
 
@@ -8355,7 +8411,7 @@ msgstr "Obnovování..."
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2846
+#: packages/admin/src/router.tsx:2861
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Zkusit znovu"
@@ -8393,7 +8449,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Znovupoužitelné bloky obsahu, které lze vložit do libovolného obsahu"
 
-#: packages/admin/src/router.tsx:1251
+#: packages/admin/src/router.tsx:1264
 msgid "Reverted to published version"
 msgstr "Obnovena publikovaná verze"
 
@@ -8557,7 +8613,7 @@ msgstr "Uložit (Enter)"
 msgid "Save alt text"
 msgstr "Uložit alternativní text"
 
-#: packages/admin/src/components/ContentEditor.tsx:1188
+#: packages/admin/src/components/ContentEditor.tsx:1189
 msgid "Save anyway"
 msgstr ""
 
@@ -8661,7 +8717,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:861
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1296
+#: packages/admin/src/router.tsx:1309
 msgid "Scheduled"
 msgstr "Naplánováno"
 
@@ -8975,8 +9031,8 @@ msgid "Select"
 msgstr "Vybrat"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2346
-#: packages/admin/src/components/ContentEditor.tsx:2362
+#: packages/admin/src/components/ContentEditor.tsx:2347
+#: packages/admin/src/components/ContentEditor.tsx:2363
 #: packages/admin/src/components/ImageFieldRenderer.tsx:573
 msgid "Select {label}"
 msgstr "Vybrat: {label}"
@@ -9038,7 +9094,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Vybrat ikonu webu"
 
-#: packages/admin/src/components/ContentEditor.tsx:2350
+#: packages/admin/src/components/ContentEditor.tsx:2351
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Vybrat soubor"
@@ -9226,8 +9282,8 @@ msgid "Setting up..."
 msgstr "Nastavování..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
-#: packages/admin/src/components/ContentEditor.tsx:1238
-#: packages/admin/src/components/ContentEditor.tsx:1540
+#: packages/admin/src/components/ContentEditor.tsx:1239
+#: packages/admin/src/components/ContentEditor.tsx:1541
 #: packages/admin/src/components/ContentTypeEditor.tsx:393
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:518
@@ -9553,7 +9609,7 @@ msgstr ""
 msgid "Start Import"
 msgstr "Spustit import"
 
-#: packages/admin/src/components/ContentEditor.tsx:1746
+#: packages/admin/src/components/ContentEditor.tsx:1747
 #: packages/admin/src/components/PortableTextEditor.tsx:2758
 #: packages/admin/src/components/PortableTextEditor.tsx:2759
 msgid "Start writing, or type '/' for commands"
@@ -9830,7 +9886,7 @@ msgstr "Nabídka byla smazána."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Název vašeho webu, používaný v hlavičce a metadatech"
 
-#: packages/admin/src/router.tsx:2860
+#: packages/admin/src/router.tsx:2875
 msgid "The page you're looking for doesn't exist."
 msgstr "Hledaná stránka neexistuje."
 
@@ -9926,12 +9982,12 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Toto nevypadá jako platný migrační klíč. Vygenerujte nový v pluginu a vložte celý řetězec začínající „em1.“."
 
-#: packages/admin/src/components/ContentEditor.tsx:1184
+#: packages/admin/src/components/ContentEditor.tsx:1185
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:758
-#: packages/admin/src/router.tsx:896
+#: packages/admin/src/components/ContentEditor.tsx:759
+#: packages/admin/src/router.tsx:905
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
@@ -9943,11 +9999,11 @@ msgstr ""
 msgid "This entry is open somewhere else"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1171
+#: packages/admin/src/components/ContentEditor.tsx:1172
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1612
+#: packages/admin/src/components/ContentEditor.tsx:1613
 msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
@@ -9968,7 +10024,7 @@ msgstr ""
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2366
+#: packages/admin/src/components/ContentEditor.tsx:2367
 #: packages/admin/src/components/ImageFieldRenderer.tsx:592
 msgid "This field is required"
 msgstr "Toto pole je povinné"
@@ -10245,7 +10301,7 @@ msgstr "Překládání..."
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:993
 #: packages/admin/src/components/TaxonomySidebar.tsx:471
-#: packages/admin/src/router.tsx:1347
+#: packages/admin/src/router.tsx:1360
 msgid "Translation created"
 msgstr "Překlad vytvořen"
 
@@ -10444,7 +10500,7 @@ msgstr "Nepojmenovaný přístupový klíč"
 msgid "Unpublish {itemLabel}"
 msgstr "Zrušit publikování položky ({itemLabel})"
 
-#: packages/admin/src/router.tsx:1228
+#: packages/admin/src/router.tsx:1241
 msgid "Unpublished"
 msgstr "Nepublikováno"
 
@@ -10456,7 +10512,7 @@ msgstr "Nalezeny neregistrované tabulky obsahu"
 msgid "Unresolved assignment"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1315
+#: packages/admin/src/router.tsx:1328
 msgid "Unscheduled"
 msgstr "Nenaplánováno"
 
@@ -10479,7 +10535,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "Bez názvu"
 
-#: packages/admin/src/components/ContentEditor.tsx:2268
+#: packages/admin/src/components/ContentEditor.tsx:2269
 msgid "Untitled file"
 msgstr "Soubor bez názvu"
 
@@ -10741,7 +10797,7 @@ msgstr "Použije se jako záložní obrázek Open Graph, pokud stránka vlastní
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Použije se jako identifikátor. Pouze malá písmena, číslice a podtržítka."
 
-#: packages/admin/src/components/ContentEditor.tsx:1866
+#: packages/admin/src/components/ContentEditor.tsx:1867
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Použije se jako hlavní vizuál tohoto příspěvku ve výpisech a v jeho záhlaví"
 
@@ -10978,7 +11034,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "Co se stane při importu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1185
+#: packages/admin/src/components/ContentEditor.tsx:1186
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 
@@ -11216,7 +11272,7 @@ msgstr "Ke správě schématu autorských podpisů jsou potřeba oprávnění sp
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:2155
 msgid "You need Editor permissions to moderate comments."
 msgstr "K moderování komentářů potřebujete oprávnění editora."
 

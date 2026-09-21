@@ -163,4 +163,30 @@ test.describe("Autosave", () => {
 		await summaryInput.fill("long enough now");
 		expect((await acceptedPut).status()).toBe(200);
 	});
+
+	test("names the rejected field by its label", async ({ admin }) => {
+		await fetch(`${baseUrl}/_emdash/api/schema/collections/${collectionSlug}/fields`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				slug: "excerpt",
+				type: "string",
+				label: "Summary",
+				validation: { minLength: 10 },
+			}),
+		});
+
+		const contentUrl = `/_emdash/api/content/${collectionSlug}/${postId}`;
+		const isPut = (res: any) => res.url().includes(contentUrl) && res.request().method() === "PUT";
+
+		await admin.goToEditContent(collectionSlug, postId);
+		await admin.waitForLoading();
+
+		const rejectedPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
+		await admin.page.locator("#field-excerpt").fill("short");
+		expect((await rejectedPut).status()).toBe(400);
+
+		await expect(admin.page.getByText("Summary needs at least 10 characters.")).toBeVisible();
+		await expect(admin.page.getByText("excerpt:", { exact: false })).toHaveCount(0);
+	});
 });

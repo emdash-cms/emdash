@@ -107,6 +107,7 @@ Check or apply the core migration set emitted by an Astro build.
 npx emdash migrate [options]
 npx emdash migrate --check [options]
 npx emdash migrate --status --json [options]
+npx emdash migrate --release-lock <id> [options]
 ```
 
 By default the command discovers the project root and reads `.emdash/migrations.json`. It validates the manifest against the project's installed EmDash package, resolves the adapter's project-local executor, and prints the immutable target before any SQL.
@@ -121,7 +122,8 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--manifest <path>` | Read a non-standard manifest path |
 | `--from-config` | Explicitly evaluate trusted Astro configuration instead of a manifest |
 | `--config <path>` | Astro config path used with `--from-config` |
-| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply |
+| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply or lock release |
+| `--release-lock <id>` | Release the D1 migration lock with the id that `--status` reports; cannot be combined with `--check` or `--status` |
 | `--database <path>` | Override a SQLite path |
 | `--database-url-env <name>` | Override a PostgreSQL connection-variable name |
 | `--d1 <uuid-or-name>` | Select a D1 database explicitly |
@@ -129,7 +131,7 @@ By default the command discovers the project root and reads `.emdash/migrations.
 | `--wrangler-config <path>` | Read D1 binding metadata from an explicit Wrangler config |
 | `--wrangler-env <name>` | Select an environment; requires `--wrangler-config` |
 
-Interactive human-readable apply asks for confirmation. Non-interactive apply and every apply using `--json` require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
+Interactive human-readable apply and lock release ask for confirmation. Non-interactive apply or lock release, and every apply or lock release using `--json`, require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
 
 #### Exit codes
 
@@ -142,7 +144,7 @@ Interactive human-readable apply asks for confirmation. Non-interactive apply an
 | `4` | Confirmation missing, declined, or target fingerprint mismatch |
 | `130` | Interrupted after bounded executor cleanup |
 
-See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and D1 serialization.
+See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and the D1 migration lock.
 
 ### `emdash dev` (deprecated)
 
