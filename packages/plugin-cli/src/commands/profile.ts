@@ -93,9 +93,8 @@ export function printProfileSetupResult(
 	}
 	consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
 	if (!showNextSteps) return;
-	consola.info("Next, publish a release:");
-	consola.info(`  Manually: ${pc.cyan("emdash-plugin publish")}`);
-	consola.info(`  With GitHub Actions: ${pc.cyan("emdash-plugin release setup")}`);
+	consola.info("Next, configure the provenance-backed release workflow:");
+	consola.info(`  ${pc.cyan("emdash-plugin release setup")}`);
 }
 
 async function confirmationValue(

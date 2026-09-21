@@ -121,6 +121,12 @@ describe("ingestPackageProfile", () => {
 		license: "MIT",
 		authors: [{ name: "Tester" }],
 		security: [{ email: "x@y.test" }],
+		extensions: {
+			[NSID.packageProfileExtension]: {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/demo",
+			},
+		},
 	};
 
 	it("inserts a row on first call", async () => {
@@ -131,6 +137,22 @@ describe("ingestPackageProfile", () => {
 			.bind(DID_A)
 			.first<{ did: string; slug: string; license: string }>();
 		expect(row).toMatchObject({ did: DID_A, slug: "demo", license: "MIT" });
+	});
+
+	it("stages a profile that cannot pass install verification as unavailable", async () => {
+		const { extensions: _extensions, ...missingExtension } = validRecord;
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(missingExtension),
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(
+			"SELECT emdash_extension FROM packages WHERE did = ? AND slug = ?",
+		)
+			.bind(DID_A, "demo")
+			.first<{ emdash_extension: string | null }>();
+		expect(row?.emdash_extension).toBeNull();
 	});
 
 	it("upserts on second call with edited record", async () => {

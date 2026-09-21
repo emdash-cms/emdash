@@ -83,6 +83,7 @@ beforeAll(async () => {
 		"0009_handle_refresh_attempted_at.sql",
 		"0010_clear_duplicate_handles.sql",
 		"0011_unique_publisher_handle.sql",
+		"0012_profile_installability.sql",
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(0, 2));
 	await testEnv.DB.prepare(
@@ -247,6 +248,22 @@ describe("revision migration and ingest", () => {
 });
 
 describe("projection policy", () => {
+	it("keeps an approved but uninstallable profile out of public discovery", async () => {
+		await seedProfile({
+			cid: PROFILE_CID_1,
+			name: "Incomplete profile",
+			at: NOW,
+			installable: false,
+		});
+		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+		await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-passed");
+		await putLabel(releaseUri(DID_A, "demo", "1.0.0"), RELEASE_CID_1, "listing-passed");
+
+		await rebuild("projection");
+
+		await expectUnavailable(DID_A, "demo");
+	});
+
 	it("materializes repeated signed deliveries as one semantic label", async () => {
 		await seedApprovedPackage({
 			did: DID_A,
@@ -1521,6 +1538,7 @@ interface SeedProfileOptions {
 	at: Date;
 	did?: string;
 	slug?: string;
+	installable?: boolean;
 }
 
 async function seedProfile(options: SeedProfileOptions): Promise<void> {
@@ -1538,6 +1556,16 @@ async function seedProfile(options: SeedProfileOptions): Promise<void> {
 			license: "MIT",
 			authors: [{ name: "Publisher" }],
 			security: [{ email: "security@example.test" }],
+			...(options.installable === false
+				? {}
+				: {
+						extensions: {
+							[NSID.packageProfileExtension]: {
+								$type: NSID.packageProfileExtension,
+								repository: "https://github.com/example/demo",
+							},
+						},
+					}),
 		}),
 		options.at,
 	);

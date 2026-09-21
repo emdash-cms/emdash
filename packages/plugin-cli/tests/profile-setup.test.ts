@@ -100,7 +100,7 @@ describe("package profile setup", () => {
 		}
 	});
 
-	it("explains how to publish a release after publishing the profile", () => {
+	it("points provenance-required profiles to release workflow setup", () => {
 		const success = vi.spyOn(consola, "success").mockImplementation(() => undefined);
 		const info = vi.spyOn(consola, "info").mockImplementation(() => undefined);
 
@@ -115,8 +115,7 @@ describe("package profile setup", () => {
 		expect(stripVTControlCharacters(String(success.mock.calls[0]?.[0]))).toContain(
 			"Published package profile for @publisher.example/gallery",
 		);
-		expect(info).toHaveBeenCalledWith("Next, publish a release:");
-		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin publish"));
+		expect(info).toHaveBeenCalledWith("Next, configure the provenance-backed release workflow:");
 		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin release setup"));
 	});
 

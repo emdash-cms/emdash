@@ -426,6 +426,9 @@ importers:
       '@emdash-cms/registry-moderation':
         specifier: workspace:*
         version: link:../../packages/registry-moderation
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../../packages/registry-verification
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'
@@ -2385,6 +2388,9 @@ importers:
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../registry-verification
       '@oslojs/crypto':
         specifier: 'catalog:'
         version: 1.0.1

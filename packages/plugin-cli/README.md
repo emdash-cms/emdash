@@ -141,7 +141,7 @@ pnpm exec emdash-plugin release setup
 
 The command reads the plugin metadata and publisher from `emdash-plugin.jsonc`. If the package profile does not exist, it offers to create it. If the profile predates delegated releases, it offers to add the signed repository and release policy while preserving the existing package metadata. The default policy requires the publisher's [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) to approve releases when plugin permissions increase. Choose the every-release option to require approval each time.
 
-Set `repo` in `emdash-plugin.jsonc`, or confirm the canonical GitHub repository URL when prompted. If the manifest omits `repo`, setup detects a GitHub `origin` remote and uses it as the prompt default. The standalone `emdash-plugin profile setup` command prepares only the package profile, then shows the commands for publishing a release manually or configuring GitHub Actions.
+Set `repo` in `emdash-plugin.jsonc`, or confirm the canonical GitHub repository URL when prompted. If the manifest omits `repo`, setup detects a GitHub `origin` remote and uses it as the prompt default. The standalone `emdash-plugin profile setup` command prepares only the package profile; run `emdash-plugin release setup` to create the provenance-backed GitHub Actions workflow.
 
 Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, `--trigger auto|changesets|tags|manual`, and `--force` for the generated workflow. The default hosted service is `https://releases.emdashcms.com`.
 

@@ -2,6 +2,7 @@
 	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
 	"slug": "marketplace-test",
 	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6",
+	"repo": "https://github.com/emdash-cms/emdash",
 	"license": "MIT",
 	"author": { "name": "EmDash" },
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },

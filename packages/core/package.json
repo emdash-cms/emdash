@@ -30,6 +30,10 @@
       "types": "./dist/plugin-test-runtime.d.mts",
       "default": "./dist/plugin-test-runtime.mjs"
     },
+    "./testing/registry": {
+      "types": "./dist/registry/testing.d.mts",
+      "default": "./dist/registry/testing.mjs"
+    },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
       "default": "./dist/astro/middleware.mjs"

@@ -54,20 +54,20 @@ test.describe("Registry cutover", () => {
 		).toBeVisible();
 	});
 
-	test("reaches server verification before installing a registry plugin", async ({
+	test("verifies a registry plugin before showing installation consent", async ({
 		admin,
 		page,
 	}) => {
 		await page.addInitScript(() => {
 			localStorage.setItem(
-				"emdash:did-handle:did:plc:publisher",
+				"emdash:did-handle:did:plc:delegated00000000000000",
 				JSON.stringify({
 					resolution: { status: "missing" },
 					expiresAt: Date.now() + 60_000,
 				}),
 			);
 		});
-		await admin.goto("/plugins/registry/did:plc:publisher/gallery");
+		await admin.goto("/plugins/registry/did:plc:delegated00000000000000/gallery");
 		await admin.waitForShell();
 
 		await expect(page.getByRole("heading", { name: "Gallery" })).toBeVisible({ timeout: 15_000 });
@@ -79,10 +79,21 @@ test.describe("Registry cutover", () => {
 		await page.getByRole("button", { name: "Install", exact: true }).click();
 
 		const response = await verificationResponse;
-		expect(response.status()).not.toBe(404);
+		expect(response.status()).toBe(200);
 		await expect(response.json()).resolves.toMatchObject({
-			error: { code: "NO_RELEASE" },
+			success: true,
+			data: {
+				version: "1.2.3",
+				verification: {
+					profileCid: "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe",
+					provenance: "absent-optional",
+				},
+			},
 		});
-		await expect(page.getByRole("alert")).toContainText("Version 1.2.3 not found");
+		const dialog = page.getByRole("dialog", { name: "Capability consent" });
+		await expect(dialog.getByRole("heading", { name: "Review Verified Plugin" })).toBeVisible();
+		await expect(
+			dialog.getByText("No provenance was supplied; the signed publisher policy permits this."),
+		).toBeVisible();
 	});
 });

@@ -65,12 +65,30 @@ export type AuthoritativeRecordReader = (
 	options?: AuthoritativeRecordReadOptions,
 ) => Promise<AuthoritativeRecordReadResult>;
 
+const AUTHORITATIVE_READER_OVERRIDE = Symbol.for("emdash.registry.authoritativeRecordReader");
+interface AuthoritativeReaderGlobal {
+	[AUTHORITATIVE_READER_OVERRIDE]?: AuthoritativeRecordReader;
+}
+
+export function setDefaultAuthoritativeRecordReaderForTesting(
+	reader: AuthoritativeRecordReader | undefined,
+): AuthoritativeRecordReader | undefined {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Symbol.for state must survive duplicated SSR module chunks.
+	const state = globalThis as AuthoritativeReaderGlobal;
+	const previous = state[AUTHORITATIVE_READER_OVERRIDE];
+	state[AUTHORITATIVE_READER_OVERRIDE] = reader;
+	return previous;
+}
+
 export async function readAuthoritativePackageRelease(
 	publisherDid: string,
 	packageSlug: string,
 	version: string,
 	options: AuthoritativeRecordReadOptions = {},
 ): Promise<AuthoritativeRecordReadResult> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Symbol.for state must survive duplicated SSR module chunks.
+	const override = (globalThis as AuthoritativeReaderGlobal)[AUTHORITATIVE_READER_OVERRIDE];
+	if (override) return override(publisherDid, packageSlug, version, options);
 	try {
 		const client = new DirectPdsClient({
 			did: publisherDid,

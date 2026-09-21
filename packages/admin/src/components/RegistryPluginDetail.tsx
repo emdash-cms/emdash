@@ -42,6 +42,7 @@ import {
 	installRegistryPlugin,
 	listRegistryReleases,
 	presentSections,
+	registryVerificationErrorMessage,
 	registryQueryPolicyKey,
 	releasePassesPolicy,
 	resolveRegistryPackageStatus,
@@ -632,7 +633,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					className="rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-sm text-kumo-error"
 					role="alert"
 				>
-					{getMutationError(verificationMutation.error)}
+					{registryVerificationErrorMessage(verificationMutation.error) ??
+						getMutationError(verificationMutation.error)}
 				</div>
 			) : null}
 
@@ -860,7 +862,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					newlyPublicRoutes={activeVerification.publicRoutes}
 					verification={activeVerification.verification}
 					isPending={installMutation.isPending}
-					error={getMutationError(installMutation.error)}
+					error={
+						registryVerificationErrorMessage(installMutation.error) ??
+						getMutationError(installMutation.error)
+					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);

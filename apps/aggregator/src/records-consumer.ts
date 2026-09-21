@@ -33,11 +33,13 @@ import { safeParse } from "@atcute/lexicons/validations";
 import {
 	NSID,
 	PackageProfile,
+	PackageProfileExtension,
 	PackageRelease,
 	PackageReleaseExtension,
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification/repository";
 
 import { createProductionDidResolver, DidResolver } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
@@ -385,6 +387,26 @@ export async function ingestPackageProfile(
 			);
 		}
 	}
+	let emdashExtension: string | null = null;
+	if (isPlainObject(record.extensions)) {
+		const rawExtension = record.extensions[NSID.packageProfileExtension];
+		const extensionValidation = safeParse(PackageProfileExtension.mainSchema, rawExtension);
+		if (extensionValidation.ok) {
+			const extension = extensionValidation.value;
+			const repository = canonicalizeRepositoryUrl(extension.repository);
+			const confirmation = extension.releasePolicy?.confirmation;
+			const approvers = extension.releasePolicy?.approvers ?? [];
+			if (
+				repository === extension.repository &&
+				(confirmation === undefined ||
+					confirmation === "always" ||
+					confirmation === "escalation-only") &&
+				new Set(approvers).size === approvers.length
+			) {
+				emdashExtension = JSON.stringify(extension);
+			}
+		}
+	}
 	const slug = record.slug ?? job.rkey;
 	const sigMeta = JSON.stringify({ cid: verified.cid });
 	const nowIso = now.toISOString();
@@ -392,10 +414,11 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO package_profile_revisions
 			   (did, slug, cid, type, name, description, license, authors, security,
-			    keywords, sections, last_updated, record_blob, signature_metadata,
-			    observed_at, last_verified_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    keywords, sections, last_updated, emdash_extension, record_blob,
+			    signature_metadata, observed_at, last_verified_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug, cid) DO UPDATE SET
+			   emdash_extension = excluded.emdash_extension,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   last_verified_at = excluded.last_verified_at`,
@@ -413,6 +436,7 @@ export async function ingestPackageProfile(
 			record.keywords ? JSON.stringify(record.keywords) : null,
 			record.sections ? JSON.stringify(record.sections) : null,
 			record.lastUpdated ?? null,
+			emdashExtension,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -422,8 +446,9 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO packages
 			   (did, slug, type, name, description, license, authors, security, keywords, sections,
-			    last_updated, latest_version, capabilities, record_blob, signature_metadata, verified_at, indexed_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    last_updated, latest_version, capabilities, emdash_extension, record_blob,
+			    signature_metadata, verified_at, indexed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug) DO UPDATE SET
 			   type = excluded.type,
 			   name = excluded.name,
@@ -434,6 +459,7 @@ export async function ingestPackageProfile(
 			   keywords = excluded.keywords,
 			   sections = excluded.sections,
 			   last_updated = excluded.last_updated,
+			   emdash_extension = excluded.emdash_extension,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   verified_at = excluded.verified_at`,
@@ -456,6 +482,7 @@ export async function ingestPackageProfile(
 			record.lastUpdated ?? null,
 			null, // latest_version — populated by release writer, not the profile writer
 			null, // capabilities — populated by release writer
+			emdashExtension,
 			verified.carBytes,
 			sigMeta,
 			nowIso,

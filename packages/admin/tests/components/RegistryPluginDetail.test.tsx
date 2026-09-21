@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ApiResponseError } from "../../src/lib/api/client";
 import type {
 	DidHandleResolution,
 	RegistryClientConfig,
@@ -451,6 +452,55 @@ describe("RegistryPluginDetail independent install consent", () => {
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Repository proof invalid");
 		expect(screen.getByRole("dialog").query()).toBeNull();
+	});
+
+	it("shows actionable guidance for incomplete publisher verification metadata", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockVerifyRegistryPlugin.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"RECORD_VERIFICATION_FAILED",
+				"The signed repository extension is absent.",
+				{ verificationCode: "PROFILE_EXTENSION_MISSING" },
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Install" }).click();
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("Ask the publisher to republish it with the latest EmDash plugin CLI.");
+		expect(screen.getByRole("dialog").query()).toBeNull();
+	});
+
+	it("keeps actionable verification guidance inside consent when install revalidation fails", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockVerifyRegistryPlugin.mockResolvedValue(verificationPreview());
+		mockInstallRegistryPlugin.mockRejectedValue(
+			new ApiResponseError(
+				400,
+				"RECORD_VERIFICATION_FAILED",
+				"The signed repository extension is absent.",
+				{ verificationCode: "PROFILE_EXTENSION_MISSING" },
+			),
+		);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Install" }).click();
+		await screen.getByRole("button", { name: "Accept & Install" }).click();
+
+		await expect
+			.element(screen.getByRole("dialog").getByRole("alert"))
+			.toHaveTextContent("Ask the publisher to republish it with the latest EmDash plugin CLI.");
 	});
 
 	it("blocks install when the publisher's claimed handle does not resolve back to its DID", async () => {
