@@ -1779,6 +1779,37 @@ describe("Code block copy action", () => {
 		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
 	});
 
+	it("keeps language suggestions available while typing over the current language", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: 'const greeting = "hello";',
+					language: "plaintext",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
+
+		const input = screen.getByPlaceholder("Language");
+		const inputElement = input.element() as HTMLInputElement;
+		expect(inputElement.selectionStart).toBe(0);
+		expect(inputElement.selectionEnd).toBe("Plain text".length);
+		await userEvent.keyboard("Java");
+
+		await expect.element(input).toHaveValue("Java");
+		await screen.getByRole("option", { name: "JavaScript" }).click();
+		await expect.element(input).toHaveValue("JavaScript");
+		await screen.getByRole("button", { name: "Apply language" }).click();
+
+		await vi.waitFor(() => {
+			const codeBlock = editor.getJSON().content?.find((item) => item.type === "codeBlock");
+			expect(codeBlock?.attrs?.language).toBe("javascript");
+			expect(codeBlock?.content?.[0]?.text).toBe('const greeting = "hello";');
+		});
+	});
+
 	it("prevents block formatting that cannot survive inside a table cell", async () => {
 		const { editor } = await renderAndGetEditor();
 		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();

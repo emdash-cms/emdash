@@ -96,6 +96,11 @@ async function copyTextToClipboard(text: string, shouldUseFallback: () => boolea
 		}
 	}
 }
+
+function handlePickerFocus(e: React.FocusEvent<HTMLDivElement>) {
+	if (e.target instanceof HTMLInputElement) e.target.select();
+}
+
 function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
@@ -269,51 +274,56 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<span className="sr-only" role="status" aria-live="polite">
 						{copyFailed ? t`Copy failed` : copied ? t`Copied` : ""}
 					</span>
-					<Popover.Content side="bottom" className="w-auto p-1">
-						<div className="flex items-center gap-1" onKeyDown={handleKeyDown}>
-							<Autocomplete
-								items={languageItems}
-								value={draft}
-								onValueChange={(next: string) => setDraft(next)}
-								filter={filterLanguages}
+					<Popover.Content side="bottom" className="w-64 p-1">
+						<Autocomplete
+							inline
+							items={languageItems}
+							value={draft}
+							onValueChange={(next: string) => setDraft(next)}
+							filter={filterLanguages}
+						>
+							<div
+								className="flex items-center gap-1"
+								onFocus={handlePickerFocus}
+								onKeyDown={handleKeyDown}
 							>
 								<Autocomplete.InputGroup size="sm" placeholder={t`Language`} />
-								<Autocomplete.Content sideOffset={4}>
-									<Autocomplete.List>
-										{(item: string) => (
-											<Autocomplete.Item key={item} value={item}>
-												{item}
-											</Autocomplete.Item>
-										)}
-									</Autocomplete.List>
-									<Autocomplete.Empty>{t`No matches`}</Autocomplete.Empty>
-								</Autocomplete.Content>
-							</Autocomplete>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-7 w-7"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => commit()}
-								title={t`Apply language`}
-								aria-label={t`Apply language`}
-							>
-								<Check className="h-4 w-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-7 w-7"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={closePicker}
-								title={t`Cancel`}
-								aria-label={t`Cancel`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									className="h-7 w-7"
+									onMouseDown={(e) => e.preventDefault()}
+									onClick={() => commit()}
+									title={t`Apply language`}
+									aria-label={t`Apply language`}
+								>
+									<Check className="h-4 w-4" />
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									className="h-7 w-7"
+									onMouseDown={(e) => e.preventDefault()}
+									onClick={closePicker}
+									title={t`Cancel`}
+									aria-label={t`Cancel`}
+								>
+									<X className="h-4 w-4" />
+								</Button>
+							</div>
+							<Autocomplete.List className="mt-1 max-h-48 rounded-md bg-kumo-control py-1.5 ring ring-kumo-line">
+								{(item: string) => (
+									<Autocomplete.Item key={item} value={item} onClick={() => setDraft(item)}>
+										{item}
+									</Autocomplete.Item>
+								)}
+							</Autocomplete.List>
+							<Autocomplete.Empty className="px-3 py-2 text-sm text-kumo-subtle">
+								{t`No matches`}
+							</Autocomplete.Empty>
+						</Autocomplete>
 					</Popover.Content>
 				</Popover>
 			</div>
