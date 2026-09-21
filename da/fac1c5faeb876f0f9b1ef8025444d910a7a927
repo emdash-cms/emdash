@@ -1,0 +1,29 @@
+packages/admin/tests/components/TaxonomySidebar.test.tsx
+  s_6a24d1836b3bff::t_61acaeda61aaa1 207-217,228,242,266,280,293,326,343,363,386,406,427,453,475,492,506,531,554,557,568,590,617-619,622,656,662-663,670-671,693,733,752,788,821,854,893,913
+packages/admin/src/components/TaxonomySidebar.tsx
+  s_0df06e584efdf4::t_d0f5b0f864950c 12,212,217,255-260,335,364,371,377-379,391,407,416-436,458-495,500-501
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "dafac1c5faeb876f0f9b1ef8025444d910a7a927",
+  "prompts": {},
+  "sessions": {
+    "s_0df06e584efdf4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd9e-f3f6-7e31-be97-b2eb60a9124c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a24d1836b3bff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bb85-b3e3-7b61-b4fa-2125fc41aef8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
