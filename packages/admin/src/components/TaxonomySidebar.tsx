@@ -529,8 +529,7 @@ function TaxonomyTermPicker({
 								id={listId}
 								role="group"
 								aria-label={t`${label} options`}
-								style={{ scrollbarGutter: "stable", scrollbarWidth: "thin" }}
-								className="max-h-56 overflow-y-auto overscroll-contain p-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+								className="emdash-auto-scrollbar max-h-56 overflow-y-auto overscroll-contain p-1.5"
 							>
 								{visibleOptions.length > 0 ? (
 									visibleOptions.map((option, index) => (
