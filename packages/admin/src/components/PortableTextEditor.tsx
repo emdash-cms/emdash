@@ -315,6 +315,18 @@ function normalizeImageLink(raw: unknown): { href: string; blank?: boolean } | n
 	return raw.blank === true ? { href, blank: true } : { href };
 }
 
+/**
+ * Point the selected image at `href`, or clear its link when `href` is empty.
+ * Keeps an existing "open in new tab" choice when only the destination changes.
+ * Shared by the toolbar and the bubble menu, which both edit image links.
+ */
+function setSelectedImageLink(editor: Editor, href: string | null) {
+	const trimmed = href?.trim() ?? "";
+	const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
+	const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
+	editor.chain().focus().updateAttributes("image", { link }).run();
+}
+
 function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
 	return attrStr(attrs?.[PORTABLE_TEXT_KEY_ATTR]);
 }
@@ -3915,11 +3927,7 @@ function EditorBubbleMenu({
 
 	const handleSetLink = () => {
 		if (editor.isActive("image")) {
-			const trimmed = linkUrl.trim();
-			// Keep an existing "open in new tab" choice when only the URL changes.
-			const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
-			const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
-			editor.chain().focus().updateAttributes("image", { link }).run();
+			setSelectedImageLink(editor, linkUrl);
 		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
@@ -3929,13 +3937,17 @@ function EditorBubbleMenu({
 	};
 
 	const applyLinkHref = (href: string) => {
-		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, href);
+		} else {
+			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		}
 		closeLinkInput();
 	};
 
 	const handleRemoveLink = () => {
 		if (editor.isActive("image")) {
-			editor.chain().focus().updateAttributes("image", { link: null }).run();
+			setSelectedImageLink(editor, null);
 		} else {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		}
@@ -4433,18 +4445,18 @@ function EditorToolbar({
 	}, [showLinkPopover, editor]);
 
 	const applyLinkHref = (href: string) => {
-		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, href);
+		} else {
+			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
 	};
 
 	const handleSetLink = () => {
 		if (editor.isActive("image")) {
-			const trimmed = linkUrl.trim();
-			// Keep an existing "open in new tab" choice when only the URL changes.
-			const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
-			const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
-			editor.chain().focus().updateAttributes("image", { link }).run();
+			setSelectedImageLink(editor, linkUrl);
 		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
@@ -4456,7 +4468,7 @@ function EditorToolbar({
 
 	const handleRemoveLink = () => {
 		if (editor.isActive("image")) {
-			editor.chain().focus().updateAttributes("image", { link: null }).run();
+			setSelectedImageLink(editor, null);
 		} else {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		}

@@ -1910,9 +1910,9 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 			.element()
 			.click();
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('[role="combobox"]')).toBeTruthy();
 		});
-		const input = document.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = document.querySelector('[role="combobox"]') as HTMLInputElement;
 		// The popover is pre-populated from the image's current link.
 		expect(input.value).toBe("/old");
 

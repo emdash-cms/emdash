@@ -278,6 +278,11 @@ function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | 
 	return menu.querySelector(`[aria-label="${label}"]`);
 }
 
+/** The link destination field is a combobox that accepts a URL or a search term. */
+function getLinkInput(root: ParentNode = document): HTMLInputElement | null {
+	return root.querySelector<HTMLInputElement>('[role="combobox"]');
+}
+
 /** Set a React-controlled input's value through the native setter so React sees it. */
 function setInputValue(input: HTMLInputElement, value: string) {
 	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -975,13 +980,10 @@ describe("Bubble Menu on a selected image", () => {
 		const menu = await waitForBubbleMenu();
 		getBubbleButton(menu, "Add link")!.click();
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(getLinkInput(menu)).toBeTruthy();
 		});
 
-		setInputValue(
-			menu.querySelector('input[type="url"]') as HTMLInputElement,
-			"https://example.com/promo",
-		);
+		setInputValue(getLinkInput(menu)!, "https://example.com/promo");
 		getBubbleButton(menu, "Apply link")!.click();
 
 		await vi.waitFor(() => {
@@ -997,9 +999,9 @@ describe("Bubble Menu on a selected image", () => {
 		expect(getBubbleButton(menu, "Edit link")).toBeTruthy();
 		getBubbleButton(menu, "Edit link")!.click();
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(getLinkInput(menu)).toBeTruthy();
 		});
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = getLinkInput(menu)!;
 		expect(input.value).toBe("/old");
 
 		setInputValue(input, "/new");
