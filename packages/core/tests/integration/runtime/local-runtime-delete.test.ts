@@ -40,7 +40,7 @@ describe("local media provider deletion", () => {
 		expect(remove).toHaveBeenCalledTimes(2);
 	});
 
-	it("rejects when the database deletion fails", async () => {
+	it("rejects when a database write fails during deletion", async () => {
 		const repo = new MediaRepository(db);
 		const item = await repo.create({
 			filename: "photo.png",

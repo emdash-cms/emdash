@@ -116,7 +116,7 @@ describe("plugin ctx.media.delete", () => {
 		expect(await media.delete("missing")).toBe(false);
 	});
 
-	it("throws when the database deletion fails", async () => {
+	it("throws when a database write fails during deletion", async () => {
 		const storage = fakeStorage();
 		const media = createMediaAccessWithWrite(db, undefined, storage);
 		const uploaded = await media.upload(
