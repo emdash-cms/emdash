@@ -337,6 +337,33 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	opacity: 1;
 	pointer-events: auto;
 }
+
+.emdash-code-language-list {
+	scrollbar-color: transparent transparent;
+	scrollbar-width: thin;
+}
+
+.emdash-code-language-list::-webkit-scrollbar {
+	width: 4px;
+}
+
+.emdash-code-language-list::-webkit-scrollbar-track,
+.emdash-code-language-list::-webkit-scrollbar-thumb {
+	background-color: transparent;
+}
+
+.emdash-code-language-list::-webkit-scrollbar-thumb {
+	border-radius: 9999px;
+}
+
+.emdash-code-language-list:hover {
+	scrollbar-color: var(--color-kumo-interact) transparent;
+}
+
+.emdash-code-language-list:hover::-webkit-scrollbar-thumb {
+	background-color: var(--color-kumo-interact);
+}
+
 @media (hover: none), (pointer: coarse) {
 	.emdash-code-block-controls {
 		opacity: 1;
