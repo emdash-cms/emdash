@@ -94,7 +94,7 @@ import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, TextSelection } from "@tiptap/pm/state";
+import { AllSelection, NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -3893,6 +3893,7 @@ function EditorBubbleMenu({
 			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
+			image: activeEditor.isActive("image"),
 			imageLink:
 				activeEditor.isActive("image") && Boolean(activeEditor.getAttributes("image").link),
 		}),
@@ -3963,9 +3964,15 @@ function EditorBubbleMenu({
 			}}
 			shouldShow={({ editor: activeEditor, element, state, view }) => {
 				const { selection } = state;
+				// A selected image is a NodeSelection, not a TextSelection: let it
+				// through so the link controls below are reachable for images.
+				const isImageSelection =
+					selection instanceof NodeSelection && selection.node.type.name === "image";
 				return (
 					activeEditor.isEditable &&
-					(selection instanceof TextSelection || selection instanceof AllSelection) &&
+					(selection instanceof TextSelection ||
+						selection instanceof AllSelection ||
+						isImageSelection) &&
 					!selection.empty &&
 					(view.hasFocus() || element.contains(document.activeElement))
 				);
@@ -4013,56 +4020,61 @@ function EditorBubbleMenu({
 				</div>
 			) : (
 				<>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						active={activeMarks.bold}
-						title={t`Bold`}
-					>
-						<TextB className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						active={activeMarks.italic}
-						title={t`Italic`}
-					>
-						<TextItalic className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						active={activeMarks.underline}
-						title={t`Underline`}
-					>
-						<TextUnderline className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleStrike().run()}
-						active={activeMarks.strike}
-						title={t`Strikethrough`}
-					>
-						<TextStrikethrough className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSubscript().run()}
-						active={activeMarks.subscript}
-						title={t`Subscript`}
-					>
-						<TextSubscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSuperscript().run()}
-						active={activeMarks.superscript}
-						title={t`Superscript`}
-					>
-						<TextSuperscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleCode().run()}
-						active={activeMarks.code}
-						title={t`Code`}
-					>
-						<Code className="h-4 w-4" />
-					</BubbleButton>
-					<div className="w-px h-6 bg-kumo-line mx-1" />
+					{/* Text marks are meaningless on a selected image: show only the link control. */}
+					{!activeMarks.image && (
+						<>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleBold().run()}
+								active={activeMarks.bold}
+								title={t`Bold`}
+							>
+								<TextB className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleItalic().run()}
+								active={activeMarks.italic}
+								title={t`Italic`}
+							>
+								<TextItalic className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleUnderline().run()}
+								active={activeMarks.underline}
+								title={t`Underline`}
+							>
+								<TextUnderline className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleStrike().run()}
+								active={activeMarks.strike}
+								title={t`Strikethrough`}
+							>
+								<TextStrikethrough className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleSubscript().run()}
+								active={activeMarks.subscript}
+								title={t`Subscript`}
+							>
+								<TextSubscript className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleSuperscript().run()}
+								active={activeMarks.superscript}
+								title={t`Superscript`}
+							>
+								<TextSuperscript className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleCode().run()}
+								active={activeMarks.code}
+								title={t`Code`}
+							>
+								<Code className="h-4 w-4" />
+							</BubbleButton>
+							<div className="w-px h-6 bg-kumo-line mx-1" />
+						</>
+					)}
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
 						active={activeMarks.link || activeMarks.imageLink}
