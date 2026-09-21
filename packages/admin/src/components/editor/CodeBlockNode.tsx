@@ -286,7 +286,11 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 							filter={filterLanguages}
 						>
 							<div onKeyDown={handleKeyDown}>
-								<Autocomplete.InputGroup size="base" placeholder={t`Search for a language…`} />
+								<Autocomplete.InputGroup
+									size="base"
+									className="focus:ring-inset"
+									placeholder={t`Search for a language…`}
+								/>
 							</div>
 							<Autocomplete.List className="emdash-code-language-list mt-2 max-h-80">
 								{(item: string) => (
