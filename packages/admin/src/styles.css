@@ -364,6 +364,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	background-color: var(--color-kumo-interact);
 }
 
+.emdash-code-language-input:focus {
+	border-color: color-mix(in oklab, var(--color-kumo-focus) 50%, transparent);
+}
+
 @media (hover: none), (pointer: coarse) {
 	.emdash-code-block-controls {
 		opacity: 1;
