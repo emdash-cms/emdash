@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import {
 	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
+	isGitHubRateLimitFailure,
 	prepareWorkspaceBeforeModel,
 } from "../../.flue/lib/workspace-attachment.js";
 
@@ -87,6 +88,10 @@ describe("workspace attachment", () => {
 
 		expect(attach).toHaveBeenCalledOnce();
 		expect(discard).not.toHaveBeenCalled();
+	});
+
+	test("recognizes direct GitHub API rate-limit failures", () => {
+		expect(isGitHubRateLimitFailure(new Error("GitHub API rate limit exceeded: 429"))).toBe(true);
 	});
 
 	test("does not discard a publisher workspace when GitHub asks it to wait", async () => {

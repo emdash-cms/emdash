@@ -104,7 +104,49 @@ describe("GitHub issue context requests", () => {
 });
 
 describe("GitHub evolving comments", () => {
-	afterEach(() => vi.unstubAllGlobals());
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	test("anchors retry headers to the response time after permit acquisition", async () => {
+		const startedAt = Date.parse("2026-09-21T12:00:00Z");
+		vi.useFakeTimers();
+		vi.setSystemTime(startedAt);
+		const record = vi.fn(async () => undefined);
+		const token = {
+			token: "installation-token",
+			consumer: "test",
+			gate: {
+				permit: vi.fn(async () => {
+					vi.setSystemTime(startedAt + 5_000);
+					return { allowed: true, retryAt: startedAt + 5_000 };
+				}),
+				record,
+				inspect: vi.fn(async () => null),
+				getInstallationToken: vi.fn(async () => "installation-token"),
+			},
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("rate limited", {
+					status: 429,
+					headers: { "retry-after": "10" },
+				}),
+			),
+		);
+
+		const request = createIssueComment(token, repo, 42, "Working");
+		await expect(request).rejects.toMatchObject({
+			retryAt: startedAt + 15_000,
+		});
+		expect(record).toHaveBeenCalledWith(
+			"issue-comment:post",
+			"test",
+			expect.objectContaining({ retryAfterAt: startedAt + 15_000 }),
+		);
+	});
 
 	test("creates, updates, and recovers a comment by marker", async () => {
 		const fetchMock = vi

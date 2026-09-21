@@ -13,6 +13,7 @@ const ISSUES_KEY = "dashboard:issues";
 const INITIALIZED_KEY = "dashboard:initialized";
 const DASHBOARD_ISSUE_LIMIT = 100;
 const BOOTSTRAP_RETRY_MS = 60_000;
+const DASHBOARD_RECONCILE_MS = 5 * 60_000;
 
 export class DashboardDO extends DurableObject<Env> {
 	async getPayload() {
@@ -51,9 +52,12 @@ export class DashboardDO extends DurableObject<Env> {
 			const consumer = "dashboard-bootstrap";
 			const token = await gate.getInstallationToken();
 			const issues = await listOpenManagedIssues({ token, gate, consumer }, repo);
-			await this.ctx.storage.put({
-				[ISSUES_KEY]: issues.slice(0, DASHBOARD_ISSUE_LIMIT),
-				[INITIALIZED_KEY]: true,
+			await this.ctx.storage.transaction(async (transaction) => {
+				await transaction.put({
+					[ISSUES_KEY]: issues.slice(0, DASHBOARD_ISSUE_LIMIT),
+					[INITIALIZED_KEY]: true,
+				});
+				await transaction.setAlarm(Date.now() + DASHBOARD_RECONCILE_MS);
 			});
 		} catch (error) {
 			const retryAt =

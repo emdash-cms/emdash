@@ -4,7 +4,7 @@ import {
 	runDurableObjectAlarm,
 	runInDurableObject,
 } from "cloudflare:test";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 describe("GitHub installation coordination", () => {
 	test("persists the later reset across eviction and suppresses every caller", async () => {
@@ -137,6 +137,35 @@ describe("GitHub installation coordination", () => {
 		});
 		vi.unstubAllGlobals();
 		testEnv.GITHUB_APP_PRIVATE_KEY = "";
+	});
+});
+
+describe("dashboard reconciliation", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("schedules another reconciliation after a successful refresh", async () => {
+		const dashboard = env.DASHBOARD.getByName("repo:emdash-cms/emdash-reconcile-test");
+		const gate = env.GITHUB_RATE_LIMIT.getByName(`installation:${env.GITHUB_APP_INSTALLATION_ID}`);
+		await runInDurableObject(gate, async (_instance, state) => {
+			await state.storage.delete("installation-rate-limit");
+		});
+		await gate.debugSetInstallationToken("cached-token", Date.now() + 60 * 60_000);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(Response.json([]))),
+		);
+
+		await runInDurableObject(dashboard, async (_instance, state) => {
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+		expect(await runDurableObjectAlarm(dashboard)).toBe(true);
+		await runInDurableObject(dashboard, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now() + 4 * 60_000);
+			await state.storage.deleteAlarm();
+		});
+		await runInDurableObject(gate, async (_instance, state) => {
+			await state.storage.delete("installation-rate-limit");
+		});
 	});
 });
 
