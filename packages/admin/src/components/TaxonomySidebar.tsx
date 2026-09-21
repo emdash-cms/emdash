@@ -516,7 +516,7 @@ function TaxonomyTermPicker({
 											setActiveIndex(0);
 										}}
 										onKeyDown={handleInputKeyDown}
-										placeholder={t`Search ${label.toLowerCase()}…`}
+										placeholder={t`Search ${label}…`}
 									/>
 								</InputGroup>
 							</div>
@@ -562,9 +562,7 @@ function TaxonomyTermPicker({
 										</div>
 									))
 								) : (
-									<p className="px-2 py-2 text-sm text-kumo-subtle">
-										{t`No ${label.toLowerCase()} found.`}
-									</p>
+									<p className="px-2 py-2 text-sm text-kumo-subtle">{t`No ${label} found.`}</p>
 								)}
 							</div>
 
@@ -579,9 +577,7 @@ function TaxonomyTermPicker({
 										onClick={handleCreate}
 										icon={<Plus size={16} aria-hidden="true" />}
 									>
-										{trimmedInput
-											? t`Create "${trimmedInput}"`
-											: t`Create a new ${singularLabel.toLowerCase()}`}
+										{trimmedInput ? t`Create "${trimmedInput}"` : t`Create a new ${singularLabel}`}
 									</Button>
 								</div>
 							) : null}
@@ -596,7 +592,9 @@ function TaxonomyTermPicker({
 									{t`Toggle`}
 								</span>
 								<span className="flex items-center gap-1.5">
-									<kbd className="rounded bg-kumo-base px-1.5 py-1 ring ring-kumo-line">Esc</kbd>
+									<kbd className="rounded bg-kumo-base px-1.5 py-1 ring ring-kumo-line">
+										{t`Esc`}
+									</kbd>
 									{t`Close`}
 								</span>
 							</div>
@@ -692,15 +690,19 @@ function TaxonomySection({
 
 	const createTermMutation = useMutation({
 		mutationFn: async ({ labels, matchedIds }: { labels: string[]; matchedIds: string[] }) => {
-			const settled = await Promise.allSettled(
-				labels.map((label) =>
-					createTerm(taxonomy.name, {
+			const settled: PromiseSettledResult<TaxonomyTerm>[] = [];
+			for (const label of labels) {
+				try {
+					const term = await createTerm(taxonomy.name, {
 						label,
 						// Create the term in the entry's locale so it resolves on this entry.
 						...(entryLocale ? { locale: entryLocale } : {}),
-					}),
-				),
-			);
+					});
+					settled.push({ status: "fulfilled", value: term });
+				} catch (reason) {
+					settled.push({ status: "rejected", reason });
+				}
+			}
 			const newTerms: TaxonomyTerm[] = [];
 			const failedLabels: string[] = [];
 			let firstError: unknown;

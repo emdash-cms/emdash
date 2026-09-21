@@ -103,6 +103,7 @@ function mockApiFetch({
 	createdTerm = makeTerm("term_created", "Gamma"),
 	createError,
 	createErrorFor,
+	createTermRequest,
 	unresolved = [],
 	saveEntryTerms,
 }: {
@@ -112,6 +113,7 @@ function mockApiFetch({
 	createdTerm?: TestTermMutationResponse;
 	createError?: string;
 	createErrorFor?: string;
+	createTermRequest?: (label: string) => Promise<Response>;
 	unresolved?: TestUnresolvedAssignment[];
 	saveEntryTerms?: (init?: RequestInit) => Promise<Response>;
 } = {}) {
@@ -167,6 +169,9 @@ function mockApiFetch({
 			const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
 			const requestedLabel =
 				body && typeof body === "object" && "label" in body ? body.label : undefined;
+			if (typeof requestedLabel === "string" && createTermRequest) {
+				return createTermRequest(requestedLabel);
+			}
 			if (createError || requestedLabel === createErrorFor) {
 				return Promise.resolve(
 					new Response(
@@ -327,6 +332,52 @@ describe("TaxonomySidebar", () => {
 				{ label: "Third line" },
 			]);
 		});
+	});
+
+	it("creates pasted tags sequentially", async () => {
+		const releases: Array<() => void> = [];
+		let activeRequests = 0;
+		let maxActiveRequests = 0;
+		const createTermRequest = vi.fn(async (label: string) => {
+			activeRequests += 1;
+			maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+			await new Promise<void>((resolve) => releases.push(resolve));
+			activeRequests -= 1;
+			return dataResponse({ term: makeTerm(`term_${label.toLowerCase()}`, label) });
+		});
+		mockApiFetch({ terms: [], createTermRequest });
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
+
+		await (await openPicker(screen, "Tags")).fill("First, Second, Third");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(createTermRequest).toHaveBeenCalledTimes(1));
+		releases.shift()?.();
+		await vi.waitFor(() => expect(createTermRequest).toHaveBeenCalledTimes(2));
+		releases.shift()?.();
+		await vi.waitFor(() => expect(createTermRequest).toHaveBeenCalledTimes(3));
+		releases.shift()?.();
+		await vi.waitFor(() => expect(activeRequests).toBe(0));
+		expect(maxActiveRequests).toBe(1);
+	});
+
+	it("preserves configured taxonomy label casing in picker copy", async () => {
+		mockApiFetch({
+			taxonomies: [{ ...tagsTaxonomy, label: "SEO Tags", labelSingular: "SEO Tag" }],
+			terms: [],
+		});
+		const screen = await render(<TaxonomySidebar collection="products" canManageTaxonomies />, {
+			wrapper: Wrapper,
+		});
+
+		const input = await openPicker(screen, "SEO Tags");
+		await expect.element(input).toHaveAttribute("placeholder", "Search SEO Tags…");
+		await expect.element(screen.getByText("No SEO Tags found.")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "Create a new SEO Tag" }))
+			.toBeInTheDocument();
 	});
 
 	it("creates new terms and assigns exact matches in one update", async () => {
