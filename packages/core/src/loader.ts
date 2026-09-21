@@ -22,6 +22,7 @@ import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
+import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -765,13 +766,31 @@ function buildFieldConditions(
 		const ref = tablePrefix ? sql.ref(`${tablePrefix}.${key}`) : sql.ref(key);
 
 		if (isWhereRange(value)) {
+			const hasBound =
+				value.gt !== undefined ||
+				value.gte !== undefined ||
+				value.lt !== undefined ||
+				value.lte !== undefined;
+			if (!hasBound) {
+				console.warn(
+					`[emdash] where filter: range object for "${key}" has no supported bounds (gt/gte/lt/lte); ignored`,
+				);
+				continue;
+			}
 			if (value.gt !== undefined) conditions.push(sql`${ref} > ${value.gt}`);
 			if (value.gte !== undefined) conditions.push(sql`${ref} >= ${value.gte}`);
 			if (value.lt !== undefined) conditions.push(sql`${ref} < ${value.lt}`);
 			if (value.lte !== undefined) conditions.push(sql`${ref} <= ${value.lte}`);
 		} else if (Array.isArray(value)) {
 			if (value.length > 0) {
-				conditions.push(sql`${ref} IN (${sql.join(value.map((v) => sql`${v}`))})`);
+				const chunkConditions = chunks(value, SQL_BATCH_SIZE).map(
+					(batch) => sql`${ref} IN (${sql.join(batch.map((v) => sql`${v}`))})`,
+				);
+				if (chunkConditions.length === 1) {
+					conditions.push(chunkConditions[0]);
+				} else {
+					conditions.push(sql`(${sql.join(chunkConditions, sql` OR `)})`);
+				}
 			}
 		} else {
 			conditions.push(sql`${ref} = ${value}`);
