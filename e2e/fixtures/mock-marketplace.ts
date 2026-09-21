@@ -11,6 +11,7 @@
  * Runs on a configurable port and returns deterministic fixture data.
  */
 
+import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 
 // ---------------------------------------------------------------------------
@@ -208,6 +209,32 @@ const THEME_DETAILS: Record<string, object> = {
 
 const PLUGIN_DETAIL_PATTERN = /^\/api\/v1\/plugins\/([^/]+)$/;
 const THEME_DETAIL_PATTERN = /^\/api\/v1\/themes\/([^/]+)$/;
+const REGISTRY_DID = "did:plc:publisher";
+const REGISTRY_SLUG = "gallery";
+const REGISTRY_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
+const registryProfile: unknown = JSON.parse(
+	readFileSync(
+		new URL("../../packages/registry-verification/fixtures/records/profile.json", import.meta.url),
+		"utf8",
+	),
+);
+const registryRelease: unknown = JSON.parse(
+	readFileSync(
+		new URL("../../packages/registry-verification/fixtures/records/release.json", import.meta.url),
+		"utf8",
+	),
+);
+if (
+	typeof registryRelease !== "object" ||
+	registryRelease === null ||
+	!("version" in registryRelease) ||
+	typeof registryRelease.version !== "string"
+) {
+	throw new TypeError("Registry release fixture must include a version");
+}
+const registryVersion = registryRelease.version;
+const REGISTRY_PACKAGE_PATH = "/xrpc/com.emdashcms.experimental.aggregator.getPackage";
+const REGISTRY_RELEASES_PATH = "/xrpc/com.emdashcms.experimental.aggregator.listReleases";
 
 // ---------------------------------------------------------------------------
 // Request handler
@@ -231,6 +258,43 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 	// Health
 	if (path === "/health") {
 		json(res, { status: "ok" });
+		return;
+	}
+
+	if (path === REGISTRY_PACKAGE_PATH && req.method === "GET") {
+		json(res, {
+			uri: `at://${REGISTRY_DID}/com.emdashcms.experimental.package.profile/${REGISTRY_SLUG}`,
+			cid: REGISTRY_CID,
+			did: REGISTRY_DID,
+			slug: REGISTRY_SLUG,
+			profile: registryProfile,
+			latestVersion: registryVersion,
+			indexedAt: "2026-01-01T00:00:00.000Z",
+			labels: [],
+		});
+		return;
+	}
+
+	if (path === REGISTRY_RELEASES_PATH && req.method === "GET") {
+		const releases =
+			url.searchParams.get("limit") === "100"
+				? [
+						{
+							uri: `at://${REGISTRY_DID}/com.emdashcms.experimental.package.release/${REGISTRY_SLUG}:${registryVersion}`,
+							cid: REGISTRY_CID,
+							did: REGISTRY_DID,
+							package: REGISTRY_SLUG,
+							version: registryVersion,
+							release: registryRelease,
+							artifactCaches: [],
+							indexedAt: "2026-01-01T00:00:00.000Z",
+							labels: [],
+						},
+					]
+				: [];
+		json(res, {
+			releases,
+		});
 		return;
 	}
 

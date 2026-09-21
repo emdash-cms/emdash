@@ -334,6 +334,7 @@ export default async function globalSetup(): Promise<void> {
 			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_MARKETPLACE_URL: marketplaceUrl,
+			EMDASH_REGISTRY_URL: marketplaceUrl,
 		},
 		stdio: "pipe",
 	});

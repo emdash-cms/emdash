@@ -16,6 +16,7 @@ import { sqlite } from "emdash/db";
 
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
+const registryUrl = process.env.EMDASH_REGISTRY_URL || undefined;
 const editorExtensionsPlugin = {
 	id: "editor-extensions-test",
 	version: "1.0.0",
@@ -62,6 +63,7 @@ export default defineConfig({
 			plugins: [colorPlugin(), editorExtensionsPlugin],
 			sandboxed: [{ ...registryTestPlugin, hooks: [] }],
 			marketplace: marketplaceUrl,
+			registry: registryUrl,
 			sandboxRunner: "@emdash-cms/sandbox-workerd",
 		}),
 	],

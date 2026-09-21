@@ -53,4 +53,36 @@ test.describe("Registry cutover", () => {
 			),
 		).toBeVisible();
 	});
+
+	test("reaches server verification before installing a registry plugin", async ({
+		admin,
+		page,
+	}) => {
+		await page.addInitScript(() => {
+			localStorage.setItem(
+				"emdash:did-handle:did:plc:publisher",
+				JSON.stringify({
+					resolution: { status: "missing" },
+					expiresAt: Date.now() + 60_000,
+				}),
+			);
+		});
+		await admin.goto("/plugins/registry/did:plc:publisher/gallery");
+		await admin.waitForShell();
+
+		await expect(page.getByRole("heading", { name: "Gallery" })).toBeVisible({ timeout: 15_000 });
+		const verificationResponse = page.waitForResponse(
+			(response) =>
+				response.url().endsWith("/_emdash/api/admin/plugins/registry/verify") &&
+				response.request().method() === "POST",
+		);
+		await page.getByRole("button", { name: "Install", exact: true }).click();
+
+		const response = await verificationResponse;
+		expect(response.status()).not.toBe(404);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "NO_RELEASE" },
+		});
+		await expect(page.getByRole("alert")).toContainText("Version 1.2.3 not found");
+	});
 });
