@@ -26,6 +26,15 @@ const categoriesTaxonomy = {
 	collections: ["posts"],
 };
 
+const genreTaxonomy = {
+	id: "tax_genre",
+	name: "genre",
+	label: "Genres",
+	labelSingular: "Genre",
+	hierarchical: false,
+	collections: ["posts"],
+};
+
 const terms = [
 	{ id: "1", name: "tech", slug: "tech", label: "Technology", parentId: null, children: [] },
 ];
@@ -109,5 +118,68 @@ describe("taxonomy term cache", () => {
 
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
 		await expect.element(screen.getByText("5", { exact: true })).toBeInTheDocument();
+	});
+});
+
+/** The editor sidebar and the taxonomy page swap places, as the admin routes between them. */
+function EditorThenDeleteGenre() {
+	const [view, setView] = React.useState<"editor" | "settings">("editor");
+	if (view === "settings") {
+		return <TaxonomyManager taxonomyName="genre" onDeleted={() => setView("editor")} />;
+	}
+	return (
+		<>
+			<TaxonomySidebar collection="posts" canManageTaxonomies />
+			<button type="button" onClick={() => setView("settings")}>
+				Open settings
+			</button>
+		</>
+	);
+}
+
+describe("taxonomy list cache", () => {
+	let deleted: boolean;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		deleted = false;
+		vi.mocked(apiFetch).mockImplementation((url: string | URL | Request, init?: RequestInit) => {
+			const urlString =
+				typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+			const { pathname } = new URL(urlString, "http://localhost");
+			const method = init?.method ?? "GET";
+
+			if (method === "GET" && pathname === "/_emdash/api/taxonomies") {
+				const taxonomies = deleted ? [categoriesTaxonomy] : [categoriesTaxonomy, genreTaxonomy];
+				return dataResponse({ taxonomies });
+			}
+			if (method === "GET" && pathname.endsWith("/terms")) {
+				return dataResponse({ terms: [] });
+			}
+			if (method === "DELETE" && pathname === "/_emdash/api/taxonomies/genre") {
+				deleted = true;
+				return dataResponse({ deleted: true });
+			}
+
+			return dataResponse({});
+		});
+	});
+
+	it("drops a deleted taxonomy from an editor sidebar that cached it", async () => {
+		const screen = await render(<EditorThenDeleteGenre />, { wrapper: makeWrapper() });
+		await expect.element(screen.getByRole("combobox", { name: "Add Genres" })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Open settings" }).click();
+		await screen.getByRole("button", { name: "More actions for Genres" }).click();
+		await screen.getByRole("menuitem", { name: "Delete taxonomy" }).click();
+		await expect
+			.element(screen.getByRole("heading", { name: "Delete Taxonomy" }))
+			.toBeInTheDocument();
+		screen.getByRole("button", { name: "Delete" }).element().click();
+
+		await expect.element(screen.getByText("Categories", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("combobox", { name: "Add Genres" }))
+			.not.toBeInTheDocument();
 	});
 });
