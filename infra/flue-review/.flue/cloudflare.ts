@@ -592,6 +592,16 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		if (retainedAt !== undefined) {
 			const cleanupAt = retainedAt + TERMINAL_RETENTION_MS;
 			if (Date.now() >= cleanupAt) {
+				console.info(
+					JSON.stringify({
+						message: "review watchdog immolated",
+						attemptId: attempt.attemptId,
+						runId: attempt.runId,
+						prNumber: attempt.prNumber,
+						terminalReportedAt: attempt.terminalReportedAt ?? null,
+						terminalAbandonedAt: attempt.terminalAbandonedAt ?? null,
+					}),
+				);
 				await this.ctx.storage.deleteAll();
 				await this.ctx.storage.deleteAlarm();
 			} else {
