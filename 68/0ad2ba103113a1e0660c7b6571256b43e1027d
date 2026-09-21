@@ -1,0 +1,41 @@
+packages/admin/tests/components/AdminCommandPalette.test.ts
+  s_6a24d1836b3bff::t_738de6f0a4b9ac 66-85
+packages/blocks/src/validation.ts
+  s_bfd36a283aaad3::t_440eaa6226bca5 125,128
+packages/blocks/tests/validation.test.ts
+  s_6a24d1836b3bff::t_dbacc3c21f39a8 4,11-17
+.changeset/root-plugin-pages.md
+  s_d8e9f234e54e68::t_de289ce27d028e 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "680ad2ba103113a1e0660c7b6571256b43e1027d",
+  "prompts": {},
+  "sessions": {
+    "s_6a24d1836b3bff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bb85-b3e3-7b61-b4fa-2125fc41aef8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_bfd36a283aaad3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e9-81d9-7040-9978-aec4612e579c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
