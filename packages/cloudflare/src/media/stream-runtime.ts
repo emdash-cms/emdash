@@ -28,7 +28,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Resolve a config value, checking env var if direct value not provided
+ * Resolve a config value. Falls back to process.env because EmDash also runs
+ * on the Node adapter, where there is no Workers binding to read.
  */
 function resolveEnvValue(
 	directValue: string | undefined,
@@ -39,7 +40,9 @@ function resolveEnvValue(
 	if (directValue) return directValue;
 	const envVar = envVarName || defaultEnvVar;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
-	const value = (env as Record<string, string | undefined>)[envVar];
+	const workersValue = (env as Record<string, string | undefined>)[envVar];
+	const nodeValue = typeof process !== "undefined" && process.env ? process.env[envVar] : undefined;
+	const value = workersValue ?? nodeValue;
 	if (!value) {
 		throw new Error(
 			`${serviceName}: Missing ${envVar}. Set it as an environment variable or provide it directly in config.`,
