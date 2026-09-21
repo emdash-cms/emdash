@@ -1,6 +1,6 @@
 # @emdash-cms/plugin-marketplace-test
 
-## Unreleased
+## 0.2.0
 
 ### Minor Changes
 
