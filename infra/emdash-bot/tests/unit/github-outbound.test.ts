@@ -57,6 +57,8 @@ describe("GitHub sandbox outbound authentication", () => {
 		const rateLimitGate = {
 			permit,
 			record,
+			inspect: vi.fn(async () => null),
+			getInstallationToken,
 		};
 		const upstream = vi.fn<typeof fetch>().mockResolvedValue(new Response("release"));
 

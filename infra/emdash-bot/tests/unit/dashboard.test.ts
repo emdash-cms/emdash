@@ -1,16 +1,18 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const github = vi.hoisted(() => ({
 	GitHubRateLimitError: class extends Error {},
 	listOpenManagedIssues: vi.fn(),
-	mintInstallationToken: vi.fn(),
-	readAppCreds: vi.fn(),
 	readRepoContext: vi.fn(),
 }));
 
 vi.mock("../../.flue/lib/github.js", () => github);
 
-import { getDashboardPayload, loadDashboardPayload } from "../../.flue/lib/dashboard.js";
+import {
+	dashboardIssueUpdate,
+	getDashboardPayload,
+	loadDashboardPayload,
+} from "../../.flue/lib/dashboard.js";
 import type { PublicIssueSnapshot } from "../../.flue/lib/orchestrator.js";
 
 const repo = { owner: "emdash-cms", repo: "emdash" };
@@ -38,13 +40,6 @@ function managedIssue(number: number) {
 
 function dashboardEnv(getPublicSnapshot: (issueNumber: number) => Promise<PublicIssueSnapshot>) {
 	return {
-		GITHUB_APP_INSTALLATION_ID: "installation",
-		GITHUB_RATE_LIMIT: {
-			getByName: () => ({
-				permit: () => Promise.resolve({ allowed: true, retryAt: 0 }),
-				record: () => Promise.resolve(),
-			}),
-		},
 		Orchestrator: {
 			getByName(name: string) {
 				const issueNumber = Number(name.slice("issue-".length));
@@ -56,31 +51,18 @@ function dashboardEnv(getPublicSnapshot: (issueNumber: number) => Promise<Public
 
 describe("dashboard loading", () => {
 	beforeEach(() => {
-		github.readAppCreds.mockReturnValue({
-			appId: "app",
-			installationId: "installation",
-			privateKeyPem: "key",
-		});
 		github.readRepoContext.mockReturnValue(repo);
-		github.mintInstallationToken.mockResolvedValue("token");
 		github.listOpenManagedIssues.mockReset();
-		delete globalThis.emdashBotDashboardCache;
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
-		delete globalThis.emdashBotDashboardCache;
 	});
 
 	test("keeps issues whose Durable Object snapshot cannot be read", async () => {
-		github.listOpenManagedIssues.mockResolvedValue([managedIssue(1), managedIssue(2)]);
 		const env = dashboardEnv((issueNumber) =>
 			issueNumber === 1
 				? Promise.resolve({ ...emptySnapshot, state: "working", kind: "bug" })
 				: Promise.reject(new Error("snapshot unavailable")),
 		);
 
-		const payload = await loadDashboardPayload(env);
+		const payload = await loadDashboardPayload(env, [managedIssue(1), managedIssue(2)]);
 
 		expect(payload.issues).toHaveLength(2);
 		expect(payload.issues[1]).toMatchObject({
@@ -89,49 +71,61 @@ describe("dashboard loading", () => {
 			kind: "bug",
 			run: null,
 		});
+		expect(github.listOpenManagedIssues).not.toHaveBeenCalled();
 	});
 
-	test("serves the last successful payload and backs off after a refresh failure", async () => {
-		const now = Date.parse("2026-09-16T10:00:00Z");
-		vi.useFakeTimers();
-		vi.setSystemTime(now);
-		github.listOpenManagedIssues
-			.mockResolvedValueOnce([managedIssue(1)])
-			.mockRejectedValueOnce(new Error("GitHub unavailable"))
-			.mockResolvedValueOnce([managedIssue(2)]);
-		const env = dashboardEnv(() => Promise.resolve(emptySnapshot));
+	test("serves the dashboard from its repository Durable Object", async () => {
+		const payload = { issues: [] };
+		const getPayload = vi.fn(async () => payload);
+		const env = {
+			DASHBOARD: { getByName: vi.fn(() => ({ getPayload })) },
+		} as unknown as Env;
 
-		const fresh = await getDashboardPayload(env);
-		vi.setSystemTime(now + 21_000);
-		const stale = await getDashboardPayload(env);
-		const backedOff = await getDashboardPayload(env);
-
-		expect(stale).toBe(fresh);
-		expect(backedOff).toBe(fresh);
-		expect(github.listOpenManagedIssues).toHaveBeenCalledTimes(2);
+		await expect(getDashboardPayload(env)).resolves.toBe(payload);
+		expect(getPayload).toHaveBeenCalledOnce();
+		expect(github.listOpenManagedIssues).not.toHaveBeenCalled();
 	});
+});
 
-	test("shares stale fallback across concurrent refresh requests", async () => {
-		const now = Date.parse("2026-09-16T10:00:00Z");
-		vi.useFakeTimers();
-		vi.setSystemTime(now);
-		let rejectRefresh: (error: Error) => void = () => {};
-		const refresh = new Promise<never>((_, reject) => {
-			rejectRefresh = reject;
+describe("dashboard webhook index", () => {
+	test("extracts an open managed issue", () => {
+		expect(
+			dashboardIssueUpdate({
+				issue: {
+					number: 3056,
+					title: "Rate limit exhaustion",
+					html_url: "https://github.com/emdash-cms/emdash/issues/3056",
+					updated_at: "2026-09-21T08:00:00Z",
+					state: "open",
+					labels: [{ name: "bot:bug" }, { name: "bot:working" }],
+				},
+			}),
+		).toEqual({
+			kind: "upsert",
+			issue: {
+				number: 3056,
+				title: "Rate limit exhaustion",
+				url: "https://github.com/emdash-cms/emdash/issues/3056",
+				updatedAt: "2026-09-21T08:00:00Z",
+				labels: ["bot:bug", "bot:working"],
+			},
 		});
-		github.listOpenManagedIssues
-			.mockResolvedValueOnce([managedIssue(1)])
-			.mockReturnValueOnce(refresh);
-		const env = dashboardEnv(() => Promise.resolve(emptySnapshot));
-		const fresh = await getDashboardPayload(env);
-		vi.setSystemTime(now + 21_000);
+	});
 
-		const first = getDashboardPayload(env);
-		const second = getDashboardPayload(env);
-		rejectRefresh(new Error("GitHub unavailable"));
+	test("removes closed and unmanaged issues", () => {
+		expect(dashboardIssueUpdate({ issue: { number: 42, state: "closed" } })).toEqual({
+			kind: "remove",
+			number: 42,
+		});
+		expect(dashboardIssueUpdate({ issue: { number: 43, state: "open", labels: [] } })).toEqual({
+			kind: "remove",
+			number: 43,
+		});
+	});
 
-		await expect(first).resolves.toBe(fresh);
-		await expect(second).resolves.toBe(fresh);
-		expect(github.listOpenManagedIssues).toHaveBeenCalledTimes(2);
+	test("ignores pull request payload issue objects", () => {
+		expect(
+			dashboardIssueUpdate({ issue: { number: 44, state: "open", pull_request: {} } }),
+		).toBeNull();
 	});
 });

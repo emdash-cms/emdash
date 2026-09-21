@@ -31,7 +31,6 @@ import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
 	githubRateLimitGate,
-	mintInstallationToken,
 	fetchUnifiedDiff,
 	fetchPullRequestRevision,
 	classifyPullRequestHeadMove,
@@ -40,7 +39,6 @@ import {
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
-	type GitHubAppCreds,
 	type GitHubToken,
 } from "../lib/github.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
@@ -75,13 +73,9 @@ const reviewPayloadSchema = v.object({
 	checkRunId: v.optional(v.number()),
 });
 
-async function coordinatedToken(
-	env: Env,
-	creds: GitHubAppCreds,
-	consumer: string,
-): Promise<GitHubToken> {
+async function coordinatedToken(env: Env, consumer: string): Promise<GitHubToken> {
 	const gate = githubRateLimitGate(env);
-	const token = await mintInstallationToken(creds, { token: "", gate, consumer });
+	const token = await gate.getInstallationToken();
 	return { token, gate, consumer };
 }
 
@@ -344,7 +338,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			throw new Error("Review attempt is no longer active");
 		}
 		if (creds) {
-			token = await coordinatedToken(env, creds, `review-workflow:${payload.attemptId ?? runId}`);
+			token = await coordinatedToken(env, `review-workflow:${payload.attemptId ?? runId}`);
 			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
 			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
 		}
@@ -496,7 +490,6 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 								const retryToken = creds
 									? await coordinatedToken(
 											env,
-											creds,
 											`review-publication-retry:${payload.attemptId ?? runId}`,
 										)
 									: undefined;

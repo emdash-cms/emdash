@@ -2,6 +2,7 @@
 // agent's container.
 
 import {
+	acquireGitHubPermit,
 	parseGitHubResponseMetadata,
 	type GitHubRateLimitGate,
 } from "./github-rate-limit-client.js";
@@ -88,7 +89,7 @@ async function githubFetch(
 	const coordinated = coordination(token);
 	const category = endpointCategory(input, init.method ?? "GET");
 	if (coordinated) {
-		const permit = await coordinated.gate.permit(category, coordinated.consumer);
+		const permit = await acquireGitHubPermit(coordinated.gate, category, coordinated.consumer);
 		if (!permit.allowed) {
 			throw new GitHubRateLimitError(
 				429,

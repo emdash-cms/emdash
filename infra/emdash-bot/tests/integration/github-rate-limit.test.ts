@@ -47,13 +47,12 @@ describe("GitHub installation coordination", () => {
 		expect((state?.nextPermitAt ?? 0) - (state?.backoffUntil ?? 0)).toBeLessThanOrEqual(5_000);
 	});
 
-	test("grants a post-reset lease only to the exact orchestrator operation", async () => {
-		const stub = env.GITHUB_RATE_LIMIT.getByName("installation:lease-isolation");
+	test("reserves every successful permit and does not let one consumer burst", async () => {
+		const stub = env.GITHUB_RATE_LIMIT.getByName("installation:permit-reservation");
 		await runInDurableObject(stub, async (_instance, state) => {
 			await state.storage.put("installation-rate-limit", {
-				backoffUntil: Date.now() - 1,
+				backoffUntil: 0,
 				nextPermitAt: Date.now() - 1,
-				releaseUntil: Date.now() + 30_000,
 				limit: 5_000,
 				remaining: 5_000,
 				resetAt: Date.now() + 60 * 60_000,
@@ -63,30 +62,32 @@ describe("GitHub installation coordination", () => {
 		expect(await stub.permit("issue:get", "orchestrator:2693")).toMatchObject({
 			allowed: true,
 		});
-		expect(await stub.permit("issue:get", "orchestrator:2693")).toMatchObject({
-			allowed: true,
-		});
-		expect(await stub.permit("issue:get", "orchestrator:3215")).toMatchObject({
+		const sameConsumer = await stub.permit("issue:get", "orchestrator:2693");
+		const otherConsumer = await stub.permit("issue:get", "orchestrator:3215");
+		expect(sameConsumer).toMatchObject({
 			allowed: false,
+		});
+		expect(otherConsumer).toEqual(sameConsumer);
+		expect(await stub.inspect()).toMatchObject({
+			remaining: 4_999,
+			nextPermitAt: sameConsumer.retryAt,
+		});
+	});
+
+	test("paces from successful response headers before GitHub rejects a request", async () => {
+		const stub = env.GITHUB_RATE_LIMIT.getByName("installation:proactive-pacing");
+		const now = Date.now();
+		await stub.record("graphql", "orchestrator", {
+			status: 200,
+			limit: 5_000,
+			remaining: 100,
+			resetAt: now + 60_000,
+			retryAfterAt: null,
 		});
 
-		const sandbox = env.GITHUB_RATE_LIMIT.getByName("installation:sandbox-no-shared-lease");
-		await runInDurableObject(sandbox, async (_instance, state) => {
-			await state.storage.put("installation-rate-limit", {
-				backoffUntil: Date.now() - 1,
-				nextPermitAt: Date.now() - 1,
-				releaseUntil: Date.now() + 30_000,
-				limit: 5_000,
-				remaining: 5_000,
-				resetAt: Date.now() + 60 * 60_000,
-			});
-		});
-		expect(await sandbox.permit("sandbox-git", "sandbox-outbound")).toMatchObject({
-			allowed: true,
-		});
-		expect(await sandbox.permit("sandbox-git", "sandbox-outbound")).toMatchObject({
-			allowed: false,
-		});
+		const permit = await stub.permit("issue:get", "another-orchestrator");
+		expect(permit.allowed).toBe(false);
+		expect(permit.retryAt).toBeGreaterThanOrEqual(now + 600);
 	});
 
 	test("suppresses label reconciliation in another orchestrator during shared backoff", async () => {

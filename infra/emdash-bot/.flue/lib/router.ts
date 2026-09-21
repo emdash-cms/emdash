@@ -255,7 +255,7 @@ export function resolve({
 			action: null,
 			addLabel: toLabel,
 			addLabels: [toLabel],
-			removeLabels: STATE_LABELS.filter((l) => l !== toLabel),
+			removeLabels: labels.filter((label) => STATE_LABELS.includes(label) && label !== toLabel),
 			event,
 			arg: arg ?? null,
 		};
@@ -273,7 +273,7 @@ export function resolve({
 			? resumeState
 			: (retry?.to ?? transitionTarget(t, currentKind(labels)));
 	const toLabel = STATES[to].label;
-	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
+	const removeLabels = labels.filter((label) => STATE_LABELS.includes(label) && label !== toLabel);
 
 	// Entry from unmanaged or triage: ensure the kind label matches the verb.
 	// `unmanaged` is the implicit start (no labels); `triage` is the labeled

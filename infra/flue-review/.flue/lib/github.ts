@@ -34,6 +34,7 @@ const GITHUB_HEADERS = {
 
 export interface GitHubRateLimitGate {
 	permit(category: string, consumer: string): Promise<{ allowed: boolean; retryAt: number }>;
+	getInstallationToken(): Promise<string>;
 	record(
 		category: string,
 		consumer: string,
@@ -65,6 +66,20 @@ class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
 			throw new Error("GitHub coordinator permit was invalid");
 		}
 		return { allowed: value.allowed, retryAt: value.retryAt };
+	}
+
+	async getInstallationToken(): Promise<string> {
+		const response = await this.stub.fetch("http://github-rate-limit/token");
+		if (!response.ok) throw new Error(`GitHub token broker failed: ${response.status}`);
+		const payload = await response.json<unknown>();
+		if (!payload || typeof payload !== "object" || !("token" in payload)) {
+			throw new Error("GitHub token broker response was invalid");
+		}
+		const token = payload.token;
+		if (typeof token !== "string" || token.length === 0) {
+			throw new Error("GitHub token broker response was invalid");
+		}
+		return token;
 	}
 
 	async record(
@@ -691,7 +706,7 @@ interface ReviewComment {
 }
 
 async function fetchNewestReviewComments(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
@@ -699,6 +714,7 @@ async function fetchNewestReviewComments(
 	const res = await githubFetch(
 		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/comments?sort=created&direction=desc&per_page=${REVIEW_COMMENTS_PAGE_SIZE}`,
 		{ headers: installationHeaders(token) },
+		token,
 	);
 	await requireGitHubResponse(res, "list review comments");
 	return res.json<ReviewComment[]>();

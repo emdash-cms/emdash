@@ -33,6 +33,7 @@ import { applyCandidateForRevision } from "../lib/candidate-revision.js";
 import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
+import { githubRateLimitGate } from "../lib/github-rate-limit-client.js";
 import { readRepoContext } from "../lib/github.js";
 import {
 	applyInvestigationResult,
@@ -53,6 +54,7 @@ import { updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
 import {
 	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
+	isGitHubRateLimitFailure,
 	prepareWorkspaceBeforeModel,
 	WORKSPACE_SANDBOX_ATTEMPT_LIMIT,
 } from "../lib/workspace-attachment.js";
@@ -244,6 +246,7 @@ type TriageResult = v.InferOutput<typeof triageResultSchema>;
 interface RunFailure {
 	stage: "workspace" | "verification" | "publication" | "reporting";
 	message: string;
+	retryAt?: number;
 }
 
 export function Investigate({ id }: AgentProps) {
@@ -533,7 +536,12 @@ export function Investigate({ id }: AgentProps) {
 						});
 						return { output: published };
 					} catch (error) {
-						setLastFailure({ stage: "publication", message: safeFailureMessage(error) });
+						const retryAt = await publicationRetryAt(error);
+						setLastFailure({
+							stage: "publication",
+							message: safeFailureMessage(error),
+							...(retryAt ? { retryAt } : {}),
+						});
 						throw error;
 					}
 				},
@@ -1116,13 +1124,25 @@ function reportPayload(
 function withRunFailure<T extends InvestigationResult | ImplementationResult>(
 	result: T,
 	failure: RunFailure | null,
-): T & { failureStage?: RunFailure["stage"] } {
+): T & { failureStage?: RunFailure["stage"]; failureRetryAt?: number } {
 	if (!failure) return result;
 	return {
 		...result,
 		failureStage: failure.stage,
+		...(failure.retryAt ? { failureRetryAt: failure.retryAt } : {}),
 		summary: truncateSummary(`${result.summary}\n\n${failure.message}`),
 	};
+}
+
+async function publicationRetryAt(error: unknown): Promise<number | undefined> {
+	if (!isGitHubRateLimitFailure(error)) return undefined;
+	const fallback = Date.now() + 60_000;
+	try {
+		const state = await githubRateLimitGate(workerEnv).inspect();
+		return Math.max(fallback, state?.backoffUntil ?? 0, state?.nextPermitAt ?? 0);
+	} catch {
+		return fallback;
+	}
 }
 
 function safeFailureMessage(error: unknown): string {

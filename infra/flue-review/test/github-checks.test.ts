@@ -35,9 +35,13 @@ describe("GitHub review checks", () => {
 			fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
 				const request = new Request(input, init);
 				requests.push(request);
-				return request.url.endsWith("/permit")
-					? Response.json({ allowed: false, retryAt: 1234 })
-					: new Response(null, { status: 204 });
+				if (request.url.endsWith("/permit")) {
+					return Response.json({ allowed: false, retryAt: 1234 });
+				}
+				if (request.url.endsWith("/token")) {
+					return Response.json({ token: "shared-token" });
+				}
+				return new Response(null, { status: 204 });
 			}),
 		};
 		const gate = githubRateLimitGate({
@@ -49,6 +53,7 @@ describe("GitHub review checks", () => {
 			allowed: false,
 			retryAt: 1234,
 		});
+		await expect(gate.getInstallationToken()).resolves.toBe("shared-token");
 		await gate.record("graphql", "review-workflow", {
 			status: 429,
 			limit: 5_000,
@@ -58,6 +63,7 @@ describe("GitHub review checks", () => {
 		});
 		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
 			"/permit",
+			"/token",
 			"/record",
 		]);
 	});
