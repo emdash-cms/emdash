@@ -105,8 +105,35 @@
 .expressive-code {
 	margin-block: 1.5rem;
 }
+
+.starlight-aside {
+	padding: 0.875rem 1rem;
+	border: 1px solid color-mix(in srgb, var(--sl-color-asides-border) 55%, var(--sl-color-bg));
+	border-radius: 1rem;
+	color: var(--sl-color-text);
+	background-color: color-mix(in srgb, var(--sl-color-asides-border) 9%, var(--sl-color-bg));
+}
+
+.starlight-aside__title {
+	gap: 0.5rem;
+	font-size: var(--sl-text-sm);
+	line-height: 1.35;
+}
+
+.starlight-aside__icon {
+	font-size: 1.125rem;
+}
+
+.starlight-aside__title + .starlight-aside__content {
+	margin-top: 0.375rem;
+}
+
+.starlight-aside__content {
+	font-size: var(--sl-text-sm);
+	line-height: 1.55;
+}
+
 /* Match the landing page's surface shapes */
-.starlight-aside,
 .sidebar-content a[aria-current="page"] {
 	border-radius: 0.625rem;
 }
