@@ -373,11 +373,33 @@ function TaxonomyTermPicker({
 				else closePicker();
 			}}
 		>
-			<div ref={anchorRef} className="grid min-w-0 gap-2">
-				<Text bold as="span">
-					{label}
-				</Text>
-				<LayerCard className="flex min-h-9 items-start gap-1.5 bg-kumo-control p-1.5 shadow-none focus-within:ring-[1.5px] focus-within:ring-kumo-focus/50">
+			<div ref={anchorRef} className="grid min-w-0 gap-1.5">
+				<div className="flex min-w-0 items-center justify-between gap-2">
+					<Text bold as="span">
+						{label}
+					</Text>
+					<Button
+						ref={triggerRef}
+						id={triggerId}
+						type="button"
+						variant="ghost"
+						size="xs"
+						shape="square"
+						className="ms-auto h-6 w-6 min-w-6 shrink-0"
+						title={t`Choose ${label}`}
+						aria-label={t`Choose ${label}`}
+						aria-expanded={isOpen}
+						aria-controls={listId}
+						disabled={isCreating}
+						loading={isCreating}
+						onClick={() => {
+							if (isOpen) closePicker();
+							else setIsOpen(true);
+						}}
+						icon={<Plus size={14} aria-hidden="true" />}
+					/>
+				</div>
+				<LayerCard className="flex min-h-9 items-start bg-kumo-control p-1.5 shadow-none">
 					{selectedOptions.length > 0 ? (
 						<div
 							role="list"
@@ -389,7 +411,7 @@ function TaxonomyTermPicker({
 								scrollbarGutter: "stable",
 								scrollbarWidth: "thin",
 							}}
-							className="relative z-1 flex min-w-0 flex-1 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+							className="relative z-1 flex w-full min-w-0 flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-kumo-line [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
 						>
 							{selectedOptions.map((option) => (
 								<span
@@ -414,26 +436,6 @@ function TaxonomyTermPicker({
 							))}
 						</div>
 					) : null}
-					<Button
-						ref={triggerRef}
-						id={triggerId}
-						type="button"
-						variant="ghost"
-						size="xs"
-						shape="square"
-						className="ms-auto h-6 w-6 min-w-6 shrink-0 focus-visible:ring-0"
-						title={t`Choose ${label}`}
-						aria-label={t`Choose ${label}`}
-						aria-expanded={isOpen}
-						aria-controls={listId}
-						disabled={isCreating}
-						loading={isCreating}
-						onClick={() => {
-							if (isOpen) closePicker();
-							else setIsOpen(true);
-						}}
-						icon={<Plus size={14} aria-hidden="true" />}
-					/>
 				</LayerCard>
 			</div>
 
