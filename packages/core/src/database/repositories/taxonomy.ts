@@ -215,6 +215,18 @@ export class TaxonomyRepository {
 		return row ? this.rowToTaxonomy(row) : null;
 	}
 
+	/** Resolve either a locale row id or a locale-agnostic translation group. */
+	async findByIdOrTranslationGroup(id: string): Promise<Taxonomy | null> {
+		const row = await this.db
+			.selectFrom("taxonomies")
+			.selectAll()
+			.where((eb) => eb.or([eb("id", "=", id), eb("translation_group", "=", id)]))
+			.orderBy("locale", "asc")
+			.orderBy("id", "asc")
+			.executeTakeFirst();
+		return row ? this.rowToTaxonomy(row) : null;
+	}
+
 	/**
 	 * Find a term by (name, slug). When `locale` is provided, filter by it.
 	 * When omitted, returns the lowest-locale-code match (deterministic across
@@ -612,6 +624,28 @@ export class TaxonomyRepository {
 		invalidateTaxonomyObjectCache();
 	}
 
+	/** Remove already-resolved term groups without replacing concurrent assignments. */
+	async detachGroupsFromEntry(
+		collection: string,
+		entryId: string,
+		taxonomyGroups: string[],
+	): Promise<number> {
+		const uniqueGroups = [...new Set(taxonomyGroups)];
+		if (uniqueGroups.length === 0) return 0;
+		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
+		if (!entryGroup) return 0;
+
+		const result = await this.db
+			.deleteFrom("content_taxonomies")
+			.where("collection", "=", collection)
+			.where("entry_id", "=", entryGroup)
+			.where("taxonomy_id", "in", uniqueGroups)
+			.executeTakeFirst();
+		const removed = Number(result.numDeletedRows ?? 0n);
+		if (removed > 0) invalidateTaxonomyObjectCache();
+		return removed;
+	}
+
 	/**
 	 * Taxonomy terms assigned to a content entry, resolved into a specific locale.
 	 * Terms whose translation_group lacks a row in the requested locale are
@@ -749,7 +783,15 @@ export class TaxonomyRepository {
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
+		return this.clearEntryGroupTerms(collection, entryGroup);
+	}
 
+	/**
+	 * Remove every term assignment held by an entry translation group. Takes the
+	 * group rather than an entry id, so it still works after the group's last
+	 * row has been deleted.
+	 */
+	async clearEntryGroupTerms(collection: string, entryGroup: string): Promise<number> {
 		const result = await this.db
 			.deleteFrom("content_taxonomies")
 			.where("collection", "=", collection)

@@ -21,7 +21,7 @@
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "1.53.0",
-		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@cloudflare/vitest-plugin": "catalog:",
 		"@flue/vite": "2.0.3",
 		"typescript": "catalog:",
 		"vite": "8.0.11",

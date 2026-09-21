@@ -27,6 +27,7 @@ import {
 	canonicalMediaProviderId,
 	getMediaObjectPosition,
 	getMediaPreviewUrl,
+	localMediaFileUrl,
 	metaString,
 } from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
@@ -71,9 +72,9 @@ function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | 
 	if (!value) return undefined;
 	if (value.previewUrl || value.src) return value.previewUrl || value.src;
 	if (!value.provider || value.provider === "local") {
-		return `/_emdash/api/media/file/${encodeURIComponent(
+		return localMediaFileUrl(
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id,
-		)}`;
+		);
 	}
 	return undefined;
 }

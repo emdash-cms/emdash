@@ -212,6 +212,7 @@ function createAuthenticatedPair(authInfo: {
 	userRole: RoleLevel;
 	user: RouteCallerInput;
 	tokenScopes?: string[];
+	cache?: { enabled: boolean; invalidate: (options: { tags: string[] }) => Promise<void> };
 }): [AuthInjectingTransport, InMemoryTransport] {
 	const clientTransport = new AuthInjectingTransport(authInfo);
 	const serverTransport = new InMemoryTransport();
@@ -232,6 +233,7 @@ async function setupMcpPair(opts: {
 	tokenScopes?: string[];
 	pluginTools?: PluginMcpRegistration[];
 	user?: RouteCallerInput;
+	cache?: { enabled: boolean; invalidate: (options: { tags: string[] }) => Promise<void> };
 }): Promise<{ client: Client; cleanup: () => Promise<void> }> {
 	const handlers = opts.handlers ?? createMockHandlers();
 	const server = createMcpServer(
@@ -250,6 +252,7 @@ async function setupMcpPair(opts: {
 			createdAt: "2026-01-01T00:00:00.000Z",
 		},
 		tokenScopes: opts.tokenScopes,
+		cache: opts.cache,
 	});
 
 	const client = new Client({ name: "test", version: "1.0" });
@@ -332,6 +335,7 @@ describe("MCP Authorization", () => {
 				success: true,
 				data: { id: "event-1" },
 			});
+			const invalidate = vi.fn().mockResolvedValue(undefined);
 			({ client, cleanup } = await setupMcpPair({
 				userId: AUTHOR_USER_ID,
 				userRole: Role.CONTRIBUTOR,
@@ -339,6 +343,7 @@ describe("MCP Authorization", () => {
 				user: caller,
 				handlers,
 				pluginTools: [pluginTool],
+				cache: { enabled: true, invalidate },
 			}));
 
 			const listed = await client.listTools();
@@ -358,7 +363,11 @@ describe("MCP Authorization", () => {
 				AUTHOR_USER_ID,
 				expect.any(Request),
 				caller,
+				expect.any(Function),
 			);
+			const invalidateContentCache = vi.mocked(handlers.handlePluginMcpTool).mock.calls[0]?.[7];
+			await invalidateContentCache?.(["posts", "post-1"]);
+			expect(invalidate).toHaveBeenCalledWith({ tags: ["posts", "post-1"] });
 		});
 
 		it("still enforces the route permission", async () => {
@@ -906,6 +915,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					scheduledAt: "2030-01-01T00:00:00Z",
+					_rev: STUB_REV,
 				},
 			});
 

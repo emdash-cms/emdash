@@ -299,6 +299,75 @@ describe("extractMediaUsageOccurrences", () => {
 		]);
 	});
 
+	it("extracts the images inside a Portable Text gallery block (#2872)", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{ _type: "block", _key: "p1", children: [] },
+					{
+						_type: "gallery",
+						_key: "g1",
+						columns: 3,
+						images: [
+							{ _key: "a", asset: { _ref: "gallery-one", url: "/_emdash/api/media/file/one.jpg" } },
+							{
+								_key: "b",
+								asset: { id: "cf-two", provider: "cloudflare-images", mimeType: "image/webp" },
+							},
+							{ _key: "c", asset: { url: "https://example.com/external.jpg" } },
+							{ _key: "d" },
+							"not-an-image",
+						],
+					},
+					{ _type: "gallery", _key: "g2", images: "malformed" },
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[1].images[0].asset._ref",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_image",
+				mediaId: "gallery-one",
+				provider: "local",
+				providerAssetId: "gallery-one",
+				mediaKind: "image",
+				mimeType: null,
+			},
+			{
+				fieldSlug: "body",
+				fieldPath: "body[1].images[1].asset.id",
+				occurrenceIndex: 0,
+				referenceType: "portable_text_image",
+				mediaId: null,
+				provider: "cloudflare-images",
+				providerAssetId: "cf-two",
+				mediaKind: "image",
+				mimeType: "image/webp",
+			},
+		]);
+	});
+
+	it("counts an image used both in a gallery and as an image block as two uses", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{ _type: "image", _key: "img", asset: { _ref: "shared" } },
+					{ _type: "gallery", _key: "g", images: [{ _key: "a", asset: { _ref: "shared" } }] },
+				],
+			},
+		});
+
+		expect(occurrences.map((occurrence) => occurrence.fieldPath)).toEqual([
+			"body[0].asset._ref",
+			"body[1].images[0].asset._ref",
+		]);
+	});
+
 	it("skips URL-only and malformed media values", () => {
 		const occurrences = extractMediaUsageOccurrences({
 			fields: [

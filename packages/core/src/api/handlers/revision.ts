@@ -9,6 +9,7 @@ import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
+import { encodeRev } from "../rev.js";
 import type { ApiResult, ContentResponse } from "../types.js";
 
 export interface RevisionListResponse {
@@ -154,7 +155,7 @@ export async function handleRevisionRestore(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch {
 		return {

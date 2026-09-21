@@ -15,6 +15,8 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { searchPackages } from "../src/routes/xrpc/searchPackages.js";
+
 interface TestEnv {
 	DB: D1Database;
 	TEST_MIGRATIONS: Parameters<typeof applyD1Migrations>[1];
@@ -39,12 +41,24 @@ beforeEach(async () => {
 	await testEnv.DB.prepare("DELETE FROM label_state").run();
 	await testEnv.DB.prepare("DELETE FROM labellers").run();
 	await testEnv.DB.prepare("DELETE FROM releases").run();
+	await testEnv.DB.prepare("DELETE FROM package_release_history").run();
 	await testEnv.DB.prepare("DELETE FROM packages").run();
 	await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
 	await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
 	await testEnv.DB.prepare("DELETE FROM publishers").run();
 	await testEnv.DB.prepare("DELETE FROM publisher_verifications").run();
+	await testEnv.DB.prepare("DELETE FROM known_publishers").run();
 });
+
+async function seedPublisherHandle(did: string, handle: string): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO known_publishers
+		   (did, handle, handle_resolved_at, first_seen_at, last_seen_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+	)
+		.bind(did, handle, NOW.toISOString(), NOW.toISOString(), NOW.toISOString())
+		.run();
+}
 
 interface SeedPackageOpts {
 	did?: string;
@@ -141,6 +155,16 @@ async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
 		.run();
 }
 
+async function seedReleaseHistory(complete: boolean): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO package_release_history
+		   (did, package, release_history_complete, first_observed_at, first_observed_source)
+		 VALUES (?, ?, ?, ?, ?)`,
+	)
+		.bind(DID_A, "demo", complete ? 1 : 0, NOW.toISOString(), complete ? "jetstream" : "backfill")
+		.run();
+}
+
 async function seedTakedown(uri: string, cid: string | null = null): Promise<void> {
 	await testEnv.DB.prepare(
 		`INSERT INTO labellers
@@ -171,6 +195,17 @@ function defaultVersionSort(version: string): string {
 }
 
 describe("getPackage", () => {
+	it("includes the cached verified publisher handle", async () => {
+		await seedPackage({ slug: "demo" });
+		await seedPublisherHandle(DID_A, "publisher.example");
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		await expect(res.json()).resolves.toMatchObject({ handle: "publisher.example" });
+	});
+
 	it("returns the packageView envelope for an indexed package", async () => {
 		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
 
@@ -204,6 +239,39 @@ describe("getPackage", () => {
 		expect(res.status).toBe(404);
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toBe("NotFound");
+	});
+
+	it("reports complete all-time release history including tombstones", async () => {
+		await seedPackage({ slug: "demo", latestVersion: "2.0.0" });
+		await seedRelease({ version: "1.0.0", tombstoned: true });
+		await seedRelease({ version: "2.0.0" });
+		await seedReleaseHistory(true);
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toMatchObject({
+			historicalReleaseCount: 2,
+			releaseHistoryComplete: true,
+		});
+	});
+
+	it("marks backfilled release history incomplete", async () => {
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedReleaseHistory(false);
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toMatchObject({
+			historicalReleaseCount: 1,
+			releaseHistoryComplete: false,
+		});
 	});
 
 	it("returns 400 InvalidRequest on missing required params", async () => {
@@ -413,6 +481,67 @@ describe("getLatestRelease", () => {
 });
 
 describe("searchPackages", () => {
+	it.each(["publisher.example", "@publisher.example"])(
+		"searches all packages by publisher handle: %s",
+		async (query) => {
+			await seedPackage({ slug: "gallery" });
+			await seedPackage({ slug: "forms" });
+
+			const res = await searchPackages(
+				env,
+				{ q: query },
+				{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+			);
+			const body = (await res.json()) as {
+				packages: Array<{ handle?: string; slug: string }>;
+			};
+
+			expect(body.packages.map((pkg) => pkg.slug).toSorted()).toEqual(["forms", "gallery"]);
+			expect(body.packages.every((pkg) => pkg.handle === "publisher.example")).toBe(true);
+		},
+	);
+
+	it.each(["publisher.example/gallery", "@publisher.example/gallery"])(
+		"searches an exact handle and slug: %s",
+		async (query) => {
+			await seedPackage({ slug: "gallery" });
+			await seedPackage({ slug: "forms" });
+
+			const res = await searchPackages(
+				env,
+				{ q: query },
+				{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+			);
+			const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+			expect(body.packages.map((pkg) => pkg.slug)).toEqual(["gallery"]);
+		},
+	);
+
+	it("does not cache a resolved identity with no indexed packages", async () => {
+		const res = await searchPackages(
+			env,
+			{ q: "unknown.example" },
+			{ resolvePublisher: async () => ({ did: DID_B, handle: "unknown.example" }) },
+		);
+
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+		const cached = await testEnv.DB.prepare("SELECT did FROM known_publishers").all();
+		expect(cached.results).toEqual([]);
+	});
+
+	it("searches by DID when identity enrichment is unavailable", async () => {
+		await seedPackage({ slug: "gallery" });
+		const res = await searchPackages(
+			env,
+			{ q: `${DID_A}/gallery` },
+			{ resolvePublisher: () => Promise.reject(new Error("identity unavailable")) },
+		);
+		const body = (await res.json()) as { packages: Array<{ did: string; slug: string }> };
+
+		expect(body.packages).toMatchObject([{ did: DID_A, slug: "gallery" }]);
+	});
+
 	it("returns FTS-matched packages", async () => {
 		await seedPackage({ slug: "gallery", name: "Gallery Plugin", description: "image gallery" });
 		await seedPackage({ slug: "form", name: "Form Plugin", description: "form builder" });

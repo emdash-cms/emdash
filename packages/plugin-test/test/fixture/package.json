@@ -1,0 +1,8 @@
+{
+	"name": "plugin-test-fixture",
+	"version": "0.1.0",
+	"type": "module",
+	"peerDependencies": {
+		"emdash": "workspace:*"
+	}
+}

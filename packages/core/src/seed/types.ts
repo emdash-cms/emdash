@@ -88,6 +88,8 @@ export interface SeedCollection {
 	 * a `sortOrder` keep the alphabetical order and follow the ordered ones.
 	 */
 	sortOrder?: number;
+	/** Admin sidebar folder shared with other collections of the same group. */
+	group?: string;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
 	/** Take an edit lock when an entry is opened (defaults to true) */

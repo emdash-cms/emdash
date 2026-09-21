@@ -21,10 +21,10 @@ Use [`emdash-plugin publish`](/plugins/creating-plugins/publishing/#publish) for
 Prepare the following before starting:
 
 - A public GitHub repository containing a sandboxed EmDash plugin.
-- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or enter it during interactive setup.
+- `@emdash-cms/plugin-cli` installed as a development dependency. Plugins created with the CLI already include it.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or confirm the detected GitHub remote during interactive setup.
 - A version in `package.json`, or in `emdash-plugin.jsonc` for a registry-only plugin.
 - The Atmosphere account named by `publisher`.
-- Permission to add a GitHub Actions secret to the repository.
 - A browser that supports passkeys. Release approval requires user verification.
 
 Run the manifest check before configuring the workflow:
@@ -45,13 +45,15 @@ pnpm exec emdash-plugin validate
 
    The CLI stores this local publishing session outside the project. GitHub Actions never receives it.
 
-2. Prepare the package profile and generate the workflow.
+2. Prepare the package profile and generate the workflow from the plugin directory.
 
    ```sh
    pnpm exec emdash-plugin release setup
    ```
 
    The command reads the package metadata from `emdash-plugin.jsonc`. If the package profile is missing, it offers to create it. If the profile exists without delegated-release settings, it offers to add them while preserving the existing package metadata.
+
+   In a monorepo, run the command inside the plugin package or pass `--dir <plugin-directory>`. If the manifest does not contain `repo`, setup detects the GitHub `origin` remote and pre-fills the repository prompt.
 
    Setup asks when a release needs approval:
 
@@ -66,48 +68,119 @@ pnpm exec emdash-plugin validate
    pnpm exec emdash-plugin profile setup
    ```
 
-   In a non-interactive terminal, pass `--yes` to accept the default approval policy. Pass `--repository <https-url>` when the manifest does not contain `repo`, and `--confirmation always` to require approval for every release.
+   After publishing the package profile, this command shows the manual and GitHub Actions release commands.
+
+   In a non-interactive terminal, pass `--yes` to accept the default approval policy. Pass `--repository <https-url>` when neither the manifest nor Git remote supplies the repository, and `--confirmation always` to require approval for every release.
 
 3. Review and commit the generated workflow.
 
    The command creates `.github/workflows/emdash-release.yml`. It does not push the file and does not replace an existing workflow unless you pass `--force`.
 
-   The generated workflow runs for version tags matching `v*` and through `workflow_dispatch`. It grants `contents: read`, `id-token: write`, and `attestations: write`; pins third-party Actions to full commit identifiers; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
+   If the repository contains `.changeset/config.json`, interactive setup offers **Follow Changesets releases**. When Changesets releases a package containing `emdash-plugin.jsonc`, the reusable EmDash workflow publishes the same version. Connect it to the existing Changesets workflow as described below. Otherwise, the generated workflow runs for package tags matching `<slug>@<version>`. Both variants support manual runs and can be selected explicitly with `--trigger changesets|tags|manual`.
+
+   The workflow grants each job only its required `contents`, `id-token`, and `attestations` permissions; pins third-party Actions to full commit identifiers; runs the exact plugin CLI version that generated the file; resolves each package from its manifest; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
+
+   The workflow lives at the repository root and is shared by every plugin package in that repository. Running `release setup` from a nested package still writes `.github/workflows/emdash-release.yml` at the root.
 
 4. Open the [release-service dashboard](https://releases.emdashcms.com/publisher) and sign in with the same Atmosphere account.
 
    Select **Authorize publishing**. Your account provider shows the exact delegated permission. The retained grant can create package release records and upload package or listing-image blobs. It cannot create or edit package profiles, update or delete releases, or write another collection.
 
-5. Create a workflow invitation.
+5. Start the release workflow.
 
-   Enter the plugin's `slug` from `emdash-plugin.jsonc`, then select **Create invitation**. Add the one-time value to the GitHub repository as an Actions secret named `EMDASH_CONNECTION_INVITATION`.
+   With Changesets, merge the version pull request and let its publish job complete. The Changesets Action passes the packages it released to the reusable EmDash workflow. Ordinary npm packages are ignored; packages containing `emdash-plugin.jsonc` publish the same version to EmDash.
 
-   The invitation is valid for 30 minutes and can connect only the named plugin. Create a new invitation if it expires before the workflow consumes it.
-
-6. Start the release workflow.
-
-   Update the package version before creating the version tag. The following commands start a `1.2.3` release:
+   With the package-tag trigger, update the package version before creating the version tag. The following commands start a `1.2.3` release:
 
    ```sh
-   git tag v1.2.3
-   git push origin v1.2.3
+   git tag gallery@1.2.3
+   git push origin gallery@1.2.3
    ```
 
    You can also select **Run workflow** on the repository's GitHub Actions page.
 
-7. Approve the workflow connection on its first run.
+6. Approve each repository ref scope on its first run.
 
-   The Action writes a link to the GitHub job summary and waits. Open the link and confirm the plugin, repository, workflow file, branch or tag, and environment.
+   The service verifies that the initiating package profile names the GitHub repository before creating a connection request. The Action writes a link to the GitHub job summary and waits. Open the link and confirm the repository, workflow file, branch or tag, and environment.
 
-   For a tag-triggered run, choose **All version tags** or **Only this tag**. A branch-triggered request covers only that branch. The service stores the GitHub repository and owner IDs as well as the selected ref and environment scope. Later runs must match this policy.
+   For a tag-triggered run, choose **All package version tags** or **Only this tag**. A manual run requests approval the first time its branch is used. Confirming another tag or branch scope adds it to the repository connection without removing existing scopes. The service stores the GitHub repository and owner IDs as well as the approved refs and environments. Later packages reuse these scopes only when their signed profiles name the same repository.
 
-8. Approve the release when required.
+   Package approvals created by older generated workflows remain limited to their original packages. The first unmatched package or ref requests a repository connection; the service does not widen an existing package approval automatically.
+
+7. Approve the release when required.
 
    A release that expands plugin permissions, or a profile configured for every-release confirmation, enters **Awaiting approval**. Open the approval URL from the Action output or release dashboard. Enrol a passkey if the approving account does not already have one, review the permission change, and approve or reject the release.
 
    The default Action setting returns successfully when the release reaches **Awaiting approval**. The service workflow continues waiting for the browser decision and publishes after approval.
 
 </Steps>
+
+## Connect a Changesets workflow
+
+The generated `.github/workflows/emdash-release.yml` accepts the Changesets Action published-package JSON through `workflow_call`. Add an output to the existing Changesets job, then call the EmDash workflow from a dependent job. Replace `release` and `changesets` when the existing job or step uses another ID.
+
+Changesets Action v2 uses the `published-packages` output. Add the following job output and caller to a workflow using Changesets CLI v3:
+
+```yaml title=".github/workflows/release.yml"
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs['published-packages'] }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Changesets Action v1 uses the camel-case `publishedPackages` step output. Use this expression for a workflow using Changesets CLI v2:
+
+```yaml title=".github/workflows/release.yml"
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs.publishedPackages }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Keep Changesets responsible for its version pull request and package publication. The EmDash caller runs only when Changesets reports `published: true`. For private EmDash-only packages, set both `privatePackages.version` and `privatePackages.tag` to `true` in `.changeset/config.json`. Add unrelated private applications and test fixtures to `ignore`.
+
+## Add another package
+
+Prepare the package profile from its source directory. The existing root workflow and repository connection are reused:
+
+```sh
+pnpm exec emdash-plugin profile setup --dir packages/comments
+```
+
+With Changesets, add the package to a changeset and merge its version pull request. With the package-tag trigger, update the package version and push its tag:
+
+```sh
+git tag comments@1.0.0
+git push origin comments@1.0.0
+```
+
+The workflow resolves `comments` to one `emdash-plugin.jsonc`, checks the selected version, and verifies that the signed profile names the connected repository before accepting artifact uploads. Duplicate package IDs and version mismatches fail before attestation.
 
 ## What the release service verifies
 
@@ -149,8 +222,7 @@ The standard generated workflow supplies these inputs. They are shown here so yo
 | --- | --- |
 | `service-url` | Release-service HTTPS origin. |
 | `publisher-did` | DID that owns the package profile and releases. |
-| `connection-invitation` | `EMDASH_CONNECTION_INVITATION` on the first connection. |
-| `bundle-file` | The single tarball produced by `emdash-plugin bundle`. |
+| `bundle-file` | The single tarball produced by `emdash-plugin release prepare`. |
 | `provenance-file` | Raw `bundle-path` output from `actions/attest-build-provenance`. |
 
 The Action returns these outputs:
@@ -184,10 +256,6 @@ This check runs before the service accepts bundle or provenance uploads.
 ### Public repository required
 
 GitHub uses a private Sigstore trust root for private and internal repositories. The release verifier currently trusts only public GitHub provenance. Move the release workflow to a public repository or publish locally with `emdash-plugin publish`.
-
-### Invitation expired or invalid
-
-Create another invitation in the release dashboard and replace `EMDASH_CONNECTION_INVITATION`. Start the workflow within 30 minutes. An invitation is single-use and scoped to one plugin ID.
 
 ### `WORKLOAD_NOT_ALLOWED`
 

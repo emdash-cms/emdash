@@ -42,6 +42,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	const result = await handleMarketplaceUninstall(emdash.db, emdash.storage, id, {
 		deleteData: body.deleteData ?? false,
+		beforeDelete: () => emdash.runPluginUninstallLifecycle(id, body.deleteData ?? false),
 	});
 
 	if (!result.success) return unwrapResult(result);

@@ -102,6 +102,27 @@ describeEachDialect("single-taxonomy CRUD", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
+	describe("handleTaxonomyCreate", () => {
+		it("rejects a translation whose name differs from its source", async () => {
+			const source = await handleTaxonomyGet(db, "genre");
+			expect(source.success).toBe(true);
+			if (!source.success) return;
+
+			const result = await handleTaxonomyCreate(db, {
+				name: "genero",
+				label: "Géneros",
+				locale: "es",
+				translationOf: source.data.taxonomy.id,
+			});
+
+			expect(result.success).toBe(false);
+			if (result.success) return;
+			expect(result.error.code).toBe("VALIDATION_ERROR");
+			const stored = await handleTaxonomyGet(db, "genero");
+			expect(stored.success).toBe(false);
+		});
+	});
+
 	describe("handleTaxonomyGet", () => {
 		it("returns the definition", async () => {
 			const result = await handleTaxonomyGet(db, "genre");

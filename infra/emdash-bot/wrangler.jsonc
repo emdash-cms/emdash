@@ -39,6 +39,10 @@
 				"name": "Sandbox",
 			},
 			{
+				"class_name": "GitHubRateLimitDO",
+				"name": "GITHUB_RATE_LIMIT",
+			},
+			{
 				"class_name": "OrchestratorDO",
 				"name": "Orchestrator",
 			},
@@ -87,6 +91,10 @@
 			"tag": "v5",
 			"deleted_classes": ["WorkspaceDO"],
 		},
+		{
+			"tag": "v6",
+			"new_sqlite_classes": ["GitHubRateLimitDO"],
+		},
 	],
 
 	// Workspace storage for the sandbox (repo clone, build cache, agent files
@@ -108,7 +116,7 @@
 
 	// `wrangler secret put <NAME>` for production. Local dev reads .env.
 	"secrets": {
-		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_APP_PRIVATE_KEY"],
+		"required": ["GITHUB_WEBHOOK_SECRET", "EMDASH_BOT_OPERATOR_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},
 
 	"observability": {

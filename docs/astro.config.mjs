@@ -9,10 +9,10 @@ export default defineConfig({
 	redirects: {
 		"/introduction": "/why-emdash",
 	},
+	session: false,
 	integrations: [
 		starlight({
 			title: "EmDash",
-			tagline: "The Astro-native CMS",
 			disable404Route: true,
 			components: {
 				SkipLink: "./src/components/SkipLink.astro",
@@ -95,6 +95,10 @@ export default defineConfig({
 						{ label: "Plugin Overview", slug: "plugins/overview" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
 						{ label: "Plugin Registry", slug: "plugins/registry" },
+						{
+							label: "Migrate from Marketplace",
+							slug: "plugins/migrate-from-marketplace",
+						},
 						{ label: "Upgrading Plugins", slug: "plugins/upgrading-sites" },
 					],
 				},

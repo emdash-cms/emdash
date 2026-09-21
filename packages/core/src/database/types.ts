@@ -396,6 +396,7 @@ export interface DeviceCodeTable {
 export interface OptionTable {
 	name: string;
 	value: string; // JSON
+	revision: Generated<string>;
 }
 
 export interface AuditLogTable {
@@ -435,6 +436,7 @@ export interface CollectionTable {
 	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
 	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry and dashboard quick action
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
+	nav_group: string | null; // admin sidebar folder label; NULL = inline
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
@@ -483,6 +485,7 @@ export interface PluginStorageTable {
 	collection: string;
 	id: string;
 	data: string; // JSON
+	revision: Generated<string>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
@@ -678,6 +681,7 @@ export interface Database {
 	_emdash_comments: CommentTable;
 	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
+	_emdash_redirect_write_lock: RedirectWriteLockTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
@@ -722,8 +726,18 @@ export interface RedirectTable {
 	last_hit_at: string | null;
 	group_name: string | null;
 	auto: number; // boolean: system-generated from slug change
+	config_revision: string;
+	source_guard: number;
+	write_generation: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface RedirectWriteLockTable {
+	id: number;
+	token: string;
+	expires_at: number;
+	generation: number;
 }
 
 export interface NotFoundLogTable {

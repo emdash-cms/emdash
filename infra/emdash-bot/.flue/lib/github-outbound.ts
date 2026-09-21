@@ -6,12 +6,17 @@ import {
 	verifyPushCapability,
 	withGithubAuthorization,
 } from "./github-proxy.js";
+import {
+	parseGitHubResponseMetadata,
+	type GitHubRateLimitGate,
+} from "./github-rate-limit-client.js";
 
 export interface GithubOutboundContext {
 	readonly owner: string;
 	readonly repo: string;
 	readonly pushCapabilitySecret: string;
 	readonly getInstallationToken: () => Promise<string>;
+	readonly rateLimitGate?: GitHubRateLimitGate;
 }
 
 export async function forwardGithubRequest(
@@ -97,14 +102,34 @@ export async function forwardGithubRequest(
 	);
 	const authed = withGithubAuthorization(forwarded, url.host, token);
 	authed.headers.set("user-agent", "emdash-bot");
+	const category = url.host === "api.github.com" ? "sandbox-api" : "sandbox-git";
+	const installationAuthenticated = gate.authentication === "installation";
+	const permit = installationAuthenticated
+		? await context.rateLimitGate?.permit(category, "sandbox-outbound")
+		: undefined;
+	if (permit && !permit.allowed) {
+		return new Response("GitHub request backed off", {
+			status: 429,
+			headers: {
+				"retry-after": String(Math.max(1, Math.ceil((permit.retryAt - Date.now()) / 1_000))),
+			},
+		});
+	}
 	try {
 		const response = await upstreamFetch(authed, {
 			signal: AbortSignal.timeout(2 * 60_000),
 		});
+		if (installationAuthenticated && context.rateLimitGate) {
+			await context.rateLimitGate.record(
+				category,
+				"sandbox-outbound",
+				parseGitHubResponseMetadata(response),
+			);
+		}
 		console.log(
 			JSON.stringify({
 				message: "github proxy received response",
-				path: url.pathname,
+				category,
 				status: response.status,
 			}),
 		);

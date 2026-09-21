@@ -22,13 +22,15 @@ export interface CapabilityConsentDialogProps {
 	mode?: "install" | "update";
 	/** Plugin display name */
 	pluginName: string;
+	/** Exact plugin version under review */
+	version?: string;
 	/** Capabilities the plugin requests */
 	capabilities: string[];
 	/** Allowed network hosts (for network:fetch capability) */
 	allowedHosts?: string[];
 	/** New capabilities added in an update (highlighted differently) */
 	newCapabilities?: string[];
-	/** Routes that change from private to public in an update. */
+	/** Public routes disclosed for an install or newly exposed by an update. */
 	newlyPublicRoutes?: string[];
 	/** Plugin routes explicitly exposed as MCP tools. */
 	mcpTools?: PluginMcpConsentTool[];
@@ -49,6 +51,7 @@ export interface CapabilityConsentDialogProps {
 export function CapabilityConsentDialog({
 	mode,
 	pluginName,
+	version,
 	capabilities,
 	allowedHosts,
 	newCapabilities = [],
@@ -63,7 +66,9 @@ export function CapabilityConsentDialog({
 }: CapabilityConsentDialogProps) {
 	const { t } = useLingui();
 	const newSet = new Set(newCapabilities);
-	const isUpdate = mode === "update" || newCapabilities.length > 0 || newlyPublicRoutes.length > 0;
+	const isUpdate =
+		mode === "update" ||
+		(mode === undefined && (newCapabilities.length > 0 || newlyPublicRoutes.length > 0));
 
 	return (
 		<div
@@ -95,6 +100,11 @@ export function CapabilityConsentDialog({
 								? t`${pluginName} is requesting additional permissions:`
 								: t`${pluginName} requires the following permissions:`}
 					</p>
+					{version && (
+						<p className="mt-1 text-xs text-kumo-subtle">
+							{t`Version`} <bdi dir="ltr">{version}</bdi>
+						</p>
+					)}
 				</div>
 
 				{/* Capabilities list */}
@@ -183,10 +193,12 @@ export function CapabilityConsentDialog({
 						<div className="rounded-md border border-kumo-warning/30 bg-kumo-warning/10 p-3 text-sm">
 							<div className="flex items-center gap-2 font-medium text-kumo-warning">
 								<Warning className="h-4 w-4 shrink-0" />
-								{t`New public routes`}
+								{isUpdate ? t`New public routes` : t`Public routes`}
 							</div>
 							<p className="mt-1 text-xs text-kumo-subtle">
-								{t`This update exposes the following routes without authentication:`}
+								{isUpdate
+									? t`This update exposes the following routes without authentication:`
+									: t`This plugin exposes the following routes without authentication:`}
 							</p>
 							<ul className="mt-2 space-y-1 ps-5 text-xs">
 								{newlyPublicRoutes.map((route) => (

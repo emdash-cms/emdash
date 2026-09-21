@@ -18,6 +18,8 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess } from "#api/error.js";
 import { handleMarketplaceUpdateCheck, handleRegistryUpdateCheck } from "#api/index.js";
 
+import { getRegistryConfigInput } from "../../../../../registry/config.js";
+
 export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -39,7 +41,10 @@ export const GET: APIRoute = async ({ locals }) => {
 			console.warn("[plugins/updates] marketplace check threw:", err);
 			return null;
 		}),
-		handleRegistryUpdateCheck(emdash.db, emdash.config.experimental?.registry).catch((err) => {
+		handleRegistryUpdateCheck(
+			emdash.db,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
+		).catch((err) => {
 			console.warn("[plugins/updates] registry check threw:", err);
 			return null;
 		}),

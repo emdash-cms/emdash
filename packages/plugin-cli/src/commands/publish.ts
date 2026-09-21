@@ -43,6 +43,12 @@ import {
 import { sha256Multihash } from "../multihash.js";
 import { missingBlobScopes, resumeSession } from "../oauth.js";
 import {
+	formatPackageIdentifier,
+	formatPackageReleaseIdentifier,
+	formatPublisherIdentifier,
+	pluginPageUrl,
+} from "../package-identifier.js";
+import {
 	PublishError,
 	publishRelease,
 	type ProfileInput,
@@ -206,7 +212,9 @@ async function runPublish(args: PublishArgs): Promise<void> {
 			"NOT_LOGGED_IN",
 		);
 	}
-	consola.info(`Publishing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
+	consola.info(
+		`Publisher: ${pc.bold(formatPublisherIdentifier(session.handle ?? session.did))} (${pc.dim(session.did)})`,
+	);
 
 	// Verify the manifest's pinned publisher matches the active session
 	// before fetching the tarball. The check is offline (DID compare is
@@ -260,6 +268,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		try {
 			const bundled = await bundlePlugin({
 				dir: manifestLoad ? dirname(manifestLoad.path) : process.cwd(),
+				displayPublisher: session.handle ?? session.did,
 				logger: {
 					start: (message) => consola.start(message),
 					info: (message) => consola.info(message),
@@ -286,7 +295,9 @@ async function runPublish(args: PublishArgs): Promise<void> {
 
 	consola.info(`Tarball: ${formatBytes(tarballBytes.length)}`);
 	consola.info(`Multihash: ${pc.dim(checksum)}`);
-	consola.info(`Manifest: ${pc.bold(manifest.id)}@${manifest.version}`);
+	consola.info(
+		`Package: ${pc.bold(formatPackageReleaseIdentifier(session.handle ?? session.did, manifest.id, manifest.version))}`,
+	);
 
 	const oauthSession = await resumeSession(session.did);
 	const needsImages = Boolean(
@@ -414,8 +425,10 @@ async function runPublish(args: PublishArgs): Promise<void> {
 
 	if (args.json) {
 		// Stdout-clean JSON for pipe consumers.
+		const identifier = formatPackageIdentifier(session.handle ?? session.did, result.slug);
 		process.stdout.write(
 			`${JSON.stringify({
+				identifier,
 				profile: result.profileUri,
 				release: result.releaseUri,
 				cid: result.releaseCid,
@@ -424,19 +437,30 @@ async function runPublish(args: PublishArgs): Promise<void> {
 				...(args.url === undefined ? {} : { url: args.url }),
 				profileCreated: result.profileCreated,
 				releaseOverwritten: result.releaseOverwritten,
+				...(session.handle ? { page: pluginPageUrl(session.handle, result.slug) } : {}),
 			})}\n`,
 		);
 		return;
 	}
 
-	consola.success(`Published ${pc.bold(`${result.slug}@${manifest.version}`)}`);
+	const identifier = formatPackageIdentifier(session.handle ?? session.did, result.slug);
+	consola.success(
+		`Published ${pc.bold(formatPackageReleaseIdentifier(session.handle ?? session.did, result.slug, manifest.version))}`,
+	);
 	consola.info(`Release URI: ${pc.dim(result.releaseUri)}`);
 	consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
+	if (session.handle) {
+		consola.info(
+			`Plugin page after approval: ${pc.cyan(pluginPageUrl(session.handle, result.slug))}`,
+		);
+	}
 	console.log();
-	consola.info(
-		`The aggregator will pick this up from the firehose. To verify discovery once it's indexed:`,
+	consola.info("The package stays out of the public registry while its listing is checked.");
+	consola.info("Track listing status:");
+	console.log(`  ${pc.bold(identifier)}`);
+	console.log(
+		`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug} --version ${manifest.version} --watch`)}`,
 	);
-	console.log(`  ${pc.cyan(`emdash-plugin info ${session.handle ?? session.did} ${result.slug}`)}`);
 }
 
 /**

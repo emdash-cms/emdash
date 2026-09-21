@@ -53,8 +53,13 @@ interface ConformanceContext {
 	options: AuthoritativeRecordReadOptions;
 }
 
-function createMemoryStorage(): Storage & { keys(): string[] } {
+function createMemoryStorage(options?: { deferDeletes?: boolean }): Storage & {
+	keys(): string[];
+	releaseDeletes(): void;
+} {
 	const values = new Map<string, { body: Uint8Array; contentType: string }>();
+	let deletesReleased = options?.deferDeletes !== true;
+	const pendingDeletes: Array<() => void> = [];
 	return {
 		async upload(input): Promise<UploadResult> {
 			let body: Uint8Array;
@@ -78,6 +83,9 @@ function createMemoryStorage(): Storage & { keys(): string[] } {
 			};
 		},
 		async delete(key): Promise<void> {
+			if (!deletesReleased) {
+				await new Promise<void>((resolve) => pendingDeletes.push(resolve));
+			}
 			values.delete(key);
 		},
 		async exists(key): Promise<boolean> {
@@ -94,6 +102,10 @@ function createMemoryStorage(): Storage & { keys(): string[] } {
 			throw new Error("Not implemented");
 		},
 		keys: () => [...values.keys()].toSorted(),
+		releaseDeletes() {
+			deletesReleased = true;
+			for (const resolve of pendingDeletes.splice(0)) resolve();
+		},
 	};
 }
 
@@ -145,6 +157,11 @@ function pdsFetch(network: FakePublisherFixture): typeof fetch {
 async function mockAggregator(
 	fixture: DelegatedReleaseConformanceFixture,
 	context: ConformanceContext,
+	opts: {
+		indexedAt?: string;
+		historicalReleaseCount?: number;
+		releaseHistoryComplete?: boolean;
+	} = {},
 ): Promise<void> {
 	const direct = new DirectPdsClient({
 		did: fixture.publisherDid,
@@ -161,7 +178,7 @@ async function mockAggregator(
 		did: fixture.publisherDid,
 		package: fixture.packageSlug,
 		version: fixture.version,
-		indexedAt: "2026-01-01T00:00:00.000Z",
+		indexedAt: opts.indexedAt ?? "2026-01-01T00:00:00.000Z",
 		labels: [],
 		mirrors: [],
 		release: {
@@ -182,6 +199,12 @@ async function mockAggregator(
 		slug: fixture.packageSlug,
 		labels: [],
 		profile: { name: "Aggregator substitution" },
+		...(opts.historicalReleaseCount === undefined
+			? {}
+			: { historicalReleaseCount: opts.historicalReleaseCount }),
+		...(opts.releaseHistoryComplete === undefined
+			? {}
+			: { releaseHistoryComplete: opts.releaseHistoryComplete }),
 	});
 	getLatestRelease.mockResolvedValue(releaseView);
 	listReleases.mockResolvedValue({ releases: [releaseView] });
@@ -228,7 +251,17 @@ describe("registry delegated-release conformance", () => {
 	});
 
 	it("previews and installs one valid delegated release without trusting aggregator records", async () => {
-		const fixture = await createDelegatedReleaseConformanceFixture();
+		const fixture = await createDelegatedReleaseConformanceFixture({
+			routes: [
+				{
+					name: "webhook",
+					public: true,
+					methods: ["POST"],
+					request: { body: "bytes", headers: ["x-signature"] },
+					response: "raw",
+				},
+			],
+		});
 		const context = await createContext(fixture);
 		await mockAggregator(fixture, context);
 		const fetch = artifactFetch(fixture.artifactBytes);
@@ -245,6 +278,7 @@ describe("registry delegated-release conformance", () => {
 			success: true,
 			data: {
 				version: fixture.version,
+				publicRoutes: ["webhook"],
 				verification: {
 					provenance: "verified",
 					policy: { requireProvenance: true },
@@ -252,6 +286,30 @@ describe("registry delegated-release conformance", () => {
 			},
 		});
 		if (!preview.success) return;
+
+		const missingRouteConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(missingRouteConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+			},
+		});
 
 		const installed = await handleRegistryInstall(
 			db,
@@ -264,6 +322,7 @@ describe("registry delegated-release conformance", () => {
 				version: fixture.version,
 				acknowledgedDeclaredAccess: preview.data.capabilities,
 				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedPublicRoutes: preview.data.publicRoutes,
 				acknowledgedProfileCid: preview.data.verification.profileCid,
 				acknowledgedReleaseCid: preview.data.verification.releaseCid,
 			},
@@ -322,7 +381,63 @@ describe("registry delegated-release conformance", () => {
 		},
 	);
 
-	it("updates with the same verification and CID-bound re-consent", async () => {
+	it("exempts a proven first release from the configured holdback", async () => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(fixture);
+		await mockAggregator(fixture, context, {
+			indexedAt: new Date().toISOString(),
+			historicalReleaseCount: 1,
+			releaseHistoryComplete: true,
+		});
+		artifactFetch(fixture.artifactBytes);
+
+		const result = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			{
+				...registryConfig,
+				policy: { minimumReleaseAge: "48h" },
+			},
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+
+		expect(result).toMatchObject({ success: true });
+	});
+
+	it.each([
+		["missing history evidence", {}],
+		["incomplete history", { historicalReleaseCount: 1, releaseHistoryComplete: false }],
+		["an earlier release", { historicalReleaseCount: 2, releaseHistoryComplete: true }],
+	])("holds back a new release with %s", async (_name, history) => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(fixture);
+		await mockAggregator(fixture, context, {
+			indexedAt: new Date().toISOString(),
+			...history,
+		});
+
+		const result = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			{
+				...registryConfig,
+				policy: { minimumReleaseAge: "48h" },
+			},
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+
+		expect(result).toMatchObject({
+			success: false,
+			error: { code: "RELEASE_TOO_NEW" },
+		});
+	});
+
+	it("updates with CID-bound re-consent and keeps a concurrent downgrade bundle active", async () => {
+		storage = createMemoryStorage({ deferDeletes: true });
 		const initial = await createDelegatedReleaseConformanceFixture();
 		const context = await createContext(initial);
 		await mockAggregator(initial, context);
@@ -356,7 +471,8 @@ describe("registry delegated-release conformance", () => {
 
 		const next = await createDelegatedReleaseConformanceFixture({
 			version: "1.2.4",
-			declaredAccess: { content: { read: {} }, users: { read: {} } },
+			declaredAccess: { content: { read: {} }, comments: { moderate: {} } },
+			routes: [{ name: "webhook", public: true }],
 		});
 		await context.publisher.repo.putRecord(
 			"com.emdashcms.experimental.package.release",
@@ -384,7 +500,7 @@ describe("registry delegated-release conformance", () => {
 			error: {
 				code: "CAPABILITY_ESCALATION",
 				details: {
-					capabilityChanges: { added: ["users:read"] },
+					capabilityChanges: { added: ["comments:moderate", "comments:read"] },
 					verification: { provenance: "verified" },
 				},
 			},
@@ -400,6 +516,49 @@ describe("registry delegated-release conformance", () => {
 			throw new Error("invalid update verification");
 		}
 
+		const routePreflight = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: profileCid,
+				acknowledgedReleaseCid: releaseCid,
+			},
+		);
+		expect(routePreflight).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+			},
+		});
+
+		const staleConsent = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["different-route"],
+				acknowledgedProfileCid: profileCid,
+				acknowledgedReleaseCid: releaseCid,
+			},
+		);
+		expect(staleConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+			},
+		});
+
 		const updated = await handleRegistryUpdate(
 			db,
 			storage,
@@ -409,6 +568,7 @@ describe("registry delegated-release conformance", () => {
 			{
 				authoritativeRecords: nextOptions,
 				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
 				acknowledgedProfileCid: profileCid,
 				acknowledgedReleaseCid: releaseCid,
 			},
@@ -424,6 +584,57 @@ describe("registry delegated-release conformance", () => {
 		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
 			version: next.version,
 		});
+		expect(storage.keys()).toEqual(
+			expect.arrayContaining([
+				`registry/${installed.data.pluginId}/${initial.version}/manifest.json`,
+				`registry/${installed.data.pluginId}/${next.version}/manifest.json`,
+			]),
+		);
+
+		const retried = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{ authoritativeRecords: nextOptions },
+		);
+		expect(retried).toMatchObject({
+			success: false,
+			error: { code: "ALREADY_UP_TO_DATE" },
+		});
+		expect(storage.keys()).toContain(
+			`registry/${installed.data.pluginId}/${next.version}/manifest.json`,
+		);
+
+		await mockAggregator(initial, context);
+		artifactFetch(initial.artifactBytes);
+		const downgraded = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{ authoritativeRecords: context.options },
+		);
+		expect(downgraded).toMatchObject({
+			success: true,
+			data: { oldVersion: next.version, newVersion: initial.version },
+		});
+
+		storage.releaseDeletes();
+		await new Promise((resolve) => setImmediate(resolve));
+		await new Promise((resolve) => setImmediate(resolve));
+
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: initial.version,
+		});
+		expect(storage.keys()).toEqual(
+			expect.arrayContaining([
+				`registry/${installed.data.pluginId}/${initial.version}/backend.js`,
+				`registry/${installed.data.pluginId}/${initial.version}/manifest.json`,
+			]),
+		);
 	});
 
 	it.each([

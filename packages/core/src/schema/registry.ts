@@ -40,6 +40,7 @@ import {
 	type CollectionSupport,
 	type ColumnType,
 	type Field,
+	type UnsupportedFieldType,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -47,6 +48,7 @@ import {
 	type CollectionWithFields,
 	type FieldType,
 	FIELD_TYPE_TO_COLUMN,
+	REPEATER_SUB_FIELD_TYPES,
 	isIndexableFieldType,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
@@ -86,6 +88,26 @@ function isFieldType(value: string): value is FieldType {
 
 function isColumnType(value: string): value is ColumnType {
 	return COLUMN_TYPES.has(value);
+}
+
+const REPEATER_SUB_FIELD_TYPE_SET: ReadonlySet<string> = new Set(REPEATER_SUB_FIELD_TYPES);
+
+function findUnsupportedRepeaterSubFieldType(
+	validation: unknown,
+): UnsupportedFieldType | undefined {
+	if (!validation || typeof validation !== "object") return undefined;
+	const subFields = "subFields" in validation ? validation.subFields : undefined;
+	if (!Array.isArray(subFields)) return undefined;
+
+	for (const [index, subField] of subFields.entries()) {
+		if (!subField || typeof subField !== "object") continue;
+		const type = "type" in subField ? subField.type : undefined;
+		if (typeof type === "string" && !REPEATER_SUB_FIELD_TYPE_SET.has(type)) {
+			return { type, path: `validation.subFields[${index}].type` };
+		}
+	}
+
+	return undefined;
 }
 
 const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport>([
@@ -197,6 +219,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				hasSeo,
 				hidden: input.hidden ?? false,
 				sortOrder: input.sortOrder ?? null,
+				...(input.group ? { group: input.group } : {}),
 				commentsEnabled: input.commentsEnabled ?? false,
 				...(input.editLocking === false ? { editLocking: false } : {}),
 				urlPattern: input.urlPattern ?? null,
@@ -471,6 +494,7 @@ export class SchemaRegistry {
 				routable: input.routable === false ? 0 : 1,
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
+				nav_group: input.group?.trim() || null,
 				comments_enabled: input.commentsEnabled ? 1 : 0,
 				edit_locking: input.editLocking === false ? 0 : 1,
 				url_pattern: input.urlPattern ?? null,
@@ -617,6 +641,7 @@ export class SchemaRegistry {
 					routable: input.routable === false ? 0 : 1,
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
+					nav_group: input.group?.trim() || null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					edit_locking: input.editLocking === false ? 0 : 1,
 					url_pattern: input.urlPattern ?? null,
@@ -772,6 +797,7 @@ export class SchemaRegistry {
 			}
 			if (input.hidden !== undefined) updates.hidden = input.hidden ? 1 : 0;
 			if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
+			if (input.group !== undefined) updates.nav_group = input.group?.trim() || null;
 			if (input.titleField !== undefined) updates.title_field = input.titleField || null;
 			if (input.dateField !== undefined) updates.date_field = input.dateField || null;
 			if (input.commentsEnabled !== undefined) {
@@ -1081,6 +1107,12 @@ export class SchemaRegistry {
 					);
 				}
 				const field = this.mapFieldRow(fieldRow);
+				if (field.unsupportedType) {
+					throw new SchemaError(
+						`Field "${fieldSlug}" in collection "${collectionSlug}" uses unsupported field type "${field.unsupportedType.type}" at "${field.unsupportedType.path}"`,
+						"UNSUPPORTED_FIELD_TYPE",
+					);
+				}
 				const updates: Updateable<FieldTable> = {};
 				let nextType = field.type;
 
@@ -1487,6 +1519,9 @@ export class SchemaRegistry {
 			.execute();
 
 		const createIndex = options.ifNotExists ? sql`CREATE INDEX IF NOT EXISTS` : sql`CREATE INDEX`;
+		const createUniqueIndex = options.ifNotExists
+			? sql`CREATE UNIQUE INDEX IF NOT EXISTS`
+			: sql`CREATE UNIQUE INDEX`;
 
 		// Create standard indexes
 		await sql`
@@ -1541,6 +1576,12 @@ export class SchemaRegistry {
 		await sql`
 			${createIndex} ${sql.ref(`idx_${tableName}_del_tg_locale`)}
 			ON ${sql.ref(tableName)} (deleted_at, translation_group, locale)
+		`.execute(conn);
+
+		await sql`
+			${createUniqueIndex} ${sql.ref(`uidx_${tableName}_active_tg_locale`)}
+			ON ${sql.ref(tableName)} (translation_group, lower(locale))
+			WHERE deleted_at IS NULL AND translation_group IS NOT NULL
 		`.execute(conn);
 
 		// Composite indexes for optimized query performance (see migration 033)
@@ -1841,6 +1882,7 @@ export class SchemaRegistry {
 			routable: row.routable !== 0,
 			hidden: row.hidden === 1,
 			sortOrder: row.sort_order ?? undefined,
+			group: row.nav_group ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,
 			commentsModeration:
 				moderation === "all" || moderation === "first_time" || moderation === "none"
@@ -1858,17 +1900,24 @@ export class SchemaRegistry {
 	 * Map a field row to a Field object
 	 */
 	private mapFieldRow = (row: Selectable<FieldTable>): Field => {
+		const validation = row.validation ? JSON.parse(row.validation) : undefined;
+		const unsupportedType = isFieldType(row.type)
+			? row.type === "repeater"
+				? findUnsupportedRepeaterSubFieldType(validation)
+				: undefined
+			: { type: row.type, path: "type" };
 		return {
 			id: row.id,
 			collectionId: row.collection_id,
 			slug: row.slug,
 			label: row.label,
 			type: isFieldType(row.type) ? row.type : "string",
+			unsupportedType,
 			columnType: isColumnType(row.column_type) ? row.column_type : "TEXT",
 			required: row.required === 1,
 			unique: row.unique === 1,
 			defaultValue: row.default_value ? JSON.parse(row.default_value) : undefined,
-			validation: row.validation ? JSON.parse(row.validation) : undefined,
+			validation,
 			widget: row.widget ?? undefined,
 			options: row.options ? JSON.parse(row.options) : undefined,
 			sortOrder: row.sort_order,

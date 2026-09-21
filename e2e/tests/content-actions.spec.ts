@@ -338,7 +338,7 @@ test.describe("Schedule content", () => {
 			const lineCount = (target: Element) => {
 				const range = document.createRange();
 				range.selectNodeContents(target);
-				return range.getClientRects().length;
+				return new Set(Array.from(range.getClientRects(), (rect) => Math.round(rect.top))).size;
 			};
 			return {
 				height: element.getBoundingClientRect().height,

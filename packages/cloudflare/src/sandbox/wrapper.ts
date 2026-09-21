@@ -11,7 +11,8 @@
  *
  */
 
-import { normalizeCapabilities, type PluginManifest } from "emdash";
+import { normalizePluginCapabilities, type PluginManifest } from "emdash";
+import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -40,9 +41,30 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const site = options?.site ?? { name: "", url: "", locale: "en" };
 	// Normalize so manifests that still declare legacy names (`read:users`)
 	// expose the same APIs as canonical names (`users:read`).
-	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
+	const capabilities = normalizePluginCapabilities(manifest.capabilities ?? []);
+	const hasContentAccess =
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:revisions:read") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasReadComments = capabilities.includes("comments:read");
+	const hasModerateComments = capabilities.includes("comments:moderate");
+	const hasRedirectRead = capabilities.includes("redirects:read");
+	const hasRedirectWrite = capabilities.includes("redirects:write");
+	const hasContentRead = capabilities.some((capability) =>
+		["content:read", "content:write", "content:publish", "content:revisions:read"].includes(
+			capability,
+		),
+	);
+	const hasContentWrite = capabilities.includes("content:write");
+	const hasContentPublish = capabilities.includes("content:publish");
+	const hasContentRestore = capabilities.includes("content:restore");
+	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasRevisionRead = capabilities.includes("content:revisions:read");
+	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
 	return `
 // =============================================================================
@@ -56,9 +78,24 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 // Plugin code lives in a separate module for scope isolation
 import pluginModule from "sandbox-plugin.js";
 
+${httpWireRuntimeSource}
+
 // Extract hooks and routes from the plugin module
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
 const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
+
+function storageSerializationErrorDetails(value) {
+	if (!value || typeof value !== "object" ||
+		value.code !== "STORAGE_SERIALIZATION_FAILURE" || value.retryable !== true ||
+		(value.sqlState !== undefined && value.sqlState !== "40001" && value.sqlState !== "40P01")) return null;
+	return {
+		name: "StorageSerializationError",
+		code: "STORAGE_SERIALIZATION_FAILURE",
+		retryable: true,
+		...(value.sqlState === undefined ? {} : { sqlState: value.sqlState }),
+		message: "Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+	};
+}
 
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
@@ -81,11 +118,37 @@ function sandboxRouteErrorDetails(value) {
 	};
 }
 
+function unwrapCommentResult(value) {
+	if (!value || typeof value !== "object" || !("__emdashCommentError" in value)) return value;
+	const details = value.__emdashCommentError;
+	if (!details ||
+		(details.code !== "COMMENT_STATUS_CONFLICT" &&
+			details.code !== "COMMENT_MODERATION_IN_PROGRESS" &&
+			details.code !== "COMMENT_STATUS_INVALID") ||
+		typeof details.message !== "string" ||
+		(details.code === "COMMENT_STATUS_CONFLICT" && typeof details.currentStatus !== "string")) {
+		throw new Error("Invalid comment moderation error response");
+	}
+	throw Object.assign(new Error(details.message), details, { name: details.code });
+}
+
+async function unwrapRedirectResult(promise) {
+	const result = await promise;
+	if (result?.ok === true) return result.value;
+	if (result?.ok === false && result.error && typeof result.error.code === "string") {
+		throw Object.assign(new Error(result.error.message), {
+			name: "RedirectAccessError",
+			code: result.error.code,
+		});
+	}
+	throw new Error("Invalid redirect bridge response");
+}
+
 // -----------------------------------------------------------------------------
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env) {
+function createContext(env, originHook, invocationId) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -93,8 +156,21 @@ function createContext(env) {
 	const kv = {
 		get: (key) => bridge.kvGet(key),
 		set: (key, value) => bridge.kvSet(key, value),
+		getVersioned: (key) => bridge.kvGetVersioned(key),
+		compareAndSet: (key, expectedRevision, value) => bridge.kvCompareAndSet(key, expectedRevision, value),
+		compareAndDelete: (key, expectedRevision) => bridge.kvCompareAndDelete(key, expectedRevision),
 		delete: (key) => bridge.kvDelete(key),
 		list: (prefix) => bridge.kvList(prefix)
+	};
+
+	const settings = {
+		get: (key) => bridge.settingsGet(key),
+		set: (key, value) => bridge.settingsSet(key, value),
+		getVersioned: (key) => bridge.settingsGetVersioned(key),
+		compareAndSet: (key, expectedRevision, value) => bridge.settingsCompareAndSet(key, expectedRevision, value),
+		compareAndDelete: (key, expectedRevision) => bridge.settingsCompareAndDelete(key, expectedRevision),
+		delete: (key) => bridge.settingsDelete(key),
+		list: (prefix) => bridge.settingsList(prefix)
 	};
 	
 	// Storage collection factory
@@ -102,6 +178,18 @@ function createContext(env) {
 		return {
 			get: (id) => bridge.storageGet(collectionName, id),
 			put: (id, data) => bridge.storagePut(collectionName, id, data),
+			getVersioned: (id) => bridge.storageGetVersioned(collectionName, id),
+			compareAndSet: (id, expectedRevision, data) => bridge.storageCompareAndSet(collectionName, id, expectedRevision, data),
+			compareAndDelete: (id, expectedRevision) => bridge.storageCompareAndDelete(collectionName, id, expectedRevision),
+			updateIf: async (id, args) => {
+				const result = await bridge.storageUpdateIf(collectionName, id, args);
+				if (result && typeof result === "object" && "__emdashStorageError" in result) {
+					const details = storageSerializationErrorDetails(result.__emdashStorageError);
+					if (!details) throw new Error("Invalid storage error response");
+					throw Object.assign(new Error(details.message), details);
+				}
+				return result;
+			},
 			delete: (id) => bridge.storageDelete(collectionName, id),
 			exists: async (id) => (await bridge.storageGet(collectionName, id)) !== null,
 			query: (opts) => bridge.storageQuery(collectionName, opts),
@@ -120,26 +208,88 @@ function createContext(env) {
 		}
 	});
 	
+	async function contentAction(promise) {
+		const result = await promise;
+		if (result && result.__emdashContentActionError === true && result.error) {
+			throw Object.assign(new Error(result.error.message), result.error, { name: result.error.code });
+		}
+		return result;
+	}
+
 	// Content access - proxies to bridge (capability enforced by bridge)
-	const content = {
+	const content = ${hasContentAccess} ? {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
-		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
-	};
+		...(${hasContentRead} ? {
+			getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
+			getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
+			...(${hasRevisionRead} ? {
+				listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
+				getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+			} : {})
+		} : {}),
+		...(${hasContentWrite} ? {
+			create: async (collection, data, options) => {
+				const result = await bridge.contentCreate(collection, data, options, originHook);
+				if (result && result.__emdashContentCreateError === true && result.error) {
+					const error = new Error(result.error.message);
+					error.name = result.error.code;
+					error.code = result.error.code;
+					error.details = result.error.details;
+					throw error;
+				}
+				return result;
+			},
+			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
+			delete: (collection, id) => bridge.contentDelete(collection, id)
+		} : {}),
+		...(${hasContentPublish} ? {
+			getVersioned: (collection, id) => contentAction(bridge.contentGetVersioned(collection, id)),
+			publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev, invocationId)),
+			unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev, invocationId)),
+			schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev, invocationId)),
+			unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev, invocationId))
+		} : {}),
+		...(${hasContentRestore} ? {
+			getTrashedVersioned: (collection, id) => contentAction(bridge.contentGetTrashedVersioned(collection, id)),
+			restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev, invocationId))
+		} : {})
+	} : undefined;
+
+	const schema = ${hasSchemaRead} ? {
+		listCollections: () => bridge.schemaListCollections(),
+		getCollection: (slug) => bridge.schemaGetCollection(slug)
+	} : undefined;
 	
-	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
+	// Taxonomy access - proxies to bridge (capability enforced by bridge)
 	const taxonomies = {
 		getAll: (opts) => bridge.taxonomyList(opts),
 		getTerms: (taxonomy, opts) => bridge.taxonomyTerms(taxonomy, opts),
-		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts)
+		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts),
+		createTerm: (taxonomy, input) => bridge.taxonomyCreateTerm(taxonomy, input),
+		addEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyAddEntryTerms(collection, entryId, taxonomy, termIds),
+		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyRemoveEntryTerms(collection, entryId, taxonomy, termIds)
 	};
+
+	const redirects = ${hasRedirectRead} ? {
+		list: (opts) => unwrapRedirectResult(bridge.redirectList(opts)),
+		get: (id) => unwrapRedirectResult(bridge.redirectGet(id)),
+		...(${hasRedirectWrite} ? {
+			create: (input) => unwrapRedirectResult(bridge.redirectCreate(input)),
+			update: (id, input) => unwrapRedirectResult(bridge.redirectUpdate(id, input)),
+			delete: (id, options) => unwrapRedirectResult(bridge.redirectDelete(id, options?._rev)),
+		} : {}),
+	} : undefined;
 	
 	// Media access - proxies to bridge (capability enforced by bridge)
 	const media = {
 		get: (id) => bridge.mediaGet(id),
 		list: (opts) => bridge.mediaList(opts),
+		readBytes: async (id, opts) => {
+			const result = await bridge.mediaReadBytes(id, opts?.maxBytes);
+			return { ...result, bytes: new Uint8Array(result.bytes) };
+		},
+		updateMetadata: (id, patch) => bridge.mediaUpdateMetadata(id, patch),
 		upload: (filename, contentType, bytes) => bridge.mediaUpload(filename, contentType, bytes),
 		getUploadUrl: () => { throw new Error("getUploadUrl is not available in sandbox mode. Use media.upload(filename, contentType, bytes) instead."); },
 		delete: (id) => bridge.mediaDelete(id)
@@ -148,15 +298,15 @@ function createContext(env) {
 	// HTTP access - proxies to bridge (capability + host enforced by bridge)
 	const http = {
 		fetch: async (url, init) => {
-			const result = await bridge.httpFetch(url, init);
-			// Bridge returns serialized response, reconstruct Response-like object
-			return {
-				status: result.status,
-				ok: result.status >= 200 && result.status < 300,
-				headers: new Headers(result.headers),
-				text: async () => result.text,
-				json: async () => JSON.parse(result.text)
-			};
+			const buffered = await bufferPluginHttpRequest(init);
+			const bridgeInit = buffered ? {
+				...(buffered.method ? { method: buffered.method } : {}),
+				...(buffered.redirect ? { redirect: buffered.redirect } : {}),
+				headers: buffered.headers ? Array.from(new Headers(buffered.headers).entries()) : undefined,
+				body: buffered.body ? new Uint8Array(buffered.body) : undefined,
+			} : undefined;
+			const result = await bridge.httpFetch(url, bridgeInit);
+			return pluginHttpResponseFromWire(result);
 		}
 	};
 	
@@ -189,11 +339,27 @@ function createContext(env) {
 		getByEmail: (email) => bridge.userGetByEmail(email),
 		list: (opts) => bridge.userList(opts)
 	} : undefined;
+
+	const comments = ${hasReadComments} ? {
+		get: (id) => bridge.commentGet(id),
+		list: (opts) => bridge.commentList(opts),
+		count: (opts) => bridge.commentCount(opts),
+		...(${hasModerateComments} ? {
+			setStatus: async (id, status, opts) =>
+				unwrapCommentResult(await bridge.commentSetStatus(id, status, opts.expectedStatus))
+		} : {})
+	} : undefined;
 	
 	// Email access - proxies to bridge (capability enforced by bridge)
 	const email = ${hasEmailSend} ? {
 		send: (message) => bridge.emailSend(message)
 	} : undefined;
+
+	const cron = {
+		schedule: (name, opts) => bridge.cronSchedule(name, opts),
+		cancel: (name) => bridge.cronCancel(name),
+		list: () => bridge.cronList()
+	};
 	
 	return {
 		plugin: {
@@ -202,15 +368,20 @@ function createContext(env) {
 		},
 		storage,
 		kv,
-		content,
+		settings,
+		content: ${hasContentAccess} ? content : undefined,
+		schema,
 		taxonomies,
+		redirects,
 		media,
 		http,
 		log,
 		site,
 		url,
 		users,
-		email
+		comments,
+		email,
+		cron
 	};
 }
 
@@ -219,8 +390,8 @@ function createContext(env) {
 // -----------------------------------------------------------------------------
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
-	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env);
+	async invokeHook(hookName, event, invocationId) {
+		const ctx = createContext(this.env, hookName, invocationId);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];
@@ -241,8 +412,8 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		return handler(event, ctx);
 	}
 	
-	async invokeRoute(routeName, input, serializedRequest) {
-		const ctx = createContext(this.env);
+	async invokeRoute(routeName, input, serializedRequest, invocationId) {
+		const ctx = createContext(this.env, undefined, invocationId);
 		
 		// Find the route handler
 		const route = routes[routeName];
@@ -267,6 +438,7 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 					request: serializedRequest,
 					requestMeta: serializedRequest.meta,
 					user: serializedRequest.user,
+					ui: serializedRequest.ui,
 				},
 				ctx,
 			);

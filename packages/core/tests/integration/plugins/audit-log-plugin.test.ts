@@ -7,6 +7,7 @@
 
 import { readFileSync } from "node:fs";
 
+import { Role } from "@emdash-cms/auth";
 import { parse as parseJsonc } from "jsonc-parser";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
@@ -34,6 +35,7 @@ interface AuditLogManifest {
 interface AuditEntry {
 	action: string;
 	resourceId: string;
+	userId?: string;
 	changes?: { before?: Record<string, unknown>; after?: Record<string, unknown> };
 }
 
@@ -143,6 +145,7 @@ describe("audit-log plugin", () => {
 
 		const updated = await runtime.handleContentUpdate("post", created.data.item.id, {
 			data: { title: "After" },
+			actor: { id: "editor-user", role: Role.EDITOR },
 		});
 		expect(updated.success).toBe(true);
 		await waitForDeferredTasks();
@@ -150,6 +153,7 @@ describe("audit-log plugin", () => {
 		const entry = (await readEntries()).find((e) => e.action === "update");
 		expect(entry).toBeDefined();
 		expect(entry?.resourceId).toBe(created.data.item.id);
+		expect(entry?.userId).toBe("editor-user");
 		expect(entry?.changes?.before).toEqual({ title: "Before" });
 		expect(entry?.changes?.after).toEqual({ title: "After" });
 	});

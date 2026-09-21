@@ -71,6 +71,7 @@ beforeEach(async () => {
 		"public_packages",
 		"release_duplicate_attempts",
 		"releases",
+		"package_release_history",
 		"packages",
 		"package_profile_heads",
 		"package_profile_revisions",
@@ -169,6 +170,73 @@ describe("ingestPackageProfile", () => {
 		expect(row?.verified_at).toBe(reIngested.toISOString());
 	});
 
+	it("marks a live profile creation as complete release history", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validRecord),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete, first_observed_source
+			 FROM package_release_history WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number; first_observed_source: string }>();
+		expect(row).toEqual({
+			release_history_complete: 1,
+			first_observed_source: "jetstream",
+		});
+	});
+
+	it.each([
+		["backfill", { source: "backfill" as const }],
+		["an older producer", {}],
+		["a live profile update", { source: "jetstream" as const, operation: "update" as const }],
+	])("keeps %s history incomplete", async (_name, source) => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", source),
+			fakeVerified(validRecord),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(row?.release_history_complete).toBe(0);
+	});
+
+	it("never upgrades incomplete history after a later live profile event", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "backfill" }),
+			fakeVerified(validRecord),
+			NOW,
+		);
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validRecord),
+			new Date("2026-05-10T12:00:00.000Z"),
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete, first_observed_source
+			 FROM package_release_history WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number; first_observed_source: string }>();
+		expect(row).toEqual({
+			release_history_complete: 0,
+			first_observed_source: "backfill",
+		});
+	});
+
 	it("rejects when rkey ≠ record.slug", async () => {
 		const job = jobFor(DID_A, NSID.packageProfile, "different");
 		await expect(
@@ -242,6 +310,33 @@ describe("ingestPackageRelease", () => {
 		expect(row?.version).toBe("1.10.0");
 		// 1.10.0 must sort after 1.9.0 — the whole point of version_sort.
 		expect(row?.version_sort.startsWith("0000000001.0000000010.")).toBe(true);
+	});
+
+	it("marks history incomplete when a release is first encountered by backfill", async () => {
+		await testEnv.DB.prepare("DELETE FROM package_release_history").run();
+		await testEnv.DB.prepare("DELETE FROM packages").run();
+		await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
+		await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validProfile),
+			NOW,
+		);
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0", { source: "backfill" }),
+			fakeVerified(makeRelease("1.0.0")),
+			NOW,
+		);
+
+		const history = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(history?.release_history_complete).toBe(0);
 	});
 
 	it("rejects when rkey ≠ '<package>:<version>'", async () => {
@@ -628,6 +723,44 @@ describe("processMessage dispatcher", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+	});
+
+	it("makes release history incomplete when a release is dead-lettered", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified({
+				$type: NSID.packageProfile,
+				id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+				slug: "demo",
+				type: "emdash-plugin",
+				license: "MIT",
+				authors: [{ name: "Tester" }],
+				security: [{ email: "x@y.test" }],
+			}),
+			NOW,
+		);
+		const { deps, cache } = buildDeps({
+			fetch: () => Promise.resolve(new Response("", { status: 404 })),
+		});
+		cache.seed(DID_A);
+		const msg = new FakeMessage();
+
+		await processMessage(
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0", { source: "jetstream" }),
+			msg,
+			deps,
+		);
+
+		expect(msg.acked).toBe(1);
+		expect(await deadLetterCount()).toBe(1);
+		const history = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(history?.release_history_complete).toBe(0);
 	});
 
 	it("retries on a network error", async () => {

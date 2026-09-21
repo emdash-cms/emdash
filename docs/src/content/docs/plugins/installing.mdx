@@ -26,15 +26,14 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			sandboxRunner: sandbox(),
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
 		}),
 	],
 });
 ```
 
-The Cloudflare runner uses Worker Loader to create a separate Worker for each plugin. It requires the Workers Paid plan and a `worker_loaders` binding named `LOADER`. Sandboxed plugins reach content, media, storage, network, and email APIs through `PluginBridge`, so the site's Worker entry point must export that class. The `*-cloudflare` templates include the binding and export. Follow the [Cloudflare sandbox setup](/deployment/plugin-sandbox/#cloudflare-workers) when adding the runner to an existing site.
+The Cloudflare runner uses Worker Loader to create a separate Worker for each plugin. It requires the Workers Paid plan and a `worker_loaders` binding named `LOADER`. Sandboxed plugins reach content, media, storage, network, and email APIs through `PluginBridge`, so the site's Worker entry point must export that class.
+
+The `*-cloudflare` templates export `PluginBridge` but leave the Worker Loader binding commented out, so new projects can deploy on the Workers free plan. Enable sandboxed plugins during scaffolding or follow the [Cloudflare sandbox setup](/deployment/plugin-sandbox/#cloudflare-workers) to add the binding later. The `sandbox()` helper reads the effective Wrangler config at build time. Without `LOADER`, registry browsing remains available, but config-managed sandboxed plugins do not load and install or update requests return `SANDBOX_NOT_AVAILABLE`.
 
 On Node.js, install the runner and its `workerd` peer dependency:
 
@@ -52,9 +51,6 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
 		}),
 	],
 });
@@ -84,7 +80,13 @@ The consent dialog shows every permission declared by the plugin. Common permiss
 | ----------------- | ----------------------------------------------- |
 | `content:read`    | Read site content                               |
 | `content:write`   | Create, update, and delete content              |
-| `media:read`      | Read media records and files                    |
+| `content:revisions:read` | Read retained content revision history      |
+| `schema:read`     | Read collection and field definitions           |
+| `redirects:read`  | Read redirect rules                              |
+| `redirects:write` | Change where visitors are sent                   |
+| `media:read`      | Read safe metadata for ready media              |
+| `media:bytes:read` | Read the file contents and content hash of ready media |
+| `media:metadata:write` | Change media alt text, captions, and focal points |
 | `media:write`     | Upload, replace, and delete media               |
 | `network:request` | Send requests to the plugin's allowed host list |
 
@@ -93,7 +95,7 @@ The dialog also identifies plugin routes exposed as Model Context Protocol (MCP)
 <Aside type="caution">
 	Install code only from publishers you trust. Runtime isolation and capability checks limit a
 	sandboxed plugin, but an approved permission still authorizes the described operation. For
-	example, `content:write` allows the plugin to change content.
+	example, `redirects:write` allows the plugin to change where visitors are sent.
 </Aside>
 
 ## Update a plugin

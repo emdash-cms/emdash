@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-verification",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"description": "Runtime-neutral verification primitives for the EmDash plugin registry.",
 	"type": "module",
 	"main": "dist/index.js",
@@ -45,7 +45,7 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
-		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@cloudflare/vitest-plugin": "catalog:",
 		"@sigstore/bundle": "5.0.0",
 		"@sigstore/core": "4.0.1",
 		"@sigstore/protobuf-specs": "0.5.1",

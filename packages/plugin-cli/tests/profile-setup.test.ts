@@ -1,12 +1,19 @@
+import { execFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify, stripVTControlCharacters } from "node:util";
 
 import { ClientResponseError } from "@atcute/client";
 import { NSID } from "@emdash-cms/registry-lexicons";
-import { describe, expect, it, vi } from "vitest";
+import consola from "consola";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { runProfileSetup } from "../src/commands/profile.js";
+import {
+	printProfileSetupResult,
+	resolveProfileRepository,
+	runProfileSetup,
+} from "../src/commands/profile.js";
 import {
 	PackageProfileSetupError,
 	setupPackageProfile,
@@ -22,6 +29,7 @@ const PROFILE_INPUT = {
 	security: [{ email: "security@example.com" }],
 	name: "Gallery",
 };
+const execFileAsync = promisify(execFile);
 
 function publisher(existing: { cid: string; value: unknown } | null): {
 	publisher: PackageProfilePublisher;
@@ -58,6 +66,60 @@ function publisher(existing: { cid: string; value: unknown } | null): {
 }
 
 describe("package profile setup", () => {
+	afterEach(() => vi.restoreAllMocks());
+
+	it("prefills the repository prompt from the git origin", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "emdash-profile-repository-"));
+		try {
+			await execFileAsync("git", ["init"], { cwd: dir });
+			await execFileAsync(
+				"git",
+				["remote", "add", "origin", "git@github.com:example/gallery.git"],
+				{ cwd: dir },
+			);
+			const prompt = vi.fn(
+				async (options: { defaultValue?: string }) => options.defaultValue ?? "",
+			);
+
+			await expect(
+				resolveProfileRepository({
+					configured: undefined,
+					interactive: true,
+					pluginDir: dir,
+					prompt,
+				}),
+			).resolves.toBe(REPOSITORY);
+			expect(prompt).toHaveBeenCalledWith(
+				expect.objectContaining({
+					defaultValue: REPOSITORY,
+					message: expect.stringContaining("detected"),
+				}),
+			);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("explains how to publish a release after publishing the profile", () => {
+		const success = vi.spyOn(consola, "success").mockImplementation(() => undefined);
+		const info = vi.spyOn(consola, "info").mockImplementation(() => undefined);
+
+		printProfileSetupResult(
+			{ status: "created", profileUri: PROFILE_URI },
+			"@publisher.example/gallery",
+			"escalation-only",
+			true,
+		);
+
+		expect(success).toHaveBeenCalledOnce();
+		expect(stripVTControlCharacters(String(success.mock.calls[0]?.[0]))).toContain(
+			"Published package profile for @publisher.example/gallery",
+		);
+		expect(info).toHaveBeenCalledWith("Next, publish a release:");
+		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin publish"));
+		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin release setup"));
+	});
+
 	it("turns setup dependency failures into a clean command error", async () => {
 		const dir = await mkdtemp(join(tmpdir(), "emdash-profile-command-"));
 		try {

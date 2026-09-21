@@ -121,10 +121,17 @@ export default defineConfig({
 		"src/page/index.ts",
 		// Plugin admin utilities (shared helpers for plugin admin.tsx files)
 		"src/plugin-utils.ts",
-		// `emdash/plugin` — type-only subpath for sandboxed plugin authors.
+		// `emdash/plugin` — sandboxed authoring types and lightweight helpers.
 		"src/plugin-types.ts",
+		"src/plugin-test-runtime.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)
 		"src/plugins/adapt-sandbox-entry.ts",
+		// Platform adapter runtime used behind lazy sandbox bridges.
+		"src/plugins/host.ts",
+		// Lightweight synchronous log redaction for sandbox bridges.
+		"src/plugins/secret-redactor.ts",
+		// Binary-safe HTTP transport shared by sandbox runners.
+		"src/plugins/http-wire.ts",
 		// Public source-exported subpaths -- compiled so consumers never
 		// type-check our raw .ts (avoids the dual-package identity hazard).
 		// `./ui`, `./ui/search` and the `*-admin.tsx` providers stay source:

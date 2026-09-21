@@ -406,6 +406,8 @@ Each field has a `translatable` setting (default: `true`). When creating a trans
 - **Translatable fields** are pre-filled from the source locale for editing
 - **Non-translatable fields** are copied and kept in sync across all translations in the group
 
+On a collection with revisions, publishing an entry copies the non-translatable values it changed to the other translations, and saving a draft changes only that entry. If another translation has a pending draft that changed one of those values, the draft keeps its own value, and publishing that translation copies it to the rest of the group.
+
 System fields like `status`, `published_at`, and `author_id` are always per-locale and never synced.
 
 <Aside>

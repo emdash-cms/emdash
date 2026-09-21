@@ -232,7 +232,7 @@ Schema tools change the database structure. Use `schema_get_collection` before c
 
 Use `media_upload` to send base64-encoded bytes or fetch a public HTTP or HTTPS URL. URL uploads reject private-network destinations and re-check redirects. Use `media_create` only when the file already exists at the supplied storage key and you need to register its metadata. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
 
-Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. A term with children must have those children removed or moved before deletion.
+Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. Creating or updating a term with `parentId` in a non-hierarchical taxonomy returns `VALIDATION_ERROR`. A term with children must have those children removed or moved before deletion.
 
 `menu_set_items` replaces a menu's complete item list in one atomic operation. The array order becomes the menu order. A nested item's `parentIndex` points to an earlier item in the same array, so place every parent before its children.
 

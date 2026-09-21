@@ -1,6 +1,7 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
+import { ContentDatetimeNormalizer } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
@@ -22,6 +23,12 @@ export interface CreateRevisionInput {
 	authorId?: string;
 }
 
+export function normalizeRevisionLimit(value: unknown): number {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric)) return 50;
+	return Math.max(1, Math.min(Math.trunc(numeric), 100));
+}
+
 /**
  * Revision repository for version history
  *
@@ -29,19 +36,24 @@ export interface CreateRevisionInput {
  * Used when collection has `supports: ["revisions"]` enabled.
  */
 export class RevisionRepository {
-	constructor(private db: Kysely<Database>) {}
+	private readonly datetimes: ContentDatetimeNormalizer;
+
+	constructor(private db: Kysely<Database>) {
+		this.datetimes = new ContentDatetimeNormalizer(db);
+	}
 
 	/**
 	 * Create a new revision
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
 		const id = monotonic();
+		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Omit<RevisionTable, "created_at"> = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
-			data: JSON.stringify(input.data),
+			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
 		};
 
@@ -84,7 +96,7 @@ export class RevisionRepository {
 			.where("id", "=", id)
 			.executeTakeFirst();
 
-		return row ? this.rowToRevision(row) : null;
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -110,7 +122,71 @@ export class RevisionRepository {
 		}
 
 		const rows = await query.execute();
-		return rows.map((row) => this.rowToRevision(row));
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			rows.map((row) => JSON.parse(row.data)),
+		);
+		return rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return this.rowToRevision(row, normalized);
+		});
+	}
+
+	/** Read revisions only when the owning content row is visible in the same statement snapshot. */
+	async findVisibleByEntry(
+		collection: string,
+		entryId: string,
+		options: { limit?: number } = {},
+	): Promise<Revision[]> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const limit = normalizeRevisionLimit(options.limit);
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			ORDER BY revisions.id DESC
+			LIMIT ${limit}
+		`.execute(this.db);
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			result.rows.map((row) => JSON.parse(row.data)),
+		);
+		return result.rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return this.rowToRevision(row, normalized);
+		});
+	}
+
+	/** Read one revision only when its owning content row is visible in the same statement snapshot. */
+	async findVisibleById(
+		collection: string,
+		entryId: string,
+		revisionId: string,
+	): Promise<Revision | null> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.id = ${revisionId}
+			AND revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			LIMIT 1
+		`.execute(this.db);
+		const row = result.rows[0];
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -126,7 +202,7 @@ export class RevisionRepository {
 			.limit(1)
 			.executeTakeFirst();
 
-		return row ? this.rowToRevision(row) : null;
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -256,19 +332,34 @@ export class RevisionRepository {
 	/**
 	 * Convert database row to Revision object
 	 */
-	private rowToRevision(row: {
+	private async normalizeRow(row: {
 		id: string;
 		collection: string;
 		entry_id: string;
 		data: string;
 		author_id: string | null;
 		created_at: string;
-	}): Revision {
+	}): Promise<Revision> {
+		const data = await this.datetimes.normalizeData(row.collection, JSON.parse(row.data));
+		return this.rowToRevision(row, data);
+	}
+
+	private rowToRevision(
+		row: {
+			id: string;
+			collection: string;
+			entry_id: string;
+			data: string;
+			author_id: string | null;
+			created_at: string;
+		},
+		data: Record<string, unknown>,
+	): Revision {
 		return {
 			id: row.id,
 			collection: row.collection,
 			entryId: row.entry_id,
-			data: JSON.parse(row.data),
+			data,
 			authorId: row.author_id,
 			createdAt: row.created_at,
 		};

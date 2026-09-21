@@ -1,5 +1,5 @@
 {
-	// Test-only wrangler config consumed by @cloudflare/vitest-pool-workers via
+	// Test-only wrangler config consumed by @cloudflare/vitest-plugin via
 	// vitest.workers.config.ts. Mirrors production bindings for the
 	// user-owned DOs (Sandbox, OrchestratorDO) and the R2 surface but
 	// skips the Flue-generated workflow DOs (FlueRegistry, FlueClassify-
@@ -37,6 +37,10 @@
 				"name": "Sandbox",
 			},
 			{
+				"class_name": "GitHubRateLimitDO",
+				"name": "GITHUB_RATE_LIMIT",
+			},
+			{
 				"class_name": "OrchestratorDO",
 				"name": "Orchestrator",
 			},
@@ -53,6 +57,10 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["Sandbox", "OrchestratorDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["GitHubRateLimitDO"],
 		},
 	],
 

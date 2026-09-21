@@ -11,7 +11,7 @@
 				"properties": {
 					"q": {
 						"type": "string",
-						"description": "Free-text search query. Matches against name, description, keywords, and authors. Empty or absent returns all packages.",
+						"description": "Free-text search query. An exact handle, DID, or identity/slug pair searches that publisher or package. Other values match against name, description, keywords, and authors. Empty or absent returns all packages.",
 						"maxLength": 256
 					},
 					"capability": {

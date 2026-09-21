@@ -13,7 +13,8 @@
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
-import { normalizeCapabilities } from "./types.js";
+import { sanitizeHeadersForSandbox } from "./request-meta.js";
+import { normalizePluginCapabilities } from "./types.js";
 import type {
 	ResolvedPlugin,
 	ResolvedPluginHooks,
@@ -109,6 +110,9 @@ function normalizeRouteEntry(entry: RouteEntry): {
 	handler: RouteHandler;
 	public?: boolean;
 	cacheControl?: string;
+	methods?: PluginRoute["methods"];
+	request?: PluginRoute["request"];
+	response?: PluginRoute["response"];
 	input?: PluginRoute["input"];
 	permission?: PluginRoute["permission"];
 } {
@@ -120,6 +124,9 @@ function normalizeRouteEntry(entry: RouteEntry): {
 		public: entry.public,
 		permission: entry.permission,
 		cacheControl: entry.cacheControl,
+		methods: entry.methods,
+		request: entry.request,
+		response: entry.response,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
 		input: entry.input as PluginRoute["input"],
 	};
@@ -202,7 +209,7 @@ export function adaptSandboxEntry(
 	// documents. Calling a single-arg standard handler with the two-arg
 	// convention silently hands it the bare route context (JS drops the
 	// extra argument), so `ctx.storage` / `ctx.email` / etc. are all
-	// undefined at runtime (#2079).
+	// undefined at runtime.
 	//
 	// Route entries can be bare functions or `{ handler, public?, input? }`
 	// config objects; normalise to the config shape inside the loop.
@@ -215,6 +222,9 @@ export function adaptSandboxEntry(
 				handler,
 				public: publicFlag,
 				cacheControl,
+				methods,
+				request,
+				response,
 				input: inputSchema,
 				permission,
 			} = normalized;
@@ -223,6 +233,9 @@ export function adaptSandboxEntry(
 				public: publicFlag,
 				permission,
 				cacheControl,
+				methods,
+				request,
+				response,
 				handler: async (ctx) => {
 					if (usesPublicRouteContext) {
 						// The incoming ctx already IS the public RouteContext
@@ -237,10 +250,8 @@ export function adaptSandboxEntry(
 					// `Record<string, string>` shape that author-facing
 					// `SandboxedRequest` promises so handler bodies are
 					// identical across both adapters.
-					const headers: Record<string, string> = {};
-					ctx.request.headers.forEach((value, name) => {
-						headers[name] = value;
-					});
+					const declaredHeaders = request ? (request.headers ?? []) : undefined;
+					const headers = sanitizeHeadersForSandbox(ctx.request.headers, declaredHeaders);
 					const requestShape = {
 						url: ctx.request.url,
 						method: ctx.request.method,
@@ -251,8 +262,16 @@ export function adaptSandboxEntry(
 						request: requestShape,
 						requestMeta: ctx.requestMeta,
 						user: ctx.user,
+						ui: ctx.ui,
 					};
-					const { input: _, request: __, requestMeta: ___, user: ____, ...pluginCtx } = ctx;
+					const {
+						input: _,
+						request: __,
+						requestMeta: ___,
+						user: ____,
+						ui: _____,
+						...pluginCtx
+					} = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
 			};
@@ -275,27 +294,9 @@ export function adaptSandboxEntry(
 	}
 
 	// Silent normalization: rewrite deprecated names to current names.
-	// Safe assertion — `normalizeCapabilities` only emits validated input
-	// plus current names from the rename map, all of which are in the union.
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- validated above; normalizeCapabilities only returns capabilities from the union
-	const capabilities = normalizeCapabilities(rawCapabilities) as PluginCapability[];
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated above; normalization only returns capabilities from the union
+	const capabilities = normalizePluginCapabilities(rawCapabilities as PluginCapability[]);
 	const allowedHosts = descriptor.allowedHosts ?? [];
-
-	// Capability implications: broader capabilities imply narrower ones
-	// (mirrors the normalization in define-plugin.ts for native format).
-	// Operates on canonical names only.
-	if (capabilities.includes("content:write") && !capabilities.includes("content:read")) {
-		capabilities.push("content:read");
-	}
-	if (capabilities.includes("media:write") && !capabilities.includes("media:read")) {
-		capabilities.push("media:read");
-	}
-	if (
-		capabilities.includes("network:request:unrestricted") &&
-		!capabilities.includes("network:request")
-	) {
-		capabilities.push("network:request");
-	}
 
 	// Build storage config from descriptor.
 	// StorageCollectionDeclaration uses optional indexes, but PluginStorageConfig
@@ -320,6 +321,12 @@ export function adaptSandboxEntry(
 	}
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
+	}
+	if (descriptor.editorPanels) {
+		admin.editorPanels = descriptor.editorPanels;
+	}
+	if (descriptor.editorActions) {
+		admin.editorActions = descriptor.editorActions;
 	}
 	if (descriptor.settingsSchema) {
 		admin.settingsSchema = descriptor.settingsSchema;

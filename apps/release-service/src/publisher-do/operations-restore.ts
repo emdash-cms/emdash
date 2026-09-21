@@ -395,6 +395,14 @@ export class OperationsRestoreStore {
 			integerField(value, "createdAt"),
 			now,
 		);
+		if (value["repositoryConnection"] === true) {
+			this.storage.sql.exec(
+				`INSERT INTO repository_connection_policies (package_slug, created_at)
+				 VALUES (?, ?) ON CONFLICT(package_slug) DO NOTHING`,
+				packageSlug,
+				now,
+			);
+		}
 	}
 
 	#restoreIntent(value: unknown, now: number): void {

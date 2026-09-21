@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const github = vi.hoisted(() => ({
 	completeReviewCheck: vi.fn(),
+	createReviewCheck: vi.fn(),
+	findReviewCheck: vi.fn(),
+	getPullRequestHeadSha: vi.fn(),
+	githubRateLimitGate: vi.fn(() => ({
+		permit: vi.fn().mockResolvedValue({ allowed: true, retryAt: 0 }),
+		record: vi.fn().mockResolvedValue(undefined),
+	})),
+	mintInstallationToken: vi.fn(),
 	readAppCreds: vi.fn(),
 	removePullRequestLabel: vi.fn(),
 	updateReviewCheck: vi.fn(),
@@ -25,13 +33,29 @@ vi.mock("cloudflare:workers", () => ({
 	},
 }));
 
-vi.mock("../.flue/lib/github.js", () => ({
-	completeReviewCheck: github.completeReviewCheck,
-	mintInstallationToken: vi.fn().mockResolvedValue("token"),
-	readAppCreds: github.readAppCreds,
-	removePullRequestLabel: github.removePullRequestLabel,
-	updateReviewCheck: github.updateReviewCheck,
-}));
+vi.mock("../.flue/lib/github.js", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../.flue/lib/github.js")>();
+	const unwrap = (token: string | { token: string }) =>
+		typeof token === "string" ? token : token.token;
+	return {
+		...actual,
+		completeReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.completeReviewCheck(unwrap(token), ...args),
+		createReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.createReviewCheck(unwrap(token), ...args),
+		findReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.findReviewCheck(unwrap(token), ...args),
+		getPullRequestHeadSha: (token: string | { token: string }, ...args: unknown[]) =>
+			github.getPullRequestHeadSha(unwrap(token), ...args),
+		githubRateLimitGate: github.githubRateLimitGate,
+		mintInstallationToken: github.mintInstallationToken,
+		readAppCreds: github.readAppCreds,
+		removePullRequestLabel: (token: string | { token: string }, ...args: unknown[]) =>
+			github.removePullRequestLabel(unwrap(token), ...args),
+		updateReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.updateReviewCheck(unwrap(token), ...args),
+	};
+});
 
 vi.mock("../.flue/lib/workflow-admission.js", () => ({
 	admitReviewWorkflow: workflow.admitReviewWorkflow,
@@ -42,11 +66,13 @@ vi.mock("@flue/runtime", () => ({
 }));
 
 import { ReviewWatchdog } from "../.flue/cloudflare.js";
+import { GitHubRateLimitError } from "../.flue/lib/github.js";
 import type { ReviewAttempt } from "../.flue/lib/review-watchdog.js";
 
 class MemoryStorage {
 	values = new Map<string, unknown>();
 	alarm: number | undefined;
+	transactionCalls = 0;
 
 	async get<T>(key: string): Promise<T | undefined> {
 		return this.values.get(key) as T | undefined;
@@ -60,12 +86,29 @@ class MemoryStorage {
 		this.alarm = alarm;
 	}
 
+	async getAlarm(): Promise<number | null> {
+		return this.alarm ?? null;
+	}
+
 	async deleteAlarm(): Promise<void> {
 		this.alarm = undefined;
 	}
 
 	async deleteAll(): Promise<void> {
 		this.values.clear();
+	}
+
+	async transaction<T>(closure: (transaction: MemoryStorage) => Promise<T>): Promise<T> {
+		this.transactionCalls++;
+		const values = new Map(this.values);
+		const alarm = this.alarm;
+		try {
+			return await closure(this);
+		} catch (error) {
+			this.values = values;
+			this.alarm = alarm;
+			throw error;
+		}
 	}
 }
 
@@ -88,8 +131,31 @@ function setup() {
 	return { attempt, storage, watchdog };
 }
 
+function setupPendingReview() {
+	const state = setup();
+	delete state.attempt.checkRunId;
+	state.attempt.runId = state.attempt.attemptId;
+	state.attempt.stage = "admitted";
+	state.attempt.workflowInput = {
+		prNumber: state.attempt.prNumber,
+		prTitle: "Durable setup",
+		prBody: "",
+		headRef: "fix/durable-setup",
+		headSha: state.attempt.headSha,
+		baseRef: "main",
+		baseSha: "b".repeat(40),
+		owner: state.attempt.owner,
+		repo: state.attempt.repo,
+	};
+	return state;
+}
+
 beforeEach(() => {
 	github.completeReviewCheck.mockReset().mockResolvedValue(undefined);
+	github.createReviewCheck.mockReset().mockResolvedValue(123);
+	github.findReviewCheck.mockReset().mockResolvedValue(undefined);
+	github.getPullRequestHeadSha.mockReset().mockResolvedValue("a".repeat(40));
+	github.mintInstallationToken.mockReset().mockResolvedValue("token");
 	github.removePullRequestLabel.mockReset().mockResolvedValue(undefined);
 	github.updateReviewCheck.mockReset().mockResolvedValue(undefined);
 	github.readAppCreds.mockReset().mockReturnValue({
@@ -113,6 +179,26 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		expect(await watchdog.reserve(attempt, "lease-2")).toEqual({ status: "busy" });
 		expect(await watchdog.beginAdmission(attempt.attemptId, "lease-1")).toBe(true);
 		expect(await watchdog.reserve(attempt, "lease-2")).toEqual({ status: "complete" });
+	});
+
+	it("repairs a missing setup alarm on duplicate delivery", async () => {
+		const { attempt, storage, watchdog } = setupPendingReview();
+		await watchdog.reserve(attempt, "lease-1");
+		await storage.deleteAlarm();
+
+		expect(await watchdog.reserve(attempt, "lease-2")).toEqual({ status: "busy" });
+		expect(storage.alarm).toBeTypeOf("number");
+	});
+
+	it("atomically reserves setup state with its alarm", async () => {
+		const { attempt, storage, watchdog } = setupPendingReview();
+		vi.spyOn(storage, "setAlarm").mockRejectedValueOnce(new Error("alarm unavailable"));
+
+		await expect(watchdog.reserve(attempt, "lease-1")).rejects.toThrow("alarm unavailable");
+
+		expect(storage.transactionCalls).toBe(1);
+		expect(storage.values.has("attempt")).toBe(false);
+		expect(storage.alarm).toBeUndefined();
 	});
 
 	it("keeps the first terminal state and rejects late success", async () => {
@@ -328,6 +414,61 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		});
 	});
 
+	it("does not re-admit a stale workflow after its head is superseded", async () => {
+		const { attempt, storage, watchdog } = setup();
+		attempt.lastProgressAt = 0;
+		attempt.workflowInput = {
+			prNumber: attempt.prNumber,
+			prTitle: "Superseded recovery",
+			prBody: "",
+			headRef: "fix/superseded-recovery",
+			headSha: attempt.headSha,
+			baseRef: "main",
+			baseSha: "b".repeat(40),
+			owner: attempt.owner,
+			repo: attempt.repo,
+		};
+		github.getPullRequestHeadSha.mockResolvedValue("c".repeat(40));
+		await watchdog.reserve(attempt, "lease-1");
+
+		await watchdog.alarm();
+
+		expect(workflow.admitReviewWorkflow).not.toHaveBeenCalled();
+		expect(storage.values.get("attempt")).toMatchObject({
+			terminal: {
+				conclusion: "failure",
+				summary: expect.stringContaining("superseded"),
+			},
+		});
+	});
+
+	it("terminalizes bounded recovery head inspection failures", async () => {
+		const { attempt, storage, watchdog } = setup();
+		attempt.lastProgressAt = 0;
+		attempt.workflowInput = {
+			prNumber: attempt.prNumber,
+			prTitle: "Unavailable recovery head",
+			prBody: "",
+			headRef: "fix/recovery-head",
+			headSha: attempt.headSha,
+			baseRef: "main",
+			baseSha: "b".repeat(40),
+			owner: attempt.owner,
+			repo: attempt.repo,
+		};
+		github.getPullRequestHeadSha.mockRejectedValue(new Error("GitHub unavailable"));
+		await watchdog.reserve(attempt, "lease-1");
+
+		for (let retry = 0; retry < 6; retry++) await watchdog.alarm();
+
+		expect(workflow.admitReviewWorkflow).not.toHaveBeenCalled();
+		expect(storage.values.get("attempt")).toMatchObject({
+			recoveryHeadRetryCount: 6,
+			terminal: { conclusion: "failure" },
+			terminalReportedAt: expect.any(Number),
+		});
+	});
+
 	it("rejects a delayed ownership claim from a superseded admission", async () => {
 		const { attempt, storage, watchdog } = setup();
 		await watchdog.reserve(attempt, "lease-1");
@@ -490,5 +631,126 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		await watchdog.complete(attempt.attemptId);
 
 		expect(storage.alarm).toBeUndefined();
+	});
+
+	it("keeps a reservation and schedules the reset time when check discovery is rate limited", async () => {
+		const { attempt, storage, watchdog } = setupPendingReview();
+		github.findReviewCheck.mockRejectedValueOnce(
+			new GitHubRateLimitError("find review check failed: 403 API rate limit exceeded", 31_000),
+		);
+		await watchdog.reserve(attempt, "lease-1");
+		const before = Date.now();
+
+		await watchdog.alarm();
+
+		expect(storage.values.get("attempt")).toMatchObject({
+			attemptId: attempt.attemptId,
+			setupRetryCount: 1,
+			setupLastError: expect.stringContaining("403"),
+		});
+		expect(storage.alarm).toBeGreaterThanOrEqual(before + 31_000);
+		expect(workflow.admitReviewWorkflow).not.toHaveBeenCalled();
+	});
+
+	it("persists a check-creation rate limit and recovers idempotently on the next alarm", async () => {
+		const { attempt, storage, watchdog } = setupPendingReview();
+		github.createReviewCheck.mockRejectedValueOnce(
+			new GitHubRateLimitError("create review check failed: 403 API rate limit exceeded", 10_000),
+		);
+		github.findReviewCheck
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce(undefined)
+			.mockResolvedValueOnce(456);
+		github.mintInstallationToken
+			.mockResolvedValueOnce("first-token")
+			.mockResolvedValueOnce("refreshed-token");
+		await watchdog.reserve(attempt, "lease-1");
+
+		await watchdog.alarm();
+		expect(storage.values.get("attempt")).toMatchObject({ setupRetryCount: 1 });
+		expect(await watchdog.reserve(attempt, "duplicate-lease")).toEqual({ status: "busy" });
+		const retryAlarm = storage.alarm;
+
+		await watchdog.alarm();
+
+		expect(storage.alarm).not.toBe(retryAlarm);
+		expect(github.createReviewCheck).toHaveBeenCalledTimes(1);
+		expect(github.findReviewCheck).toHaveBeenLastCalledWith(
+			"refreshed-token",
+			attempt.owner,
+			attempt.repo,
+			attempt.headSha,
+			attempt.attemptId,
+		);
+		expect(workflow.admitReviewWorkflow).toHaveBeenCalledTimes(1);
+		expect(storage.values.get("attempt")).toMatchObject({
+			checkRunId: 456,
+			admissionStartedAt: expect.any(Number),
+			runId: "run-2",
+		});
+	});
+
+	it("does not duplicate workflow admission after setup succeeds", async () => {
+		const { attempt, watchdog } = setupPendingReview();
+		github.findReviewCheck.mockResolvedValue(456);
+		await watchdog.reserve(attempt, "lease-1");
+
+		await watchdog.alarm();
+		await watchdog.alarm();
+
+		expect(workflow.admitReviewWorkflow).toHaveBeenCalledTimes(1);
+		expect(await watchdog.reserve(attempt, "duplicate-lease")).toEqual({ status: "complete" });
+	});
+
+	it("cancels setup when the accepted head has been superseded", async () => {
+		const { attempt, storage, watchdog } = setupPendingReview();
+		github.getPullRequestHeadSha.mockResolvedValue("c".repeat(40));
+		await watchdog.reserve(attempt, "lease-1");
+
+		await watchdog.alarm();
+
+		expect(github.findReviewCheck).toHaveBeenCalledTimes(1);
+		expect(github.createReviewCheck).toHaveBeenCalledTimes(1);
+		expect(workflow.admitReviewWorkflow).not.toHaveBeenCalled();
+		expect(storage.values.get("attempt")).toMatchObject({
+			checkRunId: 123,
+			terminal: {
+				conclusion: "failure",
+				summary: expect.stringContaining("superseded"),
+			},
+			terminalReportedAt: expect.any(Number),
+		});
+		expect(github.completeReviewCheck).toHaveBeenCalledWith(
+			"token",
+			attempt.owner,
+			attempt.repo,
+			123,
+			expect.objectContaining({ conclusion: "failure" }),
+		);
+		expect(github.removePullRequestLabel).toHaveBeenCalledWith(
+			"token",
+			attempt.owner,
+			attempt.repo,
+			attempt.prNumber,
+			"bot:review",
+		);
+	});
+
+	it("retains an operator-visible terminal state after setup retries are exhausted", async () => {
+		const { attempt, storage, watchdog } = setupPendingReview();
+		github.findReviewCheck.mockRejectedValue(new Error("GitHub unavailable"));
+		await watchdog.reserve(attempt, "lease-1");
+
+		for (let retry = 0; retry < 6; retry++) await watchdog.alarm();
+
+		expect(workflow.admitReviewWorkflow).not.toHaveBeenCalled();
+		expect(storage.values.get("attempt")).toMatchObject({
+			setupRetryCount: 6,
+			setupLastError: "GitHub unavailable",
+			terminal: { conclusion: "failure" },
+			terminalReportedAt: expect.any(Number),
+		});
+		expect(github.removePullRequestLabel).toHaveBeenCalled();
+		expect(storage.alarm).toBeGreaterThan(Date.now());
 	});
 });

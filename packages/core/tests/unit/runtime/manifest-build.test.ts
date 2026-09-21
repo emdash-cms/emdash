@@ -22,7 +22,9 @@ import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -57,14 +59,17 @@ const configCollections = {
 	},
 };
 
-function buildRuntime(db: Kysely<Database>): EmDashRuntime {
-	const config: EmDashConfig = {};
+function buildRuntime(
+	db: Kysely<Database>,
+	config: EmDashConfig = {},
+	configuredPlugins: ResolvedPlugin[] = [],
+): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
-	const hooks = createHookPipeline([], pipelineFactoryOptions);
+	const hooks = createHookPipeline(configuredPlugins, pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
 	const runtimeDeps = {
 		config,
-		plugins: [],
+		plugins: configuredPlugins,
 		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not used in this test");
@@ -78,11 +83,11 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 	return new EmDashRuntime({
 		db,
 		storage: null,
-		configuredPlugins: [],
+		configuredPlugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
 		hooks,
-		enabledPlugins: new Set(),
+		enabledPlugins: new Set(configuredPlugins.map((plugin) => plugin.id)),
 		pluginStates: new Map(),
 		config,
 		mediaProviders: new Map(),
@@ -90,7 +95,7 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 		cronExecutor: null,
 		cronScheduler: null,
 		emailPipeline: null,
-		allPipelinePlugins: [],
+		allPipelinePlugins: [...configuredPlugins],
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef,
@@ -146,6 +151,21 @@ describe("generateManifest()", () => {
 			kind: "number",
 			label: "Priority",
 		});
+	});
+
+	it("publishes the sidebar group for database collections", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "calendar_entries",
+			label: "Entries",
+			group: "Calendar",
+		});
+		await registry.createCollection({ slug: "team", label: "Team" });
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.calendar_entries?.group).toBe("Calendar");
+		expect(manifest.collections.team).not.toHaveProperty("group");
 	});
 
 	it("keeps config collection fields when the database has the same slug", async () => {
@@ -212,7 +232,7 @@ describe("generateManifest()", () => {
 		expect(manifest.collections.posts?.fields.title?.kind).toBe("string");
 	});
 
-	it("falls back to a text descriptor for unknown database field types", async () => {
+	it("marks unknown database field types as unsupported", async () => {
 		const registry = new SchemaRegistry(db);
 		const collection = await registry.createCollection({
 			slug: "imports",
@@ -242,8 +262,12 @@ describe("generateManifest()", () => {
 		const manifest = await generateManifest({}, {}, { db });
 
 		expect(manifest.collections.imports?.fields.payload).toMatchObject({
-			kind: "string",
+			kind: "unsupported",
 			label: "Payload",
+			unsupportedType: {
+				type: "unknown_plugin_type",
+				path: "type",
+			},
 		});
 	});
 });
@@ -315,12 +339,119 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts?.fields.body?.kind).toBe("json");
 	});
 
+	it("forwards declared validation on every field type", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			validation: { minLength: 3, maxLength: 80 },
+		});
+		await registry.createField("posts", {
+			slug: "excerpt",
+			label: "Excerpt",
+			type: "text",
+			validation: { maxLength: 160 },
+		});
+		await registry.createField("posts", {
+			slug: "reading_minutes",
+			label: "Reading minutes",
+			type: "integer",
+			validation: { min: 1, max: 60 },
+		});
+		await registry.createField("posts", { slug: "subtitle", label: "Subtitle", type: "string" });
+
+		const runtime = buildRuntime(db);
+		const fields = (await runtime.getManifest()).collections.posts?.fields;
+
+		expect(fields?.title?.validation).toEqual({ minLength: 3, maxLength: 80 });
+		expect(fields?.excerpt?.validation).toEqual({ maxLength: 160 });
+		expect(fields?.reading_minutes?.validation).toEqual({ min: 1, max: 60 });
+		expect(fields?.subtitle?.validation).toBeUndefined();
+	});
+
 	it("reports the implicit English content locale when i18n is not configured", async () => {
 		const runtime = buildRuntime(db);
 
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("exposes configured saved-entry panels and actions to the admin", async () => {
+		const plugin = definePlugin({
+			id: "content-guard",
+			version: "1.0.0",
+			routes: {
+				health: { permission: "content:edit_own", handler: async () => ({ blocks: [] }) },
+				repair: { permission: "content:edit_own", handler: async () => ({ refresh: true }) },
+			},
+			admin: {
+				editorPanels: [{ id: "health", title: "Health", route: "health" }],
+				editorActions: [{ id: "repair", label: "Repair", route: "repair", placement: "overflow" }],
+			},
+		});
+		const runtime = buildRuntime(db, {}, [plugin]);
+
+		expect((await runtime.getManifest()).plugins["content-guard"]).toMatchObject({
+			adminMode: "blocks",
+			editorPanels: [{ id: "health", route: "health" }],
+			editorActions: [{ id: "repair", route: "repair", placement: "overflow" }],
+		});
+	});
+
+	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "experimental.registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("reports top-level registry configuration fields", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			registry: { aggregatorUrl: "not a URL" },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("lets the top-level false option override legacy registry configuration", async () => {
+		const runtime = buildRuntime(db, {
+			registry: false,
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toBeUndefined();
 	});
 
 	it("reports the configured content default independently of admin language", async () => {
