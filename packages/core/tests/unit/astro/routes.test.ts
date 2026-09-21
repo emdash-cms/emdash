@@ -75,6 +75,14 @@ describe("core media route injection", () => {
 		);
 	});
 
+	it("registers the opaque media asset route before the dynamic media item route", () => {
+		const patterns = collectRoutePatterns();
+		const asset = patterns.indexOf("/_emdash/api/media/asset/[id]/[filename]");
+		const mediaItem = patterns.indexOf("/_emdash/api/media/[id]");
+		expect(asset).toBeGreaterThan(-1);
+		expect(asset).toBeLessThan(mediaItem);
+	});
+
 	it("registers the pending-media upload route with PUT only", () => {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));
@@ -86,6 +94,30 @@ describe("core media route injection", () => {
 		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
 			expect(mediaUploadRoute).not.toHaveProperty(method);
 		}
+	});
+
+	it("registers the visual-editing action routes", () => {
+		const patterns = collectRoutePatterns();
+		expect(patterns).toContain("/_emdash/api/visual-editing/action-token");
+		expect(patterns).toContain("/_emdash/api/visual-editing/toolbar-labels");
+		expect(patterns).toContain("/_emdash/api/visual-editing/content/[collection]/[id]/publish");
+	});
+
+	it("registers the scheduled policy rejection dismissal route", () => {
+		const patterns = collectRoutePatterns();
+		expect(patterns).toContain("/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]");
+	});
+
+	it("injects the saved-entry plugin extension route", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				pattern:
+					"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]",
+			}),
+		);
 	});
 
 	it("registers the media replacement route with PUT only", () => {

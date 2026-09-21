@@ -38,6 +38,13 @@ function managedIssue(number: number) {
 
 function dashboardEnv(getPublicSnapshot: (issueNumber: number) => Promise<PublicIssueSnapshot>) {
 	return {
+		GITHUB_APP_INSTALLATION_ID: "installation",
+		GITHUB_RATE_LIMIT: {
+			getByName: () => ({
+				permit: () => Promise.resolve({ allowed: true, retryAt: 0 }),
+				record: () => Promise.resolve(),
+			}),
+		},
 		Orchestrator: {
 			getByName(name: string) {
 				const issueNumber = Number(name.slice("issue-".length));

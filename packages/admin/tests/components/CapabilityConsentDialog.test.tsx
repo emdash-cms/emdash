@@ -224,7 +224,11 @@ describe("CapabilityConsentDialog", () => {
 		);
 
 		await expect
-			.element(screen.getByText("Make network requests to: api.example.com"))
+			.element(
+				screen.getByText(
+					"Connect to network hosts and load external plugin admin images to: api.example.com",
+				),
+			)
 			.toBeInTheDocument();
 	});
 

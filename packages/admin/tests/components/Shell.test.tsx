@@ -1,5 +1,5 @@
 import * as React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Shell } from "../../src/components/Shell";
 import { render } from "../utils/render.tsx";
@@ -9,8 +9,10 @@ vi.mock("@tanstack/react-router", () => ({
 		select([{ staticData: { fullBleed: false } }]),
 }));
 
+const mocks = vi.hoisted(() => ({ user: null as null | { role: number } }));
+
 vi.mock("../../src/lib/api/current-user", () => ({
-	useCurrentUser: () => ({ data: null }),
+	useCurrentUser: () => ({ data: mocks.user }),
 }));
 
 vi.mock("../../src/locales/useLocale.js", () => ({
@@ -35,6 +37,11 @@ const manifest = {
 };
 
 describe("Shell", () => {
+	beforeEach(() => {
+		mocks.user = null;
+		localStorage.clear();
+	});
+
 	it("sets the admin page canvas to the elevated surface", async () => {
 		await render(
 			<Shell manifest={manifest}>
@@ -55,5 +62,19 @@ describe("Shell", () => {
 		await expect
 			.element(screen.getByText("Marketplace configuration is deprecated"))
 			.not.toBeInTheDocument();
+	});
+
+	it("stores localized labels for the cache-safe client toolbar bootstrap", async () => {
+		mocks.user = { role: 30 };
+		await render(
+			<Shell manifest={manifest}>
+				<div>Page content</div>
+			</Shell>,
+		);
+
+		expect(JSON.parse(localStorage.getItem("emdash-toolbar-labels") ?? "null")).toEqual({
+			editMode: "Edit",
+			hideToolbar: "Hide toolbar",
+		});
 	});
 });

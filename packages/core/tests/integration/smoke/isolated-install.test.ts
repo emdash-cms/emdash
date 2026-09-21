@@ -340,7 +340,7 @@ async function waitForInjectedRoute(
 				redirect: "manual",
 				signal: AbortSignal.timeout(Math.max(1, Math.min(requestTimeoutMs, deadline - Date.now()))),
 			});
-			if (response.status !== 404) return response;
+			if (response.status !== 404 && response.status < 500) return response;
 			lastBody = await response.text();
 			lastError = undefined;
 		} catch (error) {
@@ -380,6 +380,35 @@ it("retries when an injected route request times out during startup", async () =
 			1000,
 			25,
 		);
+		expect(response.status).toBe(302);
+		expect(requestCount).toBe(2);
+	} finally {
+		const closed = once(server, "close");
+		server.closeAllConnections();
+		server.close();
+		await closed;
+	}
+});
+
+it("retries when an injected route returns a transient server error", async () => {
+	let requestCount = 0;
+	const server = createServer((_request, response) => {
+		requestCount++;
+		if (requestCount === 1) {
+			response.writeHead(500);
+			response.end("setup still in progress");
+			return;
+		}
+		response.writeHead(302, { location: "/" });
+		response.end();
+	});
+	server.listen(0, "127.0.0.1");
+	await once(server, "listening");
+	const address = server.address();
+	if (!address || typeof address === "string") throw new Error("Test server did not bind to TCP");
+
+	try {
+		const response = await waitForInjectedRoute(`http://127.0.0.1:${address.port}/`, () => "");
 		expect(response.status).toBe(302);
 		expect(requestCount).toBe(2);
 	} finally {

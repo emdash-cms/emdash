@@ -92,6 +92,7 @@ export interface RegistryInstallRequest {
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: PluginMcpConsentTool[];
+	acknowledgedPublicRoutes?: string[];
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -104,6 +105,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: PluginMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -802,7 +804,7 @@ export async function installRegistryPlugin(
 export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
-	confirmRouteVisibilityChanges?: boolean;
+	acknowledgedPublicRoutes?: string[];
 	confirmMcpTools?: boolean;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;

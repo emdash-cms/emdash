@@ -122,6 +122,7 @@ export interface RegistryInstallInput {
 	 */
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: unknown;
+	acknowledgedPublicRoutes?: unknown;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -139,6 +140,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: RegistryMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -954,6 +956,28 @@ export async function handleRegistryInstall(
 		const actualMcpTools = (bundle.manifest.mcp?.tools ?? []).map(
 			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
 		);
+		const publicRoutes = diffRouteVisibility(undefined, bundle.manifest).newlyPublic.toSorted();
+		if (!opts?.verifyOnly && publicRoutes.length > 0) {
+			const acknowledgedPublicRoutes = Array.isArray(input.acknowledgedPublicRoutes)
+				? input.acknowledgedPublicRoutes
+						.filter((route): route is string => typeof route === "string")
+						.toSorted()
+				: [];
+			if (JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(publicRoutes)) {
+				return {
+					success: false,
+					error: {
+						code: "ROUTE_VISIBILITY_ESCALATION",
+						message: "Plugin install exposes public (unauthenticated) routes",
+						details: {
+							routeVisibilityChanges: { newlyPublic: publicRoutes },
+							mcpTools: actualMcpTools,
+							verification,
+						},
+					},
+				};
+			}
+		}
 		if (!opts?.verifyOnly && actualMcpTools.length > 0) {
 			if (JSON.stringify(input.acknowledgedMcpTools) !== JSON.stringify(actualMcpTools)) {
 				return {
@@ -961,7 +985,12 @@ export async function handleRegistryInstall(
 					error: {
 						code: "MCP_TOOL_CONSENT_REQUIRED",
 						message: "Plugin MCP tools require explicit consent",
-						details: { mcpTools: actualMcpTools, verification },
+						details: {
+							mcpTools: actualMcpTools,
+							routeVisibilityChanges:
+								publicRoutes.length > 0 ? { newlyPublic: publicRoutes } : undefined,
+							verification,
+						},
 					},
 				};
 			}
@@ -975,6 +1004,7 @@ export async function handleRegistryInstall(
 			capabilities: bundle.manifest.capabilities,
 			declaredAccess: recordReport.value.releaseExtension.declaredAccess,
 			mcpTools: actualMcpTools,
+			publicRoutes,
 			verification,
 		};
 		if (opts?.verifyOnly) return { success: true, data: result };
@@ -1193,8 +1223,8 @@ export interface RegistryUpdateResult {
  * `handleMarketplaceUpdate`: resolves the target version via the aggregator,
  * re-runs the artifact fetch / checksum / extract pipeline, diffs capabilities
  * and route visibility against the currently installed bundle, and gates
- * escalations behind `confirmCapabilityChanges` / `confirmRouteVisibilityChanges`
- * so the admin re-consents to widened permissions.
+ * escalations behind `confirmCapabilityChanges` and an exact
+ * `acknowledgedPublicRoutes` match so the admin re-consents to widened permissions.
  *
  * Refuses non-registry sources. Refuses when the stored state row is missing
  * the `(publisherDid, slug)` it needs to resolve against the aggregator.
@@ -1208,7 +1238,7 @@ export async function handleRegistryUpdate(
 	opts?: {
 		version?: string;
 		confirmCapabilityChanges?: boolean;
-		confirmRouteVisibilityChanges?: boolean;
+		acknowledgedPublicRoutes?: string[];
 		confirmMcpTools?: boolean;
 		acknowledgedProfileCid?: string;
 		acknowledgedReleaseCid?: string;
@@ -1407,13 +1437,13 @@ export async function handleRegistryUpdate(
 		}
 		if (
 			opts?.confirmCapabilityChanges ||
-			opts?.confirmRouteVisibilityChanges ||
+			(opts?.acknowledgedPublicRoutes?.length ?? 0) > 0 ||
 			opts?.confirmMcpTools
 		) {
 			const consentError = recordConsentError(
 				{
-					profileCid: opts.acknowledgedProfileCid,
-					releaseCid: opts.acknowledgedReleaseCid,
+					profileCid: opts?.acknowledgedProfileCid,
+					releaseCid: opts?.acknowledgedReleaseCid,
 				},
 				records,
 			);
@@ -1527,14 +1557,24 @@ export async function handleRegistryUpdate(
 		}
 
 		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
-		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
-		if (hasNewPublicRoutes && !opts?.confirmRouteVisibilityChanges) {
+		const newlyPublicRoutes = routeVisibilityChanges.newlyPublic.toSorted();
+		const acknowledgedPublicRoutes = (opts?.acknowledgedPublicRoutes ?? [])
+			.filter((route): route is string => typeof route === "string")
+			.toSorted();
+		if (
+			newlyPublicRoutes.length > 0 &&
+			JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(newlyPublicRoutes)
+		) {
 			return {
 				success: false,
 				error: {
 					code: "ROUTE_VISIBILITY_ESCALATION",
 					message: "Plugin update exposes new public (unauthenticated) routes",
-					details: { routeVisibilityChanges, capabilityChanges, verification },
+					details: {
+						routeVisibilityChanges: { newlyPublic: newlyPublicRoutes },
+						capabilityChanges,
+						verification,
+					},
 				},
 			};
 		}
@@ -1584,7 +1624,8 @@ export async function handleRegistryUpdate(
 				oldVersion,
 				newVersion,
 				capabilityChanges,
-				routeVisibilityChanges: hasNewPublicRoutes ? routeVisibilityChanges : undefined,
+				routeVisibilityChanges:
+					newlyPublicRoutes.length > 0 ? { newlyPublic: newlyPublicRoutes } : undefined,
 				verification,
 			},
 		};

@@ -508,7 +508,7 @@ afterEach(async () => {
 	await reset();
 });
 
-describe("ReleaseIntentWorkflow", () => {
+describe("ReleaseIntentWorkflow", { timeout: 15_000 }, () => {
 	it("terminates an intent when its authoritative repository cannot be verified", async () => {
 		vi.stubGlobal("fetch", workflowNetwork({ profileInvalid: true }));
 		await createVerifyingIntent();

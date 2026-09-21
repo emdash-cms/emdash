@@ -304,6 +304,39 @@ describe("ContentEditor", () => {
 		}
 	});
 
+	it("makes an entry read-only when its schema contains an unsupported field type", async () => {
+		vi.useFakeTimers();
+		try {
+			const onSave = vi.fn();
+			const onAutosave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "My Post", layout: { columns: 2 } } }),
+				fields: {
+					title: { kind: "string", label: "Title" },
+					layout: {
+						kind: "unsupported",
+						label: "Layout",
+						unsupportedType: { type: "future_blocks", path: "type" },
+					},
+				},
+				onSave,
+				onAutosave,
+			});
+
+			await expect.element(screen.getByRole("alert")).toHaveTextContent("future_blocks");
+			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
+			expect(screen.getByLabelText("Layout").query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			expect(onSave).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("uses one label and spacing rhythm across editor field types", async () => {
 		const screen = await renderEditor({
 			isNew: false,

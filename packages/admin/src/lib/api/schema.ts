@@ -65,6 +65,7 @@ export interface SchemaField {
 	slug: string;
 	label: string;
 	type: FieldType;
+	unsupportedType?: { type: string; path: string };
 	columnType: string;
 	required: boolean;
 	unique: boolean;

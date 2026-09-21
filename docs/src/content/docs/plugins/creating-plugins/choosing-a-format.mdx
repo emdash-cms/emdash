@@ -22,7 +22,7 @@ Choose a sandboxed plugin unless the plugin needs a native-only integration. San
 | Direct `fetch()` / `process.env`    | Blocked by the runner                              | Possible (plugin code shares the runtime) |
 | Distribution                        | Signed release in the plugin registry              | npm package                           |
 | Admin UI                            | Block Kit (JSON-described) routes                  | React components, or Block Kit        |
-| Settings UI                         | Block Kit page + KV reads                          | `admin.settingsSchema` (auto-form) or Block Kit |
+| Settings UI                         | Block Kit page + `ctx.settings`                    | `admin.settingsSchema` (auto-form) or Block Kit |
 | Portable Text rendering components  | Not available                                      | `componentsEntry` provides Astro components |
 | Page metadata contributions         | `page:metadata` hook — meta/property tags, allowlisted `<link>` rels, JSON-LD | `page:metadata` hook (same surface) |
 | Page fragment injection             | Not available — meta/JSON-LD only via `page:metadata` | `page:fragments` hook — inline scripts, external scripts, raw HTML |

@@ -8,11 +8,19 @@
  *
  */
 
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
+import type {
+	PluginRouteMethod,
+	PluginRouteRequest,
+	PluginRouteResponseMode,
+} from "@emdash-cms/plugin-types";
+import { routeNameSchema } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
+import { parseDeclaredPluginRouteInput } from "./route-wire.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
 
 /**
@@ -21,7 +29,7 @@ import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./type
  * stream consumed. Calling any of these on `ctx.request` would re-read a spent
  * stream and throw an opaque platform error ("Body is unusable: Body has already
  * been read") with no hint about `ctx.input` — so the guard replaces them with an
- * actionable message instead (#1293).
+ * actionable message instead.
  */
 const CONSUMED_BODY_METHODS = new Set(["json", "text", "arrayBuffer", "blob", "formData", "bytes"]);
 
@@ -63,7 +71,14 @@ export interface RouteMeta {
 	 * public routes — authenticated responses must stay `private, no-store`.
 	 */
 	cacheControl?: string;
+	methods?: PluginRouteMethod[];
+	request?: PluginRouteRequest;
+	response?: PluginRouteResponseMode;
 }
+
+export const pluginPublicRouteAcknowledgementSchema = z.array(routeNameSchema);
+
+export type PluginContentCacheInvalidator = (tags: string[]) => Promise<void>;
 
 /**
  * Build RouteMeta from a route's `public`/`cacheControl` flags. Single source
@@ -74,9 +89,20 @@ export function buildRouteMeta(route: {
 	public?: boolean;
 	permission?: string;
 	cacheControl?: string;
+	methods?: PluginRouteMethod[];
+	request?: PluginRouteRequest;
+	response?: PluginRouteResponseMode;
 }): RouteMeta {
 	const meta: RouteMeta = { public: route.public === true };
 	if (route.permission !== undefined) meta.permission = route.permission;
+	if (route.methods !== undefined) meta.methods = [...route.methods];
+	if (route.request !== undefined) {
+		meta.request = {
+			...route.request,
+			...(route.request.headers ? { headers: [...route.request.headers] } : {}),
+		};
+	}
+	if (route.response !== undefined) meta.response = route.response;
 	// Private responses are per-user and must never become cacheable, even if
 	// a route sets both flags.
 	if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
@@ -96,11 +122,15 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  *
  * Body methods (POST/PUT/PATCH) parse the JSON body as before. Bodyless
  * methods (GET/HEAD/DELETE) have no body, so `request.json()` resolves to
- * undefined and fails schema validation (#2146) — parse the query string into
+ * undefined and fails schema validation, so parse the query string into
  * an object instead. Repeated keys (`?tag=a&tag=b`) become an array so array
  * schemas work; a single key stays a scalar.
  */
-export async function parseRouteInput(request: Request): Promise<unknown> {
+export async function parseRouteInput(
+	request: Request,
+	declaration?: PluginRouteRequest,
+): Promise<unknown> {
+	if (declaration) return parseDeclaredPluginRouteInput(request, declaration);
 	if (BODY_METHODS.has(request.method.toUpperCase())) {
 		try {
 			return await request.json();
@@ -174,6 +204,8 @@ export interface InvokeRouteOptions {
 	 * `ctx.user`. Undefined for public routes and unbound machine tokens.
 	 */
 	user?: UserInfo;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 }
 
 /**
@@ -233,11 +265,12 @@ export class PluginRouteHandler {
 			...baseContext,
 			input: validatedInput,
 			// The body is already parsed into `input`; guard `ctx.request`'s
-			// body-reading methods so a re-read fails with an actionable message
-			// (#1293). Metadata extraction uses the original request (headers only).
+			// body-reading methods so a re-read fails with an actionable message.
+			// Metadata extraction uses the original request (headers only).
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 			user: options.user,
+			ui: options.ui,
 		};
 
 		// Execute handler

@@ -110,11 +110,41 @@ describe("workspace attachment", () => {
 			}),
 		).resolves.toBe("ready");
 
-		expect(attached).toEqual([
-			"investigate-2973-run-publisher",
-			"investigate-2973-run-publisher-r1",
-		]);
-		expect(discarded).toEqual(["investigate-2973-run-publisher"]);
+		expect(attached).toEqual(["investigate-2973-run-pub", "investigate-2973-run-pub-r1"]);
+		expect(discarded).toEqual(["investigate-2973-run-pub"]);
+	});
+
+	test("keeps publisher retry sandbox ids within the platform limit", async () => {
+		const sandboxIds: string[] = [];
+
+		await attachPublisherWorkspaceWithRetry({
+			agentId: "investigate-3218-a7901373-b69a-414c-baa3-8cb6a866792e",
+			attach: async ({ sandboxId, attempt }) => {
+				sandboxIds.push(sandboxId);
+				if (attempt < 2) throw new Error("HTTP error! status: 500");
+				return "ready";
+			},
+			discard: async () => {},
+		});
+
+		expect(sandboxIds.every((sandboxId) => sandboxId.length <= 63)).toBe(true);
+	});
+
+	test("bounds long sandbox ids without collapsing distinct agents", async () => {
+		const sandboxIds: string[] = [];
+		for (const suffix of ["first", "second"]) {
+			await attachPublisherWorkspaceWithRetry({
+				agentId: `${"investigate-3218-long-runtime-identifier-".repeat(2)}${suffix}`,
+				attach: async ({ sandboxId }) => {
+					sandboxIds.push(sandboxId);
+					return "ready";
+				},
+				discard: async () => {},
+			});
+		}
+
+		expect(sandboxIds.every((sandboxId) => sandboxId.length === 63)).toBe(true);
+		expect(new Set(sandboxIds).size).toBe(2);
 	});
 
 	test("continues on a fresh sandbox when failed-sandbox cleanup also fails", async () => {

@@ -20,6 +20,7 @@ import * as React from "react";
 import {
 	fetchMarketplacePlugin,
 	installMarketplacePlugin,
+	PluginInstallConsentRequiredError,
 	PluginMcpConsentRequiredError,
 	uninstallMarketplacePlugin,
 	describeCapability,
@@ -47,6 +48,7 @@ export function MarketplacePluginDetail({
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
 	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
+	const [publicRouteConsent, setPublicRouteConsent] = React.useState<string[]>([]);
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [lightboxIndex, setLightboxIndex] = React.useState<number | null>(null);
 
@@ -64,15 +66,23 @@ export function MarketplacePluginDetail({
 			installMarketplacePlugin(pluginId, {
 				version: plugin?.latestVersion?.version,
 				confirmMcpTools: mcpConsentTools.length > 0,
+				acknowledgedPublicRoutes: publicRouteConsent,
 			}),
 		onSuccess: () => {
 			setShowConsent(false);
 			setMcpConsentTools([]);
+			setPublicRouteConsent([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			void queryClient.invalidateQueries({ queryKey: ["marketplace"] });
 		},
 		onError: (mutationError) => {
+			if (mutationError instanceof PluginInstallConsentRequiredError) {
+				setMcpConsentTools(mutationError.tools);
+				setPublicRouteConsent(mutationError.newlyPublicRoutes);
+				setShowConsent(true);
+				return;
+			}
 			if (mutationError instanceof PluginMcpConsentRequiredError) {
 				setMcpConsentTools(mutationError.tools);
 				setShowConsent(true);
@@ -349,6 +359,7 @@ export function MarketplacePluginDetail({
 					pluginName={plugin.name}
 					capabilities={plugin.capabilities}
 					mcpTools={mcpConsentTools}
+					newlyPublicRoutes={publicRouteConsent}
 					auditVerdict={latest?.audit?.verdict}
 					isPending={installMutation.isPending}
 					error={getMutationError(installMutation.error)}
@@ -356,6 +367,7 @@ export function MarketplacePluginDetail({
 					onCancel={() => {
 						setShowConsent(false);
 						setMcpConsentTools([]);
+						setPublicRouteConsent([]);
 						installMutation.reset();
 					}}
 				/>

@@ -21,7 +21,7 @@ vi.mock("cloudflare:workers", () => ({
 	},
 }));
 
-import { PluginBridge } from "../../src/sandbox/bridge.js";
+import { PluginBridge, setTaxonomyWriteCallback } from "../../src/sandbox/bridge.js";
 
 type Row = Record<string, unknown>;
 
@@ -58,7 +58,7 @@ function fakeD1(rows: Row[], recorded: RecordedQuery[]) {
 	};
 }
 
-function makeBridge(capabilities: string[], rows: Row[] = []) {
+function makeBridge(capabilities: string[], rows: Row[] = [], taxonomyWriteRuntimeId?: string) {
 	const recorded: RecordedQuery[] = [];
 	const ctx = {
 		props: {
@@ -67,6 +67,7 @@ function makeBridge(capabilities: string[], rows: Row[] = []) {
 			capabilities,
 			allowedHosts: [],
 			storageCollections: [],
+			taxonomyWriteRuntimeId,
 		},
 	};
 	const env = { DB: fakeD1(rows, recorded) };
@@ -93,6 +94,82 @@ describe("PluginBridge taxonomy methods — capability enforcement", () => {
 		await expect(bridge.taxonomyList()).rejects.toThrow(/taxonomies:read/);
 		await expect(bridge.taxonomyTerms("category")).rejects.toThrow(/taxonomies:read/);
 		await expect(bridge.taxonomyEntryTerms("posts", "p1")).rejects.toThrow(/taxonomies:read/);
+	});
+
+	it("routes writes through the runtime callback and denies read-only plugins", async () => {
+		const createTerm = vi.fn(async () => ({
+			id: "term-2",
+			taxonomy: "category",
+			slug: "reviews",
+			label: "Reviews",
+			parentId: null,
+			data: null,
+			locale: "en",
+			translationGroup: "term-2",
+		}));
+		const addEntryTerms = vi.fn(async () => []);
+		const removeEntryTerms = vi.fn(async () => []);
+		setTaxonomyWriteCallback("writer", {
+			getAll: vi.fn(async () => []),
+			getTerms: vi.fn(async () => []),
+			getEntryTerms: vi.fn(async () => []),
+			createTerm,
+			addEntryTerms,
+			removeEntryTerms,
+		});
+
+		const reader = makeBridge(["taxonomies:read"]).bridge;
+		await expect(reader.taxonomyCreateTerm("category", { label: "Reviews" })).rejects.toThrow(
+			/taxonomies:write/,
+		);
+
+		const writer = makeBridge(["taxonomies:read", "taxonomies:write"], [], "writer").bridge;
+		await writer.taxonomyCreateTerm("category", { label: "Reviews" });
+		await writer.taxonomyAddEntryTerms("posts", "post-1", "category", ["term-2"]);
+		await writer.taxonomyRemoveEntryTerms("posts", "post-1", "category", ["term-2"]);
+
+		expect(createTerm).toHaveBeenCalledWith("category", { label: "Reviews" });
+		expect(addEntryTerms).toHaveBeenCalledWith("posts", "post-1", "category", ["term-2"]);
+		expect(removeEntryTerms).toHaveBeenCalledWith("posts", "post-1", "category", ["term-2"]);
+		setTaxonomyWriteCallback("writer", null);
+	});
+
+	it("isolates taxonomy callbacks by runner and removes terminated callbacks", async () => {
+		const firstCreate = vi.fn(async () => TERM_ROW as never);
+		const secondCreate = vi.fn(async () => TERM_ROW as never);
+		const access = (createTerm: typeof firstCreate) => ({
+			getAll: vi.fn(async () => []),
+			getTerms: vi.fn(async () => []),
+			getEntryTerms: vi.fn(async () => []),
+			createTerm,
+			addEntryTerms: vi.fn(async () => []),
+			removeEntryTerms: vi.fn(async () => []),
+		});
+		setTaxonomyWriteCallback("first", access(firstCreate));
+		setTaxonomyWriteCallback("second", access(secondCreate));
+
+		const first = makeBridge(["taxonomies:write"], [], "first").bridge;
+		const second = makeBridge(["taxonomies:write"], [], "second").bridge;
+		await first.taxonomyCreateTerm("category", { label: "First" });
+		await second.taxonomyCreateTerm("category", { label: "Second" });
+
+		expect(firstCreate).toHaveBeenCalledOnce();
+		expect(secondCreate).toHaveBeenCalledOnce();
+		setTaxonomyWriteCallback("first", null);
+		await expect(first.taxonomyCreateTerm("category", { label: "Missing" })).rejects.toThrow(
+			"Taxonomy mutations are not available",
+		);
+		setTaxonomyWriteCallback("second", null);
+	});
+});
+
+describe("PluginBridge content discovery capability enforcement", () => {
+	it("denies schema and revision history independently", async () => {
+		const { bridge } = makeBridge(["content:read"]);
+		await expect(bridge.schemaListCollections()).rejects.toThrow(/schema:read/);
+		await expect(bridge.contentListRevisions("posts", "post-1")).rejects.toThrow(
+			/content:revisions:read/,
+		);
 	});
 });
 

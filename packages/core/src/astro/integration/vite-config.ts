@@ -580,6 +580,7 @@ export function createViteConfig(
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
+							"astro/app/entrypoint",
 							"astro/app/manifest",
 							...(hasAstroConsoleLogger ? ["astro/logger/console"] : []),
 							"astro/virtual-modules/middleware.js",

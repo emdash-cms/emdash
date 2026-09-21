@@ -1,18 +1,18 @@
 ---
 title: Settings
-description: Store sandboxed-plugin configuration in KV and edit it through a Block Kit page.
+description: Store encrypted sandboxed-plugin settings and edit them through a Block Kit page.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
-Sandboxed plugins store site-specific settings in their private key-value (KV) store. A Block Kit admin page loads the current values, accepts changes, validates them, and writes them through `ctx.kv`.
+Sandboxed plugins store site-specific configuration through `ctx.settings`. A Block Kit admin page loads the current values, accepts changes, validates them, and writes them through the same plugin-scoped store. Fields declared with `type: "secret"` are encrypted before EmDash writes them to the database.
 
-## Read and write KV values
+## Read and write settings
 
-Every hook and route receives this KV interface on `ctx`:
+Every hook and route receives this settings interface on `ctx`:
 
 ```typescript
-interface KVAccess {
+interface SettingsAccess {
 	get<T>(key: string): Promise<T | null>;
 	getVersioned<T>(key: string): Promise<{ value: T; revision: string } | null>;
 	compareAndSet(key: string, expectedRevision: string | null, value: unknown):
@@ -24,28 +24,30 @@ interface KVAccess {
 }
 ```
 
-KV is namespaced by plugin. Two plugins can use the same key without reading or overwriting each other's values.
+Settings are namespaced by plugin. Two plugins can use the same key without reading or overwriting each other's values.
 
 When concurrent requests can change the same key, use [conditional writes](/plugins/creating-plugins/storage/#conditional-writes) to reject updates based on a stale revision. The same methods work in native plugins and sandboxed plugins.
 
-Use prefixes to separate user settings from internal state and cached values:
+Use `ctx.kv` separately for internal state and cached values:
 
-| Prefix | Purpose | Example |
+| API | Purpose | Example |
 | --- | --- | --- |
-| `settings:` | User-configurable values | `settings:apiKey` |
-| `state:` | Persistent internal state | `state:lastSync` |
-| `cache:` | Reusable computed or remote data | `cache:feed` |
+| `ctx.settings` | User-configurable values | `apiKey` |
+| `ctx.kv` with `state:` | Persistent internal state | `state:lastSync` |
+| `ctx.kv` with `cache:` | Reusable computed or remote data | `cache:feed` |
 
 The following calls cover the KV operations:
 
 ```typescript
-const enabled = await ctx.kv.get<boolean>("settings:enabled");
+const enabled = await ctx.settings.get<boolean>("enabled");
 await ctx.kv.set("state:lastSync", new Date().toISOString());
 const deleted = await ctx.kv.delete("cache:feed");
-const allSettings = await ctx.kv.list("settings:");
+const allSettings = await ctx.settings.list();
 ```
 
 `get` returns `null` when the key does not exist. `list` returns keys without EmDash's internal plugin namespace prefix.
+
+Existing plugins can continue to read `ctx.kv.get("settings:<key>")`. The complete `settings:` KV alias remains supported for the rest of the 0.x release line. EmDash will not remove it before 1.0, and any later removal will include a deprecation period and migration guidance. New code should use `ctx.settings`.
 
 ## Add a settings page
 
@@ -54,8 +56,17 @@ Declare the page in `emdash-plugin.jsonc` so it appears in the plugin's admin na
 ```jsonc title="emdash-plugin.jsonc"
 "admin": {
 	"pages": [{ "path": "/settings", "label": "Settings", "icon": "settings" }],
+	"settingsSchema": {
+		"apiKey": { "type": "secret", "label": "API key" },
+		"enabled": { "type": "boolean", "label": "Enabled", "default": true },
+		"maxItems": { "type": "number", "label": "Max items", "default": 100 }
+	}
 }
 ```
+
+The schema tells EmDash which values require encryption. A `secret_input` in Block Kit only masks browser input; it does not mark a stored value as secret by itself.
+
+`ctx.settings` needs no capability because the host fixes its namespace to the current plugin. Adding a settings field does not expand the plugin's `declaredAccess` or trigger capability re-consent. An administrator grants the plugin access to a credential by entering it in that plugin's settings form.
 
 The plugin must also provide a private route named `admin`. EmDash sends `page_load` when the page opens and `form_submit` when the user submits the form.
 
@@ -121,9 +132,9 @@ const plugin: SandboxedPlugin = {
 export default plugin;
 
 async function renderSettings(ctx: PluginContext): Promise<BlockResponse> {
-	const apiKeyConfigured = (await ctx.kv.get<string>("settings:apiKey")) !== null;
-	const enabled = (await ctx.kv.get<boolean>("settings:enabled")) ?? true;
-	const maxItems = (await ctx.kv.get<number>("settings:maxItems")) ?? 100;
+	const apiKeyConfigured = (await ctx.settings.get<string>("apiKey")) !== null;
+	const enabled = (await ctx.settings.get<boolean>("enabled")) ?? true;
+	const maxItems = (await ctx.settings.get<number>("maxItems")) ?? 100;
 
 	return {
 		blocks: [
@@ -163,9 +174,9 @@ async function saveSettings(
 	ctx: PluginContext,
 	values: { apiKey?: string; enabled: boolean; maxItems: number },
 ) {
-	if (values.apiKey) await ctx.kv.set("settings:apiKey", values.apiKey);
-	await ctx.kv.set("settings:enabled", values.enabled);
-	await ctx.kv.set("settings:maxItems", values.maxItems);
+	if (values.apiKey) await ctx.settings.set("apiKey", values.apiKey);
+	await ctx.settings.set("enabled", values.enabled);
+	await ctx.settings.set("maxItems", values.maxItems);
 }
 ```
 
@@ -175,14 +186,17 @@ The submitted values omit the secret until the user edits it, and may contain an
 
 ## Secret values
 
-<Aside type="caution" title="KV does not encrypt secrets">
-	`secret_input` masks the field in the browser. EmDash still serializes a value written with
-	`ctx.kv.set()` as ordinary JSON in the site's database; it does not apply field-level encryption.
-	Database administrators and anyone with a readable backup can recover the value. Do not log it,
-	return it from a route, or put it back into a Block Kit response.
+<Aside type="caution" title="Keep the encryption key with your backups">
+	EmDash cannot decrypt a secret setting without the `EMDASH_ENCRYPTION_KEY` entry whose fingerprint
+	matches the stored envelope. Keep the complete key list in a separate secret-manager backup. A
+	database backup alone cannot recover encrypted plugin settings.
 </Aside>
 
-Use KV only when that storage model is acceptable for the credential. If a secret must come from a deployment secret store and must not be written to the EmDash database, use a native plugin or an external credential service. Sandboxed plugins cannot read the host process's environment or platform bindings.
+EmDash encrypts `secret` schema fields with AES-GCM. The authenticated data binds each value to its plugin ID and setting key, so copying an envelope to another plugin or key fails decryption. The first key in `EMDASH_ENCRYPTION_KEY` encrypts new writes; EmDash selects older keys by their fingerprint when reading. Missing, wrong, or tampered keys fail closed. Admin responses and host errors do not contain the plaintext. After a plugin reads or writes a secret, the host logger redacts the current and immediately previous exact value for that key from `ctx.log` messages and structured data.
+
+The plugin still receives the plaintext and can transform it or send it through declared network or email access. Review those capabilities before entering a credential, and never log derived or encoded secret material.
+
+Existing plaintext values remain readable. Save the value again to replace it with an encrypted envelope. If a secret must not be written to the EmDash database even in encrypted form, use a native plugin backed by a deployment secret or an external credential service. Sandboxed plugins cannot read the host process's environment or platform bindings.
 
 Provide a separate, deliberate action if users need to clear a secret. Treating an empty masked field as deletion can erase a working credential when a user saves an unrelated setting.
 
@@ -191,8 +205,8 @@ Provide a separate, deliberate action if users need to clear a secret. Treating 
 Apply defaults when reading a key so existing installations receive a new setting without a migration:
 
 ```typescript
-const enabled = (await ctx.kv.get<boolean>("settings:enabled")) ?? true;
-const maxItems = (await ctx.kv.get<number>("settings:maxItems")) ?? 100;
+const enabled = (await ctx.settings.get<boolean>("enabled")) ?? true;
+const maxItems = (await ctx.settings.get<number>("maxItems")) ?? 100;
 ```
 
 You can persist initial values during installation:
@@ -200,8 +214,8 @@ You can persist initial values during installation:
 ```typescript
 hooks: {
 	"plugin:install": async (_event, ctx) => {
-		await ctx.kv.set("settings:enabled", true);
-		await ctx.kv.set("settings:maxItems", 100);
+		await ctx.settings.set("enabled", true);
+		await ctx.settings.set("maxItems", 100);
 	},
 },
 ```
@@ -212,7 +226,7 @@ hooks: {
 
 | Data | Use |
 | --- | --- |
-| Small user-configurable values | `ctx.kv` with a `settings:` prefix |
+| Small user-configurable values | `ctx.settings` |
 | Small internal state or cursors | `ctx.kv` with a `state:` prefix |
 | Queryable records such as submissions or logs | A declared `ctx.storage` collection |
 | Content edited through the regular EmDash editor | A site content collection |

@@ -60,10 +60,25 @@
 					"ref": "#contentAccess",
 					"description": "Access to site content (posts, pages, custom collections)."
 				},
+				"comments": {
+					"type": "ref",
+					"ref": "#commentsAccess",
+					"description": "Access to comment text, author contact and request metadata, and moderation state."
+				},
+				"schema": {
+					"type": "ref",
+					"ref": "#schemaAccess",
+					"description": "Read access to collection and field definitions."
+				},
 				"taxonomies": {
 					"type": "ref",
 					"ref": "#taxonomiesAccess",
 					"description": "Access to taxonomy definitions and terms."
+				},
+				"redirects": {
+					"type": "ref",
+					"ref": "#redirectsAccess",
+					"description": "Access to visitor redirect rules."
 				},
 				"media": {
 					"type": "ref",
@@ -101,10 +116,30 @@
 					"ref": "#contentReadConstraints",
 					"description": "Plugin may read content records."
 				},
+				"revisionsRead": {
+					"type": "ref",
+					"ref": "#contentRevisionsReadConstraints",
+					"description": "Plugin may read retained content revision history. Implies `read`."
+				},
 				"write": {
 					"type": "ref",
 					"ref": "#contentWriteConstraints",
 					"description": "Plugin may create, update, or delete content records. Implies `read`."
+				},
+				"policy": {
+					"type": "ref",
+					"ref": "#contentPolicyConstraints",
+					"description": "Plugin may inspect and reject publication, scheduling, and unpublication. Does not imply content read or write access."
+				},
+				"publish": {
+					"type": "ref",
+					"ref": "#contentPublishConstraints",
+					"description": "Plugin may publish, unpublish, schedule, and unschedule content. Implies `read`."
+				},
+				"restore": {
+					"type": "ref",
+					"ref": "#contentRestoreConstraints",
+					"description": "Plugin may read and restore trashed content."
 				}
 			}
 		},
@@ -116,20 +151,108 @@
 			"type": "object",
 			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
 		},
+		"commentsAccess": {
+			"type": "object",
+			"description": "Operations under comments. Reading exposes personal data: author names and email addresses, comment bodies, pseudonymous IP hashes, user agents, and moderation metadata. It does not expose the linked user-account ID.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#commentsReadConstraints",
+					"description": "Plugin may read non-trashed comments and their personal and moderation data."
+				},
+				"moderate": {
+					"type": "ref",
+					"ref": "#commentsModerateConstraints",
+					"description": "Plugin may change comment status with an expected-state precondition. Implies `read`."
+				}
+			}
+		},
+		"commentsReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for comments.read. No constraint keys are normatively defined here."
+		},
+		"commentsModerateConstraints": {
+			"type": "object",
+			"description": "Constraint object for comments.moderate. No constraint keys are normatively defined here."
+		},
+		"contentRevisionsReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.revisionsRead. No constraint keys are normatively defined here."
+		},
+		"schemaAccess": {
+			"type": "object",
+			"description": "Operations under schema.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#schemaReadConstraints",
+					"description": "Plugin may read public collection and field definitions."
+				}
+			}
+		},
+		"schemaReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for schema.read. No constraint keys are normatively defined here."
+		},
+		"contentPolicyConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.policy. No constraint keys are normatively defined here; the operation grants only registration of synchronous publication policy hooks."
+		},
+		"contentPublishConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.publish. No constraint keys are normatively defined here."
+		},
+		"contentRestoreConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.restore. No constraint keys are normatively defined here."
+		},
 		"taxonomiesAccess": {
 			"type": "object",
-			"description": "Operations under taxonomies. Read-only: there is no plugin-facing taxonomy write operation.",
+			"description": "Operations under taxonomies.",
 			"properties": {
 				"read": {
 					"type": "ref",
 					"ref": "#taxonomiesReadConstraints",
 					"description": "Plugin may read taxonomy definitions, their terms, and the terms assigned to content entries."
+				},
+				"write": {
+					"type": "ref",
+					"ref": "#taxonomiesWriteConstraints",
+					"description": "Plugin may create terms and add or remove term assignments. Implies `read`."
 				}
 			}
 		},
 		"taxonomiesReadConstraints": {
 			"type": "object",
 			"description": "Constraint object for taxonomies.read. No constraint keys are normatively defined here."
+		},
+		"taxonomiesWriteConstraints": {
+			"type": "object",
+			"description": "Constraint object for taxonomies.write. No constraint keys are normatively defined here."
+		},
+		"redirectsAccess": {
+			"type": "object",
+			"description": "Operations under redirects.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#redirectsReadConstraints",
+					"description": "Plugin may read redirect rules."
+				},
+				"write": {
+					"type": "ref",
+					"ref": "#redirectsWriteConstraints",
+					"description": "Plugin may create, update, or delete redirect rules and change where visitors are sent. Implies `read`."
+				}
+			}
+		},
+		"redirectsReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for redirects.read. No constraint keys are normatively defined here."
+		},
+		"redirectsWriteConstraints": {
+			"type": "object",
+			"description": "Constraint object for redirects.write. No constraint keys are normatively defined here."
 		},
 		"mediaAccess": {
 			"type": "object",
@@ -138,7 +261,17 @@
 				"read": {
 					"type": "ref",
 					"ref": "#mediaReadConstraints",
-					"description": "Plugin may read media metadata and fetch media bytes."
+					"description": "Plugin may read ready media metadata. Storage keys, author identity, content hashes, and file bytes are excluded."
+				},
+				"bytesRead": {
+					"type": "ref",
+					"ref": "#mediaBytesReadConstraints",
+					"description": "Plugin may read bounded bytes and content hashes for ready media."
+				},
+				"metadataWrite": {
+					"type": "ref",
+					"ref": "#mediaMetadataWriteConstraints",
+					"description": "Plugin may change alt text, captions, and focal points on ready media."
 				},
 				"write": {
 					"type": "ref",
@@ -150,6 +283,14 @@
 		"mediaReadConstraints": {
 			"type": "object",
 			"description": "Constraint object for media.read. No constraint keys are normatively defined here."
+		},
+		"mediaBytesReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for media.bytesRead. No constraint keys are normatively defined here."
+		},
+		"mediaMetadataWriteConstraints": {
+			"type": "object",
+			"description": "Constraint object for media.metadataWrite. No constraint keys are normatively defined here."
 		},
 		"mediaWriteConstraints": {
 			"type": "object",

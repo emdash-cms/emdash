@@ -2,6 +2,7 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
@@ -340,6 +341,7 @@ export class ContentRepository {
 			primaryBylineId,
 			locale,
 			translationOf,
+			inheritFields = [],
 			publishedAt,
 			createdAt,
 		} = input;
@@ -357,16 +359,6 @@ export class ContentRepository {
 		}
 
 		const tableName = getTableName(type);
-
-		// Resolve translation_group: if translationOf is set, look up the source item's group
-		let translationGroup: string = id; // default: self-reference
-		if (translationOf) {
-			const source = await this.findById(type, translationOf);
-			if (!source) {
-				throw new EmDashValidationError("Translation source content not found");
-			}
-			translationGroup = source.translationGroup || source.id;
-		}
 
 		// Build column names and values
 		const columns: string[] = [
@@ -393,8 +385,16 @@ export class ContentRepository {
 			normalizedPublishedAt,
 			1,
 			locale || "en",
-			translationGroup,
+			id,
 		];
+		const inherited = new Set(inheritFields);
+		for (const field of inherited) {
+			validateIdentifier(field, "inherited content field name");
+			if (!SYSTEM_COLUMNS.has(field) && !Object.hasOwn(data, field)) {
+				columns.push(field);
+				values.push(null);
+			}
+		}
 
 		// Add data fields as columns (skip system columns to prevent injection via data)
 		if (data && typeof data === "object") {
@@ -409,18 +409,40 @@ export class ContentRepository {
 
 		// Build dynamic INSERT using raw SQL
 		const columnRefs = columns.map((c) => sql.ref(c));
-		const valuePlaceholders = values.map((v) => (v === null ? sql`NULL` : sql`${v}`));
+		const valuePlaceholders = values.map((value, index) => {
+			const column = columns[index];
+			if (translationOf && column === "translation_group") {
+				return sql`COALESCE(${sql.ref("translation_source.translation_group")}, ${sql.ref("translation_source.id")})`;
+			}
+			if (translationOf && inherited.has(column)) {
+				return sql.ref(`translation_source.${column}`);
+			}
+			return value === null ? sql`NULL` : sql`${value}`;
+		});
 
-		await sql`
-			INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
-			VALUES (${sql.join(valuePlaceholders, sql`, `)})
-		`.execute(this.db);
+		if (translationOf) {
+			await sql`
+				INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
+				SELECT ${sql.join(valuePlaceholders, sql`, `)}
+				FROM ${sql.ref(tableName)} AS translation_source
+				WHERE translation_source.id = ${translationOf}
+					AND translation_source.deleted_at IS NULL
+			`.execute(this.db);
+		} else {
+			await sql`
+				INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
+				VALUES (${sql.join(valuePlaceholders, sql`, `)})
+			`.execute(this.db);
+		}
 
 		invalidateCollectionCache(type);
 
 		// Fetch and return the created item
 		const item = await this.findById(type, id);
 		if (!item) {
+			if (translationOf) {
+				throw new EmDashValidationError("Translation source content not found");
+			}
 			throw new Error("Failed to create content");
 		}
 		return item;
@@ -593,6 +615,17 @@ export class ContentRepository {
 		locale?: string,
 	): Promise<ContentItem | null> {
 		return this._findByIdOrSlug(type, identifier, true, locale);
+	}
+
+	async isTrashed(type: string, id: string): Promise<boolean> {
+		const tableName = getTableName(type);
+		const row = await this.db
+			.selectFrom(tableName as keyof Database)
+			.select("id" as never)
+			.where("id" as never, "=", id as never)
+			.where("deleted_at" as never, "is not", null)
+			.executeTakeFirst();
+		return row !== undefined;
 	}
 
 	private async _findByIdOrSlug(
@@ -963,15 +996,35 @@ export class ContentRepository {
 			return this.update(type, id, { ...input, data });
 		}
 
-		const fieldSlugs = new Set(collectionRows.map((row) => row.fieldSlug).filter(Boolean));
-		for (const field of Object.keys(data)) {
+		const fieldSlugs = new Set(
+			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
+		);
+
+		const revisionRepo = new RevisionRepository(this.db);
+		let existing = await this.findById(type, id);
+
+		// A key with no field is rejected unless the entry already stores it: deleting a field
+		// leaves its value in the draft revision, which holds the whole `data`, so a caller that
+		// reads an entry and writes it back would otherwise be refused for a key it never chose
+		// to send. Those keys are dropped here and shed from the merge below.
+		let incoming = data;
+		if (existing) {
+			let stored: Record<string, unknown> = existing.data ?? {};
+			if (existing.draftRevisionId) {
+				const draft = await revisionRepo.findById(existing.draftRevisionId);
+				if (draft?.data) stored = draft.data;
+			}
+			const stale = staleStoredKeys(data, stored, fieldSlugs);
+			if (stale.length > 0) {
+				incoming = { ...data };
+				for (const key of stale) delete incoming[key];
+			}
+		}
+		for (const field of Object.keys(incoming)) {
 			if (!fieldSlugs.has(field)) {
 				throw new EmDashValidationError(`Unknown field '${field}' in collection '${type}'`);
 			}
 		}
-
-		const revisionRepo = new RevisionRepository(this.db);
-		let existing = await this.findById(type, id);
 
 		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 			let baseData = existing.data;
@@ -980,7 +1033,7 @@ export class ContentRepository {
 				if (draft) baseData = draft.data;
 			}
 
-			const mergedData = { ...baseData, ...data };
+			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
 			const revision = await revisionRepo.create({
 				collection: type,
@@ -1278,19 +1331,31 @@ export class ContentRepository {
 	/**
 	 * Restore content from trash
 	 */
-	async restore(type: string, id: string): Promise<ContentItem | null> {
+	async restore(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const existing = await this.findByIdOrSlugIncludingTrashed(type, id);
+		if (!existing) return null;
+		assertRevisionPrecondition(existing, expectedRevision);
+		const now = new Date().toISOString();
 
 		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
-			SET deleted_at = NULL
-			WHERE id = ${id}
+			SET deleted_at = NULL,
+				updated_at = ${now},
+				version = ${existing.version + 1}
+			WHERE id = ${existing.id}
 			AND deleted_at IS NOT NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
 			RETURNING *
 		`.execute(this.db);
 
 		const restored = result.rows[0];
-		if (!restored) return null;
+		if (!restored) throw new ContentMutationConflictError("Content changed while restoring");
 
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
@@ -1717,6 +1782,7 @@ export class ContentRepository {
 		id: string,
 		scheduledAt: string,
 		currentTime: Date = new Date(),
+		expectedRevision?: ContentRevisionPrecondition,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = currentTime.toISOString();
@@ -1731,20 +1797,28 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		// Published posts keep their status — the schedule applies to the
 		// pending draft, not the currently-live revision. Unpublished posts
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
 				scheduled_at = ${normalizedScheduledAt},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if ((result.numAffectedRows ?? 0n) === 0n) {
+			throw new ContentMutationConflictError("Content changed while scheduling");
+		}
 
 		invalidateCollectionCache(type);
 
@@ -1762,7 +1836,11 @@ export class ContentRepository {
 	 * Clears the scheduled time. Published posts stay published;
 	 * draft/scheduled posts revert to 'draft'.
 	 */
-	async unschedule(type: string, id: string): Promise<ContentItem> {
+	async unschedule(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -1770,12 +1848,13 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		// Published posts keep their status — just clear the pending schedule.
 		// Draft/scheduled posts revert to 'draft'.
 		const newStatus = existing.status === "published" ? "published" : "draft";
 
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
 				scheduled_at = NULL,
@@ -1783,7 +1862,14 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND scheduled_at IS NOT NULL
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if (existing.scheduledAt !== null && (result.numAffectedRows ?? 0n) === 0n) {
+			throw new ContentMutationConflictError("Content changed while unscheduling");
+		}
 
 		invalidateCollectionCache(type);
 
@@ -1811,6 +1897,7 @@ export class ContentRepository {
 		type: string,
 		limit?: number,
 		currentTime: Date = new Date(),
+		after?: { scheduledAt: string; id: string },
 	): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
 		const now = currentTime.toISOString();
@@ -1821,13 +1908,17 @@ export class ContentRepository {
 			typeof limit === "number" && Number.isInteger(limit) && limit > 0
 				? sql`LIMIT ${limit}`
 				: sql``;
+		const afterClause = after
+			? sql`AND (scheduled_at > ${after.scheduledAt} OR (scheduled_at = ${after.scheduledAt} AND id > ${after.id}))`
+			: sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
 			WHERE scheduled_at IS NOT NULL
 			AND scheduled_at <= ${now}
 			AND deleted_at IS NULL
-			ORDER BY scheduled_at ASC
+			${afterClause}
+			ORDER BY scheduled_at ASC, id ASC
 			${limitClause}
 		`.execute(this.db);
 

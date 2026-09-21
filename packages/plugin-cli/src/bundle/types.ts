@@ -28,6 +28,7 @@ export {
 	type PluginAdminConfig,
 	type PluginCapability,
 	type PluginManifest,
+	type RouteOptions,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 } from "@emdash-cms/plugin-types";
@@ -36,6 +37,7 @@ import type {
 	PluginAdminConfig,
 	PluginCapability,
 	PluginStorageConfig,
+	RouteOptions,
 } from "@emdash-cms/plugin-types";
 
 export interface ResolvedMcpTool {
@@ -73,11 +75,9 @@ export interface ResolvedPlugin {
 	>;
 	routes: Record<
 		string,
-		{
+		RouteOptions & {
 			handler?: unknown;
-			public?: boolean;
-			permission?: string;
-			cacheControl?: string;
+			input?: unknown;
 		}
 	>;
 	mcp?: { tools: Record<string, ResolvedMcpTool> };

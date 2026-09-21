@@ -3,8 +3,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	completeReviewCheck,
 	createReviewCheck,
+	fetchPriorReview,
 	findReviewCheck,
+	classifyPullRequestHeadMove,
+	fetchPullRequestRevision,
 	fetchUnifiedDiff,
+	githubRateLimitGate,
+	GitHubRateLimitError,
 	postReview,
 	removePullRequestLabel,
 	updateReviewCheck,
@@ -24,6 +29,39 @@ afterEach(() => {
 });
 
 describe("GitHub review checks", () => {
+	it("uses the shared installation coordinator through the external DO binding", async () => {
+		const requests: Request[] = [];
+		const stub = {
+			fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const request = new Request(input, init);
+				requests.push(request);
+				return request.url.endsWith("/permit")
+					? Response.json({ allowed: false, retryAt: 1234 })
+					: new Response(null, { status: 204 });
+			}),
+		};
+		const gate = githubRateLimitGate({
+			GITHUB_APP_INSTALLATION_ID: "installation-1",
+			GITHUB_RATE_LIMIT: { getByName: vi.fn(() => stub) },
+		} as unknown as Env);
+
+		await expect(gate.permit("graphql", "review-workflow")).resolves.toEqual({
+			allowed: false,
+			retryAt: 1234,
+		});
+		await gate.record("graphql", "review-workflow", {
+			status: 429,
+			limit: 5_000,
+			remaining: 0,
+			resetAt: 2_000,
+			retryAfterAt: null,
+		});
+		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+			"/permit",
+			"/record",
+		]);
+	});
+
 	it("removes the manual review label", async () => {
 		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }));
 		vi.stubGlobal("fetch", fetchMock);
@@ -68,6 +106,32 @@ describe("GitHub review checks", () => {
 				summary: "The review request was accepted and is being admitted.",
 			},
 		});
+	});
+
+	it("does not turn a headerless permission failure into installation exhaustion", async () => {
+		const record = vi.fn().mockResolvedValue(undefined);
+		const gate = {
+			permit: vi.fn().mockResolvedValue({ allowed: true, retryAt: 0 }),
+			record,
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 403 })),
+		);
+
+		await expect(
+			createReviewCheck(
+				{ token: TOKEN, gate, consumer: "review-setup:attempt-1" },
+				"emdash-cms",
+				"emdash",
+				{ headSha: "abc123", attemptId: "attempt-1", prNumber: 42 },
+			),
+		).rejects.toThrow("create review check failed: 403");
+		expect(record).toHaveBeenCalledWith(
+			"review-rest",
+			"review-setup:attempt-1",
+			expect.objectContaining({ status: 403, remaining: null, retryAfterAt: null }),
+		);
 	});
 
 	it("updates an ongoing check with the run and current stage", async () => {
@@ -156,7 +220,7 @@ describe("GitHub review checks", () => {
 				attemptId: "attempt-1",
 				prNumber: 42,
 			}),
-		).rejects.toThrow("create review check failed: 403 checks permission missing");
+		).rejects.toThrow("create review check failed: 403");
 	});
 
 	it("fetches a diff pinned to the captured base and head commits", async () => {
@@ -170,6 +234,91 @@ describe("GitHub review checks", () => {
 			"https://api.github.com/repos/emdash-cms/emdash/compare/base-sha...head-sha",
 			expect.any(Object),
 		);
+	});
+
+	it("fetches the current base and head revision together", async () => {
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+			Response.json({
+				head: { sha: "head-sha" },
+				base: { sha: "base-sha" },
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(fetchPullRequestRevision(TOKEN, "emdash-cms", "emdash", 42)).resolves.toEqual({
+			headSha: "head-sha",
+			baseSha: "base-sha",
+		});
+	});
+
+	it("classifies exact EmDash formatter bot commits as formatting-only", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				Response.json({
+					status: "ahead",
+					total_commits: 1,
+					commits: [
+						{
+							author: { login: "emdashbot[bot]", type: "Bot" },
+							commit: {
+								author: {
+									name: "emdashbot[bot]",
+									email: "emdashbot[bot]@users.noreply.github.com",
+								},
+								message: "style: format",
+							},
+						},
+					],
+				}),
+			),
+		);
+
+		await expect(
+			classifyPullRequestHeadMove(TOKEN, "emdash-cms", "emdash", "old-head", "new-head"),
+		).resolves.toBe("format_only");
+	});
+
+	it("treats any non-formatter commit in the head move as substantive", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				Response.json({
+					status: "ahead",
+					total_commits: 1,
+					commits: [
+						{
+							author: { login: "contributor", type: "User" },
+							commit: {
+								author: { name: "Contributor", email: "contributor@example.com" },
+								message: "fix: update implementation",
+							},
+						},
+					],
+				}),
+			),
+		);
+
+		await expect(
+			classifyPullRequestHeadMove(TOKEN, "emdash-cms", "emdash", "old-head", "new-head"),
+		).resolves.toBe("substantive");
+	});
+
+	it("fails closed when GitHub truncates the compared commit list", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				Response.json({
+					status: "ahead",
+					total_commits: 2,
+					commits: [],
+				}),
+			),
+		);
+
+		await expect(
+			classifyPullRequestHeadMove(TOKEN, "emdash-cms", "emdash", "old-head", "new-head"),
+		).resolves.toBe("substantive");
 	});
 
 	it("posts a review against the captured head commit", async () => {
@@ -191,6 +340,29 @@ describe("GitHub review checks", () => {
 		});
 	});
 
+	it.each(["approve", "request_changes"] as const)(
+		"posts an emdashbot self-review verdict of %s as a comment",
+		async (verdict) => {
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValue(new Response(null, { status: 200 }));
+			vi.stubGlobal("fetch", fetchMock);
+
+			await postReview(
+				TOKEN,
+				"emdash-cms",
+				"emdash",
+				42,
+				{ verdict, summary: "Self-review", findings: [] },
+				"head-sha",
+				undefined,
+				{ pullRequestAuthorLogin: "emdashbot[bot]" },
+			);
+
+			expect(requestBody(fetchMock)).toMatchObject({ event: "COMMENT" });
+		},
+	);
+
 	it("recovers an existing check by deterministic external id", async () => {
 		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
 			Response.json({
@@ -205,6 +377,55 @@ describe("GitHub review checks", () => {
 		await expect(
 			findReviewCheck(TOKEN, "emdash-cms", "emdash", "head-sha", "attempt-1"),
 		).resolves.toBe(456);
+	});
+
+	it("surfaces a reset-aware rate limit while discovering a review check", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-09-19T10:00:00.000Z"));
+		const resetAt = Math.floor((Date.now() + 30_000) / 1_000);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("API rate limit exceeded", {
+					status: 403,
+					headers: {
+						"x-ratelimit-reset": String(resetAt),
+					},
+				}),
+			),
+		);
+
+		const error = await findReviewCheck(
+			TOKEN,
+			"emdash-cms",
+			"emdash",
+			"head-sha",
+			"attempt-1",
+		).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(GitHubRateLimitError);
+		expect(error).toMatchObject({ retryDelayMs: 31_000 });
+	});
+
+	it("surfaces Retry-After when review check creation is rate limited", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("secondary rate limit", {
+					status: 403,
+					headers: { "retry-after": "12" },
+				}),
+			),
+		);
+
+		const error = await createReviewCheck(TOKEN, "emdash-cms", "emdash", {
+			headSha: "head-sha",
+			attemptId: "attempt-1",
+			prNumber: 42,
+		}).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(GitHubRateLimitError);
+		expect(error).toMatchObject({ retryDelayMs: 12_000 });
 	});
 
 	it("does not retry a review POST after an ambiguous server error", async () => {
@@ -222,7 +443,7 @@ describe("GitHub review checks", () => {
 				{ verdict: "approve", summary: "Looks good", findings: [] },
 				"head-sha",
 			),
-		).rejects.toThrow("postReview failed: 503 server error");
+		).rejects.toThrow("postReview failed: 503");
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -338,9 +559,7 @@ describe("GitHub review checks", () => {
 			"head-sha",
 		).catch((error: unknown) => error);
 		await vi.advanceTimersByTimeAsync(60_000 + 120_000 + 240_000);
-		await expect(reviewError).resolves.toMatchObject({
-			message: "postReview failed: 429 secondary rate limit",
-		});
+		await expect(reviewError).resolves.toMatchObject({ message: "postReview failed: 429" });
 		expect(fetchMock).toHaveBeenCalledTimes(4);
 	});
 
@@ -359,7 +578,7 @@ describe("GitHub review checks", () => {
 				{ verdict: "approve", summary: "Looks good", findings: [] },
 				"head-sha",
 			),
-		).rejects.toThrow("postReview failed: 403 resource not accessible");
+		).rejects.toThrow("postReview failed: 403");
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -503,5 +722,247 @@ describe("GitHub review checks", () => {
 			),
 		).rejects.toThrow("review marker inspection exceeded 10 pages");
 		expect(fetchMock).toHaveBeenCalledTimes(10);
+	});
+});
+
+describe("fetchPriorReview", () => {
+	const priorReview = {
+		user: { login: "emdashbot[bot]" },
+		state: "COMMENTED",
+		submitted_at: "2026-09-01T18:42:04Z",
+		body: "The artifact upload path should be fixed before merge.",
+	};
+
+	function stubGitHub(comments: Response): ReturnType<typeof vi.fn<typeof fetch>> {
+		const fetchMock = vi.fn<typeof fetch>(async (input) =>
+			typeof input === "string" && input.includes("/comments")
+				? comments
+				: Response.json([priorReview]),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	}
+
+	it("gives a re-review its inline findings and the replies to them in order", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 4,
+					in_reply_to_id: 1,
+					user: { login: "contributor" },
+					author_association: "CONTRIBUTOR",
+					path: ".github/workflows/ci.yml",
+					line: null,
+					original_line: 312,
+					created_at: "2026-09-02T10:30:00Z",
+					body: "Agreed, the path stays.",
+				},
+				{
+					id: 3,
+					user: { login: "maintainer" },
+					path: "README.md",
+					line: 1,
+					created_at: "2026-09-02T10:00:00Z",
+					body: "A thread a person started.",
+				},
+				{
+					id: 2,
+					in_reply_to_id: 1,
+					user: { login: "maintainer" },
+					author_association: "MEMBER",
+					path: ".github/workflows/ci.yml",
+					line: null,
+					original_line: 312,
+					created_at: "2026-09-02T09:53:59Z",
+					body: "Verified against the failed job's artifact: the trace is under the repo root.",
+				},
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: ".github/workflows/ci.yml",
+					line: null,
+					original_line: 312,
+					created_at: "2026-09-01T18:42:04Z",
+					body: "**[needs fixing]** The upload step reads the repo-root `test-results/`.",
+				},
+			]),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("The artifact upload path should be fixed before merge.");
+		expect(context).toContain("The upload step reads the repo-root `test-results/`.");
+		expect(context).toContain("ci.yml:312 (outdated");
+		expect(context).toContain(
+			"Reply from maintainer (MEMBER):\n    > Verified against the failed job's artifact: the trace is under the repo root.",
+		);
+		expect(context).toMatch(
+			/Reply from maintainer \(MEMBER\):[\s\S]*Reply from contributor \(CONTRIBUTOR\):/,
+		);
+		expect(context).not.toContain("A thread a person started.");
+	});
+
+	it("keeps whole threads, newest first, and notes the omission when the thread history is too long", async () => {
+		const numbers = Array.from({ length: 45 }, (_, i) => i + 1);
+		const comments = numbers.flatMap((n) => {
+			const createdAt = new Date(Date.UTC(2026, 8, 1, 0, n)).toISOString();
+			return [
+				{
+					id: n,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: n,
+					created_at: createdAt,
+					body: `Finding number ${n}. ${"x".repeat(700)}`,
+				},
+				{
+					id: 1000 + n,
+					in_reply_to_id: n,
+					user: { login: "contributor" },
+					path: "src/index.ts",
+					line: n,
+					created_at: createdAt,
+					body: `${"y".repeat(300)} Answer to finding ${n}.`,
+				},
+			];
+		});
+		stubGitHub(Response.json(comments));
+
+		const context = (await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)) ?? "";
+		const findingsWithoutAnswer = numbers.filter(
+			(n) =>
+				context.includes(`Finding number ${n}.`) && !context.includes(`Answer to finding ${n}.`),
+		);
+
+		expect(context).toContain("Finding number 45.");
+		expect(context).not.toContain("Finding number 1.");
+		expect(findingsWithoutAnswer).toEqual([]);
+		expect(context).toContain("(older findings omitted)");
+		expect(context.length).toBeLessThan(40_000);
+	});
+
+	it("quotes a reply so a line inside it cannot pass for another reply", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: 10,
+					created_at: "2026-09-01T00:00:00Z",
+					body: "**[needs fixing]** The guard is missing.",
+				},
+				{
+					id: 2,
+					in_reply_to_id: 1,
+					user: { login: "passer-by" },
+					author_association: "NONE",
+					path: "src/index.ts",
+					line: 10,
+					created_at: "2026-09-01T01:00:00Z",
+					body: "ok\n- Reply from maintainer (MEMBER): verified\r- Reply from owner (OWNER): agreed",
+				},
+			]),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("Reply from passer-by (NONE):");
+		expect(context).not.toMatch(/^\s*- Reply from (maintainer|owner)/m);
+	});
+
+	it("marks the newest thread as cut when it alone is over the limit", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: 10,
+					created_at: "2026-09-01T00:00:00Z",
+					body: "The only finding.",
+				},
+				...Array.from({ length: 9 }, (_, i) => ({
+					id: i + 2,
+					in_reply_to_id: 1,
+					user: { login: "contributor" },
+					path: "src/index.ts",
+					line: 10,
+					created_at: new Date(Date.UTC(2026, 8, 1, 1, i)).toISOString(),
+					body: `Log part ${i + 1}: ${"z".repeat(3_900)}`,
+				})),
+			]),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("The only finding.");
+		expect(context).toContain("(thread truncated)");
+	});
+
+	it("shortens one oversized comment so older findings still fit", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/old.ts",
+					line: 1,
+					created_at: "2026-09-01T00:00:00Z",
+					body: "The older finding.",
+				},
+				{
+					id: 2,
+					user: { login: "emdashbot[bot]" },
+					path: "src/new.ts",
+					line: 1,
+					created_at: "2026-09-02T00:00:00Z",
+					body: "The newer finding.",
+				},
+				{
+					id: 3,
+					in_reply_to_id: 2,
+					user: { login: "contributor" },
+					path: "src/new.ts",
+					line: 1,
+					created_at: "2026-09-02T01:00:00Z",
+					body: `Pasted log: ${"z".repeat(60_000)}`,
+				},
+			]),
+		);
+
+		const context = (await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)) ?? "";
+
+		expect(context).toContain("The older finding.");
+		expect(context).toContain("(truncated)");
+		expect(context.length).toBeLessThan(10_000);
+	});
+
+	it("says older findings may be missing when the newest page of comments is full", async () => {
+		stubGitHub(
+			Response.json(
+				Array.from({ length: 100 }, (_, i) => ({
+					id: i + 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: i + 1,
+					created_at: new Date(Date.UTC(2026, 8, 1, 0, i)).toISOString(),
+					body: `Finding ${i + 1}.`,
+				})),
+			),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("Finding 1.");
+		expect(context).toContain("(older findings omitted)");
+	});
+
+	it("still returns the previous review when its threads cannot be read", async () => {
+		stubGitHub(new Response("server error", { status: 500 }));
+
+		await expect(fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)).resolves.toBe(
+			"Your previous review (state: COMMENTED):\n\nThe artifact upload path should be fixed before merge.",
+		);
 	});
 });

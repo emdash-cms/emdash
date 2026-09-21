@@ -3,10 +3,17 @@ import { DurableObject } from "cloudflare:workers";
 
 import {
 	completeReviewCheck,
+	createReviewCheck,
+	findReviewCheck,
+	getPullRequestHeadSha,
+	githubRateLimitGate,
+	GitHubRateLimitError,
 	mintInstallationToken,
 	readAppCreds,
 	removePullRequestLabel,
 	updateReviewCheck,
+	type GitHubAppCreds,
+	type GitHubToken,
 } from "./lib/github.js";
 import {
 	isReviewAttemptStale,
@@ -23,6 +30,10 @@ const TERMINAL_RETRY_BASE_MS = 60_000;
 const TERMINAL_RETRY_MAX_MS = 60 * 60_000;
 const TERMINAL_RETRY_LIMIT = 10;
 const TERMINAL_RETENTION_MS = 7 * 24 * 60 * 60_000;
+const SETUP_RETRY_BASE_MS = 30_000;
+const SETUP_RETRY_MAX_MS = 60 * 60_000;
+const SETUP_RETRY_LIMIT = 6;
+const SETUP_RETRY_JITTER_RATIO = 0.2;
 const WORKFLOW_RETRY_LIMIT = 2;
 const WORKFLOW_STATUS_RETRY_MS = 60_000;
 const WORKFLOW_ACTIVE_STALE_LIMIT_MS = 5 * 60_000;
@@ -30,7 +41,24 @@ const MANUAL_REVIEW_LABEL = "bot:review";
 
 class TerminalConfigurationError extends Error {}
 
+export function reviewSetupRetryDelay(
+	error: unknown,
+	retryCount: number,
+	jitterUnit = Math.random(),
+): number {
+	if (error instanceof GitHubRateLimitError && error.hasRetryHint) return error.retryDelayMs;
+	const base = Math.min(SETUP_RETRY_BASE_MS * 2 ** Math.max(0, retryCount - 1), SETUP_RETRY_MAX_MS);
+	const jitter = base * SETUP_RETRY_JITTER_RATIO * Math.min(1, Math.max(0, jitterUnit));
+	return Math.min(SETUP_RETRY_MAX_MS, Math.round(base + jitter));
+}
+
 export class ReviewWatchdog extends DurableObject<Env> {
+	private async githubToken(creds: GitHubAppCreds, consumer: string): Promise<GitHubToken> {
+		const gate = githubRateLimitGate(this.env);
+		const token = await mintInstallationToken(creds, { token: "", gate, consumer });
+		return { token, gate, consumer };
+	}
+
 	async reserve(
 		attempt: ReviewAttempt,
 		setupLease: string,
@@ -42,28 +70,20 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			if (existing.terminal || existing.admissionStartedAt !== undefined) {
 				return { status: "complete" };
 			}
-			if (
-				existing.setupLease &&
-				existing.setupLease !== setupLease &&
-				(existing.setupLeaseExpiresAt ?? 0) > Date.now()
-			) {
-				return { status: "busy" };
+			if ((await this.ctx.storage.getAlarm()) === null) {
+				await this.ctx.storage.setAlarm(Math.max(Date.now(), existing.setupRetryAt ?? 0));
 			}
-			const resumed = {
-				...existing,
-				setupLease,
-				setupLeaseExpiresAt: Date.now() + REVIEW_SETUP_LEASE_MS,
-			};
-			await this.ctx.storage.put(ATTEMPT_KEY, resumed);
-			return { status: "acquired", attempt: resumed };
+			return { status: "busy" };
 		}
 		const reserved = {
 			...attempt,
 			setupLease,
 			setupLeaseExpiresAt: Date.now() + REVIEW_SETUP_LEASE_MS,
 		};
-		await this.ctx.storage.put(ATTEMPT_KEY, reserved);
-		await this.ctx.storage.setAlarm(attempt.lastProgressAt + reviewStaleAfter(attempt.stage));
+		await this.ctx.storage.transaction(async (transaction) => {
+			await transaction.put(ATTEMPT_KEY, reserved);
+			await transaction.setAlarm(Date.now());
+		});
 		return { status: "acquired", attempt: reserved };
 	}
 
@@ -113,8 +133,177 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		) {
 			return false;
 		}
-		await this.ctx.storage.put(ATTEMPT_KEY, { ...attempt, admissionStartedAt: Date.now() });
+		const lastProgressAt = Date.now();
+		await this.ctx.storage.put(ATTEMPT_KEY, {
+			...attempt,
+			admissionStartedAt: lastProgressAt,
+			lastProgressAt,
+			setupRetryAt: undefined,
+		});
+		await this.ctx.storage.setAlarm(lastProgressAt + reviewStaleAfter("admitted"));
 		return true;
+	}
+
+	private async recordSetupTerminal(attempt: ReviewAttempt, summary: string): Promise<void> {
+		const terminalAttempt = {
+			...attempt,
+			terminal: { conclusion: "failure", summary } satisfies ReviewTerminal,
+		};
+		await this.ctx.storage.put(ATTEMPT_KEY, terminalAttempt);
+		try {
+			await this.flushTerminal(terminalAttempt);
+		} catch (error) {
+			await this.scheduleTerminalRetry(terminalAttempt, error);
+		}
+	}
+
+	private async scheduleSetupRetry(attempt: ReviewAttempt, error: unknown): Promise<void> {
+		const setupRetryCount = (attempt.setupRetryCount ?? 0) + 1;
+		const setupLastError = error instanceof Error ? error.message : String(error);
+		if (setupRetryCount >= SETUP_RETRY_LIMIT) {
+			console.error(
+				JSON.stringify({
+					message: "review setup retry exhausted",
+					error: setupLastError,
+					attemptId: attempt.attemptId,
+					prNumber: attempt.prNumber,
+					setupRetryCount,
+				}),
+			);
+			await this.recordSetupTerminal(
+				{ ...attempt, setupRetryCount, setupLastError },
+				"GitHub remained unavailable while EmDashBot prepared the review. Remove and reapply the `bot:review` label to retry.",
+			);
+			return;
+		}
+
+		const delay = reviewSetupRetryDelay(error, setupRetryCount);
+		const setupRetryAt = Date.now() + delay;
+		await this.ctx.storage.put(ATTEMPT_KEY, {
+			...attempt,
+			setupRetryCount,
+			setupRetryAt,
+			setupLastError,
+		});
+		await this.ctx.storage.setAlarm(setupRetryAt);
+		console.warn(
+			JSON.stringify({
+				message: "review setup retry scheduled",
+				error: setupLastError,
+				attemptId: attempt.attemptId,
+				prNumber: attempt.prNumber,
+				setupRetryCount,
+				delay,
+			}),
+		);
+	}
+
+	private async setupAndAdmit(attempt: ReviewAttempt): Promise<void> {
+		try {
+			const creds = readAppCreds(this.env);
+			if (!creds) throw new TerminalConfigurationError("GitHub App credentials are unavailable");
+			if (!attempt.workflowInput) {
+				throw new TerminalConfigurationError("Review attempt has no workflow input");
+			}
+			const token = await this.githubToken(creds, `review-setup:${attempt.attemptId}`);
+			let checkRunId = attempt.checkRunId;
+			if (checkRunId === undefined) {
+				checkRunId = await findReviewCheck(
+					token,
+					attempt.owner,
+					attempt.repo,
+					attempt.headSha,
+					attempt.attemptId,
+				);
+			}
+			if (checkRunId === undefined) {
+				try {
+					checkRunId = await createReviewCheck(token, attempt.owner, attempt.repo, {
+						headSha: attempt.headSha,
+						attemptId: attempt.attemptId,
+						prNumber: attempt.prNumber,
+					});
+				} catch (createError) {
+					try {
+						checkRunId = await findReviewCheck(
+							token,
+							attempt.owner,
+							attempt.repo,
+							attempt.headSha,
+							attempt.attemptId,
+						);
+					} catch (reconcileError) {
+						throw reconcileError instanceof GitHubRateLimitError ? reconcileError : createError;
+					}
+					if (checkRunId === undefined) throw createError;
+				}
+			}
+
+			const armedAttempt = { ...attempt, checkRunId, setupRetryAt: undefined };
+			await this.arm(armedAttempt, attempt.setupLease ?? "");
+			const latestHeadSha = await getPullRequestHeadSha(
+				token,
+				attempt.owner,
+				attempt.repo,
+				attempt.prNumber,
+			);
+			if (latestHeadSha !== attempt.headSha) {
+				await this.recordSetupTerminal(
+					armedAttempt,
+					"This review request was superseded by a newer commit before the review started. Remove and reapply the `bot:review` label to review the current head.",
+				);
+				return;
+			}
+			if (!(await this.beginAdmission(attempt.attemptId, attempt.setupLease ?? ""))) return;
+
+			const executionCtx = {
+				waitUntil: (promise: Promise<unknown>) => this.ctx.waitUntil(promise),
+				passThroughOnException: () => undefined,
+			};
+			const response = await admitReviewWorkflow(
+				{
+					...attempt.workflowInput,
+					attemptId: attempt.attemptId,
+					expectedRunId: attempt.attemptId,
+					deliveryId: attempt.deliveryId,
+					checkRunId,
+				},
+				this.env,
+				executionCtx,
+			);
+			if (!response.ok) throw new Error(`workflow admission returned ${response.status}`);
+			const admission: { runId?: string } = await response
+				.json<{ runId?: string }>()
+				.catch(() => ({}));
+			if (admission.runId) {
+				await this.identify(attempt.attemptId, attempt.attemptId, admission.runId);
+			}
+			console.log(
+				JSON.stringify({
+					message: "review workflow admitted",
+					attemptId: attempt.attemptId,
+					runId: admission.runId,
+					prNumber: attempt.prNumber,
+					checkRunId,
+				}),
+			);
+		} catch (error) {
+			const current = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);
+			if (!current || current.terminal || current.admissionStartedAt !== undefined) {
+				if (current && !current.terminal) {
+					await this.recordSetupTerminal(
+						current,
+						"The review could not be admitted. Remove and reapply the `bot:review` label to retry.",
+					);
+				}
+				return;
+			}
+			if (error instanceof TerminalConfigurationError) {
+				await this.recordSetupTerminal(current, error.message);
+				return;
+			}
+			await this.scheduleSetupRetry(current, error);
+		}
 	}
 
 	async heartbeat(attemptId: string, runId: string, stage: ReviewStage): Promise<boolean> {
@@ -176,6 +365,51 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		) {
 			return "exhausted";
 		}
+		try {
+			const creds = readAppCreds(this.env);
+			if (!creds) throw new TerminalConfigurationError("GitHub App credentials are unavailable");
+			const token = await this.githubToken(creds, `review-recovery:${attempt.attemptId}`);
+			const currentHeadSha = await getPullRequestHeadSha(
+				token,
+				attempt.owner,
+				attempt.repo,
+				attempt.prNumber,
+			);
+			if (currentHeadSha !== attempt.headSha) {
+				await this.recordSetupTerminal(
+					attempt,
+					"This review request was superseded by a newer commit before recovery. Remove and reapply the `bot:review` label to review the current head.",
+				);
+				return "pending";
+			}
+		} catch (error) {
+			if (error instanceof TerminalConfigurationError) {
+				await this.recordSetupTerminal(attempt, error.message);
+				return "pending";
+			}
+			const recoveryHeadRetryCount = (attempt.recoveryHeadRetryCount ?? 0) + 1;
+			if (recoveryHeadRetryCount >= SETUP_RETRY_LIMIT) {
+				await this.recordSetupTerminal(
+					{ ...attempt, recoveryHeadRetryCount },
+					"GitHub remained unavailable while EmDashBot checked whether this review could be recovered. Remove and reapply the `bot:review` label to retry.",
+				);
+				return "pending";
+			}
+			const delay = reviewSetupRetryDelay(error, recoveryHeadRetryCount);
+			await this.ctx.storage.put(ATTEMPT_KEY, { ...attempt, recoveryHeadRetryCount });
+			await this.ctx.storage.setAlarm(Date.now() + delay);
+			console.error(
+				JSON.stringify({
+					message: "review recovery head inspection failed",
+					error: error instanceof Error ? error.message : String(error),
+					attemptId: attempt.attemptId,
+					runId: attempt.runId,
+					recoveryHeadRetryCount,
+					delay,
+				}),
+			);
+			return "pending";
+		}
 
 		const lastProgressAt = Date.now();
 		const retryRunId = `${attempt.attemptId}:retry:${workflowRetryCount}`;
@@ -185,6 +419,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			stage: "admitted" as const,
 			lastProgressAt,
 			workflowRetryCount,
+			recoveryHeadRetryCount: undefined,
 			workflowActiveStaleSince: undefined,
 		};
 		await this.ctx.storage.put(ATTEMPT_KEY, retrying);
@@ -192,7 +427,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		try {
 			const creds = readAppCreds(this.env);
 			if (creds) {
-				const token = await mintInstallationToken(creds);
+				const token = await this.githubToken(creds, `review-check-update:${attempt.attemptId}`);
 				await updateReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
 					prNumber: attempt.prNumber,
 					runId: retryRunId,
@@ -286,17 +521,16 @@ export class ReviewWatchdog extends DurableObject<Env> {
 	private async flushTerminal(
 		attempt: ReviewAttempt & { terminal: ReviewTerminal },
 	): Promise<void> {
-		if (attempt.checkRunId === undefined) {
-			throw new TerminalConfigurationError("Review attempt has no GitHub check run");
-		}
 		const creds = readAppCreds(this.env);
 		if (!creds) throw new TerminalConfigurationError("GitHub App credentials are unavailable");
-		const token = await mintInstallationToken(creds);
-		await completeReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
-			...attempt.terminal,
-			prNumber: attempt.prNumber,
-			runId: attempt.runId,
-		});
+		const token = await this.githubToken(creds, `review-terminal:${attempt.attemptId}`);
+		if (attempt.checkRunId !== undefined) {
+			await completeReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
+				...attempt.terminal,
+				prNumber: attempt.prNumber,
+				runId: attempt.runId,
+			});
+		}
 		await removePullRequestLabel(
 			token,
 			attempt.owner,
@@ -376,15 +610,18 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			}
 			return;
 		}
+		if (
+			attempt.admissionStartedAt === undefined &&
+			(attempt.checkRunId === undefined || attempt.runId === attempt.attemptId)
+		) {
+			await this.setupAndAdmit(attempt);
+			return;
+		}
 		if (!isReviewAttemptStale(attempt.lastProgressAt, Date.now(), attempt.stage)) {
 			await this.ctx.storage.setAlarm(attempt.lastProgressAt + reviewStaleAfter(attempt.stage));
 			return;
 		}
-		if (attempt.checkRunId === undefined) {
-			await this.ctx.storage.deleteAll();
-			await this.ctx.storage.deleteAlarm();
-			return;
-		}
+		if (attempt.checkRunId === undefined) return;
 		const workflowStatus = await this.workflowStatus(attempt);
 		if (workflowStatus === "unavailable") return;
 		const currentAttempt = await this.ctx.storage.get<ReviewAttempt>(ATTEMPT_KEY);

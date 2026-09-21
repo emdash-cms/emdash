@@ -707,17 +707,17 @@ npx emdash secrets generate
 ```
 
 Prints the new key to stdout. Pipe it into your secret store, or write it
-straight to your local `.env` file with `--write`. The same `.env` file is
-read by Node and, in local development, by Wrangler and the Cloudflare Vite
-plugin:
+straight to your local `.env` file with `--write`. Wrangler and the Cloudflare
+Vite plugin read that file in local development. A standalone Node server does
+not load `.env` automatically; load it through the process manager or provide
+the key through the server's process environment. The [Node.js deployment
+guide](/deployment/nodejs/#build-and-run) shows the local command.
 
 ```bash
 npx emdash secrets generate --write .env
 ```
 
-`--write` refuses to overwrite an existing entry without `--force`.
-Replacing a key in a deployment with existing encrypted data will leave
-those secrets unreadable, so the protection is intentional.
+`--write` refuses to overwrite an existing entry without `--force`. To rotate a deployment with existing encrypted data, prepend the generated key to the existing value and separate the keys with a comma. EmDash encrypts new values with the first key and uses older entries for decryption by `kid`. Re-save every plugin secret before removing an old key. EmDash does not currently list the key IDs still used by stored settings, so keep an inventory of the credentials you resave and verify each integration before removing its old key.
 
 #### `secrets fingerprint <key>`
 

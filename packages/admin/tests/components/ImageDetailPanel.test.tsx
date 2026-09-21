@@ -539,7 +539,7 @@ describe("ImageDetailPanel", () => {
 
 		await expect
 			.element(screen.getByRole("button", { name: "Use cropped asset" }))
-			.toHaveAttribute("data-item-url", "/_emdash/api/media/file/folder%2Fold%20image.jpg");
+			.toHaveAttribute("data-item-url", "/_emdash/api/media/file/folder/old%20image.jpg");
 	});
 
 	it("does not close or save the usage behind an open asset dialog", async () => {

@@ -11,7 +11,7 @@
  * Clicking it verifies the session server-side and reloads the page with the
  * `_edit` query param — that URL is always rendered fresh with the full
  * server-side toolbar. Logged-out browsers pay one localStorage read and
- * nothing else. See Discussion #1742.
+ * nothing else.
  */
 
 /**
@@ -30,6 +30,9 @@ export const EDITOR_FLAG_KEY = "emdash-editor";
  */
 export const TOOLBAR_DISMISSED_KEY = "emdash-toolbar-dismissed";
 
+/** Localized bootstrap labels written by the admin SPA for this browser. */
+export const TOOLBAR_LABELS_KEY = "emdash-toolbar-labels";
+
 /**
  * Query param that requests a fresh (never cached) editor render. Presence is
  * verified server-side: non-editors are redirected to the canonical URL.
@@ -40,15 +43,37 @@ export function renderToolbarBootstrap(): string {
 	return `
 <!-- EmDash Toolbar Bootstrap -->
 <script>
-(function() {
-  var flag, dismissed;
+(function mountToolbar() {
+  var flag, dismissed, labelsRaw;
+  var labels = null;
   try {
     flag = localStorage.getItem("${EDITOR_FLAG_KEY}");
     dismissed = localStorage.getItem("${TOOLBAR_DISMISSED_KEY}");
+    labelsRaw = localStorage.getItem("${TOOLBAR_LABELS_KEY}");
   } catch (e) {
     return;
   }
   if (!flag || dismissed) return;
+  if (labelsRaw) {
+    try {
+      var storedLabels = JSON.parse(labelsRaw);
+      if (storedLabels && typeof storedLabels.editMode === "string" && typeof storedLabels.hideToolbar === "string") {
+        labels = storedLabels;
+      }
+    } catch (e) {}
+  }
+  if (!labels) {
+    fetch("/_emdash/api/visual-editing/toolbar-labels", { credentials: "same-origin" })
+      .then(function(response) { return response.ok ? response.json() : null; })
+      .then(function(body) {
+        var fetched = body && body.data;
+        if (!fetched || typeof fetched.editMode !== "string" || typeof fetched.hideToolbar !== "string") return;
+        try { localStorage.setItem("${TOOLBAR_LABELS_KEY}", JSON.stringify(fetched)); } catch (e) { return; }
+        mountToolbar();
+      })
+      .catch(function() {});
+    return;
+  }
   // The server toolbar is present on _edit / edit-mode / preview renders.
   if (document.getElementById("emdash-toolbar")) return;
 
@@ -67,13 +92,13 @@ export function renderToolbarBootstrap(): string {
   divider.style.cssText = "width:1px;height:16px;background:rgba(255,255,255,0.15);";
 
   var editBtn = document.createElement("button");
-  editBtn.textContent = "Edit";
+  editBtn.textContent = labels.editMode;
   editBtn.style.cssText = "padding:4px 12px;background:#3b82f6;color:#fff;border:none;border-radius:999px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;";
 
   var closeBtn = document.createElement("button");
   closeBtn.textContent = "\\u00d7";
-  closeBtn.title = "Hide toolbar";
-  closeBtn.setAttribute("aria-label", "Hide toolbar");
+  closeBtn.title = labels.hideToolbar;
+  closeBtn.setAttribute("aria-label", labels.hideToolbar);
   closeBtn.style.cssText = "background:none;border:none;color:#666;cursor:pointer;font-size:16px;padding:0 2px;line-height:1;font-family:inherit;";
 
   editBtn.addEventListener("click", function() {

@@ -1,3 +1,4 @@
+import { githubRateLimitGate } from "./github-rate-limit-client.js";
 import {
 	listOpenManagedIssues,
 	mintInstallationToken,
@@ -119,7 +120,10 @@ export async function loadDashboardPayload(env: Env): Promise<DashboardPayload> 
 	const creds = readAppCreds(env);
 	const repo = readRepoContext(env);
 	if (!creds || !repo) throw new Error("GitHub credentials or repository context missing");
-	const token = await mintInstallationToken(creds);
+	const gate = githubRateLimitGate(env);
+	const consumer = "dashboard";
+	const tokenValue = await mintInstallationToken(creds, undefined, { token: "", gate, consumer });
+	const token = { token: tokenValue, gate, consumer };
 	const githubIssues = (await listOpenManagedIssues(token, repo)).slice(0, DASHBOARD_ISSUE_LIMIT);
 	const snapshots = await Promise.allSettled(
 		githubIssues.map((issue) =>

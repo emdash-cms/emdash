@@ -228,6 +228,10 @@ export const contentScheduleBody = z
 			examples: ["2025-06-15T09:00:00Z"],
 		}),
 		overrideLock: overrideLockFlag,
+		_rev: z
+			.string()
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentScheduleBody" });
 
