@@ -115,4 +115,19 @@ describe("plugin ctx.media.delete", () => {
 		const media = createMediaAccessWithWrite(db, undefined, fakeStorage());
 		expect(await media.delete("missing")).toBe(false);
 	});
+
+	it("throws when the database deletion fails", async () => {
+		const storage = fakeStorage();
+		const media = createMediaAccessWithWrite(db, undefined, storage);
+		const uploaded = await media.upload(
+			"data.bin",
+			"application/octet-stream",
+			new Uint8Array([1, 2, 3, 4]).buffer,
+		);
+		await db.schema.dropTable("_emdash_media_upload_attempts").execute();
+
+		await expect(media.delete(uploaded.mediaId)).rejects.toThrow("Failed to delete media");
+		expect(await new MediaRepository(db).findById(uploaded.mediaId)).not.toBeNull();
+		expect(await storage.exists(uploaded.storageKey)).toBe(true);
+	});
 });

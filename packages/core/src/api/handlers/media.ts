@@ -271,13 +271,7 @@ function isForeignKeyViolation(error: unknown): boolean {
 	);
 }
 
-/**
- * Delete a media item and its stored object.
- *
- * The object is registered for cleanup before the row is removed, so when
- * the storage delete fails the cleanup sweep retries it; `storageDeleted`
- * tells the caller whether the object is already gone.
- */
+/** Delete a media item, then delete or queue cleanup of its stored object. */
 export async function handleMediaDelete(
 	db: Kysely<Database>,
 	id: string,

@@ -259,6 +259,14 @@ export class MediaRepository {
 			.execute();
 	}
 
+	async deferUploadAttemptCleanup(storageKey: string): Promise<void> {
+		await this.db
+			.updateTable("_emdash_media_upload_attempts")
+			.set({ updated_at: new Date().toISOString() })
+			.where("storage_key", "=", storageKey)
+			.execute();
+	}
+
 	async deleteCompletedUploadAttempts(): Promise<number> {
 		const result = await this.db
 			.deleteFrom("_emdash_media_upload_attempts")
@@ -296,7 +304,7 @@ export class MediaRepository {
 					),
 				),
 			)
-			.orderBy("created_at", "asc")
+			.orderBy("updated_at", "asc")
 			.limit(limit)
 			.execute();
 
