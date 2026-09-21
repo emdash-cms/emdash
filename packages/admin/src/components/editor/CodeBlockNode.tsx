@@ -288,7 +288,7 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 							<div onKeyDown={handleKeyDown}>
 								<Autocomplete.InputGroup
 									size="base"
-									className="focus:ring-inset"
+									className="focus:ring-0"
 									placeholder={t`Search for a language…`}
 								/>
 							</div>
