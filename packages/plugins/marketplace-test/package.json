@@ -26,12 +26,13 @@
 		"cms",
 		"plugin",
 		"test",
-		"marketplace"
+		"registry"
 	],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"dependencies": {
-		"emdash": "workspace:*"
+		"emdash": "workspace:*",
+		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@emdash-cms/plugin-cli": "workspace:*",

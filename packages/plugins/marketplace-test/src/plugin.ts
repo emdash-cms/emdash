@@ -9,9 +9,25 @@ import {
 	type RedirectUpdateInput,
 	type SandboxedPlugin,
 } from "emdash/plugin";
+import { z } from "zod";
 
 let isolateId: string | undefined;
 let recordSequence = 0;
+
+const diagnosticsMcpInput = z.object({});
+const diagnosticsMcpOutput = z
+	.object({
+		plugin: z.object({ id: z.string(), version: z.string() }),
+		authority: z.record(z.string(), z.boolean()),
+	})
+	.passthrough();
+const deleteRecordMcpInput = z.object({ id: z.string().min(1) });
+const deleteRecordMcpOutput = z.object({ deleted: z.boolean() });
+const fixturePng = new Uint8Array([
+	137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0,
+	0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 252, 255, 31, 0, 3, 3, 2, 0, 239,
+	191, 105, 69, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+]);
 
 type RedirectCreateProbeInput = RedirectCreateInput & { auto?: unknown };
 type RedirectUpdateProbeInput = RedirectUpdateInput & { _rev: string; auto?: unknown };
@@ -256,7 +272,7 @@ const plugin: SandboxedPlugin = {
 			});
 			return {
 				...event,
-				metadata: { ...event.metadata, marketplaceTest: true },
+				metadata: { ...event.metadata, registryTest: true },
 			};
 		},
 		"comment:moderate": {
@@ -265,7 +281,7 @@ const plugin: SandboxedPlugin = {
 				await record(ctx, "events", "comment-moderate", {
 					priorApprovedCount: event.priorApprovedCount,
 				});
-				return { status: "pending", reason: "Marketplace fixture moderation" };
+				return { status: "pending", reason: "Registry fixture moderation" };
 			},
 		},
 		"comment:afterCreate": async (event, ctx) =>
@@ -334,7 +350,7 @@ const plugin: SandboxedPlugin = {
 	routes: {
 		admin: {
 			permission: "plugins:manage",
-			handler: async (route) => {
+			handler: async (route, ctx) => {
 				const actionId =
 					typeof route.input === "object" &&
 					route.input !== null &&
@@ -491,7 +507,7 @@ const plugin: SandboxedPlugin = {
 				}
 				return {
 					blocks: [
-						{ type: "header", text: "Marketplace diagnostics" },
+						{ type: "header", text: "Registry diagnostics" },
 						{
 							type: "context",
 							text: "This fixture intentionally requests the maximum compatible sandbox authority.",
@@ -520,7 +536,11 @@ const plugin: SandboxedPlugin = {
 								},
 							],
 						},
-						{ type: "image", url: "/plugin-assets/status.png", alt: "Plugin status" },
+						{
+							type: "image",
+							url: `/_emdash/api/plugins/${encodeURIComponent(ctx.plugin.id)}/fixture-image`,
+							alt: "Plugin status",
+						},
 					],
 					...(actionId === "run-diagnostics" && {
 						toast: { type: "success", message: "Diagnostics passed" },
@@ -1322,13 +1342,24 @@ const plugin: SandboxedPlugin = {
 				},
 			}),
 		},
+		"records/delete": pluginRoute({
+			permission: "plugins:manage",
+			methods: ["POST"],
+			request: { body: "json", maxBytes: 1024 },
+			handler: async (route, ctx) => {
+				if (!isRecord(route.input) || typeof route.input.id !== "string" || !route.input.id) {
+					throw new Error("Expected a record ID");
+				}
+				return { deleted: await ctx.storage.records.delete(route.input.id) };
+			},
+		}),
 		"logging-exercise": {
 			permission: "plugins:manage",
 			handler: async (_route, ctx) => {
-				ctx.log.debug("marketplace fixture debug", { secret: "[redacted]" });
-				ctx.log.info("marketplace fixture info");
-				ctx.log.warn("marketplace fixture warning");
-				ctx.log.error("marketplace fixture error");
+				ctx.log.debug("registry fixture debug", { secret: "[redacted]" });
+				ctx.log.info("registry fixture info");
+				ctx.log.warn("registry fixture warning");
+				ctx.log.error("registry fixture error");
 				return { logged: true };
 			},
 		},
@@ -1375,6 +1406,19 @@ const plugin: SandboxedPlugin = {
 					body: { kind: "text", value: "marketplace-test" },
 				}),
 		}),
+		"fixture-image": pluginRoute({
+			public: true,
+			methods: ["GET"],
+			request: { body: "none" },
+			response: "raw",
+			cacheControl: "public, max-age=3600",
+			handler: async () =>
+				pluginResponse({
+					status: 200,
+					headers: { "content-type": "image/png" },
+					body: { kind: "bytes", value: fixturePng },
+				}),
+		}),
 		"http-roundtrip": {
 			handler: async (route, ctx) => {
 				if (
@@ -1401,6 +1445,24 @@ const plugin: SandboxedPlugin = {
 					bytes: [...new Uint8Array(await response.arrayBuffer())],
 					cloneBytes: [...new Uint8Array(await clone.arrayBuffer())],
 				};
+			},
+		},
+	},
+	mcp: {
+		tools: {
+			runDiagnostics: {
+				description: "Read the registry fixture diagnostic summary.",
+				route: "diagnostics",
+				input: diagnosticsMcpInput,
+				output: diagnosticsMcpOutput,
+				destructive: false,
+			},
+			deleteRecord: {
+				description: "Delete one registry fixture storage record.",
+				route: "records/delete",
+				input: deleteRecordMcpInput,
+				output: deleteRecordMcpOutput,
+				destructive: true,
 			},
 		},
 	},

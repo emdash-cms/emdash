@@ -50,7 +50,7 @@ The fixture declares every name in `HOOK_NAMES`:
 - cron and page metadata hooks; and
 - the trusted-only page-fragment hook, whose sandbox exclusion is tested.
 
-Routes use every declared body mode (`none`, `json`, `text`, `bytes`, and `form-data`), every supported HTTP method, JSON and raw responses, declared request headers, private permissions, public consent, and public cache policy. Runtime tests cover authorization, CSRF, method rejection and `Allow`, byte limits, content-type restrictions, safe response headers, and unsafe resource denial.
+Routes use every declared body mode (`none`, `json`, `text`, `bytes`, and `form-data`), every supported HTTP method, JSON and raw responses, declared request headers, private permissions, public consent, and public cache policy. Runtime tests cover authorization, CSRF, method rejection and `Allow`, byte limits, content-type restrictions, safe response headers, and unsafe resource denial. Two Zod-backed MCP tools cover structured input/output metadata, read-only diagnostics, destructive consent, route permission transport, and installed registry consent.
 
 The `diagnostics` route reports which context authorities reached the isolate. Domain routes expose deterministic operations for content, schema, taxonomies, redirects, comments, media, users, email, storage, KV, settings, cron, network, and logging.
 
@@ -60,7 +60,7 @@ The package declares two pages, two dashboard widgets, a saved-entry panel, conf
 
 The `/components` page renders every block accepted by the production validator, including tabs, plus every admin form element. The runtime suite loads it in Arabic and verifies the host-attested `ar` locale and `rtl` direction. Saved-entry tests verify host-reloaded identity, ownership checks, invalid response isolation, refresh/navigation bounds, and failure isolation.
 
-![The maximal marketplace diagnostics page rendered in the Arabic right-to-left admin](./screenshots/diagnostics-ar-rtl.png)
+![The maximal registry diagnostics page rendered in the Arabic right-to-left admin](./screenshots/diagnostics-ar-rtl.png)
 
 The screenshot uses the Node E2E fixture at `/plugins/marketplace-test/overview`, a 1280×720 viewport, the Arabic locale, and the light theme.
 
@@ -70,7 +70,6 @@ These surfaces cannot be exercised as ordinary successful operations in the same
 
 - **Host-restricted network access.** The plugin manifest validator rejects a non-empty `allowedHosts` list when `network:request:unrestricted` is declared. The maximal fixture keeps unrestricted access. Reduced-manifest tests in core and both bridges cover host allowlists, redirects, SSRF, and credential stripping.
 - **Sandboxed page fragments.** The shared manifest accepts `page:fragments`, but the sandbox proxy drops it before hook registration. The fixture declares it to protect the manifest round-trip and the host-wiring suite proves that it does not register.
-- **MCP tools.** At this repository head, the documented `zod`-based MCP authoring shape cannot pass the plugin CLI's temporary probe import: the runtime build leaves `zod` external, and the probe fails with `ERR_MODULE_NOT_FOUND`. The fixture records this as a build-pipeline gap instead of adding a fake schema or changing plugin CLI scope.
 - **Authoring-only elements.** `repeater` and `media_picker` are part of the shared element vocabulary, but the runtime Block Kit renderer intentionally emits no DOM for them in sandbox admin forms. The fixture covers `media_picker` through the declarative field-widget surface and records `repeater` as authoring-only.
 - **Presigned media uploads.** The shared media interface includes `getUploadUrl()` for trusted plugins, but sandbox wrappers reject it and require bounded direct byte uploads through `media.upload()`. The type inventory records this method as excluded while the runtime suite exercises direct upload and deletion through R2.
 - **Native surfaces.** React admin code, Astro components, custom Portable Text blocks, page fragments, host bindings, Node built-ins, sockets, and direct database access require a trusted native plugin.
@@ -89,4 +88,4 @@ pnpm --dir packages/workerd test
 pnpm --dir packages/cloudflare test
 ```
 
-The main evidence lives in `packages/plugin-test/test/host.test.ts` and `packages/plugin-test/test/marketplace-inventory.test.ts`. Core's sandbox host, route, consent, registry installation, redaction, and implication suites cover reduced-authority and cross-plugin denial cases that the maximal manifest cannot represent.
+The main evidence lives in `packages/plugin-test/test/host.test.ts` and `packages/plugin-test/test/registry-inventory.test.ts`. Core's sandbox host, route, consent, registry installation, redaction, and implication suites cover reduced-authority and cross-plugin denial cases that the maximal manifest cannot represent.

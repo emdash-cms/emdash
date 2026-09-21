@@ -1,6 +1,6 @@
 import { expect, test } from "../fixtures";
 
-test.describe("Marketplace test Block Kit", () => {
+test.describe("Registry fixture Block Kit", () => {
 	test.beforeEach(async ({ admin, page }) => {
 		await admin.devBypassAuth();
 		await page
@@ -15,13 +15,20 @@ test.describe("Marketplace test Block Kit", () => {
 		await admin.goto("/plugins/marketplace-test/overview");
 		await admin.waitForLoading();
 		await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-		await expect(page.getByRole("heading", { name: "Marketplace diagnostics" })).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Registry diagnostics" })).toBeVisible();
 		await expect(page.getByText("Surface")).toBeVisible();
 		await expect(page.getByText("admin-page", { exact: true })).toBeVisible();
 		await expect(page.getByRole("link", { name: "Documentation" })).toHaveAttribute(
 			"href",
 			"https://docs.example.test/plugin",
 		);
+		const statusImage = page.getByRole("img", { name: "Plugin status" });
+		await expect(statusImage).toBeVisible();
+		expect(
+			await statusImage.evaluate(
+				(image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+			),
+		).toBe(true);
 		const diagnosticResponse = page.waitForResponse(
 			(response) =>
 				response.url().endsWith("/_emdash/api/plugins/marketplace-test/admin") &&
@@ -42,7 +49,7 @@ test.describe("Marketplace test Block Kit", () => {
 		await expect(page.getByText("Direction")).toBeVisible();
 		await expect(page.getByText("rtl", { exact: true })).toBeVisible();
 		await expect(page.getByRole("tab", { name: "Context" })).toBeVisible();
-		await testInfo.attach("marketplace-test-components-ar-rtl", {
+		await testInfo.attach("registry-fixture-components-ar-rtl", {
 			body: await page.screenshot({ fullPage: true }),
 			contentType: "image/png",
 		});

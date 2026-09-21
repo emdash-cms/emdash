@@ -2409,6 +2409,9 @@ importers:
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(publint@0.3.17)(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
       zod:
         specifier: 'catalog:'
         version: 4.5.4
@@ -2425,9 +2428,6 @@ importers:
       publint:
         specifier: 'catalog:'
         version: 0.3.17
-      typescript:
-        specifier: 'catalog:'
-        version: 6.0.3
       vitest:
         specifier: 'catalog:'
         version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.16(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
@@ -2671,6 +2671,9 @@ importers:
       emdash:
         specifier: workspace:*
         version: link:../../core
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
     devDependencies:
       '@emdash-cms/plugin-cli':
         specifier: workspace:*

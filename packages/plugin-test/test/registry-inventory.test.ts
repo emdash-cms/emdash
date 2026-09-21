@@ -189,7 +189,7 @@ function routeNames(testHost: PluginTestHost): Set<string> {
 	);
 }
 
-describe("marketplace-test capability inventory", () => {
+describe("registry fixture capability inventory", () => {
 	it("covers every canonical capability and hook without authoring legacy aliases", async () => {
 		host = await createPluginTestHost();
 		expect(new Set(host.manifest.capabilities)).toEqual(new Set(CURRENT_PLUGIN_CAPABILITIES));
@@ -202,6 +202,10 @@ describe("marketplace-test capability inventory", () => {
 		).toEqual([]);
 		const hooks = host.manifest.hooks.map((hook) => (typeof hook === "string" ? hook : hook.name));
 		expect(new Set(hooks)).toEqual(new Set(HOOK_NAMES));
+		expect(host.manifest.mcp?.tools).toEqual([
+			expect.objectContaining({ name: "runDiagnostics", destructive: false }),
+			expect.objectContaining({ name: "deleteRecord", destructive: true }),
+		]);
 	});
 
 	it("maps every PluginContext method to a declared deterministic route", async () => {
@@ -310,7 +314,7 @@ describe("marketplace-test capability inventory", () => {
 			metadata: {},
 		};
 		await expect(host.invokeHook("comment:beforeCreate", commentEvent)).resolves.toMatchObject({
-			metadata: { marketplaceTest: true },
+			metadata: { registryTest: true },
 		});
 		await expect(
 			host.invokeHook("comment:moderate", {
@@ -323,7 +327,7 @@ describe("marketplace-test capability inventory", () => {
 				},
 				priorApprovedCount: 0,
 			}),
-		).resolves.toEqual({ status: "pending", reason: "Marketplace fixture moderation" });
+		).resolves.toEqual({ status: "pending", reason: "Registry fixture moderation" });
 		const message = { to: "reader@example.test", subject: "Fixture", text: "Body" };
 		await expect(
 			host.invokeHook("email:beforeSend", { message, source: "marketplace-test" }),
@@ -466,6 +470,22 @@ describe("marketplace-test capability inventory", () => {
 			invoke("media-exercise", { operation: "delete", id: upload.mediaId }),
 		).resolves.toEqual({ deleted: true });
 		await expect(invoke("logging-exercise")).resolves.toEqual({ logged: true });
+		await runtimeHost.fixtures.plugin.storage("records", "mcp-delete", {
+			externalId: "mcp-delete",
+			status: "pending",
+			score: 1,
+		});
+		await expect(invoke("records/delete", { id: "mcp-delete" })).resolves.toEqual({
+			deleted: true,
+		});
+		await expect(runtimeHost.inspect.storage.get("records", "mcp-delete")).resolves.toBeNull();
+		const deleteWithGet = await runtimeHost.actions.routes.request("records/delete", {
+			method: "GET",
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+		});
+		expect(deleteWithGet.status).toBe(405);
+		expect(deleteWithGet.headers.get("allow")).toBe("POST");
 		await expect(invoke("cron-exercise")).resolves.toMatchObject({
 			scheduled: [expect.objectContaining({ name: "diagnostic" })],
 			remaining: [],
@@ -520,6 +540,11 @@ describe("marketplace-test capability inventory", () => {
 		const raw = await request("raw-text", { method: "GET" });
 		expect(raw.headers.get("content-type")).toBe("text/plain; charset=utf-8");
 		expect(await raw.text()).toBe("marketplace-test");
+		const image = await request("fixture-image", { method: "GET" });
+		expect(image.headers.get("content-type")).toBe("image/png");
+		expect(new Uint8Array(await image.arrayBuffer()).subarray(0, 8)).toEqual(
+			Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10),
+		);
 		const rejected = await request("body-text", { method: "PUT", rawBody: "no" });
 		expect(rejected.status).toBe(405);
 		expect(rejected.headers.get("allow")).toBe("POST");

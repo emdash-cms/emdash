@@ -44,6 +44,7 @@
 		"modern-tar": "^0.7.5",
 		"picocolors": "^1.1.1",
 		"tsdown": "catalog:",
+		"typescript": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
@@ -52,7 +53,6 @@
 		"image-size": "catalog:",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
-		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},
 	"keywords": [

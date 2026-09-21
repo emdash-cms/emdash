@@ -355,6 +355,8 @@ describe("registry delegated-release conformance", () => {
 			version: fixture.version,
 			registryPublisherDid: fixture.publisherDid,
 			registrySlug: fixture.packageSlug,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
 		expect(storage.keys()).toEqual([
 			`registry/${installed.data.pluginId}/${fixture.version}/admin.js`,
@@ -367,7 +369,7 @@ describe("registry delegated-release conformance", () => {
 		);
 	});
 
-	it("installs the maximal marketplace fixture only after exact authority and public-route consent", async () => {
+	it("installs the maximal registry fixture only after exact authority and public-route consent", async () => {
 		const pluginDir = fileURLToPath(
 			new URL("../../../../plugins/marketplace-test", import.meta.url),
 		);
@@ -479,6 +481,35 @@ describe("registry delegated-release conformance", () => {
 			},
 		});
 
+		const noMcpConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedPublicRoutes: preview.data.publicRoutes,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(noMcpConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "MCP_TOOL_CONSENT_REQUIRED",
+				details: {
+					mcpTools: [
+						expect.objectContaining({ name: "runDiagnostics", destructive: false }),
+						expect.objectContaining({ name: "deleteRecord", destructive: true }),
+					],
+				},
+			},
+		});
+
 		const installed = await handleRegistryInstall(
 			db,
 			storage,
@@ -525,6 +556,22 @@ describe("registry delegated-release conformance", () => {
 			const installedPlugin = await installedRunner.load(
 				installedBundle.manifest,
 				installedBundle.backendCode,
+			);
+			const adminResponse = (await installedPlugin.invokeRoute(
+				"admin",
+				{ type: "page_load", page: "/overview" },
+				{
+					url: "https://plugin.test/admin",
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					ui: { surface: "admin-page", locale: "en", direction: "ltr" },
+				},
+			)) as { blocks: Array<{ type: string; url?: string }> };
+			expect(adminResponse.blocks).toContainEqual(
+				expect.objectContaining({
+					type: "image",
+					url: `/_emdash/api/plugins/${installed.data.pluginId}/fixture-image`,
+				}),
 			);
 			await expect(
 				installedPlugin.invokeRoute(

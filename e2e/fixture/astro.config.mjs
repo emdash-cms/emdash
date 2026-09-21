@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import node from "@astrojs/node";
 import react from "@astrojs/react";
 import { colorPlugin } from "@emdash-cms/plugin-color";
-import marketplaceTestPlugin from "@emdash-cms/plugin-marketplace-test";
+import registryTestPlugin from "@emdash-cms/plugin-marketplace-test";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sqlite } from "emdash/db";
@@ -60,7 +60,7 @@ export default defineConfig({
 			database: sqlite({ url: dbUrl }),
 			middleware: { outer: "./src/outer-middleware.ts" },
 			plugins: [colorPlugin(), editorExtensionsPlugin],
-			sandboxed: [{ ...marketplaceTestPlugin, hooks: [] }],
+			sandboxed: [{ ...registryTestPlugin, hooks: [] }],
 			marketplace: marketplaceUrl,
 			sandboxRunner: "@emdash-cms/sandbox-workerd",
 		}),

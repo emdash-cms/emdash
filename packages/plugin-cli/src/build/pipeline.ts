@@ -18,14 +18,15 @@
  *      the hook/route surface into a `ResolvedPlugin`. Identity + trust
  *      contract come from the manifest, not the code.
  *
- *   3. `buildRuntime({ entries, outDir, tmpDir })` — build `src/plugin.ts`
- *      again, this time minified + tree-shaken + with `.d.mts` types, to
+ *   3. `buildRuntime({ entries, outDir, tmpDir })` — remove build-only MCP
+ *      metadata from the authoring module, then build it minified + tree-shaken
+ *      alongside `.d.mts` types from the authoring entry, to
  *      produce `<outDir>/plugin.mjs` and `<outDir>/plugin.d.mts`. Probe
  *      and runtime builds differ deliberately in minification and dts
  *      output; the probe only reads `default.hooks` / `default.routes`
  *      *keys*, which minification doesn't rename (object literal keys
- *      stay stable). Both pass the same source through tsdown with no
- *      `external` and no `alias` — sandboxed plugins must not import
+ *      stay stable). The probe bundles Zod so MCP schemas can be evaluated
+ *      from the temporary output. Sandboxed plugins must not import
  *      from `emdash` at runtime (types come from `emdash/plugin` and
  *      are erased before bundling).
  *
@@ -59,6 +60,7 @@ import {
 	type ProbedHookEntry,
 	type ProbedRouteEntry,
 } from "./probe-schema.js";
+import { stripBuildOnlyMcp } from "./runtime-source.js";
 
 const PLUGIN_ENTRY_PATH = "src/plugin.ts";
 const PACKAGE_JSON_PATH = "package.json";
@@ -291,7 +293,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
-			noExternal: ["emdash/plugin"],
+			noExternal: ["emdash/plugin", "zod"],
 			inlineOnly: false,
 			treeshake: true,
 		});
@@ -557,19 +559,25 @@ export interface RuntimeFiles {
 /**
  * Build `src/plugin.ts` into `<outDir>/plugin.mjs` + `<outDir>/plugin.d.mts`.
  *
- * Same source as the probe; the configuration differs only in
- * `minify: true` and `dts: true`. The probe stays unminified for
- * stable property-key reads (`default.hooks`, `default.routes`); the
- * runtime build minifies because this output is what runs in the
- * isolate (loader string-embeds it) or is `import`-ed in-process. No
- * Runtime imports from the lightweight `emdash/plugin` authoring subpath are
- * bundled so helpers such as `pluginResponse()` exist inside the isolate.
- * Imports from the main `emdash` package remain unsupported.
+ * MCP schemas are build/install metadata, so the runtime transform removes
+ * the `mcp` property and schema declarations unused by hooks/routes. The result
+ * is minified because this output runs in the
+ * isolate (loader string-embeds it) or is imported in-process. Imports from
+ * the lightweight `emdash/plugin` authoring subpath and Zod are bundled so
+ * route handlers can use them inside the isolate. Imports from the main
+ * `emdash` package remain unsupported.
  */
 export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFiles> {
 	const { entries, outDir, tmpDir, build } = ctx;
 
 	const runtimeOutDir = join(tmpDir, "runtime");
+	const runtimeSourcePlugin = {
+		name: "emdash-runtime-source",
+		transform(code: string, id: string) {
+			if (resolve(id) !== resolve(entries.pluginEntry)) return null;
+			return { code: stripBuildOnlyMcp(code, id), map: null };
+		},
+	};
 
 	try {
 		await build({
@@ -581,9 +589,10 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 			dts: false,
 			platform: "neutral",
 			external: [],
-			noExternal: ["emdash/plugin"],
+			noExternal: ["emdash/plugin", "zod"],
 			inlineOnly: false,
 			minify: true,
+			plugins: [runtimeSourcePlugin],
 			treeshake: true,
 		});
 		await build({

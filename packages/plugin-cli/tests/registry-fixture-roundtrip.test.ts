@@ -21,9 +21,9 @@ afterEach(async () => {
 	await Promise.all(temporaryDirectories.splice(0).map((dir) => rm(dir, { recursive: true })));
 });
 
-describe("marketplace-test artifact round trip", () => {
+describe("registry fixture artifact round trip", () => {
 	it("preserves maximal authority from source through bundle, descriptor, and registry record", async () => {
-		const output = await mkdtemp(join(tmpdir(), "emdash-marketplace-fixture-"));
+		const output = await mkdtemp(join(tmpdir(), "emdash-registry-fixture-"));
 		temporaryDirectories.push(output);
 		const build = await buildPlugin({ dir: fixture, outDir: output });
 		const bundle = await bundlePlugin({ dir: fixture, outDir: output });
@@ -33,20 +33,34 @@ describe("marketplace-test artifact round trip", () => {
 		const descriptorModule = await import(
 			`${pathToFileURL(build.files.descriptor!).href}?test=${Date.now()}`
 		);
+		const runtimeModule = await import(
+			`${pathToFileURL(build.files.runtime).href}?runtime-test=${Date.now()}`
+		);
 		const descriptor = descriptorModule.default as Record<string, unknown>;
+		const runtime = runtimeModule.default as Record<string, unknown>;
+		const runtimeSource = await readFile(build.files.runtime, "utf8");
 
 		expect(bundle.tarballBytes).toBeGreaterThan(0);
 		expect(bundle.sha256).toMatch(/^[0-9a-f]{64}$/);
 		expect(persistedManifest).toEqual(bundle.manifest);
+		expect(Object.keys(runtime).toSorted()).toEqual(["hooks", "routes"]);
+		expect(runtimeSource).not.toContain("runDiagnostics");
+		expect(runtimeSource).not.toContain("deleteRecord");
+		expect(Buffer.byteLength(runtimeSource)).toBeLessThan(60_000);
 		expect(descriptor).toMatchObject({
 			capabilities: persistedManifest.capabilities,
 			hooks: persistedManifest.hooks,
 			routes: persistedManifest.routes,
+			mcp: persistedManifest.mcp,
 			settingsSchema: persistedManifest.admin.settingsSchema,
 			fieldWidgets: persistedManifest.admin.fieldWidgets,
 			editorPanels: persistedManifest.admin.editorPanels,
 			editorActions: persistedManifest.admin.editorActions,
 		});
+		expect(persistedManifest.mcp?.tools).toEqual([
+			expect.objectContaining({ name: "runDiagnostics", destructive: false }),
+			expect.objectContaining({ name: "deleteRecord", destructive: true }),
+		]);
 		expect(
 			persistedManifest.routes.filter((route) => typeof route !== "string" && route.public === true)
 				.length,
@@ -82,7 +96,7 @@ describe("marketplace-test artifact round trip", () => {
 			`at://${did}/${NSID.packageRelease}/marketplace-test:${persistedManifest.version}`,
 		);
 		expect(release).toBeDefined();
-		if (!release) throw new Error("Marketplace fixture release record was not written");
+		if (!release) throw new Error("Registry fixture release record was not written");
 		const extension = (
 			release.value as {
 				extensions: Record<string, { declaredAccess: unknown }>;

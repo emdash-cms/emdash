@@ -27,10 +27,7 @@ interface Target {
 }
 
 const COLOR_PLUGIN_DIST = resolve(ROOT, "packages/plugins/color/dist/index.mjs");
-const MARKETPLACE_TEST_PLUGIN_DIST = resolve(
-	ROOT,
-	"packages/plugins/marketplace-test/dist/index.mjs",
-);
+const REGISTRY_TEST_PLUGIN_DIST = resolve(ROOT, "packages/plugins/marketplace-test/dist/index.mjs");
 const WORKERD_DIST = resolve(ROOT, "packages/workerd/dist/index.mjs");
 const CLOUDFLARE_DIST = resolve(ROOT, "packages/cloudflare/dist/index.mjs");
 
@@ -38,7 +35,7 @@ const TARGETS: Record<string, Target> = {
 	node: {
 		fixtureDir: resolve(ROOT, "e2e/fixture"),
 		buildFilter: "emdash-e2e-fixture...",
-		depsMarkers: [COLOR_PLUGIN_DIST, MARKETPLACE_TEST_PLUGIN_DIST, WORKERD_DIST],
+		depsMarkers: [COLOR_PLUGIN_DIST, REGISTRY_TEST_PLUGIN_DIST, WORKERD_DIST],
 		usesTempDb: true,
 	},
 	cloudflare: {
