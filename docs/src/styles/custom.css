@@ -97,6 +97,10 @@
 	background: var(--emdash-accent-soft);
 }
 
+.site-title img {
+	height: clamp(1.75rem, 3vw, 2rem);
+}
+
 /* Improve code block readability */
 .expressive-code {
 	margin-block: 1.5rem;
