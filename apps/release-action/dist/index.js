@@ -8182,7 +8182,7 @@ const editorDraftFieldSelectorSchema = object({
 const editorDraftAccessSchema = object({
 	read: editorDraftFieldSelectorSchema.optional(),
 	patch: editorDraftFieldSelectorSchema.optional()
-});
+}).refine((access) => access.read !== void 0 || access.patch !== void 0, { message: "Editor draft access must include read or patch" });
 const editorPanelSchema = object({
 	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
 	title: string().min(1).max(128),
