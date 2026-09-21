@@ -770,8 +770,8 @@ function TaxonomySection({
 	};
 
 	return (
-		<div className="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-x-3">
-			<Text as="span" variant="secondary" DANGEROUS_className="flex min-h-9 items-center">
+		<div className="grid min-w-0 gap-1.5">
+			<Text as="span" variant="secondary">
 				{taxonomy.label}
 			</Text>
 			<div className="grid min-w-0 gap-2">
