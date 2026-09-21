@@ -1,0 +1,21 @@
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_d8e9f234e54e68::t_774fdcec5855a7 1770,1801-1807
+packages/admin/src/components/editor/CodeBlockNode.tsx
+  s_d8e9f234e54e68::t_e7ec4d6db3d0ea 143-146,305-309
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f89bc9bd58e8f83b9f4436d610d55f298809a93e",
+  "prompts": {},
+  "sessions": {
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
