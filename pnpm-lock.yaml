@@ -1092,6 +1092,12 @@ importers:
       '@emdash-cms/plugin-color':
         specifier: workspace:*
         version: link:../../packages/plugins/color
+      '@emdash-cms/plugin-marketplace-test':
+        specifier: workspace:*
+        version: link:../../packages/plugins/marketplace-test
+      '@emdash-cms/sandbox-workerd':
+        specifier: workspace:*
+        version: link:../../packages/workerd
       astro:
         specifier: 'catalog:'
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)

@@ -2,7 +2,7 @@
 	"name": "@emdash-cms/plugin-marketplace-test",
 	"private": true,
 	"version": "0.1.2",
-	"description": "Test plugin for end-to-end registry publishing and audit workflow testing",
+	"description": "Maximal sandboxed plugin fixture for registry, consent, runtime, and admin testing",
 	"type": "module",
 	"main": "dist/index.mjs",
 	"exports": {

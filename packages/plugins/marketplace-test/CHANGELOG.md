@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-marketplace-test
 
+## Unreleased
+
+### Minor Changes
+
+- Expands the internal marketplace fixture into a maximal sandbox plugin covering every compatible capability, hook, route contract, data API, and declarative admin surface. The package remains private and excluded from npm changesets.
+
 ## 0.1.2
 
 ### Patch Changes
