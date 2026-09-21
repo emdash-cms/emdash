@@ -228,7 +228,7 @@ describe("taxonomy sidebar after deletion", () => {
 		screen.getByRole("button", { name: "Delete" }).element().click();
 
 		await expect.element(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
-		expect(screen.getByRole("link", { name: "Genres" }).query()).toBeNull();
+		await expect.element(screen.getByRole("link", { name: "Genres" })).not.toBeInTheDocument();
 		const deleteAt = requests.indexOf("DELETE /_emdash/api/taxonomies/genre");
 		expect(deleteAt).toBeGreaterThanOrEqual(0);
 		expect(requests.slice(deleteAt + 1).filter((r) => r.includes("/taxonomies"))).toEqual([]);
