@@ -1,0 +1,31 @@
+.changeset/fix-code-language-selector-search.md
+  s_6a24d1836b3bff::t_ea4695e1601556 1-5
+packages/admin/src/components/editor/CodeBlockNode.tsx
+  s_d8e9f234e54e68::t_d1e29f6436e857 99-103,277-288,291-326
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_d8e9f234e54e68::t_781a54a8d6e3a1 1782-1812
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d369d6ce693b9726aebdcc4b947f692627e9d06f",
+  "prompts": {},
+  "sessions": {
+    "s_6a24d1836b3bff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bb85-b3e3-7b61-b4fa-2125fc41aef8",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
