@@ -395,7 +395,7 @@ function TaxonomyTermPicker({
 								<span
 									key={option.term.id}
 									role="listitem"
-									className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-overlay ps-2 text-sm ring-1 ring-kumo-hairline"
+									className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-overlay ps-2 text-sm ring-1 ring-inset ring-kumo-hairline"
 								>
 									<span className="min-w-0 truncate">{option.term.label}</span>
 									<TermLocaleBadge term={option.term} entryLocale={entryLocale} />
