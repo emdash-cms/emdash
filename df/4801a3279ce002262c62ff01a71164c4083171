@@ -1,0 +1,33 @@
+packages/admin/src/components/editor/CodeBlockNode.tsx
+  s_bfd36a283aaad3::t_bddf5a178ccf58 27,117-120,155,157,175-176,178,276,279-282,288-289,291,293
+packages/admin/src/styles.css
+  s_bfd36a283aaad3::t_6238b119ba631d 340-366
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_bfd36a283aaad3::t_a24559d2be75c6 1746,1760-1761,1764-1765,1769-1770,1772-1775,1791-1800
+.changeset/fix-code-language-selector-search.md
+  s_d8e9f234e54e68::t_80d08594e82dc1 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "df4801a3279ce002262c62ff01a71164c4083171",
+  "prompts": {},
+  "sessions": {
+    "s_bfd36a283aaad3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e9-81d9-7040-9978-aec4612e579c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
