@@ -139,8 +139,11 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		},
 		[findLanguageByDisplayLabel, t],
 	);
-
 	const [draft, setDraft] = React.useState(() => labelText(storedLanguage));
+	const hasLanguageMatches = React.useMemo(
+		() => languageItems.some((item) => filterLanguages(item, draft.trim())),
+		[draft, filterLanguages, languageItems],
+	);
 
 	// Sync draft when the stored language changes from outside the node view
 	// (e.g. another collaborator edits the attribute, or the editor reloads
@@ -299,6 +302,11 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 									</Autocomplete.Item>
 								)}
 							</Autocomplete.List>
+							<Autocomplete.Empty
+								className={hasLanguageMatches ? undefined : "px-3 py-2 text-base text-kumo-subtle"}
+							>
+								{t`No matches`}
+							</Autocomplete.Empty>
 						</Autocomplete>
 					</Popover.Content>
 				</Popover>

@@ -1767,6 +1767,7 @@ describe("Code block copy action", () => {
 
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
 		await screen.getByPlaceholder("Search for a language…").fill("Custom Language");
+		await expect.element(screen.getByText("No matches")).toBeVisible();
 		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
 
@@ -1797,7 +1798,13 @@ describe("Code block copy action", () => {
 				.slice(0, 3)
 				.map((option) => option.textContent?.trim()),
 		).toEqual(["Astro", "Bash", "C"]);
-		expect(document.querySelector('.kumo-popover-popup [role="status"]')).toBeNull();
+		const emptyStatus = document.querySelector<HTMLElement>('.kumo-popover-popup [role="status"]');
+		expect(emptyStatus).not.toBeNull();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill(" js ");
+		await expect.element(screen.getByRole("option", { name: "JavaScript" })).toBeVisible();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill("");
 		await userEvent.keyboard("Java");
 
 		await expect.element(input).toHaveValue("Java");
