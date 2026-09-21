@@ -641,7 +641,9 @@ describe("Toolbar Presence and Structure", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			const input = document.querySelector<HTMLInputElement>('input[placeholder="https://..."]');
+			const input = document.querySelector<HTMLInputElement>(
+				'input[aria-label="Search or type a URL"]',
+			);
 			expect(input).toBeTruthy();
 			expect(toolbar.contains(input)).toBe(false);
 		});
@@ -1655,7 +1657,7 @@ describe("Link Insertion", () => {
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
-			const input = document.querySelector('input[type="url"]');
+			const input = document.querySelector('input[aria-label="Search or type a URL"]');
 			expect(input).toBeTruthy();
 		});
 	});
@@ -1679,10 +1681,12 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = document.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = document.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		// Focus input and type URL
 		input.focus();
 		// Use native input value setter to trigger React's onChange
@@ -1711,13 +1715,13 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		screen.getByRole("button", { name: "Cancel" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeNull();
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeNull();
 		});
 	});
 
