@@ -551,9 +551,11 @@ export {
 } from "./settings/index.js";
 export type {
 	SiteSettings,
+	SiteSettingsUpdate,
 	SiteSettingKey,
 	MediaReference,
 	SeoSettings,
+	SeoSettingsUpdate,
 } from "./settings/types.js";
 
 // SEO

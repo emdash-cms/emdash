@@ -97,8 +97,9 @@ const settingsSeoSchema = z.object({
 		.optional()
 		.describe("Separator between page title and site title (e.g. ' | ')"),
 	defaultOgImage: settingsMediaReferenceSchema
+		.nullable()
 		.optional()
-		.describe("Default Open Graph image when content has none"),
+		.describe("Default Open Graph image when content has none; null removes it"),
 	robotsTxt: z
 		.string()
 		.max(5000)
@@ -3352,16 +3353,18 @@ export function createMcpServer(
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +
-				"media_create first).",
+				"media_create first), or pass null to remove it.",
 			inputSchema: z.object({
 				title: z.string().optional().describe("Site title"),
 				tagline: z.string().optional().describe("Site tagline / short description"),
 				logo: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Logo media reference ({ mediaId, alt? })"),
+					.describe("Logo media reference ({ mediaId, alt? }); null removes it"),
 				favicon: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Favicon media reference ({ mediaId, alt? })"),
+					.describe("Favicon media reference ({ mediaId, alt? }); null removes it"),
 				url: z
 					.union([
 						z.url().refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
