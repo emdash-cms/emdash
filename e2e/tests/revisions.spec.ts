@@ -168,9 +168,13 @@ test.describe("Revisions", () => {
 		});
 
 		// Now publish to create a new live revision
-		const publishButton = page.getByRole("button", { name: "Publish" });
+		const publishButton = page.getByRole("button", { name: "Publish changes" });
 		if (await publishButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await publishButton.click();
+			await page
+				.getByRole("dialog", { name: "Publish changes?" })
+				.getByRole("button", { name: "Publish changes", exact: true })
+				.click();
 			await admin.waitForLoading();
 		}
 

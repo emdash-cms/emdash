@@ -207,12 +207,15 @@ test.describe("Content CRUD", () => {
 
 			// Publish the draft
 			const publishButton = admin.page.getByRole("button", {
-				name: "Publish",
+				name: "Publish now",
 				exact: true,
 			});
 			await expect(publishButton).toBeVisible();
 			await publishButton.click();
-			await admin.page.getByRole("menuitem", { name: "Publish now", exact: true }).click();
+			await admin.page
+				.getByRole("dialog", { name: "Publish now?" })
+				.getByRole("button", { name: "Publish now", exact: true })
+				.click();
 
 			await expect(admin.page.getByText("Live version", { exact: true })).toBeVisible({
 				timeout: 10000,

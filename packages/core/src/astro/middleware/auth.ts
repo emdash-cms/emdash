@@ -111,8 +111,9 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	"/_emdash/api/visual-editing/toolbar-labels",
-	// Public site search — read-only. The query layer hardcodes status='published'
-	// so unauthenticated callers only see published content. Admin endpoints
+	// Public site search — read-only. Unauthenticated callers only see
+	// published content: /search forces status='published' without the
+	// content:read_drafts permission and /suggest hardcodes it. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
 	"/_emdash/api/search/suggest",
@@ -196,6 +197,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (csrfError) return csrfError;
 		}
 		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+			return handlePublicRouteAuth(context, next);
+		}
+		// Search filters drafts by permission, so resolve the session user when
+		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
+		// are not resolved on public routes; token callers continue to receive
+		// published results only.
+		if (url.pathname === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}
 		return next();
