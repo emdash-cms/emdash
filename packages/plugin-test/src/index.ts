@@ -19,6 +19,9 @@ export { createPluginRuntimeTestHost } from "./runtime-host.js";
 export type {
 	PluginRuntimeMediaFixture,
 	PluginRuntimeAdminRequestOptions,
+	PluginRuntimeEditorDraftRequest,
+	PluginRuntimeEditorDraftResponse,
+	PluginRuntimeEditorState,
 	PluginRuntimeRouteRequest,
 	PluginRuntimeTestHost,
 	PluginRuntimeTestHostOptions,

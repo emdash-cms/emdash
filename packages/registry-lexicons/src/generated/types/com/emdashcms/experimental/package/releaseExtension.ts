@@ -1,6 +1,39 @@
 import type {} from "@atcute/lexicons";
 import * as v from "@atcute/lexicons/validations";
 
+const _adminAccessSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#adminAccess",
+		),
+	),
+	/**
+	 * Plugin may propose selected unsaved field changes for host validation and review.
+	 */
+	get editorDraftPatch() {
+		return /*#__PURE__*/ v.optional(adminEditorDraftPatchConstraintsSchema);
+	},
+	/**
+	 * Plugin may receive selected unsaved field values after an explicit editor interaction.
+	 */
+	get editorDraftRead() {
+		return /*#__PURE__*/ v.optional(adminEditorDraftReadConstraintsSchema);
+	},
+});
+const _adminEditorDraftPatchConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#adminEditorDraftPatchConstraints",
+		),
+	),
+});
+const _adminEditorDraftReadConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#adminEditorDraftReadConstraints",
+		),
+	),
+});
 const _commentsAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
@@ -125,6 +158,12 @@ const _declaredAccessSchema = /*#__PURE__*/ v.object({
 			"com.emdashcms.experimental.package.releaseExtension#declaredAccess",
 		),
 	),
+	/**
+	 * Access to selected unsaved content in the authenticated editor.
+	 */
+	get admin() {
+		return /*#__PURE__*/ v.optional(adminAccessSchema);
+	},
 	/**
 	 * Access to comment text, author contact and request metadata, and moderation state.
 	 */
@@ -511,6 +550,11 @@ const _usersReadConstraintsSchema = /*#__PURE__*/ v.object({
 	),
 });
 
+type adminAccess$schematype = typeof _adminAccessSchema;
+type adminEditorDraftPatchConstraints$schematype =
+	typeof _adminEditorDraftPatchConstraintsSchema;
+type adminEditorDraftReadConstraints$schematype =
+	typeof _adminEditorDraftReadConstraintsSchema;
 type commentsAccess$schematype = typeof _commentsAccessSchema;
 type commentsModerateConstraints$schematype =
 	typeof _commentsModerateConstraintsSchema;
@@ -562,6 +606,9 @@ type taxonomiesWriteConstraints$schematype =
 type usersAccess$schematype = typeof _usersAccessSchema;
 type usersReadConstraints$schematype = typeof _usersReadConstraintsSchema;
 
+export interface adminAccessSchema extends adminAccess$schematype {}
+export interface adminEditorDraftPatchConstraintsSchema extends adminEditorDraftPatchConstraints$schematype {}
+export interface adminEditorDraftReadConstraintsSchema extends adminEditorDraftReadConstraints$schematype {}
 export interface commentsAccessSchema extends commentsAccess$schematype {}
 export interface commentsModerateConstraintsSchema extends commentsModerateConstraints$schematype {}
 export interface commentsReadConstraintsSchema extends commentsReadConstraints$schematype {}
@@ -599,6 +646,11 @@ export interface taxonomiesWriteConstraintsSchema extends taxonomiesWriteConstra
 export interface usersAccessSchema extends usersAccess$schematype {}
 export interface usersReadConstraintsSchema extends usersReadConstraints$schematype {}
 
+export const adminAccessSchema = _adminAccessSchema as adminAccessSchema;
+export const adminEditorDraftPatchConstraintsSchema =
+	_adminEditorDraftPatchConstraintsSchema as adminEditorDraftPatchConstraintsSchema;
+export const adminEditorDraftReadConstraintsSchema =
+	_adminEditorDraftReadConstraintsSchema as adminEditorDraftReadConstraintsSchema;
 export const commentsAccessSchema =
 	_commentsAccessSchema as commentsAccessSchema;
 export const commentsModerateConstraintsSchema =
@@ -663,6 +715,13 @@ export const usersAccessSchema = _usersAccessSchema as usersAccessSchema;
 export const usersReadConstraintsSchema =
 	_usersReadConstraintsSchema as usersReadConstraintsSchema;
 
+export interface AdminAccess extends v.InferInput<typeof adminAccessSchema> {}
+export interface AdminEditorDraftPatchConstraints extends v.InferInput<
+	typeof adminEditorDraftPatchConstraintsSchema
+> {}
+export interface AdminEditorDraftReadConstraints extends v.InferInput<
+	typeof adminEditorDraftReadConstraintsSchema
+> {}
 export interface CommentsAccess extends v.InferInput<
 	typeof commentsAccessSchema
 > {}

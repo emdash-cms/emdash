@@ -136,6 +136,15 @@ export default {
 				return { input: routeCtx.input, kvValue, ui: routeCtx.ui };
 			}
 		},
+		"editor-draft": {
+			handler: async (routeCtx) => ({
+				snapshot: routeCtx.input.draft,
+				patch: {
+					type: "editor-draft-patch",
+					operations: [{ op: "set", field: "title", value: routeCtx.input.draft.fields.title + " translated" }]
+				}
+			})
+		},
 		"kv-test": {
 			handler: async (routeCtx, ctx) => {
 				await ctx.kv.set("test-key", routeCtx.input.value);
@@ -499,6 +508,43 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(result).toBeDefined();
 		expect(result.input).toEqual({ hello: "world" });
 		expect(result.ui).toEqual({ surface: "dashboard-widget", locale: "ar", direction: "rtl" });
+	}, 30_000);
+
+	it("preserves editor draft snapshots and patch effects through the route transport", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-editor-draft",
+				version: "1.0.0",
+				capabilities: ["admin.editor-draft:read", "admin.editor-draft:patch"],
+				allowedHosts: [],
+				storage: {},
+			},
+			ECHO_PLUGIN,
+		);
+		const draft = {
+			collection: "posts",
+			entryId: "entry-1",
+			locale: "en",
+			baseRevision: "rev-1",
+			invocationId: "workerd_invocation",
+			fields: { title: "Unsaved" },
+			fieldDefinitions: [
+				{ slug: "title", label: "Title", type: "string", required: true, translatable: true },
+			],
+		};
+		await expect(
+			plugin.invokeRoute(
+				"editor-draft",
+				{ type: "editor_action", draft },
+				{ method: "POST", url: "/api/editor-draft", headers: {} },
+			),
+		).resolves.toEqual({
+			snapshot: draft,
+			patch: {
+				type: "editor-draft-patch",
+				operations: [{ op: "set", field: "title", value: "Unsaved translated" }],
+			},
+		});
 	}, 30_000);
 
 	it("preserves bounded media bytes and metadata through a real workerd process", async () => {

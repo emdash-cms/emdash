@@ -15,6 +15,7 @@ function createLocals(
 		success: true,
 		data: {
 			item: { id: "entry-1", authorId: "owner", locale: "en", version: 7 },
+			_rev: "rev-7",
 		},
 	}));
 	const cacheInvalidate = vi.fn(async () => undefined);
@@ -25,7 +26,31 @@ function createLocals(
 				kind: "panel",
 				extension: { id: "health", title: "Health", route: "entry-health" },
 				policy: {},
+				capabilities: [],
 			}),
+			getPluginEditorDraftSchema: vi.fn(async () => ({
+				id: "collection-posts",
+				slug: "posts",
+				label: "Posts",
+				labelSingular: "Post",
+				fields: [
+					{
+						id: "field-title",
+						collectionId: "collection-posts",
+						slug: "title",
+						label: "Title",
+						type: "string",
+						columnType: "TEXT",
+						required: true,
+						unique: false,
+						sortOrder: 0,
+						searchable: false,
+						indexed: false,
+						translatable: true,
+						createdAt: "2026-01-01T00:00:00.000Z",
+					},
+				],
+			})),
 			getPluginRouteMeta: () => ({ public: routePublic, permission }),
 			handleContentGet,
 			handlePluginApiRoute,
@@ -132,6 +157,16 @@ describe("saved-entry plugin extension authorization", () => {
 		expect(inheritedPermission.handlePluginApiRoute).not.toHaveBeenCalled();
 	});
 
+	it("bounds the decoded interaction body before sandbox invocation", async () => {
+		const locals = createLocals(Role.AUTHOR);
+		const response = await invoke(locals, { type: "panel_load" }, { contentLength: "300000" });
+		expect(response.status).toBe(413);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "EDITOR_DRAFT_TOO_LARGE" },
+		});
+		expect(locals.handlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
 	it("rejects forged host context fields and creates action input itself", async () => {
 		const forged = createLocals(Role.AUTHOR);
 		expect((await invoke(forged, { type: "panel_load", entry: { id: "other" } })).status).toBe(400);
@@ -155,5 +190,66 @@ describe("saved-entry plugin extension authorization", () => {
 		expect(pluginRequest?.headers.get("content-length")).toBeNull();
 		expect(pluginRequest?.headers.get("content-encoding")).toBeNull();
 		await expect(pluginRequest?.json()).resolves.toEqual({ type: "editor_action" });
+	});
+
+	it("forwards a server-sanitized explicit draft and host-attests the patch receipt", async () => {
+		const locals = createLocals(Role.AUTHOR);
+		locals.emdash.getPluginEditorExtension = () => ({
+			kind: "panel" as const,
+			extension: {
+				id: "health",
+				title: "Health",
+				route: "entry-health",
+				collections: ["posts"],
+				draft: { read: { translatable: true as const }, patch: { fields: ["title"] } },
+			},
+			policy: {},
+			capabilities: ["admin.editor-draft:read", "admin.editor-draft:patch"] as const,
+		});
+		locals.handlePluginApiRoute.mockResolvedValueOnce({
+			success: true,
+			data: {
+				blocks: [],
+				patch: {
+					type: "editor-draft-patch",
+					operations: [{ op: "set", field: "title", value: "Translated" }],
+				},
+			},
+		});
+		const response = await invoke(locals, {
+			type: "block_action",
+			action_id: "translate",
+			draft: {
+				collection: "posts",
+				entryId: "entry-1",
+				locale: "en",
+				baseRevision: "rev-7",
+				generation: 12,
+				invocationId: "invocation_123456",
+				fields: { title: "Unsaved" },
+			},
+		});
+		expect(response.status).toBe(200);
+		const pluginRequest = locals.handlePluginApiRoute.mock.calls[0]?.[3];
+		await expect(pluginRequest?.json()).resolves.toMatchObject({
+			type: "block_action",
+			draft: {
+				fields: { title: "Unsaved" },
+				fieldDefinitions: [
+					expect.objectContaining({ slug: "title", label: "Title", type: "string" }),
+				],
+			},
+		});
+		await expect(response.json()).resolves.toMatchObject({
+			data: {
+				patch: { operations: [{ field: "title", value: "Translated" }] },
+				editorInvocation: {
+					entryId: "entry-1",
+					baseRevision: "rev-7",
+					generation: 12,
+					invocationId: "invocation_123456",
+				},
+			},
+		});
 	});
 });
