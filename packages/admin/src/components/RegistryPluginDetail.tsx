@@ -421,6 +421,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				// evidence shown in the dialog.
 				acknowledgedDeclaredAccess: activeVerification.capabilities,
 				acknowledgedMcpTools: mcpConsentTools,
+				acknowledgedPublicRoutes: activeVerification.publicRoutes,
 				acknowledgedProfileCid: activeVerification.verification.profileCid,
 				acknowledgedReleaseCid: activeVerification.verification.releaseCid,
 			});
@@ -856,6 +857,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						declaredAccessToCapabilities(activeVerification.declaredAccess).allowedHosts
 					}
 					mcpTools={mcpConsentTools}
+					newlyPublicRoutes={activeVerification.publicRoutes}
 					verification={activeVerification.verification}
 					isPending={installMutation.isPending}
 					error={getMutationError(installMutation.error)}

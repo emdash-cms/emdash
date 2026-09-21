@@ -681,6 +681,7 @@ export interface Database {
 	_emdash_comments: CommentTable;
 	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
+	_emdash_redirect_write_lock: RedirectWriteLockTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
@@ -725,8 +726,18 @@ export interface RedirectTable {
 	last_hit_at: string | null;
 	group_name: string | null;
 	auto: number; // boolean: system-generated from slug change
+	config_revision: string;
+	source_guard: number;
+	write_generation: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface RedirectWriteLockTable {
+	id: number;
+	token: string;
+	expires_at: number;
+	generation: number;
 }
 
 export interface NotFoundLogTable {

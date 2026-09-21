@@ -16,6 +16,8 @@ import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type {
 	FieldWidgetConfig,
+	PluginEditorAction,
+	PluginEditorPanel,
 	PluginMcpManifestConfig,
 	PortableTextBlockConfig,
 	ResolvedPlugin,
@@ -112,6 +114,10 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginEditorAction[];
 	/** Settings schema for the auto-generated admin settings form */
 	settingsSchema?: Record<string, SettingField>;
 	/**

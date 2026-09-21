@@ -20,8 +20,11 @@ import {
 	renderReadonlyReply,
 	shouldPostReadonlyReply,
 } from "./comments.js";
+import { githubRateLimitGate } from "./github-rate-limit-client.js";
 import {
 	addLabels,
+	confirmAnchorMissing,
+	confirmPullRequestMissing,
 	closePullRequest,
 	createIssueComment,
 	createPullRequest,
@@ -33,6 +36,9 @@ import {
 	getIssueLabels,
 	getOpenPullRequest,
 	getPullRequestStatus,
+	GitHubAnchorNotFoundError,
+	GitHubPullRequestNotFoundError,
+	GitHubRateLimitError,
 	hasIssueCommentMarker,
 	mintInstallationToken,
 	postIssueComment,
@@ -40,6 +46,8 @@ import {
 	readRepoContext,
 	removeLabels,
 	updateIssueComment,
+	type CoordinatedGitHubToken,
+	type GitHubToken,
 	type RepoContext,
 	type PullRequestStatus,
 } from "./github.js";
@@ -156,6 +164,8 @@ export interface NormalizedEvent {
 	readonly allowDefault?: boolean;
 	/** Webhook delivery id; the DO dedupes by this. */
 	readonly deliveryId?: string;
+	/** True for an authenticated command queued through the operator API. */
+	readonly operatorCommand?: boolean;
 	/** Issue/PR number for GitHub API side effects. Required for transitions. */
 	readonly anchorNumber?: number;
 	/**
@@ -319,6 +329,12 @@ const STORAGE = {
 	workPlan: "o:workPlan",
 	workComments: "o:workComments",
 	currentRunDryRun: "o:currentRunDryRun",
+	githubRetryAt: "o:githubRetryAt",
+	recoveryRetry: "o:recoveryRetry",
+	recoveryTerminal: "o:recoveryTerminal",
+	labelReconcileNextAt: "o:labelReconcileNextAt",
+	anchorTerminal: "o:anchorTerminal",
+	operatorSettlement: "o:operatorSettlement",
 } as const;
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000;
@@ -331,7 +347,12 @@ const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
 /** First poll waits for the push→publish lag; later polls back off to this. */
 const PREVIEW_POLL_INITIAL_MS = 45 * 1000;
 const PREVIEW_POLL_INTERVAL_MS = 30 * 1000;
-const PR_POLL_INTERVAL_MS = 30 * 1000;
+const PR_SAFETY_POLL_INTERVAL_MS = 10 * 60 * 1000;
+const PR_WEBHOOK_REFRESH_DELAY_MS = 15 * 1000;
+const LABEL_RECONCILE_INTERVAL_MS = 15 * 60 * 1000;
+const RECOVERY_RETRY_BASE_MS = 60_000;
+const RECOVERY_RETRY_MAX_MS = 60 * 60_000;
+const RECOVERY_RETRY_LIMIT = 8;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
@@ -358,6 +379,26 @@ interface CachedToken {
 	token: string;
 	/** Unix ms; tokens are valid ~1h, we expire 5m early. */
 	expiresAt: number;
+}
+
+interface RecoveryRetry {
+	readonly path: string;
+	readonly attempts: number;
+	readonly nextAt: number;
+}
+
+interface RecoveryTerminal {
+	readonly path: string;
+	readonly attempts: number;
+	readonly terminalAt: number;
+	readonly errorKind: string;
+}
+
+interface AnchorTerminal {
+	readonly anchorNumber: number;
+	readonly runId: string | null;
+	readonly terminalAt: number;
+	readonly reason: "missing-anchor";
 }
 
 interface PreparedInvestigation {
@@ -1148,7 +1189,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return this.runExclusive(async () => {
 			const creds = readAppCreds(this.env);
 			if (!creds) throw new Error("GitHub App credentials are not configured");
-			return this.getInstallationToken(creds);
+			return (await this.getInstallationToken(creds, "sandbox-outbound")).token;
 		});
 	}
 
@@ -1173,6 +1214,24 @@ export class OrchestratorDO extends DurableObject<Env> {
 	private async processTick(): Promise<TickOutcome> {
 		const now = Date.now();
 		await this.ctx.storage.put(STORAGE.lastTickAt, now);
+		const [githubRetryAt, recoveryTerminal] = await Promise.all([
+			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
+			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
+		]);
+		if (recoveryTerminal || (githubRetryAt !== undefined && githubRetryAt > now)) {
+			return {
+				ranAt: now,
+				processedInboxItem: false,
+				inboxError: null,
+				sentDeadlineWarning: false,
+				droppedStaleRun: false,
+				recoveryError: recoveryTerminal ? "recovery retry limit exhausted" : null,
+				labelDrift: null,
+				expiredReporterWait: false,
+				previewPoll: "idle",
+				pullRequestPoll: "idle",
+			};
+		}
 
 		let processedInboxItem = false;
 		let inboxError: string | null = null;
@@ -1184,7 +1243,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 				processedInboxItem = true;
 			} catch (error) {
 				inboxError = error instanceof Error ? error.message : String(error);
+				await this.recordRecoveryFailure("inbox", error, now);
 				console.error("[orchestrator] inbox processing failed", { error: inboxError });
+				if (error instanceof GitHubRateLimitError) {
+					return this.githubBlockedOutcome(now, processedInboxItem, inboxError, inboxError);
+				}
 				break;
 			}
 		}
@@ -1193,19 +1256,27 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.drainPendingWorkComments();
 		} catch (error) {
 			recoveryError = errorMessage(error);
+			await this.recordRecoveryFailure("work-comment", error, now);
 			console.error("[orchestrator] work comment recovery failed", {
 				error: recoveryError,
 			});
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, recoveryError);
+			}
 		}
 		let sentDeadlineWarning = false;
 		try {
 			sentDeadlineWarning = await this.sendDeadlineWarningIfDue(now);
 		} catch (error) {
 			recoveryError = errorMessage(error);
-			await this.ctx.storage.put(STORAGE.deadlineWarningRetryAt, now + INBOX_RETRY_MS);
+			const retryAt = await this.recordRecoveryFailure("deadline-warning", error, now);
+			await this.ctx.storage.put(STORAGE.deadlineWarningRetryAt, retryAt);
 			console.error("[orchestrator] deadline warning delivery failed", {
 				error: recoveryError,
 			});
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, recoveryError);
+			}
 		}
 		let droppedStaleRun = false;
 		try {
@@ -1213,7 +1284,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			droppedStaleRun = await this.recoverStaleRun(now);
 		} catch (error) {
 			recoveryError = error instanceof Error ? error.message : String(error);
+			await this.recordRecoveryFailure("stale-run", error, now);
 			console.error("[orchestrator] stale-run recovery failed", { error: recoveryError });
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, recoveryError);
+			}
 		}
 		let expiredReporterWait = false;
 		try {
@@ -1221,7 +1296,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			recoveryError ??= message;
+			await this.recordRecoveryFailure("reporter-wait", error, now);
 			console.error("[orchestrator] reporter-wait expiry failed", { error: message });
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, message);
+			}
 		}
 		let previewPoll: PreviewPollOutcome = "idle";
 		try {
@@ -1229,7 +1308,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			recoveryError ??= message;
+			await this.recordRecoveryFailure("preview", error, now);
 			console.error("[orchestrator] preview poll failed", { error: message });
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, message);
+			}
 		}
 		let pullRequestPoll: PullRequestPollOutcome = "idle";
 		try {
@@ -1237,10 +1320,30 @@ export class OrchestratorDO extends DurableObject<Env> {
 		} catch (error) {
 			const message = errorMessage(error);
 			recoveryError ??= message;
-			await this.ctx.storage.put(STORAGE.prPollNextAt, now + INBOX_RETRY_MS);
+			const retryAt = await this.recordRecoveryFailure("pull-request", error, now);
+			await this.ctx.storage.put(STORAGE.prPollNextAt, retryAt);
 			console.error("[orchestrator] pull request poll failed", { error: message });
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, message);
+			}
 		}
-		const labelDrift = await this.reconcileLabels();
+		let labelDrift: { added: number; removed: number } | null = null;
+		try {
+			labelDrift = await this.reconcileLabels(now);
+		} catch (error) {
+			const message = errorMessage(error);
+			recoveryError ??= message;
+			await this.recordRecoveryFailure("labels", error, now);
+			if (error instanceof GitHubRateLimitError) {
+				return this.githubBlockedOutcome(now, processedInboxItem, inboxError, message);
+			}
+		}
+		if (!recoveryError && !inboxError) {
+			await Promise.all([
+				this.ctx.storage.delete(STORAGE.recoveryRetry),
+				this.ctx.storage.delete(STORAGE.githubRetryAt),
+			]);
+		}
 
 		return {
 			ranAt: now,
@@ -1254,6 +1357,71 @@ export class OrchestratorDO extends DurableObject<Env> {
 			previewPoll,
 			pullRequestPoll,
 		};
+	}
+
+	private githubBlockedOutcome(
+		ranAt: number,
+		processedInboxItem: boolean,
+		inboxError: string | null,
+		recoveryError: string | null,
+	): TickOutcome {
+		return {
+			ranAt,
+			processedInboxItem,
+			inboxError,
+			sentDeadlineWarning: false,
+			droppedStaleRun: false,
+			recoveryError,
+			labelDrift: null,
+			expiredReporterWait: false,
+			previewPoll: "idle",
+			pullRequestPoll: "idle",
+		};
+	}
+
+	private async recordRecoveryFailure(path: string, error: unknown, now: number): Promise<number> {
+		if (error instanceof GitHubRateLimitError) {
+			await this.ctx.storage.put(STORAGE.githubRetryAt, error.retryAt);
+			console.warn(
+				JSON.stringify({
+					message: "orchestrator GitHub backoff persisted",
+					path,
+					retryAt: error.retryAt,
+				}),
+			);
+			return error.retryAt;
+		}
+		const previous = await this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry);
+		const attempts = (previous?.attempts ?? 0) + 1;
+		const nextAt =
+			now +
+			Math.min(RECOVERY_RETRY_MAX_MS, RECOVERY_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1));
+		if (attempts >= RECOVERY_RETRY_LIMIT) {
+			await Promise.all([
+				this.ctx.storage.put<RecoveryTerminal>(STORAGE.recoveryTerminal, {
+					path,
+					attempts,
+					terminalAt: now,
+					errorKind: "recovery-error",
+				}),
+				this.ctx.storage.delete(STORAGE.recoveryRetry),
+				this.ctx.storage.delete(STORAGE.githubRetryAt),
+				this.ctx.storage.deleteAlarm(),
+			]);
+			console.error(JSON.stringify({ message: "orchestrator recovery exhausted", path, attempts }));
+			return nextAt;
+		}
+		await this.ctx.storage.put<RecoveryRetry>(STORAGE.recoveryRetry, { path, attempts, nextAt });
+		console.warn(
+			JSON.stringify({
+				message: "orchestrator recovery scheduled",
+				path,
+				attempts,
+				nextAt,
+				errorKind: "recovery-error",
+			}),
+		);
+		return nextAt;
 	}
 
 	private async pollPullRequest(now: number): Promise<PullRequestPollOutcome> {
@@ -1276,7 +1444,28 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const repo = readRepoContext(this.env);
 		if (!creds || !repo) return "idle";
 		const token = await this.getInstallationToken(creds);
-		const status = await getPullRequestStatus(token, repo, prNumber);
+		let status: PullRequestStatus;
+		try {
+			status = await getPullRequestStatus(token, repo, prNumber);
+		} catch (error) {
+			if (
+				error instanceof GitHubPullRequestNotFoundError &&
+				(await confirmPullRequestMissing(token, repo, prNumber))
+			) {
+				await this.ctx.storage.delete(STORAGE.prPollNextAt);
+				await this.processEvent({
+					event: "pr.closed",
+					arg: null,
+					actor: "system",
+					labels: await this.projectLabels(),
+					needsClassify: false,
+					pullRequestNumber: prNumber,
+					commentBodyOverride: "",
+				});
+				return "closed";
+			}
+			throw error;
+		}
 		await this.ctx.storage.put(STORAGE.prStatus, status);
 		const assessment = assessPullRequest(status, lastRepairFingerprint ?? null);
 		if (assessment.kind === "merged" || assessment.kind === "closed") {
@@ -1294,7 +1483,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		if (assessment.kind === "green") {
 			await Promise.all([
-				this.ctx.storage.delete(STORAGE.prPollNextAt),
+				this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS),
 				this.ctx.storage.delete(STORAGE.prRepairFingerprint),
 				this.ctx.storage.put(STORAGE.prGreenHeadSha, status.headSha),
 			]);
@@ -1313,7 +1502,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		if (assessment.kind === "repair") {
 			if (run?.status === "running") {
-				await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_POLL_INTERVAL_MS);
+				await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS);
 				return "waiting";
 			}
 			await Promise.all([
@@ -1332,7 +1521,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			});
 			return "repairing";
 		}
-		await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_POLL_INTERVAL_MS);
+		await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_SAFETY_POLL_INTERVAL_MS);
 		return "waiting";
 	}
 
@@ -1564,6 +1753,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 			pendingResume,
 			previewPollNextAt,
 			prPollNextAt,
+			githubRetryAt,
+			recoveryRetry,
+			recoveryTerminal,
+			labelReconcileNextAt,
+			anchorTerminal,
 		] = await Promise.all([
 			this.ctx.storage.getAlarm(),
 			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
@@ -1578,8 +1772,17 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
+			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
+			this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry),
+			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
+			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
+			this.ctx.storage.get<AnchorTerminal>(STORAGE.anchorTerminal),
 		]);
 		const now = Date.now();
+		if (recoveryTerminal || anchorTerminal) {
+			if (current !== null) await this.ctx.storage.deleteAlarm();
+			return;
+		}
 		const activeRun = run?.status === "running" ? run : null;
 		const runStartedAt = activeRun?.startedAt ?? legacyRunStartedAt;
 		const runMode = activeRun?.mode ?? legacyRunMode;
@@ -1608,6 +1811,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (prPollNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, prPollNextAt));
 		}
+		if (labelReconcileNextAt !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, labelReconcileNextAt));
+		}
+		const retryAt = Math.max(githubRetryAt ?? 0, recoveryRetry?.nextAt ?? 0);
+		if (retryAt > now) desired = Math.max(desired, retryAt);
 		if (force || current === null || current <= now || current > desired) {
 			await this.ctx.storage.setAlarm(desired);
 		}
@@ -1876,12 +2084,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return deliveryId ?? null;
 	}
 
-	private async reconcileLabels(): Promise<{ added: number; removed: number } | null> {
-		const [pendingDispatch, pendingSideEffects] = await Promise.all([
+	private async reconcileLabels(now: number): Promise<{ added: number; removed: number } | null> {
+		const [pendingDispatch, pendingSideEffects, nextAt] = await Promise.all([
 			this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch),
 			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
+			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
 		]);
-		if (pendingDispatch || pendingSideEffects?.length) return null;
+		if (pendingDispatch || pendingSideEffects?.length || (nextAt !== undefined && now < nextAt)) {
+			return null;
+		}
+		await this.ctx.storage.put(STORAGE.labelReconcileNextAt, now + LABEL_RECONCILE_INTERVAL_MS);
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
 		if (!creds || !repo) return null;
@@ -1897,12 +2109,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (kind) expectedLabels.add(`bot:${kind}`);
 
 		let liveLabels: string[];
+		const token = await this.getInstallationToken(creds);
 		try {
-			const token = await this.getInstallationToken(creds);
 			liveLabels = await getIssueLabels(token, repo, anchorNumber);
 		} catch (err) {
 			console.error("[orchestrator] reconcileLabels: getIssueLabels failed:", err);
-			return null;
+			if (
+				err instanceof GitHubAnchorNotFoundError &&
+				(await confirmAnchorMissing(token, repo, anchorNumber))
+			) {
+				await this.terminalizeMissingAnchor(anchorNumber);
+				return null;
+			}
+			throw err;
 		}
 
 		const liveSet = new Set(liveLabels);
@@ -1914,12 +2133,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (toAdd.length === 0 && toRemove.length === 0) return { added: 0, removed: 0 };
 
 		try {
-			const token = await this.getInstallationToken(creds);
-			if (toAdd.length > 0) await addLabels(token, repo, anchorNumber, toAdd);
-			if (toRemove.length > 0) await removeLabels(token, repo, anchorNumber, toRemove);
+			const writeToken = await this.getInstallationToken(creds);
+			if (toAdd.length > 0) await addLabels(writeToken, repo, anchorNumber, toAdd);
+			if (toRemove.length > 0) await removeLabels(writeToken, repo, anchorNumber, toRemove);
 		} catch (err) {
 			console.error("[orchestrator] reconcileLabels: label flip failed:", err);
-			return null;
+			throw err;
 		}
 		console.log("[orchestrator] reconciled label drift", {
 			anchorNumber,
@@ -1927,6 +2146,41 @@ export class OrchestratorDO extends DurableObject<Env> {
 			removed: toRemove,
 		});
 		return { added: toAdd.length, removed: toRemove.length };
+	}
+
+	private async terminalizeMissingAnchor(anchorNumber: number): Promise<void> {
+		await this.ctx.storage.transaction(async (transaction) => {
+			const runId = (await transaction.get<string>(STORAGE.currentRunId)) ?? null;
+			await transaction.put<AnchorTerminal>(STORAGE.anchorTerminal, {
+				anchorNumber,
+				runId,
+				terminalAt: Date.now(),
+				reason: "missing-anchor",
+			});
+			await Promise.all([
+				transaction.delete(STORAGE.currentRunId),
+				transaction.delete(STORAGE.currentRunMode),
+				transaction.delete(STORAGE.currentRunStartedAt),
+				transaction.delete(STORAGE.currentRunDryRun),
+				transaction.delete(STORAGE.currentAgentId),
+				transaction.delete(STORAGE.currentDispatchId),
+				transaction.delete(STORAGE.currentDispatchError),
+				transaction.delete(STORAGE.currentDispatchAttempt),
+				transaction.delete(STORAGE.runLifecycle),
+				transaction.delete(STORAGE.inbox),
+				transaction.delete(STORAGE.pendingDispatch),
+				transaction.delete(STORAGE.pendingResume),
+				transaction.delete(STORAGE.pendingSideEffects),
+				transaction.delete(STORAGE.workComments),
+				transaction.delete(STORAGE.prPollNextAt),
+				transaction.delete(STORAGE.previewPollNextAt),
+				transaction.delete(STORAGE.deadlineWarningRetryAt),
+				transaction.delete(STORAGE.githubRetryAt),
+				transaction.delete(STORAGE.recoveryRetry),
+				transaction.deleteAlarm(),
+			]);
+		});
+		console.warn(JSON.stringify({ message: "orchestrator anchor terminalized", anchorNumber }));
 	}
 
 	// ---------------- Classifier ----------------
@@ -2628,7 +2882,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async applySideEffectLabels(
-		token: string,
+		token: GitHubToken,
 		repo: RepoContext,
 		pending: PendingSideEffect,
 	): Promise<void> {
@@ -2639,7 +2893,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 	/** Post the effect's comment at-most-once, returning the effect with the
 	 * marker-may-exist flag persisted so a retry doesn't double-post. */
 	private async postSideEffectComment(
-		token: string,
+		token: GitHubToken,
 		repo: RepoContext,
 		pending: PendingSideEffect,
 	): Promise<PendingSideEffect> {
@@ -2668,15 +2922,28 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return updated;
 	}
 
-	private async getInstallationToken(creds: Parameters<typeof mintInstallationToken>[0]) {
+	private async getInstallationToken(
+		creds: Parameters<typeof mintInstallationToken>[0],
+		consumer?: string,
+	): Promise<CoordinatedGitHubToken> {
+		const resolvedConsumer =
+			consumer ??
+			`orchestrator:${(await this.ctx.storage.get<number>(STORAGE.anchorNumber)) ?? "unbound"}`;
+		const gate = githubRateLimitGate(this.env);
 		const cached = await this.ctx.storage.get<CachedToken>(STORAGE.tokenCache);
-		if (cached && cached.expiresAt > Date.now()) return cached.token;
-		const token = await mintInstallationToken(creds);
+		if (cached && cached.expiresAt > Date.now()) {
+			return { token: cached.token, gate, consumer: resolvedConsumer };
+		}
+		const token = await mintInstallationToken(creds, undefined, {
+			token: "",
+			gate,
+			consumer: resolvedConsumer,
+		});
 		await this.ctx.storage.put<CachedToken>(STORAGE.tokenCache, {
 			token,
 			expiresAt: Date.now() + 55 * 60 * 1000,
 		});
-		return token;
+		return { token, gate, consumer: resolvedConsumer };
 	}
 
 	// ---------------- Private helpers ----------------
@@ -2777,7 +3044,12 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (input.pullRequestNumber)
 				puts.push(transaction.put(STORAGE.prNumber, input.pullRequestNumber));
 			if (decision.to === "in_review" && decision.event !== "pr.green") {
-				puts.push(transaction.put(STORAGE.prPollNextAt, now));
+				puts.push(
+					transaction.put(
+						STORAGE.prPollNextAt,
+						decision.event === "pr.updated" ? now + PR_WEBHOOK_REFRESH_DELAY_MS : now,
+					),
+				);
 			}
 			if (decision.event === "pr.updated" || decision.event === "agent.revised") {
 				puts.push(
@@ -2922,19 +3194,20 @@ export class OrchestratorDO extends DurableObject<Env> {
 									: []),
 							],
 							...(commentTargetNumber ? { commentTargetNumber } : {}),
-							commentBody:
-								input.commentBodyOverride ??
-								handoffComment ??
-								renderComment(
-									decision,
-									anchorNumber,
-									input.agentSummary,
-									{
-										runId: input.agentRunId,
-										failureStage: input.agentFailureStage,
-									},
-									this.env.PREVIEW_PACKAGE,
-								),
+							commentBody: input.operatorCommand
+								? ""
+								: (input.commentBodyOverride ??
+									handoffComment ??
+									renderComment(
+										decision,
+										anchorNumber,
+										input.agentSummary,
+										{
+											runId: input.agentRunId,
+											failureStage: input.agentFailureStage,
+										},
+										this.env.PREVIEW_PACKAGE,
+									)),
 							commentMarker: `<!-- emdashbot-event:${sideEffectId} -->`,
 							commentMayExist: false,
 							...(input.commentFirst ? { commentFirst: true } : {}),
@@ -3116,6 +3389,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
+	private async discardRunSideEffects(runId: string): Promise<void> {
+		await this.ctx.storage.transaction(async (transaction) => {
+			const effects =
+				(await transaction.get<PendingSideEffect[]>(STORAGE.pendingSideEffects)) ?? [];
+			const remaining = effects.filter((effect) => effect.runId !== runId);
+			if (remaining.length === 0) await transaction.delete(STORAGE.pendingSideEffects);
+			else await transaction.put(STORAGE.pendingSideEffects, remaining);
+		});
+	}
+
 	private async persistStandaloneSideEffect(input: {
 		anchorNumber: number;
 		commentBody: string;
@@ -3228,6 +3511,145 @@ export class OrchestratorDO extends DurableObject<Env> {
 		};
 	}
 
+	async inspectRecoveryState(): Promise<{
+		anchorNumber: number | null;
+		currentRunId: string | null;
+		inboxDepth: number;
+		pendingSideEffects: number;
+		pendingWorkComments: number;
+		retry: RecoveryRetry | null;
+		terminal: RecoveryTerminal | AnchorTerminal | null;
+		alarmAt: number | null;
+	}> {
+		const [
+			anchorNumber,
+			currentRunId,
+			inbox,
+			sideEffects,
+			workComments,
+			retry,
+			recoveryTerminal,
+			anchorTerminal,
+			alarmAt,
+		] = await Promise.all([
+			this.ctx.storage.get<number>(STORAGE.anchorNumber),
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
+			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
+			this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments),
+			this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry),
+			this.ctx.storage.get<RecoveryTerminal>(STORAGE.recoveryTerminal),
+			this.ctx.storage.get<AnchorTerminal>(STORAGE.anchorTerminal),
+			this.ctx.storage.getAlarm(),
+		]);
+		return {
+			anchorNumber: anchorNumber ?? null,
+			currentRunId: currentRunId ?? null,
+			inboxDepth: inbox?.length ?? 0,
+			pendingSideEffects: sideEffects?.length ?? 0,
+			pendingWorkComments: workComments?.filter((comment) => comment.pending).length ?? 0,
+			retry: retry ?? null,
+			terminal: anchorTerminal ?? recoveryTerminal ?? null,
+			alarmAt,
+		};
+	}
+
+	async settleStaleRun(input: {
+		expectedAnchorNumber: number;
+		expectedRunId: string;
+		clearInbox?: boolean;
+	}): Promise<{ settled: boolean; reason?: string }> {
+		return this.runExclusive(async () => {
+			const [anchorNumber, currentRunId] = await Promise.all([
+				this.ctx.storage.get<number>(STORAGE.anchorNumber),
+				this.ctx.storage.get<string>(STORAGE.currentRunId),
+			]);
+			if (anchorNumber !== input.expectedAnchorNumber) {
+				return { settled: false, reason: "anchor mismatch" };
+			}
+			if (currentRunId !== input.expectedRunId) {
+				return { settled: false, reason: "run mismatch" };
+			}
+			await this.clearRun(input.expectedRunId);
+			await this.discardRunSideEffects(input.expectedRunId);
+			await this.ctx.storage.transaction(async (transaction) => {
+				const comments =
+					(await transaction.get<WorkCommentProjection[]>(STORAGE.workComments)) ?? [];
+				const kept = comments.filter((comment) => comment.runId !== input.expectedRunId);
+				if (kept.length > 0) await transaction.put(STORAGE.workComments, kept);
+				else await transaction.delete(STORAGE.workComments);
+				await Promise.all([
+					transaction.delete(STORAGE.resumableRun),
+					transaction.delete(STORAGE.recoveryRetry),
+					transaction.delete(STORAGE.recoveryTerminal),
+					transaction.delete(STORAGE.githubRetryAt),
+					...(input.clearInbox ? [transaction.delete(STORAGE.inbox)] : []),
+					transaction.put(STORAGE.operatorSettlement, {
+						anchorNumber,
+						runId: input.expectedRunId,
+						settledAt: Date.now(),
+					}),
+				]);
+			});
+			await this.armAlarm(true);
+			return { settled: true };
+		});
+	}
+
+	async queueOperatorCommand(input: {
+		expectedAnchorNumber: number;
+		command: "retry" | "work";
+		expectedState: "needs_attention" | "failed" | "blocked" | "awaiting_approval";
+		idempotencyKey: string;
+	}): Promise<{ queued: boolean; reason?: string }> {
+		const queued = await this.ctx.storage.transaction(async (transaction) => {
+			const [anchorNumber, state, currentRunId, inbox, seenDeliveries] = await Promise.all([
+				transaction.get<number>(STORAGE.anchorNumber),
+				transaction.get<StateId>(STORAGE.state),
+				transaction.get<string>(STORAGE.currentRunId),
+				transaction.get<InboxEntry[]>(STORAGE.inbox),
+				transaction.get<string[]>(STORAGE.seenDeliveries),
+			]);
+			if (anchorNumber !== input.expectedAnchorNumber) {
+				return { queued: false, reason: "anchor mismatch" } as const;
+			}
+			if (state !== input.expectedState) {
+				return { queued: false, reason: "state mismatch" } as const;
+			}
+			const validCommand =
+				(input.command === "work" && state === "awaiting_approval") ||
+				(input.command === "retry" &&
+					(state === "needs_attention" || state === "failed" || state === "blocked"));
+			if (!validCommand) return { queued: false, reason: "command not allowed" } as const;
+			if (currentRunId) return { queued: false, reason: "run active" } as const;
+			const deliveryId = `operator-${input.command}:${input.expectedAnchorNumber}:${input.idempotencyKey}`;
+			if (
+				(seenDeliveries ?? []).includes(deliveryId) ||
+				(inbox ?? []).some((entry) => entry.input.deliveryId === deliveryId)
+			) {
+				return { queued: false, reason: "command already queued" } as const;
+			}
+
+			const command: NormalizedEvent = {
+				event: input.command,
+				arg: null,
+				actor: "maintainer",
+				labels: [],
+				needsClassify: false,
+				operatorCommand: true,
+				deliveryId,
+				anchorNumber: input.expectedAnchorNumber,
+			};
+			await transaction.put(STORAGE.inbox, [
+				...(inbox ?? []),
+				{ id: crypto.randomUUID(), input: command },
+			]);
+			return { queued: true } as const;
+		});
+		if (queued.queued) await this.ctx.storage.setAlarm(Date.now());
+		return queued;
+	}
+
 	async getEventLog(): Promise<readonly EventLogEntry[]> {
 		return (await this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog)) ?? [];
 	}
@@ -3323,6 +3745,16 @@ export class OrchestratorDO extends DurableObject<Env> {
 					]
 				: []),
 		]);
+	}
+
+	/** Test-only: exercise atomic terminal cleanup after a confirmed missing anchor. */
+	async debugTerminalizeMissingAnchor(anchorNumber: number): Promise<void> {
+		await this.terminalizeMissingAnchor(anchorNumber);
+	}
+
+	/** Test-only: exercise retry accounting across alternating recovery paths. */
+	async debugRecordRecoveryFailure(path: string): Promise<void> {
+		await this.recordRecoveryFailure(path, new Error("synthetic recovery failure"), Date.now());
 	}
 
 	/** Test-only: inspect the diagnosis retained for a later write run. */

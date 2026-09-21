@@ -49,7 +49,7 @@ msgstr ""
 msgid "\"{0}\" will be permanently deleted."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:596
+#: packages/admin/src/components/RegistryPluginDetail.tsx:597
 msgid "(pre-release)"
 msgstr "(preversió)"
 
@@ -57,7 +57,7 @@ msgstr "(preversió)"
 msgid "(synced)"
 msgstr "(sincronitzat)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:599
+#: packages/admin/src/components/RegistryPluginDetail.tsx:600
 msgid "(too new)"
 msgstr "(massa nou)"
 
@@ -69,12 +69,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# element)} other {(# elements)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:1956
+#: packages/admin/src/components/ContentEditor.tsx:2004
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr ""
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:1961
+#: packages/admin/src/components/ContentEditor.tsx:2009
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr ""
 
@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2090
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# comentari actualitzat} other {# comentaris actualitzats}}"
 
@@ -138,7 +138,7 @@ msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# element} other {# elements}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:481
+#: packages/admin/src/components/PluginManager.tsx:478
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr ""
 
@@ -164,7 +164,7 @@ msgstr "{0, plural, one {S'importarà # menú} other {S'importaran # menús}}"
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:495
+#: packages/admin/src/components/PluginManager.tsx:492
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, one {# permís} other {# permisos}}"
 
@@ -224,7 +224,7 @@ msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:1966
+#: packages/admin/src/components/ContentEditor.tsx:2014
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr ""
 
@@ -234,13 +234,18 @@ msgid "{0, plural, one {Column deleted} other {# columns deleted}}"
 msgstr ""
 
 #. placeholder {0}: fields.length
-#: packages/admin/src/components/ContentTypeEditor.tsx:640
+#: packages/admin/src/components/ContentTypeEditor.tsx:641
 msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {camp} other {camps}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:220
+#: packages/admin/src/components/Dashboard.tsx:319
 msgid "{0, plural, one {Media file} other {Media files}}"
+msgstr ""
+
+#. placeholder {0}: policyRejected - policyRejections.length
+#: packages/admin/src/components/Dashboard.tsx:198
+msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
 msgstr ""
 
 #. placeholder {0}: state.rows
@@ -249,14 +254,14 @@ msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:224
+#: packages/admin/src/components/Dashboard.tsx:323
 msgid "{0, plural, one {User} other {Users}}"
 msgstr ""
 
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:702
+#: packages/admin/src/components/RegistryPluginDetail.tsx:703
 msgid "{0} {1} required — you have {2}."
 msgstr "Cal {0} {1}: tens {2}."
 
@@ -272,7 +277,7 @@ msgid "{0} added to this post."
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:506
+#: packages/admin/src/components/RegistryPluginDetail.tsx:507
 msgid "{0} banner"
 msgstr "Bàner {0}"
 
@@ -297,17 +302,17 @@ msgid "{0} has been deactivated"
 msgstr "S'ha desactivat {0}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:376
+#: packages/admin/src/components/PluginManager.tsx:373
 msgid "{0} has been removed"
 msgstr "S'ha eliminat {0}"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:518
+#: packages/admin/src/components/RegistryPluginDetail.tsx:519
 msgid "{0} icon"
 msgstr "Icona {0}"
 
 #. placeholder {0}: plugin.installCount.toLocaleString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:223
 msgid "{0} installs"
 msgstr "{0} instal·lacions"
 
@@ -359,8 +364,8 @@ msgstr ""
 
 #. placeholder {0}: SYSTEM_FIELDS.length
 #. placeholder {1}: fields.length
-#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true); const [group, setGroup] = React.useState(collection?.group ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || editLocking !== (collection.editLocking ?? true) || group !== (collection.group ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, editLocking, group, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, group: group.trim() || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, group: group.trim() || null, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <Switch checked={editLocking} onCheckedChange={setEditLocking} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Edit locking`}</span> <p className="text-xs text-kumo-subtle"> {t`Hold an entry while someone is editing it, and refuse other writers`} </p> </div> } /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`} </p> </div> <div className="space-y-3"> <Label>{t`Navigation`}</Label> <div> <Input label={t`Group`} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t`Calendar`} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Content types with the same group share a collapsible folder in the sidebar`} </p> </div> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className="text-xs text-kumo-subtle capitalize">{field.type}</span> {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
-#: packages/admin/src/components/ContentTypeEditor.tsx:638
+#. placeholder {2}: import { Badge, Button, Checkbox, Input, InputArea, Label, Select, Switch } from "@cloudflare/kumo"; import { DndContext, closestCenter, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors, } from "@dnd-kit/core"; import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, } from "@dnd-kit/sortable"; import { CSS } from "@dnd-kit/utilities"; import type { MessageDescriptor } from "@lingui/core"; import { msg, plural } from "@lingui/core/macro"; import { Trans, useLingui } from "@lingui/react/macro"; import { Plus, DotsSixVertical, Pencil, Trash, Database, FileText } from "@phosphor-icons/react"; import { useNavigate } from "@tanstack/react-router"; import * as React from "react"; import type { SchemaCollectionWithFields, SchemaField, CreateFieldInput, CreateCollectionInput, UpdateCollectionInput, } from "../lib/api"; import { cn } from "../lib/utils"; import { ArrowPrev } from "./ArrowIcons.js"; import { ConfirmDialog } from "./ConfirmDialog"; import { EditorHeader } from "./EditorHeader"; import { FieldEditor } from "./FieldEditor"; import { RouterLinkButton } from "./RouterLinkButton.js"; import { SaveButton } from "./SaveButton"; // Regex patterns for slug generation const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g; const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g; export interface ContentTypeEditorProps { collection?: SchemaCollectionWithFields; isNew?: boolean; isSaving?: boolean; onSave: (input: CreateCollectionInput | UpdateCollectionInput) => void; onAddField?: (input: CreateFieldInput) => void; onUpdateField?: (fieldSlug: string, input: CreateFieldInput) => void; onDeleteField?: (fieldSlug: string) => void; onReorderFields?: (fieldSlugs: string[]) => void; } interface SupportOptionDef { value: string; label: MessageDescriptor; description: MessageDescriptor; } const MODERATION_OPTIONS: Record<"all" | "first_time" | "none", MessageDescriptor> = { all: msg`All comments require approval`, first_time: msg`First-time commenters only`, none: msg`No moderation (auto-approve all)`, }; const SUPPORT_OPTIONS: SupportOptionDef[] = [ { value: "drafts", label: msg`Drafts`, description: msg`Save content as draft before publishing`, }, { value: "revisions", label: msg`Revisions`, description: msg`Track content history`, }, { value: "preview", label: msg`Preview`, description: msg`Preview content before publishing`, }, { value: "search", label: msg`Search`, description: msg`Enable full-text search on this collection`, }, ]; /** * System fields that exist on every collection * These are created automatically and cannot be modified */ interface SystemFieldDef { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } const SYSTEM_FIELDS: SystemFieldDef[] = [ { slug: "id", label: msg`ID`, type: "text", description: msg`Unique identifier (ULID)`, }, { slug: "slug", label: msg`Slug`, type: "text", description: msg`URL-friendly identifier`, }, { slug: "status", label: msg`Status`, type: "text", description: msg`draft, published, or archived`, }, { slug: "created_at", label: msg`Created At`, type: "datetime", description: msg`When the entry was created`, }, { slug: "updated_at", label: msg`Updated At`, type: "datetime", description: msg`When the entry was last modified`, }, { slug: "published_at", label: msg`Published At`, type: "datetime", description: msg`When the entry was published`, }, ]; /** * Content Type editor for creating/editing collections */ export function ContentTypeEditor({ collection, isNew, isSaving, onSave, onAddField, onUpdateField, onDeleteField, onReorderFields, }: ContentTypeEditorProps) { const { t } = useLingui(); const _navigate = useNavigate(); // Form state const [slug, setSlug] = React.useState(collection?.slug ?? ""); const [label, setLabel] = React.useState(collection?.label ?? ""); const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? ""); const [description, setDescription] = React.useState(collection?.description ?? ""); const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? ""); const [routable, setRoutable] = React.useState(collection?.routable ?? true); const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true); const [group, setGroup] = React.useState(collection?.group ?? ""); // SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry // so it isn't sent back on save (the API enum rejects it). const [supports, setSupports] = React.useState<string[]>( (collection?.supports ?? ["drafts", "revisions"]).filter((s) => s !== "seo"), ); // SEO state const [hasSeo, setHasSeo] = React.useState(collection?.hasSeo ?? false); // Comment settings state const [commentsEnabled, setCommentsEnabled] = React.useState( collection?.commentsEnabled ?? false, ); const [commentsModeration, setCommentsModeration] = React.useState<"all" | "first_time" | "none">( collection?.commentsModeration ?? "first_time", ); const [commentsClosedAfterDays, setCommentsClosedAfterDays] = React.useState( collection?.commentsClosedAfterDays ?? 90, ); const [commentsAutoApproveUsers, setCommentsAutoApproveUsers] = React.useState( collection?.commentsAutoApproveUsers ?? true, ); // Field editor state const [fieldEditorOpen, setFieldEditorOpen] = React.useState(false); const [editingField, setEditingField] = React.useState<SchemaField | undefined>(); const [fieldSaving, setFieldSaving] = React.useState(false); const [deleteFieldTarget, setDeleteFieldTarget] = React.useState<SchemaField | null>(null); const urlPatternValid = !urlPattern || urlPattern.includes("{slug}"); // Track whether form has unsaved changes const hasChanges = React.useMemo(() => { if (isNew) return slug && label; if (!collection) return false; return ( label !== collection.label || labelSingular !== (collection.labelSingular ?? "") || description !== (collection.description ?? "") || urlPattern !== (collection.urlPattern ?? "") || routable !== (collection.routable ?? true) || editLocking !== (collection.editLocking ?? true) || group !== (collection.group ?? "") || JSON.stringify([...supports].toSorted()) !== JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) || hasSeo !== collection.hasSeo || commentsEnabled !== collection.commentsEnabled || commentsModeration !== collection.commentsModeration || commentsClosedAfterDays !== collection.commentsClosedAfterDays || commentsAutoApproveUsers !== collection.commentsAutoApproveUsers ); }, [ isNew, collection, slug, label, labelSingular, description, urlPattern, routable, editLocking, group, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, ]); // Auto-generate slug from plural label const handleLabelChange = (value: string) => { setLabel(value); if (isNew) { setSlug( value .toLowerCase() .replace(SLUG_INVALID_CHARS_PATTERN, "_") .replace(SLUG_LEADING_TRAILING_PATTERN, ""), ); } }; // Auto-generate plural label (and slug) from singular label const handleSingularLabelChange = (value: string) => { setLabelSingular(value); if (isNew) { const pluralLabel = value ? `${value}s` : ""; handleLabelChange(pluralLabel); } }; const handleSupportToggle = (value: string) => { setSupports((prev) => prev.includes(value) ? prev.filter((s) => s !== value) : [...prev, value], ); }; const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); if (isNew) { onSave({ slug, label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, group: group.trim() || undefined, supports, hasSeo, }); } else { onSave({ label, labelSingular: labelSingular || undefined, description: description || undefined, urlPattern: urlPattern || undefined, routable, editLocking, group: group.trim() || null, supports, hasSeo, commentsEnabled, commentsModeration, commentsClosedAfterDays, commentsAutoApproveUsers, }); } }; const handleFieldSave = async (input: CreateFieldInput) => { setFieldSaving(true); try { if (editingField) { onUpdateField?.(editingField.slug, input); } else { onAddField?.(input); } setFieldEditorOpen(false); setEditingField(undefined); } finally { setFieldSaving(false); } }; const handleEditField = (field: SchemaField) => { if (field.unsupportedType) return; setEditingField(field); setFieldEditorOpen(true); }; const handleAddField = () => { setEditingField(undefined); setFieldEditorOpen(true); }; const isFromCode = collection?.source === "code"; const fields = collection?.fields ?? []; const sensors = useSensors( useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }), ); const handleDragEnd = (event: DragEndEvent) => { const { active, over } = event; if (!over || active.id === over.id) return; const oldIndex = fields.findIndex((f) => f.id === active.id); const newIndex = fields.findIndex((f) => f.id === over.id); if (oldIndex === -1 || newIndex === -1) return; const reordered = arrayMove(fields, oldIndex, newIndex); onReorderFields?.(reordered.map((f) => f.slug)); }; return ( <div className="space-y-6"> <EditorHeader leading={ <RouterLinkButton to="/content-types" aria-label={t`Back to Content Types`} variant="ghost" shape="square" icon={<ArrowPrev />} /> } actions={ !isFromCode && !isNew ? ( <SaveButton type="submit" form="content-type-editor-form" isDirty={!!hasChanges} isSaving={!!isSaving} disabled={!urlPatternValid} /> ) : null } > <h1 className="truncate text-2xl font-semibold"> {isNew ? t`New Content Type` : collection?.label} </h1> {!isNew && ( <p className="text-kumo-subtle text-sm"> <code className="bg-kumo-tint px-1.5 py-0.5 rounded">{collection?.slug}</code> {isFromCode && <span className="ms-2 text-kumo-info">{t`Defined in code`}</span>} </p> )} </EditorHeader> {isFromCode && ( <div className="rounded-lg border border-kumo-info/50 bg-kumo-info-tint p-4"> <div className="flex items-center space-x-2"> <FileText className="h-5 w-5 text-kumo-info" /> <p className="text-sm text-kumo-subtle"> {t`This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema.`} </p> </div> </div> )} <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> {/* Settings form */} <div className="lg:col-span-1"> <form id="content-type-editor-form" onSubmit={handleSubmit} className="space-y-4"> <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Settings`}</h2> <Input label={t`Label (Singular)`} value={labelSingular} onChange={(e) => handleSingularLabelChange(e.target.value)} placeholder={t`Post`} disabled={isFromCode} /> <Input label={t`Label (Plural)`} value={label} onChange={(e) => handleLabelChange(e.target.value)} placeholder={t`Posts`} disabled={isFromCode} /> {isNew && ( <div> <Input label={t`Slug`} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="posts" disabled={!isNew} /> <p className="text-xs text-kumo-subtle mt-2">{t`Used in URLs and API endpoints`}</p> </div> )} <InputArea label={t`Description`} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t`A brief description of this content type`} rows={3} disabled={isFromCode} /> <Switch checked={routable} onCheckedChange={setRoutable} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Routable`}</span> <p className="text-xs text-kumo-subtle"> {t`Require a slug before content can be published`} </p> </div> } /> <Switch checked={editLocking} onCheckedChange={setEditLocking} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Edit locking`}</span> <p className="text-xs text-kumo-subtle"> {t`Hold an entry while someone is editing it, and refuse other writers`} </p> </div> } /> <div> <Input label={t`URL Pattern`} value={urlPattern} onChange={(e) => setUrlPattern(e.target.value)} placeholder={`/${slug === "pages" ? "" : `${slug}/`}{slug}`} disabled={isFromCode} /> {urlPattern && !urlPattern.includes("{slug}") && ( <p className="text-xs text-kumo-danger mt-2"> {t`Pattern must include a ${"{slug}"} placeholder`} </p> )} <p className="text-xs text-kumo-subtle mt-1"> {t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`} </p> </div> <div className="space-y-3"> <Label>{t`Navigation`}</Label> <div> <Input label={t`Group`} value={group} onChange={(e) => setGroup(e.target.value)} placeholder={t`Calendar`} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle mt-1"> {t`Content types with the same group share a collapsible folder in the sidebar`} </p> </div> </div> <div className="space-y-3"> <Label>{t`Features`}</Label> {SUPPORT_OPTIONS.map((option) => ( <div key={option.value} className={cn( "p-2 rounded-md hover:bg-kumo-tint/50", isFromCode && "opacity-60", )} > <Checkbox checked={supports.includes(option.value)} onCheckedChange={() => handleSupportToggle(option.value)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t(option.label)}</span> <p className="text-xs text-kumo-subtle">{t(option.description)}</p> </div> } /> </div> ))} </div> {/* SEO toggle */} <div className="pt-2 border-t"> <Switch checked={hasSeo} onCheckedChange={(checked) => setHasSeo(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`SEO`}</span> <p className="text-xs text-kumo-subtle"> {t`Add SEO metadata fields (title, description, image) and include in sitemap`} </p> </div> } /> </div> </div> {/* Comments settings — only for existing collections */} {!isNew && ( <div className="rounded-lg border bg-kumo-base p-4 space-y-4"> <h2 className="font-semibold">{t`Comments`}</h2> <Switch checked={commentsEnabled} onCheckedChange={(checked) => setCommentsEnabled(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium">{t`Enable comments`}</span> <p className="text-xs text-kumo-subtle"> {t`Allow visitors to leave comments on this collection's content`} </p> </div> } /> {commentsEnabled && ( <> <Select label={t`Moderation`} value={commentsModeration} onValueChange={(v) => setCommentsModeration((v as "all" | "first_time" | "none") ?? "first_time") } items={{ all: t(MODERATION_OPTIONS.all), first_time: t(MODERATION_OPTIONS.first_time), none: t(MODERATION_OPTIONS.none), }} disabled={isFromCode} /> <Input label={t`Close comments after (days)`} type="number" min={0} value={String(commentsClosedAfterDays)} onChange={(e) => { const parsed = Number.parseInt(e.target.value, 10); setCommentsClosedAfterDays(Number.isNaN(parsed) ? 0 : Math.max(0, parsed)); }} disabled={isFromCode} /> <p className="text-xs text-kumo-subtle -mt-2"> {t`Set to 0 to never close comments automatically.`} </p> <Switch checked={commentsAutoApproveUsers} onCheckedChange={(checked) => setCommentsAutoApproveUsers(checked)} disabled={isFromCode} label={ <div> <span className="text-sm font-medium"> {t`Auto-approve authenticated users`} </span> <p className="text-xs text-kumo-subtle"> {t`Comments from logged-in CMS users are approved automatically`} </p> </div> } /> </> )} </div> )} {!isFromCode && (isNew ? ( <Button type="submit" disabled={!hasChanges || !urlPatternValid} loading={isSaving} className="w-full justify-center" > {t`Create Content Type`} </Button> ) : ( <SaveButton type="submit" isDirty={!!hasChanges} isSaving={!!isSaving} announce={false} disabled={!urlPatternValid} className="w-full justify-center" /> ))} </form> </div> {/* Fields section - only show for existing collections */} {!isNew && ( <div className="lg:col-span-2"> <div className="rounded-lg border bg-kumo-base"> <div className="flex items-center justify-between p-4 border-b"> <div> <h2 className="font-semibold">{t`Fields`}</h2> <p className="text-sm text-kumo-subtle"> <Trans> {SYSTEM_FIELDS.length} system + {fields.length} custom{" "} {plural(fields.length, { one: "field", other: "fields" })} </Trans> </p> </div> {!isFromCode && ( <Button icon={<Plus />} onClick={handleAddField}> {t`Add Field`} </Button> )} </div> {/* System fields - always shown */} <div> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`System Fields`} </div> <div className="divide-y divide-kumo-line/50 border-b"> {SYSTEM_FIELDS.map((field) => ( <SystemFieldRow key={field.slug} field={field} /> ))} </div> </div> {/* Custom fields */} {fields.length === 0 ? ( <div className="p-8 text-center text-kumo-subtle"> <Database className="mx-auto h-12 w-12 mb-4 opacity-50" /> <p className="font-medium">{t`No custom fields yet`}</p> <p className="text-sm">{t`Add fields to define the structure of your content`}</p> {!isFromCode && ( <Button className="mt-4" icon={<Plus />} onClick={handleAddField}> {t`Add First Field`} </Button> )} </div> ) : ( <> <div className="px-4 py-2 text-xs font-medium text-kumo-subtle uppercase tracking-wider bg-kumo-tint/50 border-b"> {t`Custom Fields`} </div> <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} > <SortableContext items={fields.map((f) => f.id)} strategy={verticalListSortingStrategy} > <div className="divide-y"> {fields.map((field) => ( <FieldRow key={field.id} field={field} isFromCode={isFromCode} onEdit={() => handleEditField(field)} onDelete={() => setDeleteFieldTarget(field)} /> ))} </div> </SortableContext> </DndContext> </> )} </div> </div> )} </div> {/* Field editor dialog */} <FieldEditor open={fieldEditorOpen} onOpenChange={setFieldEditorOpen} field={editingField} onSave={handleFieldSave} isSaving={fieldSaving} /> <ConfirmDialog open={!!deleteFieldTarget} onClose={() => setDeleteFieldTarget(null)} title={t`Delete Field?`} description={ deleteFieldTarget ? t`Are you sure you want to delete the "${deleteFieldTarget.label}" field?` : "" } confirmLabel={t`Delete`} pendingLabel={t`Deleting...`} isPending={false} error={null} onConfirm={() => { if (deleteFieldTarget) { onDeleteField?.(deleteFieldTarget.slug); setDeleteFieldTarget(null); } }} /> </div> ); } interface FieldRowProps { field: SchemaField; isFromCode?: boolean; onEdit: () => void; onDelete: () => void; } function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) { const { t } = useLingui(); const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id, disabled: isFromCode, }); const style = { transform: CSS.Transform.toString(transform), transition }; return ( <div ref={setNodeRef} style={style} className={cn( "flex items-center px-4 py-3 hover:bg-kumo-tint/25", isDragging && "opacity-50", )} > {!isFromCode && ( <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing me-3" aria-label={t`Drag to reorder ${field.label}`} > <DotsSixVertical className="h-5 w-5 text-kumo-subtle" /> </button> )} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium">{field.label}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> </div> <div className="flex items-center space-x-2 mt-1"> <span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}> {field.unsupportedType?.type ?? field.type} </span> {field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>} {field.required && <Badge variant="secondary">{t`Required`}</Badge>} {field.unique && <Badge variant="secondary">{t`Unique`}</Badge>} {field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>} </div> </div> {!isFromCode && ( <div className="flex items-center space-x-1"> <Button variant="ghost" shape="square" onClick={onEdit} disabled={Boolean(field.unsupportedType)} aria-label={t`Edit ${field.label} field`} > <Pencil className="h-4 w-4" /> </Button> <Button variant="ghost" shape="square" onClick={onDelete} aria-label={t`Delete ${field.label} field`} > <Trash className="h-4 w-4 text-kumo-danger" /> </Button> </div> )} </div> ); } interface SystemFieldInfo { slug: string; label: MessageDescriptor; type: string; description: MessageDescriptor; } function SystemFieldRow({ field }: { field: SystemFieldInfo }) { const { t } = useLingui(); return ( <div className="flex items-center px-4 py-2 opacity-75"> <div className="w-8" /> {/* Spacer for alignment with draggable fields */} <div className="flex-1 min-w-0"> <div className="flex items-center space-x-2"> <span className="font-medium text-sm">{t(field.label)}</span> <code className="text-xs bg-kumo-tint px-1.5 py-0.5 rounded text-kumo-subtle"> {field.slug} </code> <Badge variant="secondary">{t`System`}</Badge> </div> <p className="text-xs text-kumo-subtle mt-0.5">{t(field.description)}</p> </div> </div> ); } 
+#: packages/admin/src/components/ContentTypeEditor.tsx:639
 msgid "{0} system + {1} custom {2}"
 msgstr "{0} del sistema + {1} personalitzats {2}"
 
@@ -385,7 +390,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 caràcters"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:463
 msgid "{base} to: {0}"
 msgstr "{base} a: {0}"
 
@@ -476,11 +481,11 @@ msgstr "{needsNewCollections, plural, one {Es crearà # col·lecció nova} other
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {S'afegiran camps a # col·lecció existent} other {S'afegiran camps a # col·leccions existents}}"
 
-#: packages/admin/src/components/Dashboard.tsx:109
+#: packages/admin/src/components/Dashboard.tsx:138
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:104
+#: packages/admin/src/components/Dashboard.tsx:133
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
@@ -488,11 +493,11 @@ msgstr ""
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:100
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} sol·licita permisos addicionals:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:99
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:101
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} requereix els permisos següents:"
 
@@ -500,6 +505,10 @@ msgstr "{pluginName} requereix els permisos següents:"
 #: packages/admin/src/components/PluginSettings.tsx:142
 #: packages/admin/src/components/PluginSettings.tsx:170
 msgid "{pluginName} Settings"
+msgstr ""
+
+#: packages/admin/src/components/Dashboard.tsx:152
+msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
 msgstr ""
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:304
@@ -550,11 +559,11 @@ msgstr "{total, plural, one {# element} other {# elements}}"
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {# en total} other {# en total}}"
 
-#: packages/admin/src/components/Dashboard.tsx:208
+#: packages/admin/src/components/Dashboard.tsx:307
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:214
+#: packages/admin/src/components/Dashboard.tsx:313
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
@@ -704,7 +713,7 @@ msgstr "7 dies"
 msgid "90 days"
 msgstr "90 dies"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:427
+#: packages/admin/src/components/ContentTypeEditor.tsx:428
 msgid "A brief description of this content type"
 msgstr "Una breu descripció d'aquest tipus de contingut"
 
@@ -716,13 +725,13 @@ msgstr "Un bàner destacat d'amplada completa amb encapçalament, text i botó d
 msgid "A media folder with this name already exists"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:167
-#: packages/admin/src/components/ContentSettingsPanel.tsx:214
-#: packages/admin/src/components/ContentSettingsPanel.tsx:236
+#: packages/admin/src/components/ContentSettingsPanel.tsx:169
+#: packages/admin/src/components/ContentSettingsPanel.tsx:216
+#: packages/admin/src/components/ContentSettingsPanel.tsx:238
 msgid "A publication time has not been selected"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:733
+#: packages/admin/src/components/ContentEditor.tsx:741
 msgid "A publishing action is already in progress"
 msgstr ""
 
@@ -742,11 +751,11 @@ msgstr ""
 msgid "About inferred bylines"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:277
 msgid "Accept & Install"
 msgstr "Accepta i instal·la"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:272
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Accept & Update"
 msgstr "Accepta i actualitza"
 
@@ -759,12 +768,12 @@ msgstr "Accepta la invitació"
 msgid "Access denied"
 msgstr "Accés denegat"
 
-#: packages/admin/src/router.tsx:2102
+#: packages/admin/src/router.tsx:2110
 msgid "Access Denied"
 msgstr "Accés denegat"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:430
+#: packages/admin/src/lib/api/marketplace.ts:440
 msgid "Access your media library"
 msgstr "Accedeix a la teva biblioteca multimèdia"
 
@@ -872,7 +881,7 @@ msgstr ""
 msgid "Add Domain"
 msgstr "Afegeix un domini"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:646
+#: packages/admin/src/components/ContentTypeEditor.tsx:647
 #: packages/admin/src/components/FieldEditor.tsx:378
 #: packages/admin/src/components/FieldEditor.tsx:712
 msgid "Add Field"
@@ -886,11 +895,11 @@ msgstr "Afegeix camps"
 msgid "Add fields like \"Job title\" or \"Pronouns\" to enrich every byline."
 msgstr "Afegeix camps com «Càrrec» o «Pronoms» per enriquir cada signatura."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:668
+#: packages/admin/src/components/ContentTypeEditor.tsx:669
 msgid "Add fields to define the structure of your content"
 msgstr "Afegeix camps per definir l'estructura del teu contingut"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:671
+#: packages/admin/src/components/ContentTypeEditor.tsx:672
 msgid "Add First Field"
 msgstr "Afegeix el primer camp"
 
@@ -962,7 +971,7 @@ msgstr ""
 msgid "Add row below"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:529
+#: packages/admin/src/components/ContentTypeEditor.tsx:530
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Afegeix camps de metadades SEO (títol, descripció, imatge) i inclou-los al mapa del lloc"
 
@@ -996,12 +1005,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
-#: packages/admin/src/components/Sidebar.tsx:602
+#: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administració"
 
-#: packages/admin/src/components/Sidebar.tsx:550
+#: packages/admin/src/components/Sidebar.tsx:552
 msgid "Admin navigation"
 msgstr "Navegació d'administració"
 
@@ -1017,16 +1026,16 @@ msgstr ""
 msgid "After send:"
 msgstr "Després d'enviar:"
 
-#: packages/admin/src/components/PluginManager.tsx:590
+#: packages/admin/src/components/PluginManager.tsx:587
 msgid "Agent access"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:387
+#: packages/admin/src/components/PluginManager.tsx:384
 msgid "Agent access for {0} has been updated"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:211
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:215
 msgid "Agent-callable MCP tools"
 msgstr ""
 
@@ -1105,7 +1114,7 @@ msgstr "Tots els tipus"
 msgid "All uploads finished"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:592
+#: packages/admin/src/components/PluginManager.tsx:589
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
@@ -1114,7 +1123,7 @@ msgstr ""
 msgid "Allow users from specific domains to sign up"
 msgstr "Permet que els usuaris de dominis específics es registrin"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:550
+#: packages/admin/src/components/ContentTypeEditor.tsx:551
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "Permet que els visitants deixin comentaris al contingut d'aquesta col·lecció"
 
@@ -1130,7 +1139,7 @@ msgstr "Tipus permesos"
 msgid "Already have an account?"
 msgstr "Ja tens un compte?"
 
-#: packages/admin/src/components/PluginManager.tsx:787
+#: packages/admin/src/components/PluginManager.tsx:784
 msgid "Also delete plugin storage data"
 msgstr "Elimina també les dades d'emmagatzematge del connector"
 
@@ -1214,10 +1223,10 @@ msgstr ""
 #: packages/admin/src/router.tsx:1296
 #: packages/admin/src/router.tsx:1327
 #: packages/admin/src/router.tsx:1348
-#: packages/admin/src/router.tsx:2047
-#: packages/admin/src/router.tsx:2063
-#: packages/admin/src/router.tsx:2088
-#: packages/admin/src/router.tsx:2589
+#: packages/admin/src/router.tsx:2055
+#: packages/admin/src/router.tsx:2071
+#: packages/admin/src/router.tsx:2096
+#: packages/admin/src/router.tsx:2597
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1289,6 +1298,10 @@ msgstr "Aplica l'enllaç"
 msgid "Approve"
 msgstr "Aprova"
 
+#: packages/admin/src/lib/api/marketplace.ts:423
+msgid "Approve comments and mark them as pending or spam"
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
 msgstr ""
@@ -1326,7 +1339,7 @@ msgid "Are you sure you want to delete \"{0}\"? This will also delete all conten
 msgstr "Segur que vols eliminar «{0}»? Això també eliminarà tot el contingut d'aquesta col·lecció."
 
 #. placeholder {0}: deleteFieldTarget.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:724
+#: packages/admin/src/components/ContentTypeEditor.tsx:725
 msgid "Are you sure you want to delete the \"{0}\" field?"
 msgstr "Segur que vols eliminar el camp «{0}»?"
 
@@ -1354,11 +1367,11 @@ msgstr "Assigna els autors de WordPress a usuaris d'EmDash. Les entrades s'atrib
 msgid "Astro"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1989
+#: packages/admin/src/components/ContentEditor.tsx:2037
 msgid "At least {min}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1986
+#: packages/admin/src/components/ContentEditor.tsx:2034
 msgid "At most {max}"
 msgstr ""
 
@@ -1393,7 +1406,7 @@ msgstr "L'autenticació s'ha cancel·lat o ha excedit el temps d'espera. Torna-h
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:279
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1258
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1318
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
 msgid "Author"
@@ -1419,7 +1432,7 @@ msgstr "Autoritza"
 msgid "Authorize Device"
 msgstr "Autoritza el dispositiu"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:150
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:152
 msgid "Authorized approvers"
 msgstr ""
 
@@ -1427,7 +1440,7 @@ msgstr ""
 msgid "Authorizing..."
 msgstr "S'està autoritzant..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:751
+#: packages/admin/src/components/RegistryPluginDetail.tsx:752
 msgid "Authors"
 msgstr "Autors"
 
@@ -1439,7 +1452,7 @@ msgstr "automàtic"
 msgid "Auto (slug change)"
 msgstr "Automàtic (canvi de slug)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:594
+#: packages/admin/src/components/ContentTypeEditor.tsx:595
 msgid "Auto-approve authenticated users"
 msgstr "Aprova automàticament els usuaris autenticats"
 
@@ -1500,11 +1513,11 @@ msgstr "Avatar"
 msgid "Back"
 msgstr "Enrere"
 
-#: packages/admin/src/components/ContentEditor.tsx:959
+#: packages/admin/src/components/ContentEditor.tsx:971
 msgid "Back to {collectionLabel} list"
 msgstr "Torna a la llista {collectionLabel}"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:347
+#: packages/admin/src/components/ContentTypeEditor.tsx:348
 msgid "Back to Content Types"
 msgstr "Torna als tipus de contingut"
 
@@ -1520,13 +1533,13 @@ msgstr "Torna a l'inici de sessió"
 msgid "Back to Main library"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:126
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:404
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:136
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:416
 msgid "Back to marketplace"
 msgstr "Torna al mercat"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:891
+#: packages/admin/src/components/RegistryPluginDetail.tsx:893
 msgid "Back to plugins"
 msgstr "Torna als connectors"
 
@@ -1582,7 +1595,7 @@ msgstr "Abans d'enviar:"
 msgid "Before you continue:"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1983
+#: packages/admin/src/components/ContentEditor.tsx:2031
 msgid "Between {min} and {max}"
 msgstr ""
 
@@ -1658,14 +1671,14 @@ msgstr ""
 msgid "Byline schema"
 msgstr "Esquema de signatures"
 
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 msgid "Byline Schema"
 msgstr "Esquema de signatures"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1033
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1037
-#: packages/admin/src/components/Sidebar.tsx:428
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1062
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1066
+#: packages/admin/src/components/Sidebar.tsx:429
 #: packages/admin/src/routes/bylines.tsx:375
 msgid "Bylines"
 msgstr "Signatures"
@@ -1682,7 +1695,7 @@ msgstr ""
 msgid "C++"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:485
+#: packages/admin/src/components/ContentTypeEditor.tsx:486
 msgid "Calendar"
 msgstr ""
 
@@ -1704,14 +1717,14 @@ msgstr "Pot veure el contingut"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1012
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:264
-#: packages/admin/src/components/ConfirmDialog.tsx:99
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:268
+#: packages/admin/src/components/ConfirmDialog.tsx:102
 #: packages/admin/src/components/ContentList.tsx:545
 #: packages/admin/src/components/ContentList.tsx:1378
 #: packages/admin/src/components/ContentList.tsx:1560
 #: packages/admin/src/components/ContentPickerModal.tsx:240
-#: packages/admin/src/components/ContentSettingsPanel.tsx:312
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1220
+#: packages/admin/src/components/ContentSettingsPanel.tsx:314
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1280
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:311
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:312
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:539
@@ -1726,7 +1739,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/PluginManager.tsx:793
+#: packages/admin/src/components/PluginManager.tsx:790
 #: packages/admin/src/components/PortableTextEditor.tsx:4688
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:183
@@ -1770,11 +1783,11 @@ msgstr "No es poden eliminar les seccions del tema"
 msgid "Canonical URL"
 msgstr "URL canònic"
 
-#: packages/admin/src/components/PluginManager.tsx:566
+#: packages/admin/src/components/PluginManager.tsx:563
 msgid "Capabilities"
 msgstr "Capacitats"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:78
 msgid "Capability consent"
 msgstr "Consentiment de capacitats"
 
@@ -1793,7 +1806,7 @@ msgstr "Llegendes / Subtítols"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:192
+#: packages/admin/src/components/AdminCommandPalette.tsx:193
 #: packages/admin/src/components/Widgets.tsx:135
 msgid "Categories"
 msgstr "Categories"
@@ -1857,12 +1870,16 @@ msgstr ""
 msgid "Change publication date: {formattedValue}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:506
+#: packages/admin/src/components/ContentSettingsPanel.tsx:508
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
 msgid "Change schedule"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:879
+#: packages/admin/src/lib/api/marketplace.ts:429
+msgid "Change where visitors are sent"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:881
 msgid "Changelog"
 msgstr "Registre de canvis"
 
@@ -2060,7 +2077,7 @@ msgstr "Fes clic a l'enllaç del correu electrònic per iniciar la sessió."
 #: packages/admin/src/components/FieldEditor.tsx:381
 #: packages/admin/src/components/FieldEditor.tsx:387
 #: packages/admin/src/components/FieldEditor.tsx:391
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:449
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:461
 #: packages/admin/src/components/MediaDetailPanel.tsx:1116
 #: packages/admin/src/components/MediaDetailPanel.tsx:1835
 #: packages/admin/src/components/MediaPickerModal.tsx:1001
@@ -2112,7 +2129,7 @@ msgstr "Tanca"
 msgid "Close byline search"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:573
+#: packages/admin/src/components/ContentTypeEditor.tsx:574
 msgid "Close comments after (days)"
 msgstr "Tanca els comentaris al cap de (dies)"
 
@@ -2128,7 +2145,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Tanca el tauler"
 
-#: packages/admin/src/components/ContentEditor.tsx:1488
+#: packages/admin/src/components/ContentEditor.tsx:1526
 msgid "Close settings"
 msgstr ""
 
@@ -2148,8 +2165,8 @@ msgstr "Bloc de codi"
 msgid "Code block actions"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:549
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:546
+#: packages/admin/src/components/PluginManager.tsx:551
 msgid "Collapse details"
 msgstr "Replega els detalls"
 
@@ -2222,12 +2239,12 @@ msgid "Comment Detail"
 msgstr "Detall del comentari"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:148
-#: packages/admin/src/components/ContentTypeEditor.tsx:540
-#: packages/admin/src/components/Sidebar.tsx:414
+#: packages/admin/src/components/ContentTypeEditor.tsx:541
+#: packages/admin/src/components/Sidebar.tsx:415
 msgid "Comments"
 msgstr "Comentaris"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:597
+#: packages/admin/src/components/ContentTypeEditor.tsx:598
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Els comentaris dels usuaris del CMS amb sessió iniciada s'aproven automàticament"
 
@@ -2277,6 +2294,16 @@ msgstr "Connecta i analitza"
 msgid "Connect to {0}"
 msgstr "Connecta't a {0}"
 
+#: packages/admin/src/lib/api/marketplace.ts:436
+#: packages/admin/src/lib/api/marketplace.ts:444
+msgid "Connect to any network host and load external plugin admin images (unrestricted)"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:435
+#: packages/admin/src/lib/api/marketplace.ts:443
+msgid "Connect to network hosts and load external plugin admin images"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1389
 msgid "Connect with WordPress"
 msgstr "Connecta amb WordPress"
@@ -2286,17 +2313,17 @@ msgstr "Connecta amb WordPress"
 msgid "Connected {0}"
 msgstr "{0} connectat"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:435
+#: packages/admin/src/components/ContentSettingsPanel.tsx:437
 msgid "content"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:378
+#: packages/admin/src/components/AdminCommandPalette.tsx:380
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
-#: packages/admin/src/components/Dashboard.tsx:276
+#: packages/admin/src/components/Dashboard.tsx:375
 #: packages/admin/src/components/PortableTextEditor.tsx:2925
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:586
+#: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/components/Widgets.tsx:899
 msgid "Content"
 msgstr "Contingut"
@@ -2330,7 +2357,7 @@ msgstr "ID del contingut:"
 msgid "Content is now live"
 msgstr "El contingut ja és en línia"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:880
+#: packages/admin/src/components/ContentSettingsPanel.tsx:909
 msgid "Content locale"
 msgstr ""
 
@@ -2354,13 +2381,13 @@ msgstr "Instantània del contingut:"
 msgid "Content to Import"
 msgstr "Contingut per importar"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:184
+#: packages/admin/src/components/AdminCommandPalette.tsx:185
 #: packages/admin/src/components/ContentTypeList.tsx:116
-#: packages/admin/src/components/Sidebar.tsx:454
+#: packages/admin/src/components/Sidebar.tsx:455
 msgid "Content Types"
 msgstr "Tipus de contingut"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:489
+#: packages/admin/src/components/ContentTypeEditor.tsx:490
 msgid "Content types with the same group share a collapsible folder in the sidebar"
 msgstr ""
 
@@ -2462,7 +2489,7 @@ msgstr "No s'ha pogut copiar automàticament. Selecciona l'URL de dalt i copia'l
 msgid "Could not insert section"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:131
+#: packages/admin/src/components/Dashboard.tsx:230
 msgid "Could not load dashboard data"
 msgstr ""
 
@@ -2587,7 +2614,7 @@ msgstr ""
 msgid "Create byline"
 msgstr "Crea una signatura"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:615
+#: packages/admin/src/components/ContentTypeEditor.tsx:616
 msgid "Create Content Type"
 msgstr "Crea un tipus de contingut"
 
@@ -2658,6 +2685,10 @@ msgstr "Crea seccions a la biblioteca de seccions per utilitzar-les aquí"
 msgid "Create Taxonomy"
 msgstr "Crea una taxonomia"
 
+#: packages/admin/src/lib/api/marketplace.ts:427
+msgid "Create taxonomy terms and change content classifications"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
 msgid "Create Token"
@@ -2687,8 +2718,8 @@ msgstr "Crea'n el primer"
 msgid "Create your first reusable content section to get started."
 msgstr "Crea la teva primera secció de contingut reutilitzable per començar."
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:419
+#: packages/admin/src/lib/api/marketplace.ts:439
 msgid "Create, update, and delete content"
 msgstr "Crea, actualitza i elimina contingut"
 
@@ -2705,7 +2736,7 @@ msgid "Create, update, delete content"
 msgstr "Crea, actualitza i elimina contingut"
 
 #: packages/admin/src/components/ContentList.tsx:868
-#: packages/admin/src/components/ContentSettingsPanel.tsx:993
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1022
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
@@ -2726,7 +2757,7 @@ msgstr "S'ha creat {0}"
 msgid "Created {0} translation"
 msgstr "S'ha creat la traducció {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:972
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1001
 msgid "Created and updated"
 msgstr ""
 
@@ -2798,7 +2829,7 @@ msgstr ""
 msgid "Custom"
 msgstr "Personalitzat"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:678
+#: packages/admin/src/components/ContentTypeEditor.tsx:679
 msgid "Custom Fields"
 msgstr "Camps personalitzats"
 
@@ -2823,11 +2854,11 @@ msgstr ""
 msgid "Dark mode variant"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:130
+#: packages/admin/src/components/AdminCommandPalette.tsx:131
 #: packages/admin/src/components/ContentTypeList.tsx:358
-#: packages/admin/src/components/Dashboard.tsx:63
-#: packages/admin/src/components/Sidebar.tsx:393
-#: packages/admin/src/components/Sidebar.tsx:577
+#: packages/admin/src/components/Dashboard.tsx:65
+#: packages/admin/src/components/Sidebar.tsx:394
+#: packages/admin/src/components/Sidebar.tsx:579
 msgid "Dashboard"
 msgstr "Tauler"
 
@@ -2861,7 +2892,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr "Nombre decimal"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:816
+#: packages/admin/src/components/RegistryPluginDetail.tsx:817
 msgid "Declared permissions"
 msgstr "Permisos declarats"
 
@@ -2898,13 +2929,13 @@ msgstr "Defineix camps personalitzats emmagatzemats a cada signatura: càrrec, p
 msgid "Define the structure of your content"
 msgstr "Defineix l'estructura del teu contingut"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:371
+#: packages/admin/src/components/ContentTypeEditor.tsx:372
 msgid "Defined in code"
 msgstr "Definit al codi"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:259
 #: packages/admin/src/components/comments/CommentInbox.tsx:399
-#: packages/admin/src/components/ContentTypeEditor.tsx:727
+#: packages/admin/src/components/ContentTypeEditor.tsx:728
 #: packages/admin/src/components/ContentTypeList.tsx:236
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:130
@@ -2944,7 +2975,7 @@ msgid "Delete {0}"
 msgstr "Elimina {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:804
+#: packages/admin/src/components/ContentTypeEditor.tsx:809
 msgid "Delete {0} field"
 msgstr "Elimina el camp {0}"
 
@@ -2995,7 +3026,7 @@ msgstr "Vols eliminar el tipus de contingut?"
 msgid "Delete embed"
 msgstr "Elimina la incrustació"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:721
+#: packages/admin/src/components/ContentTypeEditor.tsx:722
 msgid "Delete Field?"
 msgstr "Vols eliminar el camp?"
 
@@ -3084,7 +3115,7 @@ msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other 
 msgstr "En eliminar «{0}» també se suprimirà {1, plural, one {# valor emmagatzemat} other {# valors emmagatzemats}} de totes les signatures. Aquesta acció no es pot desfer."
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:400
-#: packages/admin/src/components/ContentTypeEditor.tsx:728
+#: packages/admin/src/components/ContentTypeEditor.tsx:729
 #: packages/admin/src/components/ContentTypeList.tsx:237
 #: packages/admin/src/components/MediaDetailPanel.tsx:1804
 #: packages/admin/src/components/MediaDetailPanel.tsx:1909
@@ -3146,8 +3177,8 @@ msgstr "Descriu aquesta imatge per a l'accessibilitat"
 msgid "Describe what this section is for..."
 msgstr "Descriu per a què serveix aquesta secció..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:424
-#: packages/admin/src/components/RegistryPluginDetail.tsx:876
+#: packages/admin/src/components/ContentTypeEditor.tsx:425
+#: packages/admin/src/components/RegistryPluginDetail.tsx:878
 #: packages/admin/src/components/SectionEditor.tsx:295
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:438
@@ -3166,8 +3197,8 @@ msgstr "Destinació"
 msgid "Destination path"
 msgstr "Ruta de destinació"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:611
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:229
+#: packages/admin/src/components/PluginManager.tsx:608
 msgid "Destructive"
 msgstr ""
 
@@ -3208,11 +3239,11 @@ msgstr "Dimensions:"
 msgid "Disable"
 msgstr "Desactiva"
 
-#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:540
 msgid "Disable plugin"
 msgstr "Desactiva el connector"
 
-#: packages/admin/src/components/PluginManager.tsx:601
+#: packages/admin/src/components/PluginManager.tsx:598
 msgid "Disable plugin MCP tools"
 msgstr ""
 
@@ -3228,14 +3259,14 @@ msgstr "Desactiva l'usuari"
 msgid "Disable User?"
 msgstr "Vols desactivar l'usuari?"
 
-#: packages/admin/src/components/PluginManager.tsx:436
+#: packages/admin/src/components/PluginManager.tsx:433
 #: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "Desactivat"
 
-#: packages/admin/src/components/PluginManager.tsx:661
+#: packages/admin/src/components/PluginManager.tsx:658
 msgid "Disabled:"
 msgstr "Desactivat:"
 
@@ -3252,8 +3283,8 @@ msgstr "S'està desactivant..."
 msgid "Discard"
 msgstr "Descarta"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:299
-#: packages/admin/src/components/ContentSettingsPanel.tsx:319
+#: packages/admin/src/components/ContentSettingsPanel.tsx:301
+#: packages/admin/src/components/ContentSettingsPanel.tsx:321
 msgid "Discard changes"
 msgstr "Descarta els canvis"
 
@@ -3261,7 +3292,7 @@ msgstr "Descarta els canvis"
 msgid "Discard changes?"
 msgstr "Vols descartar els canvis?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:304
+#: packages/admin/src/components/ContentSettingsPanel.tsx:306
 msgid "Discard draft changes?"
 msgstr "Vols descartar els canvis de l'esborrany?"
 
@@ -3269,6 +3300,7 @@ msgstr "Vols descartar els canvis de l'esborrany?"
 msgid "Discarding..."
 msgstr "S'està descartant..."
 
+#: packages/admin/src/components/Dashboard.tsx:188
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
 msgid "Dismiss"
 msgstr "Descarta"
@@ -3323,7 +3355,7 @@ msgstr ""
 msgid "Displayed below the image as a visible caption."
 msgstr "Es mostra sota la imatge com a llegenda visible."
 
-#: packages/admin/src/components/ContentEditor.tsx:1033
+#: packages/admin/src/components/ContentEditor.tsx:1058
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Mode sense distraccions (⌘⇧\\)"
 
@@ -3399,7 +3431,7 @@ msgstr ""
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:559
+#: packages/admin/src/components/RegistryPluginDetail.tsx:560
 msgid "Download SBOM"
 msgstr "Baixa l'SBOM"
 
@@ -3412,12 +3444,12 @@ msgstr "S'està baixant"
 msgid "Draft"
 msgstr "Esborrany"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:191
-#: packages/admin/src/components/ContentSettingsPanel.tsx:213
+#: packages/admin/src/components/ContentSettingsPanel.tsx:193
+#: packages/admin/src/components/ContentSettingsPanel.tsx:215
 msgid "Draft changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:157
+#: packages/admin/src/components/ContentSettingsPanel.tsx:159
 msgid "Draft version"
 msgstr ""
 
@@ -3426,7 +3458,7 @@ msgid "draft, published, or archived"
 msgstr "esborrany, publicat o arxivat"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:310
+#: packages/admin/src/components/Dashboard.tsx:409
 msgid "Drafts"
 msgstr "Esborranys"
 
@@ -3452,7 +3484,7 @@ msgstr "Arrossega per reordenar"
 
 #. placeholder {0}: field.label
 #. placeholder {0}: widget.title ?? t`widget`
-#: packages/admin/src/components/ContentTypeEditor.tsx:771
+#: packages/admin/src/components/ContentTypeEditor.tsx:772
 #: packages/admin/src/components/Widgets.tsx:802
 msgid "Drag to reorder {0}"
 msgstr "Arrossega per reordenar {0}"
@@ -3527,6 +3559,7 @@ msgstr "p. ex. MacBook Pro, iPhone"
 #: packages/admin/src/components/MenuEditor.tsx:544
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Sections.tsx:392
+#: packages/admin/src/components/Shell.tsx:86
 #: packages/admin/src/components/TranslationsPanel.tsx:93
 msgid "Edit"
 msgstr "Edita"
@@ -3545,11 +3578,11 @@ msgid "Edit {0}"
 msgstr "Edita {0}"
 
 #. placeholder {0}: field.label
-#: packages/admin/src/components/ContentTypeEditor.tsx:796
+#: packages/admin/src/components/ContentTypeEditor.tsx:801
 msgid "Edit {0} field"
 msgstr "Edita el camp {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:978
 msgid "Edit {itemLabel}"
 msgstr ""
 
@@ -3606,8 +3639,12 @@ msgstr ""
 msgid "Edit link"
 msgstr "Edita l'enllaç"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:452
+#: packages/admin/src/components/ContentTypeEditor.tsx:453
 msgid "Edit locking"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:432
+msgid "Edit media alt text, captions, and focal points"
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:573
@@ -3617,6 +3654,11 @@ msgstr "Edita l'element del menú"
 #: packages/admin/src/components/MenuEditor.tsx:369
 msgid "Edit menu items"
 msgstr "Edita els elements del menú"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:30
+msgid "visualEditing.editMode"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:872
 #: packages/admin/src/components/BylineCreditsEditor.tsx:966
@@ -3644,6 +3686,11 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:368
 msgid "Edit URL"
 msgstr "Edita l'URL"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:21
+msgid "visualEditing.sessionExpired"
+msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -3760,7 +3807,7 @@ msgstr ""
 msgid "Enable"
 msgstr "Activa"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:548
+#: packages/admin/src/components/ContentTypeEditor.tsx:549
 msgid "Enable comments"
 msgstr "Activa els comentaris"
 
@@ -3768,11 +3815,11 @@ msgstr "Activa els comentaris"
 msgid "Enable full-text search on this collection"
 msgstr "Activa la cerca de text complet en aquesta col·lecció"
 
-#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:540
 msgid "Enable plugin"
 msgstr "Activa el connector"
 
-#: packages/admin/src/components/PluginManager.tsx:602
+#: packages/admin/src/components/PluginManager.tsx:599
 msgid "Enable plugin MCP tools"
 msgstr ""
 
@@ -3793,7 +3840,7 @@ msgstr ""
 msgid "Enabled"
 msgstr "Activat"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:886
+#: packages/admin/src/components/ContentSettingsPanel.tsx:915
 msgid "English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language."
 msgstr ""
 
@@ -3806,7 +3853,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Introdueix un URL (https://…) o una ruta relativa (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2030
+#: packages/admin/src/components/ContentEditor.tsx:2078
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Introdueix un URL vàlid (p. ex. https://example.com)"
 
@@ -3814,7 +3861,7 @@ msgstr "Introdueix un URL vàlid (p. ex. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Introdueix les credencials manualment"
 
-#: packages/admin/src/components/ContentEditor.tsx:1032
+#: packages/admin/src/components/ContentEditor.tsx:1057
 msgid "Enter distraction-free mode"
 msgstr "Entra al mode sense distraccions"
 
@@ -3826,7 +3873,7 @@ msgstr "Introdueix el correu electrònic"
 msgid "Enter HTML..."
 msgstr "Introdueix HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1706
+#: packages/admin/src/components/ContentEditor.tsx:1754
 msgid "Enter markdown content..."
 msgstr "Introdueix contingut en Markdown..."
 
@@ -3861,7 +3908,7 @@ msgstr "Introdueix l'URL del teu lloc de WordPress"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2806
+#: packages/admin/src/router.tsx:2814
 msgid "Error"
 msgstr "Error"
 
@@ -3889,7 +3936,7 @@ msgstr ""
 msgid "Every place using this image will update to the selected version."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:662
+#: packages/admin/src/components/RegistryPluginDetail.tsx:663
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "Totes les versions publicades d'aquest connector s'han retirat o no s'han pogut verificar. Torna-ho a comprovar més tard o contacta amb l'editor."
 
@@ -3910,16 +3957,16 @@ msgstr ""
 msgid "Exists"
 msgstr "Existeix"
 
-#: packages/admin/src/components/ContentEditor.tsx:1100
+#: packages/admin/src/components/ContentEditor.tsx:1125
 msgid "Exit distraction-free mode"
 msgstr "Surt del mode sense distraccions"
 
-#: packages/admin/src/components/ContentEditor.tsx:1101
+#: packages/admin/src/components/ContentEditor.tsx:1126
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:549
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:546
+#: packages/admin/src/components/PluginManager.tsx:551
 msgid "Expand details"
 msgstr "Desplega els detalls"
 
@@ -3948,7 +3995,7 @@ msgstr "Ha fallat"
 msgid "Failed"
 msgstr "Ha fallat"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:199
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:209
 msgid "Failed security audit"
 msgstr "No ha superat l'auditoria de seguretat"
 
@@ -3964,7 +4011,7 @@ msgstr "No s'ha pogut afegir la clau d'accés"
 msgid "Failed to analyze WordPress site"
 msgstr "No s'ha pogut analitzar el lloc de WordPress"
 
-#: packages/admin/src/components/SandboxedPluginPage.tsx:54
+#: packages/admin/src/components/SandboxedPluginPage.tsx:74
 msgid "Failed to communicate with plugin"
 msgstr "No s'ha pogut comunicar amb el connector"
 
@@ -4033,12 +4080,12 @@ msgstr "No s'ha pogut eliminar la signatura"
 msgid "Failed to delete byline field"
 msgstr "No s'ha pogut eliminar el camp de signatura"
 
-#: packages/admin/src/lib/api/schema.ts:252
+#: packages/admin/src/lib/api/schema.ts:253
 msgid "Failed to delete collection"
 msgstr "No s'ha pogut eliminar la col·lecció"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2062
+#: packages/admin/src/router.tsx:2070
 msgid "Failed to delete comment"
 msgstr "No s'ha pogut eliminar el comentari"
 
@@ -4046,7 +4093,7 @@ msgstr "No s'ha pogut eliminar el comentari"
 msgid "Failed to delete content"
 msgstr "No s'ha pogut eliminar el contingut"
 
-#: packages/admin/src/lib/api/schema.ts:308
+#: packages/admin/src/lib/api/schema.ts:309
 #: packages/admin/src/routes/byline-schema.tsx:138
 msgid "Failed to delete field"
 msgstr "No s'ha pogut eliminar el camp"
@@ -4112,6 +4159,11 @@ msgstr "No s'ha pogut desactivar l'usuari"
 msgid "Failed to discard changes"
 msgstr "No s'han pogut descartar els canvis"
 
+#: packages/admin/src/components/Dashboard.tsx:207
+#: packages/admin/src/lib/api/dashboard.ts:71
+msgid "Failed to dismiss scheduled publication rejection"
+msgstr ""
+
 #: packages/admin/src/components/WelcomeModal.tsx:76
 msgid "Failed to dismiss welcome"
 msgstr "No s'ha pogut descartar la benvinguda"
@@ -4137,7 +4189,7 @@ msgstr "No s'ha pogut activar l'usuari"
 msgid "Failed to execute import"
 msgstr "No s'ha pogut executar la importació"
 
-#: packages/admin/src/lib/api/client.ts:338
+#: packages/admin/src/lib/api/client.ts:355
 msgid "Failed to fetch auth mode"
 msgstr "No s'ha pogut obtenir el mode d'autenticació"
 
@@ -4145,12 +4197,12 @@ msgstr "No s'ha pogut obtenir el mode d'autenticació"
 msgid "Failed to fetch backup settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:200
-#: packages/admin/src/lib/api/schema.ts:204
+#: packages/admin/src/lib/api/schema.ts:201
+#: packages/admin/src/lib/api/schema.ts:205
 msgid "Failed to fetch collection"
 msgstr "No s'ha pogut obtenir la col·lecció"
 
-#: packages/admin/src/lib/api/dashboard.ts:47
+#: packages/admin/src/lib/api/dashboard.ts:56
 msgid "Failed to fetch dashboard stats"
 msgstr "No s'han pogut obtenir les estadístiques del tauler"
 
@@ -4162,7 +4214,7 @@ msgstr "No s'ha pogut obtenir la configuració de correu"
 msgid "Failed to fetch entry terms"
 msgstr "No s'han pogut obtenir els termes de l'entrada"
 
-#: packages/admin/src/lib/api/client.ts:321
+#: packages/admin/src/lib/api/client.ts:338
 msgid "Failed to fetch manifest"
 msgstr "No s'ha pogut obtenir el manifest"
 
@@ -4236,7 +4288,7 @@ msgstr "No s'han pogut obtenir els termes"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:953
-#: packages/admin/src/router.tsx:1993
+#: packages/admin/src/router.tsx:2001
 msgid "Failed to fetch user"
 msgstr "No s'ha pogut obtenir l'usuari"
 
@@ -4269,8 +4321,8 @@ msgstr "No s'ha pogut importar des de WordPress"
 msgid "Failed to import media"
 msgstr "No s'han pogut importar els fitxers multimèdia"
 
-#: packages/admin/src/lib/api/marketplace.ts:310
-#: packages/admin/src/lib/api/registry.ts:795
+#: packages/admin/src/lib/api/marketplace.ts:344
+#: packages/admin/src/lib/api/registry.ts:797
 msgid "Failed to install plugin"
 msgstr "No s'ha pogut instal·lar el connector"
 
@@ -4309,7 +4361,7 @@ msgstr "No s'ha pogut carregar la imatge"
 msgid "Failed to load passkeys"
 msgstr "No s'han pogut carregar les claus d'accés"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:121
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:131
 msgid "Failed to load plugin"
 msgstr "No s'ha pogut carregar el connector"
 
@@ -4343,7 +4395,7 @@ msgstr "No s'ha pogut carregar el tema"
 msgid "Failed to load users: {0}"
 msgstr "No s'han pogut carregar els usuaris: {0}"
 
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:46
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:58
 msgid "Failed to load widget"
 msgstr "No s'ha pogut carregar el giny"
 
@@ -4351,7 +4403,7 @@ msgstr "No s'ha pogut carregar el giny"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2087
+#: packages/admin/src/router.tsx:2095
 msgid "Failed to perform bulk action"
 msgstr "No s'ha pogut dur a terme l'acció massiva"
 
@@ -4397,11 +4449,11 @@ msgstr "No s'ha pogut canviar el nom de la clau d'accés"
 msgid "Failed to reorder byline fields"
 msgstr "No s'han pogut reordenar els camps de signatura"
 
-#: packages/admin/src/lib/api/schema.ts:340
+#: packages/admin/src/lib/api/schema.ts:341
 msgid "Failed to reorder content types"
 msgstr ""
 
-#: packages/admin/src/lib/api/schema.ts:323
+#: packages/admin/src/lib/api/schema.ts:324
 #: packages/admin/src/routes/byline-schema.tsx:152
 msgid "Failed to reorder fields"
 msgstr "No s'han pogut reordenar els camps"
@@ -4437,7 +4489,7 @@ msgstr "No s'han pogut reescriure els URL"
 
 #: packages/admin/src/router.tsx:733
 #: packages/admin/src/router.tsx:1070
-#: packages/admin/src/router.tsx:2588
+#: packages/admin/src/router.tsx:2596
 msgid "Failed to save"
 msgstr "No s'ha pogut desar"
 
@@ -4482,8 +4534,8 @@ msgstr "No s'ha pogut enviar el correu de verificació"
 msgid "Failed to set entry terms"
 msgstr "No s'han pogut definir els termes de l'entrada"
 
-#: packages/admin/src/lib/api/marketplace.ts:353
-#: packages/admin/src/lib/api/registry.ts:1009
+#: packages/admin/src/lib/api/marketplace.ts:387
+#: packages/admin/src/lib/api/registry.ts:1011
 msgid "Failed to uninstall plugin"
 msgstr "No s'ha pogut desinstal·lar el connector"
 
@@ -4521,8 +4573,8 @@ msgid "Failed to update media"
 msgstr "No s'ha pogut actualitzar el fitxer multimèdia"
 
 #: packages/admin/src/components/PluginManager.tsx:314
-#: packages/admin/src/lib/api/marketplace.ts:336
-#: packages/admin/src/lib/api/registry.ts:884
+#: packages/admin/src/lib/api/marketplace.ts:370
+#: packages/admin/src/lib/api/registry.ts:886
 msgid "Failed to update plugin"
 msgstr "No s'ha pogut actualitzar el connector"
 
@@ -4542,7 +4594,7 @@ msgstr "No s'ha pogut actualitzar la secció"
 msgid "Failed to update settings"
 msgstr "No s'ha pogut actualitzar la configuració"
 
-#: packages/admin/src/router.tsx:2046
+#: packages/admin/src/router.tsx:2054
 msgid "Failed to update status"
 msgstr "No s'ha pogut actualitzar l'estat"
 
@@ -4562,7 +4614,7 @@ msgstr "No s'ha pogut pujar al proveïdor"
 msgid "Failed to verify authentication"
 msgstr "No s'ha pogut verificar l'autenticació"
 
-#: packages/admin/src/lib/api/registry.ts:767
+#: packages/admin/src/lib/api/registry.ts:769
 msgid "Failed to verify plugin"
 msgstr ""
 
@@ -4570,7 +4622,7 @@ msgstr ""
 msgid "Failed to verify registration"
 msgstr "No s'ha pogut verificar el registre"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:878
+#: packages/admin/src/components/RegistryPluginDetail.tsx:880
 msgid "FAQ"
 msgstr "PMF"
 
@@ -4587,7 +4639,7 @@ msgstr "Funció"
 msgid "Featured Images"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:495
+#: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/ContentTypeList.tsx:187
 msgid "Features"
 msgstr "Funcions"
@@ -4624,7 +4676,7 @@ msgstr "El tipus de camp no es pot canviar després de la creació."
 msgid "Field updated"
 msgstr "S'ha actualitzat el camp"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:636
+#: packages/admin/src/components/ContentTypeEditor.tsx:637
 msgid "Fields"
 msgstr "Camps"
 
@@ -4711,7 +4763,7 @@ msgstr ""
 msgid "First page"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:168
 msgid "First publication"
 msgstr ""
 
@@ -4719,11 +4771,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Només els qui comenten per primera vegada"
 
-#: packages/admin/src/components/ContentEditor.tsx:786
+#: packages/admin/src/components/ContentEditor.tsx:794
 msgid "Fix invalid fields before changing the publication date"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:737
+#: packages/admin/src/components/ContentEditor.tsx:745
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
@@ -4749,7 +4801,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1716
+#: packages/admin/src/router.tsx:1724
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4874,7 +4926,7 @@ msgid "Go"
 msgstr "Ves"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2826
+#: packages/admin/src/router.tsx:2834
 msgid "Go to Dashboard"
 msgstr "Ves al tauler"
 
@@ -4892,7 +4944,7 @@ msgstr ""
 msgid "Grid view"
 msgstr "Vista de graella"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:482
+#: packages/admin/src/components/ContentTypeEditor.tsx:483
 msgid "Group"
 msgstr ""
 
@@ -5004,6 +5056,15 @@ msgstr "Amaga als motors de cerca"
 msgid "Hide token"
 msgstr "Amaga el testimoni"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:32
+msgid "visualEditing.hideToolbar"
+msgstr ""
+
+#: packages/admin/src/components/Shell.tsx:86
+msgid "Hide toolbar"
+msgstr ""
+
 #: packages/admin/src/components/TaxonomyManager.tsx:839
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Jeràrquic (com les categories, amb relacions pare/fill)"
@@ -5013,7 +5074,7 @@ msgstr "Jeràrquic (com les categories, amb relacions pare/fill)"
 msgid "Hits"
 msgstr "Coincidències"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:454
+#: packages/admin/src/components/ContentTypeEditor.tsx:455
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr ""
 
@@ -5025,7 +5086,7 @@ msgstr "Inici"
 msgid "Homepage"
 msgstr "Pàgina d'inici"
 
-#: packages/admin/src/components/PluginManager.tsx:475
+#: packages/admin/src/components/PluginManager.tsx:472
 msgid "Hooks"
 msgstr "Ganxos"
 
@@ -5079,7 +5140,7 @@ msgid "I've set it up — check again"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:153
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:163
 msgid "Icon blurred due to image audit"
 msgstr "Icona difuminada a causa de l'auditoria d'imatges"
 
@@ -5156,8 +5217,8 @@ msgstr "URL de la imatge"
 msgid "Images"
 msgstr "Imatges"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:226
-#: packages/admin/src/components/Sidebar.tsx:480
+#: packages/admin/src/components/AdminCommandPalette.tsx:227
+#: packages/admin/src/components/Sidebar.tsx:481
 #: packages/admin/src/components/WordPressImport.tsx:756
 msgid "Import"
 msgstr "Importa"
@@ -5275,7 +5336,7 @@ msgstr "Incompatible"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:115
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:117
 msgid "Independent verification"
 msgstr ""
 
@@ -5284,7 +5345,7 @@ msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:491
-#: packages/admin/src/components/RegistryPluginDetail.tsx:573
+#: packages/admin/src/components/RegistryPluginDetail.tsx:574
 msgid "Indexed"
 msgstr "Indexat"
 
@@ -5392,8 +5453,8 @@ msgstr ""
 msgid "Instagram"
 msgstr "Instagram"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:203
-#: packages/admin/src/components/RegistryPluginDetail.tsx:624
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:213
+#: packages/admin/src/components/RegistryPluginDetail.tsx:625
 msgid "Install"
 msgstr "Instal·la"
 
@@ -5401,7 +5462,7 @@ msgstr "Instal·la"
 msgid "Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery."
 msgstr "Instal·la i activa un connector de proveïdor de correu per habilitar funcions com les invitacions, els enllaços màgics i la recuperació de contrasenya."
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:197
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:207
 msgid "Install blocked"
 msgstr "Instal·lació bloquejada"
 
@@ -5409,7 +5470,7 @@ msgstr "Instal·lació bloquejada"
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:877
+#: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Installation"
 msgstr "Instal·lació"
 
@@ -5418,22 +5479,22 @@ msgid "Installation is unavailable."
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:184
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:194
 #: packages/admin/src/components/RegistryBrowse.tsx:234
-#: packages/admin/src/components/RegistryPluginDetail.tsx:609
+#: packages/admin/src/components/RegistryPluginDetail.tsx:610
 msgid "Installed"
 msgstr "Instal·lat"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:630
+#: packages/admin/src/components/PluginManager.tsx:627
 msgid "Installed from marketplace (v{0})"
 msgstr "Instal·lat des del mercat (v{0})"
 
-#: packages/admin/src/components/PluginManager.tsx:649
+#: packages/admin/src/components/PluginManager.tsx:646
 msgid "Installed:"
 msgstr "Instal·lat:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:270
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:274
 msgid "Installing..."
 msgstr "S'està instal·lant..."
 
@@ -5450,7 +5511,7 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr "Enllaç d'invitació no vàlid"
 
-#: packages/admin/src/components/ContentEditor.tsx:2099
+#: packages/admin/src/components/ContentEditor.tsx:2147
 msgid "Invalid JSON"
 msgstr "JSON no vàlid"
 
@@ -5514,7 +5575,7 @@ msgstr "S'ha eliminat l'element"
 msgid "Item updated"
 msgstr "S'ha actualitzat l'element"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:477
+#: packages/admin/src/components/RegistryPluginDetail.tsx:478
 msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
@@ -5574,7 +5635,7 @@ msgstr ""
 msgid "Keep typing to narrow the list."
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:304
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:314
 #: packages/admin/src/components/SectionEditor.tsx:304
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:189
 msgid "Keywords"
@@ -5596,11 +5657,11 @@ msgstr ""
 msgid "Label"
 msgstr "Etiqueta"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:403
+#: packages/admin/src/components/ContentTypeEditor.tsx:404
 msgid "Label (Plural)"
 msgstr "Etiqueta (plural)"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:395
+#: packages/admin/src/components/ContentTypeEditor.tsx:396
 msgid "Label (Singular)"
 msgstr "Etiqueta (singular)"
 
@@ -5620,7 +5681,7 @@ msgstr "Idioma"
 msgid "Large section heading"
 msgstr "Encapçalament de secció gran"
 
-#: packages/admin/src/components/PluginManager.tsx:655
+#: packages/admin/src/components/PluginManager.tsx:652
 msgid "Last enabled:"
 msgstr "Última activació:"
 
@@ -5722,16 +5783,16 @@ msgstr "Enllaços"
 msgid "List view"
 msgstr "Vista de llista"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:175
-#: packages/admin/src/components/ContentSettingsPanel.tsx:185
-#: packages/admin/src/components/ContentSettingsPanel.tsx:207
-#: packages/admin/src/components/ContentSettingsPanel.tsx:229
+#: packages/admin/src/components/ContentSettingsPanel.tsx:177
+#: packages/admin/src/components/ContentSettingsPanel.tsx:187
+#: packages/admin/src/components/ContentSettingsPanel.tsx:209
+#: packages/admin/src/components/ContentSettingsPanel.tsx:231
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1006
-#: packages/admin/src/components/ContentEditor.tsx:1057
-#: packages/admin/src/components/ContentSettingsPanel.tsx:660
+#: packages/admin/src/components/ContentEditor.tsx:1018
+#: packages/admin/src/components/ContentEditor.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:662
 msgid "Live View"
 msgstr "Vista en directe"
 
@@ -5759,7 +5820,7 @@ msgstr "Carrega'n més"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2781
+#: packages/admin/src/router.tsx:2789
 msgid "Loading"
 msgstr ""
 
@@ -5775,8 +5836,8 @@ msgstr "S'estan carregant les col·leccions..."
 msgid "Loading comments..."
 msgstr "S'estan carregant els comentaris..."
 
-#: packages/admin/src/router.tsx:2783
-#: packages/admin/src/router.tsx:2795
+#: packages/admin/src/router.tsx:2791
+#: packages/admin/src/router.tsx:2803
 msgid "Loading configuration..."
 msgstr "S'està carregant la configuració..."
 
@@ -5813,6 +5874,10 @@ msgstr "S'està carregant el menú..."
 #: packages/admin/src/components/MenuList.tsx:95
 msgid "Loading menus..."
 msgstr "S'estan carregant els menús..."
+
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:160
+msgid "Loading plugin panel"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:158
 msgid "Loading plugins..."
@@ -5914,7 +5979,7 @@ msgstr "Bloqueja la relació d'aspecte"
 msgid "Locked because this field has stored values. Delete the values (or the field) to change this."
 msgstr "Bloquejat perquè aquest camp té valors emmagatzemats. Elimina els valors (o el camp) per canviar-ho."
 
-#: packages/admin/src/components/Header.tsx:109
+#: packages/admin/src/components/Header.tsx:110
 msgid "Log out"
 msgstr "Tanca la sessió"
 
@@ -5957,17 +6022,7 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Barra lateral principal"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
-msgid "Make network requests"
-msgstr "Fes sol·licituds de xarxa"
-
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
-msgid "Make network requests to any host (unrestricted)"
-msgstr "Fes sol·licituds de xarxa a qualsevol amfitrió (sense restriccions)"
-
-#: packages/admin/src/components/Sidebar.tsx:594
+#: packages/admin/src/components/Sidebar.tsx:596
 msgid "Manage"
 msgstr "Gestiona"
 
@@ -6041,15 +6096,15 @@ msgid "Markdown"
 msgstr "Markdown"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:437
+#: packages/admin/src/components/PluginManager.tsx:434
 msgid "Marketplace"
 msgstr "Mercat"
 
-#: packages/admin/src/router.tsx:2326
+#: packages/admin/src/router.tsx:2334
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2301
+#: packages/admin/src/router.tsx:2309
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6080,7 +6135,7 @@ msgstr ""
 #: packages/admin/src/components/PortableTextEditor.tsx:2895
 #: packages/admin/src/components/PortableTextEditor.tsx:2910
 #: packages/admin/src/components/Settings.tsx:70
-#: packages/admin/src/components/Sidebar.tsx:405
+#: packages/admin/src/components/Sidebar.tsx:406
 #: packages/admin/src/components/WordPressImport.tsx:770
 #: packages/admin/src/components/WordPressImport.tsx:1163
 #: packages/admin/src/components/WordPressImport.tsx:1350
@@ -6112,7 +6167,7 @@ msgstr "S'ha omès la importació multimèdia"
 msgid "Media in this folder will return to Main library. No files will be deleted."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:153
+#: packages/admin/src/components/AdminCommandPalette.tsx:154
 #: packages/admin/src/components/MediaLibrary.tsx:819
 #: packages/admin/src/components/MediaLibrary.tsx:834
 msgid "Media Library"
@@ -6208,9 +6263,9 @@ msgstr "No s'ha trobat el menú"
 msgid "Menu order has been updated."
 msgstr "S'ha actualitzat l'ordre del menú."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:160
+#: packages/admin/src/components/AdminCommandPalette.tsx:161
 #: packages/admin/src/components/MenuList.tsx:104
-#: packages/admin/src/components/Sidebar.tsx:419
+#: packages/admin/src/components/Sidebar.tsx:420
 #: packages/admin/src/components/WordPressImport.tsx:1167
 msgid "Menus"
 msgstr "Menús"
@@ -6277,7 +6332,7 @@ msgstr ""
 msgid "Mixed"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:559
+#: packages/admin/src/components/ContentTypeEditor.tsx:560
 msgid "Moderation"
 msgstr "Moderació"
 
@@ -6388,14 +6443,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:556
 #: packages/admin/src/components/ContentList.tsx:1385
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1207
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1227
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1287
 msgid "Move to Trash"
 msgstr "Mou a la paperera"
 
 #: packages/admin/src/components/ContentList.tsx:534
 #: packages/admin/src/components/ContentList.tsx:1370
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1212
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1272
 msgid "Move to Trash?"
 msgstr "Vols moure-ho a la paperera?"
 
@@ -6478,8 +6533,8 @@ msgstr "El nom i l'etiqueta són obligatoris"
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "El nom ha de començar per una lletra i contenir només lletres minúscules, números i guions baixos"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:340
-#: packages/admin/src/components/ContentTypeEditor.tsx:479
+#: packages/admin/src/components/AdminCommandPalette.tsx:342
+#: packages/admin/src/components/ContentTypeEditor.tsx:480
 msgid "Navigation"
 msgstr "Navegació"
 
@@ -6507,7 +6562,7 @@ msgstr "nou"
 msgid "New"
 msgstr "Nou"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:183
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:185
 msgid "NEW"
 msgstr "NOU"
 
@@ -6516,7 +6571,7 @@ msgstr "NOU"
 msgid "New {0}"
 msgstr "{0} nou"
 
-#: packages/admin/src/components/ContentEditor.tsx:966
+#: packages/admin/src/components/ContentEditor.tsx:978
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -6528,7 +6583,7 @@ msgstr "Camp de signatura nou"
 msgid "New collection"
 msgstr "Col·lecció nova"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:366
+#: packages/admin/src/components/ContentTypeEditor.tsx:367
 #: packages/admin/src/components/ContentTypeList.tsx:122
 msgid "New Content Type"
 msgstr "Tipus de contingut nou"
@@ -6545,7 +6600,7 @@ msgstr ""
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:194
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:196
 msgid "New public routes"
 msgstr "Rutes públiques noves"
 
@@ -6562,7 +6617,7 @@ msgstr ""
 msgid "New Section"
 msgstr "Secció nova"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:479
+#: packages/admin/src/components/AdminCommandPalette.tsx:481
 msgid "new tab"
 msgstr "pestanya nova"
 
@@ -6597,7 +6652,7 @@ msgstr "Següent"
 msgid "Next page"
 msgstr "Pàgina següent"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:476
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:488
 msgid "Next screenshot"
 msgstr "Captura de pantalla següent"
 
@@ -6682,7 +6737,7 @@ msgstr ""
 msgid "No bylines found"
 msgstr "No s'ha trobat cap signatura"
 
-#: packages/admin/src/components/Dashboard.tsx:282
+#: packages/admin/src/components/Dashboard.tsx:381
 msgid "No collections configured"
 msgstr "No hi ha cap col·lecció configurada"
 
@@ -6694,7 +6749,7 @@ msgstr "No hi ha cap comentari pendent de moderació."
 msgid "No comments match your search."
 msgstr "Cap comentari coincideix amb la teva cerca."
 
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:82
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:96
 msgid "No content"
 msgstr "Sense contingut"
 
@@ -6710,11 +6765,11 @@ msgstr "No hi ha contingut en aquesta col·lecció"
 msgid "No content types yet."
 msgstr "Encara no hi ha cap tipus de contingut."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:667
+#: packages/admin/src/components/ContentTypeEditor.tsx:668
 msgid "No custom fields yet"
 msgstr "Encara no hi ha cap camp personalitzat"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:275
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:285
 msgid "No detailed description available."
 msgstr "No hi ha cap descripció detallada disponible."
 
@@ -6758,7 +6813,7 @@ msgstr "No hi ha encapçalaments al document"
 msgid "No images in this gallery yet."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:660
+#: packages/admin/src/components/RegistryPluginDetail.tsx:661
 msgid "No installable releases"
 msgstr "No hi ha versions instal·lables"
 
@@ -6860,7 +6915,7 @@ msgstr "Cap connector coincideix amb «{debouncedQuery}»."
 msgid "No preview"
 msgstr "Sense previsualització"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:119
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:121
 msgid "No provenance was supplied; the signed publisher policy permits this."
 msgstr ""
 
@@ -6868,7 +6923,7 @@ msgstr ""
 msgid "No public URL available"
 msgstr "No hi ha cap URL públic disponible"
 
-#: packages/admin/src/components/Dashboard.tsx:361
+#: packages/admin/src/components/Dashboard.tsx:460
 msgid "No recent activity"
 msgstr "No hi ha activitat recent"
 
@@ -6891,7 +6946,7 @@ msgstr "Cap resultat per a «{activeSearch}»"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Cap resultat per a «{debouncedQuery}». Prova un altre terme de cerca."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:465
+#: packages/admin/src/components/AdminCommandPalette.tsx:467
 #: packages/admin/src/components/Settings.tsx:156
 msgid "No results found"
 msgstr "No s'ha trobat cap resultat"
@@ -6954,7 +7009,7 @@ msgstr "Cap"
 msgid "None (top level)"
 msgstr "Cap (nivell superior)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:695
+#: packages/admin/src/components/RegistryPluginDetail.tsx:696
 msgid "Not compatible with this environment"
 msgstr "No és compatible amb aquest entorn"
 
@@ -7028,6 +7083,11 @@ msgstr ""
 #: packages/admin/src/components/MediaLibrary.tsx:1458
 #: packages/admin/src/components/MediaLibrary.tsx:1529
 msgid "Open folder {0}"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:31
+msgid "visualEditing.openInAdmin"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:510
@@ -7145,7 +7205,7 @@ msgstr ""
 msgid "Original:"
 msgstr "Original:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1166
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1226
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "Esquema"
@@ -7158,16 +7218,16 @@ msgstr ""
 msgid "Overrides the page title in search engine results"
 msgstr "Substitueix el títol de la pàgina als resultats dels motors de cerca"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1018
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1021
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1050
 msgid "Ownership"
 msgstr "Propietat"
 
-#: packages/admin/src/components/PluginManager.tsx:639
+#: packages/admin/src/components/PluginManager.tsx:636
 msgid "Package"
 msgstr "Paquet"
 
-#: packages/admin/src/router.tsx:2821
+#: packages/admin/src/router.tsx:2829
 msgid "Page Not Found"
 msgstr "No s'ha trobat la pàgina"
 
@@ -7181,7 +7241,7 @@ msgstr ""
 msgid "Page size"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:463
+#: packages/admin/src/components/PluginManager.tsx:460
 #: packages/admin/src/components/WordPressImport.tsx:1344
 msgid "Pages"
 msgstr "Pàgines"
@@ -7294,12 +7354,12 @@ msgstr "Patró (expressió regular)"
 #. placeholder {7}: "{minute}"
 #. placeholder {8}: "{second}"
 #. placeholder {9}: "/{year}/{month}/{day}/{slug}.html"
-#: packages/admin/src/components/ContentTypeEditor.tsx:474
+#: packages/admin/src/components/ContentTypeEditor.tsx:475
 msgid "Pattern for generating URLs, e.g. /blog/{0}. Tokens: {1}, {2}, and date tokens {3}/{4}/{5} (also {6}/{7}/{8}) from the publish date — e.g. {9} for WordPress-style permalinks."
 msgstr ""
 
 #. placeholder {0}: "{slug}"
-#: packages/admin/src/components/ContentTypeEditor.tsx:470
+#: packages/admin/src/components/ContentTypeEditor.tsx:471
 msgid "Pattern must include a {0} placeholder"
 msgstr "El patró ha d'incloure un marcador de posició {0}"
 
@@ -7343,7 +7403,7 @@ msgstr "Vols eliminar permanentment «{title}»? Aquesta acció no es pot desfer
 msgid "Permanently delete {title}"
 msgstr "Elimina permanentment {title}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:284
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:294
 msgid "Permissions"
 msgstr "Permisos"
 
@@ -7392,11 +7452,20 @@ msgstr "No s'ha trobat el connector «{pluginId}»"
 msgid "Plugin {pluginId} rejected the save: {reason}"
 msgstr ""
 
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:101
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:129
+msgid "Plugin action failed"
+msgstr ""
+
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:209
+msgid "Plugin actions"
+msgstr ""
+
 #: packages/admin/src/lib/content-list-columns.tsx:236
 msgid "Plugin column unavailable"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:828
+#: packages/admin/src/components/RegistryPluginDetail.tsx:829
 msgid "Plugin details"
 msgstr "Detalls del connector"
 
@@ -7408,16 +7477,20 @@ msgstr "S'ha desactivat el connector"
 msgid "Plugin enabled"
 msgstr "S'ha activat el connector"
 
-#: packages/admin/src/components/SandboxedPluginPage.tsx:89
+#: packages/admin/src/components/SandboxedPluginPage.tsx:114
 msgid "Plugin Error"
 msgstr "Error del connector"
 
 #. placeholder {0}: response.status
-#: packages/admin/src/components/SandboxedPluginWidget.tsx:37
+#: packages/admin/src/components/SandboxedPluginWidget.tsx:48
 msgid "Plugin error ({0})"
 msgstr "Error del connector ({0})"
 
-#: packages/admin/src/components/PluginManager.tsx:386
+#: packages/admin/src/lib/api/marketplace.ts:120
+msgid "Plugin installation requires explicit consent"
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:383
 msgid "Plugin MCP access updated"
 msgstr ""
 
@@ -7425,27 +7498,28 @@ msgstr ""
 msgid "Plugin MCP Tools"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:108
+#: packages/admin/src/lib/api/marketplace.ts:109
 msgid "Plugin MCP tools require explicit consent"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:123
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:133
 msgid "Plugin not found"
 msgstr "No s'ha trobat el connector"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:492
+#: packages/admin/src/components/RegistryPluginDetail.tsx:493
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:532
+#: packages/admin/src/components/PluginManager.tsx:529
 msgid "Plugin pages"
 msgstr ""
 
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:166
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:92
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:94
 msgid "Plugin Permissions"
 msgstr "Permisos del connector"
 
@@ -7458,13 +7532,13 @@ msgstr "Registre de connectors"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2261
-#: packages/admin/src/router.tsx:2292
+#: packages/admin/src/router.tsx:2269
+#: packages/admin/src/router.tsx:2300
 msgid "Plugin registry is not configured."
 msgstr ""
 
 #. placeholder {0}: response.status
-#: packages/admin/src/components/SandboxedPluginPage.tsx:40
+#: packages/admin/src/components/SandboxedPluginPage.tsx:55
 msgid "Plugin responded with {0}: {text}"
 msgstr "El connector ha respost amb {0}: {text}"
 
@@ -7474,12 +7548,12 @@ msgstr "El connector ha respost amb {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:375
+#: packages/admin/src/components/PluginManager.tsx:372
 msgid "Plugin uninstalled"
 msgstr "S'ha desinstal·lat el connector"
 
-#: packages/admin/src/lib/api/marketplace.ts:198
-#: packages/admin/src/lib/api/registry.ts:924
+#: packages/admin/src/lib/api/marketplace.ts:232
+#: packages/admin/src/lib/api/registry.ts:926
 msgid "Plugin update requires re-consent"
 msgstr "L'actualització del connector requereix tornar a donar consentiment"
 
@@ -7491,12 +7565,12 @@ msgstr "S'ha actualitzat el connector"
 msgid "Plugin widget error"
 msgstr "Error del giny del connector"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:218
+#: packages/admin/src/components/AdminCommandPalette.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:157
 #: packages/admin/src/components/PluginManager.tsx:166
 #: packages/admin/src/components/PluginManager.tsx:176
-#: packages/admin/src/components/Sidebar.tsx:462
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:463
+#: packages/admin/src/components/Sidebar.tsx:612
 msgid "Plugins"
 msgstr "Connectors"
 
@@ -7512,11 +7586,11 @@ msgstr "Indica als motors de cerca la versió original d'aquesta pàgina, si est
 msgid "Portrait"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:398
+#: packages/admin/src/components/ContentTypeEditor.tsx:399
 msgid "Post"
 msgstr "Entrada"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:406
+#: packages/admin/src/components/ContentTypeEditor.tsx:407
 #: packages/admin/src/components/WordPressImport.tsx:1338
 msgid "Posts"
 msgstr "Entrades"
@@ -7529,7 +7603,7 @@ msgstr ""
 msgid "Posts Per Page"
 msgstr "Entrades per pàgina"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:545
+#: packages/admin/src/components/RegistryPluginDetail.tsx:546
 msgid "Pre-release"
 msgstr "Preversió"
 
@@ -7550,7 +7624,7 @@ msgstr "S'està preparant..."
 msgid "Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:387
+#: packages/admin/src/components/ContentSettingsPanel.tsx:389
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:1676
 #: packages/admin/src/components/MediaLibrary.tsx:1204
@@ -7561,7 +7635,7 @@ msgstr "Previsualitza"
 msgid "Preview content before publishing"
 msgstr "Previsualitza el contingut abans de publicar-lo"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:387
+#: packages/admin/src/components/ContentSettingsPanel.tsx:389
 msgid "Preview draft"
 msgstr "Previsualitza l'esborrany"
 
@@ -7576,7 +7650,7 @@ msgstr "Anterior"
 msgid "Previous page"
 msgstr "Pàgina anterior"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:458
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:470
 msgid "Previous screenshot"
 msgstr "Captura de pantalla anterior"
 
@@ -7588,19 +7662,19 @@ msgstr "Navegació principal"
 msgid "Private"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:127
 msgid "Profile CID"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:118
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:120
 msgid "Provenance is verified against the signed release and artifact."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:141
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:143
 msgid "Provenance optional"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:140
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:142
 msgid "Provenance required"
 msgstr ""
 
@@ -7608,43 +7682,65 @@ msgstr ""
 msgid "Provider:"
 msgstr "Proveïdor:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:935
-#: packages/admin/src/components/ContentSettingsPanel.tsx:940
-#: packages/admin/src/components/ContentSettingsPanel.tsx:951
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:196
+msgid "Public routes"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:964
+#: packages/admin/src/components/ContentSettingsPanel.tsx:969
+#: packages/admin/src/components/ContentSettingsPanel.tsx:980
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:621
 msgid "Publication date"
 msgstr ""
 
+#: packages/admin/src/components/Dashboard.tsx:151
+msgid "Publication policy blocked scheduled content"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:19
+msgid "visualEditing.publish"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:505
-#: packages/admin/src/components/ContentSettingsPanel.tsx:526
-#: packages/admin/src/components/ContentSettingsPanel.tsx:550
-#: packages/admin/src/components/ContentSettingsPanel.tsx:866
-#: packages/admin/src/components/ContentSettingsPanel.tsx:869
+#: packages/admin/src/components/ContentSettingsPanel.tsx:528
+#: packages/admin/src/components/ContentSettingsPanel.tsx:552
+#: packages/admin/src/components/ContentSettingsPanel.tsx:895
+#: packages/admin/src/components/ContentSettingsPanel.tsx:898
 msgid "Publish"
 msgstr "Publica"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:543
+#: packages/admin/src/components/ContentSettingsPanel.tsx:545
 msgid "Publish changes"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:479
+#: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "Publish changes now"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:479
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:26
+msgid "visualEditing.publishFailed"
+msgstr ""
+
+#: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "Publish now"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:420
+msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:859
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:304
+#: packages/admin/src/components/Dashboard.tsx:403
 #: packages/admin/src/router.tsx:1177
 msgid "Published"
 msgstr "Publicat"
 
 #. placeholder {0}: new Date(latest.publishedAt).toLocaleDateString()
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:337
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:347
 msgid "Published {0}"
 msgstr "Publicat {0}"
 
@@ -7656,28 +7752,33 @@ msgstr ""
 msgid "Published At"
 msgstr "Data de publicació"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:537
+#: packages/admin/src/components/RegistryPluginDetail.tsx:538
 msgid "Published by <0/>"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:146
 msgid "Publisher approval required for every delegated release"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:147
 msgid "Publisher approval required only for permission escalation"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:645
+#: packages/admin/src/components/RegistryPluginDetail.tsx:646
 msgid "Publisher handle verification failed"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:137
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 msgid "Publisher release policy"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:910
+#: packages/admin/src/components/ContentSettingsPanel.tsx:939
 msgid "Publishing summary"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:20
+msgid "visualEditing.publishing"
 msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
@@ -7703,33 +7804,57 @@ msgstr "Cita"
 msgid "Raw meta"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:421
+msgid "Read and restore trashed content"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:424
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "Llegeix els esquemes de col·lecció"
+
+#: packages/admin/src/lib/api/marketplace.ts:422
+msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
 msgstr "Llegeix les entrades de contingut"
 
+#: packages/admin/src/lib/api/marketplace.ts:431
+msgid "Read media file contents"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
 msgstr "Llegeix els fitxers multimèdia"
+
+#: packages/admin/src/lib/api/marketplace.ts:428
+msgid "Read redirect rules"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:418
+msgid "Read retained content revision history"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "Llegeix la configuració del lloc"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:434
+#: packages/admin/src/lib/api/marketplace.ts:442
 msgid "Read user accounts"
 msgstr "Llegeix els comptes d'usuari"
 
-#: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:438
 msgid "Read your content"
 msgstr "Llegeix el teu contingut"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:426
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -7747,11 +7872,11 @@ msgstr "Lectura"
 msgid "Ready"
 msgstr "A punt"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:192
+#: packages/admin/src/components/ContentSettingsPanel.tsx:194
 msgid "Ready to publish now or schedule for later"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:355
+#: packages/admin/src/components/Dashboard.tsx:454
 msgid "Recent Activity"
 msgstr "Activitat recent"
 
@@ -7783,7 +7908,7 @@ msgstr "S'està redirigint a l'inici de sessió..."
 
 #: packages/admin/src/components/Redirects.tsx:364
 #: packages/admin/src/components/Redirects.tsx:385
-#: packages/admin/src/components/Sidebar.tsx:422
+#: packages/admin/src/components/Sidebar.tsx:423
 msgid "Redirects"
 msgstr "Redireccions"
 
@@ -7799,6 +7924,11 @@ msgstr "Referència"
 msgid "Referenced favicon unavailable."
 msgstr "La icona del lloc referenciada no està disponible."
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:25
+msgid "visualEditing.refreshPage"
+msgstr ""
+
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
 msgstr ""
@@ -7807,7 +7937,7 @@ msgstr ""
 msgid "Refresh status before continuing."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:132
+#: packages/admin/src/components/Dashboard.tsx:231
 msgid "Refresh the page or try again."
 msgstr ""
 
@@ -7833,16 +7963,16 @@ msgid "Registration was cancelled or timed out. Please try again."
 msgstr "El registre s'ha cancel·lat o ha excedit el temps d'espera. Torna-ho a provar."
 
 #: packages/admin/src/components/PluginManager.tsx:194
-#: packages/admin/src/components/PluginManager.tsx:438
-#: packages/admin/src/components/Sidebar.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:435
+#: packages/admin/src/components/Sidebar.tsx:472
 msgid "Registry"
 msgstr "Registre"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:131
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:133
 msgid "Release CID"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:676
+#: packages/admin/src/components/RegistryPluginDetail.tsx:677
 msgid "Release is too new to install"
 msgstr "La versió és massa nova per instal·lar-la"
 
@@ -7852,7 +7982,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2259
+#: packages/admin/src/components/ContentEditor.tsx:2307
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
@@ -7888,7 +8018,7 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Treu {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2257
+#: packages/admin/src/components/ContentEditor.tsx:2305
 msgid "Remove {label}"
 msgstr "Treu {label}"
 
@@ -7946,7 +8076,7 @@ msgstr "Elimina la clau d'accés"
 msgid "Remove passkey?"
 msgstr "Vols eliminar la clau d'accés?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:517
+#: packages/admin/src/components/ContentSettingsPanel.tsx:519
 msgid "Remove schedule"
 msgstr ""
 
@@ -8001,8 +8131,8 @@ msgstr "Repetidor"
 msgid "Repeating group of fields"
 msgstr "Grup de camps repetible"
 
-#: packages/admin/src/components/ContentEditor.tsx:2249
-#: packages/admin/src/components/ContentEditor.tsx:2286
+#: packages/admin/src/components/ContentEditor.tsx:2297
+#: packages/admin/src/components/ContentEditor.tsx:2334
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
@@ -8015,7 +8145,7 @@ msgstr "Grup de camps repetible"
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2285
+#: packages/admin/src/components/ContentEditor.tsx:2333
 #: packages/admin/src/components/ImageFieldRenderer.tsx:571
 msgid "Replace {label}"
 msgstr ""
@@ -8072,16 +8202,16 @@ msgstr "Dipòsit"
 msgid "Request a new link"
 msgstr "Sol·licita un enllaç nou"
 
-#: packages/admin/src/lib/api/client.ts:309
+#: packages/admin/src/lib/api/client.ts:326
 msgid "Request failed"
 msgstr "Ha fallat la sol·licitud"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:440
+#: packages/admin/src/components/ContentTypeEditor.tsx:441
 msgid "Require a slug before content can be published"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
-#: packages/admin/src/components/ContentTypeEditor.tsx:785
+#: packages/admin/src/components/ContentTypeEditor.tsx:789
 #: packages/admin/src/components/FieldEditor.tsx:473
 #: packages/admin/src/components/FieldEditor.tsx:632
 #: packages/admin/src/routes/byline-schema.tsx:246
@@ -8097,7 +8227,7 @@ msgid "Required for accessibility. Describes the image for screen readers."
 msgstr "Obligatori per a l'accessibilitat. Descriu la imatge per als lectors de pantalla."
 
 #. placeholder {0}: latest.minEmDashVersion
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:335
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:345
 msgid "Requires EmDash {0}"
 msgstr "Requereix EmDash {0}"
 
@@ -8159,7 +8289,7 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1310
+#: packages/admin/src/components/ContentEditor.tsx:1348
 msgid "Resize settings panel"
 msgstr ""
 
@@ -8212,9 +8342,10 @@ msgstr "S'està restaurant..."
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2809
+#: packages/admin/src/router.tsx:2817
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Reintenta"
@@ -8260,19 +8391,23 @@ msgstr "S'ha revertit a la versió publicada"
 msgid "Review"
 msgstr "Revisa"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:91
+#: packages/admin/src/lib/api/marketplace.ts:425
+msgid "Review and block publishing, scheduling, and unpublishing content"
+msgstr ""
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:93
 msgid "Review New Permissions"
 msgstr "Revisa els permisos nous"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:96
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:89
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:91
 msgid "Review Verified Plugin"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:88
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:90
 msgid "Review Verified Update"
 msgstr ""
 
@@ -8280,7 +8415,7 @@ msgstr ""
 msgid "Revision restored"
 msgstr "S'ha restaurat la revisió"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1174
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1234
 #: packages/admin/src/components/ContentTypeEditor.tsx:76
 #: packages/admin/src/components/RevisionHistory.tsx:168
 msgid "Revisions"
@@ -8322,7 +8457,7 @@ msgid "Right"
 msgstr "Dreta"
 
 #. placeholder {0}: latest.audit.riskScore
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:322
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:332
 msgid "Risk score: {0}/100"
 msgstr "Puntuació de risc: {0}/100"
 
@@ -8351,14 +8486,14 @@ msgstr ""
 msgid "Role updated for {0}."
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:438
+#: packages/admin/src/components/ContentTypeEditor.tsx:439
 msgid "Routable"
 msgstr ""
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:221
-#: packages/admin/src/components/PluginManager.tsx:615
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:225
+#: packages/admin/src/components/PluginManager.tsx:612
 msgid "Route: {0} · Permission: {1}"
 msgstr ""
 
@@ -8412,7 +8547,7 @@ msgstr "Desa (Retorn)"
 msgid "Save alt text"
 msgstr "Desa el text alternatiu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1125
+#: packages/admin/src/components/ContentEditor.tsx:1163
 msgid "Save anyway"
 msgstr ""
 
@@ -8424,6 +8559,11 @@ msgstr "Desa els canvis"
 #: packages/admin/src/components/users/UserDetail.tsx:311
 msgid "Save Changes"
 msgstr "Desa els canvis"
+
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:194
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:211
+msgid "Save changes before running plugin actions"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:72
 msgid "Save content as draft before publishing"
@@ -8478,12 +8618,12 @@ msgstr "S'està desant..."
 msgid "Saving…"
 msgstr "S'està desant…"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:549
+#: packages/admin/src/components/RegistryPluginDetail.tsx:550
 msgid "SBOM"
 msgstr ""
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:547
+#: packages/admin/src/components/RegistryPluginDetail.tsx:548
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
@@ -8495,7 +8635,7 @@ msgstr ""
 msgid "Schedule"
 msgstr "Programa"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:495
+#: packages/admin/src/components/ContentSettingsPanel.tsx:497
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:469
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Schedule changes"
@@ -8505,33 +8645,33 @@ msgstr ""
 msgid "Schedule date"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:487
+#: packages/admin/src/components/ContentSettingsPanel.tsx:489
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:470
 msgid "Schedule publication"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:861
-#: packages/admin/src/components/ContentSettingsPanel.tsx:545
+#: packages/admin/src/components/ContentSettingsPanel.tsx:547
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1269
 msgid "Scheduled"
 msgstr "Programat"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:136
+#: packages/admin/src/components/ContentSettingsPanel.tsx:138
 msgid "Scheduled for {formattedSchedule}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:144
-#: packages/admin/src/components/ContentSettingsPanel.tsx:235
-#: packages/admin/src/components/ContentSettingsPanel.tsx:549
+#: packages/admin/src/components/ContentSettingsPanel.tsx:146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:237
+#: packages/admin/src/components/ContentSettingsPanel.tsx:551
 msgid "Scheduled publication"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:118
+#: packages/admin/src/components/Dashboard.tsx:215
 msgid "Scheduled publishing needs attention"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:547
+#: packages/admin/src/components/ContentSettingsPanel.tsx:549
 msgid "Scheduled update"
 msgstr ""
 
@@ -8558,8 +8698,8 @@ msgstr "Àmbits"
 
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
-#: packages/admin/src/components/RegistryPluginDetail.tsx:721
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:264
+#: packages/admin/src/components/RegistryPluginDetail.tsx:722
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -8567,20 +8707,20 @@ msgstr "Captura de pantalla {0}"
 
 #. placeholder {0}: index + 1
 #. placeholder {1}: screenshots.length
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:466
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:478
 msgid "Screenshot {0} of {1}"
 msgstr "Captura de pantalla {0} de {1}"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:257
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:267
 msgid "Screenshot blurred due to image audit"
 msgstr "Captura de pantalla difuminada a causa de l'auditoria d'imatges"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:444
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:456
 msgid "Screenshot viewer"
 msgstr "Visualitzador de captures de pantalla"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:244
-#: packages/admin/src/components/RegistryPluginDetail.tsx:715
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:254
+#: packages/admin/src/components/RegistryPluginDetail.tsx:716
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "Captures de pantalla"
@@ -8664,7 +8804,7 @@ msgstr ""
 msgid "Search media"
 msgstr "Cerca fitxers multimèdia"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:438
+#: packages/admin/src/components/AdminCommandPalette.tsx:440
 msgid "Search pages and content..."
 msgstr "Cerca pàgines i contingut..."
 
@@ -8712,7 +8852,7 @@ msgstr "Cerca usuaris"
 msgid "Search..."
 msgstr "Cerca..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:787
+#: packages/admin/src/components/ContentTypeEditor.tsx:791
 #: packages/admin/src/components/FieldEditor.tsx:484
 msgid "Searchable"
 msgstr "Cercable"
@@ -8750,9 +8890,9 @@ msgstr "No s'ha trobat la secció"
 msgid "Section title"
 msgstr "Títol de la secció"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:176
+#: packages/admin/src/components/AdminCommandPalette.tsx:177
 #: packages/admin/src/components/Sections.tsx:134
-#: packages/admin/src/components/Sidebar.tsx:427
+#: packages/admin/src/components/Sidebar.tsx:428
 msgid "Sections"
 msgstr "Seccions"
 
@@ -8760,12 +8900,12 @@ msgstr "Seccions"
 msgid "Secure your account"
 msgstr "Assegura el teu compte"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:880
+#: packages/admin/src/components/RegistryPluginDetail.tsx:882
 #: packages/admin/src/components/Settings.tsx:85
 msgid "Security"
 msgstr "Seguretat"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:318
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:328
 msgid "Security Audit"
 msgstr "Auditoria de seguretat"
 
@@ -8777,11 +8917,11 @@ msgstr "Ha fallat l'auditoria de seguretat"
 msgid "Security audit flagged concerns"
 msgstr "L'auditoria de seguretat ha detectat problemes"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:251
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:255
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "L'auditoria de seguretat ha detectat possibles problemes amb aquest connector."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:252
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:256
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "L'auditoria de seguretat ha marcat aquest connector com a potencialment insegur."
 
@@ -8789,7 +8929,7 @@ msgstr "L'auditoria de seguretat ha marcat aquest connector com a potencialment 
 msgid "Security audit passed"
 msgstr "S'ha superat l'auditoria de seguretat"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:784
+#: packages/admin/src/components/RegistryPluginDetail.tsx:785
 msgid "Security contacts"
 msgstr "Contactes de seguretat"
 
@@ -8798,8 +8938,8 @@ msgstr "Contactes de seguretat"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Error de seguretat. Assegura't que estàs en una connexió segura."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:242
-#: packages/admin/src/components/Header.tsx:93
+#: packages/admin/src/components/AdminCommandPalette.tsx:243
+#: packages/admin/src/components/Header.tsx:94
 #: packages/admin/src/components/Settings.tsx:81
 #: packages/admin/src/components/settings/SecuritySettings.tsx:88
 #: packages/admin/src/components/settings/SecuritySettings.tsx:110
@@ -8819,8 +8959,8 @@ msgid "Select"
 msgstr "Selecciona"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2269
-#: packages/admin/src/components/ContentEditor.tsx:2285
+#: packages/admin/src/components/ContentEditor.tsx:2317
+#: packages/admin/src/components/ContentEditor.tsx:2333
 #: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Select {label}"
 msgstr "Selecciona {label}"
@@ -8882,7 +9022,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Selecciona la icona del lloc"
 
-#: packages/admin/src/components/ContentEditor.tsx:2273
+#: packages/admin/src/components/ContentEditor.tsx:2321
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Selecciona un fitxer"
@@ -8995,9 +9135,9 @@ msgstr "Envia un correu de prova"
 msgid "Sending..."
 msgstr "S'està enviant..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1117
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1120
-#: packages/admin/src/components/ContentTypeEditor.tsx:527
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1146
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1149
+#: packages/admin/src/components/ContentTypeEditor.tsx:528
 #: packages/admin/src/components/Settings.tsx:64
 msgid "SEO"
 msgstr "SEO"
@@ -9039,7 +9179,7 @@ msgstr "Defineix l'idioma (actual: {label})"
 msgid "Set role"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:584
+#: packages/admin/src/components/ContentTypeEditor.tsx:585
 msgid "Set to 0 to never close comments automatically."
 msgstr "Defineix-ho a 0 per no tancar mai els comentaris automàticament."
 
@@ -9069,14 +9209,14 @@ msgstr ""
 msgid "Setting up..."
 msgstr "S'està configurant..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:1175
-#: packages/admin/src/components/ContentEditor.tsx:1474
-#: packages/admin/src/components/ContentTypeEditor.tsx:392
-#: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:521
+#: packages/admin/src/components/AdminCommandPalette.tsx:235
+#: packages/admin/src/components/ContentEditor.tsx:1213
+#: packages/admin/src/components/ContentEditor.tsx:1512
+#: packages/admin/src/components/ContentTypeEditor.tsx:393
+#: packages/admin/src/components/Header.tsx:102
+#: packages/admin/src/components/PluginManager.tsx:518
 #: packages/admin/src/components/Settings.tsx:44
-#: packages/admin/src/components/Sidebar.tsx:484
+#: packages/admin/src/components/Sidebar.tsx:485
 #: packages/admin/src/components/WordPressImport.tsx:1827
 msgid "Settings"
 msgstr "Configuració"
@@ -9151,7 +9291,7 @@ msgstr "Mostra el testimoni"
 msgid "Showing {pageShowingRange} of {0}"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1042
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1071
 msgid "Shown to readers in this order."
 msgstr ""
 
@@ -9274,9 +9414,9 @@ msgid "Skipped"
 msgstr "Omès"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:239
-#: packages/admin/src/components/ContentSettingsPanel.tsx:873
+#: packages/admin/src/components/ContentSettingsPanel.tsx:902
 #: packages/admin/src/components/ContentTypeEditor.tsx:111
-#: packages/admin/src/components/ContentTypeEditor.tsx:413
+#: packages/admin/src/components/ContentTypeEditor.tsx:414
 #: packages/admin/src/components/ContentTypeList.tsx:181
 #: packages/admin/src/components/FieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:454
@@ -9352,8 +9492,8 @@ msgstr "Ordena els temes"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:496
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:500
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:704
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:627
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:235
+#: packages/admin/src/components/PluginManager.tsx:624
 #: packages/admin/src/components/Redirects.tsx:475
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
@@ -9397,7 +9537,7 @@ msgstr ""
 msgid "Start Import"
 msgstr "Inicia la importació"
 
-#: packages/admin/src/components/ContentEditor.tsx:1670
+#: packages/admin/src/components/ContentEditor.tsx:1718
 #: packages/admin/src/components/PortableTextEditor.tsx:2757
 #: packages/admin/src/components/PortableTextEditor.tsx:2758
 msgid "Start writing, or type '/' for commands"
@@ -9417,7 +9557,7 @@ msgstr "Estat"
 msgid "Status code"
 msgstr "Codi d'estat"
 
-#: packages/admin/src/components/Dashboard.tsx:408
+#: packages/admin/src/components/Dashboard.tsx:507
 msgid "Status: {status}"
 msgstr ""
 
@@ -9487,11 +9627,11 @@ msgstr "Sincronitzat"
 msgid "Synced passkey"
 msgstr "Clau d'accés sincronitzada"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:832
+#: packages/admin/src/components/ContentTypeEditor.tsx:837
 msgid "System"
 msgstr "Sistema"
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:654
+#: packages/admin/src/components/ContentTypeEditor.tsx:655
 msgid "System Fields"
 msgstr "Camps del sistema"
 
@@ -9531,7 +9671,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "Eslògan"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:201
+#: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/Widgets.tsx:143
 msgid "Tags"
 msgstr "Etiquetes"
@@ -9560,7 +9700,7 @@ msgstr "Destinació"
 msgid "Target locale"
 msgstr "Idioma de destinació"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1104
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1133
 #: packages/admin/src/components/TaxonomySidebar.tsx:683
 msgid "Taxonomies"
 msgstr "Taxonomies"
@@ -9674,7 +9814,7 @@ msgstr "S'ha eliminat el menú."
 msgid "The name of your site, used in the header and metadata"
 msgstr "El nom del teu lloc, utilitzat a la capçalera i les metadades"
 
-#: packages/admin/src/router.tsx:2823
+#: packages/admin/src/router.tsx:2831
 msgid "The page you're looking for doesn't exist."
 msgstr "La pàgina que cerques no existeix."
 
@@ -9691,7 +9831,7 @@ msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "L'URL públic del teu lloc (utilitzat per als enllaços canònics i els mapes del lloc)"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
-#: packages/admin/src/components/RegistryPluginDetail.tsx:531
+#: packages/admin/src/components/RegistryPluginDetail.tsx:532
 msgid "The publisher identity cannot be verified."
 msgstr ""
 
@@ -9744,7 +9884,7 @@ msgstr "Les seccions proporcionades pel tema no es poden eliminar. Edita la secc
 msgid "Themes"
 msgstr "Temes"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:213
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:217
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr ""
 
@@ -9754,7 +9894,7 @@ msgstr ""
 msgid "This cannot be undone"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:381
+#: packages/admin/src/components/ContentTypeEditor.tsx:382
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Aquesta col·lecció està definida al codi. Algunes opcions no es poden canviar aquí. Edita el fitxer live.config.ts per modificar l'esquema."
 
@@ -9766,12 +9906,20 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1121
+#: packages/admin/src/components/ContentEditor.tsx:1159
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:41
 msgid "This entry is open somewhere else"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1146
+msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:1584
+msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3623
@@ -9791,7 +9939,7 @@ msgstr ""
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2289
+#: packages/admin/src/components/ContentEditor.tsx:2337
 #: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "This field is required"
 msgstr "Aquest camp és obligatori"
@@ -9850,23 +9998,27 @@ msgstr ""
 msgid "This permanently deletes {0} from storage."
 msgstr ""
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:201
+msgid "This plugin exposes the following routes without authentication:"
+msgstr ""
+
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:475
+#: packages/admin/src/components/RegistryPluginDetail.tsx:476
 msgid "This plugin is not available yet"
 msgstr ""
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:287
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:297
 msgid "This plugin requires no special permissions."
 msgstr "Aquest connector no requereix cap permís especial."
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:445
 msgid "This publisher identity no longer resolves."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:647
+#: packages/admin/src/components/RegistryPluginDetail.tsx:648
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr ""
 
@@ -9874,7 +10026,7 @@ msgstr ""
 msgid "This redirect rule will be permanently removed."
 msgstr "Aquesta regla de redirecció s'eliminarà permanentment."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:697
+#: packages/admin/src/components/RegistryPluginDetail.tsx:698
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Aquesta versió requereix un entorn més nou del que executa actualment el teu lloc. Actualitza'l abans d'instal·lar-la."
 
@@ -9911,11 +10063,11 @@ msgstr ""
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:197
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:200
 msgid "This update exposes the following routes without authentication:"
 msgstr "Aquesta actualització exposa les rutes següents sense autenticació:"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:158
+#: packages/admin/src/components/ContentSettingsPanel.tsx:160
 msgid "This version is not visible on the site"
 msgstr ""
 
@@ -9927,7 +10079,7 @@ msgstr "Això eliminarà l'àrea de ginys i tots els seus ginys. Aquesta acció 
 msgid "This will grant CLI access with your permissions."
 msgstr "Això concedirà accés per CLI amb els teus permisos."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1214
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1274
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Això mourà l'element a la paperera. El podràs restaurar més tard des de la paperera."
 
@@ -9945,11 +10097,11 @@ msgstr "Això eliminarà permanentment «{0}». Aquesta acció no es pot desfer.
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Això eliminarà permanentment aquest comentari. Aquesta acció no es pot desfer."
 
-#: packages/admin/src/components/PluginManager.tsx:782
+#: packages/admin/src/components/PluginManager.tsx:779
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "Això traurà el connector i el seu paquet del teu lloc."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:306
+#: packages/admin/src/components/ContentSettingsPanel.tsx:308
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "Això revertirà a la versió publicada. Es perdran els canvis del teu esborrany."
 
@@ -9986,11 +10138,11 @@ msgstr "Títol (descripció emergent)"
 msgid "Title Separator"
 msgstr "Separador del títol"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:483
+#: packages/admin/src/components/AdminCommandPalette.tsx:485
 msgid "to close"
 msgstr "per tancar"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:473
+#: packages/admin/src/components/AdminCommandPalette.tsx:475
 msgid "to select"
 msgstr "per seleccionar"
 
@@ -10064,7 +10216,7 @@ msgstr "S'està traduint..."
 msgid "Translation created"
 msgstr "S'ha creat la traducció"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1082
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 #: packages/admin/src/components/TranslationsPanel.tsx:60
 msgid "Translations"
 msgstr "Traduccions"
@@ -10195,8 +10347,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "No s'ha pogut arribar al mercat"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1250
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1310
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1327
 msgid "Unassigned"
 msgstr "Sense assignar"
 
@@ -10209,25 +10361,25 @@ msgstr "Subratllat"
 msgid "Undo"
 msgstr "Desfés"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:191
-#: packages/admin/src/components/PluginManager.tsx:677
-#: packages/admin/src/components/PluginManager.tsx:796
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:201
+#: packages/admin/src/components/PluginManager.tsx:674
+#: packages/admin/src/components/PluginManager.tsx:793
 msgid "Uninstall"
 msgstr "Desinstal·la"
 
-#: packages/admin/src/components/PluginManager.tsx:780
+#: packages/admin/src/components/PluginManager.tsx:777
 msgid "Uninstall {pluginName}?"
 msgstr "Vols desinstal·lar {pluginName}?"
 
-#: packages/admin/src/components/PluginManager.tsx:775
+#: packages/admin/src/components/PluginManager.tsx:772
 msgid "Uninstall confirmation"
 msgstr "Confirmació de la desinstal·lació"
 
-#: packages/admin/src/components/PluginManager.tsx:796
+#: packages/admin/src/components/PluginManager.tsx:793
 msgid "Uninstalling..."
 msgstr "S'està desinstal·lant..."
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:786
+#: packages/admin/src/components/ContentTypeEditor.tsx:790
 #: packages/admin/src/components/FieldEditor.tsx:478
 msgid "Unique"
 msgstr "Únic"
@@ -10255,7 +10407,7 @@ msgstr "Desbloqueja la relació d'aspecte"
 msgid "Unnamed passkey"
 msgstr "Clau d'accés sense nom"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:470
+#: packages/admin/src/components/ContentSettingsPanel.tsx:472
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
@@ -10275,6 +10427,10 @@ msgstr ""
 msgid "Unscheduled"
 msgstr "Programació anul·lada"
 
+#: packages/admin/src/components/ContentTypeEditor.tsx:788
+msgid "Unsupported"
+msgstr ""
+
 #. placeholder {0}: (element as { type: string }).type
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:128
 msgid "Unsupported widget element type: {0}"
@@ -10285,12 +10441,12 @@ msgstr "Tipus d'element de giny no admès: {0}"
 msgid "Until {0}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:375
+#: packages/admin/src/components/Dashboard.tsx:474
 #: packages/admin/src/components/MediaUsedIn.tsx:255
 msgid "Untitled"
 msgstr "Sense títol"
 
-#: packages/admin/src/components/ContentEditor.tsx:2191
+#: packages/admin/src/components/ContentEditor.tsx:2239
 msgid "Untitled file"
 msgstr "Fitxer sense títol"
 
@@ -10330,13 +10486,13 @@ msgid "Update this redirect rule."
 msgstr "Actualitza aquesta regla de redirecció."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:513
+#: packages/admin/src/components/PluginManager.tsx:510
 msgid "Update to v{0}"
 msgstr "Actualitza a la v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:869
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1000
-#: packages/admin/src/components/RegistryPluginDetail.tsx:568
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1029
+#: packages/admin/src/components/RegistryPluginDetail.tsx:569
 msgid "Updated"
 msgstr "Actualitzat"
 
@@ -10352,8 +10508,8 @@ msgstr "S'estan actualitzant els URL del contingut..."
 msgid "Updating usage"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:269
-#: packages/admin/src/components/PluginManager.tsx:513
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
+#: packages/admin/src/components/PluginManager.tsx:510
 msgid "Updating..."
 msgstr "S'està actualitzant..."
 
@@ -10377,8 +10533,8 @@ msgstr "Puja una imatge per començar"
 msgid "Upload and delete media"
 msgstr "Puja i elimina fitxers multimèdia"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:433
+#: packages/admin/src/lib/api/marketplace.ts:441
 msgid "Upload and manage media"
 msgstr "Puja i gestiona fitxers multimèdia"
 
@@ -10406,7 +10562,7 @@ msgstr "Puja fitxers"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Puja imatges, vídeos i documents per tenir els recursos reutilitzables en un sol lloc."
 
-#: packages/admin/src/components/Dashboard.tsx:170
+#: packages/admin/src/components/Dashboard.tsx:269
 msgid "Upload Media"
 msgstr "Puja fitxers multimèdia"
 
@@ -10453,7 +10609,7 @@ msgstr ""
 msgid "URL"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:462
+#: packages/admin/src/components/ContentTypeEditor.tsx:463
 msgid "URL Pattern"
 msgstr "Patró d'URL"
 
@@ -10550,7 +10706,7 @@ msgstr "S'utilitza com a imatge Open Graph alternativa quan una pàgina no en t�
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "S'utilitza com a identificador. Només lletres minúscules, números i guions baixos."
 
-#: packages/admin/src/components/ContentEditor.tsx:1790
+#: packages/admin/src/components/ContentEditor.tsx:1838
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "S'utilitza com a element visual principal d'aquesta entrada a les pàgines de llista i a la part superior de l'entrada"
 
@@ -10564,7 +10720,7 @@ msgstr "L'utilitzen els lectors de pantalla i quan la imatge no es pot carregar"
 msgid "Used in"
 msgstr ""
 
-#: packages/admin/src/components/ContentTypeEditor.tsx:419
+#: packages/admin/src/components/ContentTypeEditor.tsx:420
 msgid "Used in URLs and API endpoints"
 msgstr "S'utilitza als URL i als extrems d'API"
 
@@ -10574,8 +10730,8 @@ msgid "Used to identify this section. Lowercase letters, numbers, and hyphens on
 msgstr "S'utilitza per identificar aquesta secció. Només lletres minúscules, números i guions."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:223
-#: packages/admin/src/components/Header.tsx:43
-#: packages/admin/src/components/Header.tsx:83
+#: packages/admin/src/components/Header.tsx:44
+#: packages/admin/src/components/Header.tsx:84
 #: packages/admin/src/components/users/UserList.tsx:91
 msgid "User"
 msgstr "Usuari"
@@ -10593,8 +10749,8 @@ msgstr "Detalls de l'usuari"
 msgid "User not found"
 msgstr "No s'ha trobat l'usuari"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/AdminCommandPalette.tsx:211
+#: packages/admin/src/components/Sidebar.tsx:460
 #: packages/admin/src/components/users/UserList.tsx:55
 msgid "Users"
 msgstr "Usuaris"
@@ -10608,7 +10764,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Els usuaris amb adreces electròniques d'aquests dominis es poden registrar sense invitació. Se'ls assignarà automàticament el rol especificat."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:441
+#: packages/admin/src/components/PluginManager.tsx:438
 msgid "v{0} available"
 msgstr "v{0} disponible"
 
@@ -10635,18 +10791,18 @@ msgstr "S'està verificant el teu enllaç..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
-#: packages/admin/src/components/RegistryPluginDetail.tsx:624
+#: packages/admin/src/components/RegistryPluginDetail.tsx:625
 msgid "Verifying..."
 msgstr "S'està verificant..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:331
-#: packages/admin/src/components/RegistryPluginDetail.tsx:582
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:105
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:341
+#: packages/admin/src/components/RegistryPluginDetail.tsx:583
 msgid "Version"
 msgstr "Versió"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:544
+#: packages/admin/src/components/RegistryPluginDetail.tsx:545
 msgid "Version {0}"
 msgstr "Versió {0}"
 
@@ -10674,15 +10830,15 @@ msgstr "Mostra {title} publicat"
 msgid "View setup"
 msgstr ""
 
-#: packages/admin/src/components/Header.tsx:59
+#: packages/admin/src/components/Header.tsx:60
 msgid "View Site"
 msgstr "Mostra el lloc"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:742
+#: packages/admin/src/components/RegistryPluginDetail.tsx:743
 msgid "View source"
 msgstr "Mostra el codi font"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:983
+#: packages/admin/src/components/RegistryPluginDetail.tsx:985
 msgid "View the {license} license on spdx.org"
 msgstr "Mostra la llicència {license} a spdx.org"
 
@@ -10690,16 +10846,16 @@ msgstr "Mostra la llicència {license} a spdx.org"
 msgid "Visitors hitting these paths will see an error."
 msgstr "Els visitants que accedeixin a aquestes rutes veuran un error."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:208
+#: packages/admin/src/components/ContentSettingsPanel.tsx:210
 msgid "Visitors see the published version until the scheduled update"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:176
-#: packages/admin/src/components/ContentSettingsPanel.tsx:230
+#: packages/admin/src/components/ContentSettingsPanel.tsx:178
+#: packages/admin/src/components/ContentSettingsPanel.tsx:232
 msgid "Visitors see this published version"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:186
+#: packages/admin/src/components/ContentSettingsPanel.tsx:188
 msgid "Visitors still see the published version"
 msgstr ""
 
@@ -10750,8 +10906,8 @@ msgstr "Adreça web"
 msgid "WebAuthn is not supported in this browser"
 msgstr "Aquest navegador no admet WebAuthn"
 
-#: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/RegistryPluginDetail.tsx:767
+#: packages/admin/src/components/MarketplacePluginDetail.tsx:246
+#: packages/admin/src/components/RegistryPluginDetail.tsx:768
 msgid "Website"
 msgstr "Lloc web"
 
@@ -10783,7 +10939,7 @@ msgstr ""
 msgid "What will happen when you import"
 msgstr "Què passarà quan importis"
 
-#: packages/admin/src/components/ContentEditor.tsx:1122
+#: packages/admin/src/components/ContentEditor.tsx:1160
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 
@@ -10811,7 +10967,7 @@ msgstr "Quins tipus de contingut poden utilitzar aquesta taxonomia"
 msgid "Whole number"
 msgstr "Nombre enter"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1055
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1084
 msgid "Why are bylines shown in this order?"
 msgstr ""
 
@@ -10819,7 +10975,7 @@ msgstr ""
 msgid "Why can't this be changed?"
 msgstr "Per què no es pot canviar això?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:899
+#: packages/admin/src/components/ContentSettingsPanel.tsx:928
 msgid "Why English is used"
 msgstr ""
 
@@ -10880,9 +11036,9 @@ msgstr "Títol del giny"
 msgid "Widget updated"
 msgstr "S'ha actualitzat el giny"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:469
-#: packages/admin/src/components/Sidebar.tsx:426
+#: packages/admin/src/components/AdminCommandPalette.tsx:169
+#: packages/admin/src/components/PluginManager.tsx:466
+#: packages/admin/src/components/Sidebar.tsx:427
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1175
 msgid "Widgets"
@@ -10931,6 +11087,10 @@ msgstr "Nom d'usuari de WordPress"
 
 #: packages/admin/src/components/ContentList.tsx:493
 msgid "Working on {selectedCount} items…"
+msgstr ""
+
+#: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
+msgid "Working…"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:904
@@ -11017,7 +11177,7 @@ msgstr "Necessites permisos d'administrador per gestionar l'esquema de signature
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2103
+#: packages/admin/src/router.tsx:2111
 msgid "You need Editor permissions to moderate comments."
 msgstr "Necessites permisos d'editor per moderar els comentaris."
 
@@ -11139,7 +11299,7 @@ msgid "Your Role"
 msgstr "El teu rol"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:678
+#: packages/admin/src/components/RegistryPluginDetail.tsx:679
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "El teu lloc requereix que les versions tinguin com a mínim {0} d'antiguitat abans de poder-se instal·lar. Aquesta versió es podrà instal·lar més tard."
 

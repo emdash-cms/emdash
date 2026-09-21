@@ -74,6 +74,7 @@ Several hooks expose protected data or can change an operation. EmDash registers
 | Hooks | Capability | Reason |
 | --- | --- | --- |
 | `content:beforeSave` | `content:write` | The hook can replace submitted content. |
+| `content:beforePublish`, `content:beforeSchedule`, `content:beforeUnpublish` | `hooks.content-policy:register` | The hooks can reject publication state changes. |
 | Other `content:*` hooks | `content:read` | Their events expose content or identify an entry. |
 | `media:beforeUpload` | `media:write` | The hook can replace upload metadata or stop the upload. |
 | `media:afterUpload` | `media:read` | Its event exposes the stored media item. |
@@ -97,7 +98,7 @@ This example assumes the manifest declares an `items` storage collection:
 ```typescript
 "plugin:install": async (_event, ctx) => {
 	ctx.log.info("Installing plugin...");
-	await ctx.kv.set("settings:enabled", true);
+	await ctx.settings.set("enabled", true);
 	await ctx.storage.items.put("default", { name: "Default Item" });
 },
 ```
@@ -240,6 +241,43 @@ Runs after content is successfully deleted.
 ```
 
 **Event:** `{ id, collection, permanent }` — **Returns:** `Promise<void>`. `permanent` is `false` when the entry was moved to trash and `true` when the entry was removed permanently.
+
+Declare `hooks.content-policy:register` to inspect and reject publication, scheduling, or unpublication without receiving content read, write, or publication-action access.
+
+Return `void` to allow the action or `{ cancel: true, reason }` to reject it. The reason must contain 1–500 plain-text characters. Invalid decisions and unexpected errors abort by default without exposing the exception. Explicit rejections return `PUBLISH_REJECTED`, `SCHEDULE_REJECTED`, or `UNPUBLISH_REJECTED`.
+
+All three events contain `{ content, collection, origin, actor? }`. `origin.source` is `api`, `mcp`, `visual-editor`, `plugin`, `scheduler`, or `system`; plugin origins also contain `pluginId`. Authenticated human actions include `actor.id`, numeric `actor.role`, and the matching `actor.source`. EmDash accepts the `visual-editor` origin only from the signed, short-lived action token embedded in an authenticated toolbar render; ordinary API requests cannot select their origin.
+
+Publish and schedule events expose the effective draft in `content.data` and the staged slug in `content.slug`. Unpublish events expose the currently live content that the action would remove.
+
+### `content:beforePublish`
+
+The following hook requires an approval marker before content can become live:
+
+```typescript title="src/plugin.ts"
+"content:beforePublish": async (event) => {
+	const data = event.content.data;
+	const approvalStatus =
+		typeof data === "object" && data !== null && "approval_status" in data
+			? data.approval_status
+			: undefined;
+	if (approvalStatus !== "approved") {
+		return { cancel: true, reason: "Approve this entry before publishing." };
+	}
+},
+```
+
+This hook runs before manual, MCP, plugin, system, and scheduled publication. Scheduled content is checked again when its publication time arrives. A scheduler rejection unschedules the entry, stores the public-safe reason, and lists the affected entry on the dashboard instead of retrying the same permanent rejection on every scheduler tick. A successful schedule, publish, or delete clears the record. An administrator can dismiss a stale record when the entry or policy plugin is no longer available.
+
+### `content:beforeSchedule`
+
+Runs before an entry receives a publication time. The event also contains `scheduledAt`.
+
+There is no `content:beforeUnschedule` hook. An administrator can always cancel a future publication.
+
+### `content:beforeUnpublish`
+
+Runs before live content is removed.
 
 ### `content:afterPublish`
 

@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
 	pluginManifestSchema,
 	normalizeManifestRoute,
+	reconcileManifestAccess,
 } from "../../../src/plugins/manifest-schema.js";
 
 /** Minimal valid manifest for testing — only storage fields vary */
@@ -19,7 +20,53 @@ function makeManifest(storage: Record<string, { indexes: Array<string | string[]
 	};
 }
 
+describe("pluginManifestSchema — content policy", () => {
+	it("accepts the policy capability and all synchronous publication hooks", () => {
+		expect(
+			pluginManifestSchema.safeParse({
+				...makeManifest({}),
+				declaredAccess: { content: { policy: {} } },
+				capabilities: ["hooks.content-policy:register"],
+				hooks: ["content:beforePublish", "content:beforeSchedule", "content:beforeUnpublish"],
+			}).success,
+		).toBe(true);
+	});
+});
+
 describe("pluginManifestSchema — route entries", () => {
+	it("rejects duplicate route names before runtime last-write-wins normalization", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["admin", { name: "admin", public: true }],
+			admin: { pages: [{ path: "/overview", label: "Overview" }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("preserves taxonomy write authority during reconciliation", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			declaredAccess: { taxonomies: { read: {}, write: {} } },
+			capabilities: ["taxonomies:read", "taxonomies:write"],
+		});
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.declaredAccess?.taxonomies?.write).toEqual({});
+		expect(reconcileManifestAccess(result.data).capabilities).toEqual([
+			"taxonomies:read",
+			"taxonomies:write",
+		]);
+	});
+
+	it("accepts redirect access in both manifest representations", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			capabilities: ["redirects:read", "redirects:write"],
+			declaredAccess: { redirects: { read: {}, write: {} } },
+		});
+		expect(result.success).toBe(true);
+	});
+
 	it("should accept plain string routes", () => {
 		const result = pluginManifestSchema.safeParse(makeManifest({}));
 		// Baseline with empty routes is valid
@@ -35,9 +82,50 @@ describe("pluginManifestSchema — route entries", () => {
 	it("should accept structured route objects", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
-			routes: [{ name: "webhook", public: true }],
+			routes: [
+				{
+					name: "webhook",
+					public: true,
+					methods: ["POST"],
+					request: {
+						body: "bytes",
+						maxBytes: 4096,
+						headers: ["x-webhook-signature"],
+					},
+					response: "raw",
+				},
+			],
 		});
 		expect(result.success).toBe(true);
+	});
+
+	it.each([
+		{ methods: ["post"] },
+		{ methods: ["POST", "POST"] },
+		{ request: { body: "bytes", maxBytes: 8 * 1024 * 1024 + 1 } },
+		{ request: { body: "none", maxBytes: 1 } },
+		{ request: { body: "text", headers: ["cookie"] } },
+		{ response: "html" },
+	])("rejects unsafe raw route metadata %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "webhook", ...route }],
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it.each([
+		{ response: "raw" },
+		{ methods: ["GET"] },
+		{ request: { body: "none" } },
+		{ request: { body: "form-data" } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "admin", ...route }],
+			admin: { pages: [{ path: "/overview", label: "Overview" }] },
+		});
+		expect(result.success).toBe(false);
 	});
 
 	it("should accept a mix of strings and objects", () => {
@@ -121,6 +209,67 @@ describe("pluginManifestSchema — route entries", () => {
 	});
 });
 
+describe("pluginManifestSchema — editor extensions", () => {
+	it("accepts bounded declarations that reference private routes", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [
+				{ name: "entry-panel", permission: "content:edit_own" },
+				{ name: "entry-action", permission: "content:edit_own" },
+			],
+			admin: {
+				editorPanels: [
+					{ id: "health", title: "Health", route: "entry-panel", collections: ["posts"] },
+				],
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "entry-action",
+						placement: "toolbar",
+					},
+				],
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it.each([
+		["missing", ["entry-panel"], "missing"],
+		["public", [{ name: "entry-panel", public: true }], "entry-panel"],
+		["ambiguous", ["entry-panel", { name: "entry-panel" }], "entry-panel"],
+		["raw response", [{ name: "entry-panel", response: "raw" }], "entry-panel"],
+		["GET-only", [{ name: "entry-panel", methods: ["GET"] }], "entry-panel"],
+		["form-data", [{ name: "entry-panel", request: { body: "form-data" } }], "entry-panel"],
+	])("rejects a %s editor extension route", (_label, routes, route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes,
+			admin: { editorPanels: [{ id: "health", title: "Health", route }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("requires confirmation for danger actions", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["repair"],
+			admin: {
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "repair",
+						placement: "toolbar",
+						style: "danger",
+					},
+				],
+			},
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("pluginManifestSchema — MCP tools", () => {
 	it("keeps MCP declarations optional for backwards compatibility", () => {
 		expect(pluginManifestSchema.safeParse(makeManifest({})).success).toBe(true);
@@ -129,6 +278,7 @@ describe("pluginManifestSchema — MCP tools", () => {
 	it("accepts a plugin-scoped MCP tool declaration", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
+			routes: [{ name: "events/create", permission: "content:create" }],
 			mcp: {
 				tools: [
 					{
@@ -145,6 +295,32 @@ describe("pluginManifestSchema — MCP tools", () => {
 		});
 
 		expect(result.success).toBe(true);
+	});
+
+	it.each([
+		{ methods: ["GET"] },
+		{ request: { body: "none" } },
+		{ request: { body: "form-data" } },
+		{ response: "raw" },
+	])("rejects a tool with an incompatible route %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "events/create", permission: "content:create", ...route }],
+			mcp: {
+				tools: [
+					{
+						name: "createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+						inputSchema: { type: "object" },
+					},
+				],
+			},
+		});
+
+		expect(result.success).toBe(false);
 	});
 
 	it("rejects unsafe local tool names", () => {
@@ -173,9 +349,20 @@ describe("normalizeManifestRoute", () => {
 	});
 
 	it("should pass through a structured object unchanged", () => {
-		expect(normalizeManifestRoute({ name: "webhook", public: true })).toEqual({
+		expect(
+			normalizeManifestRoute({
+				name: "webhook",
+				public: true,
+				methods: ["POST"],
+				request: { body: "bytes", headers: ["x-signature"] },
+				response: "raw",
+			}),
+		).toEqual({
 			name: "webhook",
 			public: true,
+			methods: ["POST"],
+			request: { body: "bytes", headers: ["x-signature"] },
+			response: "raw",
 		});
 	});
 

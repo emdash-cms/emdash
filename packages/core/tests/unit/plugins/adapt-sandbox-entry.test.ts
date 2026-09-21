@@ -340,6 +340,7 @@ describe("adaptSandboxEntry", () => {
 				input: { foo: "bar" },
 				request: new Request("http://localhost/test"),
 				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				ui: { surface: "admin-page", locale: "ar", direction: "rtl" },
 				plugin: { id: "test-plugin", version: "1.0.0" },
 				kv: {} as any,
 				storage: {} as any,
@@ -356,6 +357,7 @@ describe("adaptSandboxEntry", () => {
 			expect(routeCtx.input).toEqual({ foo: "bar" });
 			expect(routeCtx.request).toBeDefined();
 			expect(routeCtx.requestMeta).toBeDefined();
+			expect(routeCtx.ui).toEqual({ surface: "admin-page", locale: "ar", direction: "rtl" });
 			// pluginCtx should be the stripped PluginContext (without route-specific fields)
 			expect(pluginCtx.plugin.id).toBe("test-plugin");
 			expect(pluginCtx.kv).toBeDefined();
@@ -364,6 +366,7 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx).not.toHaveProperty("input");
 			expect(pluginCtx).not.toHaveProperty("request");
 			expect(pluginCtx).not.toHaveProperty("requestMeta");
+			expect(pluginCtx).not.toHaveProperty("ui");
 		});
 
 		it("calls standard-format (definePlugin) handlers with the public single-arg RouteContext (#2079)", async () => {
@@ -440,6 +443,42 @@ describe("adaptSandboxEntry", () => {
 			expect(routeCtx.request.headers["x-demo"]).toBe("1");
 			expect(routeCtx.request).not.toBeInstanceOf(Request);
 			expect(pluginCtx.storage).toBeDefined();
+		});
+
+		it("applies declared sandbox header restrictions in-process", async () => {
+			const handler = vi.fn().mockResolvedValue({ ok: true });
+			const def: SandboxedPlugin = {
+				routes: {
+					webhook: {
+						request: { body: "bytes", headers: ["x-signature"] },
+						handler,
+					},
+				},
+			};
+			const result = adaptSandboxEntry(def, createDescriptor());
+			await result.routes.webhook.handler({
+				input: new Uint8Array(),
+				request: new Request("http://localhost/webhook", {
+					headers: {
+						authorization: "Bearer secret",
+						"cf-access-authenticated-user-email": "person@example.com",
+						cookie: "session=secret",
+						"x-hidden": "secret",
+						"x-signature": "sha256=test",
+					},
+				}),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (path: string) => path,
+			} as any);
+
+			expect(handler.mock.calls[0]?.[0].request.headers).toEqual({
+				"x-signature": "sha256=test",
+			});
 		});
 
 		it("passes the authenticated caller into routeCtx.user, not pluginCtx", async () => {
@@ -539,6 +578,16 @@ describe("adaptSandboxEntry", () => {
 			expect(result.capabilities).toContain("content:read");
 		});
 
+		it("normalizes content:revisions:read to include content:read", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({ capabilities: ["content:revisions:read"] });
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.capabilities).toContain("content:revisions:read");
+			expect(result.capabilities).toContain("content:read");
+		});
+
 		it("normalizes media:write to include media:read", () => {
 			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({ capabilities: ["media:write"] });
@@ -547,6 +596,14 @@ describe("adaptSandboxEntry", () => {
 
 			expect(result.capabilities).toContain("media:write");
 			expect(result.capabilities).toContain("media:read");
+		});
+
+		it("normalizes comments:moderate to include comments:read", () => {
+			const result = adaptSandboxEntry(
+				{},
+				createDescriptor({ capabilities: ["comments:moderate"] }),
+			);
+			expect(result.capabilities).toEqual(["comments:moderate", "comments:read"]);
 		});
 
 		it("normalizes network:request:unrestricted to include network:request", () => {
@@ -569,6 +626,14 @@ describe("adaptSandboxEntry", () => {
 
 			const readCount = result.capabilities.filter((c) => c === "content:read").length;
 			expect(readCount).toBe(1);
+		});
+
+		it.each([
+			["taxonomies:write", "taxonomies:read"],
+			["redirects:write", "redirects:read"],
+		] as const)("implies %s -> %s", (declared, implied) => {
+			const result = adaptSandboxEntry({}, createDescriptor({ capabilities: [declared] }));
+			expect(result.capabilities).toEqual(expect.arrayContaining([declared, implied]));
 		});
 
 		it("throws on invalid capability", () => {

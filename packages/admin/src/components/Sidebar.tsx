@@ -1,4 +1,5 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
+import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import { Gear, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -492,9 +493,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
+				if (!isSafePluginPagePath(page.path)) continue;
 				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
 				pluginItems.push({
-					to: `/plugins/${pluginId}${page.path}`,
+					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,
 					label,
 					icon: resolveNavIcon(page.icon),
 				});

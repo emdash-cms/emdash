@@ -9,6 +9,7 @@ import {
 	MarketplaceUpdateEscalationError,
 	MarketplaceUpdateMcpConsentRequiredError,
 } from "../../src/lib/api/marketplace";
+import { RegistryUpdateEscalationError } from "../../src/lib/api/registry";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -61,6 +62,7 @@ const mockCheckPluginUpdates = vi.fn<() => Promise<PluginUpdateInfo[]>>();
 const mockUpdateMarketplacePlugin = vi.fn<() => Promise<void>>();
 const mockUninstallMarketplacePlugin = vi.fn<() => Promise<void>>();
 const mockResolveDidToHandle = vi.fn();
+const mockUpdateRegistryPlugin = vi.fn<() => Promise<void>>();
 
 vi.mock("../../src/lib/api/marketplace", async () => {
 	const actual = await vi.importActual("../../src/lib/api/marketplace");
@@ -80,6 +82,7 @@ vi.mock("../../src/lib/api/registry", async () => {
 	return {
 		...actual,
 		resolveDidToHandle: (...args: unknown[]) => mockResolveDidToHandle(...args),
+		updateRegistryPlugin: (...args: unknown[]) => mockUpdateRegistryPlugin(...(args as [])),
 	};
 });
 
@@ -153,6 +156,7 @@ describe("PluginManager", () => {
 		mockUpdateMarketplacePlugin.mockResolvedValue(undefined);
 		mockUninstallMarketplacePlugin.mockResolvedValue(undefined);
 		mockResolveDidToHandle.mockResolvedValue({ status: "ok", handle: "example.com" });
+		mockUpdateRegistryPlugin.mockResolvedValue(undefined);
 	});
 
 	it("displays plugin list with names and versions", async () => {
@@ -212,6 +216,69 @@ describe("PluginManager", () => {
 		await expect
 			.element(screen.getByText("This publisher identity no longer resolves."))
 			.toBeInTheDocument();
+	});
+
+	it("retries registry updates with the exact public routes and signed record CIDs", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "r_abcdefghijklmnop",
+				name: "Editorial Workflow",
+				source: "registry",
+				version: "1.0.0",
+				registryPublisherDid: "did:plc:publisher",
+				registrySlug: "editorial-workflow",
+			}),
+		]);
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "r_abcdefghijklmnop",
+				installed: "1.0.0",
+				latest: "2.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		mockUpdateRegistryPlugin.mockRejectedValueOnce(
+			new RegistryUpdateEscalationError(
+				"ROUTE_VISIBILITY_ESCALATION",
+				"Review the update",
+				{ added: [], removed: [] },
+				{ newlyPublic: ["webhook"] },
+				{
+					profileCid: "profile-cid",
+					releaseCid: "release-cid",
+					provenance: "verified",
+					policy: {
+						requireProvenance: true,
+						confirmation: "escalation-only",
+						approvers: ["did:plc:publisher"],
+					},
+				},
+			),
+		);
+
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await screen.getByText("Check for updates").click();
+		await screen.getByText("Update to v2.0.0").click();
+		await vi.waitFor(() => {
+			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(1, "r_abcdefghijklmnop", {});
+		});
+		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
+		await screen.getByText("Accept & Update").click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdateRegistryPlugin).toHaveBeenNthCalledWith(2, "r_abcdefghijklmnop", {
+				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
+				confirmMcpTools: false,
+				acknowledgedProfileCid: "profile-cid",
+				acknowledgedReleaseCid: "release-cid",
+			});
+		});
 	});
 
 	it("enabled plugins show toggle in on state", async () => {
@@ -433,7 +500,10 @@ describe("PluginManager", () => {
 			new MarketplaceUpdateEscalationError(
 				"ROUTE_VISIBILITY_ESCALATION",
 				"Review the update",
-				{ added: ["network:request"], removed: [] },
+				{
+					added: ["media:bytes:read", "media:metadata:write", "network:request"],
+					removed: [],
+				},
 				{ newlyPublic: ["webhook"] },
 				[
 					{
@@ -462,7 +532,13 @@ describe("PluginManager", () => {
 				version: "2.0.0",
 			});
 		});
-		await expect.element(screen.getByText("Make network requests")).toBeInTheDocument();
+		await expect.element(screen.getByText("Read media file contents")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Edit media alt text, captions, and focal points"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Connect to network hosts and load external plugin admin images"))
+			.toBeInTheDocument();
 		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
 		await expect.element(screen.getByText("sync", { exact: true })).toBeInTheDocument();
 
@@ -483,7 +559,7 @@ describe("PluginManager", () => {
 			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(2, "mp-plugin", {
 				version: "2.0.0",
 				confirmCapabilityChanges: true,
-				confirmRouteVisibilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
 				confirmMcpTools: true,
 			});
 		});

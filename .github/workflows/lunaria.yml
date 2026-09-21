@@ -27,4 +27,4 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: lunariajs/action@a0594f1c5b8d55fb367d8df607d5e2541c99e77d # v1-prerelease
+      - uses: lunariajs/action@e5ab09c3c8353fa80786d8c2149873ba3978a3a7 # v0.2.0

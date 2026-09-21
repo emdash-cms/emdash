@@ -19,7 +19,7 @@ export const prerender = false;
 /**
  * Handle all methods by matching against plugin-defined routes
  */
-const handleRequest: APIRoute = async ({ params, request, locals }) => {
+const handleRequest: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const pluginId = params.pluginId!;
 	const path = params.path || "";
@@ -33,11 +33,13 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		request,
 		user,
 		tokenScopes: locals.tokenScopes,
+		invalidateContentCache: cache?.enabled ? (tags) => cache.invalidate({ tags }) : undefined,
 	});
 };
 
 // Export handlers for all HTTP methods
 export const GET = handleRequest;
+export const HEAD = handleRequest;
 export const POST = handleRequest;
 export const PUT = handleRequest;
 export const PATCH = handleRequest;

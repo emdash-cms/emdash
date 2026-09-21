@@ -197,7 +197,7 @@ Content hooks that receive entry data require `content:read`. Add capabilities a
 
 ### Options and custom tables
 
-Use `ctx.kv` for small per-plugin values. Keys are isolated by plugin. `settings:` is the convention for user configuration and `state:` for internal state.
+Use `ctx.settings` for user configuration and `ctx.kv` for small internal values. Both stores are isolated by plugin. Declare credentials as `secret` fields in `admin.settingsSchema` so EmDash encrypts them.
 
 Use declared `ctx.storage.<collection>` collections for queryable plugin records. The storage declaration belongs in `emdash-plugin.jsonc` for a sandboxed plugin and in `definePlugin()` for a native plugin. Do not open the EmDash database or interpolate SQL from plugin code.
 
@@ -218,11 +218,11 @@ update_option('read_time_api_key', $new_api_key);
 import type { PluginContext } from "emdash/plugin";
 
 export async function saveApiKey(ctx: PluginContext, newApiKey: string) {
-  await ctx.kv.set("settings:apiKey", newApiKey);
+  await ctx.settings.set("apiKey", newApiKey);
 }
 
 export async function readApiKey(ctx: PluginContext) {
-  return await ctx.kv.get<string>("settings:apiKey") ?? "";
+  return await ctx.settings.get<string>("apiKey") ?? "";
 }
 ```
 

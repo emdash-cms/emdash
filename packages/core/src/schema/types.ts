@@ -173,6 +173,11 @@ export interface FieldWidgetOptions {
 	[key: string]: unknown;
 }
 
+export interface UnsupportedFieldType {
+	type: string;
+	path: string;
+}
+
 export const MAX_COLLECTION_LIST_COLUMNS = 4;
 
 /** Longest admin sidebar folder label a collection may declare. */
@@ -249,6 +254,8 @@ export interface Field {
 	slug: string;
 	label: string;
 	type: FieldType;
+	/** Raw stored type metadata that this runtime cannot safely interpret. */
+	unsupportedType?: UnsupportedFieldType;
 	columnType: ColumnType;
 	required: boolean;
 	unique: boolean;

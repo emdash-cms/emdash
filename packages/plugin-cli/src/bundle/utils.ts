@@ -12,11 +12,12 @@ import { access, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 
+import { extractManifestRoute, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
 
-import { capabilitiesToDeclaredAccess } from "./types.js";
+import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "./types.js";
 import type {
 	ManifestHookEntry,
 	ManifestMcpTool,
@@ -131,6 +132,14 @@ export function readImageDimensions(buf: Uint8Array): [number, number] | null {
  * publish-relevant fields.
  */
 export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new Error("Block Kit admin route must accept POST JSON requests and return JSON");
+		}
+	}
+	const declaredAccess = capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts);
+	const enforcedAccess = declaredAccessToCapabilities(declaredAccess);
 	const hooks: Array<ManifestHookEntry | string> = [];
 	for (const [name, resolved] of Object.entries(plugin.hooks)) {
 		if (!resolved) continue;
@@ -160,17 +169,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	}
 
 	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
-		([name, route]) =>
-			route.public !== undefined ||
-			route.permission !== undefined ||
-			route.cacheControl !== undefined
-				? {
-						name,
-						public: route.public,
-						permission: route.permission,
-						cacheControl: route.cacheControl,
-					}
-				: name,
+		([name, route]) => extractManifestRoute(name, route),
 	);
 	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
 		if (!MCP_TOOL_NAME_PATTERN.test(name)) throw new Error(`Invalid MCP tool name "${name}"`);
@@ -180,6 +179,12 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 		if (route.public) {
 			throw new Error(`MCP tool "${name}" cannot reference public route "${tool.route}"`);
+		}
+		if (route.response === "raw") {
+			throw new Error(`MCP tool "${name}" cannot reference raw response route "${tool.route}"`);
+		}
+		if (!isJsonPostRouteContract(route)) {
+			throw new Error(`MCP tool "${name}" must reference a POST-compatible JSON route`);
 		}
 		if (!route.permission) {
 			throw new Error(`MCP route "${tool.route}" must declare a permission`);
@@ -198,8 +203,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	return {
 		id: plugin.id,
 		version: plugin.version,
-		declaredAccess: capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts),
-		capabilities: plugin.capabilities,
+		declaredAccess,
+		capabilities: enforcedAccess.capabilities,
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,
@@ -211,6 +216,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 			pages: plugin.admin.pages,
 			widgets: plugin.admin.widgets,
 			fieldWidgets: plugin.admin.fieldWidgets,
+			editorPanels: plugin.admin.editorPanels,
+			editorActions: plugin.admin.editorActions,
 		},
 	};
 }

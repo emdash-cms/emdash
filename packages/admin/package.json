@@ -17,6 +17,10 @@
       "types": "./dist/locales/index.d.ts",
       "default": "./dist/locales/index.js"
     },
+    "./locales/server": {
+      "types": "./dist/locales/server.d.ts",
+      "default": "./dist/locales/server.js"
+    },
     "./locales/*": "./dist/locales/*",
     "./slugify": {
       "types": "./dist/slugify.d.ts",

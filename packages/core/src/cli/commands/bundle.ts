@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat, mkdir, writeFile, rm, copyFile, symlink, readdir } from "node:fs/promises";
 import { resolve, join, extname, basename } from "node:path";
 
+import { extractRouteOptions } from "@emdash-cms/plugin-types";
 import { defineCommand } from "citty";
 import consola from "consola";
 
@@ -302,11 +303,13 @@ export const bundleCommand = defineCommand({
 									}
 									if (routes) {
 										for (const [name, route] of Object.entries(routes)) {
-											const routeObj = route as Record<string, unknown>;
+											const routeObj =
+												typeof route === "object" && route !== null
+													? (route as Record<string, unknown>)
+													: {};
 											(resolvedPlugin.routes as Record<string, unknown>)[name] = {
-												handler: routeObj.handler,
-												public: routeObj.public,
-												cacheControl: routeObj.cacheControl,
+												handler: typeof route === "function" ? route : routeObj.handler,
+												...extractRouteOptions(route),
 											};
 										}
 									}
@@ -314,8 +317,8 @@ export const bundleCommand = defineCommand({
 							}
 							break;
 						}
-					} catch {
-						// Not a descriptor factory, skip
+					} catch (error) {
+						if (resolvedPlugin) throw error;
 					}
 				}
 			}

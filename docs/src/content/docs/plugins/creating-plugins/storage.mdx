@@ -399,7 +399,7 @@ Pick the right mechanism for each kind of data:
 | Use case                                           | Storage                               |
 | -------------------------------------------------- | ------------------------------------- |
 | Plugin operational data (logs, submissions, cache) | `ctx.storage`                         |
-| User-configurable settings                         | `ctx.kv` with `settings:` prefix      |
+| User-configurable settings                         | `ctx.settings`                        |
 | Internal plugin state                              | `ctx.kv` with `state:` prefix         |
 | Content editable in the admin UI                   | Site collections (not plugin storage) |
 

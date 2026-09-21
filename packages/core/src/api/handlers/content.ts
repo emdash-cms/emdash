@@ -16,6 +16,7 @@ import {
 	type ContentRevisionPrecondition,
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
+import { OptionsRepository } from "../../database/repositories/options.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -40,6 +41,10 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
+import {
+	scheduledPolicyRejectionKey,
+	type ScheduledPolicyRejection,
+} from "../../plugins/content-policy.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
@@ -61,6 +66,18 @@ function hasApiError(error: unknown): error is Error & { apiError: { code: strin
 		apiError !== null &&
 		"code" in apiError &&
 		typeof apiError.code === "string"
+	);
+}
+
+function isTranslationLocaleConflict(error: unknown, collection: string): boolean {
+	if (!(error instanceof Error)) return false;
+	const message = error.message.toLowerCase();
+	const storedIndexName = `uidx_ec_${collection}_active_tg_locale`.slice(0, 63).toLowerCase();
+	return (
+		message.includes(storedIndexName) ||
+		(message.includes("unique constraint failed") &&
+			message.includes("translation_group") &&
+			message.includes("locale"))
 	);
 }
 
@@ -848,6 +865,21 @@ export async function handleContentCreate(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
+			const inheritedFields = body.translationOf
+				? (
+						await trx
+							.selectFrom("_emdash_fields as field")
+							.innerJoin(
+								"_emdash_collections as collection",
+								"collection.id",
+								"field.collection_id",
+							)
+							.select("field.slug")
+							.where("collection.slug", "=", collection)
+							.where("field.translatable", "=", 0)
+							.execute()
+					).map((field) => field.slug)
+				: [];
 
 			// Default to the configured site locale rather than the repo's
 			// hard-coded "en" — otherwise non-English default-locale sites
@@ -876,6 +908,7 @@ export async function handleContentCreate(
 				authorId: body.authorId,
 				locale: effectiveLocale,
 				translationOf: body.translationOf,
+				inheritFields: inheritedFields,
 				createdAt: body.createdAt,
 				publishedAt: body.publishedAt,
 			});
@@ -947,6 +980,12 @@ export async function handleContentCreate(
 			};
 		}
 		if (error instanceof EmDashValidationError) {
+			if (error.message === "Translation source content not found") {
+				return {
+					success: false,
+					error: { code: "NOT_FOUND", message: error.message },
+				};
+			}
 			return {
 				success: false,
 				error: { code: "VALIDATION_ERROR", message: error.message },
@@ -959,6 +998,19 @@ export async function handleContentCreate(
 		// messages also contain "constraint failed".
 		const message = error instanceof Error ? error.message.toLowerCase() : "";
 		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
+			if (
+				message.includes("active_tg_locale") ||
+				(message.includes("translation_group") && message.includes("locale"))
+			) {
+				const locale = body.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+				return {
+					success: false,
+					error: {
+						code: "CONFLICT",
+						message: `Translation already exists in locale "${locale}" for this content item`,
+					},
+				};
+			}
 			// Detect slug-specific collisions by message fingerprint
 			if (message.includes("slug")) {
 				return {
@@ -1338,12 +1390,14 @@ export async function handleContentRestore(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ restored: true; item: ContentItem }>> {
+	options: { _rev?: string } = {},
+): Promise<ApiResult<{ restored: true; item: ContentItem; _rev: string }>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
-			return repo.restore(collection, resolvedId);
+			return repo.restore(collection, resolvedId, expectedRevision);
 		});
 
 		if (!item) {
@@ -1358,9 +1412,24 @@ export async function handleContentRestore(
 
 		return {
 			success: true,
-			data: { restored: true, item },
+			data: { restored: true, item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
+		if (isTranslationLocaleConflict(error, collection)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: "An active translation already exists in this locale",
+				},
+			};
+		}
 		console.error("Content restore error:", error);
 		return {
 			success: false,
@@ -1539,8 +1608,10 @@ export async function handleContentSchedule(
 	id: string,
 	scheduledAt: string,
 	currentTime: Date = new Date(),
+	_rev?: string,
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(_rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const existing = await repo.findByIdOrSlug(collection, id);
@@ -1549,7 +1620,7 @@ export async function handleContentSchedule(
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
 				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
 			}
-			return repo.schedule(collection, resolvedId, scheduledAt, currentTime);
+			return repo.schedule(collection, resolvedId, scheduledAt, currentTime, expectedRevision);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1560,6 +1631,12 @@ export async function handleContentSchedule(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,
@@ -1587,12 +1664,14 @@ export async function handleContentUnschedule(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { _rev?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unschedule(collection, resolvedId);
+			return repo.unschedule(collection, resolvedId, expectedRevision);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1603,6 +1682,12 @@ export async function handleContentUnschedule(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,
@@ -1618,6 +1703,71 @@ export async function handleContentUnschedule(
 			error: {
 				code: "CONTENT_UNSCHEDULE_ERROR",
 				message: "Failed to unschedule content",
+			},
+		};
+	}
+}
+
+/**
+ * Persist a permanent policy rejection and unschedule the publication.
+ * Databases with transactions commit both writes together. D1 persists the
+ * reason first so a failed option write cannot silently remove the entry from
+ * future sweeps; if unscheduling then fails, the due entry and its dashboard
+ * notice remain available for retry and operator action.
+ */
+export async function handleScheduledPolicyRejection(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+	options: { _rev: string; rejection: ScheduledPolicyRejection },
+): Promise<ApiResult<ContentResponse>> {
+	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
+		const item = await withTransaction(db, async (trx) => {
+			const repo = new ContentRepository(trx);
+			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const optionsRepo = new OptionsRepository(trx);
+			const rejectionKey = scheduledPolicyRejectionKey(collection, resolvedId);
+			const rejectionRevision = await optionsRepo.setVersioned(rejectionKey, {
+				...options.rejection,
+				id: resolvedId,
+			});
+			try {
+				return await repo.unschedule(collection, resolvedId, expectedRevision);
+			} catch (error) {
+				if (error instanceof ContentMutationConflictError) {
+					try {
+						await optionsRepo.compareAndDelete(rejectionKey, rejectionRevision);
+					} catch (cleanupError) {
+						console.error("Failed to clear stale scheduled policy rejection:", cleanupError);
+					}
+				}
+				throw error;
+			}
+		});
+
+		const hasSeo = await collectionHasSeo(db, collection);
+		await hydrateSeo(db, collection, item, hasSeo);
+		return { success: true, data: { item, _rev: encodeRev(item) } };
+	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		console.error("Scheduled policy rejection error:", error);
+		return {
+			success: false,
+			error: {
+				code: "CONTENT_UNSCHEDULE_ERROR",
+				message: "Failed to record scheduled publication rejection",
 			},
 		};
 	}
