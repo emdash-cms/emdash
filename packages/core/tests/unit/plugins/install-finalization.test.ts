@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { finalizePluginInstall } from "../../../src/plugins/install-finalization.js";
+import {
+	finalizePluginInstall,
+	finalizePluginUpdate,
+} from "../../../src/plugins/install-finalization.js";
 
 describe("finalizePluginInstall", () => {
 	it("runs runtime sync and lifecycle without rollback on success", async () => {
@@ -47,5 +50,52 @@ describe("finalizePluginInstall", () => {
 				})),
 			}),
 		).rejects.toThrow("rollback did not complete");
+	});
+});
+
+describe("finalizePluginUpdate", () => {
+	it("restores and reactivates the previous version after activation failure", async () => {
+		const calls: string[] = [];
+		let syncCount = 0;
+		await expect(
+			finalizePluginUpdate({
+				pluginId: "gallery",
+				syncRuntime: async () => {
+					syncCount += 1;
+					calls.push(`sync-${syncCount}`);
+				},
+				runLifecycle: async () => {
+					calls.push("activate-update");
+					throw new Error("activate failed");
+				},
+				rollback: async () => {
+					calls.push("rollback");
+					return { success: true as const, data: {} };
+				},
+				runRollbackLifecycle: async () => {
+					calls.push("activate-previous");
+				},
+			}),
+		).rejects.toThrow("activate failed");
+		expect(calls).toEqual(["sync-1", "activate-update", "rollback", "sync-2", "activate-previous"]);
+	});
+
+	it("does not activate the previous version when persistence rollback fails", async () => {
+		const runRollbackLifecycle = vi.fn(async () => undefined);
+		await expect(
+			finalizePluginUpdate({
+				pluginId: "gallery",
+				syncRuntime: vi.fn(async () => undefined),
+				runLifecycle: vi.fn(async () => {
+					throw new Error("activate failed");
+				}),
+				rollback: vi.fn(async () => ({
+					success: false as const,
+					error: { code: "UPDATE_ROLLBACK_CONFLICT", message: "state changed" },
+				})),
+				runRollbackLifecycle,
+			}),
+		).rejects.toThrow("rollback did not complete");
+		expect(runRollbackLifecycle).not.toHaveBeenCalled();
 	});
 });
