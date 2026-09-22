@@ -1,6 +1,11 @@
 import { type Kysely, sql } from "kysely";
 import { type Migration, type MigrationProvider, Migrator } from "kysely/migration";
 
+import {
+	busyLockHeldSince,
+	MIGRATION_LOCK_TABLE,
+	migrationLockHeldMessage,
+} from "../migration-lock.js";
 import { MIGRATION_LOCK_BUSY_MESSAGE } from "../pg-migration-lock.js";
 import type { Database } from "../types.js";
 // Import migrations statically for bundling
@@ -56,6 +61,35 @@ import * as m050 from "./050_media_usage_index_status.js";
 import * as m051 from "./051_content_taxonomies_denorm.js";
 import * as m052 from "./052_media_usage_read_index.js";
 import * as m053 from "./053_plugin_mcp_tools.js";
+import * as m054 from "./054_media_upload_attempts.js";
+import * as m055 from "./055_content_translation_group_locale_index.js";
+import * as m056 from "./056_taxonomy_term_sort_order.js";
+import * as m057 from "./057_collection_hidden.js";
+import * as m058 from "./058_collection_sort_order.js";
+import * as m059 from "./059_revision_prune_queue.js";
+import * as m060 from "./060_collection_admin_config.js";
+import * as m061 from "./061_media_usage_cleanup.js";
+import * as m062 from "./062_media_usage_cleanup_fence.js";
+import * as m063 from "./063_media_usage_incremental_work.js";
+import * as m064 from "./064_fts_plain_text.js";
+import * as m065 from "./065_media_usage_collection_deletion.js";
+import * as m066 from "./066_media_usage_reconciliation.js";
+import * as m067 from "./067_indexed_content_fields.js";
+import * as m068 from "./068_content_taxonomy_entry_groups.js";
+import * as m069 from "./069_collection_title_date_fields.js";
+import * as m070 from "./070_collection_routable.js";
+import * as m071 from "./071_restore_content_bylines_table.js";
+import * as m072 from "./072_media_folders.js";
+import * as m073 from "./073_media_focal_point.js";
+import * as m074 from "./074_content_deleted_scheduled_index.js";
+import * as m075 from "./075_entry_edit_locks.js";
+import * as m076 from "./076_collection_nav_group.js";
+import * as m077 from "./077_plugin_storage_revisions.js";
+import * as m078 from "./078_menu_item_translation_groups.js";
+import * as m079 from "./079_datetime_normalization.js";
+import * as m080 from "./080_content_translation_locale_unique.js";
+import * as m081 from "./081_redirect_write_guards.js";
+import * as m082 from "./082_taxonomy_translation_locale_unique.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -110,10 +144,42 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"051_content_taxonomies_denorm": m051,
 	"052_media_usage_read_index": m052,
 	"053_plugin_mcp_tools": m053,
+	"054_media_upload_attempts": m054,
+	"055_content_translation_group_locale_index": m055,
+	"056_taxonomy_term_sort_order": m056,
+	"057_collection_hidden": m057,
+	"058_collection_sort_order": m058,
+	"059_revision_prune_queue": m059,
+	"060_collection_admin_config": m060,
+	"061_media_usage_cleanup": m061,
+	"062_media_usage_cleanup_fence": m062,
+	"063_media_usage_incremental_work": m063,
+	"064_fts_plain_text": m064,
+	"065_media_usage_collection_deletion": m065,
+	"066_media_usage_reconciliation": m066,
+	"067_indexed_content_fields": m067,
+	"068_content_taxonomy_entry_groups": m068,
+	"069_collection_title_date_fields": m069,
+	"070_collection_routable": m070,
+	"071_restore_content_bylines_table": m071,
+	"072_media_folders": m072,
+	"073_media_focal_point": m073,
+	"074_content_deleted_scheduled_index": m074,
+	"075_entry_edit_locks": m075,
+	"076_collection_nav_group": m076,
+	"077_plugin_storage_revisions": m077,
+	"078_menu_item_translation_groups": m078,
+	"079_datetime_normalization": m079,
+	"080_content_translation_locale_unique": m080,
+	"081_redirect_write_guards": m081,
+	"082_taxonomy_translation_locale_unique": m082,
 });
 
+/** Ordered names from the statically registered migration set. */
+export const MIGRATION_NAMES: readonly string[] = Object.freeze(Object.keys(MIGRATIONS));
+
 /** Total number of registered migrations. Exported for use in tests. */
-export const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
+export const MIGRATION_COUNT = MIGRATION_NAMES.length;
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -128,6 +194,12 @@ class StaticMigrationProvider implements MigrationProvider {
 export interface MigrationStatus {
 	applied: string[];
 	pending: string[];
+}
+
+export interface ExactMigrationStatus {
+	knownApplied: string[];
+	pending: string[];
+	unknownApplied: string[];
 }
 
 /**
@@ -148,9 +220,23 @@ export class ConcurrentMigrationTimeoutError extends Error {
 	}
 }
 
+/**
+ * Thrown without waiting when the migration lock is older than
+ * MIGRATION_LOCK_WAIT_MAX_AGE_MS. Callers with failure backoff apply it: the
+ * holder has most likely stopped, and only a person can release its lock.
+ */
+export class MigrationLockHeldError extends Error {
+	readonly heldSince: number;
+
+	constructor(heldSince: number) {
+		super(migrationLockHeldMessage(heldSince));
+		this.name = "MigrationLockHeldError";
+		this.heldSince = heldSince;
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
-const MIGRATION_LOCK_TABLE = "_emdash_migrations_lock";
 
 export interface MigrationOptions {
 	migrationTableSchema?: string;
@@ -162,7 +248,7 @@ export interface MigrationOptions {
 	raceWaitMs?: number;
 }
 
-function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
+export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
 	return new Migrator({
 		db,
 		provider: new StaticMigrationProvider(),
@@ -207,15 +293,16 @@ function escapeRegExp(value: string): string {
 
 /**
  * Pattern used to detect the concurrent-migration race. The Kysely
- * `SqliteAdapter.acquireMigrationLock` is a no-op (inherited by `kysely-d1`
- * and our `EmDashD1Dialect`), so two isolates running migrations against the
- * same database can both attempt `INSERT INTO _emdash_migrations` for the
- * same migration name. The losing insert fails with a UNIQUE constraint
- * error, which is benign: the other isolate is applying the same schema.
+ * `SqliteAdapter.acquireMigrationLock` is a no-op, so two processes migrating
+ * the same SQLite database (or the same D1 database, when one of them runs a
+ * build whose D1 adapter takes no lock) can both attempt
+ * `INSERT INTO _emdash_migrations` for the same migration name. The losing
+ * insert fails with a UNIQUE constraint error, which is benign: the other
+ * process is applying the same schema.
  *
  * We match on the table name (not the full error text) because different
  * SQLite drivers phrase the message differently
- * (`UNIQUE constraint failed: _emdash_migrations.name` for better-sqlite3,
+ * (`UNIQUE constraint failed: _emdash_migrations.name` for file-backed SQLite,
  * `D1_ERROR: UNIQUE constraint failed: _emdash_migrations.name: SQLITE_CONSTRAINT`
  * for D1, etc.). The pattern is built from `MIGRATION_TABLE` so a rename
  * cannot silently disable race detection.
@@ -236,10 +323,17 @@ export const MIGRATION_RACE_WAIT_MS = 10_000;
 const MIGRATION_RACE_POLL_MS = 100;
 
 /**
+ * A migration lock older than this is not waited on. Its holder has most
+ * likely stopped, and polling a lock that only a person can release would add
+ * a 10-second stall and a hundred queries to every runtime init until then.
+ */
+const MIGRATION_LOCK_WAIT_MAX_AGE_MS = 60_000;
+
+/**
  * Pattern used to detect "table does not exist" errors across the dialects
  * EmDash supports. The phrasing differs by driver:
  *
- *   - better-sqlite3: `no such table: _emdash_migrations`
+ *   - SQLite:         `no such table: _emdash_migrations`
  *   - D1:             `D1_ERROR: no such table: _emdash_migrations: SQLITE_ERROR`
  *   - PostgreSQL:     `relation "_emdash_migrations" does not exist`
  *                     (also occasionally `table "_emdash_migrations" does not exist`)
@@ -252,8 +346,8 @@ const MIGRATION_RACE_POLL_MS = 100;
  * built from `MIGRATION_TABLE` so a rename cannot drift.
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
-	`(?:no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b` +
-		`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
+	`(?:no such table:\\s*(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}\\b` +
+		`|(?:relation|table)\\s+"?(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
 	"i",
 );
 
@@ -326,6 +420,43 @@ function deepErrorMessage(error: unknown): string {
 }
 
 /**
+ * Read exact migration status without invoking Kysely's migration
+ * introspection. Registered names retain execution order; unknown database
+ * records are sorted so reports remain stable across dialects.
+ */
+export async function getExactMigrationStatus(
+	db: Kysely<Database>,
+	options?: MigrationOptions,
+): Promise<ExactMigrationStatus> {
+	const table = options?.migrationTableSchema
+		? sql`${sql.ref(options.migrationTableSchema)}.${sql.ref(MIGRATION_TABLE)}`
+		: sql.ref(MIGRATION_TABLE);
+
+	let rows: readonly { name: string }[];
+	try {
+		const result = await sql<{ name: string }>`SELECT name FROM ${table}`.execute(db);
+		rows = result.rows;
+	} catch (error) {
+		if (MIGRATION_TABLE_MISSING_PATTERN.test(deepErrorMessage(error))) {
+			return {
+				knownApplied: [],
+				pending: [...MIGRATION_NAMES],
+				unknownApplied: [],
+			};
+		}
+		throw error;
+	}
+
+	const appliedNames = new Set(rows.map((row) => row.name));
+	const knownApplied = MIGRATION_NAMES.filter((name) => appliedNames.has(name));
+	const pending = MIGRATION_NAMES.filter((name) => !appliedNames.has(name));
+	const knownNames = new Set(MIGRATION_NAMES);
+	const unknownApplied = [...appliedNames].filter((name) => !knownNames.has(name)).toSorted();
+
+	return { knownApplied, pending, unknownApplied };
+}
+
+/**
  * Run all pending migrations.
  *
  * Includes a fast-path: if the migration table already exists and contains
@@ -336,9 +467,10 @@ function deepErrorMessage(error: unknown): string {
  * tables exist. On D1 with ~57 tables, that's ~116 queries saved per init.
  *
  * Concurrent-migration safety: the Kysely Migrator's `acquireMigrationLock`
- * is a no-op for SQLite (and therefore D1), so two callers running this
- * concurrently against the same database will both try to apply pending
- * migrations. SQLite serializes the writes, but the loser still surfaces a
+ * is a no-op for SQLite, so two callers running this concurrently against the
+ * same database will both try to apply pending migrations. (D1 and Postgres
+ * take a lock, and the loser gets the busy error handled below.) SQLite
+ * serializes the writes, but the loser still surfaces a
  * `UNIQUE constraint failed: _emdash_migrations.name` error. We treat that
  * specific error as benign: another caller is already applying the same
  * schema. We wait for the concurrent migrator to finish, then return
@@ -375,13 +507,17 @@ export async function runMigrations(
 		const failedMigration = results?.find((r) => r.status === "Error");
 
 		// Concurrent-migration race: another caller is applying (or just
-		// applied) the same migration. SQLite/D1 surface it as the
-		// bookkeeping UNIQUE violation (their migration lock is a no-op);
-		// Postgres surfaces it as the fail-fast advisory try-lock reporting
-		// busy (see pg-migration-lock.ts). Either way: wait for the
-		// concurrent migrator to finish, then verify the schema is fully
-		// migrated and treat as success.
+		// applied) the same migration. SQLite surfaces it as the bookkeeping
+		// UNIQUE violation (its migration lock is a no-op); D1 and Postgres
+		// surface it as their lock reporting busy (see migration-lock.ts and
+		// pg-migration-lock.ts). Either way: wait for the concurrent migrator
+		// to finish, then verify the schema is fully migrated and treat as
+		// success.
 		const lockBusy = msg.includes(MIGRATION_LOCK_BUSY_MESSAGE);
+		const heldSince = lockBusy ? busyLockHeldSince(error) : undefined;
+		if (heldSince !== undefined && Date.now() - heldSince > MIGRATION_LOCK_WAIT_MAX_AGE_MS) {
+			throw new MigrationLockHeldError(heldSince);
+		}
 		if (MIGRATION_RACE_PATTERN.test(msg) || lockBusy) {
 			const settled = await waitForConcurrentMigrator(db, options?.raceWaitMs);
 			if (settled) {

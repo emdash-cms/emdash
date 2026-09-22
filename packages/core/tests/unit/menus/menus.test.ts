@@ -473,6 +473,23 @@ describe("Navigation Menus", () => {
 			expect(menu!.items[0].url).toBe("/work/widget-co");
 		});
 
+		it("resolves date tokens in the url_pattern from the publish date (#1526)", async () => {
+			await setupProjectsCollection("/{year}/{month}/{slug}");
+			await sql`
+				INSERT INTO ec_projects (id, slug, locale, translation_group, published_at)
+				VALUES ('proj-1', 'widget-co', 'en', 'group-proj-1', '2023-05-08T12:00:00.000Z')
+			`.execute(db);
+			await insertMenuWithCollectionItem({
+				referenceCollection: "projects",
+				referenceId: "group-proj-1",
+			});
+
+			const menu = await getMenuWithDb("primary", db);
+			expect(menu).not.toBeNull();
+			expect(menu!.items).toHaveLength(1);
+			expect(menu!.items[0].url).toBe("/2023/05/widget-co");
+		});
+
 		it("resolves items without a reference_id to the collection archive URL", async () => {
 			// Archive links (no entry reference) keep their root-relative
 			// /{collection}/ shape — the same URL shape as every other
@@ -1003,6 +1020,32 @@ describe("Navigation Menus", () => {
 				.execute();
 			expect(created).toHaveLength(1);
 			expect(created[0]?.id).toBe(sourceId);
+		});
+
+		it("rejects a translation whose name differs from its source", async () => {
+			const { handleMenuCreate } = await import("../../../src/api/handlers/menus.js");
+
+			const sourceId = ulid();
+			await db
+				.insertInto("_emdash_menus")
+				.values({ id: sourceId, name: "primary", label: "Primary", locale: "en" })
+				.execute();
+
+			const result = await handleMenuCreate(db, {
+				name: "principal",
+				label: "Principal",
+				locale: "es",
+				translationOf: sourceId,
+			});
+
+			expect(result.success).toBe(false);
+			expect(result.error?.code).toBe("VALIDATION_ERROR");
+			const created = await db
+				.selectFrom("_emdash_menus")
+				.select("id")
+				.where("name", "=", "principal")
+				.execute();
+			expect(created).toEqual([]);
 		});
 
 		it("clones items inheriting the source's translation_group", async () => {

@@ -30,6 +30,7 @@ function handleInviteSuccess() {
 function RegisterStep({ inviteData, token }: RegisterStepProps) {
 	const { t } = useLingui();
 	const [name, setName] = React.useState("");
+	const [passkeyComplete, setPasskeyComplete] = React.useState(false);
 	const buttonProviders = useAuthProviderList().filter((p) => p.LoginButton);
 
 	return (
@@ -37,7 +38,7 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 			<div className="text-center">
 				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto mb-4">
 					<svg
-						className="w-8 h-8 text-kumo-brand"
+						className="w-8 h-8 text-kumo-link"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -66,27 +67,25 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 				type="text"
 				value={name}
 				onChange={(e) => setName(e.target.value)}
-				placeholder="Jane Doe"
+				placeholder={t`Jane Doe`}
 				autoComplete="name"
 				autoFocus
 			/>
 
 			<div className="pt-4 border-t">
-				<h3 className="text-sm font-medium mb-3">{t`Create your passkey`}</h3>
-				<p className="text-sm text-kumo-subtle mb-4">
-					{t`Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key.`}
-				</p>
-
 				<PasskeyRegistration
 					optionsEndpoint="/_emdash/api/auth/invite/register-options"
 					verifyEndpoint="/_emdash/api/auth/invite/complete"
 					onSuccess={handleInviteSuccess}
-					buttonText={t`Create Account`}
 					additionalData={{ token, name: name || undefined }}
+					showEducation
+					showSuccessStep
+					successButtonText={t`Open the dashboard`}
+					onSuccessReady={() => setPasskeyComplete(true)}
 				/>
 			</div>
 
-			{buttonProviders.length > 0 && (
+			{!passkeyComplete && buttonProviders.length > 0 && (
 				<>
 					{/* Divider */}
 					<div className="relative">

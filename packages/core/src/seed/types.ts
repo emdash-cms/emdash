@@ -5,7 +5,7 @@
  * collections, fields, menus, settings, taxonomies, redirects, widget areas, and optional sample content.
  */
 
-import type { FieldType } from "../schema/types.js";
+import type { CollectionAdminConfig, FieldType } from "../schema/types.js";
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 
@@ -72,10 +72,32 @@ export interface SeedCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: ("drafts" | "revisions" | "preview" | "scheduling" | "search" | "seo")[];
 	urlPattern?: string;
+	/** Require a slug before an entry can be published. Defaults to true. */
+	routable?: boolean;
+	/**
+	 * Omit this collection from the admin sidebar and the dashboard quick
+	 * actions. It stays reachable through the API, MCP, plugin hooks, and
+	 * direct `/content/:collection` URLs.
+	 */
+	hidden?: boolean;
+	/**
+	 * Explicit position in the admin sidebar (ascending). Collections without
+	 * a `sortOrder` keep the alphabetical order and follow the ordered ones.
+	 */
+	sortOrder?: number;
+	/** Admin sidebar folder shared with other collections of the same group. */
+	group?: string;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
+	/** Take an edit lock when an entry is opened (defaults to true) */
+	editLocking?: boolean;
+	/** Field slug powering the admin list Title column (defaults to title display) */
+	titleField?: string;
+	/** Field slug (a datetime field) powering the admin list Date column (defaults to last-updated) */
+	dateField?: string;
 	fields: SeedField[];
 }
 
@@ -89,6 +111,7 @@ export interface SeedField {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: Record<string, unknown>;
 	widget?: string;
@@ -253,8 +276,8 @@ export interface SeedContentEntry {
 	/** Seed-local ID for $ref resolution */
 	id: string;
 
-	/** URL slug */
-	slug: string;
+	/** URL slug. May be omitted for entries in non-routable collections. */
+	slug?: string | null;
 
 	/** Publication status */
 	status?: "published" | "draft";
@@ -296,7 +319,12 @@ export interface SeedApplyOptions {
 	 */
 	includeContent?: boolean;
 
-	/** How to handle conflicts (default: "skip") */
+	/**
+	 * How to handle conflicts (default: "skip"). Site settings are processed
+	 * per key: "skip" creates only missing keys, "update" overwrites supplied
+	 * keys, and "error" stops at the first existing key without rolling back
+	 * keys created earlier in the seed.
+	 */
 	onConflict?: "skip" | "update" | "error";
 
 	/** Base path for local media files (for $media.file resolution) */

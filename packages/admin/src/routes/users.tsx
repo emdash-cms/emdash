@@ -205,7 +205,7 @@ export function UsersPage() {
 				<p className="text-kumo-danger">{t`Failed to load users: ${usersQuery.error.message}`}</p>
 				<button
 					onClick={() => usersQuery.refetch()}
-					className="mt-4 text-sm text-kumo-brand underline"
+					className="mt-4 text-sm text-kumo-link underline"
 				>
 					{t`Try again`}
 				</button>

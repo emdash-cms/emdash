@@ -2,22 +2,26 @@ import { ButtonElementComponent } from "./elements/button.js";
 import { CheckboxElementComponent } from "./elements/checkbox.js";
 import { ComboboxElementComponent } from "./elements/combobox.js";
 import { DateInputElementComponent } from "./elements/date-input.js";
+import { LinkElementComponent } from "./elements/link.js";
 import { NumberInputElementComponent } from "./elements/number-input.js";
 import { RadioElementComponent } from "./elements/radio.js";
 import { SecretInputElementComponent } from "./elements/secret-input.js";
 import { SelectElementComponent } from "./elements/select.js";
 import { TextInputElementComponent } from "./elements/text-input.js";
 import { ToggleElementComponent } from "./elements/toggle.js";
-import type { BlockInteraction, Element } from "./types.js";
+import type { ActionElement, BlockInteraction, LinkTargetResolver } from "./types.js";
 
 export function renderElement(
-	element: Element,
+	element: ActionElement,
 	onAction: (interaction: BlockInteraction) => void,
 	onChange?: (actionId: string, value: unknown) => void,
+	resolveLinkTarget?: LinkTargetResolver,
 ): React.ReactNode {
 	switch (element.type) {
 		case "button":
 			return <ButtonElementComponent element={element} onAction={onAction} />;
+		case "link":
+			return <LinkElementComponent element={element} resolveTarget={resolveLinkTarget} />;
 		case "text_input":
 			return (
 				<TextInputElementComponent element={element} onAction={onAction} onChange={onChange} />

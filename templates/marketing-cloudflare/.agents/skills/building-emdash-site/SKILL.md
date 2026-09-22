@@ -1,6 +1,6 @@
 ---
 name: building-emdash-site
-description: Build and customize EmDash CMS sites on Astro. Use when creating pages, defining collections, writing seed files, querying content, rendering Portable Text, setting up menus/taxonomies/widgets, configuring deployment, or any task involving an EmDash-powered Astro site. Assumes basic Astro knowledge but provides all EmDash-specific patterns.
+description: Build the site-facing parts of an EmDash CMS project on Astro, including schema and seeds, content queries, Portable Text rendering, menus, taxonomies, widgets, and deployment configuration. Use for EmDash site and theme work; use creating-plugins instead when the task is plugin authoring alone.
 ---
 
 # Building an EmDash Site
@@ -64,10 +64,10 @@ Write `seed/seed.json` with collections, fields, taxonomies, menus, widgets, and
 ### 6. Run and verify
 
 ```bash
-npx emdash dev          # Start dev server (runs migrations + seeds, and generates types)
+pnpm dev                # Start the Astro dev server
 ```
 
-The admin UI is at `http://localhost:4321/_emdash/admin`.
+The runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`.
 
 ## Quick API Cheat Sheet
 
@@ -102,13 +102,12 @@ import { getByline, getBylineBySlug } from "emdash";
 import {
 	PortableText,
 	Image,
-	Comments,
-	CommentForm,
 	WidgetArea,
 	EmDashHead,
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
 import LiveSearch from "emdash/ui/search";
 
 // Page context (for plugin contributions)

@@ -3,10 +3,15 @@ import { defineConfig } from "tsdown";
 export default defineConfig({
 	entry: [
 		"src/index.ts",
+		"src/listing-policy.ts",
+		"src/withdrawal.ts",
+		"src/conformance/index.ts",
 		"src/credentials/index.ts",
+		"src/direct-pds/index.ts",
 		"src/discovery/index.ts",
 		"src/env/index.ts",
 		"src/publishing/index.ts",
+		"src/release-service/index.ts",
 	],
 	format: ["esm"],
 	outExtensions: () => ({ js: ".js" }),
@@ -21,8 +26,13 @@ export default defineConfig({
 	external: [
 		"@atcute/atproto",
 		"@atcute/client",
+		"@atcute/crypto",
+		"@atcute/identity",
+		"@atcute/identity-resolver",
 		"@atcute/lexicons",
 		"@atcute/lexicons/syntax",
+		"@atcute/repo",
 		"@emdash-cms/registry-lexicons",
+		"@emdash-cms/registry-moderation",
 	],
 });

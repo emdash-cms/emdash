@@ -3,7 +3,7 @@
  *
  * Pure-ish core of the publish pipeline: given an already-fetched tarball
  * checksum, an extracted manifest, an authenticated `PublishingClient`, and
- * the URL the bytes are hosted at, this writes the profile (if missing) and
+ * a blob or URL artifact source, this writes the profile (if missing) and
  * release records to the publisher's atproto repo.
  *
  * Splits cleanly from the CLI command so tests can run it against a mock
@@ -15,8 +15,8 @@
  *
  * Profile bootstrap + release create happen in a single atproto
  * `applyWrites` commit, so a network blip mid-publish can't leave a profile
- * with no releases (or vice versa). FAIR specifies version-record
- * immutability; we refuse to overwrite an existing release at
+ * with no releases (or vice versa). Release records are version-immutable;
+ * the client refuses to overwrite an existing release at
  * `<slug>:<version>` unless `allowOverwrite: true` is set.
  *
  * Validation
@@ -42,7 +42,7 @@
  */
 
 import { ClientResponseError } from "@atcute/client";
-import type { Nsid } from "@atcute/lexicons";
+import type { Blob, Nsid } from "@atcute/lexicons";
 import { safeParse } from "@atcute/lexicons/validations";
 import {
 	capabilitiesToDeclaredAccess,
@@ -57,21 +57,34 @@ import type { Did, PublishingClient } from "@emdash-cms/registry-client";
 import {
 	NSID,
 	PackageProfile,
+	PackageProfileExtension,
 	PackageRelease,
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification/repository";
+
+import { multihashFromBlobCid } from "../multihash.js";
+import { formatPackageIdentifier } from "../package-identifier.js";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Public types
 // ──────────────────────────────────────────────────────────────────────────
 
 export type PublishErrorCode =
+	| "ARTIFACT_CHECKSUM_MISMATCH"
+	| "ARTIFACT_CHECKSUM_MISSING"
+	| "ARTIFACT_SOURCE_MISSING"
 	| "DEPRECATED_CAPABILITY"
 	| "INVALID_SLUG"
 	| "INVALID_VERSION"
 	| "INVALID_MANIFEST"
 	| "LEXICON_VALIDATION_FAILED"
 	| "PROFILE_BOOTSTRAP_MISSING_FIELD"
+	| "PROFILE_EXTENSION_INVALID"
+	| "PROFILE_INVALID"
+	| "PROFILE_PROVENANCE_REQUIRED"
+	| "PROFILE_REPOSITORY_MISMATCH"
+	| "PROFILE_REPOSITORY_MISSING"
 	| "RELEASE_ALREADY_PUBLISHED";
 
 export class PublishError extends Error {
@@ -145,14 +158,16 @@ export interface ProfileInput {
  * reads the file, computes the checksum, measures the dimensions, and uploads
  * the bytes before constructing this; `publishRelease` only writes it.
  */
-export interface ReleaseArtifactInput {
-	url: string;
+interface ReleaseArtifactFields {
 	checksum: string;
 	contentType: string;
 	width: number;
 	height: number;
 	lang?: string;
 }
+
+export type ReleaseArtifactInput = ReleaseArtifactFields &
+	({ blob: Blob; url?: string } | { blob?: Blob; url: string });
 
 /**
  * Resolved release media artifacts. `icon` / `banner` are single images;
@@ -173,9 +188,11 @@ export interface PublishOptions {
 	/** The plugin manifest extracted from the tarball. */
 	manifest: PluginManifest;
 	/** Multibase-multihash sha2-256 of the tarball bytes. */
-	checksum: string;
+	checksum?: string;
 	/** Public URL where the tarball is hosted. */
-	url: string;
+	url?: string;
+	/** Tarball bytes stored as a blob on the publisher's PDS. */
+	blob?: Blob;
 	/**
 	 * Structured profile block used when bootstrapping a new profile.
 	 * Preferred over `profile`; when both are set, this wins entirely.
@@ -277,11 +294,13 @@ interface PackageProfileRecordShape {
 	description?: string;
 	keywords?: string[];
 	sections?: Record<string, string>;
+	extensions: Record<string, unknown>;
 }
 
 /** An image artifact embedded in a release (`release.json#artifact`). */
 interface ImageArtifact {
-	url: string;
+	blob?: Blob;
+	url?: string;
 	checksum: string;
 	contentType: string;
 	width: number;
@@ -295,7 +314,8 @@ interface PackageReleaseRecordShape {
 	version: string;
 	artifacts: {
 		package: {
-			url: string;
+			blob?: Blob;
+			url?: string;
 			checksum: string;
 			contentType?: string;
 		};
@@ -352,6 +372,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			{ version: options.manifest.version },
 		);
 	}
+	const packageArtifact = resolvePackageArtifact(options);
 
 	// Refuse `network:request` with no allowedHosts. The lexicon defines
 	// `request: {}` (no allowedHosts) as "unrestricted requests" -- but the
@@ -393,7 +414,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		throw new PublishError(
 			"RELEASE_ALREADY_PUBLISHED",
 			`Release ${slug}@${options.manifest.version} is already published. ` +
-				"FAIR specifies that version records are immutable; aggregators and " +
+				"Version records are immutable; aggregators and " +
 				"labellers may treat any change as a takedown event. " +
 				"Pass allowOverwrite: true to overwrite anyway.",
 			{ slug, version: options.manifest.version },
@@ -411,6 +432,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	// 4. Build the operations list. We always write the release; the profile
 	// is created on first publish or `lastUpdated`-bumped on subsequent.
 	const profileCreated = existingProfile === null;
+	const packageIdentifier = formatPackageIdentifier(options.did, slug);
 	const ignoredProfileFields: string[] = [];
 
 	// The EmDash trust extension carries the manifest's declaredAccess
@@ -431,11 +453,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		package: slug,
 		version: options.manifest.version,
 		artifacts: {
-			package: {
-				url: options.url,
-				checksum: options.checksum,
-				contentType: "application/gzip",
-			},
+			package: packageArtifact,
 		},
 		extensions: {
 			[NSID.packageReleaseExtension]: releaseExtension,
@@ -489,6 +507,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			slug,
 			profileUri,
 			profile: resolvedProfile,
+			repository: options.repo,
 		});
 		writes.push({
 			op: "create",
@@ -496,7 +515,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			rkey: slug,
 			record: profileRecord,
 		});
-		log.info?.(`Bootstrapping profile: ${profileUri}`);
+		log.info?.(`Preparing package profile for ${packageIdentifier}`);
 	} else {
 		ignoredProfileFields.push(
 			...(usedStructured
@@ -506,9 +525,9 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		// Bump `lastUpdated` on the existing profile so aggregators ordering
 		// by it see this publish. The user's first-publish-only flags are
 		// still ignored (the existing profile owns identity/license/security),
-		// but the timestamp follows the latest release. We round-trip the
-		// existing record to preserve every other field byte-for-byte.
-		const stamped = stampLastUpdated(existingProfile.value);
+		// but the timestamp follows the latest release. Canonical schema fields
+		// and the signed extensions container are preserved.
+		const stamped = stampLastUpdated(existingProfile.value, options.repo);
 		if (stamped !== null) {
 			writes.push({
 				op: "update",
@@ -516,12 +535,11 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 				rkey: slug,
 				record: stamped,
 			});
-			log.info?.(`Reusing profile (bumping lastUpdated): ${profileUri}`);
+			log.info?.(`Updating package profile for ${packageIdentifier}`);
 		} else {
-			// Existing profile didn't validate enough to construct a typed
-			// shape; leave it alone and emit a warning.
-			log.warn?.(
-				`Existing profile at ${profileUri} doesn't match the lexicon shape; lastUpdated not bumped.`,
+			throw new PublishError(
+				"PROFILE_INVALID",
+				`Existing profile at ${profileUri} is incomplete and cannot be used for an installable release. Repair the profile before publishing.`,
 			);
 		}
 	}
@@ -578,14 +596,14 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	}
 
 	if (profileCreated) {
-		log.success?.(`Created profile: ${profileUri}`);
+		log.success?.(`Published package profile for ${packageIdentifier}`);
 	}
 
 	return {
 		profileUri,
 		releaseUri: releaseOpResult.uri,
 		releaseCid: releaseOpResult.cid,
-		checksum: options.checksum,
+		checksum: packageArtifact.checksum,
 		profileCreated,
 		releaseOverwritten,
 		slug,
@@ -601,10 +619,54 @@ function atUri(did: Did, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
 }
 
+function resolvePackageArtifact(
+	options: PublishOptions,
+): PackageReleaseRecordShape["artifacts"]["package"] {
+	if (!options.blob && !options.url) {
+		throw new PublishError(
+			"ARTIFACT_SOURCE_MISSING",
+			"The package artifact must provide a blob or URL.",
+		);
+	}
+
+	let checksum = options.checksum;
+	if (options.blob) {
+		let blobChecksum: string;
+		try {
+			blobChecksum = multihashFromBlobCid(options.blob.ref.$link);
+		} catch {
+			throw new PublishError(
+				"ARTIFACT_CHECKSUM_MISMATCH",
+				"The package blob reference is not a raw sha2-256 CID.",
+			);
+		}
+		if (checksum !== undefined && checksum !== blobChecksum) {
+			throw new PublishError(
+				"ARTIFACT_CHECKSUM_MISMATCH",
+				"The package checksum does not match its blob reference CID.",
+			);
+		}
+		checksum = blobChecksum;
+	}
+	if (checksum === undefined) {
+		throw new PublishError(
+			"ARTIFACT_CHECKSUM_MISSING",
+			"A URL-hosted package artifact requires a checksum.",
+		);
+	}
+
+	return {
+		...(options.blob ? { blob: options.blob } : {}),
+		...(options.url ? { url: options.url } : {}),
+		checksum,
+		contentType: "application/gzip",
+	};
+}
+
 /**
  * Write resolved media artifacts into a release record's `artifacts` map.
  *
- * `icon` and `banner` map to their single-`#artifact` lexicon slots directly;
+ * `icon` and `banner` map to their single-image artifact slots directly;
  * `screenshots` is written as the lexicon's `artifacts.screenshots` array,
  * preserving gallery order.
  */
@@ -709,13 +771,13 @@ async function getRecordOrNull(
  * update rather than overwriting an invalid record with a slightly-different
  * invalid record).
  *
- * Unknown / extra fields on the existing record are intentionally preserved
- * verbatim via the spread. If they violate the lexicon, the local
- * `validateLocally` pass before `applyWrites` will reject the candidate
- * with a `LEXICON_VALIDATION_FAILED` error rather than letting an invalid
- * record propagate to the registry.
+ * Schema-known fields are canonicalized before the update. The extensions
+ * container is preserved separately because it carries signed trust policy.
  */
-function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | null {
+function stampLastUpdated(
+	existingValue: unknown,
+	releaseRepository: string | undefined,
+): PackageProfileRecordShape | null {
 	if (!existingValue || typeof existingValue !== "object") return null;
 	const v = existingValue as Record<string, unknown>;
 	if (typeof v.id !== "string") return null;
@@ -745,6 +807,7 @@ function stampLastUpdated(existingValue: unknown): PackageProfileRecordShape | n
 	if (typeof v.description === "string") candidate.description = v.description;
 	if (Array.isArray(v.keywords)) candidate.keywords = v.keywords;
 	if (v.sections && typeof v.sections === "object") candidate.sections = v.sections;
+	candidate.extensions = manualPublishExtensions(v.extensions, releaseRepository);
 	return candidate as unknown as PackageProfileRecordShape;
 }
 
@@ -752,6 +815,7 @@ function buildProfileRecord(input: {
 	slug: string;
 	profileUri: string;
 	profile: ProfileInput;
+	repository: string | undefined;
 }): PackageProfileRecordShape {
 	const profile = input.profile;
 	if (!profile.license) {
@@ -801,6 +865,7 @@ function buildProfileRecord(input: {
 		security,
 		slug: input.slug,
 		lastUpdated: new Date().toISOString(),
+		extensions: manualPublishExtensions(undefined, input.repository),
 	};
 	if (profile.name !== undefined) record.name = profile.name;
 	if (profile.description !== undefined) record.description = profile.description;
@@ -811,6 +876,68 @@ function buildProfileRecord(input: {
 		record.sections = profile.sections;
 	}
 	return record;
+}
+
+function manualPublishExtensions(
+	existingValue: unknown,
+	releaseRepository: string | undefined,
+): Record<string, unknown> {
+	if (existingValue !== undefined && !isPlainRecord(existingValue)) {
+		throw new PublishError(
+			"PROFILE_EXTENSION_INVALID",
+			"The existing package profile contains malformed extension data.",
+		);
+	}
+	const extensions = isPlainRecord(existingValue) ? { ...existingValue } : {};
+	const current = extensions[NSID.packageProfileExtension];
+	const repository = releaseRepository ? canonicalizeRepositoryUrl(releaseRepository) : null;
+
+	if (current === undefined) {
+		if (!repository) {
+			throw new PublishError(
+				"PROFILE_REPOSITORY_MISSING",
+				"A canonical HTTPS repository URL is required so the published plugin can be verified during installation. Add `repo` to emdash-plugin.jsonc.",
+			);
+		}
+		extensions[NSID.packageProfileExtension] = {
+			$type: NSID.packageProfileExtension,
+			repository,
+		};
+		return extensions;
+	}
+
+	const parsed = safeParse(PackageProfileExtension.mainSchema, current);
+	if (!parsed.ok) {
+		throw new PublishError(
+			"PROFILE_EXTENSION_INVALID",
+			"The existing package profile contains malformed installation verification metadata.",
+		);
+	}
+	const currentRepository = canonicalizeRepositoryUrl(parsed.value.repository);
+	if (!currentRepository || currentRepository !== parsed.value.repository) {
+		throw new PublishError(
+			"PROFILE_EXTENSION_INVALID",
+			"The existing package profile repository is not a canonical HTTPS URL.",
+		);
+	}
+	if (repository && repository !== currentRepository) {
+		throw new PublishError(
+			"PROFILE_REPOSITORY_MISMATCH",
+			`The package profile is linked to ${currentRepository}, not ${repository}.`,
+		);
+	}
+	if (parsed.value.releasePolicy?.requireProvenance === true) {
+		throw new PublishError(
+			"PROFILE_PROVENANCE_REQUIRED",
+			"The package profile requires provenance-backed releases. Publish through the configured delegated release workflow instead of `emdash-plugin publish`.",
+		);
+	}
+	extensions[NSID.packageProfileExtension] = parsed.value;
+	return extensions;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

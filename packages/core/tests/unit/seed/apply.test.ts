@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
@@ -66,7 +67,7 @@ describe("applySeed", () => {
 			const seed: SeedFile = {
 				version: "1",
 				settings: {
-					siteTitle: "Test Site",
+					title: "Test Site",
 					tagline: "A test site",
 				},
 			};
@@ -75,14 +76,88 @@ describe("applySeed", () => {
 
 			expect(result.settings.applied).toBe(2);
 
-			// Verify settings were saved
+			// Verify settings were saved under the real site:* keys
 			const row = await db
 				.selectFrom("options")
 				.selectAll()
-				.where("name", "=", "site:siteTitle")
+				.where("name", "=", "site:title")
 				.executeTakeFirst();
 
 			expect(row?.value).toBe('"Test Site"');
+		});
+
+		it("should skip existing settings and create missing ones in skip mode", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.settings.applied).toBe(1);
+			expect(await options.get("site:title")).toBe("Admin Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should apply each setting independently when a later key conflicts", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					tagline: "A seeded tagline",
+					title: "Seed Title",
+				},
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.settings.applied).toBe(1);
+			expect(await options.get("site:title")).toBe("Admin Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should overwrite settings in update mode", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			const result = await applySeed(db, seed, { onConflict: "update" });
+
+			expect(result.settings.applied).toBe(2);
+			expect(await options.get("site:title")).toBe("Seed Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should throw in error mode when a seeded setting already exists", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
+				'Conflict: site setting "site:title" already exists',
+			);
 		});
 	});
 
@@ -161,6 +236,100 @@ describe("applySeed", () => {
 				WHERE ${sql.ref("id")} = ${"post-1"}
 			`.execute(db);
 			expect(row.rows[0]?.title).toBe("Untitled");
+		});
+
+		it("applies the hidden flag from the seed", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "contact_submissions",
+						label: "Contact Submissions",
+						hidden: true,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+			expect((await registry.getCollection("posts"))?.hidden).toBe(false);
+		});
+
+		it("updates the hidden flag when re-applying with onConflict update", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, hidden: true }] },
+				{
+					onConflict: "update",
+				},
+			);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+		});
+
+		it("applies and updates collection routability", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				routable: false,
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(false);
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, routable: true }] },
+				{ onConflict: "update" },
+			);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(true);
+		});
+
+		it("applies sortOrder from the seed and orders the list by it", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "education",
+						label: "Education",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "projects",
+						label: "Projects",
+						sortOrder: 0,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("projects"))?.sortOrder).toBe(0);
+			expect((await registry.getCollection("education"))?.sortOrder).toBeUndefined();
+			expect((await registry.listCollections()).map((c) => c.slug)).toEqual([
+				"projects",
+				"education",
+			]);
 		});
 
 		it("should skip existing collections", async () => {
@@ -969,6 +1138,47 @@ describe("applySeed", () => {
 			const contentRepo = new ContentRepository(db);
 			const entry = await contentRepo.findBySlug("posts", "hello");
 			expect(entry?.data.title).toBe("Hello World");
+		});
+
+		it("idempotently publishes slugless content for a non-routable collection", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "blocks",
+						label: "Blocks",
+						routable: false,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+				content: {
+					blocks: [{ id: "hero", status: "published", data: { title: "Hero" } }],
+				},
+			};
+
+			const first = await applySeed(db, seed, { includeContent: true });
+			expect(first.content.created).toBe(1);
+			const contentRepo = new ContentRepository(db);
+			const created = await contentRepo.findById("blocks", "hero");
+			expect(created).toMatchObject({ id: "hero", slug: null, status: "published" });
+			expect(created?.liveRevisionId).not.toBeNull();
+
+			const second = await applySeed(db, seed, { includeContent: true });
+			expect(second.content).toEqual({ created: 0, skipped: 1, updated: 0 });
+			expect((await contentRepo.findMany("blocks", {})).items).toHaveLength(1);
+
+			const updatedSeed: SeedFile = {
+				...seed,
+				content: {
+					blocks: [{ id: "hero", status: "published", data: { title: "Updated Hero" } }],
+				},
+			};
+			const updated = await applySeed(db, updatedSeed, {
+				includeContent: true,
+				onConflict: "update",
+			});
+			expect(updated.content.updated).toBe(1);
+			expect((await contentRepo.findById("blocks", "hero"))?.data.title).toBe("Updated Hero");
 		});
 
 		it("should skip existing content entries", async () => {

@@ -81,7 +81,16 @@ export function validateSubmission(
 }
 
 function validateFieldType(field: FormField, value: unknown): string | null {
-	if (typeof value !== "string" && field.type !== "checkbox" && field.type !== "number") {
+	const stringList =
+		field.type === "checkbox-group" &&
+		Array.isArray(value) &&
+		value.every((v) => typeof v === "string");
+	if (
+		typeof value !== "string" &&
+		!stringList &&
+		field.type !== "checkbox" &&
+		field.type !== "number"
+	) {
 		return `${field.label} has an invalid value`;
 	}
 

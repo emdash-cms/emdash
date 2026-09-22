@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { BylineRepository } from "../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
@@ -93,6 +94,28 @@ describe("Loader revision preview", () => {
 		expect(data.updatedAt).toBeInstanceOf(Date);
 	});
 
+	it("excludes unpublished posts with retained publication dates from public collection loads", async () => {
+		const unpublished = await createPublishedPost("Unpublished");
+		const visible = await createPublishedPost("Visible");
+		const contentRepo = new ContentRepository(db);
+		await contentRepo.publish("post", unpublished.id, "2020-01-01T00:00:00.000Z");
+		await contentRepo.unpublish("post", unpublished.id);
+		await contentRepo.publish("post", visible.id, "2021-01-01T00:00:00.000Z");
+
+		const retained = await contentRepo.findById("post", unpublished.id);
+		expect(retained).toMatchObject({
+			status: "draft",
+			publishedAt: "2020-01-01T00:00:00.000Z",
+		});
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			loader.loadCollection!({ filter: { type: "post" } }),
+		);
+
+		expect(result.entries.map((entry) => entry.data.title)).toEqual(["Visible"]);
+	});
+
 	it("should use revision content fields while preserving system date types", async () => {
 		const post = await createPublishedPost("Original Title");
 
@@ -117,5 +140,46 @@ describe("Loader revision preview", () => {
 		// System dates from content table, as Date objects
 		expect(data.createdAt).toBeInstanceOf(Date);
 		expect(data.updatedAt).toBeInstanceOf(Date);
+	});
+
+	it("should expose explicit bylines on revision previews", async () => {
+		const post = await createPublishedPost("Original Title");
+		const bylineRepo = new BylineRepository(db);
+		const author = await bylineRepo.create({
+			displayName: "Ada Lovelace",
+			slug: "ada",
+		});
+		await bylineRepo.setContentBylines("post", post.id, [
+			{ bylineId: author.id, roleLabel: "Author" },
+		]);
+		const revision = await revisionRepo.create({
+			collection: "post",
+			entryId: post.id,
+			data: { title: "Revised Title" },
+		});
+
+		const loader = emdashLoader();
+		const entry = await runWithContext({ editMode: true, db }, () =>
+			loader.loadEntry!({
+				filter: { type: "post", id: post.slug!, revisionId: revision.id },
+			}),
+		);
+
+		expect(entry).toBeDefined();
+		expect(entry).not.toHaveProperty("error");
+		const data = (
+			entry as {
+				data: {
+					bylines: Array<{ source: string; byline: { displayName: string } }>;
+					byline: { displayName: string } | null;
+				};
+			}
+		).data;
+		expect(data.bylines).toHaveLength(1);
+		expect(data.bylines[0]).toMatchObject({
+			source: "explicit",
+			byline: { displayName: "Ada Lovelace" },
+		});
+		expect(data.byline).toBe(data.bylines[0]!.byline);
 	});
 });

@@ -18,6 +18,7 @@ import { useEditorState } from "@tiptap/react";
 import * as React from "react";
 
 import { cn } from "../../lib/utils.js";
+import { selectionTouchesTable } from "./TableExtensions.js";
 
 /**
  * TipTap's heading-dropdown-menu API adapted to EmDash's Kumo primitives.
@@ -56,6 +57,7 @@ export function getActiveHeadingLevel(
 
 function canToggleHeading(editor: Editor | null, levels: readonly HeadingLevel[]): boolean {
 	if (!editor || !editor.isEditable || !editor.schema.nodes.heading) return false;
+	if (selectionTouchesTable(editor.state)) return false;
 	return levels.some(
 		(level) => editor.can().setNode("heading", { level }) || editor.can().clearNodes(),
 	);

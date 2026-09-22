@@ -15,9 +15,9 @@ import { GET as genericGET } from "astro/assets/endpoint/generic";
 import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
-	IMMUTABLE_IMAGE_CACHE,
 	isHeicMedia,
 	matchInternalMediaKey,
+	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 	parseTransformParams,
 	resolveExternalImageServiceUrl,
@@ -70,7 +70,15 @@ export const GET: APIRoute = async (ctx) => {
 				return unsupportedHeic();
 			}
 
-			const sourceUrl = resolveStorageImageSource(storage, key, url);
+			let sourceUrl = resolveStorageImageSource(storage, key, url);
+			const mediaVersion = new URL(url.searchParams.get("href")!, url).searchParams.get(
+				"_emdash_media",
+			);
+			if (sourceUrl && mediaVersion) {
+				const versionedSource = new URL(sourceUrl);
+				versionedSource.searchParams.set("_emdash_media", mediaVersion);
+				sourceUrl = versionedSource.href;
+			}
 			const externalUrl = sourceUrl
 				? await resolveExternalImageServiceUrl(
 						service,
@@ -78,6 +86,7 @@ export const GET: APIRoute = async (ctx) => {
 						sourceUrl,
 						parsed.options,
 						url.origin,
+						ctx.logger,
 					)
 				: null;
 			if (externalUrl) {
@@ -85,7 +94,7 @@ export const GET: APIRoute = async (ctx) => {
 					status: 302,
 					headers: {
 						Location: externalUrl,
-						"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+						"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 						"X-Content-Type-Options": "nosniff",
 					},
 				});
@@ -114,7 +123,7 @@ export const GET: APIRoute = async (ctx) => {
 			status: 200,
 			headers: {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,
-				"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+				"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 				"X-Content-Type-Options": "nosniff",
 			},
 		});

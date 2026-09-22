@@ -28,22 +28,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type {
+	ContentActionCallbacks,
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxCommentModerateCallback,
+	SandboxInvocationOptions,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
 	SandboxOptions,
 	SandboxRunnerFactory,
 	SerializedRequest,
 } from "emdash";
 import type { PluginManifest } from "emdash";
 // @ts-ignore -- SandboxUnavailableError is a class export, not type-only
-import { SandboxUnavailableError } from "emdash";
+import {
+	createSandboxRouteError,
+	getSandboxRouteErrorEnvelope,
+	SandboxUnavailableError,
+} from "emdash";
 
 import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
-import { generatePluginWrapper } from "./wrapper.js";
+import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
 /** Replace non-alphanumeric chars for safe file/worker names */
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
@@ -328,6 +336,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Email send callback, wired from EmailPipeline */
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private commentModerateCallback: SandboxCommentModerateCallback | null = null;
+	private contentCreateCallback: SandboxContentCreateCallback | null = null;
+	private contentActionsCallback: ContentActionCallbacks | null = null;
+	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Epoch counter, incremented on each workerd restart */
 	private epoch = 0;
@@ -350,12 +362,23 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Serializes concurrent ensureRunning() calls */
 	private startupPromise: Promise<void> | null = null;
+	private stoppingPromise: Promise<void> | null = null;
 
 	/** Crash restart state */
 	private crashCount = 0;
 	private crashWindowStart = 0;
 	private restartTimer: ReturnType<typeof setTimeout> | null = null;
 	private shuttingDown = false;
+
+	/**
+	 * True once the crash budget is spent and scheduleRestart() stopped
+	 * scheduling retries. Giving up leaves needsRestart false, which at the
+	 * invocation site looks identical to a runner that has not started yet.
+	 */
+	private gaveUp = false;
+
+	/** True when the last isAvailable() call could not run the workerd binary. */
+	private binaryFailed = false;
 
 	/**
 	 * True when stopWorkerd() is intentionally tearing down the child
@@ -370,6 +393,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.limits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+		this.commentModerateCallback = options.commentModerate ?? null;
+		this.contentActionsCallback = options.contentActions ?? null;
 
 		// Warn about unenforceable resource limits. Standalone workerd
 		// only supports wall-time enforcement on the Node path (via
@@ -401,8 +426,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			// execFileSync (not execSync) so paths with spaces or shell
 			// metacharacters are passed verbatim, not shell-split.
 			execFileSync(bin, ["--version"], { stdio: "ignore", timeout: 5000 });
+			this.binaryFailed = false;
 			return true;
 		} catch {
+			this.binaryFailed = true;
 			return false;
 		}
 	}
@@ -443,6 +470,25 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Why the runner cannot run plugins: a binary the last isAvailable() call
+	 * could not run, or why an invocation cannot reach workerd, the message
+	 * SandboxUnavailableError carries.
+	 *
+	 * Giving up is the one state no invocation retries out of: needsRestart
+	 * stays false, so ensureRunning() returns without starting anything and
+	 * workerd waits for a server restart, an install or an update.
+	 */
+	unavailableReason(): string {
+		if (this.binaryFailed) {
+			return "workerd is missing or its binary does not run on this platform; reinstall with optional dependencies enabled";
+		}
+		if (this.gaveUp) {
+			return "workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server";
+		}
+		return "workerd is not running";
+	}
+
+	/**
 	 * Ensure workerd is running. Called before first invocation.
 	 * Batches plugin loading: all plugins are registered via load(),
 	 * then workerd starts once on the first hook/route call.
@@ -463,6 +509,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		try {
 			await this.startupPromise;
 			this.needsRestart = false;
+			// A repeat load returns the cached instance without marking a
+			// restart, so it never drives the start that clears this.
+			this.gaveUp = false;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
 			// subsequent retries. needsRestart stays true on failure (set above
@@ -476,6 +525,22 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
+		this.commentModerateCallback = callback;
+	}
+
+	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		this.contentCreateCallback = callback;
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActionsCallback = callback;
+	}
+
+	setCronReschedule(callback: (() => void) | null): void {
+		this.cronRescheduleCallback = callback;
 	}
 
 	/**
@@ -524,7 +589,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		if (!entry) return;
 		this.plugins.delete(pluginId);
 		this.freePorts.push(entry.port);
-		this.backingService?.removePlugin(pluginId);
+		this.backingService?.removePlugin(entry.manifest.id, entry.manifest.version);
 		if (this.plugins.size === 0) {
 			void this.stopWorkerd();
 		} else {
@@ -590,9 +655,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.crashCount++;
 
 		if (this.crashCount > 5) {
+			this.gaveUp = true;
 			console.error(
 				"[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up. " +
-					"Plugins will run unsandboxed. Restart the server to retry.",
+					"Sandboxed plugin hooks and routes now fail with SandboxUnavailableError. " +
+					"Restart the server to retry.",
 			);
 			return;
 		}
@@ -601,6 +668,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const delayMs = Math.min(1000 * 2 ** (this.crashCount - 1), 30_000);
 		console.warn(`[emdash:workerd] restarting in ${delayMs}ms (attempt ${this.crashCount}/5)`);
 
+		this.gaveUp = false;
 		this.restartTimer = setTimeout(() => {
 			this.restartTimer = null;
 			// Just mark as needing restart. The next plugin invocation will
@@ -779,8 +847,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * this, every intentional reload (plugin install/uninstall) would
 	 * cascade into a phantom crash-restart cycle.
 	 */
-	private async stopWorkerd(): Promise<void> {
-		if (!this.workerdProcess) return;
+	private stopWorkerd(): Promise<void> {
+		if (this.stoppingPromise) return this.stoppingPromise;
+		if (!this.workerdProcess) return Promise.resolve();
 		this.healthy = false;
 		this.intentionalStop = true;
 
@@ -788,14 +857,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.workerdProcess = null;
 
 		// Fast path: process already exited (exitCode is set after exit)
-		if (proc.exitCode !== null) {
-			return;
-		}
-
-		// Force kill after 5 seconds if SIGTERM was ignored. The fallback
-		// timer is cleared on clean exit so it doesn't keep the Node event
-		// loop alive for up to 5s past termination.
-		return waitForProcessExit(proc);
+		// waitForProcessExit force-kills after five seconds if SIGTERM is ignored.
+		const completion = proc.exitCode === null ? waitForProcessExit(proc) : Promise.resolve();
+		this.stoppingPromise = completion;
+		return completion.finally(() => {
+			this.intentionalStop = false;
+			if (this.stoppingPromise === completion) this.stoppingPromise = null;
+		});
 	}
 
 	/**
@@ -869,9 +937,42 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.options.db;
 	}
 
+	/** Get the pre-content-write activation guard */
+	get beforeContentWrite() {
+		return this.options.beforeContentWrite;
+	}
+
+	get contentCreate() {
+		return this.contentCreateCallback;
+	}
+
+	get taxonomyWrite() {
+		return this.options.taxonomyWrite;
+	}
+
+	get contentActions() {
+		return this.contentActionsCallback;
+	}
+
 	/** Get the email send callback */
 	get emailSend() {
 		return this.emailSendCallback;
+	}
+
+	get commentModerate() {
+		return this.commentModerateCallback;
+	}
+
+	get cronReschedule() {
+		return this.cronRescheduleCallback;
+	}
+
+	get now() {
+		return this.options.now;
+	}
+
+	get httpFetch() {
+		return this.options.httpFetch;
 	}
 
 	/** Get the media storage adapter */
@@ -896,6 +997,17 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			return plugin.manifest.storage;
 		}
 		return undefined;
+	}
+
+	getPluginSettingsSchema(
+		pluginId: string,
+		version: string,
+	): PluginManifest["admin"]["settingsSchema"] | undefined {
+		return this.plugins.get(`${pluginId}:${version}`)?.manifest.admin?.settingsSchema;
+	}
+
+	getSiteInfo() {
+		return this.siteInfo;
 	}
 
 	/** Get the current epoch (incremented on each workerd restart) */
@@ -935,7 +1047,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	private async ensureReady(): Promise<void> {
 		await this.runner.ensureRunning();
 		if (!this.runner.isHealthy()) {
-			throw new SandboxUnavailableError(this.id, "workerd is not running");
+			throw new SandboxUnavailableError(this.id, this.runner.unavailableReason());
 		}
 	}
 
@@ -944,24 +1056,24 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
+		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
 			const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ event }),
+				body: JSON.stringify({ event, invocationId }),
 			});
 			if (!res.ok) {
 				const text = await res.text();
 				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
 			}
-			const result: unknown = await res.json();
-			if (!isRecord(result)) {
+			const hookResult: unknown = await res.json();
+			if (!isRecord(hookResult)) {
 				throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
 			}
-			return result.value;
+			return hookResult.value;
 		});
 	}
 
@@ -972,23 +1084,37 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		routeName: string,
 		input: unknown,
 		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
 	): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
-			const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ input, request }),
-			});
-			if (!res.ok) {
-				const text = await res.text();
-				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
-			}
-			return res.json();
-		});
+		return this.withWallTimeLimit(
+			`route:${routeName}`,
+			async (invocationId) => {
+				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: stringifyRouteTransport({ input, request, invocationId }),
+				});
+				if (!res.ok) {
+					const text = await res.text();
+					let envelope = null;
+					try {
+						envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+					} catch {
+						// The generic route error below preserves non-protocol failures.
+					}
+					if (envelope) {
+						throw createSandboxRouteError(envelope.error.code);
+					}
+					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
+				}
+				return parseRouteTransport(await res.text());
+			},
+			options,
+		);
 	}
 
 	/**
@@ -1006,12 +1132,23 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	/**
 	 * Enforce wall-time limit on an operation.
 	 */
-	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+	private async withWallTimeLimit<T>(
+		operation: string,
+		fn: (invocationId: string) => Promise<T>,
+		options?: SandboxInvocationOptions,
+	): Promise<T> {
 		const wallTimeMs = this.limits.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		const invocationId = crypto.randomUUID();
+		this.runner.contentActions?.begin?.(
+			this.manifest.id,
+			invocationId,
+			options?.invalidateContentCache,
+		);
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
+				void this.runner.contentActions?.flush(this.manifest.id, invocationId, false);
 				reject(
 					new Error(
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
@@ -1020,8 +1157,13 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			}, wallTimeMs);
 		});
 
+		const invocation = fn(invocationId);
+		void invocation.then(
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+		);
 		try {
-			return await Promise.race([fn(), timeout]);
+			return await Promise.race([invocation, timeout]);
 		} finally {
 			if (timer !== undefined) clearTimeout(timer);
 		}
@@ -1032,15 +1174,16 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
  * Factory function for creating the workerd sandbox runner.
  *
  * Selects MiniflareDevRunner only when explicitly in development mode
- * (NODE_ENV === "development"). Any other value — including unset (which
- * is the default for `node server.js` and `astro preview` on self-hosted
- * deployments) — uses the production WorkerdSandboxRunner.
+ * (NODE_ENV === "development"). Any other value — including unset for
+ * `node server.js` and `"production"` from `astro preview` — uses the
+ * production WorkerdSandboxRunner.
  *
  * The dev runner skips production hardening (wall-time wrapper, child
  * process supervision, crash/restart with backoff), so falling back to
  * it silently in production would be a security regression.
  *
- * Operators who want the dev runner explicitly should set NODE_ENV=development.
+ * Operators who want the dev runner explicitly should set EMDASH_SANDBOX_DEV=1
+ * or NODE_ENV=development.
  */
 export const createSandboxRunner: SandboxRunnerFactory = (options) => {
 	const isDev = process.env.EMDASH_SANDBOX_DEV === "1" || process.env.NODE_ENV === "development";

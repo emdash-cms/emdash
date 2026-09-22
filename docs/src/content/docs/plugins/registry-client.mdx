@@ -7,7 +7,7 @@ import { Aside } from "@astrojs/starlight/components";
 
 This is an advanced topic for building your own software against the [plugin registry](/plugins/registry/). If you only want to install plugins on an EmDash site, you do not need any of this — enable the registry in your config and use the admin dashboard.
 
-The registry's discovery side is a public, read-only API. The `@emdash-cms/registry-client` package wraps it, so you can build a plugin directory, a search page, or a release feed outside of EmDash. The client runs anywhere `fetch` is available — Node, Workers, the browser, or an Astro site.
+The registry's discovery side is a public, read-only API. The `@emdash-cms/registry-client` package wraps it, so you can build a plugin directory, a search page, or a release feed outside of EmDash. The client runs anywhere `fetch` is available — Node, Workers, the browser, or an Astro site. Astro sites can use `@emdash-cms/registry-loader` to expose the same data through a live content collection.
 
 <Aside type="caution" title="Experimental">
 	The client targets an experimental API whose shapes may change without notice.
@@ -19,7 +19,7 @@ The registry's discovery side is a public, read-only API. The `@emdash-cms/regis
 The `discovery` subpath carries no authentication or OAuth dependencies. Install the client and pin it to an exact version:
 
 ```sh
-npm install @emdash-cms/registry-client@0.3.1
+npm install @emdash-cms/registry-client@0.6.0
 ```
 
 ## List and resolve packages
@@ -41,7 +41,7 @@ const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
   {
     packages.map((pkg) => (
       <li>
-        <a href={`/plugins/${pkg.did}/${pkg.slug}`}>
+        <a href={`/plugins/${pkg.handle ? `@${pkg.handle}` : pkg.did}/${pkg.slug}`}>
           {pkg.profile?.name ?? pkg.slug}
         </a>
         {pkg.latestVersion && <span>v{pkg.latestVersion}</span>}
@@ -52,7 +52,24 @@ const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
 </ul>
 ```
 
-The link uses `pkg.did`, which is always present. The publisher `handle` is best-effort and can be absent, so don't build URLs from it.
+The current verified handle is present when the aggregator has resolved it. Keep the DID form as a fallback and redirect it to the current handle URL when a later response supplies one. A DID and package slug remain the stable package identity when a publisher changes handles.
+
+An exact `q` value can be a handle, DID, or either identity followed by `/slug`. For example, `@example.com/my-gallery` selects one package and `example.com` returns packages from that publisher.
+
+## Use the Astro live loader
+
+Install `@emdash-cms/registry-loader`, then register the loader in `src/live.config.ts`:
+
+```ts title="src/live.config.ts"
+import { registryLoader } from "@emdash-cms/registry-loader";
+import { defineLiveCollection } from "astro:content";
+
+export const collections = {
+	plugins: defineLiveCollection({ loader: registryLoader() }),
+};
+```
+
+Use `getLiveCollection("plugins", { q, limit })` for bounded results and `getLiveEntry("plugins", { publisher, slug })` for one package. Pass the returned cache hint to `Astro.cache.set()` when the site has an Astro cache provider. Astro live collections do not return pagination metadata, so use `DiscoveryClient.searchPackages()` directly when the interface needs the next cursor.
 
 A package detail page fetches a plugin by its DID and slug, then fetches the latest release:
 
@@ -80,8 +97,42 @@ The client exposes one method per aggregator query:
 - **`searchPackages({ q, capability?, limit?, cursor? })`** — free-text search, optionally filtered to packages declaring a given access category. Returns `{ packages, cursor? }`.
 - **`resolvePackage({ handle, slug })`** — resolve a package from a handle and slug.
 - **`getPackage({ did, slug })`** — fetch a package by its DID and slug.
-- **`listReleases({ did, package, limit?, cursor? })`** — every release for a package, newest version first.
-- **`getLatestRelease({ did, package })`** — the highest non-yanked release version.
+- **`listReleases({ did, package, limit?, cursor? })`** — releases in descending semantic-version order, including yanked releases.
+- **`getLatestRelease({ did, package })`** — the highest non-yanked release selected by the aggregator.
+
+`getPackage()` and `resolvePackage()` can return `historicalReleaseCount` and
+`releaseHistoryComplete`. These fields describe the aggregator's retained operational history,
+not publisher-signed metadata. Treat a count of one as a first release only when
+`releaseHistoryComplete` is `true`. Missing or incomplete evidence must not bypass a release-age
+policy.
+
+`getPackageStatus()` and `resolvePackageStatus()` wrap their corresponding package queries and
+map the safe `ListingUnavailable` response to `{ status: "unavailable" }`. A successful result has
+`{ status: "passed", value }`. Use these methods in a user interface that needs to distinguish an
+indexed but unavailable listing from a missing package without rendering publisher-controlled
+error content.
+
+Use the withdrawal helper before showing or selecting a release:
+
+```typescript title="src/lib/plugin.ts"
+import {
+	DiscoveryClient,
+	type ValidatedReleaseView,
+} from "@emdash-cms/registry-client/discovery";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
+
+const discovery = new DiscoveryClient({
+	aggregatorUrl: "https://registry.emdashcms.com",
+});
+
+export function canShowRelease(release: ValidatedReleaseView) {
+	const result = evaluateRegistryReleaseWithdrawal(release, discovery.labelerPolicy);
+	return release.release !== null && !result.withdrawn;
+}
+```
+
+`withdrawn` is `true` when the applicable labels remove the release from use. Invalid label data
+fails closed: `withdrawn` and `malformed` are both `true`.
 
 ## Handling untrusted records
 
@@ -90,7 +141,7 @@ The aggregator is an untrusted index that relays records it did not author, so t
 - **The `profile` and `release` fields can be `null`.** When a relayed record fails validation, the client surfaces it as `null` rather than failing the whole call, so one malformed record does not blank a search page. Always null-check before reading `pkg.profile?.name` or `latest.release?.artifacts.package`.
 - **Validate URL schemes yourself before rendering.** Validation checks structure, not URL safety — a `uri` field can carry a `javascript:` scheme. Apply your own `http`/`https` allow-list before putting any registry-supplied URL into an `href` or `src`.
 
-A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`.
+A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`. The reference aggregator returns only exact-CID revisions approved by every required positive-label source. An `atproto-accept-labelers` header declares bare configured DIDs for request and cache identity. The aggregator validates the declaration, but its configured policy remains authoritative.
 
 ## Filtering by host compatibility
 
@@ -100,7 +151,7 @@ A release can declare environment requirements (an EmDash or Astro version range
 import { checkEnvCompatibility, hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { ValidatedReleaseView } from "@emdash-cms/registry-client/discovery";
 
-const host = hostEnvFromVersions("0.17.0", "5.6.0");
+const host = hostEnvFromVersions("0.37.0", "7.0.0");
 
 // Pass a getLatestRelease() result. The returned array is empty when the
 // release runs on this host.

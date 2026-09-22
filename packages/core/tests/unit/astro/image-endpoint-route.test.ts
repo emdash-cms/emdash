@@ -66,6 +66,20 @@ describe("storage-backed Node image endpoint", () => {
 		expect(assets.genericGET).not.toHaveBeenCalled();
 	});
 
+	it("preserves replacement versions when delegating storage media", async () => {
+		assets.service = {
+			getURL: async ({ src }: { src: string }) => `https://images.example.com/${src}`,
+		};
+		const response = await GET(
+			context("photo.jpg?_emdash_media=sha256%3Anew", {
+				getPublicUrl: (key: string) => `https://media.example.com/${key}`,
+			}),
+		);
+		expect(response.headers.get("Location")).toBe(
+			"https://images.example.com/https://media.example.com/photo.jpg?_emdash_media=sha256%3Anew",
+		);
+	});
+
 	it("reports HEIC as unsupported when an external service rewrites without declaring support", async () => {
 		assets.service = {
 			getURL: async ({ src }: { src: string }) => `https://images.example.com/${src}`,

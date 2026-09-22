@@ -5,8 +5,10 @@
  *   - schema_list_collections
  *   - schema_get_collection
  *   - schema_create_collection (also bug #11 — supports default)
+ *   - schema_update_collection
  *   - schema_delete_collection
  *   - schema_create_field
+ *   - schema_update_field
  *   - schema_delete_field
  *
  * For each tool: happy path, edge cases (empty, missing, duplicate,
@@ -22,6 +24,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { validateContent } from "../../../src/schema/zod-generator.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -228,6 +231,19 @@ describe("schema_create_collection", () => {
 		expect(created.supports.toSorted()).toEqual(["drafts", "revisions", "scheduling"].toSorted());
 	});
 
+	it("creates a collection with SEO support", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "schema_create_collection",
+			arguments: { slug: "landing", label: "Landing pages", supports: ["seo"] },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const created = extractJson<{ supports: string[]; hasSeo: boolean }>(result);
+		expect(created.supports).toEqual(["seo"]);
+		expect(created.hasSeo).toBe(true);
+	});
+
 	it("rejects slug that doesn't match the collection slug pattern", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const result = await harness.client.callTool({
@@ -296,6 +312,212 @@ describe("schema_create_collection", () => {
 			arguments: { slug: "drop_tables); --", label: "x" },
 		});
 		expect(result.isError).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// schema_update_collection
+// ---------------------------------------------------------------------------
+
+describe("schema_update_collection", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "post",
+			label: "Posts",
+			labelSingular: "Post",
+			supports: ["drafts", "revisions"],
+			hasSeo: true,
+		});
+		await registry.createField("post", { slug: "title", label: "Title", type: "string" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("updates collection settings without recreating the collection or losing content", async () => {
+		const registry = new SchemaRegistry(db);
+		const before = await registry.getCollectionWithFields("post");
+		await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Kept content" } },
+		});
+
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: {
+				slug: "post",
+				label: "Articles",
+				labelSingular: "Article",
+				description: "Long-form writing",
+				supports: ["drafts", "revisions", "preview"],
+				urlPattern: "/articles/{slug}",
+				hasSeo: true,
+				commentsEnabled: true,
+				commentsModeration: "first_time",
+				commentsClosedAfterDays: 30,
+				commentsAutoApproveUsers: true,
+			},
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { item } = extractJson<{
+			item: {
+				id: string;
+				label: string;
+				labelSingular: string | null;
+				description: string | null;
+				supports: string[];
+				urlPattern: string | null;
+				hasSeo: boolean;
+				commentsEnabled: boolean;
+				commentsModeration: string;
+				commentsClosedAfterDays: number;
+				commentsAutoApproveUsers: boolean;
+			};
+		}>(result);
+		expect(item).toMatchObject({
+			id: before?.id,
+			label: "Articles",
+			labelSingular: "Article",
+			description: "Long-form writing",
+			urlPattern: "/articles/{slug}",
+			hasSeo: true,
+			commentsEnabled: true,
+			commentsModeration: "first_time",
+			commentsClosedAfterDays: 30,
+			commentsAutoApproveUsers: true,
+		});
+		expect(item.supports).toEqual(["drafts", "revisions", "preview"]);
+
+		const clearUrlPattern = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", urlPattern: null },
+		});
+		expect(clearUrlPattern.isError, extractText(clearUrlPattern)).toBeFalsy();
+		expect(
+			extractJson<{ item: { urlPattern?: string } }>(clearUrlPattern).item.urlPattern,
+		).toBeUndefined();
+
+		const after = await registry.getCollectionWithFields("post");
+		expect(after?.id).toBe(before?.id);
+		expect(after?.urlPattern).toBeUndefined();
+		expect(after?.fields.map((field) => field.slug)).toContain("title");
+
+		const content = await harness.client.callTool({
+			name: "content_list",
+			arguments: { collection: "post" },
+		});
+		const { items } = extractJson<{ items: Array<{ data: { title?: string } }> }>(content);
+		expect(items.some((entry) => entry.data.title === "Kept content")).toBe(true);
+	});
+
+	it("returns the canonical not-found error", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "missing", label: "Missing" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[COLLECTION_NOT_FOUND]");
+		expect(extractText(result)).toContain('Collection "missing" not found');
+	});
+
+	it("rejects malformed URL patterns without changing the collection", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", urlPattern: "/articles/{slug" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/url pattern|regular expression|invalid/i);
+		expect((await new SchemaRegistry(db).getCollection("post"))?.urlPattern).toBeUndefined();
+	});
+
+	it("derives SEO when supports changes without hasSeo", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", supports: ["drafts", "preview"] },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(extractJson<{ item: { hasSeo: boolean } }>(result).item.hasSeo).toBe(false);
+		expect((await new SchemaRegistry(db).getCollection("post"))?.hasSeo).toBe(false);
+
+		const enableSeo = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", supports: ["drafts", "seo"] },
+		});
+
+		expect(enableSeo.isError, extractText(enableSeo)).toBeFalsy();
+		expect(extractJson<{ item: { hasSeo: boolean } }>(enableSeo).item.hasSeo).toBe(true);
+	});
+
+	it("validates the collection slug before lookup", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "Invalid!", label: "Invalid" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/invalid collection slug/i);
+	});
+
+	it("preserves concurrent partial collection updates", async () => {
+		const registry = new SchemaRegistry(db);
+		await Promise.all([
+			registry.updateCollection("post", { label: "Articles" }),
+			registry.updateCollection("post", { description: "Concurrent description" }),
+		]);
+
+		const collection = await registry.getCollection("post");
+		expect(collection?.label).toBe("Articles");
+		expect(collection?.description).toBe("Concurrent description");
+	});
+
+	it("requires the schema:write token scope", async () => {
+		await harness.cleanup();
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			tokenScopes: ["schema:read"],
+		});
+
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", label: "Blocked" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[INSUFFICIENT_SCOPE]");
+		expect((await new SchemaRegistry(db).getCollection("post"))?.label).toBe("Posts");
+	});
+
+	it("requires the ADMIN role even with schema:write scope", async () => {
+		await harness.cleanup();
+		harness = await connectMcpHarness({
+			db,
+			userId: EDITOR_ID,
+			userRole: Role.EDITOR,
+			tokenScopes: ["schema:write"],
+		});
+
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", label: "Blocked" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[INSUFFICIENT_PERMISSIONS]");
+		expect((await new SchemaRegistry(db).getCollection("post"))?.label).toBe("Posts");
 	});
 });
 
@@ -569,6 +791,267 @@ describe("schema_create_field", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 		const field = extractJson<{ required?: boolean }>(result);
 		expect(field.required).toBe(true);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// schema_update_field
+// ---------------------------------------------------------------------------
+
+describe("schema_update_field", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "post", label: "Posts" });
+		await registry.createField("post", { slug: "body", label: "Body", type: "text" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { body: "Kept body" } },
+		});
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("updates field metadata and a storage-compatible type without losing values", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				label: "Summary",
+				type: "string",
+				validation: { minLength: 1, maxLength: 160 },
+				widget: "text",
+				sortOrder: 4,
+			},
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { item } = extractJson<{
+			item: {
+				slug: string;
+				label: string;
+				type: string;
+				required: boolean;
+				validation: { minLength: number; maxLength: number } | null;
+				widget: string | null;
+				sortOrder: number;
+				translatable: boolean;
+			};
+		}>(result);
+		expect(item).toMatchObject({
+			slug: "body",
+			label: "Summary",
+			type: "string",
+			required: false,
+			validation: { minLength: 1, maxLength: 160 },
+			widget: "text",
+			sortOrder: 4,
+			translatable: true,
+		});
+
+		const content = await harness.client.callTool({
+			name: "content_list",
+			arguments: { collection: "post" },
+		});
+		const { items } = extractJson<{ items: Array<{ data: { body?: string } }> }>(content);
+		expect(items.some((entry) => entry.data.body === "Kept body")).toBe(true);
+	});
+
+	it("updates the structured-sort index", async () => {
+		await new SchemaRegistry(db).createField("post", {
+			slug: "priority",
+			label: "Priority",
+			type: "string",
+		});
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "priority",
+				indexed: true,
+			},
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(extractJson<{ item: { indexed: boolean } }>(result).item.indexed).toBe(true);
+		expect((await new SchemaRegistry(db).getField("post", "priority"))?.indexed).toBe(true);
+	});
+
+	it("rejects a type change that needs a content migration and preserves the field", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				type: "portableText",
+			},
+		});
+
+		expect(result.isError).toBe(true);
+		const text = extractText(result);
+		expect(text).toContain("[FIELD_TYPE_COLUMN_CHANGE]");
+		expect(text).toMatch(/manual content migration/i);
+		expect(text).toContain('from type "text" to "portableText"');
+
+		const field = await new SchemaRegistry(db).getField("post", "body");
+		expect(field?.type).toBe("text");
+	});
+
+	it("rejects a semantically incompatible type with the same column affinity", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				type: "datetime",
+			},
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[FIELD_TYPE_CHANGE_REQUIRES_MIGRATION]");
+		expect(extractText(result)).toMatch(/manual content migration/i);
+		expect((await new SchemaRegistry(db).getField("post", "body"))?.type).toBe("text");
+	});
+
+	it("rejects field invariant changes that require data or column migration", async () => {
+		for (const change of [{ required: true }, { unique: true }, { translatable: false }]) {
+			const result = await harness.client.callTool({
+				name: "schema_update_field",
+				arguments: { collection: "post", fieldSlug: "body", ...change },
+			});
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toContain("[FIELD_UPDATE_REQUIRES_MIGRATION]");
+			expect(extractText(result)).toMatch(/manual content migration/i);
+		}
+
+		const field = await new SchemaRegistry(db).getField("post", "body");
+		expect(field).toMatchObject({ required: false, unique: false, translatable: true });
+	});
+
+	it("rejects invalid validation rules without changing the field", async () => {
+		for (const validation of [
+			{ pattern: "[" },
+			{ minLength: 5, maxLength: 1 },
+			{ min: 10, max: 1 },
+			{ minItems: 4, maxItems: 2 },
+		]) {
+			const result = await harness.client.callTool({
+				name: "schema_update_field",
+				arguments: { collection: "post", fieldSlug: "body", validation },
+			});
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toMatch(/invalid|minimum|maximum|pattern/i);
+		}
+
+		expect((await new SchemaRegistry(db).getField("post", "body"))?.validation).toBeUndefined();
+	});
+
+	it("invalidates the generated content schema after a field update", async () => {
+		const registry = new SchemaRegistry(db);
+		const before = await registry.getCollectionWithFields("post");
+		expect(before).not.toBeNull();
+		expect(validateContent(before!, { body: "primes the cache" }).success).toBe(true);
+
+		const update = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				validation: { maxLength: 1 },
+			},
+		});
+		expect(update.isError, extractText(update)).toBeFalsy();
+
+		const after = await registry.getCollectionWithFields("post");
+		expect(after).not.toBeNull();
+		expect(validateContent(after!, { body: "too long" }).success).toBe(false);
+	});
+
+	it("preserves concurrent partial field updates", async () => {
+		const registry = new SchemaRegistry(db);
+		await Promise.all([
+			registry.updateField("post", "body", { label: "Summary" }),
+			registry.updateField("post", "body", { sortOrder: 7 }),
+		]);
+
+		const field = await registry.getField("post", "body");
+		expect(field?.label).toBe("Summary");
+		expect(field?.sortOrder).toBe(7);
+	});
+
+	it("uses the REST validation contract for update input", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: {
+				collection: "post",
+				fieldSlug: "body",
+				label: "",
+				sortOrder: -1,
+			},
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/invalid|too small|greater than or equal to/i);
+		expect(extractText(result)).not.toMatch(/tool .* not found/i);
+		const field = await new SchemaRegistry(db).getField("post", "body");
+		expect(field?.label).toBe("Body");
+		expect(field?.sortOrder).toBe(0);
+	});
+
+	it("validates collection and field slugs before lookup", async () => {
+		for (const identifiers of [
+			{ collection: "Invalid!", fieldSlug: "body" },
+			{ collection: "post", fieldSlug: "Invalid!" },
+		]) {
+			const result = await harness.client.callTool({
+				name: "schema_update_field",
+				arguments: { ...identifiers, label: "Invalid" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(extractText(result)).toMatch(/invalid .* slug/i);
+		}
+	});
+
+	it("requires schema:write scope and ADMIN role", async () => {
+		await harness.cleanup();
+		harness = await connectMcpHarness({
+			db,
+			userId: EDITOR_ID,
+			userRole: Role.EDITOR,
+			tokenScopes: ["schema:write"],
+		});
+
+		const editorResult = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: { collection: "post", fieldSlug: "body", label: "Blocked" },
+		});
+		expect(editorResult.isError).toBe(true);
+		expect(extractText(editorResult)).toContain("[INSUFFICIENT_PERMISSIONS]");
+
+		await harness.cleanup();
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			tokenScopes: ["schema:read"],
+		});
+
+		const scopeResult = await harness.client.callTool({
+			name: "schema_update_field",
+			arguments: { collection: "post", fieldSlug: "body", label: "Blocked" },
+		});
+		expect(scopeResult.isError).toBe(true);
+		expect(extractText(scopeResult)).toContain("[INSUFFICIENT_SCOPE]");
+		expect((await new SchemaRegistry(db).getField("post", "body"))?.label).toBe("Body");
 	});
 });
 

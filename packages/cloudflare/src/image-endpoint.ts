@@ -16,9 +16,9 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
-	IMMUTABLE_IMAGE_CACHE,
 	isHeicMedia,
 	matchInternalMediaKey,
+	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 	parseTransformParams,
 	resolveTransformQuality,
@@ -112,7 +112,7 @@ export const GET: APIRoute = async (ctx) => {
 			status: 200,
 			headers: {
 				"Content-Type": response.headers.get("Content-Type") ?? outputMime,
-				"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+				"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 				"X-Content-Type-Options": "nosniff",
 			},
 		});

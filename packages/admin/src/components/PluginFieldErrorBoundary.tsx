@@ -38,7 +38,7 @@ export class PluginFieldErrorBoundary extends React.Component<Props, State> {
 					</p>
 					<button
 						type="button"
-						className="mt-2 text-xs font-medium text-kumo-brand underline"
+						className="mt-2 text-xs font-medium text-kumo-link underline"
 						onClick={() => this.setState({ hasError: false, error: undefined })}
 					>
 						<Trans>Retry</Trans>

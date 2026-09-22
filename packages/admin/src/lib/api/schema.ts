@@ -32,16 +32,31 @@ export interface SchemaCollection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports: string[];
 	source?: string;
 	urlPattern?: string;
+	/** Published entries require a slug unless this is false. */
+	routable?: boolean;
 	hasSeo: boolean;
+	/** Sidebar entry and dashboard quick action omitted in the admin; the collection stays reachable by URL */
+	hidden: boolean;
+	/** Explicit sidebar position; absent means the alphabetical fallback */
+	sortOrder?: number;
+	/** Sidebar folder shared with other collections of the same group */
+	group?: string;
 	commentsEnabled: boolean;
 	commentsModeration: "all" | "first_time" | "none";
 	commentsClosedAfterDays: number;
 	commentsAutoApproveUsers: boolean;
+	/** Opening an entry takes an edit lock unless this is false. */
+	editLocking: boolean;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface CollectionAdminConfig {
+	listColumns?: string[];
 }
 
 export interface SchemaField {
@@ -50,10 +65,12 @@ export interface SchemaField {
 	slug: string;
 	label: string;
 	type: FieldType;
+	unsupportedType?: { type: string; path: string };
 	columnType: string;
 	required: boolean;
 	unique: boolean;
 	searchable: boolean;
+	indexed: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -80,9 +97,15 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
+	routable?: boolean;
 	hasSeo?: boolean;
+	hidden?: boolean;
+	sortOrder?: number | null;
+	editLocking?: boolean;
+	group?: string | null;
 }
 
 export interface UpdateCollectionInput {
@@ -90,13 +113,19 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: string[];
 	urlPattern?: string;
+	routable?: boolean;
 	hasSeo?: boolean;
+	hidden?: boolean;
+	sortOrder?: number | null;
+	group?: string | null;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	editLocking?: boolean;
 }
 
 export interface CreateFieldInput {
@@ -106,6 +135,7 @@ export interface CreateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -125,6 +155,7 @@ export interface UpdateFieldInput {
 	required?: boolean;
 	unique?: boolean;
 	searchable?: boolean;
+	indexed?: boolean;
 	defaultValue?: unknown;
 	validation?: {
 		min?: number;
@@ -291,6 +322,23 @@ export async function reorderFields(collectionSlug: string, fieldSlugs: string[]
 		},
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to reorder fields`));
+}
+
+/**
+ * Reorder collections in the admin sidebar.
+ *
+ * `slugs` is the full desired order — collections left out lose their
+ * explicit position and fall back to alphabetical order after the ordered
+ * ones.
+ */
+export async function reorderCollections(slugs: string[]): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/schema/collections/reorder`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ slugs }),
+	});
+	if (!response.ok)
+		await throwResponseError(response, i18n._(msg`Failed to reorder content types`));
 }
 
 // ============================================

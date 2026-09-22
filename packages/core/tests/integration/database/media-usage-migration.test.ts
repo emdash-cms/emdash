@@ -18,6 +18,7 @@ const EXPECTED_INDEXES = [
 	"idx__emdash_media_usage_provider_asset",
 	"idx__emdash_media_usage_source_generation",
 	"idx__emdash_media_usage_unique_occurrence",
+	"idx__emdash_media_usage_cleanup_scan",
 ] as const;
 
 describeEachDialect("media usage index migration", (dialect) => {

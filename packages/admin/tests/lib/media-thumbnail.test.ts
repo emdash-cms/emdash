@@ -9,6 +9,20 @@ import {
 const LOCAL_IMAGE = "/_emdash/api/media/file/01ABC.jpg";
 
 describe("getMediaThumbnailUrl", () => {
+	it("transforms storage-backed public HEIC URLs and preserves replacement versions", () => {
+		const result = getMediaThumbnailUrl(
+			"https://media.example.com/photo.heic",
+			"image/heic",
+			400,
+			"sha256:new",
+			"photo.heic",
+		);
+		const thumbnail = new URL(result, window.location.origin);
+		expect(thumbnail.pathname).toBe("/_image");
+		const source = new URL(thumbnail.searchParams.get("href")!);
+		expect(source.pathname).toBe("/_emdash/api/media/file/photo.heic");
+		expect(source.searchParams.get("_emdash_media")).toBe("sha256:new");
+	});
 	it("routes a local raster image through Astro's /_image endpoint", () => {
 		const result = getMediaThumbnailUrl(LOCAL_IMAGE, "image/jpeg");
 		expect(result.startsWith("/_image?")).toBe(true);
@@ -26,6 +40,15 @@ describe("getMediaThumbnailUrl", () => {
 		expect(url.searchParams.get("w")).toBe("80");
 	});
 
+	it("changes the thumbnail URL when stored image bytes change", () => {
+		const before = getMediaThumbnailUrl(LOCAL_IMAGE, "image/jpeg", 400, "sha256:before");
+		const after = getMediaThumbnailUrl(LOCAL_IMAGE, "image/jpeg", 400, "sha256:after");
+
+		expect(after).not.toBe(before);
+		const href = new URL(after, window.location.origin).searchParams.get("href");
+		expect(new URL(href!).searchParams.get("_emdash_media")).toBe("sha256:after");
+	});
+
 	it("passes SVGs through unchanged (vector, nothing to downscale)", () => {
 		const svg = "/_emdash/api/media/file/01ABC.svg";
 		expect(getMediaThumbnailUrl(svg, "image/svg+xml")).toBe(svg);
@@ -39,18 +62,6 @@ describe("getMediaThumbnailUrl", () => {
 	it("passes external/provider URLs through unchanged (already a remote rendition)", () => {
 		const external = "https://images.example.com/photo.jpg";
 		expect(getMediaThumbnailUrl(external, "image/jpeg")).toBe(external);
-	});
-
-	it("routes storage-backed public URLs through /_image using their storage key", () => {
-		const publicUrl = "https://media.example.com/01ABC.heic";
-		const result = getMediaThumbnailUrl(publicUrl, "image/heic", 400, "01ABC.heic");
-		const url = new URL(result, window.location.origin);
-
-		expect(url.pathname).toBe("/_image");
-		expect(url.searchParams.get("href")).toBe(
-			`${window.location.origin}/_emdash/api/media/file/01ABC.heic`,
-		);
-		expect(url.searchParams.get("f")).toBe("webp");
 	});
 });
 

@@ -27,6 +27,13 @@ const GENERIC_IDENTIFIER_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 const PLUGIN_IDENTIFIER_PATTERN = /^[a-z][a-z0-9_-]*$/;
 
 /**
+ * Pattern for plugin storage collection names.
+ * Manifests declare these as free-form keys, so both cases and hyphens are
+ * allowed; the charset still excludes quotes, whitespace, and punctuation.
+ */
+const STORAGE_COLLECTION_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+
+/**
  * Maximum length for SQL identifiers.
  * SQLite has no formal limit, but we cap at 128 for sanity.
  */
@@ -134,5 +141,37 @@ export function validatePluginIdentifier(value: string, label = "plugin identifi
 
 	if (!PLUGIN_IDENTIFIER_PATTERN.test(value)) {
 		throw new IdentifierError(`${label} must match /^[a-z][a-z0-9_-]*$/ (got "${value}")`, value);
+	}
+}
+
+/**
+ * Validate a plugin storage collection name.
+ *
+ * Collections are declared as free-form manifest keys and stored as opaque
+ * text, so this is deliberately more permissive than `validateIdentifier`:
+ * `form-submissions` and `formSubmissions` are legitimate. The charset still
+ * rejects quotes and punctuation, keeping generated index names inert.
+ *
+ * @param value - The string to validate
+ * @param label - Human-readable label for error messages
+ * @throws {IdentifierError} If the value is not valid
+ */
+export function validateStorageCollectionName(value: string, label = "collection name"): void {
+	if (!value || typeof value !== "string") {
+		throw new IdentifierError(`${label} must be a non-empty string`, String(value));
+	}
+
+	if (value.length > MAX_IDENTIFIER_LENGTH) {
+		throw new IdentifierError(
+			`${label} must be ${MAX_IDENTIFIER_LENGTH} characters or less, got ${value.length}`,
+			value,
+		);
+	}
+
+	if (!STORAGE_COLLECTION_PATTERN.test(value)) {
+		throw new IdentifierError(
+			`${label} must match /^[a-zA-Z][a-zA-Z0-9_-]*$/ (got "${value}")`,
+			value,
+		);
 	}
 }

@@ -84,7 +84,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 			<div className="space-y-6 text-center">
 				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto">
 					<svg
-						className="w-8 h-8 text-kumo-brand"
+						className="w-8 h-8 text-kumo-link"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -333,7 +333,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 					<p className="text-center mt-4 text-sm text-kumo-subtle">
 						<Trans>
 							Don't have an account?{" "}
-							<Link to="/signup" className="text-kumo-brand hover:underline font-medium">
+							<Link to="/signup" className="text-kumo-link hover:underline font-medium">
 								Sign up
 							</Link>
 						</Trans>

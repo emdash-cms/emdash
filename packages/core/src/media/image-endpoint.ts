@@ -86,10 +86,15 @@ export interface ExternalImageTransform {
 
 /** Structural subset of Astro's external image-service contract. */
 export interface ExternalImageServiceLike<TConfig> {
-	getURL(options: ExternalImageTransform, imageConfig: TConfig): string | Promise<string>;
+	getURL(
+		options: ExternalImageTransform,
+		imageConfig: TConfig,
+		logger: Pick<Console, "info" | "warn" | "error">,
+	): string | Promise<string>;
 	validateOptions?(
 		options: ExternalImageTransform,
 		imageConfig: TConfig,
+		logger: Pick<Console, "info" | "warn" | "error">,
 	): ExternalImageTransform | Promise<ExternalImageTransform>;
 }
 
@@ -107,6 +112,7 @@ export async function resolveExternalImageServiceUrl<TConfig>(
 	sourceUrl: string,
 	options: ImageTransformOptions,
 	requestOrigin: string,
+	logger: Pick<Console, "info" | "warn" | "error"> = console,
 ): Promise<string | null> {
 	const transform: ExternalImageTransform = {
 		src: sourceUrl,
@@ -117,9 +123,9 @@ export async function resolveExternalImageServiceUrl<TConfig>(
 	if (options.quality !== undefined) transform.quality = options.quality;
 
 	const validated = service.validateOptions
-		? await service.validateOptions(transform, imageConfig)
+		? await service.validateOptions(transform, imageConfig, logger)
 		: transform;
-	const generated = await service.getURL(validated, imageConfig);
+	const generated = await service.getURL(validated, imageConfig, logger);
 
 	try {
 		const source = new URL(sourceUrl, requestOrigin);
@@ -132,8 +138,11 @@ export async function resolveExternalImageServiceUrl<TConfig>(
 	}
 }
 
-/** Long-lived immutable cache -- transform output is deterministic per key+params. */
+/** Long-lived cache for content-addressed image URLs. */
 export const IMMUTABLE_IMAGE_CACHE = "public, max-age=31536000, immutable";
+
+/** Cache policy for media keys that Replace original may overwrite. */
+export const MUTABLE_MEDIA_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 
 /**
  * Raster types safe to render inline. Anything else (SVG, PDF, ...) is served
@@ -159,7 +168,7 @@ const SAFE_INLINE_IMAGE_TYPES = new Set([
 export function originalMediaHeaders(contentType: string): Record<string, string> {
 	return {
 		"Content-Type": contentType,
-		"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+		"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 		"X-Content-Type-Options": "nosniff",
 		"Content-Security-Policy":
 			"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",

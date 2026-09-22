@@ -3,9 +3,9 @@ title: Page Layouts
 description: Let editors choose different layouts for individual pages using a template field.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside } from "@astrojs/starlight/components";
 
-Let editors pick a layout per page (e.g. Default, Full Width, Landing Page) from a dropdown in the editor, using a `select` field mapped to layout components in your page route.
+Let editors pick a layout per page, for example Default, Full Width, or Landing Page. A `select` field stores the choice, and the page route maps that value to an Astro layout component.
 
 ## How it works
 
@@ -17,7 +17,7 @@ This uses EmDash's select field and Astro's component model.
 
 ## Add the field
 
-In the admin UI, add a select field to your pages collection with slug `template` and your layout options (e.g. "Default", "Full Width"). Or include it in your seed data:
+In the admin UI, add a select field to your pages collection with slug `template` and your layout options (for example, "Default" and "Full Width"). To define the same field in seed data, add the following object to the collection's `fields` array:
 
 ```json title=".emdash/seed.json"
 {
@@ -37,12 +37,12 @@ Each layout wraps content in your base layout with different styling:
 
 ```astro title="src/layouts/PageDefault.astro"
 ---
-import type { ContentEntry } from "emdash";
+import type { ContentEntry, InferCollectionData } from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "./Base.astro";
 
 interface Props {
-  page: ContentEntry<any>;
+  page: ContentEntry<InferCollectionData<"pages">>;
 }
 
 const { page } = Astro.props;
@@ -66,12 +66,12 @@ const { page } = Astro.props;
 
 ```astro title="src/layouts/PageFullWidth.astro"
 ---
-import type { ContentEntry } from "emdash";
+import type { ContentEntry, InferCollectionData } from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "./Base.astro";
 
 interface Props {
-  page: ContentEntry<any>;
+  page: ContentEntry<InferCollectionData<"pages">>;
 }
 
 const { page } = Astro.props;
@@ -99,11 +99,11 @@ In your page route, import each layout and map the template value:
 
 ```astro title="src/pages/pages/[slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 import PageDefault from "../../layouts/PageDefault.astro";
 import PageFullWidth from "../../layouts/PageFullWidth.astro";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 
 if (!slug) {
   return Astro.redirect("/404");
@@ -115,12 +115,12 @@ if (!page) {
   return Astro.redirect("/404");
 }
 
-const layouts = {
-  "Default": PageDefault,
-  "Full Width": PageFullWidth,
-};
+const layouts = new Map([
+  ["Default", PageDefault],
+  ["Full Width", PageFullWidth],
+]);
 
-const Layout = layouts[page.data.template as keyof typeof layouts] ?? PageDefault;
+const Layout = layouts.get(page.data.template ?? "") ?? PageDefault;
 ---
 
 <Layout page={page} />
@@ -129,7 +129,8 @@ const Layout = layouts[page.data.template as keyof typeof layouts] ?? PageDefaul
 The route stays small. Each layout component owns its own markup and styling. Adding a layout is: create a component, add the option to the select field, add a line to the map.
 
 <Aside type="tip">
-Use human-readable option names like "Full Width" rather than slugs like "full-width". The value is both the stored value and the admin dropdown label.
+	Use human-readable option names like "Full Width" rather than slugs like "full-width". The value
+	is both the stored value and the admin dropdown label.
 </Aside>
 
 ## Adding more layouts
@@ -139,6 +140,6 @@ Common layout choices:
 - **Default** — narrow content column, good for reading
 - **Full Width** — wider content area, no sidebar
 - **Landing Page** — no header/footer, hero sections
-- **Sidebar** — content with a sidebar widget area
+- **Sidebar** — content with a [widget area](/guides/widgets/) beside it
 
 Each is just another Astro component in your `src/layouts/` directory and another entry in the route's layout map.

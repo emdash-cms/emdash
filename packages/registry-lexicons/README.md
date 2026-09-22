@@ -2,7 +2,7 @@
 
 Generated TypeScript types and runtime validation schemas for the EmDash plugin registry lexicons.
 
-> EXPERIMENTAL: NSIDs and shapes will change. The registry is still on the `wip/plugin-rfc` branch (RFC 0001). Pin to an exact version while we iterate. Once stable, NSIDs are expected to migrate to either `pm.fair.package.*` (if FAIR adopts the shape) or `com.emdashcms.package.*`.
+> EXPERIMENTAL: NSIDs and shapes will change. Pin to an exact version while RFC 0001 is in progress. The stable package namespace target is `com.emdashcms.package.*`.
 
 ## What's in here
 
@@ -14,7 +14,12 @@ Generated TypeScript types and runtime validation schemas for the EmDash plugin 
 ## Usage
 
 ```ts
-import { NSID, PackageProfile, PackageRelease } from "@emdash-cms/registry-lexicons";
+import {
+	NSID,
+	PackageProfile,
+	PackageProfileExtension,
+	PackageRelease,
+} from "@emdash-cms/registry-lexicons";
 import { is, safeParse } from "@atcute/lexicons/validations";
 
 // Type a profile record:
@@ -25,6 +30,18 @@ const profile: PackageProfile.Main = {
 	license: "MIT",
 	authors: [{ name: "Alice Example", url: "https://alice.example.com" }],
 	security: [{ email: "security@example.com" }],
+	extensions: {
+		[NSID.packageProfileExtension]: {
+			$type: NSID.packageProfileExtension,
+			repository: "https://github.com/example/gallery",
+			releasePolicy: {
+				$type: `${NSID.packageProfileExtension}#releasePolicy`,
+				requireProvenance: true,
+				confirmation: "escalation-only",
+				approvers: ["did:plc:abc123"],
+			} satisfies PackageProfileExtension.ReleasePolicy,
+		},
+	},
 };
 
 // Validate at runtime:
@@ -38,6 +55,16 @@ if (!result.ok) {
 	console.error(result.issues);
 }
 ```
+
+## Delegated release policy
+
+Automated releases require `PackageProfileExtension` under the profile's `extensions` map. `repository` is the canonical HTTPS source repository that GitHub provenance and the approved workflow must match. The optional `releasePolicy` controls approval outside the release service:
+
+- `requireProvenance` tells every publisher and installer to require supported provenance. The delegated service always requires provenance.
+- `confirmation: "escalation-only"` requires approval when declared access expands. `"always"` requires approval for every release.
+- `approvers` lists the [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) DIDs allowed to approve releases.
+
+Use `emdash-plugin profile setup` to create this extension. The release service validates the signed value but cannot edit it.
 
 ## Building
 
@@ -61,6 +88,6 @@ Everything under `com.emdashcms.experimental.*` is unstable by design. The contr
 - Existing fields may have their constraints tightened or loosened in any release.
 - NSIDs may be renamed at the next stable cutover (see RFC 0001's migration plan).
 
-Delegated release grants are collection-specific. When the release NSID moves out of the experimental namespace, every publisher must authorize a new grant for the stable collection. `getDelegatedReleasePermission()` returns the active collection and exact create-only OAuth scope so clients do not hard-code either value.
+Delegated release grants include the create-only release collection plus gzip and image blob scopes. When the release NSID or blob scope set changes, every publisher must authorize a new grant. `getDelegatedReleasePermission()` returns the complete active scope string so clients do not hard-code it.
 
 Once the registry is non-experimental, this package will publish a 1.0 with the post-experimental NSIDs and a stability commitment.

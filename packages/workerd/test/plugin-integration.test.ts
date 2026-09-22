@@ -16,7 +16,7 @@
  */
 
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
@@ -34,6 +34,46 @@ function createTestDb() {
 }
 
 async function runMigrations(db: Kysely<any>) {
+	await db.schema
+		.createTable("_emdash_collections")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("slug", "text", (col) => col.notNull().unique())
+		.addColumn("supports", "text")
+		.execute();
+	await db.schema
+		.createTable("_emdash_fields")
+		.addColumn("collection_id", "text", (col) => col.notNull())
+		.addColumn("slug", "text", (col) => col.notNull())
+		.addColumn("type", "text", (col) => col.notNull())
+		.addColumn("validation", "text")
+		.addColumn("indexed", "integer", (col) => col.notNull().defaultTo(0))
+		.addColumn("translatable", "integer", (col) => col.notNull().defaultTo(1))
+		.execute();
+	await db.schema
+		.createTable("options")
+		.addColumn("name", "text", (col) => col.primaryKey())
+		.addColumn("value", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull().defaultTo("0"))
+		.execute();
+
+	await db.schema
+		.createTable("revisions")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("entry_id", "text", (col) => col.notNull())
+		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("author_id", "text")
+		.addColumn("created_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+		.execute();
+
+	await db.schema
+		.createTable("_emdash_revision_prune_queue")
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("entry_id", "text", (col) => col.notNull())
+		.addColumn("revision_id", "text", (col) => col.notNull())
+		.addPrimaryKeyConstraint("pk_revision_prune_queue", ["collection", "entry_id"])
+		.execute();
+
 	// Plugin storage (migration 004)
 	await db.schema
 		.createTable("_plugin_storage")
@@ -41,6 +81,7 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("collection", "text", (col) => col.notNull())
 		.addColumn("id", "text", (col) => col.notNull())
 		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull().defaultTo("0"))
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.addColumn("updated_at", "text", (col) => col.notNull())
 		.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])
@@ -68,6 +109,41 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.execute();
 
+	await db.schema
+		.createTable("_emdash_redirects")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("source", "text", (col) => col.notNull())
+		.addColumn("destination", "text", (col) => col.notNull())
+		.addColumn("type", "integer", (col) => col.notNull())
+		.addColumn("is_pattern", "integer", (col) => col.notNull())
+		.addColumn("enabled", "integer", (col) => col.notNull())
+		.addColumn("hits", "integer", (col) => col.notNull())
+		.addColumn("last_hit_at", "text")
+		.addColumn("group_name", "text")
+		.addColumn("auto", "integer", (col) => col.notNull())
+		.addColumn("config_revision", "text", (col) => col.notNull())
+		.addColumn("source_guard", "integer", (col) => col.notNull())
+		.addColumn("write_generation", "integer", (col) => col.notNull())
+		.addColumn("created_at", "text", (col) => col.notNull())
+		.addColumn("updated_at", "text", (col) => col.notNull())
+		.execute();
+	await sql`
+		CREATE UNIQUE INDEX idx_redirects_managed_source
+		ON _emdash_redirects (source)
+		WHERE source_guard = 1
+	`.execute(db);
+	await db.schema
+		.createTable("_emdash_redirect_write_lock")
+		.addColumn("id", "integer", (col) => col.primaryKey())
+		.addColumn("token", "text", (col) => col.notNull())
+		.addColumn("expires_at", "integer", (col) => col.notNull())
+		.addColumn("generation", "integer", (col) => col.notNull())
+		.execute();
+	await db
+		.insertInto("_emdash_redirect_write_lock" as any)
+		.values({ id: 1, token: "", expires_at: 0, generation: 0 })
+		.execute();
+
 	// Content table for posts (created by SchemaRegistry in real code)
 	await db.schema
 		.createTable("ec_posts")
@@ -75,13 +151,45 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("slug", "text")
 		.addColumn("status", "text", (col) => col.notNull().defaultTo("draft"))
 		.addColumn("author_id", "text")
+		.addColumn("primary_byline_id", "text")
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.addColumn("updated_at", "text", (col) => col.notNull())
 		.addColumn("published_at", "text")
+		.addColumn("scheduled_at", "text")
 		.addColumn("deleted_at", "text")
 		.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+		.addColumn("live_revision_id", "text")
+		.addColumn("draft_revision_id", "text")
+		.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+		.addColumn("translation_group", "text")
 		.addColumn("title", "text")
 		.addColumn("body", "text")
+		.execute();
+
+	await db
+		.insertInto("_emdash_collections" as any)
+		.values({ id: "posts", slug: "posts", supports: "[]" })
+		.execute();
+	await db
+		.insertInto("_emdash_fields" as any)
+		.values([
+			{
+				collection_id: "posts",
+				slug: "title",
+				type: "string",
+				validation: null,
+				indexed: 0,
+				translatable: 1,
+			},
+			{
+				collection_id: "posts",
+				slug: "body",
+				type: "text",
+				validation: null,
+				indexed: 0,
+				translatable: 1,
+			},
+		])
 		.execute();
 }
 
@@ -132,6 +240,12 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		return response.json() as Promise<{ result?: unknown; error?: string }>;
 	}
 
+	function bridgeResultState(result: { result?: unknown }): boolean | undefined {
+		const value = result.result;
+		if (typeof value !== "object" || value === null || !("ok" in value)) return undefined;
+		return value.ok === true ? true : value.ok === false ? false : undefined;
+	}
+
 	// ── Mirrors sandboxed-test plugin's kv/test route ────────────────────
 
 	it("KV round-trip: set, get, delete", async () => {
@@ -154,6 +268,63 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		// Verify deleted
 		const afterDelete = await call(handler, "kv/get", { key: "sandbox-test-key" });
 		expect(afterDelete.result).toBeNull();
+	});
+
+	it("redirect operations preserve version conflicts and host-owned markers", async () => {
+		const handler = createBridgeHandler({
+			pluginId: "redirect-plugin",
+			version: "1.0.0",
+			capabilities: ["redirects:write", "redirects:read"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+		const created = await call(handler, "redirect/create", {
+			input: { source: "/legacy", destination: "/current" },
+		});
+		const versioned = (created.result as { value: { redirect: { id: string }; _rev: string } })
+			.value;
+
+		const updated = await call(handler, "redirect/update", {
+			id: versioned.redirect.id,
+			input: { destination: "/latest", _rev: versioned._rev },
+		});
+		expect(updated.result).toMatchObject({
+			ok: true,
+			value: { redirect: { destination: "/latest", auto: false } },
+		});
+
+		const stale = await call(handler, "redirect/update", {
+			id: versioned.redirect.id,
+			input: { destination: "/lost", _rev: versioned._rev },
+		});
+		expect(stale.result).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+
+		const forged = await call(handler, "redirect/create", {
+			input: { source: "/forged", destination: "/target", auto: true },
+		});
+		expect(forged.result).toMatchObject({
+			ok: false,
+			error: { code: "VALIDATION_ERROR" },
+		});
+
+		const concurrent = await Promise.all([
+			call(handler, "redirect/create", {
+				input: { source: "/same", destination: "/first" },
+			}),
+			call(handler, "redirect/create", {
+				input: { source: "/same", destination: "/second" },
+			}),
+		]);
+		expect(concurrent.filter((result) => bridgeResultState(result) === true)).toHaveLength(1);
+		expect(concurrent.filter((result) => bridgeResultState(result) === false)).toHaveLength(1);
+	});
+
+	it("denies redirect reads without redirects:read", async () => {
+		const handler = makePluginHandler();
+		const result = await call(handler, "redirect/list");
+		expect(result.error).toContain("redirects:read");
 	});
 
 	// ── Mirrors sandboxed-test plugin's storage/test route ───────────────
@@ -236,7 +407,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 	// ── Content lifecycle: create, read, update, soft-delete ─────────────
 
 	describe("content lifecycle (requires read:content + write:content)", () => {
-		function makeWriteHandler() {
+		function makeWriteHandler(i18nConfig?: { defaultLocale: string; locales: string[] } | null) {
 			// Bridge enforces capabilities strictly: write:content does NOT
 			// imply read:content. Plugins that need both must declare both.
 			return createBridgeHandler({
@@ -245,6 +416,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				capabilities: ["read:content", "write:content"],
 				allowedHosts: [],
 				storageCollections: [],
+				i18nConfig,
 				db,
 				emailSend: () => null,
 			});
@@ -262,11 +434,24 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			const created = createResult.result as {
 				id: string;
 				type: string;
+				slug: string | null;
+				status: string;
 				data: Record<string, unknown>;
+				locale: string;
+				publishedAt: string | null;
 			};
 			expect(created.type).toBe("posts");
 			expect(created.data.title).toBe("New Post");
+			expect(created.locale).toBe("en");
+			expect(created).toMatchObject({ slug: "new-post", status: "draft", publishedAt: null });
 			expect(created.id).toBeTruthy();
+			await expect(
+				db
+					.selectFrom("ec_posts" as any)
+					.select("translation_group" as any)
+					.where("id", "=", created.id)
+					.executeTakeFirstOrThrow(),
+			).resolves.toEqual({ translation_group: created.id });
 
 			// Read
 			const readResult = await call(handler, "content/get", {
@@ -274,8 +459,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: created.id,
 			});
 			expect(readResult.error).toBeUndefined();
-			const read = readResult.result as { id: string; data: Record<string, unknown> };
+			const read = readResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(read.data.title).toBe("New Post");
+			expect(read.locale).toBe("en");
 
 			// Update
 			const updateResult = await call(handler, "content/update", {
@@ -284,8 +474,17 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				data: { title: "Updated Post" },
 			});
 			expect(updateResult.error).toBeUndefined();
-			const updated = updateResult.result as { id: string; data: Record<string, unknown> };
+			const updated = updateResult.result as {
+				id: string;
+				slug: string | null;
+				status: string;
+				data: Record<string, unknown>;
+				locale: string;
+				publishedAt: string | null;
+			};
 			expect(updated.data.title).toBe("Updated Post");
+			expect(updated.locale).toBe("en");
+			expect(updated).toMatchObject({ slug: "new-post", status: "draft", publishedAt: null });
 
 			// Delete (soft-delete)
 			const deleteResult = await call(handler, "content/delete", {
@@ -301,6 +500,158 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			});
 			expect(afterDelete.result).toBeNull();
 		});
+
+		it("stages revision-enabled updates and returns the effective draft", async () => {
+			await db
+				.updateTable("_emdash_collections" as any)
+				.set({ supports: '["revisions"]' })
+				.where("slug", "=", "posts")
+				.execute();
+			const now = new Date().toISOString();
+			await db
+				.insertInto("revisions" as any)
+				.values({
+					id: "live-revision",
+					collection: "posts",
+					entry_id: "published-post",
+					data: JSON.stringify({ title: "Live title", body: "Live body" }),
+					author_id: null,
+					created_at: now,
+				})
+				.execute();
+			await db
+				.insertInto("ec_posts" as any)
+				.values({
+					id: "published-post",
+					slug: "published-post",
+					status: "published",
+					title: "Live title",
+					body: "Live body",
+					created_at: now,
+					updated_at: now,
+					version: 1,
+					live_revision_id: "live-revision",
+				})
+				.execute();
+			const handler = makeWriteHandler();
+
+			const updateResult = await call(handler, "content/update", {
+				collection: "posts",
+				id: "published-post",
+				data: { title: "Plugin title" },
+			});
+
+			expect(updateResult.error).toBeUndefined();
+			expect(updateResult.result).toMatchObject({
+				id: "published-post",
+				data: { title: "Plugin title", body: "Live body" },
+			});
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.selectAll()
+				.where("id", "=", "published-post")
+				.executeTakeFirstOrThrow();
+			expect(row).toMatchObject({
+				title: "Live title",
+				body: "Live body",
+				live_revision_id: "live-revision",
+				version: 2,
+			});
+			expect(row.draft_revision_id).toEqual(expect.any(String));
+			const draft = await db
+				.selectFrom("revisions" as any)
+				.select("data")
+				.where("id", "=", row.draft_revision_id)
+				.executeTakeFirstOrThrow();
+			expect(JSON.parse(draft.data)).toEqual({ title: "Plugin title", body: "Live body" });
+		});
+
+		it("forwards and normalizes an explicit locale", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+
+			const result = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "繁體中文" },
+				options: { locale: "zh-tw" },
+			});
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toMatchObject({ locale: "zh-TW" });
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.select("locale" as any)
+				.where("id", "=", (result.result as { id: string }).id)
+				.executeTakeFirstOrThrow();
+			expect(row.locale).toBe("zh-TW");
+		});
+
+		it("uses configured and no-i18n fallbacks when locale is omitted", async () => {
+			const configured = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/create",
+				{ collection: "posts", data: { title: "日本語" } },
+			);
+			const legacy = await call(makeWriteHandler(null), "content/create", {
+				collection: "posts",
+				data: { title: "English" },
+			});
+
+			expect(configured.result).toMatchObject({ locale: "ja" });
+			expect(legacy.result).toMatchObject({ locale: "en" });
+		});
+
+		it("uses the configured default locale for batch creates", async () => {
+			const result = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/createMany",
+				{
+					collection: "posts",
+					items: [{ title: "一" }, { title: "二" }],
+				},
+			);
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toEqual([
+				expect.objectContaining({ locale: "ja" }),
+				expect.objectContaining({ locale: "ja" }),
+			]);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.select("locale" as any)
+					.execute(),
+			).toEqual([{ locale: "ja" }, { locale: "ja" }]);
+		});
+
+		it("rejects invalid locale options before inserting", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "fr"] });
+
+			const malformed = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Malformed" },
+				options: { locale: "en_US" },
+			});
+			const unknown = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Unknown" },
+				options: { locale: "de" },
+			});
+
+			expect(malformed.error).toMatchObject({
+				code: "VALIDATION_ERROR",
+				message: expect.stringMatching(/invalid locale code/i),
+			});
+			expect(unknown.error).toMatchObject({
+				code: "VALIDATION_ERROR",
+				message: expect.stringMatching(/not configured/i),
+			});
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.selectAll()
+					.execute(),
+			).toHaveLength(0);
+		});
 	});
 
 	// ── Capability enforcement matches real plugin config ─────────────────
@@ -311,14 +662,10 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			collection: "posts",
 			data: { title: "Should fail" },
 		});
-		expect(result.error).toContain("Missing capability: write:content");
+		expect(result.error).toContain("Missing capability: content:write");
 	});
 
-	it("write-only plugin cannot read content (no implicit upgrade)", async () => {
-		// Plugins with only write:content cannot call ctx.content.get/list.
-		// This matches the Cloudflare PluginBridge: capabilities are enforced
-		// strictly as declared in the manifest. A plugin that needs both
-		// reads and writes must declare both capabilities.
+	it("content writes include the implied content read authority", async () => {
 		await db.schema
 			.createTable("ec_pages")
 			.addColumn("id", "text", (col) => col.primaryKey())
@@ -329,6 +676,8 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			.addColumn("updated_at", "text", (col) => col.notNull())
 			.addColumn("deleted_at", "text")
 			.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+			.addColumn("translation_group", "text")
 			.addColumn("title", "text")
 			.execute();
 
@@ -342,20 +691,17 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			emailSend: () => null,
 		});
 
-		// content/get should fail
 		const getResult = await call(writeOnlyHandler, "content/get", {
 			collection: "pages",
 			id: "any",
 		});
-		expect(getResult.error).toContain("Missing capability: read:content");
+		expect(getResult.error).toBeUndefined();
 
-		// content/list should also fail
 		const listResult = await call(writeOnlyHandler, "content/list", {
 			collection: "pages",
 		});
-		expect(listResult.error).toContain("Missing capability: read:content");
+		expect(listResult.error).toBeUndefined();
 
-		// content/create should still succeed (has write:content)
 		const createResult = await call(writeOnlyHandler, "content/create", {
 			collection: "pages",
 			data: { title: "Allowed" },
@@ -363,8 +709,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		expect(createResult.error).toBeUndefined();
 	});
 
-	it("write-only media plugin cannot read media", async () => {
-		// Same enforcement for media: write:media does NOT imply read:media.
+	it("media writes include the implied media read authority", async () => {
 		const writeOnlyHandler = createBridgeHandler({
 			pluginId: "write-only-media",
 			version: "1.0.0",
@@ -376,10 +721,41 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		});
 
 		const getResult = await call(writeOnlyHandler, "media/get", { id: "any" });
-		expect(getResult.error).toContain("Missing capability: read:media");
+		expect(getResult.error).toBeUndefined();
 
 		const listResult = await call(writeOnlyHandler, "media/list", {});
-		expect(listResult.error).toContain("Missing capability: read:media");
+		expect(listResult.error).toBeUndefined();
+	});
+
+	it("keeps media metadata, bytes, and metadata mutation independently gated", async () => {
+		const metadataOnly = createBridgeHandler({
+			pluginId: "metadata-only-media",
+			version: "1.0.0",
+			capabilities: ["media:read"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+		const bytesResult = await call(metadataOnly, "media/readBytes", { id: "any" });
+		expect(bytesResult.error).toContain("Missing capability: media:bytes:read");
+		const updateResult = await call(metadataOnly, "media/updateMetadata", {
+			id: "any",
+			patch: { alt: "Changed" },
+		});
+		expect(updateResult.error).toContain("Missing capability: media:metadata:write");
+
+		const bytesOnly = createBridgeHandler({
+			pluginId: "bytes-only-media",
+			version: "1.0.0",
+			capabilities: ["media:bytes:read"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+		const getResult = await call(bytesOnly, "media/get", { id: "any" });
+		expect(getResult.error).toContain("Missing capability: media:read");
 	});
 
 	it("sandboxed-test plugin cannot send email (not in capabilities)", async () => {

@@ -18,7 +18,7 @@ export const usersListQuery = z
 export const userUpdateBody = z
 	.object({
 		name: z.string().optional(),
-		email: z.string().email().optional(),
+		email: z.email().optional(),
 		role: roleLevel.optional(),
 	})
 	.meta({ id: "UserUpdateBody" });

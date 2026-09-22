@@ -20,6 +20,7 @@ import { join } from "node:path";
  * § "Open questions".
  */
 export const DEFAULT_AGGREGATOR_URL = "https://registry.emdashcms.com";
+export const DEFAULT_LABELER_URL = "https://labels.emdashcms.com";
 
 /**
  * Default directory for OAuth state (sessions, in-flight authorize states).
@@ -38,4 +39,11 @@ export function resolveAggregatorUrl(flag?: string): string {
 	const fromEnv = process.env["EMDASH_REGISTRY_URL"];
 	if (fromEnv && fromEnv.length > 0) return fromEnv;
 	return DEFAULT_AGGREGATOR_URL;
+}
+
+export function resolveLabelerUrl(flag?: string): string {
+	if (flag && flag.length > 0) return flag;
+	const fromEnv = process.env["EMDASH_LABELER_URL"];
+	if (fromEnv && fromEnv.length > 0) return fromEnv;
+	return DEFAULT_LABELER_URL;
 }

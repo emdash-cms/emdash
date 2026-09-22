@@ -7,6 +7,7 @@
 // Types
 export type {
 	SearchConfig,
+	SearchTokenizer,
 	SearchOptions,
 	CollectionSearchOptions,
 	SearchResult,
@@ -15,6 +16,7 @@ export type {
 	Suggestion,
 	SearchStats,
 } from "./types.js";
+export { SEARCH_TOKENIZERS } from "./types.js";
 
 // FTS Manager
 export { FTSManager } from "./fts-manager.js";

@@ -177,6 +177,10 @@ describe("CoalescingD1Dialect", () => {
 		const mock = createMockD1({
 			"insert into a (name) values (?)": { changes: 2, lastRowId: 7 },
 			"delete from a where 1 = 0": { changes: 0 },
+			"delete from media where status = ? returning storage_key": {
+				rows: [{ storage_key: "expired.png" }],
+				changes: 1,
+			},
 		});
 		const db = createDb(mock);
 
@@ -191,6 +195,12 @@ describe("CoalescingD1Dialect", () => {
 		// Zero changes maps to undefined, matching kysely-d1.
 		const deleted = await db.executeQuery(CompiledQuery.raw("delete from a where 1 = 0"));
 		expect(deleted.numAffectedRows).toBeUndefined();
+
+		const returned = await db.executeQuery(
+			CompiledQuery.raw("delete from media where status = ? returning storage_key", ["pending"]),
+		);
+		expect(returned.rows).toEqual([{ storage_key: "expired.png" }]);
+		expect(returned.numAffectedRows).toBe(1n);
 		expect(mock.batchCalls).toHaveLength(0);
 	});
 

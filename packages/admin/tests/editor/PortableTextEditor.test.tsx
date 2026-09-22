@@ -6,14 +6,18 @@
  * toolbar behaviour, focus modes, and editor lifecycle.
  */
 
+import { TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PluginBlockDef } from "../../src/components/PortableTextEditor";
 import {
 	_buildPluginBlockFormValues,
 	_hasPluginBlockFormData,
+	_portableTextToProsemirror,
+	_prosemirrorToPortableText,
 	PortableTextEditor,
 } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
@@ -26,8 +30,12 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: () => null,
 }));
 
+const sectionPickerProps: { current: Record<string, any> | null } = { current: null };
 vi.mock("../../src/components/SectionPickerModal", () => ({
-	SectionPickerModal: () => null,
+	SectionPickerModal: (props: Record<string, any>) => {
+		sectionPickerProps.current = props;
+		return null;
+	},
 }));
 
 vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
@@ -100,8 +108,6 @@ vi.mock("../../src/components/editor/PluginBlockNode", async () => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const SPOTLIGHT_MODE_PATTERN = /Spotlight Mode/i;
-
 /** Wait for the ProseMirror editor to mount inside the container */
 async function waitForEditor(): Promise<HTMLElement> {
 	let pm: HTMLElement | null = null;
@@ -152,7 +158,7 @@ function typeIntoEditor(editor: Editor, text: string) {
 function textBlock(
 	text: string,
 	opts: {
-		style?: "normal" | "h1" | "h2" | "h3" | "blockquote";
+		style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 		marks?: string[];
 		listItem?: "bullet" | "number";
 		level?: number;
@@ -297,6 +303,483 @@ describe("plugin block helpers", () => {
 // =============================================================================
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
+	it("preserves existing keys and supported link mark definitions", () => {
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "block-1",
+				style: "normal" as const,
+				children: [
+					{
+						_type: "span" as const,
+						_key: "span-1",
+						text: "Linked text",
+						marks: ["strong", "link-1"],
+					},
+				],
+				markDefs: [
+					{
+						_type: "link",
+						_key: "link-1",
+						href: "https://example.com",
+						blank: true,
+					},
+				],
+			},
+		];
+
+		const roundTripped = _prosemirrorToPortableText(_portableTextToProsemirror(blocks));
+
+		expect(roundTripped).toEqual(blocks);
+	});
+
+	it("keeps a no-op editor update lossless", async () => {
+		const onChange = vi.fn();
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "block-1",
+				style: "normal" as const,
+				children: [
+					{
+						_type: "span" as const,
+						_key: "span-1",
+						text: "Linked text",
+						marks: ["link-1"],
+					},
+				],
+				markDefs: [
+					{
+						_type: "link",
+						_key: "link-1",
+						href: "https://example.com",
+					},
+				],
+			},
+			{ _type: "test.divider", _key: "divider-1" },
+		];
+		const { editor } = await renderAndGetEditor({
+			value: blocks,
+			onChange,
+			pluginBlocks: [
+				{
+					type: "test.divider",
+					pluginId: "test-blocks",
+					label: "Divider",
+					fields: [],
+				},
+			],
+		});
+
+		const roundTripped = _prosemirrorToPortableText(
+			editor.getJSON() as Parameters<typeof _prosemirrorToPortableText>[0],
+		);
+
+		expect(roundTripped).toEqual(blocks);
+
+		await React.act(async () => {
+			editor.commands.setContent(editor.getJSON(), { emitUpdate: true });
+		});
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("keeps span keys unique when an edit splits existing text", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "block-1",
+					style: "normal",
+					children: [
+						{
+							_type: "span",
+							_key: "span-1",
+							text: "Hello world",
+						},
+					],
+				},
+			],
+			onChange,
+		});
+
+		editor.chain().focus().setTextSelection({ from: 1, to: 6 }).toggleBold().run();
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+
+		const block = onChange.mock.lastCall?.[0][0] as { children: Array<{ _key: string }> };
+		const keys = block.children.map((span) => span._key);
+		expect(keys).toContain("span-1");
+		expect(new Set(keys).size).toBe(keys.length);
+	});
+
+	it("keeps block keys unique when an edit splits a paragraph", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "block-1",
+					style: "normal",
+					children: [
+						{
+							_type: "span",
+							_key: "span-1",
+							text: "Hello world",
+						},
+					],
+				},
+			],
+			onChange,
+		});
+
+		editor.chain().focus().setTextSelection(6).splitBlock().run();
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+
+		const blocks = onChange.mock.lastCall?.[0] ?? [];
+		const keys = blocks.map((block) => block._key);
+		expect(keys).toContain("block-1");
+		expect(new Set(keys).size).toBe(keys.length);
+	});
+
+	it("rejects mixed unsupported decorators across nested and spanning text", () => {
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "quote",
+				style: "blockquote" as const,
+				children: [
+					{ _type: "span" as const, _key: "s1", text: "Brand", marks: ["strong", "accent"] },
+					{ _type: "span" as const, _key: "s2", text: " voice", marks: ["accent", "em"] },
+				],
+			},
+			{
+				_type: "block" as const,
+				_key: "nested-list",
+				style: "normal" as const,
+				listItem: "bullet" as const,
+				level: 2,
+				children: [
+					{ _type: "span" as const, _key: "s3", text: "Muted", marks: ["subtle", "code"] },
+				],
+			},
+		];
+
+		expect(() => _portableTextToProsemirror(blocks)).toThrow(/accent.*subtle/);
+	});
+
+	it("rejects unsupported markDefs annotations by type", () => {
+		const annotationKey = "annotation-9f31";
+		const blocks = [
+			textBlock("Highlighted", {
+				marks: ["strong", annotationKey],
+				markDefs: [{ _type: "brandColor", _key: annotationKey, token: "accent" }],
+			}),
+		];
+
+		let conversionError: Error | undefined;
+		try {
+			_portableTextToProsemirror(blocks);
+		} catch (error) {
+			conversionError = error as Error;
+		}
+		expect(conversionError?.message).toContain("brandColor");
+		expect(conversionError?.message).not.toContain("annotation-9f31");
+	});
+
+	it("rejects unsupported marks in nested outbound ProseMirror content", () => {
+		const document = {
+			type: "doc",
+			content: [
+				{
+					type: "blockquote",
+					content: [
+						{
+							type: "paragraph",
+							content: [
+								{
+									type: "text",
+									text: "Mixed",
+									marks: [{ type: "bold" }, { type: "accent" }],
+								},
+							],
+						},
+					],
+				},
+			],
+		};
+
+		expect(() => _prosemirrorToPortableText(document)).toThrow(/accent/);
+	});
+
+	it("blocks the editor with a localized mark-specific alert in RTL layouts", async () => {
+		const onChange = vi.fn();
+		const onEditorReady = vi.fn();
+		const screen = await render(
+			<div dir="rtl">
+				<PortableTextEditor
+					value={[textBlock("Unsafe", { marks: ["strong", "accent"] })]}
+					onChange={onChange}
+					onEditorReady={onEditorReady}
+				/>
+			</div>,
+		);
+		const alert = screen.getByRole("alert");
+
+		await expect.element(alert).toBeInTheDocument();
+		expect(alert.element()).toHaveTextContent("accent");
+		expect(getComputedStyle(alert.element()).direction).toBe("rtl");
+		expect(document.querySelector(".ProseMirror")).toBeNull();
+		expect(onChange).not.toHaveBeenCalled();
+		expect(onEditorReady).not.toHaveBeenCalledWith(expect.anything());
+	});
+
+	it("keeps safe content editable when an unsupported section is rejected", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Safe content")],
+			onChange,
+		});
+		const unsafeSection = {
+			id: "section-1",
+			slug: "unsafe-section",
+			title: "Unsafe section",
+			keywords: [],
+			content: [textBlock("Unsafe insert", { marks: ["accent"] })],
+			source: "user",
+			createdAt: "2026-08-16T00:00:00.000Z",
+			updatedAt: "2026-08-16T00:00:00.000Z",
+		};
+
+		await React.act(async () => {
+			sectionPickerProps.current?.onSelect(unsafeSection);
+		});
+
+		const alert = screen.getByRole("alert");
+		await expect.element(alert).toBeInTheDocument();
+		expect(alert.element()).toHaveTextContent("accent");
+		expect(document.querySelector(".ProseMirror")).toBe(pm);
+		expect(editor.getText()).toBe("Safe content");
+
+		typeIntoEditor(editor, " still editable");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+	});
+
+	it("keeps safe content editable when a section contains an unsafe table", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Safe content")],
+			onChange,
+		});
+		const unsafeSection = {
+			id: "section-table",
+			slug: "unsafe-table-section",
+			title: "Unsafe table section",
+			keywords: [],
+			content: [
+				{
+					_type: "table",
+					_key: "unsafe-table",
+					rows: [
+						{
+							_type: "tableRow",
+							_key: "row",
+							cells: [
+								{
+									_type: "tableCell",
+									_key: "cell",
+									content: [{ _type: "image", src: "/unsupported.png" }],
+								},
+							],
+						},
+					],
+				},
+			],
+			source: "user",
+			createdAt: "2026-09-07T00:00:00.000Z",
+			updatedAt: "2026-09-07T00:00:00.000Z",
+		};
+
+		await React.act(async () => {
+			sectionPickerProps.current?.onSelect(unsafeSection);
+		});
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Could not insert section");
+		expect(document.querySelector(".ProseMirror")).toBe(pm);
+		expect(editor.getText()).toBe("Safe content");
+
+		typeIntoEditor(editor, " still editable");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+	});
+
+	it("rejects unsupported table-cell paste with localized guidance and no mutation", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) => (type === "text/html" ? '<img src="/unsupported.png">' : ""),
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		const alert = screen.getByRole("alert");
+		await expect
+			.element(alert)
+			.toHaveTextContent("Table cells accept text, links, and formatting only.");
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("reports an image inside pasted table HTML as unsupported cell content", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) =>
+				type === "text/html"
+					? '<table><tbody><tr><td><img src="/unsupported.png"></td></tr></tbody></table>'
+					: "",
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("Table cells accept text, links, and formatting only.");
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("distinguishes oversized table paste from unsupported cell content", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const html = `<table><tbody><tr>${"<td>Cell</td>".repeat(101)}</tr></tbody></table>`;
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) => (type === "text/html" ? html : ""),
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("This paste is too large. Paste fewer cells or less text at a time.");
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("announces bounded TSV paste dimensions through the stable status region", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", {
+			value: {
+				files: [],
+				items: [],
+				types: ["text/plain"],
+				getData: (type: string) => (type === "text/plain" ? "A\tB" : ""),
+			},
+		});
+		editor.view.dom.dispatchEvent(paste);
+		await expect.element(screen.getByRole("status")).toHaveTextContent("1 × 2 table pasted");
+		expect(TableMap.get(editor.state.doc.firstChild!)).toMatchObject({ width: 2, height: 1 });
+	});
+
+	it("reports malformed quoted TSV without mutating the selected table", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", {
+			value: {
+				files: [],
+				items: [],
+				types: ["text/tab-separated-values"],
+				getData: (type: string) =>
+					type === "text/tab-separated-values" || type === "text/plain" ? '"unfinished' : "",
+			},
+		});
+		editor.view.dom.dispatchEvent(paste);
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again.",
+			);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("gives distinct guidance for malformed table geometry", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) =>
+				type === "text/html" ? '<table><tr><td colspan="101">Cell</td></tr></table>' : "",
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again.",
+			);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("explains that tables cannot be pasted inside lists or quotes", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) =>
+				type === "text/html"
+					? "<blockquote><table><tbody><tr><td>Cell</td></tr></tbody></table></blockquote>"
+					: "",
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again.",
+			);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("does not open block slash commands inside a table cell", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		editor.commands.insertContent("/");
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(document.querySelector("[data-slash-command-menu]")).toBeNull();
+		expect(editor.isActive("table")).toBe(true);
+		expect(editor.getText()).toContain("/");
+	});
+
 	it("renders a paragraph from PT value", async () => {
 		await render(<PortableTextEditor value={[textBlock("Hello world")]} />);
 		const pm = await waitForEditor();
@@ -305,12 +788,41 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(p!.textContent).toBe("Hello world");
 	});
 
+	it("does not report a change when mounting a payload-less registered block", async () => {
+		const onChange = vi.fn();
+		await render(
+			<PortableTextEditor
+				value={[{ _type: "test.divider", _key: "divider-1" }]}
+				onChange={onChange}
+				pluginBlocks={[
+					{
+						type: "test.divider",
+						pluginId: "test-blocks",
+						label: "Divider",
+						fields: [],
+					},
+				]}
+			/>,
+		);
+		await waitForEditor();
+
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
 	it("renders an h1 heading", async () => {
 		await render(<PortableTextEditor value={[textBlock("Title", { style: "h1" })]} />);
 		const pm = await waitForEditor();
 		const h1 = pm.querySelector("h1");
 		expect(h1).toBeTruthy();
 		expect(h1!.textContent).toBe("Title");
+	});
+
+	it("renders an h6 heading", async () => {
+		await render(<PortableTextEditor value={[textBlock("Detail", { style: "h6" })]} />);
+		const pm = await waitForEditor();
+		const h6 = pm.querySelector("h6");
+		expect(h6).toBeTruthy();
+		expect(h6!.textContent).toBe("Detail");
 	});
 
 	it("renders bold text", async () => {
@@ -338,6 +850,88 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(anchor).toBeTruthy();
 		expect(anchor!.textContent).toBe("Click me");
 		expect(anchor!.getAttribute("href")).toBe("https://example.com");
+	});
+
+	it("renders linked inline code in body text", async () => {
+		const linkKey = "lnk-code";
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("fetch", {
+						marks: ["code", linkKey],
+						markDefs: [{ _type: "link", _key: linkKey, href: "https://example.com/fetch" }],
+					}),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+		const code = pm.querySelector("code");
+		const anchor = pm.querySelector("a");
+		expect(code).toBeTruthy();
+		expect(anchor).toBeTruthy();
+		expect(code!.textContent).toBe("fetch");
+		expect(anchor!.getAttribute("href")).toBe("https://example.com/fetch");
+		expect(anchor!.querySelector("code") || code!.closest("a")).toBeTruthy();
+	});
+
+	it("renders linked inline code in headings", async () => {
+		const linkKey = "lnk-h-code";
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("useState", {
+						style: "h2",
+						marks: ["code", linkKey],
+						markDefs: [
+							{ _type: "link", _key: linkKey, href: "https://react.dev/reference/react/useState" },
+						],
+					}),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+		const heading = pm.querySelector("h2");
+		expect(heading).toBeTruthy();
+		expect(heading!.querySelector("code")).toBeTruthy();
+		expect(heading!.querySelector("a")?.getAttribute("href")).toBe(
+			"https://react.dev/reference/react/useState",
+		);
+	});
+
+	it("keeps code and link marks together when both are toggled", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			onChange,
+			value: [textBlock("API")],
+		});
+
+		editor
+			.chain()
+			.focus()
+			.selectAll()
+			.toggleCode()
+			.setLink({ href: "https://api.example.com" })
+			.run();
+
+		await vi.waitFor(() => {
+			expect(editor.isActive("code")).toBe(true);
+			expect(editor.isActive("link")).toBe(true);
+		});
+
+		await vi.waitFor(() => {
+			expect(onChange).toHaveBeenCalled();
+		});
+
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; _key: string; href?: string }>;
+		}>;
+		const span = blocks[0]?.children?.[0];
+		expect(span?.text).toBe("API");
+		expect(span?.marks).toContain("code");
+		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
+		expect(linkDef?.href).toBe("https://api.example.com");
+		expect(span?.marks).toContain(linkDef?._key);
 	});
 
 	it("renders a bullet list", async () => {
@@ -484,6 +1078,21 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		expect(pm.textContent).toContain("Bold italic");
 	});
 
+	it("renders subscript and superscript Portable Text marks", async () => {
+		await render(
+			<PortableTextEditor
+				value={[
+					textBlock("Subscript", { marks: ["subscript"] }),
+					textBlock("Superscript", { marks: ["superscript"] }),
+				]}
+			/>,
+		);
+		const pm = await waitForEditor();
+
+		expect(pm.querySelector("sub")?.textContent).toBe("Subscript");
+		expect(pm.querySelector("sup")?.textContent).toBe("Superscript");
+	});
+
 	it("fires onChange with valid PT blocks when typing", async () => {
 		const onChange = vi.fn();
 		const { editor } = await renderAndGetEditor({ onChange });
@@ -548,23 +1157,6 @@ describe("Editor component behaviour", () => {
 		await waitForEditor();
 		const wrapper = document.querySelector(".spotlight-mode");
 		expect(wrapper).toBeNull();
-	});
-
-	it("calls onFocusModeChange when spotlight button is clicked", async () => {
-		const onFocusModeChange = vi.fn();
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="normal"
-				onFocusModeChange={onFocusModeChange}
-				value={[textBlock("Test")]}
-			/>,
-		);
-		await waitForEditor();
-
-		// The spotlight button has aria-label containing "Spotlight Mode"
-		const spotlightBtn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await spotlightBtn.click();
-		expect(onFocusModeChange).toHaveBeenCalledWith("spotlight");
 	});
 
 	it("hides toolbar and footer in minimal mode", async () => {
@@ -677,11 +1269,40 @@ describe("Toolbar", () => {
 
 	it("has inline formatting buttons", async () => {
 		const screen = await renderWithToolbar();
-		await expect.element(screen.getByRole("button", { name: "Bold" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Italic" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Underline" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Strikethrough" })).toBeInTheDocument();
-		await expect.element(screen.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		const toolbar = screen.getByRole("toolbar");
+		await expect.element(toolbar.getByRole("button", { name: "Bold" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Italic" })).toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Underline" })).toBeInTheDocument();
+		await expect
+			.element(toolbar.getByRole("button", { name: "Strikethrough" }))
+			.toBeInTheDocument();
+		await expect.element(toolbar.getByRole("button", { name: "Inline Code" })).toBeInTheDocument();
+		expect(toolbar.element().querySelector('[aria-label="Subscript"]')).toBeNull();
+		expect(toolbar.element().querySelector('[aria-label="Superscript"]')).toBeNull();
+	});
+
+	it.each([
+		["Subscript", "subscript"],
+		["Superscript", "superscript"],
+	] as const)("persists %s formatting as a Portable Text mark", async (label, mark) => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange, value: [textBlock("2")] });
+		editor.chain().focus().selectAll().run();
+
+		let bubbleButton: HTMLButtonElement | null = null;
+		await vi.waitFor(() => {
+			bubbleButton = document.querySelector(
+				`[data-emdash-inline-bubble-menu] [aria-label="${label}"]`,
+			);
+			expect(bubbleButton).toBeTruthy();
+		});
+		bubbleButton!.click();
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ marks?: string[] }>;
+		}>;
+		expect(blocks[0]?.children?.[0]?.marks).toContain(mark);
 	});
 
 	it("has a heading menu", async () => {
@@ -691,6 +1312,9 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeInTheDocument();
 	});
 
 	it("has list buttons", async () => {
@@ -712,13 +1336,11 @@ describe("Toolbar", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeInTheDocument();
 	});
 
-	it("keeps insertion-only actions out of the formatting toolbar", async () => {
+	it("keeps extended insertion actions out of the formatting toolbar", async () => {
 		const screen = await renderWithToolbar();
 		const toolbar = screen.getByRole("toolbar").element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeInTheDocument();
 		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
 		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
@@ -732,11 +1354,9 @@ describe("Toolbar", () => {
 		await expect.element(redoBtn).toBeDisabled();
 	});
 
-	it("has spotlight mode button", async () => {
+	it("does not include a spotlight mode button", async () => {
 		const screen = await renderWithToolbar();
-		await expect
-			.element(screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN }))
-			.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Spotlight Mode/i }).query()).toBeNull();
 	});
 
 	it("toggles bold aria-pressed when clicked", async () => {
@@ -834,35 +1454,6 @@ describe("Toolbar", () => {
 			},
 			{ timeout: 2000 },
 		);
-	});
-
-	it("toggles spotlight mode button aria-pressed", async () => {
-		const onFocusModeChange = vi.fn();
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="normal"
-				onFocusModeChange={onFocusModeChange}
-				value={[textBlock("Test")]}
-			/>,
-		);
-		await waitForEditor();
-
-		const btn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
-	});
-
-	it("spotlight button shows pressed when focusMode is spotlight", async () => {
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="spotlight"
-				onFocusModeChange={() => {}}
-				value={[textBlock("Focused")]}
-			/>,
-		);
-		await waitForEditor();
-
-		const btn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "true");
 	});
 
 	it("toolbar not present in minimal mode", async () => {
@@ -1006,5 +1597,359 @@ describe("onChange output shape", () => {
 		const json = capturedEditor!.getJSON();
 		const listNode = json.content?.find((n: { type: string }) => n.type === "bulletList");
 		expect(listNode).toBeTruthy();
+	});
+});
+
+describe("Code block copy action", () => {
+	it("copies raw code and resets its accessible feedback", async () => {
+		const clipboardWrite = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "const greeting = 'hello';",
+						language: "javascript",
+					},
+				],
+			});
+			await expect
+				.element(screen.getByRole("button", { name: "Set language (current: JavaScript)" }))
+				.toBeInTheDocument();
+			const copyButton = screen.getByRole("button", { name: "Copy code" });
+			const status = copyButton
+				.element()
+				.closest(".emdash-code-block-node")!
+				.querySelector('[role="status"]')!;
+			await expect.element(copyButton).toBeInTheDocument();
+			vi.useFakeTimers();
+			await copyButton.click();
+			await vi.waitFor(() => {
+				expect(clipboardWrite).toHaveBeenCalledWith("const greeting = 'hello';");
+			});
+			await expect.element(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
+			await expect.element(status).toHaveTextContent("Copied");
+			await vi.advanceTimersByTimeAsync(1500);
+			await expect.element(status).toHaveTextContent("");
+		} finally {
+			vi.useRealTimers();
+			clipboardWrite.mockRestore();
+		}
+	});
+
+	it("keeps the newest copy feedback and reports failures", async () => {
+		let rejectFirst!: (reason: unknown) => void;
+		let resolveSecond!: () => void;
+		const firstCopy = new Promise<void>((_resolve, reject) => {
+			rejectFirst = reject;
+		});
+		const secondCopy = new Promise<void>((resolve) => {
+			resolveSecond = resolve;
+		});
+		const clipboardWrite = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockImplementationOnce(() => firstCopy)
+			.mockImplementationOnce(() => secondCopy)
+			.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(false);
+		try {
+			const { screen } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "copy()",
+						language: "javascript",
+					},
+				],
+			});
+			const copyButton = screen.getByRole("button", { name: "Copy code" }).element();
+			const status = copyButton
+				.closest(".emdash-code-block-node")!
+				.querySelector('[role="status"]')!;
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(1));
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(2));
+
+			resolveSecond();
+			await expect.element(status).toHaveTextContent("Copied");
+			rejectFirst(new DOMException("Denied", "NotAllowedError"));
+			await vi.waitFor(() => expect(status.textContent).toBe("Copied"));
+
+			copyButton.click();
+			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
+			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
+			await expect.element(status).toHaveTextContent("Copy failed");
+			expect(copyCommand).toHaveBeenCalledTimes(1);
+		} finally {
+			copyCommand.mockRestore();
+			clipboardWrite.mockRestore();
+		}
+	});
+
+	it("falls back after Clipboard API rejection and restores focus and selection", async () => {
+		const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+		const clipboardWrite = vi.fn().mockRejectedValue(new DOMException("Denied", "NotAllowedError"));
+		const copyCommand = vi.spyOn(document, "execCommand").mockReturnValue(true);
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { writeText: clipboardWrite },
+		});
+		try {
+			const { screen, editor } = await renderAndGetEditor({
+				value: [
+					{
+						_type: "code",
+						_key: "code",
+						code: "first line\nsecond line",
+						language: "plaintext",
+					},
+				],
+			});
+			const copyButton = screen.getByRole("button", { name: "Copy code" });
+			await expect.element(copyButton).toBeInTheDocument();
+			editor.chain().focus().setTextSelection({ from: 3, to: 13 }).run();
+			const selectionBeforeCopy = {
+				from: editor.state.selection.from,
+				to: editor.state.selection.to,
+			};
+			await vi.waitFor(() => expect(document.getSelection()?.toString()).not.toBe(""));
+			const domSelection = document.getSelection();
+			const rangeBeforeCopy = domSelection!.getRangeAt(0).cloneRange();
+			const activeElement = document.activeElement;
+			await copyButton.click();
+			await vi.waitFor(() => {
+				expect(clipboardWrite).toHaveBeenCalledWith("first line\nsecond line");
+				expect(copyCommand).toHaveBeenCalledWith("copy");
+			});
+			expect(document.activeElement).toBe(activeElement);
+			expect(editor.state.selection.from).toBe(selectionBeforeCopy.from);
+			expect(editor.state.selection.to).toBe(selectionBeforeCopy.to);
+			expect(domSelection?.toString()).not.toBe("");
+			const rangeAfterCopy = domSelection!.getRangeAt(0);
+			expect(rangeAfterCopy.startContainer).toBe(rangeBeforeCopy.startContainer);
+			expect(rangeAfterCopy.startOffset).toBe(rangeBeforeCopy.startOffset);
+			expect(rangeAfterCopy.endContainer).toBe(rangeBeforeCopy.endContainer);
+			expect(rangeAfterCopy.endOffset).toBe(rangeBeforeCopy.endOffset);
+		} finally {
+			copyCommand.mockRestore();
+			if (clipboardDescriptor) {
+				Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+			} else {
+				Reflect.deleteProperty(navigator, "clipboard");
+			}
+		}
+	});
+
+	it("preserves alias, free-form, and cancel behavior", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "custom()",
+					language: "plaintext",
+				},
+			],
+		});
+		const storedLanguage = () =>
+			editor.getJSON().content?.find((item) => item.type === "codeBlock")?.attrs?.language;
+		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
+		await screen.getByPlaceholder("Search for a language…").fill("js");
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("javascript"));
+		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
+		const discardedInput = screen.getByPlaceholder("Search for a language…");
+		await discardedInput.fill("Discarded Language");
+		const discardedInputElement = discardedInput.element() as HTMLInputElement;
+		await userEvent.keyboard("{Escape}");
+		expect(discardedInputElement.value).toBe("Discarded Language");
+		expect(storedLanguage()).toBe("javascript");
+
+		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
+		await screen.getByRole("combobox", { name: "Language" }).fill("Custom Language");
+		await expect
+			.element(screen.getByText("No matches. Press Enter to use “custom-language”."))
+			.toBeVisible();
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
+
+		await screen.getByRole("button", { name: "Set language (current: custom-language)" }).click();
+		await userEvent.keyboard("{ArrowDown}{Enter}");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("astro"));
+	});
+
+	it("keeps language suggestions available while typing over the current language", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: 'const greeting = "hello";',
+					language: "plaintext",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
+
+		const input = screen.getByPlaceholder("Search for a language…");
+		await expect.element(input).toHaveValue("");
+		expect(
+			screen
+				.getByRole("option")
+				.elements()
+				.slice(0, 3)
+				.map((option) => option.textContent?.trim()),
+		).toEqual(["Astro", "Bash", "C"]);
+		const emptyStatus = document.querySelector<HTMLElement>('.kumo-popover-popup [role="status"]');
+		expect(emptyStatus).not.toBeNull();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill(" js ");
+		await expect.element(screen.getByRole("option", { name: "JavaScript" })).toBeVisible();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill("");
+		await userEvent.keyboard("Java");
+
+		await expect.element(input).toHaveValue("Java");
+		await screen.getByRole("option", { name: "JavaScript" }).click();
+
+		await vi.waitFor(() => {
+			const codeBlock = editor.getJSON().content?.find((item) => item.type === "codeBlock");
+			expect(codeBlock?.attrs?.language).toBe("javascript");
+			expect(codeBlock?.content?.[0]?.text).toBe('const greeting = "hello";');
+		});
+	});
+
+	it("identifies the search and marks the stored language", async () => {
+		const { screen } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "Console.WriteLine();",
+					language: "csharp",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: C#)" }).click();
+
+		await expect.element(screen.getByRole("combobox", { name: "Language" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("option", { name: "C#" }))
+			.toHaveAttribute("aria-selected", "true");
+	});
+
+	it("prevents block formatting that cannot survive inside a table cell", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+
+		const changedToHeading = editor.chain().focus().toggleHeading({ level: 2 }).run();
+		const table = editor.getJSON().content?.find((node) => node.type === "table");
+		const cellContent = table?.content?.[0]?.content?.[0]?.content;
+
+		expect(changedToHeading).toBe(false);
+		expect(cellContent?.map((node) => node.type)).toEqual(["paragraph"]);
+	});
+
+	it("assigns stable unique keys to newly created table structures", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 2, withHeaderRow: false }).run();
+
+		const tableKeys = () => {
+			const keys: string[] = [];
+			editor.state.doc.descendants((node) => {
+				if (!["table", "tableRow", "tableCell", "tableHeader"].includes(node.type.name)) {
+					return;
+				}
+				keys.push(node.attrs.emdashKey);
+			});
+			return keys;
+		};
+		const initialKeys = tableKeys();
+
+		expect(initialKeys).toHaveLength(4);
+		expect(initialKeys.every((key) => typeof key === "string" && key.length > 0)).toBe(true);
+		expect(new Set(initialKeys).size).toBe(initialKeys.length);
+
+		editor.chain().focus().addRowAfter().run();
+		const expandedKeys = tableKeys();
+		expect(expandedKeys.slice(0, initialKeys.length)).toEqual(initialKeys);
+		expect(new Set(expandedKeys).size).toBe(expandedKeys.length);
+	});
+
+	it("does not erase opaque metadata when separate tables reuse structural keys", async () => {
+		const table = (key: string, text: string, source: string) => ({
+			_type: "table",
+			_key: key,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "shared-row",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "shared-cell",
+							source,
+							content: [{ _type: "span", _key: `${key}-span`, text }],
+						},
+					],
+				},
+			],
+		});
+		const { editor } = await renderAndGetEditor({
+			value: [
+				table("first-table", "First", "first-source"),
+				table("second-table", "Second", "second-source"),
+			],
+		});
+		let firstTextPosition = 0;
+		editor.state.doc.descendants((node, position) => {
+			if (node.isText && node.text === "First") firstTextPosition = position;
+		});
+
+		editor.chain().focus().setTextSelection(firstTextPosition).addRowAfter().run();
+
+		const tables = editor.getJSON().content?.filter((node) => node.type === "table") ?? [];
+		expect(tables[0]?.content?.[0]?.content?.[0]?.attrs?.emdashData).toEqual({
+			source: "first-source",
+		});
+		expect(tables[1]?.content?.[0]?.content?.[0]?.attrs?.emdashData).toEqual({
+			source: "second-source",
+		});
+		expect(tables[0]?.content?.[0]?.content?.[0]?.attrs?.emdashKey).toBe("shared-cell");
+		expect(tables[1]?.content?.[0]?.content?.[0]?.attrs?.emdashKey).toBe("shared-cell");
+	});
+
+	it("refuses to edit stored table cell content that cannot round-trip safely", async () => {
+		const screen = await render(
+			<PortableTextEditor
+				value={[
+					{
+						_type: "table",
+						_key: "unsafe-table",
+						rows: [
+							{
+								_type: "tableRow",
+								_key: "unsafe-row",
+								cells: [
+									{
+										_type: "tableCell",
+										_key: "unsafe-cell",
+										content: [{ _type: "image", src: "/lost.png" }],
+									},
+								],
+							},
+						],
+					},
+				]}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("This table cannot be edited safely");
+		expect(document.querySelector(".ProseMirror")).toBeNull();
 	});
 });

@@ -5,8 +5,8 @@ import { ArrowCounterClockwise, CaretDown, Plus, Minus, PencilSimple } from "@ph
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchRevisions, restoreRevision, type Revision } from "../lib/api";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { fetchRevisions, restoreRevision, type ContentItem, type Revision } from "../lib/api";
+import { cn, formatRelativeTime, parseTimestamp } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -69,8 +69,8 @@ function formatDiffValue(value: unknown): string {
 interface RevisionHistoryProps {
 	collection: string;
 	entryId: string;
-	/** Called when a revision is successfully restored */
-	onRestored?: () => void;
+	/** Called when a revision is successfully restored with the returned item. */
+	onRestored?: (item: ContentItem) => void;
 	/** Reserve the inline end of the disclosure header for an external control. */
 	reserveHeaderEnd?: boolean;
 }
@@ -79,7 +79,7 @@ interface RevisionHistoryProps {
  * Format a date as a full timestamp
  */
 function formatFullDate(dateString: string): string {
-	return new Date(dateString).toLocaleString(undefined, {
+	return parseTimestamp(dateString).toLocaleString(undefined, {
 		weekday: "short",
 		year: "numeric",
 		month: "short",
@@ -114,7 +114,7 @@ export function RevisionHistory({
 
 	const restoreMutation = useMutation({
 		mutationFn: (revisionId: string) => restoreRevision(revisionId),
-		onSuccess: () => {
+		onSuccess: (restoredItem) => {
 			// Invalidate content and revisions queries
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, entryId],
@@ -124,7 +124,7 @@ export function RevisionHistory({
 			});
 			setSelectedRevision(null);
 			setRestoreTarget(null);
-			onRestored?.();
+			onRestored?.(restoredItem);
 			toastManager.add({
 				title: t`Revision restored`,
 				description: t`Content has been updated to the selected revision.`,
@@ -361,7 +361,7 @@ function RevisionDiffView({ older, newer }: RevisionDiffViewProps) {
 					<button
 						type="button"
 						onClick={() => setShowUnchanged(!showUnchanged)}
-						className="text-xs text-kumo-brand hover:underline"
+						className="text-xs text-kumo-link hover:underline"
 					>
 						{showUnchanged
 							? plural(unchangedCount, { one: "Hide # unchanged", other: "Hide # unchanged" })

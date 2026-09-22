@@ -78,18 +78,25 @@ export default defineConfig({
 		"src/astro/middleware.ts",
 		"src/astro/middleware/setup.ts",
 		"src/astro/middleware/auth.ts",
+		"src/astro/middleware/media-usage-write-fence.ts",
 		"src/astro/middleware/redirect.ts",
 		"src/astro/middleware/request-context.ts",
 		"src/astro/types.ts",
 		// Database adapters (config-time + runtime via virtual:emdash/dialect)
 		"src/db/index.ts",
 		"src/db/sqlite.ts",
+		"src/db/sqlite-migrations.ts",
 		"src/db/libsql.ts",
+		"src/db/libsql-migrations.ts",
 		"src/db/postgres.ts",
+		"src/db/postgres-migrations.ts",
+		"src/migrations/index.ts",
 		// Query instrumentation (used by first-party adapters like @emdash-cms/cloudflare)
 		"src/database/instrumentation.ts",
 		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)
 		"src/database/pg-migration-lock.ts",
+		// Row-based migration lock (used by @emdash-cms/cloudflare's D1 adapters)
+		"src/database/migration-lock.ts",
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",
@@ -116,10 +123,18 @@ export default defineConfig({
 		"src/page/index.ts",
 		// Plugin admin utilities (shared helpers for plugin admin.tsx files)
 		"src/plugin-utils.ts",
-		// `emdash/plugin` — type-only subpath for sandboxed plugin authors.
+		// `emdash/plugin` — sandboxed authoring types and lightweight helpers.
 		"src/plugin-types.ts",
+		"src/plugin-test-runtime.ts",
+		"src/registry/testing.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)
 		"src/plugins/adapt-sandbox-entry.ts",
+		// Platform adapter runtime used behind lazy sandbox bridges.
+		"src/plugins/host.ts",
+		// Lightweight synchronous log redaction for sandbox bridges.
+		"src/plugins/secret-redactor.ts",
+		// Binary-safe HTTP transport shared by sandbox runners.
+		"src/plugins/http-wire.ts",
 		// Public source-exported subpaths -- compiled so consumers never
 		// type-check our raw .ts (avoids the dual-package identity hazard).
 		// `./ui`, `./ui/search` and the `*-admin.tsx` providers stay source:
@@ -136,8 +151,9 @@ export default defineConfig({
 	format: "esm",
 	dts: true,
 	clean: true,
-	// Deps are externalized via `external` + package.json deps; nothing is
-	// unintentionally bundled. Suppress tsdown's advisory (CI escalates it).
+	// pnpm applies the image-size patch only inside this workspace, so bundle
+	// the patched implementation into every published entry that uses it.
+	noExternal: ["image-size", /^@emdash-cms\/registry-verification(?:\/|$)/],
 	inlineOnly: false,
 	inputOptions: (options) => {
 		// tsdown has already normalized the `entry` array into an input record
@@ -155,10 +171,6 @@ export default defineConfig({
 	},
 	// Externalize native modules, dialect-specific packages, and internal shared modules
 	external: [
-		// Native modules that use __filename
-		"better-sqlite3",
-		"bindings",
-		"file-uri-to-path",
 		// Dialect-specific packages
 		"@libsql/kysely-libsql",
 		"pg",

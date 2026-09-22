@@ -109,6 +109,9 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 	// Close the menu
 	const handleCloseMenu = React.useCallback(() => {
 		setMenuOpen(false);
+	}, []);
+
+	const handleMenuCloseComplete = React.useCallback(() => {
 		setMenuAnchor(null);
 		editor.commands.setMeta("lockDragHandle", false);
 	}, [editor]);
@@ -119,13 +122,10 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 			if (data.node) {
 				setHoveredNode({ node: data.node, pos: data.pos });
 			} else {
-				// Only clear if menu is not open
-				if (!menuOpen) {
-					setHoveredNode(null);
-				}
+				setHoveredNode(null);
 			}
 		},
-		[menuOpen],
+		[],
 	);
 
 	// Stable reference — DragHandle's useEffect depends on this by reference.
@@ -186,6 +186,8 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 						onClick={handleClick}
 						data-block-handle
 						aria-label={t`Block actions - drag to reorder, click for menu`}
+						aria-haspopup="menu"
+						aria-expanded={menuOpen}
 					>
 						<DotsSixVertical className="h-4 w-4" aria-hidden="true" />
 					</Button>
@@ -198,6 +200,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 				anchorElement={menuAnchor}
 				isOpen={menuOpen}
 				onClose={handleCloseMenu}
+				onCloseComplete={handleMenuCloseComplete}
 			/>
 		</>
 	);

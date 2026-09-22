@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SEARCH_TOKENIZERS } from "../../search/types.js";
 import { localeCode } from "./common.js";
 
 // ---------------------------------------------------------------------------
@@ -14,6 +15,10 @@ export const searchQuery = z
 		locale: localeCode.optional(),
 		limit: z.coerce.number().int().min(1).max(100).optional(),
 		cursor: z.string().optional(),
+		scope: z.enum(["all", "title"]).optional().meta({
+			description:
+				"Which indexed fields to match against. 'title' matches only the collection's title field; collections without an indexed title field return no results. Defaults to 'all'.",
+		}),
 	})
 	.meta({ id: "SearchQuery" });
 
@@ -37,6 +42,7 @@ export const searchEnableBody = z
 		collection: z.string().min(1),
 		enabled: z.boolean(),
 		weights: z.record(z.string(), z.number()).optional(),
+		tokenize: z.enum(SEARCH_TOKENIZERS).optional(),
 	})
 	.meta({ id: "SearchEnableBody" });
 

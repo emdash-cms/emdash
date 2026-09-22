@@ -3,320 +3,251 @@ title: Create a Blog
 description: Build a complete blog with posts, categories, and tags using EmDash.
 ---
 
-import { Aside, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components";
-import postsListImg from "../../../assets/screenshots/admin-posts-list.png";
-import postEditorImg from "../../../assets/screenshots/admin-post-editor.png";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-This guide covers creating a blog with EmDash, from defining the content type to displaying posts with categories and tags.
+The EmDash blog template provides a working Astro site with posts, pages, authors, categories, tags,
+search, comments, widgets, and an RSS feed. This tutorial creates the Cloudflare version, publishes
+one post, and traces that post through the template code.
 
 ## Prerequisites
 
-- An EmDash site set up and running (see [Getting Started](/getting-started/))
-- Basic familiarity with Astro components
+Install [Node.js](https://nodejs.org/) 22.12 or later and
+[pnpm](https://pnpm.io/installation) before starting.
 
-## Define the Posts Collection
+You need a Cloudflare account only when you deploy the site. During local development, the template
+runs local versions of the database and file storage on your computer.
 
-EmDash creates a default "posts" collection during setup. Customize it from the admin dashboard or the API.
+## Scaffold the blog
 
-The default posts collection includes:
-
-- `title` - Post title
-- `slug` - URL-friendly identifier
-- `content` - Rich text body
-- `excerpt` - Short description
-- `featured_image` - Header image (optional)
-- `status` - draft, published, or scheduled
-- `publishedAt` - Publication date (system field)
-
-## Create Your First Post
-
-1. Open the admin dashboard at `/_emdash/admin`
-
-2. Click **Posts** in the sidebar
-
-   <img src={postsListImg.src} alt="EmDash posts list showing titles, status, and dates" />
-
-3. Click **New Post**
-
-   <img src={postEditorImg.src} alt="EmDash post editor with title, content, and publish options" />
-
-4. Enter a title and write your content using the rich text editor
-
-5. Add categories and tags in the sidebar panel
-
-6. Set the status to **Published**
-
-7. Click **Save**
-
-The post is now live and appears immediately.
-
-## Display Posts on Your Site
-
-### List All Posts
-
-The following page displays all published posts:
-
-```astro title="src/pages/blog/index.astro"
----
-import { getEmDashCollection } from "emdash";
-import Base from "../../layouts/Base.astro";
-
-const { entries: posts } = await getEmDashCollection("posts", {
-  status: "published",
-});
-
-// Sort by publication date, newest first
-const sortedPosts = posts.sort(
-  (a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0)
-);
----
-
-<Base title="Blog">
-  <h1>Blog</h1>
-  <ul>
-    {sortedPosts.map((post) => (
-      <li>
-        <a href={`/blog/${post.data.slug}`}>
-          <h2>{post.data.title}</h2>
-          <p>{post.data.excerpt}</p>
-          <time datetime={post.data.publishedAt?.toISOString()}>
-            {post.data.publishedAt?.toLocaleDateString()}
-          </time>
-        </a>
-      </li>
-    ))}
-  </ul>
-</Base>
-```
-
-### Display a Single Post
-
-The following dynamic route renders an individual post:
-
-```astro title="src/pages/blog/[slug].astro"
----
-import { getEmDashCollection, getEmDashEntry } from "emdash";
-import { PortableText, Image } from "emdash/ui";
-import Base from "../../layouts/Base.astro";
-
-export async function getStaticPaths() {
-  const { entries: posts } = await getEmDashCollection("posts", {
-    status: "published",
-  });
-
-  return posts.map((post) => ({
-    params: { slug: post.data.slug },
-  }));
-}
-
-const { slug } = Astro.params;
-const { entry: post } = await getEmDashEntry("posts", slug);
-
-if (!post) {
-  return Astro.redirect("/404");
-}
----
-
-<Base title={post.data.title}>
-  <article>
-    {post.data.featured_image && (
-      <Image image={post.data.featured_image} alt="" />
-    )}
-    <h1>{post.data.title}</h1>
-    <time datetime={post.data.publishedAt?.toISOString()}>
-      {post.data.publishedAt?.toLocaleDateString()}
-    </time>
-    <PortableText value={post.data.content} />
-  </article>
-</Base>
-```
-
-<Aside type="tip">
-	For server-rendered sites, remove `getStaticPaths` and the page will render on demand. EmDash's
-	live content collections work in both modes.
-</Aside>
-
-## Add Categories and Tags
-
-EmDash includes built-in category and tag taxonomies. See [Taxonomies](/guides/taxonomies/) for details on creating and managing terms.
-
-### Filter Posts by Category
-
-The following route lists posts in a single category:
-
-```astro title="src/pages/category/[slug].astro"
----
-import { getEmDashCollection, getTerm, getTaxonomyTerms } from "emdash";
-import Base from "../../layouts/Base.astro";
-
-export async function getStaticPaths() {
-  const categories = await getTaxonomyTerms("category");
-
-  // Flatten hierarchical categories
-  const flatten = (terms) => terms.flatMap((t) => [t, ...flatten(t.children)]);
-
-  return flatten(categories).map((cat) => ({
-    params: { slug: cat.slug },
-    props: { category: cat },
-  }));
-}
-
-const { category } = Astro.props;
-
-const { entries: posts } = await getEmDashCollection("posts", {
-  status: "published",
-  where: { category: category.slug },
-});
----
-
-<Base title={category.label}>
-  <h1>{category.label}</h1>
-  {category.description && <p>{category.description}</p>}
-
-  <ul>
-    {posts.map((post) => (
-      <li>
-        <a href={`/blog/${post.data.slug}`}>{post.data.title}</a>
-      </li>
-    ))}
-  </ul>
-</Base>
-```
-
-### Display Post Categories
-
-The following component shows the categories and tags assigned to a post:
-
-```astro title="src/components/PostMeta.astro"
----
-import { getEntryTerms } from "emdash";
-
-interface Props {
-  postId: string;
-}
-
-const { postId } = Astro.props;
-const categories = await getEntryTerms("posts", postId, "category");
-const tags = await getEntryTerms("posts", postId, "tag");
----
-
-<div class="post-meta">
-  {categories.length > 0 && (
-    <div class="categories">
-      <span>Categories:</span>
-      {categories.map((cat) => (
-        <a href={`/category/${cat.slug}`}>{cat.label}</a>
-      ))}
-    </div>
-  )}
-
-  {tags.length > 0 && (
-    <div class="tags">
-      <span>Tags:</span>
-      {tags.map((tag) => (
-        <a href={`/tag/${tag.slug}`}>{tag.label}</a>
-      ))}
-    </div>
-  )}
-</div>
-```
-
-## Add Pagination
-
-For blogs with many posts, the following route paginates the post list:
-
-```astro title="src/pages/blog/page/[page].astro"
----
-import { getEmDashCollection } from "emdash";
-import Base from "../../../layouts/Base.astro";
-
-const POSTS_PER_PAGE = 10;
-
-export async function getStaticPaths() {
-  const { entries: allPosts } = await getEmDashCollection("posts", {
-    status: "published",
-  });
-
-  const totalPages = Math.ceil(allPosts.length / POSTS_PER_PAGE);
-
-  return Array.from({ length: totalPages }, (_, i) => ({
-    params: { page: String(i + 1) },
-    props: { currentPage: i + 1, totalPages },
-  }));
-}
-
-const { currentPage, totalPages } = Astro.props;
-
-const { entries: allPosts } = await getEmDashCollection("posts", {
-  status: "published",
-});
-
-const sortedPosts = allPosts.sort(
-  (a, b) => (b.data.publishedAt?.getTime() ?? 0) - (a.data.publishedAt?.getTime() ?? 0)
-);
-
-const start = (currentPage - 1) * POSTS_PER_PAGE;
-const posts = sortedPosts.slice(start, start + POSTS_PER_PAGE);
----
-
-<Base title={`Blog - Page ${currentPage}`}>
-  <h1>Blog</h1>
-
-  <ul>
-    {posts.map((post) => (
-      <li>
-        <a href={`/blog/${post.data.slug}`}>{post.data.title}</a>
-      </li>
-    ))}
-  </ul>
-
-  <nav>
-    {currentPage > 1 && (
-      <a href={`/blog/page/${currentPage - 1}`}>Previous</a>
-    )}
-    <span>Page {currentPage} of {totalPages}</span>
-    {currentPage < totalPages && (
-      <a href={`/blog/page/${currentPage + 1}`}>Next</a>
-    )}
-  </nav>
-</Base>
-```
-
-## Add an RSS Feed
-
-The following endpoint generates an RSS feed for the blog:
-
-```ts title="src/pages/rss.xml.ts"
-import rss from "@astrojs/rss";
-import { getEmDashCollection } from "emdash";
-
-export async function GET(context) {
-	const { entries: posts } = await getEmDashCollection("posts", {
-		status: "published",
-	});
-
-	return rss({
-		title: "My Blog",
-		description: "A blog built with EmDash",
-		site: context.site,
-		items: posts.map((post) => ({
-			title: post.data.title,
-			pubDate: post.data.publishedAt,
-			description: post.data.excerpt,
-			link: `/blog/${post.data.slug}`,
-		})),
-	});
-}
-```
-
-The feed depends on the `@astrojs/rss` package. The following command installs it:
+The following command creates `my-blog` from the Cloudflare blog template and installs its
+dependencies with pnpm:
 
 ```bash
-npm install @astrojs/rss
+npm create emdash@latest my-blog -- --template cloudflare:blog --pm pnpm --yes
 ```
 
-## Next Steps
+The scaffolder also creates a local `.env` file with an `EMDASH_ENCRYPTION_KEY`. The generated
+`.gitignore` excludes `.env` from version control. If the command reports that dependency
+installation failed, enter the project directory and run `pnpm install` before continuing.
 
-- [Working with Content](/guides/working-with-content/) - Learn CRUD operations in the admin
-- [Media Library](/guides/media-library/) - Add images to your posts
-- [Taxonomies](/guides/taxonomies/) - Create custom classification systems
+Start the local development server:
+
+```bash
+cd my-blog
+pnpm dev
+```
+
+Open the local URL printed in the terminal, then open `/_emdash/admin`. Complete the setup screen if
+this is the first run. The template's seed data creates the content model and sample content during
+setup.
+
+<Aside>
+	For a Node.js deployment with SQLite and local file storage, use
+	`--template node:blog` in the scaffold command. The content model and Astro pages are the same.
+</Aside>
+
+## Understand the content model
+
+The template defines two collections in `seed/seed.json`:
+
+- `posts` enables drafts, revisions, search, and SEO through `supports`, and enables comments
+  separately with `commentsEnabled: true`;
+- `pages` supports drafts, revisions, and search.
+
+Each post has these custom fields:
+
+| Field | Purpose |
+| --- | --- |
+| `title` | Required post title |
+| `featured_image` | Optional image displayed with the post |
+| `content` | Portable Text body |
+| `excerpt` | Short text used in post lists and metadata fallbacks |
+
+EmDash adds system fields such as the stable content ID, slug, status, creation and update times,
+and publication time. The template also defines `category` and `tag` taxonomies for posts, plus
+bylines that can credit one or more authors.
+
+The dev server generates `emdash-env.d.ts` from this schema. As a result,
+`getEmDashCollection("posts")` returns entries whose `data` property is typed as `Post`.
+
+## Publish the first post
+
+<Steps>
+1. In the admin sidebar, select **Posts**, then **Add New**.
+
+2. Enter a title. EmDash suggests a slug from the title; edit it if the public URL needs a different
+   value.
+
+3. Add an excerpt and write the body in the **Content** editor.
+
+4. Select a featured image from the Media Library or upload one. Add alt text that describes the
+   image's purpose in the post.
+
+5. Assign a byline, category, and any relevant tags in the settings panel.
+
+6. Select **Save**. The entry becomes a draft and the editor opens its permanent entry URL.
+
+7. Select **Preview** and check the post page. Return to the editor and select **Publish** when the
+   draft is ready.
+</Steps>
+
+Open `/posts/your-post-slug` on the local site. The post also appears on the home page and the posts
+archive. If it does not appear, confirm that the editor shows **Published**, rather than **Draft** or
+**Scheduled**.
+
+<Aside>
+	Posts created during this tutorial are stored only in the local development database. Deploying
+	the site does not copy them to production.
+</Aside>
+
+After publication, edits autosave to a new draft while the current post remains live. Select
+**Publish changes** when the revised draft should replace it. The
+[content authoring guide](/guides/working-with-content/#save-draft-changes) explains previews,
+scheduling, revisions, and edit locks.
+
+## Follow the collection query
+
+The home page and post archive call `getEmDashCollection()` during the server render. The template
+orders posts in the database by the stored `published_at` field:
+
+```astro title="src/pages/posts/index.astro (excerpt)"
+---
+import { getEmDashCollection, getTermsForEntries } from "emdash";
+
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+  orderBy: { published_at: "desc" },
+});
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const tagsByEntry = await getTermsForEntries(
+  "posts",
+  posts.map((post) => post.data.id),
+  "tag",
+);
+---
+```
+
+The collection query returns published entries by default. It uses `published_at`, the database
+field name, for ordering. The returned `publishedAt` property is a JavaScript `Date` for rendering.
+
+The taxonomy helper receives `post.data.id` because taxonomy assignments belong to the stable
+content ID. Links use `post.id` instead, because that is the URL-facing slug produced by the content
+loader:
+
+```astro
+<a href={`/posts/${post.id}`}>
+  <h2>{post.data.title}</h2>
+  {post.data.excerpt && <p>{post.data.excerpt}</p>}
+</a>
+```
+
+The current template batches tag lookups with `getTermsForEntries()` instead of querying once for
+each post. Bylines are already included in `post.data.bylines` by the collection query.
+
+## Follow the post query
+
+The dynamic post route reads the slug from the URL and calls `getEmDashEntry()`. The following
+excerpt shows the essential query and rendering path while the complete template also handles SEO,
+bylines, comments, related posts, and widgets:
+
+```astro title="src/pages/posts/[slug].astro (excerpt)"
+---
+import { decodeSlug, getEmDashEntry } from "emdash";
+import { Image, PortableText } from "emdash/ui";
+
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
+
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+
+if (error) return new Response("Unable to load post", { status: 500 });
+if (!post) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
+
+<article>
+  {post.data.featured_image && <Image image={post.data.featured_image} priority />}
+  <h1>{post.data.title}</h1>
+  <PortableText value={post.data.content} />
+</article>
+```
+
+`Image` reads the media value selected by the editor and generates responsive output.
+`PortableText` turns the stored block data into headings, paragraphs, links, images, code blocks,
+and the other supported block types.
+
+Both blog templates set `output: "server"` in `astro.config.mjs`. These queries run when a request is
+rendered, so published content does not depend on a static route list created during the build.
+
+## Use categories and tags
+
+The template includes archive routes for each category and tag. A category route first resolves the
+term slug, then filters posts by that taxonomy:
+
+```astro title="src/pages/category/[slug].astro (excerpt)"
+---
+import { decodeSlug, getEmDashCollection, getTerm } from "emdash";
+
+const slug = decodeSlug(Astro.params.slug);
+const category = slug
+  ? await getTerm("category", slug, { includeCounts: false })
+  : null;
+
+if (!category) return Astro.redirect("/404");
+
+const { entries: posts, error } = await getEmDashCollection("posts", {
+  where: { category: category.slug },
+  orderBy: { published_at: "desc" },
+});
+
+if (error) return new Response("Unable to load posts", { status: 500 });
+---
+```
+
+The `tag` route uses the same pattern with `getTerm("tag", slug)` and
+`where: { tag: term.slug }`. Editors manage terms and assignments in the admin; the
+[Taxonomies guide](/guides/taxonomies/) covers hierarchical categories, flat tags, and custom
+taxonomies.
+
+`getEmDashEntry()` includes the post's assigned terms, so the detail route can render them without
+another query:
+
+```astro
+---
+const categories = post.data.terms?.category ?? [];
+const tags = post.data.terms?.tag ?? [];
+---
+
+{categories.map((category) => (
+  <a href={`/category/${category.slug}`}>{category.label}</a>
+))}
+{tags.map((tag) => (
+  <a href={`/tag/${tag.slug}`}>{tag.label}</a>
+))}
+```
+
+## Add archive pagination
+
+The template's post archive renders every published post. When the archive grows, add a `limit` and
+use offset pagination for numbered routes such as `/posts/page/2`, or cursor pagination for an
+**Older posts** link. Keep `orderBy: { published_at: "desc" }` unchanged between pages so entries do
+not change order unexpectedly.
+
+The [pagination examples](/guides/querying-content/#paginate-a-collection) show both approaches and
+explain when to choose each one.
+
+## Check the RSS feed
+
+The template already serves `/rss.xml`. Its endpoint reads the 20 newest posts with
+`getEmDashCollection()`, formats each published date, and escapes the title and excerpt before
+inserting them into XML. It also reads the site title and tagline from EmDash settings.
+
+After publishing the test post, open `/rss.xml` and search for its title. If the site will use an
+absolute production URL in feeds, set Astro's `site` option before deployment; the endpoint falls
+back to the current request origin during local development.
+
+At this point the blog has an authoring workflow, runtime post pages, taxonomy archives, media
+rendering, and a feed. Continue with [Querying Content](/guides/querying-content/) for filters and
+pagination, or [Media Library](/guides/media-library/) for asset editing and usage tracking. To
+draft or edit posts with an AI assistant, follow [AI Tools](/guides/ai-tools/).

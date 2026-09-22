@@ -1,0 +1,7 @@
+---
+const { node } = Astro.props;
+---
+
+<ol data-custom-list="true" data-start={node.start}>
+	<slot />
+</ol>

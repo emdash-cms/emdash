@@ -25,14 +25,14 @@
 
 import { getDb } from "../loader.js";
 import { getMenu } from "../menus/index.js";
-import { setRequestCacheEntry } from "../request-cache.js";
+import { requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getSiteSettings } from "../settings/index.js";
 import { getTaxonomyDefs, getTaxonomyTerms } from "../taxonomies/index.js";
 import { getWidgetAreas } from "../widgets/index.js";
 
 /** Warm widget areas: one bulk load, primed under each per-area cache key. */
 async function prefetchWidgetAreas(): Promise<void> {
-	const areas = await getWidgetAreas();
+	const areas = await requestCached("widget-areas", getWidgetAreas);
 	// getWidgetArea(name) caches under `widget-area:${name}` and returns the same
 	// WidgetArea shape getWidgetAreas yields, so priming here makes those calls hit.
 	for (const area of areas) {
@@ -40,10 +40,15 @@ async function prefetchWidgetAreas(): Promise<void> {
 	}
 }
 
-/** Warm every taxonomy's term list via the real helper (primes per-name keys). */
+/**
+ * Warm every taxonomy's term list via the real helper (primes per-name keys).
+ * Counts are left out: they cost an aggregate over the whole assignment pivot
+ * per taxonomy, and only a consumer that renders one can say it's needed. A
+ * consumer that does asks for it and reuses the term list warmed here.
+ */
 async function prefetchTaxonomyTerms(): Promise<void> {
 	const defs = await getTaxonomyDefs();
-	await Promise.allSettled(defs.map((def) => getTaxonomyTerms(def.name)));
+	await Promise.allSettled(defs.map((def) => getTaxonomyTerms(def.name, { includeCounts: false })));
 }
 
 /** Warm every menu via the real helper (primes `menu:${name}:${locale}`). */

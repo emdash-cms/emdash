@@ -1,19 +1,124 @@
 {
 	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
-
 	"slug": "marketplace-test",
-	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
-
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6",
+	"repo": "https://github.com/emdash-cms/emdash",
 	"license": "MIT",
-	"author": { "name": "Matt Kane" },
+	"author": { "name": "EmDash" },
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
-	"description": "Test plugin for end-to-end registry publishing and audit workflow testing.",
-
-	// Trust contract. Reads and writes content; declared `events`
-	// storage collection. No outbound network.
-	"capabilities": ["content:read", "content:write"],
+	"description": "Maximal sandboxed plugin fixture for registry, consent, runtime, and admin testing.",
+	"capabilities": [
+		"network:request:unrestricted",
+		"content:read",
+		"content:revisions:read",
+		"content:write",
+		"content:publish",
+		"content:restore",
+		"comments:read",
+		"comments:moderate",
+		"schema:read",
+		"hooks.content-policy:register",
+		"taxonomies:read",
+		"taxonomies:write",
+		"redirects:read",
+		"redirects:write",
+		"media:read",
+		"media:bytes:read",
+		"media:metadata:write",
+		"media:write",
+		"users:read",
+		"email:send",
+		"hooks.email-transport:register",
+		"hooks.email-events:register",
+		"hooks.page-fragments:register",
+	],
 	"allowedHosts": [],
 	"storage": {
-		"events": { "indexes": ["timestamp", "type"] },
+		"events": { "indexes": ["type", "timestamp", ["type", "timestamp"]] },
+		"lifecycle": { "indexes": ["type"] },
+		"records": {
+			"indexes": ["status", "score", ["status", "score"]],
+			"uniqueIndexes": ["externalId"],
+		},
+	},
+	"admin": {
+		"pages": [
+			{ "path": "/overview", "label": "Diagnostics", "icon": "activity" },
+			{ "path": "/components", "label": "Block Kit", "icon": "layout" },
+		],
+		"widgets": [
+			{ "id": "status", "title": "Capability status", "size": "half" },
+			{ "id": "authority", "title": "Granted authority", "size": "full" },
+		],
+		"editorPanels": [
+			{
+				"id": "entry-context",
+				"title": "Entry context",
+				"route": "entry-context",
+				"collections": ["posts"],
+				"order": 10,
+			},
+		],
+		"editorActions": [
+			{
+				"id": "refresh-entry",
+				"label": "Refresh entry",
+				"route": "refresh-entry",
+				"placement": "overflow",
+				"collections": ["posts"],
+				"style": "danger",
+				"confirm": {
+					"title": "Refresh entry?",
+					"text": "The saved entry will be reloaded.",
+					"confirm": "Refresh",
+					"deny": "Cancel",
+					"style": "danger",
+				},
+			},
+			{
+				"id": "invalid-action",
+				"label": "Invalid action",
+				"route": "invalid-action",
+				"placement": "overflow",
+				"collections": ["posts"],
+			},
+		],
+		"settingsSchema": {
+			"displayName": { "type": "string", "label": "Display name", "default": "Kitchen sink" },
+			"notes": { "type": "string", "label": "Notes", "multiline": true },
+			"threshold": { "type": "number", "label": "Threshold", "default": 10, "min": 0, "max": 100 },
+			"enabled": { "type": "boolean", "label": "Enabled", "default": true },
+			"mode": {
+				"type": "select",
+				"label": "Mode",
+				"options": [
+					{ "value": "observe", "label": "Observe" },
+					{ "value": "exercise", "label": "Exercise" },
+				],
+				"default": "observe",
+			},
+			"endpoint": { "type": "url", "label": "Endpoint", "placeholder": "https://api.example.com" },
+			"recipient": { "type": "email", "label": "Recipient", "placeholder": "admin@example.com" },
+			"apiKey": { "type": "secret", "label": "API key" },
+		},
+		"fieldWidgets": [
+			{
+				"name": "event-picker",
+				"label": "Event",
+				"fieldTypes": ["json"],
+				"elements": [
+					{ "type": "text_input", "action_id": "eventId", "label": "Event ID" },
+					{ "type": "number_input", "action_id": "capacity", "label": "Capacity" },
+					{ "type": "toggle", "action_id": "featured", "label": "Featured" },
+					{
+						"type": "select",
+						"action_id": "kind",
+						"label": "Kind",
+						"options": [{ "label": "Meetup", "value": "meetup" }],
+					},
+					{ "type": "media_picker", "action_id": "image", "label": "Image" },
+				],
+			},
+		],
 	},
 }

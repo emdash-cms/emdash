@@ -23,7 +23,7 @@ export function PasskeyList({
 	isRenaming,
 }: PasskeyListProps) {
 	return (
-		<ul className="space-y-3">
+		<ul className="divide-y divide-kumo-line">
 			{passkeys.map((passkey) => (
 				<PasskeyItem
 					key={passkey.id}

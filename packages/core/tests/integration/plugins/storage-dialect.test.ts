@@ -41,6 +41,7 @@ describeEachDialect("plugin storage filtered query/count (#920)", (dialect) => {
 		const db = ctx.db as unknown as Kysely<Database>;
 		return new PluginStorageRepository<ProviderDoc>(db, "emdash-smtp", "providers", [
 			"provider",
+			"active",
 			"priority",
 		]);
 	}
@@ -85,5 +86,14 @@ describeEachDialect("plugin storage filtered query/count (#920)", (dialect) => {
 		expect(await repo.count({ provider: "resend" })).toBe(2);
 		expect(await repo.count({ provider: "sendgrid" })).toBe(1);
 		expect(await repo.count({ provider: "nope" })).toBe(0);
+	});
+
+	it("supports boolean equality filters", async () => {
+		const repo = makeRepo();
+		await seed(repo);
+
+		const result = await repo.query({ where: { active: true } });
+		expect(result.items.map((item) => item.id)).toEqual(["p1"]);
+		expect(await repo.count({ active: false })).toBe(2);
 	});
 });

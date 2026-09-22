@@ -151,12 +151,16 @@ describe("PT → PM: plugin blocks", () => {
 		expect(node.attrs.id).toBe("https://example.com");
 	});
 
-	it("treats blocks without id, url, or data as unknown (paragraph fallback)", () => {
+	it("represents blocks without id, url, or data as opaque plugin blocks", () => {
 		const block = { _type: "mystery", _key: "k1" };
 		const pm = portableTextToProsemirror([block]);
-		const node = pm.content?.[0] as { type: string };
+		const node = pm.content?.[0] as {
+			type: string;
+			attrs: { blockType: string; id: string; data: Record<string, unknown> };
+		};
 
-		expect(node.type).toBe("paragraph");
+		expect(node.type).toBe("pluginBlock");
+		expect(node.attrs).toMatchObject({ blockType: "mystery", id: "", data: {} });
 	});
 
 	it("converts blocks with field data but no id/url to pluginBlock", () => {
@@ -193,6 +197,40 @@ describe("PT → PM: plugin blocks", () => {
 // =============================================================================
 
 describe("Plugin block round-trip", () => {
+	it("preserves a payload-less custom block unchanged", () => {
+		const original = [{ _type: "test.divider", _key: "divider-1" }];
+
+		const roundTripped = prosemirrorToPortableText(portableTextToProsemirror(original));
+
+		expect(roundTripped).toEqual(original);
+	});
+
+	it("preserves a gallery block that has no images array", () => {
+		const original = [{ _type: "gallery", _key: "gallery-1", legacySource: "import" }];
+
+		const roundTripped = prosemirrorToPortableText(portableTextToProsemirror(original));
+
+		expect(roundTripped).toEqual(original);
+	});
+
+	it("persists an identity added while editing a payload-less custom block", () => {
+		const document = portableTextToProsemirror([{ _type: "test.embed", _key: "embed-1" }]);
+		const node = document.content?.[0] as {
+			attrs: { id: string };
+		};
+		node.attrs.id = "https://example.com/embed";
+
+		const roundTripped = prosemirrorToPortableText(document);
+
+		expect(roundTripped).toEqual([
+			{
+				_type: "test.embed",
+				_key: "embed-1",
+				id: "https://example.com/embed",
+			},
+		]);
+	});
+
 	it("basic plugin block survives round-trip", () => {
 		const original = [ptPluginBlock("youtube", "https://youtu.be/abc")];
 		const pm = portableTextToProsemirror(original);
@@ -218,8 +256,7 @@ describe("Plugin block round-trip", () => {
 		});
 	});
 
-	it("_-prefixed keys do not accumulate across round-trips", () => {
-		// Simulate a block that somehow has _-prefixed keys in data
+	it("opaque metadata survives repeated round-trips without accumulating", () => {
 		const withLeakyKeys = [
 			ptPluginBlock("youtube", "vid-1", {
 				_createdAt: "2024-01-01",
@@ -227,19 +264,15 @@ describe("Plugin block round-trip", () => {
 			}),
 		];
 
-		// First round-trip should strip _-prefixed keys
 		const pm1 = portableTextToProsemirror(withLeakyKeys);
 		const rt1 = prosemirrorToPortableText(pm1);
 
-		expect(rt1[0]).toMatchObject({ _type: "youtube", id: "vid-1", caption: "test" });
-		expect(rt1[0]).not.toHaveProperty("_createdAt");
+		expect(rt1).toEqual(withLeakyKeys);
 
-		// Second round-trip should be stable
 		const pm2 = portableTextToProsemirror(rt1);
 		const rt2 = prosemirrorToPortableText(pm2);
 
-		expect(rt2[0]).toMatchObject({ _type: "youtube", id: "vid-1", caption: "test" });
-		expect(Object.keys(rt2[0]!).filter((k) => k.startsWith("_"))).toEqual(["_type", "_key"]);
+		expect(rt2).toEqual(withLeakyKeys);
 	});
 
 	it("field-data block (no id) survives round-trip", () => {
@@ -247,12 +280,7 @@ describe("Plugin block round-trip", () => {
 		const pm = portableTextToProsemirror(original);
 		const roundTripped = prosemirrorToPortableText(pm);
 
-		expect(roundTripped).toHaveLength(1);
-		expect(roundTripped[0]).toMatchObject({
-			_type: "emdash-form",
-			id: "",
-			formId: "abc-123",
-		});
+		expect(roundTripped).toEqual(original);
 	});
 
 	it("data with _type/_key fields cannot overwrite block identity after round-trip", () => {
@@ -261,12 +289,12 @@ describe("Plugin block round-trip", () => {
 			pmPluginBlock("youtube", "vid-1", { _type: "evil", _key: "evil", caption: "test" }),
 		);
 
-		// PM → PT: fix 5 ensures _type/_key are set after data spread
+		// _type and _key are reassigned after data fields are spread, so data cannot overwrite identity.
 		const pt = prosemirrorToPortableText(doc);
 		expect(pt[0]!._type).toBe("youtube");
 		expect(pt[0]!._key).not.toBe("evil");
 
-		// PT → PM → PT: fix 6 strips _-prefixed keys, so they don't persist
+		// _-prefixed data keys are stripped on the next round-trip, so they cannot restore forged identity.
 		const pm2 = portableTextToProsemirror(pt);
 		const rt = prosemirrorToPortableText(pm2);
 		expect(rt[0]!._type).toBe("youtube");

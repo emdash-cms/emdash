@@ -22,7 +22,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { connectMcpHarness, extractText, type McpHarness } from "../../utils/mcp-runtime.js";
+import {
+	connectMcpHarness,
+	currentRev,
+	extractText,
+	revOf,
+	type McpHarness,
+} from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const ADMIN_ID = "user_admin";
@@ -136,7 +142,7 @@ describe("MCP validation — required fields (bug #4)", () => {
 
 		const updated = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { title: "" } },
+			arguments: { collection: "post", id, data: { title: "" }, _rev: revOf(created) },
 		});
 		expect(updated.isError).toBe(true);
 		expect(extractText(updated)).toMatch(VALIDATION_ERROR);
@@ -244,7 +250,7 @@ describe("MCP validation — select and multiSelect options (bug #5)", () => {
 
 		const updated = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { priority: "URGENT" } },
+			arguments: { collection: "post", id, data: { priority: "URGENT" }, _rev: revOf(created) },
 		});
 		expect(updated.isError).toBe(true);
 		expect(extractText(updated)).toMatch(VALIDATION_ERROR);
@@ -474,7 +480,12 @@ describe("MCP validation — UPDATE on revision-supporting collections (F4)", ()
 	it("rejects update with empty required field BEFORE creating a draft revision", async () => {
 		const result = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id: postId, data: { title: "" } },
+			arguments: {
+				collection: "post",
+				id: postId,
+				data: { title: "" },
+				_rev: await currentRev(harness.client, "post", postId),
+			},
 		});
 		expect(result.isError).toBe(true);
 		expect(extractText(result)).toMatch(VALIDATION_ERROR);

@@ -5,7 +5,7 @@
  * - Page renders with existing tokens
  * - Creating a new token (name, scopes, display)
  * - Token value is only shown once
- * - Revoking a token with inline confirmation
+ * - Revoking a token with confirmation
  */
 
 import { test, expect } from "../fixtures";
@@ -27,18 +27,11 @@ test.describe("API Tokens", () => {
 		// Should show the page title
 		await admin.expectPageTitle("API Tokens");
 
-		// The dev-bypass setup creates a token ("dev-bypass-token") so the list
-		// should not be empty. Look for the token list container with at least one
-		// entry showing a token name and prefix.
-		const tokenList = page.locator(".divide-y");
+		const tokenList = page.getByRole("region", { name: "API Tokens", exact: true });
 		await expect(tokenList).toBeVisible({ timeout: 10000 });
 
-		// At least one token row should be present
-		const tokenRows = tokenList.locator("> div");
-		await expect(tokenRows.first()).toBeVisible({ timeout: 5000 });
-
 		// The setup token should show its name
-		await expect(page.locator("text=dev-bypass-token")).toBeVisible();
+		await expect(tokenList.getByText("dev-bypass-token", { exact: true })).toBeVisible();
 	});
 
 	test("create a new token with scopes", async ({ admin, page }) => {
@@ -89,8 +82,8 @@ test.describe("API Tokens", () => {
 		await expect(revealedToken).toBeVisible({ timeout: 3000 });
 
 		// The token should also appear in the list below
-		const tokenList = page.locator(".divide-y");
-		await expect(tokenList.locator("text=" + tokenName)).toBeVisible({ timeout: 5000 });
+		const tokenList = page.getByRole("region", { name: "API Tokens", exact: true });
+		await expect(tokenList.getByText(tokenName, { exact: true })).toBeVisible({ timeout: 5000 });
 	});
 
 	test("token value is not visible after navigating away and back", async ({ admin, page }) => {
@@ -129,7 +122,8 @@ test.describe("API Tokens", () => {
 		await expect(page.locator("text=Token created")).not.toBeVisible({ timeout: 3000 });
 
 		// But the token should still appear in the list (by name)
-		await expect(page.locator(".divide-y").locator(`text=${tokenName}`)).toBeVisible({
+		const tokenList = page.getByRole("region", { name: "API Tokens", exact: true });
+		await expect(tokenList.getByText(tokenName, { exact: true })).toBeVisible({
 			timeout: 5000,
 		});
 	});
@@ -153,29 +147,28 @@ test.describe("API Tokens", () => {
 		await page.waitForTimeout(2000);
 
 		// Dismiss the new token banner
-		await page.getByLabel("Dismiss").click();
+		await page.getByRole("button", { name: "Dismiss", exact: true }).click();
 		await expect(page.locator("text=Token created")).not.toBeVisible({ timeout: 3000 });
 
-		// Find the token row for our new token (NOT the dev-bypass-token)
-		const tokenRow = page.locator(".divide-y > div").filter({ hasText: tokenName });
-		await expect(tokenRow).toBeVisible({ timeout: 5000 });
+		const tokenList = page.getByRole("region", { name: "API Tokens", exact: true });
+		await expect(tokenList.getByText(tokenName, { exact: true })).toBeVisible({ timeout: 5000 });
+		await page.getByRole("button", { name: `Revoke token ${tokenName}`, exact: true }).click();
 
-		// Click the revoke (trash) button on our token's row
-		await tokenRow.getByLabel("Revoke token").click();
-
-		// An inline confirmation should appear with "Revoke?" text
-		await expect(tokenRow.locator("text=Revoke?")).toBeVisible({ timeout: 3000 });
+		const dialog = page.getByRole("dialog");
+		await expect(dialog.getByRole("heading", { name: "Revoke?", exact: true })).toBeVisible({
+			timeout: 3000,
+		});
 
 		// Should have Confirm and Cancel buttons
-		await expect(tokenRow.getByRole("button", { name: "Confirm" })).toBeVisible();
-		await expect(tokenRow.getByRole("button", { name: "Cancel" })).toBeVisible();
+		await expect(dialog.getByRole("button", { name: "Confirm" })).toBeVisible();
+		await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
 
 		// Click Confirm to revoke
-		await tokenRow.getByRole("button", { name: "Confirm" }).click();
+		await dialog.getByRole("button", { name: "Confirm" }).click();
 		await page.waitForTimeout(2000);
 
 		// The token should disappear from the list
-		await expect(page.locator(".divide-y").locator(`text=${tokenName}`)).not.toBeVisible({
+		await expect(tokenList.getByText(tokenName, { exact: true })).not.toBeVisible({
 			timeout: 5000,
 		});
 
@@ -201,26 +194,28 @@ test.describe("API Tokens", () => {
 		await page.getByRole("button", { name: "Create Token" }).last().click();
 		await page.waitForTimeout(2000);
 
-		await page.getByLabel("Dismiss").click();
+		await page.getByRole("button", { name: "Dismiss", exact: true }).click();
 
-		// Find the token row
-		const tokenRow = page.locator(".divide-y > div").filter({ hasText: tokenName });
-		await expect(tokenRow).toBeVisible({ timeout: 5000 });
-
-		// Click revoke
-		await tokenRow.getByLabel("Revoke token").click();
-		await expect(tokenRow.locator("text=Revoke?")).toBeVisible({ timeout: 3000 });
+		const tokenList = page.getByRole("region", { name: "API Tokens", exact: true });
+		await expect(tokenList.getByText(tokenName, { exact: true })).toBeVisible({ timeout: 5000 });
+		await page.getByRole("button", { name: `Revoke token ${tokenName}`, exact: true }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog.getByRole("heading", { name: "Revoke?", exact: true })).toBeVisible({
+			timeout: 3000,
+		});
 
 		// Click Cancel instead
-		await tokenRow.getByRole("button", { name: "Cancel" }).click();
+		await dialog.getByRole("button", { name: "Cancel" }).click();
 
 		// Confirmation UI should disappear
-		await expect(tokenRow.locator("text=Revoke?")).not.toBeVisible({ timeout: 3000 });
+		await expect(dialog).not.toBeVisible({ timeout: 3000 });
 
 		// Token should still be in the list
-		await expect(page.locator(".divide-y").locator(`text=${tokenName}`)).toBeVisible();
+		await expect(tokenList.getByText(tokenName, { exact: true })).toBeVisible();
 
 		// Trash icon should be back
-		await expect(tokenRow.getByLabel("Revoke token")).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: `Revoke token ${tokenName}`, exact: true }),
+		).toBeVisible();
 	});
 });

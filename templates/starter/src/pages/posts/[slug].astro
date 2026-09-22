@@ -23,7 +23,7 @@ const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 const seo = getSeoMeta(post, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
-	path: `/posts/${slug}`,
+	path: Astro.url.pathname.replace(/\/$/, ""),
 });
 
 // Taxonomy terms are already hydrated onto the entry by getEmDashEntry.

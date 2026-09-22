@@ -1,14 +1,16 @@
 ---
 name: emdash-cli
-description: Use the EmDash CLI to manage content, schema, media, and more. Use this skill when you need to interact with a running EmDash instance from the command line — creating content, managing collections, uploading media, generating types, or scripting CMS operations.
+description: Use the EmDash CLI to inspect and manage an EmDash instance from the command line, including content, schema, media, taxonomies, menus, search, authentication, seeds, migrations, and generated types.
 ---
 
 # EmDash CLI
 
-The EmDash CLI (`emdash` or `ec`) manages EmDash CMS instances. Commands fall into two categories:
+The EmDash CLI (`emdash`, with the short alias `em`) manages EmDash CMS instances. Commands fall into two categories:
 
-- **Local commands** — work directly on a SQLite file, no running server needed: `init`, `dev`, `seed`, `export-seed`, `auth secret`
-- **Remote commands** — talk to a running EmDash instance via HTTP: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`
+- **Local commands** work with project files or a configured database: `init`, `doctor`, `seed`, `migrate`, `export-seed`, and `secrets`.
+- **Remote commands** talk to a running EmDash instance: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, and `plugin`.
+
+Run `npx emdash --help` and `npx emdash <command> --help` for the installed version's exact commands and flags. Resolve the current target with a read command before a destructive or bulk mutation; examples in this skill do not authorize changing an instance the user did not place in scope.
 
 ## Authentication
 
@@ -19,30 +21,22 @@ Remote commands resolve auth automatically:
 3. Stored credentials from `emdash login`
 4. Dev bypass (localhost only — no token needed)
 
-For local dev servers, just run the command — auth is handled automatically. For remote instances, run `emdash login --url https://my-site.pages.dev` first.
+For a localhost development server with the development bypass enabled, the client can authenticate automatically. For a remote instance, run `emdash login --url https://my-site.pages.dev` or provide a scoped token.
 
 ## Custom Headers & Reverse Proxies
 
 Sites behind Cloudflare Access or other reverse proxies need auth headers on every request. The CLI supports this via `--header` flags and environment variables.
 
-### Service Tokens (Recommended for CI/Automation)
+### Service tokens for automation
 
 ```bash
-# Single header
-npx emdash login --url https://my-site.pages.dev \
-  --header "CF-Access-Client-Id: xxx.access" \
-  --header "CF-Access-Client-Secret: yyy"
-
-# Short form
-npx emdash login -H "CF-Access-Client-Id: xxx" -H "CF-Access-Client-Secret: yyy"
-
-# Via environment (newline-separated)
+# Provide sensitive headers through the environment in CI.
 export EMDASH_HEADERS="CF-Access-Client-Id: xxx
 CF-Access-Client-Secret: yyy"
-npx emdash login --url https://my-site.pages.dev
+npx emdash whoami --url https://my-site.pages.dev
 ```
 
-Headers are persisted to `~/.config/emdash/auth.json` after login, so subsequent commands inherit them automatically.
+`emdash login --header` persists custom headers to `~/.config/emdash/auth.json` for later commands. Prefer environment-provided headers in CI so a service secret is not written to the credential file or shell history.
 
 ### Cloudflare Access Browser Flow
 
@@ -70,21 +64,18 @@ npx emdash login --url https://example.com -H "X-API-Key: secret123"
 
 ### Database Setup
 
-Migrations and seed application happen automatically inside the runtime — there's no separate init/seed step. Just start the dev server (or deploy) and the first request runs pending migrations and applies the bundled seed if the database is empty.
+For normal site startup, use the project's package script. The first request runs pending migrations and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts.
 
 ```bash
-# Start dev server (runs migrations, applies seed on empty DB, starts Astro)
-npx emdash dev
-
-# Start dev server and generate types from remote
-npx emdash dev --types
+# Start the site with its package script
+pnpm dev
 
 # Export an existing database as a seed file
 # (the runtime auto-discovers .emdash/seed.json on first boot;
 # `mkdir -p` because the directory may not exist yet)
 mkdir -p .emdash
 npx emdash export-seed > .emdash/seed.json
-npx emdash export-seed --with-content > .emdash/seed.json
+npx emdash export-seed --with-content=all > .emdash/seed.json
 ```
 
 ### Type Generation
@@ -114,8 +105,8 @@ npx emdash whoami
 # Logout
 npx emdash logout
 
-# Generate auth secret for deployment
-npx emdash auth secret
+# Generate an encryption key for deployment
+npx emdash secrets generate
 ```
 
 ### Content CRUD
@@ -165,8 +156,9 @@ npx emdash schema get posts
 # Create collection
 npx emdash schema create articles --label Articles --description "Blog articles"
 
-# Delete collection
-npx emdash schema delete articles --force
+# Delete a collection after inspecting it and confirming the target
+npx emdash schema get articles
+npx emdash schema delete articles
 
 # Add field
 npx emdash schema add-field posts body --type portableText --label "Body Content"
@@ -176,7 +168,7 @@ npx emdash schema add-field posts featured --type boolean --required
 npx emdash schema remove-field posts featured
 ```
 
-Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `image`, `file`, `reference`, `portableText`, `json`, `slug`, `url`. See `FIELD_TYPE_TO_COLUMN` in `packages/core/src/schema/types.ts` for the authoritative list.
+`schema add-field` supports the field types printed by `npx emdash schema add-field --help`. The full product schema supports additional field types that are not necessarily creatable through this command.
 
 ### Media
 

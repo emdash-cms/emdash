@@ -42,11 +42,12 @@ You can also review and approve PRs. A triager's approval doesn't change the PR'
 
 EmDash has a lot of automation. Probably the most important piece is @emdashbot, the AI code review bot:
 
-- **It reviews every PR automatically** and is generally solid at catching mechanical problems: bugs in the diff, missing tests, pattern violations, SQL injection risks.
+- **It reviews every PR automatically** when the PR is opened, reopened, or marked ready for review, and is generally solid at catching mechanical problems: bugs in the diff, missing tests, pattern violations, SQL injection risks. New commits don't trigger another review.
 - **Apply the `bot:review` label to summon a re-review**, for example after an author pushes significant changes. It sometimes fails to review the first time (e.g. if there's an error while it is running), in which case it is useful to ask for a re-review.
-- Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically by workflows. See [PR Labels](#pr-labels) for what they mean.
+- **It skips draft PRs and PRs opened by bots**, including @emdashbot's own. A draft gets its review when it is marked ready, or straight away if you add `bot:review`. On a bot-authored PR, `bot:review` has no effect.
+- Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically. See [PR Labels](#pr-labels) for what they mean.
 
-Issue triage is a different story. There is an experimental bot that tries to reproduce bugs (see [The Repro Bot and `triage/*` Labels](#the-repro-bot-and-triage-labels)), but it is unreliable enough that we don't currently use it. In practice, issues are triaged and reproduced by humans, so your work here is particularly valuable.
+Issue triage uses a separate issue-work bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)). It performs a bounded first pass on new issues, applies area labels and one kind label (`bot:bug`, `bot:enhancement`, or `bot:task`), and asks a focused question when the report lacks information. It may prepare a candidate automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. A human still accepts the candidate and reviews the resulting PR.
 
 You can help by:
 
@@ -134,7 +135,8 @@ Useful details to ask for on bug reports:
 - Relevant collection schema, field config, or plugin config.
 - Exact steps to reproduce from a fresh project when possible.
 - Expected behavior and actual behavior.
-- Error logs, screenshots, or network response details.
+- Error logs or network response details.
+- A screenshot for every report that refers to the interface.
 
 Do not ask for everything by default. Ask for the smallest missing piece that would unblock the next person.
 
@@ -149,24 +151,54 @@ For issues, priority is often the best thing a human triager can add — it's a 
 
 Use priority labels when you have enough context to make a reasonable call. If you are unsure, leave priority unset and explain what information would help judge impact.
 
-For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. Where the bug is visual or interactive — admin UI glitches, editor behavior, layout problems — a screenshot or short screen recording is extra useful: it shows exactly what you saw, and often settles "works for me" threads instantly. You can drag media straight into a GitHub comment.
+For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. A report that refers to the interface must include a screenshot showing the reported state. If it is missing, ask the author to add one. A short screen recording can supplement the screenshot when the bug depends on an interaction. You can drag or paste media into a GitHub comment, or attach a local file with `gh issue comment --attach './screenshot.png#Description of the reported state'` when using GitHub CLI 2.99.0 or later.
 
-### The Repro Bot and `triage/*` Labels
+### The Investigation Bot and `bot:*` Labels
 
-There is an experimental issue-investigation agent: applying the `bot:repro` label to an issue sends an agent off to try to reproduce the bug, and if it succeeds it may push a fix branch. It's too unreliable to be useful right now – reproduction runs fail, or time out after a very long time, so maintainers rarely use it and you should not apply `bot:repro` yourself.
+New issues enter automatic triage. A maintainer can also run the same pass on an older issue with `@emdashbot triage`. The normal maintainer commands are:
 
-You may still occasionally see its state labels on an issue. Like the PR labels, these are managed by workflows — you read them, you don't set them:
+- `@emdashbot triage` — classify the issue, check the relevant source area, apply useful labels, and decide whether to ask for information, await approval, or start low-risk work.
+- `@emdashbot investigate` — reproduce and diagnose the report with evidence, without preparing a candidate.
+- `@emdashbot work` — take the issue through reproduction where appropriate, implementation, verification, and a candidate preview.
+- `@emdashbot accept` / `@emdashbot needs changes <feedback>` — accept a candidate or start another revision. The reporter can also reply naturally when the bot asks them to test the preview.
+- `@emdashbot retry` — retry the last failed or timed-out run, using its saved workspace when available.
+- `@emdashbot decline` — record that the issue won't be actioned (`bot:declined`); the issue itself stays open. From `bot:in-review` it also closes the bot's PR, and from `bot:awaiting-reporter` it deletes the candidate branch. Under `bot:needs-attention`, the PR stays open.
+- `@emdashbot take over` / `@emdashbot hand back` — take the issue away from the bot so it stops acting on it (`bot:human-owned`), or return it to `bot:triage`.
+- `@emdashbot reopen` — bring a `bot:done` or `bot:declined` issue back to `bot:triage`.
+- `@emdashbot reset` — clear conflicting `bot:*` state labels and put the issue back to `bot:triage`.
+- `@emdashbot status` / `@emdashbot help` — show the current state and available commands without changing anything.
 
-- `triage/reproducing` — the bot is currently investigating.
-- `triage/reproduced` — the bot reproduced the bug.
-- `triage/not-reproduced` — the bot could not reproduce it.
-- `triage/by-design` — the bot reproduced the behavior but it appears intentional.
-- `triage/awaiting-reporter` — a fix has been pushed and we're waiting for the reporter to verify it.
-- `triage/verified` — the reporter confirmed the fix.
-- `triage/skipped` — the bot declined to investigate.
-- `triage/failed` — the bot crashed or hit its retry cap.
+Older `fix`, `implement`, and `repro` commands remain aliases for `work`. A maintainer does not need to choose between separate bug-fix and implementation modes.
 
-If an issue has one of these labels, a bot investigation has happened or is in flight — read the bot's comments before starting a manual reproduction. In particular, `triage/awaiting-reporter` means a fix branch already exists, and the most useful thing you can do is test that fix rather than re-reproduce the original bug. Given how unreliable the bot is, double-checking its conclusions is itself valuable triage: a human confirming or refuting a `triage/reproduced` or `triage/not-reproduced` verdict is worth more than the label.
+`decline`, `take over`, and `reset` only run as the exact command, with nothing else after the mention. The other commands can also be written as a sentence after `@emdashbot`; the bot matches it to one of the commands the issue's current state offers.
+
+Every verdict carries the commands and evidence behind it. "Could not reproduce," with a transcript, is a complete investigation outcome. Automatic triage never closes an issue or implements features and sensitive-area changes without approval.
+
+**The reporter preview-confirm loop.** When work produces a candidate, the bot pushes `bot/fix-<n>`, waits for the `pkg.pr.new` preview, and asks the reporter to try it. The reporter can reply naturally to accept it or explain what still needs to change. Acceptance opens a draft PR. Further code review happens on the PR, where the bot watches checks, conflicts, and submitted maintainer reviews and continues repairing its branch until it is green or needs human attention.
+
+Like the PR labels, the bot's lifecycle labels are managed by the bot:
+
+- `bot:triage` — the issue is waiting for a decision on what the bot should do.
+- `bot:triaging` — the bounded issue-classification pass is running.
+- `bot:awaiting-approval` — triage found useful work that needs a maintainer decision.
+- `bot:working` / `bot:investigating` — implementation or investigation is running.
+- `bot:reproduced` / `bot:diagnosed` — the investigation found the cause, with or without a reproduction. The bot changes no code until a maintainer runs `work` or the reporter sends `@emdashbot needs changes <feedback>`.
+- `bot:not-reproduced` — the bot could not reproduce the report; its comment has the transcript. The bot doesn't react to a reply here: if the reporter adds steps, a maintainer has to run `investigate` again.
+- `bot:needs-info` — the reporter can unblock the next pass by replying with the requested details; no bot mention is required.
+- `bot:preview-building` / `bot:awaiting-reporter` — a candidate exists and is being prepared for acceptance.
+- `bot:in-review` — a draft PR is attached; implementation discussion and automatic repair happen there. A reply from the reporter on the issue, without an `@emdashbot` mention, goes to the bot as feedback for that PR.
+- `bot:needs-attention` — the candidate or PR is retained, but the bot cannot continue safely without a maintainer.
+- `bot:blocked` — the bot stopped and needs a human decision, for example because the reported behavior is intended or reproducing it needs conditions the bot can't set up. Its comment usually gives the reason.
+- `bot:human-owned` — a maintainer took the issue over with `take over`; the bot starts no work on it until `hand back`.
+- `bot:done` / `bot:declined` — the issue is finished: resolved (for example, the bot's PR merged) or won't be actioned. `reopen` brings it back.
+
+[BOT_STATE_MACHINE.md](infra/emdash-bot/BOT_STATE_MACHINE.md) lists every state, the commands each one accepts, and the transitions between them. It is generated from the bot's source.
+
+Read the bot's current comment before starting a manual reproduction. Its **View live dashboard** link shows the run's work plan and trace. `bot:awaiting-reporter` means a candidate preview is ready to test. `bot:in-review` means the implementation discussion has moved to the linked PR.
+
+The bot's own PRs carry the `bot` label and no `review/*` state, and the review bot doesn't review them. A maintainer's review that requests changes or leaves comments starts the next revision, and so does a maintainer's `@emdashbot` comment with plain feedback on the PR.
+
+(You may still see older `triage/*` labels on issues filed before the switch to `bot:*`; treat them as historical.)
 
 ## PR Triage
 
@@ -213,6 +245,7 @@ The bot does code-level review and is good at it, but it's not perfect. The most
 - For bug fixes, is there a test that would fail without the fix?
 - For user-facing package behavior changes, is there a changeset, and is it well written? (See [Checking Changesets](#checking-changesets).)
 - For admin UI changes, are user-facing strings localized and does the layout use RTL-safe classes?
+- For UI changes, does the PR include screenshots of the rendered result?
 - For feature/refactor/performance PRs, has a maintainer approved the idea — a linked Discussion labeled `Approved for PR`, or approval in a PR or issue comment?
 - Are unrelated files changed, such as generated translation catalogs in a non-translation PR?
 - Is the AI disclosure filled in, and has a human author understood and tested the change? (See [AI-Assisted Contributions](#ai-assisted-contributions).)
@@ -225,30 +258,13 @@ If something is missing, ask for it directly and keep the request narrow. The `r
 
 ### Checking Changesets
 
-A changeset is **user documentation**: the release note someone reads while upgrading. It lands verbatim in the CHANGELOG and determines the version bump. It is not a PR description, not a code comment, and not a note to reviewers — those explain the change to someone reading the code; the changeset explains the effect to someone running the new version. Missing or badly written changesets are one of the most common gaps in otherwise-good PRs, and one of the easiest things to catch in triage. The full guide is [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets); the short version:
+A changeset is public documentation that lands verbatim in a package CHANGELOG. Review it with the canonical [changeset writing and review standard](.changeset/README.md), not only for presence, package names, and bump type.
 
-**When one is needed:** any change to a published package's behavior or API — bug fixes included. Without one, the fix won't ship in a release.
-
-**When one isn't:** docs-only, test-only, CI/tooling changes, changes to demos or templates, and internal refactors that don't change behavior. Don't ask for a changeset on these.
-
-**The bump type:**
-
-- `patch` — bug fixes and small improvements.
-- `minor` — new features.
-- `major` — not allowed. Pre 1.0 we are not accepting any major bumps.
-
-**The description** is written for someone upgrading, not someone reviewing the diff:
-
-- Starts with a present-tense verb: **Fixes**, **Adds**, **Updates**, **Removes**.
-- Describes the observable effect — what's different for a user of the package.
-- No internal mechanics: file names, function names, or how it was implemented don't belong. If a sentence only makes sense to someone who has read the diff, ask for a rewrite.
-- One sentence is often enough.
-
-A common miss: authors paste their PR description or commit message into the changeset. If it reads like "Refactored `hydrateEntryBylines` to chunk IN clauses," ask for the user-facing version ("Fixes a D1 error when an entry has many bylines").
+Request a rewrite when technically accurate prose is still vague, implementation-centered, disproportionate to the impact, or missing required migration guidance. The entry must help someone decide whether the release matters to them and what action to take. Also check that useful feature explanations and examples appear in the canonical docs, not only in the changeset or PR description.
 
 ### PR Labels
 
-Almost every label you'll see on a PR is applied and removed by a workflow. You read them to scan the queue; you don't manage them:
+Almost every label you'll see on a PR is applied and removed automatically. You read them to scan the queue; you don't manage them:
 
 - `review/needs-review`, `review/awaiting-author`, `review/needs-rereview`, `review/approved` — four mutually exclusive review states, kept in sync with actual review activity.
 - `needs-approval` — CI hasn't run because the workflows are waiting for maintainer approval, which is normal for first-time contributors. Despite the name, it has nothing to do with Discussion approval.
@@ -260,6 +276,7 @@ Almost every label you'll see on a PR is applied and removed by a workflow. You 
 The labels you apply by hand on a PR:
 
 - `bot:review` to summon a bot re-review.
+- `ci:rerun` to re-run the failed CI jobs on the PR's latest commit once CI has finished, for example after a flaky test. The label removes itself, so add it again for another attempt. It doesn't start workflows waiting for approval (`needs-approval`); those need a maintainer.
 - `needs-discussion` when a feature/refactor PR has no maintainer approval anywhere.
 - `blocked` when progress depends on another issue, PR, or maintainer decision.
 
@@ -277,7 +294,7 @@ The one thing that stays with maintainers is the decision itself: `Approved for 
 
 ## Area Labels
 
-On PRs, area labels are applied automatically from the changed file paths. On issues they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
+On PRs, area labels are applied automatically from the changed file paths. On issues, the bot's triage pass may add them; beyond that they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
 
 - `area/admin` for the React admin UI.
 - `area/auth` for passkeys, sessions, users, roles, and login.

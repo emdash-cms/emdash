@@ -1,0 +1,72 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeler.listAssessments",
+	"description": "Page through public metadata assessments using bounded subject and state filters. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"parameters": {
+				"type": "params",
+				"properties": {
+					"kind": {
+						"type": "string",
+						"knownValues": ["profile", "release"]
+					},
+					"uri": {
+						"type": "string",
+						"format": "at-uri"
+					},
+					"cid": {
+						"type": "string",
+						"format": "cid"
+					},
+					"state": {
+						"type": "string",
+						"knownValues": ["pending", "passed", "review", "blocked", "error", "superseded"]
+					},
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 100,
+						"default": 50
+					},
+					"cursor": {
+						"type": "string",
+						"maxLength": 1024
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "object",
+					"required": ["assessments"],
+					"properties": {
+						"assessments": {
+							"type": "array",
+							"maxLength": 100,
+							"items": {
+								"type": "ref",
+								"ref": "com.emdashcms.experimental.labeler.defs#publicAssessment"
+							}
+						},
+						"cursor": {
+							"type": "string",
+							"maxLength": 1024
+						}
+					}
+				}
+			},
+			"errors": [
+				{
+					"name": "InvalidRequest",
+					"description": "The supplied filters are invalid or inconsistent."
+				},
+				{
+					"name": "InvalidCursor",
+					"description": "The pagination cursor is invalid or expired."
+				}
+			]
+		}
+	}
+}
