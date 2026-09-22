@@ -55,6 +55,11 @@
 			"type": "object",
 			"description": "Map of access category to a per-category block of named operations. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields. Within a known category, an unrecognised operation key is also a hard reject. Within an operation's constraint object, unrecognised keys are advisory and surfaced verbatim in install-consent UI. Note that the bundled manifest may use boolean `true` as sugar for an empty constraint object; on-PDS records canonicalise this to `{}` because Lexicon validation does not accept boolean values for typed object fields.",
 			"properties": {
+				"admin": {
+					"type": "ref",
+					"ref": "#adminAccess",
+					"description": "Access to selected unsaved content in the authenticated editor."
+				},
 				"content": {
 					"type": "ref",
 					"ref": "#contentAccess",
@@ -106,6 +111,30 @@
 					"description": "Access to site user records."
 				}
 			}
+		},
+		"adminAccess": {
+			"type": "object",
+			"description": "Operations on unsaved editor content. Read and patch are independent authorities.",
+			"properties": {
+				"editorDraftRead": {
+					"type": "ref",
+					"ref": "#adminEditorDraftReadConstraints",
+					"description": "Plugin may receive selected unsaved field values after an explicit editor interaction."
+				},
+				"editorDraftPatch": {
+					"type": "ref",
+					"ref": "#adminEditorDraftPatchConstraints",
+					"description": "Plugin may propose selected unsaved field changes for host validation and review."
+				}
+			}
+		},
+		"adminEditorDraftReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for admin.editorDraftRead. Extension declarations provide enforced field and collection narrowing."
+		},
+		"adminEditorDraftPatchConstraints": {
+			"type": "object",
+			"description": "Constraint object for admin.editorDraftPatch. Extension declarations provide enforced field and collection narrowing."
 		},
 		"contentAccess": {
 			"type": "object",

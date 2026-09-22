@@ -590,6 +590,35 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	display: none;
 }
 
+.emdash-auto-scrollbar {
+	scrollbar-color: transparent transparent;
+	scrollbar-gutter: stable;
+	scrollbar-width: thin;
+}
+
+.emdash-auto-scrollbar:hover,
+.emdash-auto-scrollbar:focus-within {
+	scrollbar-color: var(--color-kumo-line) transparent;
+}
+
+.emdash-auto-scrollbar::-webkit-scrollbar {
+	width: 0.375rem;
+}
+
+.emdash-auto-scrollbar::-webkit-scrollbar-track {
+	background-color: transparent;
+}
+
+.emdash-auto-scrollbar::-webkit-scrollbar-thumb {
+	border-radius: 9999px;
+	background-color: transparent;
+}
+
+.emdash-auto-scrollbar:hover::-webkit-scrollbar-thumb,
+.emdash-auto-scrollbar:focus-within::-webkit-scrollbar-thumb {
+	background-color: var(--color-kumo-line);
+}
+
 [data-mode="light"] .emdash-table-menu [data-highlighted]:not([data-disabled]) {
 	background-color: var(--color-kumo-tint);
 }

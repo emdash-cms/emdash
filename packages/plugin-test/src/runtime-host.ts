@@ -2,7 +2,8 @@ import type {
 	BlockInteraction,
 	BlockResponse,
 	ContentEditorActionResponse,
-	ContentEditorPanelInteraction,
+	EditorDraftInvocationReceipt,
+	EditorDraftPatchEffect,
 } from "@emdash-cms/blocks/server";
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
@@ -45,6 +46,8 @@ import {
 	RedirectRepository,
 	setI18nConfig,
 	TaxonomyRepository,
+	validateEditorDraftPatch,
+	validateEditorDraftRequest,
 	type UserInfo,
 } from "emdash/plugin-test-runtime";
 import { Kysely } from "kysely";
@@ -101,6 +104,29 @@ export interface PluginRuntimeAdminRequestOptions {
 	locale?: string;
 	contentLocale?: string;
 	user?: UserInfo;
+	draft?: PluginRuntimeEditorDraftRequest;
+}
+
+export interface PluginRuntimeEditorDraftRequest {
+	collection: string;
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	generation: number;
+	invocationId: string;
+	fields: Record<string, unknown>;
+}
+
+export type PluginRuntimeEditorDraftResponse = {
+	patch?: EditorDraftPatchEffect;
+	editorInvocation?: EditorDraftInvocationReceipt;
+};
+
+export interface PluginRuntimeEditorState {
+	entryId: string;
+	locale: string | null;
+	generation: number;
+	invocationId: string;
 }
 
 export interface PluginRuntimeTestHost {
@@ -110,6 +136,20 @@ export interface PluginRuntimeTestHost {
 		invokeRoute(name: string, input?: unknown, request?: PluginTestRequest): Promise<unknown>;
 	};
 	admin: {
+		captureEditorDraft(
+			collection: string,
+			entryId: string,
+			fields: Record<string, unknown>,
+			options?: { contentLocale?: string; generation?: number; invocationId?: string },
+		): Promise<PluginRuntimeEditorDraftRequest>;
+		applyEditorDraftPatch(
+			kind: "panel" | "action",
+			extensionId: string,
+			draft: PluginRuntimeEditorDraftRequest,
+			response: PluginRuntimeEditorDraftResponse,
+			currentState: PluginRuntimeEditorState,
+			currentFields: Record<string, unknown>,
+		): Promise<Record<string, unknown>>;
 		loadPage(path: string, options?: PluginRuntimeAdminRequestOptions): Promise<BlockResponse>;
 		loadWidget(id: string, options?: PluginRuntimeAdminRequestOptions): Promise<BlockResponse>;
 		act(
@@ -581,7 +621,7 @@ export async function createPluginRuntimeTestHost(
 		extensionId: string,
 		collection: string,
 		entryId: string,
-		input: ContentEditorPanelInteraction | Record<string, never>,
+		input: Record<string, unknown>,
 		adminOptions: PluginRuntimeAdminRequestOptions = {},
 	): Promise<T> => {
 		assertActive();
@@ -644,6 +684,103 @@ export async function createPluginRuntimeTestHost(
 			},
 		},
 		admin: {
+			async captureEditorDraft(collection, entryId, fields, draftOptions = {}) {
+				const result = await runtime.handleContentGet(
+					collection,
+					entryId,
+					draftOptions.contentLocale,
+				);
+				if (!result.success || !result.data || typeof result.data !== "object") {
+					throw new Error("Unable to capture editor draft for missing entry");
+				}
+				const item = "item" in result.data ? result.data.item : null;
+				const revision = "_rev" in result.data ? result.data._rev : null;
+				if (!item || typeof item !== "object" || typeof revision !== "string") {
+					throw new Error("Unable to capture editor draft revision");
+				}
+				return {
+					collection,
+					entryId,
+					locale: "locale" in item && typeof item.locale === "string" ? item.locale : null,
+					baseRevision: revision,
+					generation: draftOptions.generation ?? 0,
+					invocationId: draftOptions.invocationId ?? "plugin_test_invocation",
+					fields,
+				};
+			},
+			async applyEditorDraftPatch(kind, extensionId, draft, response, currentState, currentFields) {
+				if (!response.patch || !response.editorInvocation)
+					throw new Error("Missing editor draft patch receipt");
+				if (
+					currentState.entryId !== draft.entryId ||
+					currentState.locale !== draft.locale ||
+					currentState.invocationId !== draft.invocationId ||
+					response.editorInvocation.entryId !== currentState.entryId ||
+					response.editorInvocation.locale !== currentState.locale ||
+					response.editorInvocation.baseRevision !== draft.baseRevision ||
+					response.editorInvocation.generation !== currentState.generation ||
+					response.editorInvocation.invocationId !== currentState.invocationId
+				) {
+					throw new Error("EDITOR_DRAFT_STALE");
+				}
+				const currentResult = await runtime.handleContentGet(
+					draft.collection,
+					currentState.entryId,
+					currentState.locale ?? undefined,
+				);
+				const currentData = currentResult.success ? currentResult.data : null;
+				const currentItem =
+					currentData && typeof currentData === "object" && "item" in currentData
+						? currentData.item
+						: null;
+				const currentRevision =
+					currentData &&
+					typeof currentData === "object" &&
+					"_rev" in currentData &&
+					typeof currentData._rev === "string"
+						? currentData._rev
+						: null;
+				if (
+					!currentItem ||
+					typeof currentItem !== "object" ||
+					!("id" in currentItem) ||
+					currentItem.id !== currentState.entryId ||
+					!("locale" in currentItem) ||
+					currentItem.locale !== currentState.locale ||
+					currentRevision !== draft.baseRevision
+				) {
+					throw new Error("EDITOR_DRAFT_STALE");
+				}
+				const definition = runtime.getPluginEditorExtension(
+					manifest.id,
+					kind,
+					extensionId,
+					draft.collection,
+				);
+				const schema = await runtime.getPluginEditorDraftSchema(draft.collection);
+				if (!definition || !schema) throw new Error("EDITOR_DRAFT_INVALID");
+				const validatedRequest = validateEditorDraftRequest({
+					request: draft,
+					collection: schema,
+					entry: { id: draft.entryId, locale: draft.locale, revision: draft.baseRevision },
+					readSelector: definition.extension.draft?.read,
+					patchSelector: definition.extension.draft?.patch,
+					canRead: definition.capabilities.includes("admin.editor-draft:read"),
+					canPatch: definition.capabilities.includes("admin.editor-draft:patch"),
+				});
+				if ("code" in validatedRequest) throw new Error(validatedRequest.code);
+				const patch = validateEditorDraftPatch({
+					patch: response.patch,
+					collection: schema,
+					allowedFields: validatedRequest.patchFields,
+				});
+				if ("code" in patch) throw new Error(patch.code);
+				const next = { ...currentFields };
+				for (const operation of patch.operations) {
+					next[operation.field] = operation.op === "clear" ? null : operation.value;
+				}
+				return next;
+			},
 			loadPage: (path, adminOptions) =>
 				invokeAdmin({ type: "page_load", page: path }, adminOptions),
 			loadWidget: (id, adminOptions) =>
@@ -688,6 +825,7 @@ export async function createPluginRuntimeTestHost(
 					{
 						type: "block_action",
 						action_id: actionId,
+						...(adminOptions.draft !== undefined && { draft: adminOptions.draft }),
 						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
 						...(adminOptions.value !== undefined && { value: adminOptions.value }),
 					},
@@ -703,6 +841,7 @@ export async function createPluginRuntimeTestHost(
 						type: "form_submit",
 						action_id: actionId,
 						values,
+						...(adminOptions.draft !== undefined && { draft: adminOptions.draft }),
 						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
 					},
 					adminOptions,
@@ -713,7 +852,7 @@ export async function createPluginRuntimeTestHost(
 					actionId,
 					collection,
 					entryId,
-					{},
+					adminOptions?.draft ? { draft: adminOptions.draft } : {},
 					adminOptions,
 				),
 		},

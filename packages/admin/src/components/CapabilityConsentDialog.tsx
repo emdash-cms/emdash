@@ -79,6 +79,11 @@ export function CapabilityConsentDialog({
 	const isUpdate =
 		mode === "update" ||
 		(mode === undefined && (newCapabilities.length > 0 || newlyPublicRoutes.length > 0));
+	const readsEditorDraft = capabilities.includes("admin.editor-draft:read");
+	const hasNetworkAccess = capabilities.some(
+		(capability) =>
+			capability.startsWith("network:request") || capability.startsWith("network:fetch"),
+	);
 
 	return (
 		<div
@@ -118,7 +123,20 @@ export function CapabilityConsentDialog({
 				</div>
 
 				{/* Capabilities list */}
-				<div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4">
+				<div className="max-h-[70vh] space-y-3 overflow-y-auto px-6 py-4">
+					{readsEditorDraft && hasNetworkAccess ? (
+						<div className="rounded-md border border-kumo-warning/30 bg-kumo-warning/10 p-3 text-sm">
+							<div className="flex items-center gap-2 font-medium text-kumo-warning">
+								<Warning className="h-4 w-4 shrink-0" />
+								{t`Unsaved content may leave your site`}
+							</div>
+							<p className="mt-1 text-xs text-kumo-subtle">
+								{allowedHosts?.length
+									? t`After you explicitly invoke this plugin, it can send selected unsaved editor content to: ${allowedHosts.join(", ")}`
+									: t`After you explicitly invoke this plugin, it can send selected unsaved editor content to external websites without a host restriction.`}
+							</p>
+						</div>
+					) : null}
 					{verification ? (
 						<>
 							<div

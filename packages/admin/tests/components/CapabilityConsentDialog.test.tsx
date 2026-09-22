@@ -33,6 +33,26 @@ describe("CapabilityConsentDialog", () => {
 			.toBeInTheDocument();
 	});
 
+	it("states the combined unsaved-content and network egress boundary", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Translator"
+				capabilities={["admin.editor-draft:read", "network:request"]}
+				allowedHosts={["translate.example"]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+		await expect.element(screen.getByText("Unsaved content may leave your site")).toBeVisible();
+		await expect
+			.element(
+				screen.getByText(
+					"After you explicitly invoke this plugin, it can send selected unsaved editor content to: translate.example",
+				),
+			)
+			.toBeVisible();
+	});
+
 	it("shows 'Plugin Permissions' title for fresh install", async () => {
 		const screen = await render(
 			<CapabilityConsentDialog

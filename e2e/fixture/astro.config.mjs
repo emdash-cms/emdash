@@ -28,7 +28,7 @@ const editorExtensionsPlugin = {
 	version: "1.0.0",
 	format: "standard",
 	entrypoint: fileURLToPath(new URL("./src/editor-extensions-plugin.ts", import.meta.url)),
-	capabilities: [],
+	capabilities: ["admin.editor-draft:read", "admin.editor-draft:patch"],
 	allowedHosts: [],
 	storage: {},
 	editorPanels: [
@@ -38,6 +38,10 @@ const editorExtensionsPlugin = {
 			route: "entry-health",
 			collections: ["posts"],
 			order: 20,
+			draft: {
+				read: { fields: ["title", "body"] },
+				patch: { fields: ["title", "body"] },
+			},
 		},
 	],
 	editorActions: [

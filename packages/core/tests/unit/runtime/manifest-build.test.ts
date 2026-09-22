@@ -388,12 +388,21 @@ describe("EmDashRuntime.getManifest()", () => {
 		const plugin = definePlugin({
 			id: "content-guard",
 			version: "1.0.0",
+			capabilities: ["admin.editor-draft:read", "admin.editor-draft:patch"],
 			routes: {
 				health: { permission: "content:edit_own", handler: async () => ({ blocks: [] }) },
 				repair: { permission: "content:edit_own", handler: async () => ({ refresh: true }) },
 			},
 			admin: {
-				editorPanels: [{ id: "health", title: "Health", route: "health" }],
+				editorPanels: [
+					{
+						id: "health",
+						title: "Health",
+						route: "health",
+						collections: ["posts"],
+						draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+					},
+				],
 				editorActions: [{ id: "repair", label: "Repair", route: "repair", placement: "overflow" }],
 			},
 		});
@@ -401,7 +410,13 @@ describe("EmDashRuntime.getManifest()", () => {
 
 		expect((await runtime.getManifest()).plugins["content-guard"]).toMatchObject({
 			adminMode: "blocks",
-			editorPanels: [{ id: "health", route: "health" }],
+			editorPanels: [
+				{
+					id: "health",
+					route: "health",
+					draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+				},
+			],
 			editorActions: [{ id: "repair", route: "repair", placement: "overflow" }],
 		});
 	});

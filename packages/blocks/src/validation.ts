@@ -1,3 +1,5 @@
+import type { EditorDraftPatchEffect } from "./types.js";
+
 const BLOCK_TYPES = new Set([
 	"header",
 	"section",
@@ -50,6 +52,7 @@ const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
 const TRAILING_DOT_PATTERN = /\.$/;
 const PLUGIN_PAGE_PATH_PATTERN = /^\/[a-z0-9][a-z0-9/_-]*$/i;
+const EDITOR_DRAFT_FIELD_PATTERN = /^[a-z][a-z0-9_]{0,62}$/;
 const TEXT_ENCODER = new TextEncoder();
 
 export const BLOCK_RESPONSE_LIMITS = {
@@ -59,6 +62,11 @@ export const BLOCK_RESPONSE_LIMITS = {
 	maxArrayItems: 1_000,
 	maxStringBytes: 64 * 1024,
 	maxErrors: 50,
+} as const;
+
+export const EDITOR_DRAFT_LIMITS = {
+	maxOperations: 32,
+	maxPatchBytes: 192 * 1024,
 } as const;
 
 /**
@@ -139,6 +147,20 @@ class ValidationErrors extends Array<ValidationError> {
 
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+export function isEditorDraftPatchEffect(effect: unknown): effect is EditorDraftPatchEffect {
+	return (
+		isRecord(effect) &&
+		effect.type === "editor-draft-patch" &&
+		Array.isArray(effect.operations) &&
+		effect.operations.every(
+			(operation) =>
+				isRecord(operation) &&
+				typeof operation.field === "string" &&
+				(operation.op === "clear" || (operation.op === "set" && Object.hasOwn(operation, "value"))),
+		)
+	);
 }
 
 function validateResponseBounds(response: unknown): ValidationError[] {
@@ -1670,9 +1692,16 @@ export function validateBlockResponse(
 	const result = validateBlocks(response.blocks, policy);
 	const errors: ValidationError[] = new ValidationErrors();
 	errors.push(...result.errors);
+	const allowedKeys = new Set(["blocks", "toast", "refresh", "navigate", "patch"]);
+	for (const key of Object.keys(response)) {
+		if (!allowedKeys.has(key)) {
+			errors.push({ path: `response.${key}`, message: `Unknown panel response field '${key}'` });
+		}
+	}
 	if (response.toast !== undefined) {
 		validateToast(response.toast, "toast", errors);
 	}
+	validateEditorTerminalEffects(response, policy, errors);
 
 	return { valid: errors.length === 0, errors };
 }
@@ -1688,7 +1717,7 @@ export function validateContentEditorActionResponse(
 	}
 
 	const errors: ValidationError[] = new ValidationErrors();
-	const allowedKeys = new Set(["toast", "refresh", "navigate"]);
+	const allowedKeys = new Set(["toast", "refresh", "navigate", "patch"]);
 	for (const key of Object.keys(response)) {
 		if (!allowedKeys.has(key)) {
 			errors.push({ path: `response.${key}`, message: `Unknown action response field '${key}'` });
@@ -1701,13 +1730,103 @@ export function validateContentEditorActionResponse(
 	if (response.navigate !== undefined) {
 		validateLinkTarget(response.navigate, "navigate", errors, policy);
 	}
-	if (response.refresh === true && response.navigate !== undefined) {
+	validateEditorTerminalEffects(response, policy, errors);
+	return { valid: errors.length === 0, errors };
+}
+
+export function validateEditorDraftPatchEffect(effect: unknown): {
+	valid: boolean;
+	errors: ValidationError[];
+} {
+	const errors: ValidationError[] = new ValidationErrors();
+	if (!isRecord(effect) || effect.type !== "editor-draft-patch") {
+		return {
+			valid: false,
+			errors: [{ path: "patch", message: "Patch must be an editor-draft-patch object" }],
+		};
+	}
+	for (const key of Object.keys(effect)) {
+		if (key !== "type" && key !== "operations") {
+			errors.push({ path: `patch.${key}`, message: `Unknown patch field '${key}'` });
+		}
+	}
+	if (!Array.isArray(effect.operations) || effect.operations.length === 0) {
 		errors.push({
-			path: "response",
-			message: "Action response cannot refresh and navigate at the same time",
+			path: "patch.operations",
+			message: "Patch operations must be a non-empty array",
+		});
+		return { valid: false, errors };
+	}
+	if (effect.operations.length > EDITOR_DRAFT_LIMITS.maxOperations) {
+		errors.push({
+			path: "patch.operations",
+			message: `Patch exceeds maximum operation count ${EDITOR_DRAFT_LIMITS.maxOperations}`,
+		});
+	}
+	const seen = new Set<string>();
+	for (const [index, operation] of effect.operations.entries()) {
+		const path = `patch.operations[${index}]`;
+		if (!isRecord(operation) || (operation.op !== "set" && operation.op !== "clear")) {
+			errors.push({ path, message: "Patch operation must use set or clear" });
+			continue;
+		}
+		const allowed =
+			operation.op === "set" ? new Set(["op", "field", "value"]) : new Set(["op", "field"]);
+		for (const key of Object.keys(operation)) {
+			if (!allowed.has(key))
+				errors.push({ path: `${path}.${key}`, message: `Unknown operation field '${key}'` });
+		}
+		if (typeof operation.field !== "string" || !EDITOR_DRAFT_FIELD_PATTERN.test(operation.field)) {
+			errors.push({ path: `${path}.field`, message: "Patch field must be a valid field slug" });
+		} else if (seen.has(operation.field)) {
+			errors.push({ path: `${path}.field`, message: "Patch cannot target a field more than once" });
+		} else {
+			seen.add(operation.field);
+		}
+		if (operation.op === "set" && !Object.hasOwn(operation, "value")) {
+			errors.push({ path: `${path}.value`, message: "Set operation requires a value" });
+		}
+	}
+	let bytes = Number.POSITIVE_INFINITY;
+	try {
+		bytes = TEXT_ENCODER.encode(JSON.stringify(effect)).byteLength;
+	} catch {
+		errors.push({ path: "patch", message: "Patch must be JSON serializable" });
+	}
+	if (bytes > EDITOR_DRAFT_LIMITS.maxPatchBytes) {
+		errors.push({
+			path: "patch",
+			message: `Patch exceeds maximum size ${EDITOR_DRAFT_LIMITS.maxPatchBytes} bytes`,
 		});
 	}
 	return { valid: errors.length === 0, errors };
+}
+
+function validateEditorTerminalEffects(
+	response: Record<string, unknown>,
+	policy: BlockValidationPolicy,
+	errors: ValidationError[],
+): void {
+	if (response.refresh !== undefined && response.refresh !== true) {
+		errors.push({ path: "refresh", message: "Refresh must be true if provided" });
+	}
+	if (response.navigate !== undefined)
+		validateLinkTarget(response.navigate, "navigate", errors, policy);
+	if (response.patch !== undefined) {
+		const result = validateEditorDraftPatchEffect(response.patch);
+		errors.push(...result.errors);
+	}
+	const terminalEffects = [
+		response.refresh === true,
+		response.navigate !== undefined,
+		response.patch !== undefined,
+	].filter(Boolean).length;
+	if (terminalEffects > 1) {
+		errors.push({
+			path: "response",
+			message: "Editor response may contain only one terminal effect",
+		});
+	}
 }
 
 export function validateContentEditorPanelInteraction(interaction: unknown): {
@@ -1728,9 +1847,9 @@ export function validateContentEditorPanelInteraction(interaction: unknown): {
 		interaction.type === "panel_load"
 			? new Set(["type"])
 			: interaction.type === "block_action"
-				? new Set(["type", "action_id", "block_id", "value"])
+				? new Set(["type", "action_id", "block_id", "value", "draft"])
 				: interaction.type === "form_submit"
-					? new Set(["type", "action_id", "block_id", "values"])
+					? new Set(["type", "action_id", "block_id", "values", "draft"])
 					: null;
 	if (!allowedKeys) {
 		errors.push({ path: "interaction.type", message: "Unknown editor panel interaction type" });
@@ -1754,6 +1873,13 @@ export function validateContentEditorPanelInteraction(interaction: unknown): {
 	}
 	if (interaction.type === "form_submit" && !isRecord(interaction.values)) {
 		errors.push({ path: "interaction.values", message: "Form values must be an object" });
+	}
+	if (
+		interaction.type !== "panel_load" &&
+		interaction.draft !== undefined &&
+		!isRecord(interaction.draft)
+	) {
+		errors.push({ path: "interaction.draft", message: "Draft snapshot must be an object" });
 	}
 	return { valid: errors.length === 0, errors };
 }
