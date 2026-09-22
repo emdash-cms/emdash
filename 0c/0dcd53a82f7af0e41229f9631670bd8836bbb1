@@ -1,0 +1,19 @@
+packages/admin/src/components/PageHeader.tsx
+  s_428695602bab5c::t_9792c44f6b39f1 31-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0c0dcd53a82f7af0e41229f9631670bd8836bbb1",
+  "prompts": {},
+  "sessions": {
+    "s_428695602bab5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0caa2-221d-7933-88c8-8e003403d851",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
