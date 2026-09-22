@@ -127,10 +127,10 @@ describe("plugin build metadata round trip", () => {
 		});
 		expect(persistedManifest.capabilities).toEqual([
 			"content:read",
-			"redirects:read",
-			"redirects:write",
 			"admin.editor-draft:read",
 			"admin.editor-draft:patch",
+			"redirects:read",
+			"redirects:write",
 		]);
 		expect(persistedManifest.admin.editorPanels[0]).toMatchObject({
 			id: "health",
