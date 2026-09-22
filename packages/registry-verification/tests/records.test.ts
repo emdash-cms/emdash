@@ -17,6 +17,9 @@ const packageSlug = "gallery";
 const version = "1.2.3";
 const rkey = `${packageSlug}:${version}`;
 const repository = "https://github.com/example/gallery";
+const legacyPublisherDid = "did:plc:n4mihg5idgr5ne4jigcmbh4k";
+const legacyPackageSlug = "ai-search";
+const legacyProfileCid = "bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a";
 const provenance: ReleaseProvenance = {
 	predicateType: "https://slsa.dev/provenance/v1",
 	url: "https://github.com/example/gallery/attestation.sigstore.json",
@@ -240,6 +243,42 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("accepts only the exact legacy profile CID without a repository extension", async () => {
+		const report = await verify(legacyOverrides());
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			value: {
+				profileExtension: null,
+				repository: null,
+				policy: { requireProvenance: false },
+			},
+		});
+	});
+
+	it("rejects a changed CID for a legacy exception publisher and slug", async () => {
+		expect(
+			await verify(legacyOverrides({ profileCid: `${legacyProfileCid}-changed` })),
+		).toMatchObject({
+			success: false,
+			code: "PROFILE_EXTENSION_MISSING",
+		});
+	});
+
+	it("rejects provenance when a legacy profile has no repository anchor", async () => {
+		const release = legacyRelease();
+		release.artifacts.package.checksum = artifactChecksum;
+		release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance =
+			provenance;
+
+		expect(await verify(legacyOverrides({ release }))).toMatchObject({
+			success: false,
+			code: "PROVENANCE_UNVERIFIABLE",
+			provenance: { status: "failed" },
+		});
+	});
+
 	it("inspects signed policy before provenance evidence is available", async () => {
 		const profile = cloneProfile();
 		profile.extensions["com.emdashcms.experimental.package.profileExtension"].releasePolicy = {
@@ -396,6 +435,30 @@ function withProvenance() {
 	const release = cloneRelease();
 	release.artifacts.package.checksum = artifactChecksum;
 	release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance = provenance;
+	return release;
+}
+
+function legacyOverrides(
+	override: Partial<RecordVerificationInput> = {},
+): Partial<RecordVerificationInput> {
+	const profile = cloneProfile();
+	profile.id = `at://${legacyPublisherDid}/com.emdashcms.experimental.package.profile/${legacyPackageSlug}`;
+	profile.slug = legacyPackageSlug;
+	delete (profile as { extensions?: unknown }).extensions;
+	return {
+		publisherDid: legacyPublisherDid,
+		package: legacyPackageSlug,
+		rkey: `${legacyPackageSlug}:${version}`,
+		profileCid: legacyProfileCid,
+		profile,
+		release: legacyRelease(),
+		...override,
+	};
+}
+
+function legacyRelease() {
+	const release = cloneRelease();
+	release.package = legacyPackageSlug;
 	return release;
 }
 

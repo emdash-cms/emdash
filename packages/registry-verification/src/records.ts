@@ -36,6 +36,8 @@ export interface RecordVerificationInput {
 	package: string;
 	version: string;
 	rkey: string;
+	/** CID from the verified profile record envelope, not from profile content. */
+	profileCid?: string;
 	profile: unknown;
 	release: unknown;
 	provenance?: ProvenanceEvidence;
@@ -71,9 +73,9 @@ export interface RecordVerificationReason {
 export interface VerifiedRecordContext {
 	profile: PackageProfile.Main;
 	release: PackageRelease.Main;
-	profileExtension: PackageProfileExtension.Main;
+	profileExtension: PackageProfileExtension.Main | null;
 	releaseExtension: PackageReleaseExtension.Main;
-	repository: string;
+	repository: string | null;
 	policy: NormalizedReleasePolicy;
 	declaredAccess: CanonicalDeclaredAccess;
 	verifiedProvenance?: VerifiedProvenance;
@@ -116,6 +118,53 @@ const DEFAULT_POLICY: NormalizedReleasePolicy = {
 	approvers: [],
 };
 
+const LEGACY_PROFILES_WITHOUT_EXTENSION = new Set([
+	legacyProfileKey(
+		"did:plc:n4mihg5idgr5ne4jigcmbh4k",
+		"ai-search",
+		"bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a",
+	),
+	legacyProfileKey(
+		"did:plc:nna4pfpnegfsgaym44xqhawf",
+		"forward-email",
+		"bafyreiftqwqkeswo7wlmjpsuaahx3eq67qxyhbyzb3rx3uxxg6y7skn2iu",
+	),
+	legacyProfileKey(
+		"did:plc:juoj6qmxkdbbino76mobq2on",
+		"emdash-to-buffer",
+		"bafyreihr554isikxf2bl4vt3w2frsi6sdm6okdhswantu2l6sgjaspjuge",
+	),
+	legacyProfileKey(
+		"did:plc:tsp7az5h6qsqjzqsgz37wonx",
+		"freeform",
+		"bafyreieycjq4jve7dpx73e3ven4osxe4keihgd6k2ij56gzjca35n2cotu",
+	),
+	legacyProfileKey(
+		"did:plc:iilkrygvrmyedxyfqnwmnfe5",
+		"contact-form",
+		"bafyreicnqc7sqhq2pb77swwo2hm3eakltsy2pz3pl6jcybrwkxh4lqpgkq",
+	),
+	legacyProfileKey(
+		"did:plc:5htva5ewwisu7gfjou2o4mee",
+		"emdash-cf-email-sending",
+		"bafyreidy4456iepmc5qtetivyqph6czibq5lw56ubhiia43n4hun32mdwi",
+	),
+]);
+
+export function isLegacyProfileWithoutExtension(
+	publisherDid: string,
+	packageSlug: string,
+	profileCid: string | undefined,
+): boolean {
+	return LEGACY_PROFILES_WITHOUT_EXTENSION.has(
+		legacyProfileKey(publisherDid, packageSlug, profileCid ?? ""),
+	);
+}
+
+function legacyProfileKey(publisherDid: string, packageSlug: string, profileCid: string): string {
+	return `${publisherDid}\u0000${packageSlug}\u0000${profileCid}`;
+}
+
 /** Validate signed profile/release records without evaluating provenance evidence. */
 export async function inspectPackageReleaseRecords(
 	input: RecordInspectionInput,
@@ -137,33 +186,37 @@ export async function inspectPackageReleaseRecords(
 		);
 	}
 
-	if (profile.extensions === undefined) {
-		return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
-	}
-	if (!isRecord(profile.extensions)) {
-		return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-	}
-	const profileExtensions = profile.extensions;
-	const rawProfileExtension = profileExtensions[NSID.packageProfileExtension];
+	let profileExtension: PackageProfileExtension.Main | null = null;
+	let repository: string | null = null;
+	let policy: NormalizedReleasePolicy = { ...DEFAULT_POLICY, approvers: [] };
+	const rawProfileExtension = isRecord(profile.extensions)
+		? profile.extensions[NSID.packageProfileExtension]
+		: undefined;
 	if (rawProfileExtension === undefined) {
-		return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
+		if (profile.extensions !== undefined && !isRecord(profile.extensions)) {
+			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
+		}
+		if (!isLegacyProfileWithoutExtension(input.publisherDid, input.package, input.profileCid)) {
+			return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
+		}
+	} else {
+		profileExtension = await parseLexicon(PackageProfileExtension.mainSchema, rawProfileExtension);
+		if (!profileExtension) {
+			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
+		}
+		repository = canonicalizeRepositoryUrl(profileExtension.repository);
+		if (!repository || repository !== profileExtension.repository) {
+			return failed(
+				"PROFILE_REPOSITORY_INVALID",
+				"The signed repository anchor is not canonical HTTPS.",
+			);
+		}
+		const normalizedPolicy = normalizePolicy(profileExtension.releasePolicy);
+		if (!normalizedPolicy) {
+			return failed("PROFILE_POLICY_INVALID", "The signed release policy is invalid.");
+		}
+		policy = normalizedPolicy;
 	}
-	const profileExtension = await parseLexicon(
-		PackageProfileExtension.mainSchema,
-		rawProfileExtension,
-	);
-	if (!profileExtension) {
-		return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-	}
-	const repository = canonicalizeRepositoryUrl(profileExtension.repository);
-	if (!repository || repository !== profileExtension.repository) {
-		return failed(
-			"PROFILE_REPOSITORY_INVALID",
-			"The signed repository anchor is not canonical HTTPS.",
-		);
-	}
-	const policy = normalizePolicy(profileExtension.releasePolicy);
-	if (!policy) return failed("PROFILE_POLICY_INVALID", "The signed release policy is invalid.");
 
 	const release = await parseLexicon(PackageRelease.mainSchema, input.release);
 	if (!release) return failed("RELEASE_LEXICON_INVALID", "The package release is malformed.");
@@ -265,6 +318,13 @@ async function verifyPackageReleaseRecordsInternal(
 			provenance: { status: "absent-optional" },
 			value: context,
 		};
+	}
+	if (repository === null) {
+		return failed(
+			"PROVENANCE_UNVERIFIABLE",
+			"The release supplies provenance, but its signed profile has no repository anchor.",
+			"failed",
+		);
 	}
 
 	if (!input.provenance) {

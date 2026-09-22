@@ -13,7 +13,7 @@ import type {
 	VerifiedRecordContext,
 } from "./records.js";
 
-export { inspectPackageReleaseRecords } from "./records.js";
+export { inspectPackageReleaseRecords, isLegacyProfileWithoutExtension } from "./records.js";
 
 export type RecordVerificationInput = RecordVerificationInputWithVerifier;
 
