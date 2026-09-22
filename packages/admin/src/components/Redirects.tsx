@@ -382,25 +382,29 @@ export function Redirects() {
 								value={search}
 								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
 							/>
-							<Select
-								value={filterEnabled}
-								onValueChange={(v) => setFilterEnabled(v ?? "all")}
-								items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
-								aria-label={t`Filter by status`}
-							/>
-							<Select
-								value={filterAuto}
-								onValueChange={(v) => setFilterAuto(v ?? "all")}
-								items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
-								aria-label={t`Filter by type`}
-							/>
+							<div className="grid grid-cols-2 gap-2 sm:flex">
+								<Select
+									className="w-full sm:w-auto"
+									value={filterEnabled}
+									onValueChange={(v) => setFilterEnabled(v ?? "all")}
+									items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
+									aria-label={t`Filter by status`}
+								/>
+								<Select
+									className="w-full sm:w-auto"
+									value={filterAuto}
+									onValueChange={(v) => setFilterAuto(v ?? "all")}
+									items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
+									aria-label={t`Filter by type`}
+								/>
+							</div>
 						</>
 					) : undefined
 				}
 				tabs={[
 					{
 						value: "redirects",
-						className: "text-sm",
+						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-2">
 								{t`Redirects`}
@@ -413,7 +417,11 @@ export function Redirects() {
 							</span>
 						),
 					},
-					{ value: "404s", label: t`404 Errors`, className: "text-sm" },
+					{
+						value: "404s",
+						label: t`404 Errors`,
+						className: "flex-1 justify-center text-sm sm:flex-none",
+					},
 				]}
 			/>
 
@@ -449,9 +457,9 @@ export function Redirects() {
 					{redirectsQuery.isLoading ? (
 						<div className="py-12 text-center text-kumo-subtle">{t`Loading redirects...`}</div>
 					) : redirects.length === 0 ? (
-						<div className="py-12 text-center text-kumo-subtle">
-							<ADMIN_NAV_ICONS.redirects size={48} className="mx-auto mb-4 opacity-30" />
-							<p className="text-lg font-medium">{t`No redirects yet`}</p>
+						<div className="py-10 text-center text-kumo-subtle">
+							<ADMIN_NAV_ICONS.redirects size={40} className="mx-auto mb-3 opacity-30" />
+							<p className="text-base font-medium">{t`No redirects yet`}</p>
 							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
 						</div>
 					) : (

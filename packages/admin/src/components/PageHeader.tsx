@@ -27,15 +27,11 @@ export function PageHeader({
 }: PageHeaderProps) {
 	return (
 		<header className={cn("grid min-w-0 gap-4 border-b border-kumo-line pb-4", className)}>
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div className="min-w-0">
-					<h1 className="text-2xl font-semibold leading-tight">{title}</h1>
-					{description && (
-						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">{description}</p>
-					)}
-				</div>
-				{actions && (
-					<div className="flex shrink-0 justify-end gap-2 self-end sm:self-auto">{actions}</div>
+			<div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
+				<h1 className="min-w-0 self-center text-2xl font-semibold leading-tight">{title}</h1>
+				{actions && <div className="flex shrink-0 justify-end gap-2">{actions}</div>}
+				{description && (
+					<p className="col-span-2 text-sm leading-5 text-pretty text-kumo-subtle">{description}</p>
 				)}
 			</div>
 
@@ -45,11 +41,12 @@ export function PageHeader({
 						value={value}
 						onValueChange={onValueChange}
 						tabs={tabs}
-						className="w-fit max-w-full"
+						className="w-full max-w-full sm:w-fit"
+						listClassName="w-full"
 					/>
 				</div>
 				{tools && (
-					<div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
+					<div className="grid min-w-0 flex-1 gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
 						{tools}
 					</div>
 				)}
