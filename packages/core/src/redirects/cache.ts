@@ -91,7 +91,7 @@ function getCachedRedirects(): CachedRedirects | null {
  * admin stores whatever the author typed -- normally raw Unicode. Comparing the
  * two verbatim means a source like `/stitek/domácí-zvířata` can never match the
  * request a browser sends as `/stitek/dom%C3%A1c%C3%AD-zv%C3%AD%C5%99ata`, so
- * the redirect silently falls through to a 404 (issue #3239).
+ * the redirect silently falls through to a 404.
  *
  * Round-tripping through `URL` keeps this non-breaking: it is idempotent for a
  * source that is already percent-encoded (an existing `%C3%A1` is preserved
