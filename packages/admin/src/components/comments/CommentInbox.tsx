@@ -18,6 +18,7 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
+import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { PageHeader } from "../PageHeader.js";
@@ -137,14 +138,13 @@ export function CommentInbox({
 		collectionItems[slug] = config.label;
 	}
 
-	const total = counts.pending + counts.approved + counts.spam + counts.trash;
 	const searchPlaceholder = t`Search comments...`;
 
 	return (
 		<div className="space-y-6">
 			<PageHeader
 				title={t`Comments`}
-				description={total > 0 ? plural(total, { one: "# total", other: "# total" }) : undefined}
+				description={t`Review and moderate comments across your content.`}
 				value={activeStatus}
 				onValueChange={(v) => {
 					if (v === "pending" || v === "approved" || v === "spam" || v === "trash") {
@@ -261,49 +261,41 @@ export function CommentInbox({
 			)}
 
 			{/* Table */}
-			<div className="rounded-md border bg-kumo-base overflow-x-auto">
-				<table className="w-full">
-					<thead>
-						<tr className="border-b bg-kumo-tint/50">
-							<th scope="col" className="w-10 px-3 py-3">
-								<Checkbox
-									checked={allOnPageSelected}
-									onCheckedChange={toggleAll}
-									aria-label={t`Select all`}
-								/>
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Author`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Comment`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Content`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
-								{t`Date`}
-							</th>
-							<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
-								{t`Actions`}
-							</th>
-						</tr>
-					</thead>
-					<tbody className="divide-y divide-kumo-line">
-						{isLoading && comments.length === 0 ? (
-							<tr>
-								<td colSpan={6} className="px-4 py-8 text-center text-kumo-subtle">
-									{t`Loading comments...`}
-								</td>
+			{isLoading && comments.length === 0 ? (
+				<div className="py-12 text-center text-kumo-subtle">{t`Loading comments...`}</div>
+			) : paginatedComments.length === 0 ? (
+				<EmptyState status={activeStatus} hasFilters={Boolean(searchQuery || collectionFilter)} />
+			) : (
+				<div className="overflow-x-auto rounded-lg border bg-kumo-base">
+					<table className="w-full">
+						<thead>
+							<tr className="border-b bg-kumo-tint/50">
+								<th scope="col" className="w-10 px-3 py-3">
+									<Checkbox
+										checked={allOnPageSelected}
+										onCheckedChange={toggleAll}
+										aria-label={t`Select all`}
+									/>
+								</th>
+								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+									{t`Author`}
+								</th>
+								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+									{t`Comment`}
+								</th>
+								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+									{t`Content`}
+								</th>
+								<th scope="col" className="px-4 py-3 text-start text-sm font-medium">
+									{t`Date`}
+								</th>
+								<th scope="col" className="px-4 py-3 text-end text-sm font-medium">
+									{t`Actions`}
+								</th>
 							</tr>
-						) : paginatedComments.length === 0 ? (
-							<tr>
-								<td colSpan={6} className="px-4 py-8 text-center text-kumo-subtle">
-									<EmptyState status={activeStatus} hasSearch={!!searchQuery} />
-								</td>
-							</tr>
-						) : (
-							paginatedComments.map((comment) => (
+						</thead>
+						<tbody className="divide-y divide-kumo-line">
+							{paginatedComments.map((comment) => (
 								<CommentRow
 									key={comment.id}
 									comment={comment}
@@ -320,11 +312,11 @@ export function CommentInbox({
 									isAdmin={isAdmin}
 									isStatusPending={isStatusPending}
 								/>
-							))
-						)}
-					</tbody>
-				</table>
-			</div>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
 
 			{/* Pagination */}
 			{(totalPages > 1 || nextCursor) && (
@@ -524,12 +516,8 @@ function CommentRow({
 	);
 }
 
-function EmptyState({ status, hasSearch }: { status: CommentStatus; hasSearch: boolean }) {
+function EmptyState({ status, hasFilters }: { status: CommentStatus; hasFilters: boolean }) {
 	const { t } = useLingui();
-
-	if (hasSearch) {
-		return <p>{t`No comments match your search.`}</p>;
-	}
 
 	const messages: Record<CommentStatus, string> = {
 		pending: t`No comments awaiting moderation.`,
@@ -538,5 +526,17 @@ function EmptyState({ status, hasSearch }: { status: CommentStatus; hasSearch: b
 		trash: t`Trash is empty.`,
 	};
 
-	return <p>{messages[status]}</p>;
+	return (
+		<div className="py-10 text-center text-kumo-subtle">
+			<ADMIN_NAV_ICONS.comments size={40} className="mx-auto mb-3 opacity-30" />
+			<p className="text-base font-medium">
+				{hasFilters ? t`No comments match your filters.` : messages[status]}
+			</p>
+			<p className="mt-1 text-sm">
+				{hasFilters
+					? t`Try a different search or collection filter.`
+					: t`Comments with this status will appear here.`}
+			</p>
+		</div>
+	);
 }

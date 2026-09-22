@@ -69,6 +69,22 @@ describe("CommentInbox", () => {
 		expect(noopProps.onStatusChange).toHaveBeenCalledWith("approved");
 	});
 
+	it("shows page context and a standalone empty state without table chrome", async () => {
+		const screen = await render(
+			<CommentInbox
+				{...noopProps}
+				comments={[]}
+				counts={{ pending: 0, approved: 0, spam: 0, trash: 0 }}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByText("Review and moderate comments across your content."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("No comments awaiting moderation.")).toBeInTheDocument();
+		expect(screen.getByRole("table").query()).toBeNull();
+	});
+
 	it("toggles selection when a row checkbox is clicked", async () => {
 		const screen = await render(<CommentInbox {...noopProps} />);
 
