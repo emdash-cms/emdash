@@ -1,0 +1,19 @@
+packages/admin/tests/components/taxonomy-term-cache.test.tsx
+  s_0df06e584efdf4::t_2d61d17501112d 173,186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3b1d542c0ec162da404dc3ebcdd55bee9e3cd2b9",
+  "prompts": {},
+  "sessions": {
+    "s_0df06e584efdf4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd9e-f3f6-7e31-be97-b2eb60a9124c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
