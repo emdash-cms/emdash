@@ -154,7 +154,7 @@ describe("D1 atomic batches", () => {
 });
 
 describe("D1 write results", () => {
-	it("executes compiled statements through one atomic binding batch", async () => {
+	it("forwards compiled statements to one binding batch and maps results", async () => {
 		const { database, batchCalls } = createMockD1();
 		const adapter = new D1Adapter(database);
 

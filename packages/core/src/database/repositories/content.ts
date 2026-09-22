@@ -1070,6 +1070,77 @@ export class ContentRepository {
 		return { item, revisionId };
 	}
 
+	async restoreDraftRevision(
+		type: string,
+		id: string,
+		revisionData: Record<string, unknown>,
+		authorId: string,
+	): Promise<string | null> {
+		const tableName = getTableName(type);
+		const existing = await this.findById(type, id);
+		if (!existing) return null;
+
+		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
+		const revisionId = createRevisionId();
+		const buildQueries = () => {
+			const audit = sql`
+				INSERT INTO revisions (id, collection, entry_id, data, author_id)
+				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+			`;
+			const stage = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${revisionId},
+					version = version + 1
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${existing.version}
+				AND updated_at = ${existing.updatedAt}
+				AND status = ${existing.status}
+				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+			`;
+			const removeUnstagedAudit = sql`
+				DELETE FROM revisions
+				WHERE id = ${revisionId}
+				AND NOT EXISTS (
+					SELECT 1 FROM ${sql.ref(tableName)}
+					WHERE id = ${id}
+					AND draft_revision_id = ${revisionId}
+					AND version = ${existing.version + 1}
+				)
+			`;
+			return [audit, stage, removeUnstagedAudit] as const;
+		};
+
+		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
+		if (batched) {
+			if (
+				(batched[0]?.numAffectedRows ?? 0n) !== 1n ||
+				(batched[1]?.numAffectedRows ?? 0n) !== 1n
+			) {
+				throw new ContentMutationConflictError();
+			}
+		} else {
+			await withTransaction(this.db, async (trx) => {
+				const [audit, stage, removeUnstagedAudit] = buildQueries();
+				const auditResult = await audit.execute(trx);
+				if ((auditResult.numAffectedRows ?? 0n) !== 1n) {
+					throw new ContentMutationConflictError();
+				}
+				const stageResult = await stage.execute(trx);
+				await removeUnstagedAudit.execute(trx);
+				if ((stageResult.numAffectedRows ?? 0n) !== 1n) {
+					throw new ContentMutationConflictError();
+				}
+			});
+		}
+
+		invalidateCollectionCache(type);
+		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		return revisionId;
+	}
+
 	/**
 	 * Update plugin-authored fields without letting content columns diverge
 	 * from the revision pointers that publication promotes.

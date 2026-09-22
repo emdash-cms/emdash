@@ -9,6 +9,7 @@ import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
+import { createTestRuntime } from "../utils/mcp-runtime.js";
 import { resetD1Schema } from "./d1-schema.js";
 
 declare module "cloudflare:test" {
@@ -18,11 +19,13 @@ declare module "cloudflare:test" {
 }
 
 const COLLECTION = "restore_d1";
+const REVISION_COLLECTION = "restore_d1_revisions";
 const FAILURE_AUTHOR = "fail-restore-audit";
 
 let db: Kysely<Database>;
 let contentRepo: ContentRepository;
 let revisionRepo: RevisionRepository;
+let runtime: ReturnType<typeof createTestRuntime>;
 
 beforeAll(() => {
 	db = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
@@ -35,9 +38,20 @@ beforeEach(async () => {
 	const registry = new SchemaRegistry(db);
 	await registry.createCollection({ slug: COLLECTION, label: "D1 restore" });
 	await registry.createField(COLLECTION, { slug: "title", label: "Title", type: "string" });
+	await registry.createCollection({
+		slug: REVISION_COLLECTION,
+		label: "D1 revision restore",
+		supports: ["revisions"],
+	});
+	await registry.createField(REVISION_COLLECTION, {
+		slug: "title",
+		label: "Title",
+		type: "string",
+	});
 
 	contentRepo = new ContentRepository(db);
 	revisionRepo = new RevisionRepository(db);
+	runtime = createTestRuntime(db);
 });
 
 afterAll(async () => {
@@ -111,6 +125,79 @@ describe("revision restore on D1", () => {
 			data: { title: restoredTitle },
 		});
 		await expect(revisionRepo.countByEntry(COLLECTION, content.id)).resolves.toBe(
+			revisionCount + 1,
+		);
+	});
+
+	it("rolls back a revision-enabled draft restore when its audit insert fails", async () => {
+		const content = await contentRepo.create({
+			type: REVISION_COLLECTION,
+			data: { title: "Current draft" },
+		});
+		const target = await revisionRepo.create({
+			collection: REVISION_COLLECTION,
+			entryId: content.id,
+			data: { title: "Restored draft" },
+		});
+		const revisionCount = await revisionRepo.countByEntry(REVISION_COLLECTION, content.id);
+
+		await sql`
+			CREATE TRIGGER fail_revision_enabled_restore_audit
+			BEFORE INSERT ON revisions
+			WHEN NEW.author_id = ${sql.lit(FAILURE_AUTHOR)}
+			BEGIN
+				SELECT RAISE(FAIL, 'forced revision audit failure');
+			END
+		`.execute(db);
+
+		const result = await runtime.handleRevisionRestore(target.id, FAILURE_AUTHOR);
+
+		expect(result).toMatchObject({
+			success: false,
+			error: { code: "REVISION_RESTORE_ERROR" },
+		});
+		await expect(runtime.handleContentGet(REVISION_COLLECTION, content.id)).resolves.toMatchObject({
+			success: true,
+			data: { item: { data: { title: "Current draft" } } },
+		});
+		await expect(revisionRepo.countByEntry(REVISION_COLLECTION, content.id)).resolves.toBe(
+			revisionCount,
+		);
+	});
+
+	it("commits one revision-enabled draft when concurrent restores race", async () => {
+		const content = await contentRepo.create({
+			type: REVISION_COLLECTION,
+			data: { title: "Current draft" },
+		});
+		const first = await revisionRepo.create({
+			collection: REVISION_COLLECTION,
+			entryId: content.id,
+			data: { title: "First draft" },
+		});
+		const second = await revisionRepo.create({
+			collection: REVISION_COLLECTION,
+			entryId: content.id,
+			data: { title: "Second draft" },
+		});
+		const revisionCount = await revisionRepo.countByEntry(REVISION_COLLECTION, content.id);
+
+		const results = await Promise.all([
+			runtime.handleRevisionRestore(first.id, "first-author"),
+			runtime.handleRevisionRestore(second.id, "second-author"),
+		]);
+		const succeeded = results.filter((result) => result.success);
+		const conflicted = results.filter(
+			(result) => !result.success && result.error.code === "CONFLICT",
+		);
+
+		expect(succeeded).toHaveLength(1);
+		expect(conflicted).toHaveLength(1);
+		await expect(runtime.handleContentGet(REVISION_COLLECTION, content.id)).resolves.toMatchObject({
+			success: true,
+			data: { item: { data: succeeded[0]?.data.item.data } },
+		});
+		await expect(revisionRepo.countByEntry(REVISION_COLLECTION, content.id)).resolves.toBe(
 			revisionCount + 1,
 		);
 	});
