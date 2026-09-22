@@ -828,10 +828,10 @@ describe("idempotency", () => {
 });
 
 // ---------------------------------------------------------------------------
-// content_unschedule gap (no MCP tool for this, only on runtime)
+// content_unschedule
 // ---------------------------------------------------------------------------
 
-describe("content_unschedule gap", () => {
+describe("content_unschedule", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
 
@@ -843,12 +843,6 @@ describe("content_unschedule gap", () => {
 	afterEach(async () => {
 		if (harness) await harness.cleanup();
 		await teardownTestDatabase(db);
-	});
-
-	it("MCP exposes content_unschedule", async () => {
-		const tools = await harness.client.listTools();
-		const names = tools.tools.map((t) => t.name);
-		expect(names).toContain("content_unschedule");
 	});
 
 	it("schedule + unschedule clears scheduledAt and re-publish still works (F12)", async () => {
@@ -894,8 +888,11 @@ describe("content_unschedule gap", () => {
 			name: "content_get",
 			arguments: { collection: "post", id },
 		});
-		const cleared = extractJson<{ item: { scheduledAt: string | null } }>(afterUnschedule).item;
+		const cleared = extractJson<{ item: { scheduledAt: string | null; status: string } }>(
+			afterUnschedule,
+		).item;
 		expect(cleared.scheduledAt).toBeNull();
+		expect(cleared.status).toBe("draft");
 
 		// Re-publish still works after unschedule.
 		const republish = await harness.client.callTool({
@@ -905,5 +902,25 @@ describe("content_unschedule gap", () => {
 		expect(republish.isError, extractText(republish)).toBeFalsy();
 		const final = extractJson<{ item: { status: string } }>(republish).item;
 		expect(final.status).toBe("published");
+
+		const rescheduled = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 120_000).toISOString(),
+				_rev: await currentRev(harness.client, "post", id),
+			},
+		});
+		expect(rescheduled.isError, extractText(rescheduled)).toBeFalsy();
+		const publishedUnschedule = await harness.client.callTool({
+			name: "content_unschedule",
+			arguments: { collection: "post", id },
+		});
+		expect(publishedUnschedule.isError, extractText(publishedUnschedule)).toBeFalsy();
+		expect(
+			extractJson<{ item: { scheduledAt: string | null; status: string } }>(publishedUnschedule)
+				.item,
+		).toMatchObject({ scheduledAt: null, status: "published" });
 	});
 });

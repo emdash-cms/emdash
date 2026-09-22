@@ -11,9 +11,11 @@ import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
+import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { RevisionRepository } from "./revision.js";
+import { createRevisionId, RevisionRepository } from "./revision.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -965,6 +967,179 @@ export class ContentRepository {
 		return updated;
 	}
 
+	async restoreRevision(
+		type: string,
+		id: string,
+		revisionData: Record<string, unknown>,
+		authorId: string,
+	): Promise<{ item: ContentItem; revisionId: string }> {
+		const tableName = getTableName(type);
+		const existing = await this.findById(type, id);
+		if (!existing) throw new EmDashValidationError("Content item not found");
+
+		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
+		const { _slug, ...snapshotFields } = normalizedSnapshot;
+		const fieldData = writableContentData(snapshotFields);
+		const revisionId = createRevisionId();
+		const now = new Date().toISOString();
+		const assignments: ReturnType<typeof sql>[] = [];
+
+		if (typeof _slug === "string") assignments.push(sql`slug = ${_slug}`);
+		for (const [field, value] of Object.entries(fieldData)) {
+			validateIdentifier(field, "content field name");
+			assignments.push(sql`${sql.ref(field)} = ${serializeValue(value)}`);
+		}
+		// The audit row is inserted first, then its ID acts as a transaction-local
+		// marker so a losing concurrent restore can remove only its own audit.
+		assignments.push(
+			sql`draft_revision_id = ${revisionId}`,
+			sql`updated_at = ${now}`,
+			sql`version = version + 1`,
+		);
+
+		const buildQueries = () => {
+			const audit = sql`
+				INSERT INTO revisions (id, collection, entry_id, data, author_id)
+				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+				RETURNING id
+			`;
+			const update = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET ${sql.join(assignments, sql`, `)}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${existing.version}
+				AND updated_at = ${existing.updatedAt}
+				AND status = ${existing.status}
+				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+				RETURNING id
+			`;
+			const removeUnappliedAudit = sql`
+				DELETE FROM revisions
+				WHERE id = ${revisionId}
+				AND NOT EXISTS (
+					SELECT 1 FROM ${sql.ref(tableName)}
+					WHERE id = ${id}
+					AND draft_revision_id = ${revisionId}
+					AND version = ${existing.version + 1}
+				)
+			`;
+			const releaseMarker = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${existing.draftRevisionId}
+				WHERE id = ${id}
+				AND draft_revision_id = ${revisionId}
+				AND version = ${existing.version + 1}
+				RETURNING id
+			`;
+			return [audit, update, removeUnappliedAudit, releaseMarker] as const;
+		};
+
+		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
+		if (batched) {
+			if (
+				batched[0]?.rows.length !== 1 ||
+				batched[1]?.rows.length !== 1 ||
+				batched[3]?.rows.length !== 1
+			) {
+				throw new ContentMutationConflictError();
+			}
+		} else {
+			await withTransaction(this.db, async (trx) => {
+				const [audit, update, removeUnappliedAudit, releaseMarker] = buildQueries();
+				const auditResult = await audit.execute(trx);
+				if (auditResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+				const updateResult = await update.execute(trx);
+				await removeUnappliedAudit.execute(trx);
+				const releaseResult = await releaseMarker.execute(trx);
+				if (updateResult.rows.length !== 1 || releaseResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+			});
+		}
+
+		invalidateCollectionCache(type);
+		const item = await this.findById(type, id);
+		if (!item) throw new Error("Content not found");
+
+		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		return { item, revisionId };
+	}
+
+	async restoreDraftRevision(
+		type: string,
+		id: string,
+		revisionData: Record<string, unknown>,
+		authorId: string,
+	): Promise<string | null> {
+		const tableName = getTableName(type);
+		const existing = await this.findById(type, id);
+		if (!existing) return null;
+
+		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
+		const revisionId = createRevisionId();
+		const buildQueries = () => {
+			const audit = sql`
+				INSERT INTO revisions (id, collection, entry_id, data, author_id)
+				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+				RETURNING id
+			`;
+			const stage = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${revisionId},
+					version = version + 1
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${existing.version}
+				AND updated_at = ${existing.updatedAt}
+				AND status = ${existing.status}
+				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+				RETURNING id
+			`;
+			const removeUnstagedAudit = sql`
+				DELETE FROM revisions
+				WHERE id = ${revisionId}
+				AND NOT EXISTS (
+					SELECT 1 FROM ${sql.ref(tableName)}
+					WHERE id = ${id}
+					AND draft_revision_id = ${revisionId}
+					AND version = ${existing.version + 1}
+				)
+			`;
+			return [audit, stage, removeUnstagedAudit] as const;
+		};
+
+		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
+		if (batched) {
+			if (batched[0]?.rows.length !== 1 || batched[1]?.rows.length !== 1) {
+				throw new ContentMutationConflictError();
+			}
+		} else {
+			await withTransaction(this.db, async (trx) => {
+				const [audit, stage, removeUnstagedAudit] = buildQueries();
+				const auditResult = await audit.execute(trx);
+				if (auditResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+				const stageResult = await stage.execute(trx);
+				await removeUnstagedAudit.execute(trx);
+				if (stageResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+			});
+		}
+
+		invalidateCollectionCache(type);
+		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		return revisionId;
+	}
+
 	/**
 	 * Update plugin-authored fields without letting content columns diverge
 	 * from the revision pointers that publication promotes.
@@ -1330,6 +1505,10 @@ export class ContentRepository {
 
 	/**
 	 * Restore content from trash
+	 *
+	 * The entry comes back as a draft with no schedule. The live version is not
+	 * copied into a draft revision: collections without revisions save to the
+	 * columns, and a draft revision would hide those saves.
 	 */
 	async restore(
 		type: string,
@@ -1345,6 +1524,9 @@ export class ContentRepository {
 		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
 			SET deleted_at = NULL,
+				live_revision_id = NULL,
+				status = 'draft',
+				scheduled_at = NULL,
 				updated_at = ${now},
 				version = ${existing.version + 1}
 			WHERE id = ${existing.id}
@@ -2357,8 +2539,9 @@ export class ContentRepository {
 	/**
 	 * Unpublish content
 	 *
-	 * Removes live pointer but preserves the draft and publication date. If no
-	 * draft exists, creates one from the live version so the content isn't lost.
+	 * Removes live pointer and cancels any pending schedule, but preserves the
+	 * draft and publication date. If no draft exists, creates one from the live
+	 * version so the content isn't lost.
 	 */
 	async unpublish(
 		type: string,
@@ -2373,7 +2556,9 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
-		if (existing.status === "draft" && !existing.liveRevisionId) return existing;
+		if (existing.status === "draft" && !existing.liveRevisionId && !existing.scheduledAt) {
+			return existing;
+		}
 
 		const revisionRepo = new RevisionRepository(this.db);
 		let provisionalRevisionId: string | null = null;
@@ -2397,6 +2582,7 @@ export class ContentRepository {
 				SET live_revision_id = NULL,
 					draft_revision_id = ${draftRevisionId},
 					status = 'draft',
+					scheduled_at = NULL,
 					updated_at = ${now},
 					version = version + 1
 				WHERE id = ${id}

@@ -1202,6 +1202,50 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain("Run: `implement-run-123`");
 	});
 
+	test("pauses a rate-limited publication without failing the issue", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const retryAt = Date.now() + 5 * 60_000;
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"publication-run",
+			Date.now(),
+			"investigate-42-publication-run",
+			"fix",
+		);
+
+		await expect(
+			stub.applyAgentResult({
+				runId: "publication-run",
+				result: {
+					fixed: false,
+					summary: "GitHub asked the candidate publisher to wait.",
+					failureStage: "publication",
+					failureRetryAt: retryAt,
+				},
+				pushed: false,
+				ok: true,
+			}),
+		).resolves.toEqual({ kind: "publication-paused", runId: "publication-run", retryAt });
+
+		expect(await stub.getPersistedState()).toMatchObject({
+			state: "fixing",
+			currentRunId: null,
+			currentAgentId: null,
+		});
+		expect(await stub.getPublicSnapshot()).toMatchObject({
+			run: { status: "paused", phase: "prepare" },
+		});
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "publication-run",
+			agentId: "investigate-42-publication-run",
+			mode: "fix",
+			state: "fixing",
+		});
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThanOrEqual(retryAt);
+		});
+	});
+
 	test("resume without a saved timed-out run comments and leaves the issue failed", async () => {
 		const calls: string[] = [];
 		const comments: string[] = [];
@@ -2019,9 +2063,20 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 	});
 
-	test("cleanupOnClose is a no-op without live credentials", async () => {
+	test("cleanupOnClose clears idle scheduling state without live credentials", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:state": "needs_attention",
+				"o:labelReconcileNextAt": Date.now() + 15 * 60_000,
+			});
+			await state.storage.setAlarm(Date.now() + 15 * 60_000);
+		});
 		const outcome = await stub.cleanupOnClose(42);
 		expect(outcome.kind).toBe("skipped");
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeNull();
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
 	});
 });

@@ -13,6 +13,7 @@ import { ulid } from "ulidx";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
+import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
@@ -24,7 +25,8 @@ import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
-import { setSiteSettings } from "../settings/index.js";
+import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.js";
+import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 import type {
 	SeedFile,
@@ -37,6 +39,39 @@ import type {
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+async function applySiteSettings(
+	db: Kysely<Database>,
+	settings: Partial<SiteSettings>,
+	onConflict: Exclude<SeedApplyOptions["onConflict"], undefined>,
+	result: SeedApplyResult,
+): Promise<void> {
+	const entries = Object.entries(settings).filter(([, value]) => value !== undefined);
+	if (entries.length === 0) return;
+
+	if (onConflict === "update") {
+		await setSiteSettings(settings, db);
+		result.settings.applied += entries.length;
+		return;
+	}
+
+	const options = new OptionsRepository(db);
+	let applied = 0;
+	try {
+		for (const [key, value] of entries) {
+			const write = await options.compareAndSet(`site:${key}`, null, value);
+			if (!write.applied && onConflict === "error") {
+				throw new Error(`Conflict: site setting "site:${key}" already exists`);
+			}
+			if (write.applied) applied++;
+		}
+	} finally {
+		if (applied > 0) {
+			result.settings.applied += applied;
+			invalidateSiteSettingsCache();
+		}
+	}
+}
 
 /**
  * Set a collection's `titleField`/`dateField`: a separate write run after the
@@ -170,8 +205,7 @@ export async function applySeed(
 
 	// 1. Site settings
 	if (seed.settings) {
-		await setSiteSettings(seed.settings, db);
-		result.settings.applied = Object.keys(seed.settings).length;
+		await applySiteSettings(db, seed.settings, onConflict, result);
 	}
 
 	// 2-3. Collections and Fields

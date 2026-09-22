@@ -8,11 +8,9 @@ import {
 	getPullRequestHeadSha,
 	githubRateLimitGate,
 	GitHubRateLimitError,
-	mintInstallationToken,
 	readAppCreds,
 	removePullRequestLabel,
 	updateReviewCheck,
-	type GitHubAppCreds,
 	type GitHubToken,
 } from "./lib/github.js";
 import {
@@ -53,9 +51,9 @@ export function reviewSetupRetryDelay(
 }
 
 export class ReviewWatchdog extends DurableObject<Env> {
-	private async githubToken(creds: GitHubAppCreds, consumer: string): Promise<GitHubToken> {
+	private async githubToken(consumer: string): Promise<GitHubToken> {
 		const gate = githubRateLimitGate(this.env);
-		const token = await mintInstallationToken(creds, { token: "", gate, consumer });
+		const token = await gate.getInstallationToken();
 		return { token, gate, consumer };
 	}
 
@@ -205,7 +203,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 			if (!attempt.workflowInput) {
 				throw new TerminalConfigurationError("Review attempt has no workflow input");
 			}
-			const token = await this.githubToken(creds, `review-setup:${attempt.attemptId}`);
+			const token = await this.githubToken(`review-setup:${attempt.attemptId}`);
 			let checkRunId = attempt.checkRunId;
 			if (checkRunId === undefined) {
 				checkRunId = await findReviewCheck(
@@ -368,7 +366,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		try {
 			const creds = readAppCreds(this.env);
 			if (!creds) throw new TerminalConfigurationError("GitHub App credentials are unavailable");
-			const token = await this.githubToken(creds, `review-recovery:${attempt.attemptId}`);
+			const token = await this.githubToken(`review-recovery:${attempt.attemptId}`);
 			const currentHeadSha = await getPullRequestHeadSha(
 				token,
 				attempt.owner,
@@ -427,7 +425,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		try {
 			const creds = readAppCreds(this.env);
 			if (creds) {
-				const token = await this.githubToken(creds, `review-check-update:${attempt.attemptId}`);
+				const token = await this.githubToken(`review-check-update:${attempt.attemptId}`);
 				await updateReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
 					prNumber: attempt.prNumber,
 					runId: retryRunId,
@@ -523,7 +521,7 @@ export class ReviewWatchdog extends DurableObject<Env> {
 	): Promise<void> {
 		const creds = readAppCreds(this.env);
 		if (!creds) throw new TerminalConfigurationError("GitHub App credentials are unavailable");
-		const token = await this.githubToken(creds, `review-terminal:${attempt.attemptId}`);
+		const token = await this.githubToken(`review-terminal:${attempt.attemptId}`);
 		if (attempt.checkRunId !== undefined) {
 			await completeReviewCheck(token, attempt.owner, attempt.repo, attempt.checkRunId, {
 				...attempt.terminal,
@@ -594,6 +592,17 @@ export class ReviewWatchdog extends DurableObject<Env> {
 		if (retainedAt !== undefined) {
 			const cleanupAt = retainedAt + TERMINAL_RETENTION_MS;
 			if (Date.now() >= cleanupAt) {
+				console.info(
+					JSON.stringify({
+						message: "review watchdog self-cleanup completed",
+						reason: "terminal-retention-expired",
+						attemptId: attempt.attemptId,
+						runId: attempt.runId,
+						prNumber: attempt.prNumber,
+						terminalReportedAt: attempt.terminalReportedAt ?? null,
+						terminalAbandonedAt: attempt.terminalAbandonedAt ?? null,
+					}),
+				);
 				await this.ctx.storage.deleteAll();
 				await this.ctx.storage.deleteAlarm();
 			} else {

@@ -2412,7 +2412,8 @@ const taxonomyRoute = createRoute({
 
 function TaxonomyPage() {
 	const { taxonomy } = useParams({ from: "/_admin/taxonomies/$taxonomy" });
-	return <TaxonomyManager taxonomyName={taxonomy} />;
+	const navigate = useNavigate();
+	return <TaxonomyManager taxonomyName={taxonomy} onDeleted={() => void navigate({ to: "/" })} />;
 }
 
 // Widgets route

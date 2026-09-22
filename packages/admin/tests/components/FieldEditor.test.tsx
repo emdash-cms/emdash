@@ -477,4 +477,29 @@ describe("FieldEditor", () => {
 			expect(screen.getByText("Add Field").query()).toBeNull();
 		});
 	});
+
+	describe("scrollable config dialog", () => {
+		it("bounds the config content so save actions remain reachable with many repeater sub-fields", async () => {
+			const subFields = Array.from({ length: 20 }, (_, i) => ({
+				slug: `item_${i}`,
+				type: "string",
+				label: `Item ${i}`,
+				required: false,
+			}));
+			const field = makeField({
+				type: "repeater",
+				validation: { subFields } as SchemaField["validation"],
+			});
+
+			const screen = await render(<FieldEditor {...defaultProps} field={field} />);
+			const content = document.querySelector('[data-testid="field-editor-config-content"]');
+
+			expect(content).not.toBeNull();
+			expect(content!.classList.contains("max-h-[60vh]")).toBe(true);
+			expect(content!.classList.contains("overflow-y-auto")).toBe(true);
+			expect(
+				content!.contains(screen.getByRole("button", { name: "Update Field" }).element()),
+			).toBe(false);
+		});
+	});
 });

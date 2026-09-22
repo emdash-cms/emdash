@@ -12771,7 +12771,7 @@ const verifier = new import_dist$2.Verifier((0, import_dist$2.toTrustMaterial)(i
 });
 
 //#endregion
-//#region ../../packages/registry-verification/dist/errors-CI-j3m_y.js
+//#region ../../packages/registry-verification/dist/errors-D3_zxvwe.js
 function verificationError(code, message, details) {
 	return {
 		success: false,

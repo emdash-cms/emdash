@@ -66,6 +66,14 @@ export function resumeRunLifecycle(run: RunLifecycle, startedAt: number): RunLif
 	};
 }
 
+export function pauseRunLifecycle(run: RunLifecycle): RunLifecycle {
+	return {
+		...run,
+		status: "paused",
+		completedAt: null,
+	};
+}
+
 export function beginRunLifecycle(run: RunLifecycle, startedAt: number): RunLifecycle {
 	if (run.status !== "running" || run.phase !== "prepare") return run;
 	return {
@@ -87,7 +95,7 @@ export function advanceRunLifecycle(run: RunLifecycle, progress: RunProgressKind
 
 export function settleRunLifecycle(
 	run: RunLifecycle,
-	status: Exclude<RunStatus, "running">,
+	status: Exclude<RunStatus, "running" | "paused">,
 	completedAt: number,
 ): RunLifecycle {
 	return {

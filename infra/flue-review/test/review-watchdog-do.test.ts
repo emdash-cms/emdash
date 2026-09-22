@@ -5,9 +5,11 @@ const github = vi.hoisted(() => ({
 	createReviewCheck: vi.fn(),
 	findReviewCheck: vi.fn(),
 	getPullRequestHeadSha: vi.fn(),
+	getInstallationToken: vi.fn(),
 	githubRateLimitGate: vi.fn(() => ({
 		permit: vi.fn().mockResolvedValue({ allowed: true, retryAt: 0 }),
 		record: vi.fn().mockResolvedValue(undefined),
+		getInstallationToken: github.getInstallationToken,
 	})),
 	mintInstallationToken: vi.fn(),
 	readAppCreds: vi.fn(),
@@ -155,6 +157,7 @@ beforeEach(() => {
 	github.createReviewCheck.mockReset().mockResolvedValue(123);
 	github.findReviewCheck.mockReset().mockResolvedValue(undefined);
 	github.getPullRequestHeadSha.mockReset().mockResolvedValue("a".repeat(40));
+	github.getInstallationToken.mockReset().mockResolvedValue("token");
 	github.mintInstallationToken.mockReset().mockResolvedValue("token");
 	github.removePullRequestLabel.mockReset().mockResolvedValue(undefined);
 	github.updateReviewCheck.mockReset().mockResolvedValue(undefined);
@@ -661,7 +664,7 @@ describe("ReviewWatchdog terminal arbitration", () => {
 			.mockResolvedValueOnce(undefined)
 			.mockResolvedValueOnce(undefined)
 			.mockResolvedValueOnce(456);
-		github.mintInstallationToken
+		github.getInstallationToken
 			.mockResolvedValueOnce("first-token")
 			.mockResolvedValueOnce("refreshed-token");
 		await watchdog.reserve(attempt, "lease-1");
@@ -752,5 +755,28 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		});
 		expect(github.removePullRequestLabel).toHaveBeenCalled();
 		expect(storage.alarm).toBeGreaterThan(Date.now());
+	});
+
+	it("logs when terminal retention expires and the watchdog cleans itself up", async () => {
+		const { attempt, storage, watchdog } = setup();
+		const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+		await storage.put("attempt", {
+			...attempt,
+			terminal: { conclusion: "success", summary: "complete" },
+			terminalReportedAt: Date.now() - 8 * 24 * 60 * 60_000,
+		});
+		await storage.setAlarm(Date.now());
+
+		await watchdog.alarm();
+
+		expect(storage.values.size).toBe(0);
+		expect(storage.alarm).toBeUndefined();
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"message":"review watchdog self-cleanup completed"'),
+		);
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"reason":"terminal-retention-expired"'),
+		);
+		expect(log).toHaveBeenCalledWith(expect.stringContaining('"attemptId":"attempt-1"'));
 	});
 });

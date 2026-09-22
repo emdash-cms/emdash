@@ -35,9 +35,13 @@ describe("GitHub review checks", () => {
 			fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
 				const request = new Request(input, init);
 				requests.push(request);
-				return request.url.endsWith("/permit")
-					? Response.json({ allowed: false, retryAt: 1234 })
-					: new Response(null, { status: 204 });
+				if (request.url.endsWith("/permit")) {
+					return Response.json({ allowed: false, retryAt: 1234 });
+				}
+				if (request.url.endsWith("/token")) {
+					return Response.json({ token: "shared-token" });
+				}
+				return new Response(null, { status: 204 });
 			}),
 		};
 		const gate = githubRateLimitGate({
@@ -49,6 +53,7 @@ describe("GitHub review checks", () => {
 			allowed: false,
 			retryAt: 1234,
 		});
+		await expect(gate.getInstallationToken()).resolves.toBe("shared-token");
 		await gate.record("graphql", "review-workflow", {
 			status: 429,
 			limit: 5_000,
@@ -58,6 +63,7 @@ describe("GitHub review checks", () => {
 		});
 		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
 			"/permit",
+			"/token",
 			"/record",
 		]);
 	});
@@ -106,6 +112,51 @@ describe("GitHub review checks", () => {
 				summary: "The review request was accepted and is being admitted.",
 			},
 		});
+	});
+
+	it("waits for a short coordinator delay between review setup requests", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-09-21T19:43:47.000Z"));
+		const permit = vi
+			.fn()
+			.mockResolvedValueOnce({ allowed: true, retryAt: 0 })
+			.mockResolvedValueOnce({ allowed: false, retryAt: Date.now() + 250 })
+			.mockResolvedValueOnce({ allowed: true, retryAt: 0 });
+		const gate = {
+			permit,
+			getInstallationToken: vi.fn().mockResolvedValue(TOKEN),
+			record: vi.fn().mockResolvedValue(undefined),
+		};
+		const token = { token: TOKEN, gate, consumer: "review-setup:attempt-1" };
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(Response.json({ check_runs: [] }))
+			.mockResolvedValueOnce(Response.json({ id: 1234 }, { status: 201 }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		const setup = (async () => {
+			const existing = await findReviewCheck(
+				token,
+				"emdash-cms",
+				"emdash",
+				"head-sha",
+				"attempt-1",
+			);
+			return (
+				existing ??
+				(await createReviewCheck(token, "emdash-cms", "emdash", {
+					headSha: "head-sha",
+					attemptId: "attempt-1",
+					prNumber: 42,
+				}))
+			);
+		})();
+		const assertion = expect(setup).resolves.toBe(1234);
+
+		await vi.advanceTimersByTimeAsync(250);
+		await assertion;
+		expect(permit).toHaveBeenCalledTimes(3);
+		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
 	it("does not turn a headerless permission failure into installation exhaustion", async () => {

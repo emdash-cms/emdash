@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	isSafePluginPagePath,
 	validateBlockResponse,
 	validateBlocks,
 	validateContentEditorActionResponse,
 	validateContentEditorPanelInteraction,
 } from "../src/validation.js";
+
+describe("isSafePluginPagePath", () => {
+	it("accepts the native plugin root without accepting an empty declaration", () => {
+		expect(isSafePluginPagePath("/")).toBe(true);
+		expect(isSafePluginPagePath("")).toBe(false);
+	});
+});
 
 describe("validateBlocks", () => {
 	// ── Valid blocks ─────────────────────────────────────────────────────────

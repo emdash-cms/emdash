@@ -300,9 +300,9 @@ describe("CLI Integration", () => {
 			// Restore
 			await cli("content", "restore", "posts", item.id);
 
-			// Should be accessible again (auto-published before deletion, so restored as published)
+			// Accessible again, as a draft even though it was auto-published before deletion
 			const fetched = await cliJson<{ status: string }>("content", "get", "posts", item.id);
-			expect(fetched.status).toBe("published");
+			expect(fetched.status).toBe("draft");
 
 			// Final cleanup
 			await cli("content", "delete", "posts", item.id);

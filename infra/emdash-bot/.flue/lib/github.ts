@@ -2,6 +2,7 @@
 // agent's container.
 
 import {
+	acquireGitHubPermit,
 	parseGitHubResponseMetadata,
 	type GitHubRateLimitGate,
 } from "./github-rate-limit-client.js";
@@ -84,11 +85,10 @@ async function githubFetch(
 	init: RequestInit = {},
 	token?: GitHubToken,
 ): Promise<Response> {
-	const now = Date.now();
 	const coordinated = coordination(token);
 	const category = endpointCategory(input, init.method ?? "GET");
 	if (coordinated) {
-		const permit = await coordinated.gate.permit(category, coordinated.consumer);
+		const permit = await acquireGitHubPermit(coordinated.gate, category, coordinated.consumer);
 		if (!permit.allowed) {
 			throw new GitHubRateLimitError(
 				429,
@@ -101,14 +101,15 @@ async function githubFetch(
 		...init,
 		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
 	});
+	const responseAt = Date.now();
 	if (coordinated) {
 		await coordinated.gate.record(
 			category,
 			coordinated.consumer,
-			parseGitHubResponseMetadata(response, now),
+			parseGitHubResponseMetadata(response, responseAt),
 		);
 	}
-	const retryAt = retryHeaderAt(response.headers, now);
+	const retryAt = retryHeaderAt(response.headers, responseAt);
 	const rateLimited =
 		response.status === 429 ||
 		(response.status === 403 &&
@@ -116,7 +117,10 @@ async function githubFetch(
 				response.headers.has("retry-after")));
 	if (!rateLimited) return response;
 
-	const backoffUntil = Math.max(retryAt ?? now + GITHUB_RATE_LIMIT_FALLBACK_MS, now + 1_000);
+	const backoffUntil = Math.max(
+		retryAt ?? responseAt + GITHUB_RATE_LIMIT_FALLBACK_MS,
+		responseAt + 1_000,
+	);
 	if (!coordinated) {
 		throw new GitHubRateLimitError(
 			response.status,

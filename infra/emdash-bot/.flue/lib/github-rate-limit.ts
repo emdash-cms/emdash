@@ -1,17 +1,17 @@
 import { DurableObject } from "cloudflare:workers";
 
+import { mintInstallationToken, readAppCreds } from "./github.js";
+
 const STATE_KEY = "installation-rate-limit";
+const TOKEN_KEY = "installation-token";
+const TOKEN_TTL_MS = 55 * 60_000;
 const FALLBACK_BACKOFF_MS = 60_000;
 const RESET_JITTER_MAX_MS = 5_000;
 const MIN_REQUEST_SPACING_MS = 100;
-const MAX_REQUEST_SPACING_MS = 5_000;
 
-interface RateLimitState {
+export interface RateLimitState {
 	readonly backoffUntil: number;
 	readonly nextPermitAt: number;
-	readonly releaseUntil?: number;
-	readonly leaseConsumer?: string;
-	readonly leaseUntil?: number;
 	readonly limit: number | null;
 	readonly remaining: number | null;
 	readonly resetAt: number | null;
@@ -33,6 +33,13 @@ export interface GitHubResponseMetadata {
 export interface GitHubRateLimitGate {
 	permit(category: string, consumer: string): Promise<GitHubPermit>;
 	record(category: string, consumer: string, metadata: GitHubResponseMetadata): Promise<void>;
+	inspect(): Promise<RateLimitState | null>;
+	getInstallationToken(): Promise<string>;
+}
+
+interface CachedToken {
+	readonly token: string;
+	readonly expiresAt: number;
 }
 
 function finiteHeader(value: string | null): number | null {
@@ -75,8 +82,21 @@ function nullableNumber(value: unknown): number | null {
 	return typeof value === "number" ? value : null;
 }
 
+function requestSpacing(remaining: number | null, resetAt: number | null, now: number): number {
+	if (remaining === 0 && resetAt !== null && resetAt > now) return resetAt - now;
+	if (remaining === null || remaining < 1 || resetAt === null || resetAt <= now) {
+		return MIN_REQUEST_SPACING_MS;
+	}
+	return Math.max(MIN_REQUEST_SPACING_MS, Math.ceil((resetAt - now) / remaining));
+}
+
 export class GitHubRateLimitDO extends DurableObject<Env> implements GitHubRateLimitGate {
+	private tokenPromise: Promise<string> | undefined;
+
 	override async fetch(request: Request): Promise<Response> {
+		if (new URL(request.url).pathname === "/token") {
+			return Response.json({ token: await this.getInstallationToken() });
+		}
 		const payload = await request.json<unknown>().catch(() => null);
 		if (!payload || typeof payload !== "object")
 			return new Response("invalid request", { status: 400 });
@@ -110,12 +130,7 @@ export class GitHubRateLimitDO extends DurableObject<Env> implements GitHubRateL
 	async permit(category: string, consumer: string): Promise<GitHubPermit> {
 		const now = Date.now();
 		const state = await this.ctx.storage.get<RateLimitState>(STATE_KEY);
-		const leaseEligible = consumer.includes(":");
-		if (leaseEligible && (state?.leaseUntil ?? 0) > now && state?.leaseConsumer === consumer) {
-			return { allowed: true, retryAt: now };
-		}
-		const releasing = (state?.releaseUntil ?? 0) > now;
-		const retryAt = Math.max(state?.backoffUntil ?? 0, releasing ? (state?.nextPermitAt ?? 0) : 0);
+		const retryAt = Math.max(state?.backoffUntil ?? 0, state?.nextPermitAt ?? 0);
 		if (retryAt > now) {
 			console.info(
 				JSON.stringify({
@@ -128,24 +143,12 @@ export class GitHubRateLimitDO extends DurableObject<Env> implements GitHubRateL
 			return { allowed: false, retryAt };
 		}
 
-		if (!releasing && (state?.backoffUntil ?? 0) === 0) return { allowed: true, retryAt: now };
 		const remaining = state?.remaining ?? null;
 		const resetAt = state?.resetAt ?? null;
-		const spacing = Math.min(
-			MAX_REQUEST_SPACING_MS,
-			Math.max(
-				MIN_REQUEST_SPACING_MS,
-				remaining !== null && remaining > 0 && resetAt !== null && resetAt > now
-					? Math.ceil((resetAt - now) / remaining)
-					: 1_000,
-			),
-		);
+		const spacing = requestSpacing(remaining, resetAt, now);
 		await this.ctx.storage.put<RateLimitState>(STATE_KEY, {
 			backoffUntil: 0,
 			nextPermitAt: now + spacing,
-			releaseUntil: state?.releaseUntil ?? now + 30_000,
-			leaseConsumer: leaseEligible ? consumer : undefined,
-			leaseUntil: leaseEligible ? now + 2_000 : undefined,
 			limit: state?.limit ?? null,
 			remaining: remaining === null ? null : Math.max(0, remaining - 1),
 			resetAt,
@@ -163,28 +166,26 @@ export class GitHubRateLimitDO extends DurableObject<Env> implements GitHubRateL
 		const rateLimited =
 			metadata.status === 429 ||
 			(metadata.status === 403 && (metadata.remaining === 0 || metadata.retryAfterAt !== null));
-		const resetBoundary = Math.max(
-			metadata.retryAfterAt ?? 0,
-			metadata.resetAt ?? 0,
-			rateLimited ? now + FALLBACK_BACKOFF_MS : 0,
-		);
+		const resetBoundary =
+			metadata.remaining === 0
+				? Math.max(metadata.retryAfterAt ?? 0, metadata.resetAt ?? 0, now + FALLBACK_BACKOFF_MS)
+				: (metadata.retryAfterAt ?? (rateLimited ? now + FALLBACK_BACKOFF_MS : 0));
 		const backoffUntil = rateLimited
 			? Math.max(current?.backoffUntil ?? 0, resetBoundary)
 			: current?.backoffUntil && current.backoffUntil > now
 				? current.backoffUntil
 				: 0;
+		const remaining = metadata.remaining ?? current?.remaining ?? null;
+		const resetAt = metadata.resetAt ?? current?.resetAt ?? null;
 		const nextPermitAt = rateLimited
 			? Math.max(current?.nextPermitAt ?? 0, backoffUntil + randomJitter())
-			: (current?.nextPermitAt ?? 0);
+			: Math.max(current?.nextPermitAt ?? 0, now + requestSpacing(remaining, resetAt, now));
 		await this.ctx.storage.put<RateLimitState>(STATE_KEY, {
 			backoffUntil,
 			nextPermitAt,
-			releaseUntil: rateLimited ? backoffUntil + 30_000 : current?.releaseUntil,
-			leaseConsumer: rateLimited ? undefined : current?.leaseConsumer,
-			leaseUntil: rateLimited ? undefined : current?.leaseUntil,
 			limit: metadata.limit ?? current?.limit ?? null,
-			remaining: metadata.remaining ?? current?.remaining ?? null,
-			resetAt: metadata.resetAt ?? current?.resetAt ?? null,
+			remaining,
+			resetAt,
 		});
 		console.info(
 			JSON.stringify({
@@ -202,6 +203,33 @@ export class GitHubRateLimitDO extends DurableObject<Env> implements GitHubRateL
 
 	async inspect(): Promise<RateLimitState | null> {
 		return (await this.ctx.storage.get<RateLimitState>(STATE_KEY)) ?? null;
+	}
+
+	async getInstallationToken(): Promise<string> {
+		if (this.tokenPromise) return this.tokenPromise;
+		this.tokenPromise = this.loadInstallationToken();
+		try {
+			return await this.tokenPromise;
+		} finally {
+			this.tokenPromise = undefined;
+		}
+	}
+
+	private async loadInstallationToken(): Promise<string> {
+		const cached = await this.ctx.storage.get<CachedToken>(TOKEN_KEY);
+		if (cached && cached.expiresAt > Date.now()) return cached.token;
+		const creds = readAppCreds(this.env);
+		if (!creds) throw new Error("GitHub App credentials are not configured");
+		const token = await mintInstallationToken(creds);
+		await this.ctx.storage.put<CachedToken>(TOKEN_KEY, {
+			token,
+			expiresAt: Date.now() + TOKEN_TTL_MS,
+		});
+		return token;
+	}
+
+	async debugSetInstallationToken(token: string, expiresAt: number): Promise<void> {
+		await this.ctx.storage.put<CachedToken>(TOKEN_KEY, { token, expiresAt });
 	}
 }
 

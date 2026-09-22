@@ -10,6 +10,7 @@ export { EmDashDatabaseError };
 export interface DatabaseConfig {
 	url: string;
 	authToken?: string;
+	readOnly?: boolean;
 }
 
 /**
@@ -25,7 +26,10 @@ export function createDatabase(config: DatabaseConfig): Kysely<Database> {
 		if (config.url.startsWith("file:") || config.url === ":memory:") {
 			const dbPath = config.url === ":memory:" ? ":memory:" : config.url.replace("file:", "");
 
-			const sqlite = openNodeSqliteDatabase(dbPath, { journalMode: "wal" });
+			const sqlite = openNodeSqliteDatabase(dbPath, {
+				journalMode: "wal",
+				readOnly: config.readOnly,
+			});
 
 			const dialect = new SqliteDialect({
 				database: sqlite,

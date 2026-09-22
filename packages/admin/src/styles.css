@@ -337,6 +337,45 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	opacity: 1;
 	pointer-events: auto;
 }
+
+.emdash-code-language-list {
+	scrollbar-color: transparent transparent;
+	scrollbar-width: thin;
+}
+
+.emdash-code-language-list::-webkit-scrollbar {
+	width: 4px;
+}
+
+.emdash-code-language-list::-webkit-scrollbar-track,
+.emdash-code-language-list::-webkit-scrollbar-thumb {
+	background-color: transparent;
+}
+
+.emdash-code-language-list::-webkit-scrollbar-thumb {
+	border-radius: 9999px;
+}
+
+.emdash-code-language-list:hover {
+	scrollbar-color: var(--color-kumo-interact) transparent;
+}
+
+.emdash-code-language-list:hover::-webkit-scrollbar-thumb {
+	background-color: var(--color-kumo-interact);
+}
+
+[data-mode="light"] .emdash-code-language-list [data-highlighted]:not([data-disabled]) {
+	background-color: var(--color-kumo-tint);
+}
+
+.emdash-code-language-input:focus {
+	border-color: color-mix(in oklab, var(--color-kumo-focus) 50%, transparent);
+}
+
+.emdash-code-language-popover[data-instant] {
+	transition-duration: 150ms;
+}
+
 @media (hover: none), (pointer: coarse) {
 	.emdash-code-block-controls {
 		opacity: 1;
@@ -346,6 +385,16 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 @media (prefers-reduced-motion: reduce) {
 	.emdash-code-block-controls {
 		transition: none;
+	}
+
+	.emdash-code-language-popover,
+	.emdash-code-language-popover[data-instant] {
+		transition: none;
+	}
+
+	.emdash-code-language-popover[data-starting-style],
+	.emdash-code-language-popover[data-ending-style] {
+		scale: 1;
 	}
 }
 /**

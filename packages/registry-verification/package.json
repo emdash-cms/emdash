@@ -28,6 +28,10 @@
 		"./records": {
 			"types": "./dist/records-entry.d.ts",
 			"default": "./dist/records-entry.js"
+		},
+		"./repository": {
+			"types": "./dist/repository.d.ts",
+			"default": "./dist/repository.js"
 		}
 	},
 	"files": [

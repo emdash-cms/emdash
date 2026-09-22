@@ -20,6 +20,7 @@ const REVIEW_RATE_LIMIT_RETRIES = 3;
 const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
 const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
 const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
+const INLINE_PERMIT_WAIT_MS = 5_000;
 const RATE_LIMIT_ERROR = /\brate limit\b/i;
 const AUTO_FORMAT_MESSAGE = "style: format";
 const EMDASH_BOT_LOGIN = "emdashbot[bot]";
@@ -34,6 +35,7 @@ const GITHUB_HEADERS = {
 
 export interface GitHubRateLimitGate {
 	permit(category: string, consumer: string): Promise<{ allowed: boolean; retryAt: number }>;
+	getInstallationToken(): Promise<string>;
 	record(
 		category: string,
 		consumer: string,
@@ -65,6 +67,20 @@ class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
 			throw new Error("GitHub coordinator permit was invalid");
 		}
 		return { allowed: value.allowed, retryAt: value.retryAt };
+	}
+
+	async getInstallationToken(): Promise<string> {
+		const response = await this.stub.fetch("http://github-rate-limit/token");
+		if (!response.ok) throw new Error(`GitHub token broker failed: ${response.status}`);
+		const payload = await response.json<unknown>();
+		if (!payload || typeof payload !== "object" || !("token" in payload)) {
+			throw new Error("GitHub token broker response was invalid");
+		}
+		const token = payload.token;
+		if (typeof token !== "string" || token.length === 0) {
+			throw new Error("GitHub token broker response was invalid");
+		}
+		return token;
 	}
 
 	async record(
@@ -123,6 +139,17 @@ function responseMetadata(response: Response, now = Date.now()) {
 	};
 }
 
+async function acquireGitHubPermit(gate: GitHubRateLimitGate, category: string, consumer: string) {
+	const deadline = Date.now() + INLINE_PERMIT_WAIT_MS;
+	for (;;) {
+		const permit = await gate.permit(category, consumer);
+		if (permit.allowed) return permit;
+		const now = Date.now();
+		if (now >= deadline || permit.retryAt > deadline) return permit;
+		await sleep(Math.max(1, permit.retryAt - now));
+	}
+}
+
 async function githubFetch(
 	input: string,
 	init: RequestInit = {},
@@ -131,7 +158,7 @@ async function githubFetch(
 	const coordinated = token && typeof token !== "string" ? token : null;
 	const category = new URL(input).pathname === "/graphql" ? "graphql" : "review-rest";
 	if (coordinated) {
-		const permit = await coordinated.gate.permit(category, coordinated.consumer);
+		const permit = await acquireGitHubPermit(coordinated.gate, category, coordinated.consumer);
 		if (!permit.allowed) {
 			throw new GitHubRateLimitError(
 				`GitHub request suppressed until ${new Date(permit.retryAt).toISOString()}`,
@@ -691,7 +718,7 @@ interface ReviewComment {
 }
 
 async function fetchNewestReviewComments(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
@@ -699,6 +726,7 @@ async function fetchNewestReviewComments(
 	const res = await githubFetch(
 		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/comments?sort=created&direction=desc&per_page=${REVIEW_COMMENTS_PAGE_SIZE}`,
 		{ headers: installationHeaders(token) },
+		token,
 	);
 	await requireGitHubResponse(res, "list review comments");
 	return res.json<ReviewComment[]>();

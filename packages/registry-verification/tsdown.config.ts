@@ -21,6 +21,7 @@ export default defineConfig([
 			"src/checksum.ts",
 			"src/fetch-entry.ts",
 			"src/records-entry.ts",
+			"src/repository.ts",
 		],
 		format: ["esm"],
 		outExtensions: () => ({ js: ".js" }),

@@ -301,7 +301,8 @@ export default async function globalSetup(): Promise<void> {
 
 	// 0. Start mock marketplace server
 	const { startMockMarketplace } = await import("./fixtures/mock-marketplace.js");
-	const marketplaceServer = await startMockMarketplace(MARKETPLACE_PORT);
+	const { server: marketplaceServer, registryFixture } =
+		await startMockMarketplace(MARKETPLACE_PORT);
 	const marketplaceUrl = `http://127.0.0.1:${MARKETPLACE_PORT}`;
 	console.log(`[pw] Mock marketplace ready at ${marketplaceUrl}`);
 
@@ -312,6 +313,8 @@ export default async function globalSetup(): Promise<void> {
 	const workDir = FIXTURE_DIR;
 	const tempDataDir = mkdtempSync(join(tmpdir(), "emdash-pw-"));
 	const dbPath = join(tempDataDir, "test.db");
+	const registryFixturePath = join(tempDataDir, "registry-fixture.json");
+	writeFileSync(registryFixturePath, JSON.stringify(registryFixture));
 
 	const fixtureNodeModules = join(FIXTURE_DIR, "node_modules");
 
@@ -334,6 +337,8 @@ export default async function globalSetup(): Promise<void> {
 			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_MARKETPLACE_URL: marketplaceUrl,
+			EMDASH_REGISTRY_URL: marketplaceUrl,
+			EMDASH_REGISTRY_FIXTURE: registryFixturePath,
 		},
 		stdio: "pipe",
 	});

@@ -245,7 +245,7 @@ The hook requires the `content:read` capability. EmDash runs it after the publis
 
 ### `content:afterUnpublish`
 
-Runs after an entry is unpublished successfully. Use it to remove or update copies of content held by external systems.
+Runs after an entry is unpublished successfully. Use it to remove or update copies of content held by external systems. Unpublishing also cancels any pending schedule, without running `content:afterUnschedule`.
 
 ```ts
 hooks: {
@@ -259,7 +259,7 @@ This hook has the same `content:read` capability requirement, deferred execution
 
 ### `content:afterRestore`
 
-Runs after trashed content is restored. Requires `content:read` capability.
+Runs after trashed content is restored. Requires `content:read` capability. The restored entry is a draft with no schedule, whatever its status was when it was trashed. Dropping the schedule does not also run `content:afterUnschedule`.
 
 ```ts
 hooks: {

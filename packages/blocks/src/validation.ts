@@ -122,9 +122,10 @@ export function normalizePluginPagePath(path: string): string {
 }
 
 export function isSafePluginPagePath(path: string): boolean {
+	if (path.length === 0) return false;
 	const normalized = normalizePluginPagePath(path);
 	return (
-		PLUGIN_PAGE_PATH_PATTERN.test(normalized) &&
+		(normalized === "/" || PLUGIN_PAGE_PATH_PATTERN.test(normalized)) &&
 		!normalized.split("/").some((segment) => segment === "." || segment === "..")
 	);
 }

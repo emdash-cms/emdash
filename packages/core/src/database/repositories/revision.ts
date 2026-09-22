@@ -7,6 +7,10 @@ import { validateIdentifier } from "../validate.js";
 
 const monotonic = monotonicFactory();
 
+export function createRevisionId(): string {
+	return monotonic();
+}
+
 export interface Revision {
 	id: string;
 	collection: string;
@@ -46,7 +50,7 @@ export class RevisionRepository {
 	 * Create a new revision
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
-		const id = monotonic();
+		const id = createRevisionId();
 		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Omit<RevisionTable, "created_at"> = {
@@ -64,26 +68,30 @@ export class RevisionRepository {
 			throw new Error("Failed to create revision");
 		}
 
+		await this.queuePruning(input.collection, input.entryId, id);
+
+		return revision;
+	}
+
+	async queuePruning(collection: string, entryId: string, revisionId: string): Promise<void> {
 		try {
 			await this.db
 				.insertInto("_emdash_revision_prune_queue")
 				.values({
-					collection: input.collection,
-					entry_id: input.entryId,
-					revision_id: id,
+					collection,
+					entry_id: entryId,
+					revision_id: revisionId,
 				})
 				.onConflict((conflict) =>
-					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: id }),
+					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: revisionId }),
 				)
 				.execute();
 		} catch (error) {
 			console.error(
-				`[revisions] Failed to queue revision pruning for ${input.collection}/${input.entryId}:`,
+				`[revisions] Failed to queue revision pruning for ${collection}/${entryId}:`,
 				error,
 			);
 		}
-
-		return revision;
 	}
 
 	/**

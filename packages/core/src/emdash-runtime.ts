@@ -4718,8 +4718,13 @@ export class EmDashRuntime {
 		// live, matching the documented tool contract.
 		try {
 			const contentRepo = new ContentRepository(this.db);
-			const existing = await contentRepo.findById(revision.collection, revision.entryId);
-			if (!existing) {
+			const newDraftId = await contentRepo.restoreDraftRevision(
+				revision.collection,
+				revision.entryId,
+				revision.data,
+				callerUserId,
+			);
+			if (!newDraftId) {
 				return {
 					success: false as const,
 					error: {
@@ -4729,43 +4734,12 @@ export class EmDashRuntime {
 				};
 			}
 
-			const newDraft = await revisionRepo.create({
-				collection: revision.collection,
-				entryId: revision.entryId,
-				data: revision.data,
-				authorId: callerUserId,
-			});
-
-			try {
-				const staged = await contentRepo.replaceDraftRevision(
-					revision.collection,
-					revision.entryId,
-					newDraft.id,
-					existing,
-				);
-				if (!staged) throw new ContentMutationConflictError();
-			} catch (error) {
-				try {
-					await revisionRepo.deleteIfUnreferenced(
-						revision.collection,
-						revision.entryId,
-						newDraft.id,
-					);
-				} catch (cleanupError) {
-					console.error(
-						`[emdash] Failed to clean up unrestored revision ${newDraft.id}:`,
-						cleanupError,
-					);
-				}
-				throw error;
-			}
-
 			after(async () => {
 				try {
 					await revisionRepo.pruneQueuedEntry(
 						revision.collection,
 						revision.entryId,
-						newDraft.id,
+						newDraftId,
 						50,
 					);
 				} catch (error) {

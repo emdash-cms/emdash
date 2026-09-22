@@ -7,13 +7,8 @@ import {
 import type { PackageProfile, PackageRelease } from "@emdash-cms/registry-lexicons";
 import { packTar, type TarEntry } from "modern-tar";
 
-import {
-	compareDigestBytes,
-	computeMultihash,
-	decodeMultihash,
-	type ProvenanceVerifier,
-	type ReleaseProvenance,
-} from "../../src/index.js";
+import { compareDigestBytes, computeMultihash, decodeMultihash } from "../../src/checksum.js";
+import type { ProvenanceVerifier, ReleaseProvenance } from "../../src/provenance.js";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

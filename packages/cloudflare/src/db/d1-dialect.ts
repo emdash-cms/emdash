@@ -8,8 +8,14 @@
 
 import type { CompoundSelectLimitedAdapter } from "emdash";
 import { LockingSqliteAdapter } from "emdash/database/migration-lock";
-import type { DatabaseIntrospector, Kysely, SqliteAdapter } from "kysely";
-import { D1Dialect } from "kysely-d1";
+import type {
+	CompiledQuery,
+	DatabaseIntrospector,
+	Kysely,
+	QueryResult,
+	SqliteAdapter,
+} from "kysely";
+import { D1Dialect, type D1DialectConfig } from "kysely-d1";
 
 import { D1Introspector } from "./d1-introspector.js";
 
@@ -21,6 +27,10 @@ import { D1Introspector } from "./d1-introspector.js";
  */
 export const D1_COMPOUND_SELECT_LIMIT = 5;
 
+interface AtomicBatchAdapter {
+	executeAtomicBatch(queries: readonly CompiledQuery[]): Promise<readonly QueryResult<unknown>[]>;
+}
+
 /**
  * Base adapter for every D1-backed dialect. Declares the compound-SELECT
  * ceiling, which core reads off the adapter to split statements that would
@@ -29,8 +39,36 @@ export const D1_COMPOUND_SELECT_LIMIT = 5;
  * `createAdapter()` without extending this silently sends D1 compound SELECTs
  * it rejects and lets concurrent migrations run into each other.
  */
-export class D1Adapter extends LockingSqliteAdapter implements CompoundSelectLimitedAdapter {
+export class D1BaseAdapter extends LockingSqliteAdapter implements CompoundSelectLimitedAdapter {
 	readonly compoundSelectLimit = D1_COMPOUND_SELECT_LIMIT;
+}
+
+export class D1Adapter extends D1BaseAdapter implements AtomicBatchAdapter {
+	constructor(private readonly database: D1Database) {
+		super();
+	}
+
+	async executeAtomicBatch(
+		queries: readonly CompiledQuery[],
+	): Promise<readonly QueryResult<unknown>[]> {
+		const statements = queries.map((query) =>
+			this.database.prepare(query.sql).bind(...query.parameters),
+		);
+		const results = await this.database.batch(statements);
+		return results.map(mapD1Result);
+	}
+}
+
+function mapD1Result(result: D1Result): QueryResult<unknown> {
+	if (result.error) throw new Error(result.error);
+	return {
+		rows: result.results ?? [],
+		numAffectedRows: result.meta.changes > 0 ? BigInt(result.meta.changes) : undefined,
+		insertId:
+			result.meta.last_row_id === undefined || result.meta.last_row_id === null
+				? undefined
+				: BigInt(result.meta.last_row_id),
+	};
 }
 
 /**
@@ -72,8 +110,15 @@ class RawBindingD1Adapter extends D1Adapter {
  * cross-join with pragma_table_info() that D1 doesn't allow.
  */
 export class EmDashD1Dialect extends D1Dialect {
+	protected readonly database: D1Database;
+
+	constructor(config: D1DialectConfig) {
+		super(config);
+		this.database = config.database;
+	}
+
 	override createAdapter(): SqliteAdapter {
-		return new D1Adapter();
+		return new D1Adapter(this.database);
 	}
 
 	override createIntrospector(db: Kysely<any>): DatabaseIntrospector {
@@ -90,6 +135,6 @@ export class EmDashD1Dialect extends D1Dialect {
  */
 export class RawBindingD1Dialect extends EmDashD1Dialect {
 	override createAdapter(): SqliteAdapter {
-		return new RawBindingD1Adapter();
+		return new RawBindingD1Adapter(this.database);
 	}
 }

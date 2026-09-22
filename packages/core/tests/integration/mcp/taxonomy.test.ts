@@ -735,6 +735,25 @@ describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
 		expect(term.label).toBe("New Label");
 	});
 
+	it("updates only the translation named by locale when translations share a slug", async () => {
+		const repo = new TaxonomyRepo(db);
+		await repo.create({ name: "tags", slug: "shared", label: "Shared", locale: "en" });
+		await repo.create({ name: "tags", slug: "shared", label: "Partagé", locale: "fr" });
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_update_term",
+			arguments: { taxonomy: "tags", termSlug: "shared", locale: "fr", label: "Partagé (maj)" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { term } = extractJson<{ term: { label: string; locale: string } }>(result);
+		expect(term.locale).toBe("fr");
+		expect(term.label).toBe("Partagé (maj)");
+
+		// The sibling translation is untouched.
+		const english = await repo.findBySlug("tags", "shared", "en");
+		expect(english?.label).toBe("Shared");
+	});
+
 	it("reparents a term and detaches via parentId: null", async () => {
 		const parentId = await createTerm("tags", "parent", "Parent");
 		await createTerm("tags", "child", "Child");
@@ -939,6 +958,21 @@ describe("taxonomy_delete_term (bug #13 / F12)", () => {
 			(t) => t.slug,
 		);
 		expect(afterSlugs).not.toContain("leaf");
+	});
+
+	it("deletes only the translation named by locale when translations share a slug", async () => {
+		const repo = new TaxonomyRepo(db);
+		await repo.create({ name: "tags", slug: "shared", label: "Shared", locale: "en" });
+		await repo.create({ name: "tags", slug: "shared", label: "Partagé", locale: "fr" });
+
+		const result = await harness.client.callTool({
+			name: "taxonomy_delete_term",
+			arguments: { taxonomy: "tags", termSlug: "shared", locale: "fr" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		expect(await repo.findBySlug("tags", "shared", "fr")).toBeNull();
+		expect(await repo.findBySlug("tags", "shared", "en")).not.toBeNull();
 	});
 });
 

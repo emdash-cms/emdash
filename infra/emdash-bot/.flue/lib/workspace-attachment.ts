@@ -1,10 +1,11 @@
 export const WORKSPACE_SANDBOX_ATTEMPT_LIMIT = 3;
 
 const SANDBOX_ID_LIMIT = 63;
+const GITHUB_RATE_LIMIT_FAILURE_PATTERN =
+	/\bHTTP 429\b|requested URL returned error: 429|GitHub request backed off|GitHub API rate limit exceeded/i;
 
 const TRANSIENT_FAILURE_PATTERNS = [
 	/^HTTP error! status: 5\d\d\b/i,
-	/\bHTTP 429\b|requested URL returned error: 429/i,
 	/^internal error; reference\s*=\s*[a-z0-9]+$/i,
 	/network connection lost/i,
 	/container suddenly disconnected/i,
@@ -123,6 +124,12 @@ export function isTransientWorkspaceFailure(error: unknown): boolean {
 		}
 	}
 	return false;
+}
+
+export function isGitHubRateLimitFailure(error: unknown): boolean {
+	return [...errorChain(error)].some((candidate) =>
+		GITHUB_RATE_LIMIT_FAILURE_PATTERN.test(errorMessage(candidate)),
+	);
 }
 
 function workspaceSandboxId(agentId: string, attempt: number): string {

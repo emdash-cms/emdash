@@ -4,7 +4,7 @@ import {
 	runDurableObjectAlarm,
 	runInDurableObject,
 } from "cloudflare:test";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 describe("GitHub installation coordination", () => {
 	test("persists the later reset across eviction and suppresses every caller", async () => {
@@ -47,13 +47,12 @@ describe("GitHub installation coordination", () => {
 		expect((state?.nextPermitAt ?? 0) - (state?.backoffUntil ?? 0)).toBeLessThanOrEqual(5_000);
 	});
 
-	test("grants a post-reset lease only to the exact orchestrator operation", async () => {
-		const stub = env.GITHUB_RATE_LIMIT.getByName("installation:lease-isolation");
+	test("reserves every successful permit and does not let one consumer burst", async () => {
+		const stub = env.GITHUB_RATE_LIMIT.getByName("installation:permit-reservation");
 		await runInDurableObject(stub, async (_instance, state) => {
 			await state.storage.put("installation-rate-limit", {
-				backoffUntil: Date.now() - 1,
+				backoffUntil: 0,
 				nextPermitAt: Date.now() - 1,
-				releaseUntil: Date.now() + 30_000,
 				limit: 5_000,
 				remaining: 5_000,
 				resetAt: Date.now() + 60 * 60_000,
@@ -63,30 +62,32 @@ describe("GitHub installation coordination", () => {
 		expect(await stub.permit("issue:get", "orchestrator:2693")).toMatchObject({
 			allowed: true,
 		});
-		expect(await stub.permit("issue:get", "orchestrator:2693")).toMatchObject({
-			allowed: true,
-		});
-		expect(await stub.permit("issue:get", "orchestrator:3215")).toMatchObject({
+		const sameConsumer = await stub.permit("issue:get", "orchestrator:2693");
+		const otherConsumer = await stub.permit("issue:get", "orchestrator:3215");
+		expect(sameConsumer).toMatchObject({
 			allowed: false,
+		});
+		expect(otherConsumer).toEqual(sameConsumer);
+		expect(await stub.inspect()).toMatchObject({
+			remaining: 4_999,
+			nextPermitAt: sameConsumer.retryAt,
+		});
+	});
+
+	test("paces from successful response headers before GitHub rejects a request", async () => {
+		const stub = env.GITHUB_RATE_LIMIT.getByName("installation:proactive-pacing");
+		const now = Date.now();
+		await stub.record("graphql", "orchestrator", {
+			status: 200,
+			limit: 5_000,
+			remaining: 100,
+			resetAt: now + 60_000,
+			retryAfterAt: null,
 		});
 
-		const sandbox = env.GITHUB_RATE_LIMIT.getByName("installation:sandbox-no-shared-lease");
-		await runInDurableObject(sandbox, async (_instance, state) => {
-			await state.storage.put("installation-rate-limit", {
-				backoffUntil: Date.now() - 1,
-				nextPermitAt: Date.now() - 1,
-				releaseUntil: Date.now() + 30_000,
-				limit: 5_000,
-				remaining: 5_000,
-				resetAt: Date.now() + 60 * 60_000,
-			});
-		});
-		expect(await sandbox.permit("sandbox-git", "sandbox-outbound")).toMatchObject({
-			allowed: true,
-		});
-		expect(await sandbox.permit("sandbox-git", "sandbox-outbound")).toMatchObject({
-			allowed: false,
-		});
+		const permit = await stub.permit("issue:get", "another-orchestrator");
+		expect(permit.allowed).toBe(false);
+		expect(permit.retryAt).toBeGreaterThanOrEqual(now + 600);
 	});
 
 	test("suppresses label reconciliation in another orchestrator during shared backoff", async () => {
@@ -139,7 +140,109 @@ describe("GitHub installation coordination", () => {
 	});
 });
 
+describe("dashboard reconciliation", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("schedules another reconciliation after a successful refresh", async () => {
+		const dashboard = env.DASHBOARD.getByName("repo:emdash-cms/emdash-reconcile-test");
+		const gate = env.GITHUB_RATE_LIMIT.getByName(`installation:${env.GITHUB_APP_INSTALLATION_ID}`);
+		await runInDurableObject(gate, async (_instance, state) => {
+			await state.storage.delete("installation-rate-limit");
+		});
+		await gate.debugSetInstallationToken("cached-token", Date.now() + 60 * 60_000);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockImplementation(() => Promise.resolve(Response.json([]))),
+		);
+
+		await runInDurableObject(dashboard, async (_instance, state) => {
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+		expect(await runDurableObjectAlarm(dashboard)).toBe(true);
+		await runInDurableObject(dashboard, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now() + 4 * 60_000);
+			await state.storage.deleteAlarm();
+		});
+		await runInDurableObject(gate, async (_instance, state) => {
+			await state.storage.delete("installation-rate-limit");
+		});
+	});
+});
+
 describe("orchestrator alarm recovery", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("cleans up an idle orchestrator instead of rearming label reconciliation", async () => {
+		const stub = env.Orchestrator.getByName(`issue-idle-${crypto.randomUUID()}`);
+		const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "needs_attention",
+				"o:kind": "bug",
+				"o:prNumber": 99,
+				"o:labelReconcileNextAt": Date.now() - 1_000,
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeNull();
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"message":"orchestrator self-cleanup completed"'),
+		);
+		expect(log).toHaveBeenCalledWith(expect.stringContaining('"anchorNumber":42'));
+	});
+
+	test("sleeps until reporter expiry without periodic label reconciliation", async () => {
+		const stub = env.Orchestrator.getByName(`issue-reporter-${crypto.randomUUID()}`);
+		const now = Date.now();
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "awaiting_reporter",
+				"o:kind": "bug",
+				"o:awaitingReporterSince": now,
+				"o:labelReconcileNextAt": now + 15 * 60_000,
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThan(now + 13 * 24 * 60 * 60_000);
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
+	});
+
+	test("cleans up terminal state even when stale retries remain", async () => {
+		const stub = env.Orchestrator.getByName(`issue-terminal-${crypto.randomUUID()}`);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "done",
+				"o:publicationRetryAt": Date.now() + 60 * 60_000,
+				"o:recoveryRetry": {
+					path: "publication",
+					attempts: 1,
+					nextAt: Date.now() + 60 * 60_000,
+				},
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({
+			retry: null,
+			alarmAt: null,
+		});
+	});
+
 	test("persists exponential recovery instead of rearming an overdue stale run every second", async () => {
 		const stub = env.Orchestrator.getByName("issue-alarm-backoff");
 		await stub.debugSetStaleRun(

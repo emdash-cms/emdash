@@ -4,6 +4,7 @@
  * Uses env vars for the database path and optional marketplace URL
  * so each test run gets an isolated database.
  */
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import node from "@astrojs/node";
@@ -13,9 +14,15 @@ import registryTestPlugin from "@emdash-cms/plugin-marketplace-test";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sqlite } from "emdash/db";
+import { installRegistryAuthoritativeFixture } from "emdash/testing/registry";
 
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
+const registryUrl = process.env.EMDASH_REGISTRY_URL || undefined;
+const registryFixturePath = process.env.EMDASH_REGISTRY_FIXTURE;
+if (registryFixturePath) {
+	installRegistryAuthoritativeFixture(JSON.parse(readFileSync(registryFixturePath, "utf8")));
+}
 const editorExtensionsPlugin = {
 	id: "editor-extensions-test",
 	version: "1.0.0",
@@ -62,6 +69,7 @@ export default defineConfig({
 			plugins: [colorPlugin(), editorExtensionsPlugin],
 			sandboxed: [{ ...registryTestPlugin, hooks: [] }],
 			marketplace: marketplaceUrl,
+			registry: registryUrl,
 			sandboxRunner: "@emdash-cms/sandbox-workerd",
 		}),
 	],
