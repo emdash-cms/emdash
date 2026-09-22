@@ -109,7 +109,18 @@ test.describe("Byline custom fields", () => {
 
 		await expect(page.getByLabel(fieldLabel)).toBeVisible();
 		await page.getByLabel(fieldLabel).fill(fieldValue);
+
+		// Wait for the PUT to settle before reading back; the custom-field
+		// write hits the translatable value table and is hydrated by a
+		// separate read, so on slower targets the byline row can exist
+		// while its custom fields are still in-flight.
+		const saveResponse = page.waitForResponse(
+			(res) =>
+				res.url().includes("/api/admin/bylines/") && res.request().method() === "PUT" && res.ok(),
+			{ timeout: 10000 },
+		);
 		await page.getByRole("button", { name: "Save" }).click();
+		await saveResponse;
 
 		// ---------------------------------------------------------------
 		// 4. Verify the round-trip via the REST API
