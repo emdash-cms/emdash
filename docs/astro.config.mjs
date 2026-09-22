@@ -256,6 +256,7 @@ export default defineConfig({
 					items: [
 						{ label: "Configuration", slug: "reference/configuration" },
 						{ label: "CLI Commands", slug: "reference/cli" },
+						{ label: "Content Lifecycle", slug: "reference/content-lifecycle" },
 						{ label: "API Reference", slug: "reference/api" },
 						{ label: "Field Types", slug: "reference/field-types" },
 						{ label: "Hook Reference", slug: "reference/hooks" },

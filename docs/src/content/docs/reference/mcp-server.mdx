@@ -212,7 +212,10 @@ The result is returned as JSON text in the first content block. A tool with an o
 
 ## Content lifecycle and bylines
 
-`content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
+The [content lifecycle reference](/reference/content-lifecycle/) defines the state, revision,
+permission, conflict, and hook behavior shared by MCP, REST, the CLI, and the admin panel.
+
+`content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, `content_schedule`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
 
 `content_update` is a partial update: omitted fields keep their current values. Updating a published item stages a draft while the live version remains unchanged. Use `content_compare` to review the live and draft values, then call `content_publish` to make the draft live or `content_discard_draft` to remove it. `content_delete` moves an item to trash; only `content_permanent_delete` removes a trashed item permanently.
 

@@ -29,6 +29,9 @@ import {
 	contentItemSchema,
 	contentListQuery,
 	contentListResponseSchema,
+	contentPublishBody,
+	contentRestoreResponseSchema,
+	contentRevisionConditionBody,
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
@@ -40,7 +43,7 @@ import {
 } from "../schemas/content.js";
 import {
 	entryLockAcquireBody,
-	entryLockConflictSchema,
+	entryMutationConflictSchema,
 	entryLockReleaseResponseSchema,
 	entryLockStatusSchema,
 } from "../schemas/entry-lock.js";
@@ -221,11 +224,13 @@ const entryPathParams = z.object({
 	id: z.string().meta({ description: "Content ID or slug" }),
 });
 
-/** 409 that carries the edit lock's holder in `error.details` */
-const entryLockConflict = {
+/** 409 for optimistic-concurrency or edit-lock conflicts. */
+const entryMutationConflict = {
 	"409": {
-		description: "Another editor holds the entry's edit lock",
-		content: { [JSON_CONTENT]: { schema: entryLockConflictSchema } },
+		description: "The content changed or another editor holds its edit lock",
+		content: {
+			[JSON_CONTENT]: { schema: entryMutationConflictSchema },
+		},
 	},
 };
 
@@ -368,7 +373,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -377,12 +382,17 @@ const contentPaths = {
 		post: {
 			operationId: "publishContent",
 			summary: "Publish a content item",
+			description:
+				"Promotes the current draft to live content and clears any pending schedule. An optional revision token rejects stale publication attempts.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentPublishBody } },
 			},
 			responses: {
 				"200": {
@@ -394,8 +404,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -412,6 +422,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Unpublished content item",
@@ -422,8 +435,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -453,13 +466,14 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(400, 404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 		delete: {
 			operationId: "unscheduleContent",
 			summary: "Cancel scheduled publishing",
-			description: "Reverts a scheduled item to draft status.",
+			description:
+				"Clears the scheduled publication time. A scheduled draft returns to draft status; a published item stays published.",
 			tags: ["Content"],
 			requestParams: {
 				path: entryPathParams,
@@ -481,7 +495,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -528,12 +542,12 @@ const contentPaths = {
 					description: "Restored",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ restored: z.literal(true) })),
+							schema: successEnvelope(contentRestoreResponseSchema),
 						},
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
+				...standardErrors(404, 409, 500),
 			},
 		},
 	},
@@ -603,6 +617,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Content item reverted to live version",
@@ -613,8 +630,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},

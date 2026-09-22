@@ -828,10 +828,10 @@ describe("idempotency", () => {
 });
 
 // ---------------------------------------------------------------------------
-// content_unschedule gap (no MCP tool for this, only on runtime)
+// content_unschedule
 // ---------------------------------------------------------------------------
 
-describe("content_unschedule gap", () => {
+describe("content_unschedule", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
 
@@ -845,10 +845,11 @@ describe("content_unschedule gap", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("MCP exposes content_unschedule", async () => {
+	it("MCP describes the state transition for content_unschedule", async () => {
 		const tools = await harness.client.listTools();
-		const names = tools.tools.map((t) => t.name);
-		expect(names).toContain("content_unschedule");
+		const tool = tools.tools.find((candidate) => candidate.name === "content_unschedule");
+		expect(tool?.description).toContain("Scheduled drafts return to draft status");
+		expect(tool?.description).toContain("published items stay published");
 	});
 
 	it("schedule + unschedule clears scheduledAt and re-publish still works (F12)", async () => {
