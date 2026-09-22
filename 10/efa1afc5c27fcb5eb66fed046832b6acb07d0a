@@ -1,0 +1,19 @@
+e2e/tests/comments.spec.ts
+  s_428695602bab5c::t_d3e384f4fcaad5 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "10efa1afc5c27fcb5eb66fed046832b6acb07d0a",
+  "prompts": {},
+  "sessions": {
+    "s_428695602bab5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0caa2-221d-7933-88c8-8e003403d851",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
