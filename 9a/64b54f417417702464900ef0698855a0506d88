@@ -1,0 +1,23 @@
+.changeset/redirect-tabs-page-header.md
+  s_6968f3472c77f9::t_fa3b3bd0cbebee 5
+packages/admin/src/components/Redirects.tsx
+  s_6968f3472c77f9::t_1de4d3944a9ba0 7,410-415,429-438
+packages/admin/tests/components/Redirects.test.tsx
+  s_6968f3472c77f9::t_53182f2507f8be 82-85,88-89,94-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9a64b54f417417702464900ef0698855a0506d88",
+  "prompts": {},
+  "sessions": {
+    "s_6968f3472c77f9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cada-1fa3-7042-b2bb-7b877ffe905f",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
