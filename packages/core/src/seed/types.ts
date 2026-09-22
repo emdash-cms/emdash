@@ -319,7 +319,12 @@ export interface SeedApplyOptions {
 	 */
 	includeContent?: boolean;
 
-	/** How to handle conflicts (default: "skip") */
+	/**
+	 * How to handle conflicts (default: "skip"). Site settings are processed
+	 * per key: "skip" creates only missing keys, "update" overwrites supplied
+	 * keys, and "error" stops at the first existing key without rolling back
+	 * keys created earlier in the seed.
+	 */
 	onConflict?: "skip" | "update" | "error";
 
 	/** Base path for local media files (for $media.file resolution) */

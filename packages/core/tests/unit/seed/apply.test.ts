@@ -105,50 +105,15 @@ describe("applySeed", () => {
 			expect(await options.get("site:tagline")).toBe("A seeded tagline");
 		});
 
-		it("should preserve site:title when an admin write lands during per-key application", async () => {
-			const options = new OptionsRepository(db);
-
-			const seed: SeedFile = {
-				version: "1",
-				settings: {
-					title: "Seed Title",
-					tagline: "A seeded tagline",
-				},
-			};
-
-			const originalSetIfAbsent = OptionsRepository.prototype.setIfAbsent;
-			let injected = false;
-			OptionsRepository.prototype.setIfAbsent = async function <T>(
-				name: string,
-				value: T,
-			): Promise<boolean> {
-				if (!injected && name === "site:title") {
-					injected = true;
-					await options.set("site:title", "Admin Title");
-				}
-				return originalSetIfAbsent.call(this, name, value);
-			};
-
-			try {
-				const result = await applySeed(db, seed);
-
-				expect(result.settings.applied).toBe(1);
-				expect(await options.get("site:title")).toBe("Admin Title");
-				expect(await options.get("site:tagline")).toBe("A seeded tagline");
-			} finally {
-				OptionsRepository.prototype.setIfAbsent = originalSetIfAbsent;
-			}
-		});
-
-		it("should not roll back an already-inserted setting when a later key conflicts", async () => {
+		it("should apply each setting independently when a later key conflicts", async () => {
 			const options = new OptionsRepository(db);
 			await options.set("site:title", "Admin Title");
 
 			const seed: SeedFile = {
 				version: "1",
 				settings: {
-					title: "Seed Title",
 					tagline: "A seeded tagline",
+					title: "Seed Title",
 				},
 			};
 

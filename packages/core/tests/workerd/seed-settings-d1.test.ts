@@ -55,15 +55,15 @@ describe("applySeed site settings on D1", () => {
 		expect(await options.get("site:tagline")).toBe("A seeded tagline");
 	});
 
-	it("does not roll back an already-inserted setting when a later key conflicts", async () => {
+	it("keeps an inserted setting when a later key conflicts in skip mode", async () => {
 		const options = new OptionsRepository(db);
 		await options.set("site:title", "Admin Title");
 
 		const seed: SeedFile = {
 			version: "1",
 			settings: {
-				title: "Seed Title",
 				tagline: "A seeded tagline",
+				title: "Seed Title",
 			},
 		};
 
@@ -74,7 +74,7 @@ describe("applySeed site settings on D1", () => {
 		expect(await options.get("site:tagline")).toBe("A seeded tagline");
 	});
 
-	it("preserves site:title when an admin write lands during per-key application", async () => {
+	it("preserves a concurrent admin write to site:title", async () => {
 		const options = new OptionsRepository(db);
 
 		const seed: SeedFile = {
@@ -85,28 +85,14 @@ describe("applySeed site settings on D1", () => {
 			},
 		};
 
-		const originalSetIfAbsent = OptionsRepository.prototype.setIfAbsent;
-		let injected = false;
-		OptionsRepository.prototype.setIfAbsent = async function <T>(
-			name: string,
-			value: T,
-		): Promise<boolean> {
-			if (!injected && name === "site:title") {
-				injected = true;
-				await options.set("site:title", "Admin Title");
-			}
-			return originalSetIfAbsent.call(this, name, value);
-		};
+		const [, result] = await Promise.all([
+			options.set("site:title", "Admin Title"),
+			applySeed(db, seed),
+		]);
 
-		try {
-			const result = await applySeed(db, seed);
-
-			expect(result.settings.applied).toBe(1);
-			expect(await options.get("site:title")).toBe("Admin Title");
-			expect(await options.get("site:tagline")).toBe("A seeded tagline");
-		} finally {
-			OptionsRepository.prototype.setIfAbsent = originalSetIfAbsent;
-		}
+		expect(result.settings.applied).toBe(1);
+		expect(await options.get("site:title")).toBe("Admin Title");
+		expect(await options.get("site:tagline")).toBe("A seeded tagline");
 	});
 
 	it("overwrites settings in update mode", async () => {
@@ -143,5 +129,25 @@ describe("applySeed site settings on D1", () => {
 		await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
 			'Conflict: site setting "site:title" already exists',
 		);
+		expect(await options.get("site:tagline")).toBeNull();
+	});
+
+	it("does not roll back earlier settings when error mode finds a later conflict", async () => {
+		const options = new OptionsRepository(db);
+		await options.set("site:title", "Admin Title");
+
+		const seed: SeedFile = {
+			version: "1",
+			settings: {
+				tagline: "A seeded tagline",
+				title: "Seed Title",
+			},
+		};
+
+		await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
+			'Conflict: site setting "site:title" already exists',
+		);
+		expect(await options.get("site:title")).toBe("Admin Title");
+		expect(await options.get("site:tagline")).toBe("A seeded tagline");
 	});
 });

@@ -25,7 +25,7 @@ import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
-import { setSiteSettings } from "../settings/index.js";
+import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.js";
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 import type {
@@ -40,16 +40,6 @@ import type {
 	SeedBylineAvatar,
 } from "./types.js";
 
-/**
- * Apply seeded site settings while honoring `onConflict`.
- *
- * `skip` seeds each `site:*` key independently. A seeded key is written only
- * if the matching option is absent, using `OptionsRepository.setIfAbsent`. On
- * backends where `withTransaction` cannot guarantee rollback, this avoids the
- * partial-write hazard of a multi-key upsert: an already-persisted key is
- * never overwritten, and missing keys are still created. `update` overwrites
- * the whole block, and `error` throws the first time it sees an existing key.
- */
 async function applySiteSettings(
 	db: Kysely<Database>,
 	settings: Partial<SiteSettings>,
@@ -66,30 +56,19 @@ async function applySiteSettings(
 	}
 
 	const options = new OptionsRepository(db);
-
-	if (onConflict === "error") {
-		const prefixedKeys = entries.map(([key]) => `site:${key}`);
-		const existing = await options.getMany(prefixedKeys);
-		const conflictKey = prefixedKeys.find((key) => existing.has(key));
-		if (conflictKey) {
-			throw new Error(`Conflict: site setting "${conflictKey}" already exists`);
-		}
-
+	let applied = 0;
+	try {
 		for (const [key, value] of entries) {
-			const applied = await options.setIfAbsent(`site:${key}`, value);
-			if (!applied) {
+			const write = await options.compareAndSet(`site:${key}`, null, value);
+			if (!write.applied && onConflict === "error") {
 				throw new Error(`Conflict: site setting "site:${key}" already exists`);
 			}
-			result.settings.applied++;
+			if (write.applied) applied++;
 		}
-		return;
-	}
-
-	// `skip`: create each missing key independently. Existing keys are left as-is.
-	for (const [key, value] of entries) {
-		const applied = await options.setIfAbsent(`site:${key}`, value);
-		if (applied) {
-			result.settings.applied++;
+	} finally {
+		if (applied > 0) {
+			result.settings.applied += applied;
+			invalidateSiteSettingsCache();
 		}
 	}
 }
