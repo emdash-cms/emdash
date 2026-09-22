@@ -18,7 +18,7 @@ import * as React from "react";
 
 import { apiFetch, API_BASE, ApiResponseError, parseApiResponse } from "../lib/api";
 import { cn } from "../lib/utils";
-import { API_TOKEN_SCOPE_VALUES } from "./settings/ApiTokenSettings";
+import { API_TOKEN_SCOPE_VALUES } from "./settings/ApiTokenSettings.js";
 
 // ============================================================================
 // Types
@@ -59,7 +59,7 @@ const SCOPE_DETAILS = new Map<string, (typeof API_TOKEN_SCOPE_VALUES)[number]>(
 );
 const PLUGIN_MCP_SCOPE_PREFIX = "mcp:tools:";
 
-/** Uppercase, strip invalid characters, and shape as XXXX-XXXX */
+/** Uppercase, strip invalid characters, cap at 9 characters, and insert a hyphen once 4 are typed */
 function formatDeviceCode(raw: string): string {
 	let value = raw.toUpperCase().replace(DEVICE_CODE_INVALID_CHARS_REGEX, "");
 
@@ -137,7 +137,7 @@ export function DeviceAuthorizePage() {
 		e.preventDefault();
 
 		const trimmed = code.trim();
-		if (!trimmed) return;
+		if (!trimmed || !canApprove) return;
 
 		setPageState("submitting");
 		setErrorMessage("");

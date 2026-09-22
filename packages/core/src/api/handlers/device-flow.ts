@@ -129,15 +129,16 @@ async function findPendingDeviceCode(
 	db: Kysely<Database>,
 	userCode: string,
 ): Promise<Selectable<DeviceCodeTable> | undefined> {
-	const normalizedCode = userCode.replace(HYPHEN_PATTERN, "").toUpperCase();
+	const chars = userCode.replace(HYPHEN_PATTERN, "").toUpperCase();
+	if (chars.length !== 8) return undefined;
 
-	const rows = await db
+	// Stored codes always have the generateUserCode() shape.
+	return db
 		.selectFrom("_emdash_device_codes")
 		.selectAll()
+		.where("user_code", "=", `${chars.slice(0, 4)}-${chars.slice(4)}`)
 		.where("status", "=", "pending")
-		.execute();
-
-	return rows.find((r) => r.user_code.replace(HYPHEN_PATTERN, "").toUpperCase() === normalizedCode);
+		.executeTakeFirst();
 }
 
 // ---------------------------------------------------------------------------
