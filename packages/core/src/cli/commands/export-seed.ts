@@ -12,7 +12,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { createDatabase } from "../../database/connection.js";
-import { runMigrations } from "../../database/migrations/runner.js";
+import { getExactMigrationStatus } from "../../database/migrations/runner.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
@@ -81,13 +81,22 @@ export const exportSeedCommand = defineCommand({
 		// go to stderr, where a redirect leaves them visible.
 		process.stderr.write(`Database: ${dbPath}\n`);
 
-		const db = createDatabase({ url: `file:${dbPath}` });
+		const db = createDatabase({ url: `file:${dbPath}`, readOnly: true });
 
-		// Run migrations to ensure tables exist
 		try {
-			await runMigrations(db);
+			const { pending, unknownApplied } = await getExactMigrationStatus(db);
+			if (unknownApplied.length > 0) {
+				throw new Error(
+					"The database was migrated by a newer EmDash version. Upgrade EmDash before exporting it.",
+				);
+			}
+			if (pending.length > 0) {
+				throw new Error(
+					`The database has ${pending.length} pending migration${pending.length === 1 ? "" : "s"}. Run \`emdash migrate\` before exporting it.`,
+				);
+			}
 		} catch (error) {
-			consola.error("Migration failed:", error);
+			consola.error("Export requires a current database schema:", error);
 			await db.destroy();
 			process.exit(1);
 		}

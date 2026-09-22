@@ -900,7 +900,7 @@ msgstr "ახალი პასკის დამატება"
 msgid "Add another byline"
 msgstr "კიდევ ერთი ბაილაინის დამატება"
 
-#: packages/admin/src/components/FieldEditor.tsx:583
+#: packages/admin/src/components/FieldEditor.tsx:586
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "რეპიტერის სტრუქტურის განსასაზღვრად დაამატეთ მინიმუმ ერთი ქვეველი."
 
@@ -939,7 +939,7 @@ msgstr "დომენის დამატება"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:647
 #: packages/admin/src/components/FieldEditor.tsx:378
-#: packages/admin/src/components/FieldEditor.tsx:712
+#: packages/admin/src/components/FieldEditor.tsx:715
 msgid "Add Field"
 msgstr "ველის დამატება"
 
@@ -1031,7 +1031,7 @@ msgstr "მწკრივის დამატება ქვემოთ"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "SEO მეტამონაცემების ველების დამატება (სათაური, აღწერა, სურათი) და sitemap-ში ჩართვა"
 
-#: packages/admin/src/components/FieldEditor.tsx:577
+#: packages/admin/src/components/FieldEditor.tsx:580
 msgid "Add Sub-Field"
 msgstr "ქვეველის დამატება"
 
@@ -1670,7 +1670,7 @@ msgstr "მუქი"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:55
 #: packages/admin/src/components/FieldEditor.tsx:206
-#: packages/admin/src/components/FieldEditor.tsx:622
+#: packages/admin/src/components/FieldEditor.tsx:625
 msgid "Boolean"
 msgstr "ლოგიკური"
 
@@ -1782,7 +1782,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/editor/ImageNode.tsx:299
 #: packages/admin/src/components/editor/ImageNode.tsx:300
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:406
-#: packages/admin/src/components/FieldEditor.tsx:701
+#: packages/admin/src/components/FieldEditor.tsx:704
 #: packages/admin/src/components/MediaDetailPanel.tsx:1835
 #: packages/admin/src/components/MediaFolderDialog.tsx:152
 #: packages/admin/src/components/MediaPickerModal.tsx:1588
@@ -1888,7 +1888,7 @@ msgstr "ცენტრში"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/FieldEditor.tsx:438
+#: packages/admin/src/components/FieldEditor.tsx:441
 #: packages/admin/src/components/SeoImageField.tsx:58
 msgid "Change"
 msgstr "შეცვლა"
@@ -2903,7 +2903,7 @@ msgstr "მორგებული ტაქსონომიები"
 msgid "Daily automatic backups"
 msgstr "ყოველდღიური ავტომატური სარეზერვო ასლები"
 
-#: packages/admin/src/components/FieldEditor.tsx:688
+#: packages/admin/src/components/FieldEditor.tsx:691
 #: packages/admin/src/components/ImageFieldRenderer.tsx:396
 msgid "Dark mode variant"
 msgstr "მუქი რეჟიმის ვარიანტი"
@@ -2922,7 +2922,7 @@ msgid "Date"
 msgstr "თარიღი"
 
 #: packages/admin/src/components/FieldEditor.tsx:212
-#: packages/admin/src/components/FieldEditor.tsx:623
+#: packages/admin/src/components/FieldEditor.tsx:626
 msgid "Date & Time"
 msgstr "თარიღი და დრო"
 
@@ -3776,7 +3776,7 @@ msgstr ""
 "რეპორტიორი\n"
 "ფოტოგრაფი"
 
-#: packages/admin/src/components/FieldEditor.tsx:691
+#: packages/admin/src/components/FieldEditor.tsx:694
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "რედაქტორებს შეუძლიათ აირჩიონ მეორე სურათი, რომელსაც საიტი მუქ რეჟიმში აჩვენებს."
 
@@ -4733,15 +4733,15 @@ msgstr "ველი შეიქმნა"
 msgid "Field deleted"
 msgstr "ველი წაიშალა"
 
-#: packages/admin/src/components/FieldEditor.tsx:606
+#: packages/admin/src/components/FieldEditor.tsx:609
 msgid "Field label"
 msgstr "ველის იარლიყი"
 
-#: packages/admin/src/components/FieldEditor.tsx:450
+#: packages/admin/src/components/FieldEditor.tsx:453
 msgid "Field Label"
 msgstr "ველის იარლიყი"
 
-#: packages/admin/src/components/FieldEditor.tsx:462
+#: packages/admin/src/components/FieldEditor.tsx:465
 msgid "Field slugs cannot be changed after creation"
 msgstr "ველის სლაგები შექმნის შემდეგ ვერ შეიცვლება"
 
@@ -5225,7 +5225,7 @@ msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "თუ <0>{email}</0>-ზე ანგარიში არსებობს, შესვლის ბმული გაიგზავნა."
 
 #: packages/admin/src/components/FieldEditor.tsx:236
-#: packages/admin/src/components/FieldEditor.tsx:626
+#: packages/admin/src/components/FieldEditor.tsx:629
 #: packages/admin/src/components/PortableTextEditor.tsx:2892
 msgid "Image"
 msgstr "სურათი"
@@ -5416,7 +5416,7 @@ msgstr "დამოუკიდებელი შემოწმება"
 msgid "Index existing content and keep Used in results up to date."
 msgstr "არსებული შიგთავსის ინდექსირება და გამოყენების შედეგების აქტუალურად შენარჩუნება."
 
-#: packages/admin/src/components/FieldEditor.tsx:491
+#: packages/admin/src/components/FieldEditor.tsx:494
 #: packages/admin/src/components/RegistryPluginDetail.tsx:575
 msgid "Indexed"
 msgstr "ინდექსირებულია"
@@ -5571,7 +5571,7 @@ msgid "Installing..."
 msgstr "ყენდება..."
 
 #: packages/admin/src/components/FieldEditor.tsx:200
-#: packages/admin/src/components/FieldEditor.tsx:621
+#: packages/admin/src/components/FieldEditor.tsx:624
 msgid "Integer"
 msgstr "მთელი რიცხვი"
 
@@ -5718,8 +5718,8 @@ msgid "Kotlin"
 msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:232
-#: packages/admin/src/components/FieldEditor.tsx:447
-#: packages/admin/src/components/FieldEditor.tsx:592
+#: packages/admin/src/components/FieldEditor.tsx:450
+#: packages/admin/src/components/FieldEditor.tsx:595
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:169
@@ -6073,7 +6073,7 @@ msgid "Long text"
 msgstr "გრძელი ტექსტი"
 
 #: packages/admin/src/components/FieldEditor.tsx:188
-#: packages/admin/src/components/FieldEditor.tsx:619
+#: packages/admin/src/components/FieldEditor.tsx:622
 msgid "Long Text"
 msgstr "გრძელი ტექსტი"
 
@@ -6188,15 +6188,15 @@ msgstr "მარკეტპლეისში დათვალიერე�
 msgid "Marketplace configuration is deprecated"
 msgstr "მარკეტპლეისის კონფიგურაცია მოძველებულია"
 
-#: packages/admin/src/components/FieldEditor.tsx:666
+#: packages/admin/src/components/FieldEditor.tsx:669
 msgid "Max Items"
 msgstr "ელემენტების მაქსიმუმი"
 
-#: packages/admin/src/components/FieldEditor.tsx:509
+#: packages/admin/src/components/FieldEditor.tsx:512
 msgid "Max Length"
 msgstr "მაქსიმალური სიგრძე"
 
-#: packages/admin/src/components/FieldEditor.tsx:539
+#: packages/admin/src/components/FieldEditor.tsx:542
 msgid "Max Value"
 msgstr "მაქსიმალური მნიშვნელობა"
 
@@ -6384,15 +6384,15 @@ msgstr "მიგრაციის სახელმძღვანელო"
 msgid "Migration key"
 msgstr "მიგრაციის გასაღები"
 
-#: packages/admin/src/components/FieldEditor.tsx:659
+#: packages/admin/src/components/FieldEditor.tsx:662
 msgid "Min Items"
 msgstr "ელემენტების მინიმუმი"
 
-#: packages/admin/src/components/FieldEditor.tsx:502
+#: packages/admin/src/components/FieldEditor.tsx:505
 msgid "Min Length"
 msgstr "მინიმალური სიგრძე"
 
-#: packages/admin/src/components/FieldEditor.tsx:532
+#: packages/admin/src/components/FieldEditor.tsx:535
 msgid "Min Value"
 msgstr "მინიმალური მნიშვნელობა"
 
@@ -6905,7 +6905,7 @@ msgstr "მოწვევის ტოკენი მითითებულ�
 msgid "No items yet"
 msgstr "ელემენტები ჯერ არ არის"
 
-#: packages/admin/src/components/FieldEditor.tsx:670
+#: packages/admin/src/components/FieldEditor.tsx:673
 msgid "No limit"
 msgstr "ლიმიტის გარეშე"
 
@@ -6938,8 +6938,8 @@ msgstr "შესაბამისი მედია ვერ მოიძე
 msgid "No matching passkey found for this account."
 msgstr "ამ ანგარიშისთვის შესაბამისი პასკი ვერ მოიძებნა."
 
-#: packages/admin/src/components/FieldEditor.tsx:513
-#: packages/admin/src/components/FieldEditor.tsx:543
+#: packages/admin/src/components/FieldEditor.tsx:516
+#: packages/admin/src/components/FieldEditor.tsx:546
 msgid "No maximum"
 msgstr "მაქსიმუმი არ არის"
 
@@ -6960,8 +6960,8 @@ msgstr "მენიუს ელემენტები ჯერ არ ა�
 msgid "No menus yet"
 msgstr "მენიუები ჯერ არ არის"
 
-#: packages/admin/src/components/FieldEditor.tsx:506
-#: packages/admin/src/components/FieldEditor.tsx:536
+#: packages/admin/src/components/FieldEditor.tsx:509
+#: packages/admin/src/components/FieldEditor.tsx:539
 msgid "No minimum"
 msgstr "მინიმუმი არ არის"
 
@@ -7105,7 +7105,7 @@ msgid "Not set"
 msgstr "მითითებული არ არის"
 
 #: packages/admin/src/components/FieldEditor.tsx:194
-#: packages/admin/src/components/FieldEditor.tsx:620
+#: packages/admin/src/components/FieldEditor.tsx:623
 msgid "Number"
 msgstr "რიცხვი"
 
@@ -7207,7 +7207,7 @@ msgstr "Windows-ის პარამეტრების გახსნა"
 msgid "Open WordPress Profile"
 msgstr "WordPress-ის პროფილის გახსნა"
 
-#: packages/admin/src/components/FieldEditor.tsx:554
+#: packages/admin/src/components/FieldEditor.tsx:557
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -7243,7 +7243,7 @@ msgid "Optional tooltip on hover"
 msgstr "სურვილისამებრ მინიშნება კურსორის მიტანისას"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:302
-#: packages/admin/src/components/FieldEditor.tsx:551
+#: packages/admin/src/components/FieldEditor.tsx:554
 msgid "Options (one per line)"
 msgstr "ვარიანტები (თითო ხაზზე)"
 
@@ -7426,7 +7426,7 @@ msgstr "ჩასვით მიგრაციის გასაღები"
 msgid "Path"
 msgstr "ბილიკი"
 
-#: packages/admin/src/components/FieldEditor.tsx:518
+#: packages/admin/src/components/FieldEditor.tsx:521
 msgid "Pattern (Regex)"
 msgstr "ნიმუში (Regex)"
 
@@ -8168,7 +8168,7 @@ msgstr "მოვაცილოთ პასკი?"
 msgid "Remove schedule"
 msgstr "დაგეგმვის მოცილება"
 
-#: packages/admin/src/components/FieldEditor.tsx:650
+#: packages/admin/src/components/FieldEditor.tsx:653
 msgid "Remove sub-field"
 msgstr "ქვეველის მოცილება"
 
@@ -8300,8 +8300,8 @@ msgstr "სლაგი სავალდებულოა გამოქვ�
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:280
 #: packages/admin/src/components/ContentTypeEditor.tsx:789
-#: packages/admin/src/components/FieldEditor.tsx:473
-#: packages/admin/src/components/FieldEditor.tsx:632
+#: packages/admin/src/components/FieldEditor.tsx:476
+#: packages/admin/src/components/FieldEditor.tsx:635
 #: packages/admin/src/routes/byline-schema.tsx:246
 msgid "Required"
 msgstr "სავალდებულო"
@@ -8687,7 +8687,7 @@ msgstr "შენახულია"
 msgid "Saved \"{0}\"."
 msgstr "შენახულია „{0}“."
 
-#: packages/admin/src/components/FieldEditor.tsx:712
+#: packages/admin/src/components/FieldEditor.tsx:715
 #: packages/admin/src/components/MediaDetailPanel.tsx:1866
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:626
@@ -8951,7 +8951,7 @@ msgid "Search..."
 msgstr "ძებნა..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:791
-#: packages/admin/src/components/FieldEditor.tsx:484
+#: packages/admin/src/components/FieldEditor.tsx:487
 msgid "Searchable"
 msgstr "ძებნადი"
 
@@ -9050,7 +9050,7 @@ msgstr "ნახეთ, სად გამოიყენება ეს ფ�
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:56
 #: packages/admin/src/components/FieldEditor.tsx:218
-#: packages/admin/src/components/FieldEditor.tsx:624
+#: packages/admin/src/components/FieldEditor.tsx:627
 #: packages/admin/src/components/MediaPickerModal.tsx:860
 #: packages/admin/src/components/Settings.tsx:149
 msgid "Select"
@@ -9353,7 +9353,7 @@ msgid "Short text"
 msgstr "მოკლე ტექსტი"
 
 #: packages/admin/src/components/FieldEditor.tsx:182
-#: packages/admin/src/components/FieldEditor.tsx:618
+#: packages/admin/src/components/FieldEditor.tsx:621
 msgid "Short Text"
 msgstr "მოკლე ტექსტი"
 
@@ -9517,7 +9517,7 @@ msgstr "გამოტოვებული"
 #: packages/admin/src/components/ContentTypeEditor.tsx:414
 #: packages/admin/src/components/ContentTypeList.tsx:181
 #: packages/admin/src/components/FieldEditor.tsx:260
-#: packages/admin/src/components/FieldEditor.tsx:454
+#: packages/admin/src/components/FieldEditor.tsx:457
 #: packages/admin/src/components/SectionEditor.tsx:280
 #: packages/admin/src/components/Sections.tsx:184
 #: packages/admin/src/components/TaxonomyManager.tsx:593
@@ -9684,7 +9684,7 @@ msgstr "სტრუქტურა"
 msgid "Structured"
 msgstr "სტრუქტურირებული"
 
-#: packages/admin/src/components/FieldEditor.tsx:562
+#: packages/admin/src/components/FieldEditor.tsx:565
 msgid "Sub-Fields"
 msgstr "ქვეველები"
 
@@ -10454,7 +10454,7 @@ msgid "Twitter"
 msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
-#: packages/admin/src/components/FieldEditor.tsx:610
+#: packages/admin/src/components/FieldEditor.tsx:613
 #: packages/admin/src/components/MediaLibrary.tsx:1206
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
@@ -10511,7 +10511,7 @@ msgid "Uninstalling..."
 msgstr "მიმდინარეობს დეინსტალაცია..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:790
-#: packages/admin/src/components/FieldEditor.tsx:478
+#: packages/admin/src/components/FieldEditor.tsx:481
 msgid "Unique"
 msgstr "უნიკალური"
 
@@ -10594,7 +10594,7 @@ msgstr "შეიძლება აირჩეს {MAX_SELECTED}-მდე ბ
 msgid "Update"
 msgstr "განახლება"
 
-#: packages/admin/src/components/FieldEditor.tsx:712
+#: packages/admin/src/components/FieldEditor.tsx:715
 msgid "Update Field"
 msgstr "ველის განახლება"
 
@@ -10731,7 +10731,7 @@ msgstr "იტვირთება სურათი…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:54
 #: packages/admin/src/components/FieldEditor.tsx:266
-#: packages/admin/src/components/FieldEditor.tsx:625
+#: packages/admin/src/components/FieldEditor.tsx:628
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
 msgid "URL"
@@ -10901,8 +10901,8 @@ msgstr "ამ დომენების ელფოსტის მისა
 msgid "v{0} available"
 msgstr "v{0} ხელმისაწვდომია"
 
-#: packages/admin/src/components/FieldEditor.tsx:499
-#: packages/admin/src/components/FieldEditor.tsx:529
+#: packages/admin/src/components/FieldEditor.tsx:502
+#: packages/admin/src/components/FieldEditor.tsx:532
 msgid "Validation"
 msgstr "ვალიდაცია"
 
