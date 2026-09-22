@@ -199,6 +199,10 @@ export function validateSeed(data: unknown): ValidationResult {
 							errors.push(`${fieldPrefix}.indexed: must be a boolean`);
 						}
 
+						if (field.translatable !== undefined && typeof field.translatable !== "boolean") {
+							errors.push(`${fieldPrefix}.translatable: must be a boolean`);
+						}
+
 						if (!field.type) {
 							errors.push(`${fieldPrefix}: type is required`);
 						} else if (!(FIELD_TYPES as readonly string[]).includes(field.type)) {
@@ -513,8 +517,8 @@ export function validateSeed(data: unknown): ValidationResult {
 				}
 
 				// Validate source
-				if (section.source && !["theme", "import"].includes(section.source)) {
-					errors.push(`${prefix}.source: must be "theme" or "import"`);
+				if (section.source && !["theme", "user", "import"].includes(section.source)) {
+					errors.push(`${prefix}.source: must be "theme", "user", or "import"`);
 				}
 			}
 		}

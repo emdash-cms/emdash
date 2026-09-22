@@ -159,6 +159,7 @@ A collection requires `slug`, `label`, and `fields`:
 | `unique` | `boolean` | Adds a uniqueness constraint |
 | `searchable` | `boolean` | Includes the field in collection search |
 | `indexed` | `boolean` | Adds a query index for supported scalar types |
+| `translatable` | `boolean` | Stores a value per locale; defaults to `true`. `false` shares one value across translations |
 | `defaultValue` | any | Initial value when the field is omitted |
 | `validation` | object | Validation rules used by generated content schemas |
 | `widget` | `string` | Admin field widget override |
@@ -446,7 +447,7 @@ Sections contain reusable Portable Text content:
 }
 ```
 
-Section slugs contain lowercase letters, digits, and hyphens. `source` is `theme` or `import`; a seed defaults it to `theme`. Sections are structural and are applied even when `includeContent` is false.
+Section slugs contain lowercase letters, digits, and hyphens. `source` is `theme`, `user`, or `import`; a seed defaults it to `theme`. Theme sections cannot be deleted in the admin. Sections are structural and are applied even when `includeContent` is false.
 
 ## Localization
 
@@ -547,7 +548,7 @@ Export the current local model and all content back to the template path:
 npx emdash export-seed --database ./data.db --with-content=all > seed/seed.json
 ```
 
-`export-seed` works directly on a local SQLite file. For a deployed D1 database, export it to a local file first. Review exported settings, content, and media references before committing the result.
+`export-seed` works directly on a local SQLite file. For a deployed D1 database, export it to a local file first. Review exported settings, content, and media references before committing the result. To make exported media importable on another site, pass `--media-base-url`; see [Media URLs](/reference/cli/#media-urls).
 
 ## Next steps
 

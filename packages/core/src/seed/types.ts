@@ -112,6 +112,8 @@ export interface SeedField {
 	unique?: boolean;
 	searchable?: boolean;
 	indexed?: boolean;
+	/** Whether the value is stored per locale (default true). `false` shares one value across translations. */
+	translatable?: boolean;
 	defaultValue?: unknown;
 	validation?: Record<string, unknown>;
 	widget?: string;
@@ -231,8 +233,8 @@ export interface SeedSection {
 	keywords?: string[];
 	/** Portable Text content */
 	content: Array<{ _type: string; _key?: string; [key: string]: unknown }>;
-	/** Source: "theme" for seed-provided, "import" for WP imports */
-	source?: "theme" | "import";
+	/** Source: "theme" for seed-provided (the default), "user" for editor-created, "import" for WP imports */
+	source?: "theme" | "user" | "import";
 }
 
 /**
