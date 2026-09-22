@@ -219,7 +219,7 @@ npx emdash login [options]
 
 1. Discovers auth endpoints from the instance
 2. If localhost and no auth configured, uses dev bypass automatically
-3. Otherwise initiates OAuth Device Flow — displays a code and opens your browser
+3. Otherwise initiates OAuth Device Flow — displays a code and opens your browser. After you enter the code, the admin page lists the permissions the CLI will receive, and any requested permissions your role does not allow, before you approve.
 4. Polls for authorization, then saves credentials to `~/.config/emdash/auth.json`
 
 Saved credentials are used automatically by all subsequent commands targeting the same instance.
