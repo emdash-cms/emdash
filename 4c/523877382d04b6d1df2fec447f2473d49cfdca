@@ -1,0 +1,31 @@
+packages/admin/src/components/comments/CommentInbox.tsx
+  s_dec5ec248e7b66::t_62f7201ecf4042 21,147,264-294,296-298,315-319,519,529-541
+.changeset/comments-compact-page-header.md
+  s_428695602bab5c::t_7f70f0b66cef3e 5
+packages/admin/tests/components/CommentInbox.test.tsx
+  s_428695602bab5c::t_bc81fb92714543 72-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4c523877382d04b6d1df2fec447f2473d49cfdca",
+  "prompts": {},
+  "sessions": {
+    "s_428695602bab5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0caa2-221d-7933-88c8-8e003403d851",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_dec5ec248e7b66": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ca2f-28ee-77f1-92b6-762f68aa9174",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
