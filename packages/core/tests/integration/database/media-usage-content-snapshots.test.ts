@@ -3,7 +3,10 @@ import { ulid } from "ulidx";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
-import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
+import {
+	CONTENT_SOURCE_SCHEMA_VERSION,
+	loadContentMediaUsageSnapshots,
+} from "../../../src/media/usage/content-snapshots.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
@@ -429,13 +432,48 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 		const secondColumns = getSnapshot(secondResult, "columns");
 		const secondOverlay = getSnapshot(secondResult, "draft_overlay");
 
-		expect(firstColumns.source.schemaVersion).toBe(1);
-		expect(firstOverlay.source.schemaVersion).toBe(1);
-		expect(firstColumns.source.sourceFingerprint).toEqual(expect.stringMatching(/^[a-f0-9]{16}$/));
-		expect(firstOverlay.source.sourceFingerprint).toEqual(expect.stringMatching(/^[a-f0-9]{16}$/));
+		expect(firstColumns.source.schemaVersion).toBe(CONTENT_SOURCE_SCHEMA_VERSION);
+		expect(firstOverlay.source.schemaVersion).toBe(CONTENT_SOURCE_SCHEMA_VERSION);
+		expect(firstColumns.source.sourceFingerprint).toEqual(
+			expect.stringMatching(/^media-usage-projection:v1:sha256:[a-f0-9]{64}$/),
+		);
+		expect(firstOverlay.source.sourceFingerprint).toEqual(
+			expect.stringMatching(/^media-usage-projection:v1:sha256:[a-f0-9]{64}$/),
+		);
 		expect(firstOverlay.source.sourceFingerprint).not.toBe(firstColumns.source.sourceFingerprint);
 		expect(secondColumns.source.sourceFingerprint).toBe(firstColumns.source.sourceFingerprint);
 		expect(secondOverlay.source.sourceFingerprint).toBe(firstOverlay.source.sourceFingerprint);
+		expect(firstColumns.projectionByteLength).toBeGreaterThan(0);
+		expect(firstOverlay.projectionByteLength).toBeGreaterThan(0);
+		expect(secondColumns.projectionByteLength).toBe(firstColumns.projectionByteLength);
+		expect(secondOverlay.projectionByteLength).toBe(firstOverlay.projectionByteLength);
+	});
+
+	it("changes fingerprints when V1-visible source metadata changes", async () => {
+		const item = await insertPost(ctx, {
+			slug: "metadata-post",
+			status: "published",
+			locale: "en",
+			data: {
+				title: "Initial title",
+				hero: { id: "media-stable", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const initial = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+		expect(initial.success).toBe(true);
+		if (!initial.success) throw new Error(initial.error);
+		const initialFingerprint = getSnapshot(initial, "columns").source.sourceFingerprint;
+
+		await sql`
+			UPDATE ${sql.ref("ec_posts")}
+			SET title = 'Changed title', status = 'draft', locale = 'fr'
+			WHERE id = ${item.id}
+		`.execute(ctx.db);
+		const changed = await loadContentMediaUsageSnapshots(ctx.db, "posts", item.id);
+		expect(changed.success).toBe(true);
+		if (!changed.success) throw new Error(changed.error);
+
+		expect(getSnapshot(changed, "columns").source.sourceFingerprint).not.toBe(initialFingerprint);
 	});
 
 	it("changes fingerprints when extraction-relevant values or fields change", async () => {

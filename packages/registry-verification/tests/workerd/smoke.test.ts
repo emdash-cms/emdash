@@ -1,7 +1,12 @@
 import { packTar } from "modern-tar";
 import { describe, expect, it } from "vitest";
 
-import { computeMultihash, fetchVerifiedResource, validatePluginBundle } from "../../src/index.js";
+import {
+	computeMultihash,
+	fetchReleaseArtifact,
+	fetchVerifiedResource,
+	validatePluginBundle,
+} from "../../src/index.js";
 
 const encoder = new TextEncoder();
 
@@ -51,5 +56,37 @@ describe("registry verification in workerd", () => {
 			expectedVersion: "1.0.0",
 		});
 		expect(result).toMatchObject({ success: true, value: { manifest: { id: "workerd-plugin" } } });
+	});
+
+	it("resolves a blob artifact through the publisher PDS", async () => {
+		const bytes = encoder.encode("bundle");
+		const result = await fetchReleaseArtifact(
+			{
+				record: {
+					did: "did:plc:abcdefghijklmnopqrstuvwx",
+					collection: "com.emdashcms.experimental.package.release",
+					rkey: "workerd-plugin:1.0.0",
+					cid: "bafyreig7jlyqew5vpur7kzjk5nwz7kx7f2jvcm2payqv6xnaylb3h5or7a",
+				},
+				pdsEndpoint: "https://pds.example.test",
+				artifact: {
+					blob: {
+						$type: "blob",
+						ref: {
+							$link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q",
+						},
+						mimeType: "application/gzip",
+						size: bytes.byteLength,
+					},
+					checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+				},
+			},
+			{
+				fetch: async () => new Response(bytes),
+				resolveHostname: async () => ["203.0.113.5"],
+			},
+		);
+
+		expect(result).toMatchObject({ success: true, value: { source: "blob", bytes } });
 	});
 });

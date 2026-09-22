@@ -1,65 +1,103 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import type { Sandbox } from "@cloudflare/sandbox";
+import { describe, expect, test, vi } from "vitest";
 
 import {
 	type ContainerBackend,
 	ExecEnv,
-	type IsolateBackend,
-	ISOLATE_SHELL_BACKEND,
+	fromSandbox,
+	type IsolateState,
 } from "../../.flue/lib/exec-env.js";
 
-interface RecordedExec {
-	source: string;
-	options: { backend?: string; cwd?: string; encoding: "utf8"; timeoutMs?: number };
-}
-
-const GIT_STATUS = "git status --porcelain -z --untracked-files=all";
-
-function fakeIsolate(
-	overrides: Partial<IsolateBackend["fs"]> = {},
-	sharedFiles?: Map<string, string>,
-): {
-	isolate: IsolateBackend;
-	execs: RecordedExec[];
+function fakeState(initial?: Record<string, string>): {
+	state: IsolateState;
 	files: Map<string, string>;
-	setExecResult: (result: { exitCode: number; stdout: string; stderr: string }) => void;
-	hangExec: () => void;
+	symlinks: Map<string, string>;
+	hangReads: () => void;
 } {
-	const execs: RecordedExec[] = [];
-	const files = sharedFiles ?? new Map<string, string>();
-	let execResult = { exitCode: 0, stdout: "", stderr: "" };
+	const files = new Map<string, string>(Object.entries(initial ?? {}));
+	const symlinks = new Map<string, string>();
 	let hang = false;
-	const isolate: IsolateBackend = {
-		fs: {
-			readFile: async (path) => {
-				const value = files.get(path);
-				if (value === undefined) throw new Error(`no such file ${path}`);
-				return value;
-			},
-			writeFile: async (path, content) => {
-				files.set(path, content);
-			},
-			mkdir: async () => {},
-			readdir: async () => [{ name: "a.ts", isDirectory: false }],
-			rm: async () => {},
-			grep: async () => [{ path: "/repo/a.ts", line: 3, text: "TODO" }],
-			...overrides,
+	const state: IsolateState = {
+		readFile: async (path) => {
+			if (hang) return new Promise<never>(() => {});
+			const value = files.get(path);
+			if (value === undefined) throw new Error(`no such file ${path}`);
+			return value;
 		},
-		runtime: {
-			exec: async (source, options) => {
-				execs.push({ source, options });
-				if (hang) return { result: () => new Promise<never>(() => {}) };
-				return { result: async () => execResult, [Symbol.dispose]: () => {} };
-			},
+		readFileBytes: async (path) => {
+			const value = files.get(path);
+			if (value === undefined) throw new Error(`no such file ${path}`);
+			return new TextEncoder().encode(value);
+		},
+		writeFile: async (path, content) => {
+			symlinks.delete(path);
+			files.set(path, content);
+		},
+		writeFileBytes: async (path, content) => {
+			symlinks.delete(path);
+			files.set(path, new TextDecoder().decode(content));
+		},
+		lstat: async (path) => {
+			if (symlinks.has(path)) return { type: "symlink" };
+			if (files.has(path)) return { type: "file" };
+			return null;
+		},
+		symlink: async (target, linkPath) => {
+			files.delete(linkPath);
+			symlinks.set(linkPath, target);
+		},
+		readlink: async (path) => {
+			const target = symlinks.get(path);
+			if (target === undefined) throw new Error(`not a symlink ${path}`);
+			return target;
+		},
+		mkdir: async () => {},
+		readdirWithFileTypes: async (path) => {
+			const prefix = `${path.replace(/\/+$/, "")}/`;
+			const names = new Map<string, string>();
+			for (const key of files.keys()) {
+				if (!key.startsWith(prefix)) continue;
+				const rest = key.slice(prefix.length);
+				const slash = rest.indexOf("/");
+				if (slash === -1) names.set(rest, "file");
+				else names.set(rest.slice(0, slash), "directory");
+			}
+			return Array.from(names.entries(), ([name, type]) => ({ name, type }));
+		},
+		exists: async (path) => {
+			if (files.has(path) || symlinks.has(path)) return true;
+			const prefix = `${path.replace(/\/+$/, "")}/`;
+			return [...files.keys(), ...symlinks.keys()].some((key) => key.startsWith(prefix));
+		},
+		rm: async (path) => {
+			const prefix = `${path.replace(/\/+$/, "")}/`;
+			const keys = [...files.keys()];
+			for (const key of keys) {
+				if (key === path || key.startsWith(prefix)) files.delete(key);
+			}
+			for (const key of symlinks.keys()) {
+				if (key === path || key.startsWith(prefix)) symlinks.delete(key);
+			}
+		},
+		searchFiles: async (pattern, query) => {
+			const root = pattern.replace(/\/\*\*\/\*$/, "");
+			const out: Array<{ path: string; matches: Array<{ line: number; lineText: string }> }> = [];
+			for (const [path, content] of files) {
+				if (!path.startsWith(`${root}/`)) continue;
+				const matches = content
+					.split("\n")
+					.map((lineText, index) => ({ line: index + 1, lineText }))
+					.filter((entry) => entry.lineText.includes(query));
+				if (matches.length > 0) out.push({ path, matches });
+			}
+			return out;
 		},
 	};
 	return {
-		isolate,
-		execs,
+		state,
 		files,
-		setExecResult: (result) => {
-			execResult = result;
-		},
-		hangExec: () => {
+		symlinks,
+		hangReads: () => {
 			hang = true;
 		},
 	};
@@ -68,80 +106,548 @@ function fakeIsolate(
 function fakeContainer(): {
 	container: ContainerBackend;
 	execs: string[];
-	writes: Array<{ path: string; content: string }>;
+	writes: Array<{ path: string; content: string | Uint8Array }>;
+	setExecResult: (result: { exitCode: number; stdout: string; stderr: string }) => void;
+	queueExecResults: (
+		...results: Array<{ exitCode: number; stdout: string; stderr: string }>
+	) => void;
+	setReadFileBytes: (read: (path: string) => Uint8Array) => void;
+	queueReadyResults: (...results: Array<boolean | Error>) => void;
+	hangExec: () => void;
 } {
 	const execs: string[] = [];
-	const writes: Array<{ path: string; content: string }> = [];
+	const writes: Array<{ path: string; content: string | Uint8Array }> = [];
+	let execResult = { exitCode: 0, stdout: "container-ran", stderr: "" };
+	const queuedExecResults: Array<{ exitCode: number; stdout: string; stderr: string }> = [];
+	let readFileBytes: (path: string) => Uint8Array = (_path) => new Uint8Array([1, 2, 3]);
+	const readyResults: Array<boolean | Error> = [];
+	let hang = false;
 	const container: ContainerBackend = {
+		isReady: async () => {
+			const result = readyResults.shift() ?? true;
+			if (result instanceof Error) throw result;
+			return result;
+		},
 		exec: async (command) => {
 			execs.push(command);
-			return { exitCode: 0, stdout: "container-ran", stderr: "" };
+			if (hang) return new Promise<never>(() => {});
+			return queuedExecResults.shift() ?? execResult;
 		},
 		writeFile: async (path, content) => {
-			writes.push({ path, content });
+			writes.push({
+				path,
+				content: content instanceof Uint8Array ? new TextDecoder().decode(content) : content,
+			});
 		},
-		readFileBytes: async () => new Uint8Array([1, 2, 3]),
+		readFileBytes: async (path) => readFileBytes(path),
 	};
-	return { container, execs, writes };
+	return {
+		container,
+		execs,
+		writes,
+		setExecResult: (result) => {
+			execResult = result;
+		},
+		queueExecResults: (...results) => {
+			queuedExecResults.push(...results);
+		},
+		setReadFileBytes: (read) => {
+			readFileBytes = read;
+		},
+		queueReadyResults: (...results) => {
+			readyResults.push(...results);
+		},
+		hangExec: () => {
+			hang = true;
+		},
+	};
 }
 
-const deadlines = { defaultTimeoutMs: 10_000, execGraceMs: 500 };
+const deadlines = { defaultTimeoutMs: 10_000, attachTimeoutMs: 20_000, execGraceMs: 500 };
+const noHydrate = async () => {};
 
-describe("ExecEnv exec routing", () => {
-	test("isolate exec runs on the worker-shell backend and normalizes the handle result", async () => {
-		const iso = fakeIsolate();
-		iso.setExecResult({ exitCode: 2, stdout: "hits", stderr: "warn" });
-		const attach = vi.fn(async () => fakeContainer().container);
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: attach,
-			deadlines,
-			repoDir: "/repo",
-		});
+function makeEnv(overrides?: {
+	state?: IsolateState;
+	container?: ContainerBackend;
+	hydrateRepo?: (dir: string, ref: string) => Promise<void>;
+	attachContainer?: () => Promise<ContainerBackend>;
+	attachPublisherContainer?: () => Promise<ContainerBackend>;
+	deadlines?: { defaultTimeoutMs: number; attachTimeoutMs: number; execGraceMs: number };
+}): ExecEnv {
+	return new ExecEnv({
+		state: overrides?.state ?? fakeState().state,
+		attachContainer:
+			overrides?.attachContainer ?? (async () => overrides?.container ?? fakeContainer().container),
+		...(overrides?.attachPublisherContainer
+			? { attachPublisherContainer: overrides.attachPublisherContainer }
+			: {}),
+		hydrateRepo: overrides?.hydrateRepo ?? noHydrate,
+		deadlines: overrides?.deadlines ?? deadlines,
+		repoDir: "/repo",
+	});
+}
 
-		const result = await env.exec("grep -r TODO", { target: "isolate", cwd: "/repo" });
+function base64Utf8(value: string): string {
+	const bytes = new TextEncoder().encode(value);
+	let binary = "";
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return btoa(binary);
+}
 
-		expect(result).toEqual({ exitCode: 2, stdout: "hits", stderr: "warn" });
-		expect(iso.execs).toHaveLength(1);
-		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
-		expect(iso.execs[0]?.options.encoding).toBe("utf8");
-		expect(iso.execs[0]?.options.cwd).toBe("/repo");
-		expect(attach).not.toHaveBeenCalled();
+function sandboxFileStream(content: string): ReadableStream<Uint8Array> {
+	const size = new TextEncoder().encode(content).byteLength;
+	const events = [
+		{ type: "metadata", mimeType: "text/plain", size, isBinary: false, encoding: "utf-8" },
+		{ type: "chunk", data: content },
+		{ type: "complete" },
+	];
+	const payload = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+	return new ReadableStream({
+		start(controller) {
+			controller.enqueue(new TextEncoder().encode(payload));
+			controller.close();
+		},
+	});
+}
+
+describe("Sandbox container adapter", () => {
+	test("returns exact file bytes rather than the file stream protocol", async () => {
+		const content = "# r\u00e9sum\u00e9 \ud83d\ude80\n";
+		const sandbox = {
+			readFile: async () => ({ content: base64Utf8(content) }),
+			readFileStream: async () => sandboxFileStream(content),
+		} as unknown as Sandbox;
+
+		const bytes = await fromSandbox(sandbox).readFileBytes("/tmp/candidate");
+
+		expect(bytes).toEqual(new TextEncoder().encode(content));
 	});
 
-	test("container exec runs the command on the container; the isolate only runs the sync probe", async () => {
-		const iso = fakeIsolate();
-		const con = fakeContainer();
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
-		});
+	test("writes exact bytes over the HTTP transport without using a file stream", async () => {
+		const writeFile = vi.fn();
+		const sandbox = { writeFile } as unknown as Sandbox;
+		const bytes = new Uint8Array([0, 255, 1, 128]);
 
-		const result = await env.exec("pnpm install", { target: "container" });
+		await fromSandbox(sandbox).writeFile("/tmp/candidate", bytes);
+
+		expect(writeFile).toHaveBeenCalledWith("/tmp/candidate", "AP8BgA==", {
+			encoding: "base64",
+		});
+	});
+});
+
+describe("ExecEnv container exec", () => {
+	test("checkpoints source writes from a failed shell command", async () => {
+		const fs = fakeState({ "/repo/src/a.ts": "before\n" });
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 1, stdout: "", stderr: "format failed" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/a.ts\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("file\0")}\n`, stderr: "" },
+		);
+		con.setReadFileBytes(() => new TextEncoder().encode("partially formatted\n"));
+		const env = makeEnv({ state: fs.state, container: con.container });
+		await env.ensureRepo({ dir: "/repo", ref: "base-sha" });
+
+		await expect(env.execWritable("pnpm format")).resolves.toMatchObject({ exitCode: 1 });
+
+		expect(fs.files.get("/repo/src/a.ts")).toBe("partially formatted\n");
+		expect(fs.files.get("/.emdash-bot/changes.json")).toBe('["/repo/src/a.ts"]');
+	});
+
+	test("recovers the snapshot base after the execution environment is reconstructed", async () => {
+		const fs = fakeState();
+		const initial = makeEnv({ state: fs.state });
+		await initial.ensureRepo({ dir: "/repo", ref: "base-sha" });
+
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "passed", stderr: "" },
+			{ exitCode: 0, stdout: "\n", stderr: "" },
+		);
+		const resumed = makeEnv({ state: fs.state, container: con.container });
+
+		await expect(resumed.execWritable("pnpm test")).resolves.toMatchObject({ stdout: "passed" });
+
+		expect(con.execs[1]).toContain("git diff --name-only -z");
+		expect(con.execs[1]).toContain("base-sha");
+	});
+
+	test("rejects a shell-created symlink that escapes the repository", async () => {
+		const fs = fakeState();
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("link\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("symlink\0../../outside")}\n`, stderr: "" },
+		);
+		const env = makeEnv({ state: fs.state, container: con.container });
+		await env.ensureRepo({ dir: "/repo", ref: "base-sha" });
+
+		await expect(env.execWritable("ln -s ../../outside link")).rejects.toThrow(
+			/symlink target escapes/,
+		);
+		expect(fs.symlinks.size).toBe(0);
+	});
+
+	test("runs the command in the container with the repo cwd", async () => {
+		const con = fakeContainer();
+		const env = makeEnv({ container: con.container });
+
+		const result = await env.exec("pnpm test");
 
 		expect(result.stdout).toBe("container-ran");
-		expect(con.execs).toEqual(["pnpm install"]);
-		expect(iso.execs.map((e) => e.source)).toEqual([GIT_STATUS]);
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+	});
+
+	test("materializes logged VFS edits before the command runs", async () => {
+		const fs = fakeState({ "/repo/src/x.ts": "v1" });
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await env.writeFile("/repo/src/x.ts", "v2");
+		await env.exec("pnpm test");
+
+		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "v2" }]);
+		expect(con.execs).toEqual([
+			"if test -L '/repo/src/x.ts'; then rm -f -- '/repo/src/x.ts'; fi",
+			"bash -o pipefail -c 'pnpm test'",
+		]);
+	});
+
+	test("runs pipelines with pipefail so a failed producer cannot look successful", async () => {
+		const con = fakeContainer();
+		const env = makeEnv({ container: con.container });
+
+		await env.exec("pnpm test 2>&1 | tail -20");
+
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test 2>&1 | tail -20'"]);
+	});
+
+	test("rejects and discards source changes made by a verification command", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "before-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "formatted", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "after-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.execReadOnly("pnpm format")).rejects.toThrow(/command modified the candidate/);
+		expect(con.execs.at(-1)).toContain("git reset --hard HEAD");
+	});
+
+	test("rejects tracked source changes from exploratory commands", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "before-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "formatted", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "after-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.execReadOnly("pnpm format")).rejects.toThrow(
+			/container command modified the candidate/,
+		);
+		expect(con.execs.at(-1)).toContain("git reset --hard HEAD");
+	});
+
+	test("returns the command result when a read-only check leaves the candidate unchanged", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: "passed", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.execReadOnly("pnpm format:check")).resolves.toEqual({
+			exitCode: 0,
+			stdout: "passed",
+			stderr: "",
+		});
+	});
+
+	test("an edit in one instance is materialized when another execs over the same VFS", async () => {
+		const fs = fakeState({ "/repo/src/x.ts": "old" });
+		const con = fakeContainer();
+		const envA = makeEnv({ state: fs.state, container: con.container });
+		await envA.edit("/repo/src/x.ts", "old", "new");
+
+		const envB = makeEnv({ state: fs.state, container: con.container });
+		await envB.exec("pnpm test");
+
+		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "new" }]);
+	});
+
+	test("replay sends the current VFS content, and a repeat write logs once", async () => {
+		const fs = fakeState({ "/repo/src/x.ts": "v1" });
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await env.writeFile("/repo/src/x.ts", "v2");
+		await env.exec("pnpm test");
+		await env.writeFile("/repo/src/x.ts", "v3");
+		await env.exec("pnpm lint");
+
+		expect(con.writes).toEqual([
+			{ path: "/repo/src/x.ts", content: "v2" },
+			{ path: "/repo/src/x.ts", content: "v3" },
+		]);
+	});
+
+	test("writes outside the repo are not materialized", async () => {
+		const fs = fakeState();
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await env.writeFile("/scratch/notes.md", "plan");
+		await env.exec("pnpm test");
+
+		expect(con.writes).toEqual([]);
+	});
+
+	test("serializes parallel edits so every changed path is materialized", async () => {
+		const fs = fakeState({ "/repo/a.ts": "a", "/repo/b.ts": "b" });
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await Promise.all([
+			env.writeFile("/repo/a.ts", "changed-a"),
+			env.writeFile("/repo/b.ts", "changed-b"),
+		]);
+		await env.exec("pnpm test");
+
+		expect(con.writes).toEqual([
+			{ path: "/repo/a.ts", content: "changed-a" },
+			{ path: "/repo/b.ts", content: "changed-b" },
+		]);
+	});
+
+	test("rejects traversal and Git metadata paths before writing to the VFS", async () => {
+		const fs = fakeState();
+		const env = makeEnv({ state: fs.state });
+
+		await expect(env.writeFile("/repo/../escape", "x")).rejects.toThrow(/cannot edit path/);
+		await expect(env.writeFile("/repo/.git/config", "x")).rejects.toThrow(/cannot edit path/);
+		await expect(env.writeFile("/repo/./.git/config", "x")).rejects.toThrow(/cannot edit path/);
+		await expect(env.writeFile("/repo/.github//workflows/pwn.yml", "x")).rejects.toThrow(
+			/cannot edit path/,
+		);
+		expect(fs.files.has("/repo/../escape")).toBe(false);
+		expect(fs.files.has("/repo/.git/config")).toBe(false);
+		expect(fs.files.has("/repo/./.git/config")).toBe(false);
+	});
+});
+
+describe("ExecEnv candidate publication", () => {
+	test("keeps publication authority out of the execution container", async () => {
+		const execution = fakeContainer();
+		const publisher = fakeContainer();
+		publisher.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "committed", stderr: "" },
+			{ exitCode: 0, stdout: "commit-sha\n", stderr: "" },
+			{ exitCode: 0, stdout: "pushed", stderr: "" },
+			{ exitCode: 0, stdout: "commit-sha\trefs/heads/bot/fix-2482\n", stderr: "" },
+		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: execution.container,
+			attachPublisherContainer: async () => publisher.container,
+		});
+
+		await env.publishCandidate({
+			branch: "bot/fix-2482",
+			runId: "run-2482",
+			commitMessage: "Fix base URLs",
+			baseRef: "base-commit",
+			expectedPreviousSha: null,
+		});
+
+		expect(execution.execs.some((command) => command.includes("git push"))).toBe(false);
+		expect(publisher.execs.some((command) => command.includes("git push"))).toBe(true);
+	});
+
+	test("commits and pushes the durable candidate through the scoped git proxy", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "[detached HEAD commit-sha] Fix base URLs\n", stderr: "" },
+			{ exitCode: 0, stdout: "commit-sha\n", stderr: "" },
+			{ exitCode: 0, stdout: "To github.com:emdash-cms/emdash.git\n", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "commit-sha\trefs/heads/bot/fix-2482\n",
+				stderr: "",
+			},
+		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: con.container,
+		});
+
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Fix base URLs",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).resolves.toEqual({
+			branch: "bot/fix-2482",
+			commitSha: "commit-sha",
+			files: ["src/base-url.ts"],
+		});
+
+		expect(
+			con.execs.some(
+				(command) => command.includes("git reset --hard") && command.includes("base-commit"),
+			),
+		).toBe(true);
+		expect(
+			con.execs.some(
+				(command) =>
+					command.includes("git commit --no-verify") && command.includes("EmDash-Run: run-2482"),
+			),
+		).toBe(true);
+		expect(
+			con.execs.some((command) => command.includes("--force-with-lease=refs/heads/bot/fix-2482:")),
+		).toBe(true);
+	});
+
+	test("reuses an idempotent publication with the same run marker and tree", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "published-sha\trefs/heads/bot/fix-2482\n",
+				stderr: "",
+			},
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "Fix base URLs\n\nEmDash-Run: run-2482\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: con.container,
+		});
+
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Fix base URLs",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).resolves.toEqual({
+			branch: "bot/fix-2482",
+			commitSha: "published-sha",
+			files: ["src/base-url.ts"],
+		});
+		expect(con.execs.some((command) => command.includes("git commit --no-verify"))).toBe(false);
+		expect(con.execs.some((command) => command.includes("git push"))).toBe(false);
+	});
+
+	test("refuses to overwrite a candidate branch changed by another run", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "other-sha\trefs/heads/bot/fix-2482\n",
+				stderr: "",
+			},
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "A different run\n", stderr: "" },
+			{ exitCode: 0, stdout: "other-tree\n", stderr: "" },
+		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: con.container,
+		});
+
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Fix base URLs",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).rejects.toThrow(/candidate branch changed/);
+		expect(con.execs.some((command) => command.includes("git commit --no-verify"))).toBe(false);
+		expect(con.execs.some((command) => command.includes("git push"))).toBe(false);
+	});
+
+	test("rejects forbidden candidate paths before committing", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: `${base64Utf8(".github/workflows/pwn.yml\0")}\n`,
+				stderr: "",
+			},
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(
+			env.publishCandidate({
+				branch: "bot/fix-2482",
+				runId: "run-2482",
+				commitMessage: "Unsafe change",
+				baseRef: "base-commit",
+				expectedPreviousSha: null,
+			}),
+		).rejects.toThrow("candidate cannot publish path");
+		expect(con.execs.some((command) => command.includes("git commit --no-verify"))).toBe(false);
 	});
 });
 
 describe("ExecEnv deadlines", () => {
-	test("a hung isolate exec rejects with the labelled deadline error", async () => {
+	test("uses the dedicated attachment deadline for slow container setup", async () => {
 		vi.useFakeTimers();
 		try {
-			const iso = fakeIsolate();
-			iso.hangExec();
-			const env = new ExecEnv({
-				isolate: iso.isolate,
-				attachContainer: async () => fakeContainer().container,
-				deadlines: { defaultTimeoutMs: 50, execGraceMs: 5 },
-				repoDir: "/repo",
+			const env = makeEnv({
+				attachContainer: () => new Promise<never>(() => {}),
+				deadlines: { defaultTimeoutMs: 50, attachTimeoutMs: 100, execGraceMs: 5 },
 			});
-			const pending = env.exec("sleep 999", { target: "isolate", timeoutMs: 20 });
-			const assertion = expect(pending).rejects.toThrow("isolate exec timed out after 25ms");
-			await vi.advanceTimersByTimeAsync(30);
+			const pending = env.exec("pnpm test");
+			const assertion = expect(pending).rejects.toThrow("container attach timed out after 100ms");
+			await vi.advanceTimersByTimeAsync(110);
 			await assertion;
 		} finally {
 			vi.useRealTimers();
@@ -151,20 +657,33 @@ describe("ExecEnv deadlines", () => {
 	test("container exec adds the grace margin to its own timeout", async () => {
 		vi.useFakeTimers();
 		try {
-			const iso = fakeIsolate();
-			const env = new ExecEnv({
-				isolate: iso.isolate,
-				attachContainer: async () => ({
-					exec: () => new Promise<never>(() => {}),
-					writeFile: async () => {},
-					readFileBytes: async () => new Uint8Array(),
-				}),
-				deadlines: { defaultTimeoutMs: 1_000, execGraceMs: 5 },
-				repoDir: "/repo",
+			const con = fakeContainer();
+			con.hangExec();
+			const env = makeEnv({
+				container: con.container,
+				deadlines: { defaultTimeoutMs: 1_000, attachTimeoutMs: 2_000, execGraceMs: 5 },
 			});
-			const pending = env.exec("vitest", { target: "container", timeoutMs: 10 });
+			const pending = env.exec("vitest", { timeoutMs: 10 });
 			const assertion = expect(pending).rejects.toThrow("container exec timed out after 15ms");
 			await vi.advanceTimersByTimeAsync(20);
+			await assertion;
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	test("a hung VFS read rejects with the labelled deadline error", async () => {
+		vi.useFakeTimers();
+		try {
+			const fs = fakeState({ "/repo/a.ts": "x" });
+			fs.hangReads();
+			const env = makeEnv({
+				state: fs.state,
+				deadlines: { defaultTimeoutMs: 50, attachTimeoutMs: 100, execGraceMs: 5 },
+			});
+			const pending = env.readFile("/repo/a.ts");
+			const assertion = expect(pending).rejects.toThrow("VFS readFile timed out after 50ms");
+			await vi.advanceTimersByTimeAsync(60);
 			await assertion;
 		} finally {
 			vi.useRealTimers();
@@ -173,308 +692,305 @@ describe("ExecEnv deadlines", () => {
 });
 
 describe("ExecEnv container lifecycle", () => {
-	test("the container is attached lazily and reused across execs", async () => {
-		const iso = fakeIsolate();
+	test("prepares the container once and reuses it for later commands", async () => {
 		const con = fakeContainer();
 		const attach = vi.fn(async () => con.container);
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: attach,
-			deadlines,
-			repoDir: "/repo",
-		});
+		const env = makeEnv({ attachContainer: attach });
 
-		expect(attach).not.toHaveBeenCalled();
-		await env.exec("pnpm install", { target: "container" });
-		await env.exec("pnpm test", { target: "container" });
+		await env.ensureContainerReady();
+		await env.ensureContainerReady();
+		await env.exec("pnpm test");
 
 		expect(attach).toHaveBeenCalledTimes(1);
-		expect(con.execs).toEqual(["pnpm install", "pnpm test"]);
+		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+	});
+
+	test("the container is attached lazily and reused across execs", async () => {
+		const con = fakeContainer();
+		const attach = vi.fn(async () => con.container);
+		const env = makeEnv({ attachContainer: attach });
+
+		expect(attach).not.toHaveBeenCalled();
+		await env.exec("pnpm install");
+		await env.exec("pnpm test");
+
+		expect(attach).toHaveBeenCalledTimes(1);
+		expect(con.execs).toEqual([
+			"bash -o pipefail -c 'pnpm install'",
+			"bash -o pipefail -c 'pnpm test'",
+		]);
+	});
+
+	test("reattaches when the cached container checkout is no longer ready", async () => {
+		const fs = fakeState({ "/repo/src/x.ts": "old" });
+		const first = fakeContainer();
+		const replacement = fakeContainer();
+		first.queueReadyResults(true, false);
+		const attach = vi
+			.fn<() => Promise<ContainerBackend>>()
+			.mockResolvedValueOnce(first.container)
+			.mockResolvedValueOnce(replacement.container);
+		const env = makeEnv({ state: fs.state, attachContainer: attach });
+
+		await env.exec("pnpm install");
+		await env.writeFile("/repo/src/x.ts", "new");
+		await env.exec("pnpm test");
+
+		expect(attach).toHaveBeenCalledTimes(2);
+		expect(first.execs).toEqual(["bash -o pipefail -c 'pnpm install'"]);
+		expect(replacement.writes).toEqual([{ path: "/repo/src/x.ts", content: "new" }]);
+		expect(replacement.execs).toEqual([
+			"if test -L '/repo/src/x.ts'; then rm -f -- '/repo/src/x.ts'; fi",
+			"bash -o pipefail -c 'pnpm test'",
+		]);
+	});
+
+	test("shares one reattachment across concurrent commands", async () => {
+		const first = fakeContainer();
+		const replacement = fakeContainer();
+		first.queueReadyResults(false, false);
+		const attach = vi
+			.fn<() => Promise<ContainerBackend>>()
+			.mockResolvedValueOnce(first.container)
+			.mockResolvedValueOnce(replacement.container);
+		const env = makeEnv({ attachContainer: attach });
+
+		await Promise.all([env.exec("pnpm test"), env.exec("pnpm lint")]);
+
+		expect(attach).toHaveBeenCalledTimes(2);
+		expect(replacement.execs).toEqual(
+			expect.arrayContaining([
+				"bash -o pipefail -c 'pnpm test'",
+				"bash -o pipefail -c 'pnpm lint'",
+			]),
+		);
+	});
+
+	test("reattaches when the readiness probe rejects", async () => {
+		const first = fakeContainer();
+		const replacement = fakeContainer();
+		first.queueReadyResults(new Error("container replaced"));
+		const attach = vi
+			.fn<() => Promise<ContainerBackend>>()
+			.mockResolvedValueOnce(first.container)
+			.mockResolvedValueOnce(replacement.container);
+		const env = makeEnv({ attachContainer: attach });
+
+		await env.exec("pnpm test");
+
+		expect(attach).toHaveBeenCalledTimes(2);
+		expect(replacement.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
 	});
 });
 
-describe("ExecEnv VFS->container materialization", () => {
-	test("materializes the current VFS content of paths git reports, not a memory snapshot", async () => {
-		const iso = fakeIsolate();
-		iso.files.set("/repo/src/x.ts", "v1");
-		const con = fakeContainer();
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
-		});
+describe("ExecEnv VFS tools", () => {
+	test("edit replaces a unique target and throws when absent or ambiguous", async () => {
+		const fs = fakeState({ "/repo/a.ts": "one two one" });
+		const env = makeEnv({ state: fs.state });
 
-		await env.edit("/repo/src/x.ts", "v1", "v2");
-		iso.setExecResult({ exitCode: 0, stdout: " M src/x.ts\0", stderr: "" });
-
-		await env.exec("pnpm test", { target: "container" });
-
-		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "v2" }]);
+		await expect(env.edit("/repo/a.ts", "missing", "x")).rejects.toThrow("edit target not found");
+		await expect(env.edit("/repo/a.ts", "one", "x")).rejects.toThrow("not unique");
+		await env.edit("/repo/a.ts", "two", "three");
+		expect(fs.files.get("/repo/a.ts")).toBe("one three one");
 	});
 
-	test("an edit in one instance is materialized when another attaches over the same VFS", async () => {
-		const files = new Map<string, string>([["/repo/src/x.ts", "old"]]);
-		const con = fakeContainer();
-		const envA = new ExecEnv({
-			isolate: fakeIsolate({}, files).isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
-		});
-		await envA.edit("/repo/src/x.ts", "old", "new");
+	test("ls marks directories with a type", async () => {
+		const fs = fakeState({ "/repo/src/a.ts": "x", "/repo/readme.md": "y" });
+		const env = makeEnv({ state: fs.state });
 
-		const isoB = fakeIsolate({}, files);
-		isoB.setExecResult({ exitCode: 0, stdout: " M src/x.ts\0", stderr: "" });
-		const envB = new ExecEnv({
-			isolate: isoB.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
-		});
+		const entries = await env.ls("/repo");
 
-		await envB.exec("pnpm test", { target: "container" });
-
-		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "new" }]);
+		expect(entries).toEqual(
+			expect.arrayContaining([
+				{ name: "src", type: "directory" },
+				{ name: "readme.md", type: "file" },
+			]),
+		);
 	});
 
-	test("an edit after attach lands on a fresh instance's re-attach, past the reset", async () => {
-		const files = new Map<string, string>([["/repo/src/y.ts", "base"]]);
-		const con = fakeContainer();
-		const isoA = fakeIsolate({}, files);
-		const envA = new ExecEnv({
-			isolate: isoA.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
+	test("grep searches under the path and maps matches to path/line/text", async () => {
+		const fs = fakeState({
+			"/repo/src/a.ts": "const x = 1;\n// TODO fix\n",
+			"/repo/src/b.ts": "clean\n",
 		});
-		await envA.exec("pnpm install", { target: "container" });
-		await envA.writeFile("/repo/src/y.ts", "fixed");
-		expect(con.writes).toHaveLength(0);
+		const env = makeEnv({ state: fs.state });
 
-		const isoB = fakeIsolate({}, files);
-		isoB.setExecResult({ exitCode: 0, stdout: " M src/y.ts\0", stderr: "" });
-		const attachB = vi.fn(async () => con.container);
-		const envB = new ExecEnv({
-			isolate: isoB.isolate,
-			attachContainer: attachB,
-			deadlines,
-			repoDir: "/repo",
+		const matches = await env.grep("TODO", "/repo");
+
+		expect(matches).toEqual([{ path: "/repo/src/a.ts", line: 2, text: "// TODO fix" }]);
+	});
+});
+
+describe("ExecEnv ensureRepo", () => {
+	test("hydrates once per ref and records the marker", async () => {
+		const fs = fakeState();
+		const calls: Array<{ dir: string; ref: string }> = [];
+		const env = makeEnv({
+			state: fs.state,
+			hydrateRepo: async (dir, ref) => {
+				calls.push({ dir, ref });
+			},
 		});
 
-		await envB.exec("pnpm test", { target: "container" });
+		await env.ensureRepo({ dir: "/repo", ref: "main" });
+		await env.ensureRepo({ dir: "/repo", ref: "main" });
 
-		expect(attachB).toHaveBeenCalledTimes(1);
-		expect(con.writes).toEqual([{ path: "/repo/src/y.ts", content: "fixed" }]);
+		expect(calls).toEqual([{ dir: "/repo", ref: "main" }]);
+		expect(fs.files.get("/.emdash-bot/hydrated")).toBe("main");
 	});
 
-	test("a git-reported deletion is removed from the container", async () => {
-		const iso = fakeIsolate();
-		iso.setExecResult({ exitCode: 0, stdout: " D src/gone.ts\0", stderr: "" });
-		const con = fakeContainer();
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
+	test("defaults the ref to main", async () => {
+		const calls: string[] = [];
+		const env = makeEnv({
+			hydrateRepo: async (_dir, ref) => {
+				calls.push(ref);
+			},
 		});
 
-		await env.exec("pnpm test", { target: "container" });
+		await env.ensureRepo({ dir: "/repo" });
 
-		expect(con.execs).toEqual(["rm -f -- '/repo/src/gone.ts'", "pnpm test"]);
-		expect(con.writes).toHaveLength(0);
+		expect(calls).toEqual(["main"]);
 	});
 
-	test("a rename deletes the old path and materializes the new (-z new-then-old order)", async () => {
-		const iso = fakeIsolate();
-		iso.files.set("/repo/src/new.ts", "moved");
-		iso.setExecResult({ exitCode: 0, stdout: "R  src/new.ts\0src/old.ts\0", stderr: "" });
+	test("a different ref discards the tree, rehydrates, and resets the change log", async () => {
+		const fs = fakeState({ "/repo/src/a.ts": "v1" });
 		const con = fakeContainer();
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
+		const calls: string[] = [];
+		const env = makeEnv({
+			state: fs.state,
+			container: con.container,
+			hydrateRepo: async (dir, ref) => {
+				calls.push(ref);
+				fs.files.set(`${dir}/src/a.ts`, `content@${ref}`);
+			},
 		});
 
-		await env.exec("pnpm test", { target: "container" });
+		await env.ensureRepo({ dir: "/repo", ref: "main" });
+		await env.writeFile("/repo/src/a.ts", "edited");
+		await env.ensureRepo({ dir: "/repo", ref: "c0c6c72e" });
+		await env.exec("pnpm test");
 
-		expect(con.execs).toEqual(["rm -f -- '/repo/src/old.ts'", "pnpm test"]);
-		expect(con.writes).toEqual([{ path: "/repo/src/new.ts", content: "moved" }]);
+		expect(calls).toEqual(["main", "c0c6c72e"]);
+		expect(fs.files.get("/.emdash-bot/hydrated")).toBe("c0c6c72e");
+		expect(con.writes).toEqual([]);
 	});
 
-	test("a non-ASCII path is materialized verbatim (-z carries it unescaped)", async () => {
-		const iso = fakeIsolate();
-		iso.files.set("/repo/café.ts", "☕");
-		iso.setExecResult({ exitCode: 0, stdout: " M café.ts\0", stderr: "" });
-		const con = fakeContainer();
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
-		});
-
-		await env.exec("pnpm test", { target: "container" });
-
-		expect(con.writes).toEqual([{ path: "/repo/café.ts", content: "☕" }]);
+	test("bounds a stalled workspace hydration", async () => {
+		vi.useFakeTimers();
+		try {
+			const env = makeEnv({
+				hydrateRepo: () => new Promise<never>(() => {}),
+				deadlines: { defaultTimeoutMs: 50, attachTimeoutMs: 100, execGraceMs: 5 },
+			});
+			const pending = env.ensureRepo({ dir: "/repo", ref: "main" });
+			const assertion = expect(pending).rejects.toThrow("VFS hydrateRepo timed out after 50ms");
+			await vi.advanceTimersByTimeAsync(60);
+			await assertion;
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
-	test("edit throws when the target is absent or ambiguous", async () => {
-		const iso = fakeIsolate();
-		iso.files.set("/repo/dup.ts", "x x");
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => fakeContainer().container,
-			deadlines,
-			repoDir: "/repo",
-		});
+	test("does not discard the workspace when the hydration marker read fails", async () => {
+		vi.useFakeTimers();
+		try {
+			const fs = fakeState({ "/.emdash-bot/hydrated": "main", "/repo/src/a.ts": "edited" });
+			fs.hangReads();
+			const hydrate = vi.fn(noHydrate);
+			const env = makeEnv({
+				state: fs.state,
+				hydrateRepo: hydrate,
+				deadlines: { defaultTimeoutMs: 50, attachTimeoutMs: 100, execGraceMs: 5 },
+			});
+			const pending = env.ensureRepo({ dir: "/repo", ref: "main" });
+			const assertion = expect(pending).rejects.toThrow("VFS readFile timed out after 50ms");
+			await vi.advanceTimersByTimeAsync(60);
+			await assertion;
+			expect(hydrate).not.toHaveBeenCalled();
+			expect(fs.files.get("/repo/src/a.ts")).toBe("edited");
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 
-		await expect(env.edit("/repo/dup.ts", "y", "z")).rejects.toThrow("not found");
-		await expect(env.edit("/repo/dup.ts", "x", "z")).rejects.toThrow("not unique");
+	test("rejects a corrupt change log instead of executing without VFS edits", async () => {
+		const fs = fakeState({
+			"/.emdash-bot/changes.json": "not-json",
+			"/repo/src/a.ts": "edited",
+		});
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await expect(env.exec("pnpm test")).rejects.toThrow("invalid VFS change log");
+		expect(con.execs).toEqual([]);
+	});
+
+	test("rejects change-log paths outside the repository", async () => {
+		const fs = fakeState({
+			"/.emdash-bot/changes.json": JSON.stringify(["/tmp/escape"]),
+			"/tmp/escape": "content",
+		});
+		const con = fakeContainer();
+		const env = makeEnv({ state: fs.state, container: con.container });
+
+		await expect(env.exec("pnpm test")).rejects.toThrow("path outside repository");
+		expect(con.execs).toEqual([]);
 	});
 });
 
 describe("ExecEnv artifact egress", () => {
 	test("reads a bare artifact name from under .bot-artifacts", async () => {
 		const con = fakeContainer();
-		const env = new ExecEnv({
-			isolate: fakeIsolate().isolate,
-			attachContainer: async () => con.container,
-			deadlines,
-			repoDir: "/repo",
-		});
+		const env = makeEnv({ container: con.container });
 
-		const bytes = await env.readArtifact("step-1.png");
+		const bytes = await env.readArtifact("shot.png");
 
-		expect([...bytes]).toEqual([1, 2, 3]);
-		expect(con.execs[0]).toContain("/repo/.bot-artifacts/step-1.png");
-	});
-
-	test("rejects any name that could escape the artifacts directory", async () => {
-		const attach = vi.fn(async () => fakeContainer().container);
-		const env = new ExecEnv({
-			isolate: fakeIsolate().isolate,
-			attachContainer: attach,
-			deadlines,
-			repoDir: "/repo",
-		});
-
-		for (const bad of ["../secrets", "a/b.png", "/etc/passwd", "..", ".", "", "a\\b"]) {
-			await expect(env.readArtifact(bad)).rejects.toThrow("invalid artifact name");
-		}
-		expect(attach).not.toHaveBeenCalled();
-	});
-
-	test("refuses a symlinked artifact", async () => {
-		const container: ContainerBackend = {
-			exec: async () => ({ exitCode: 1, stdout: "", stderr: "" }),
-			writeFile: async () => {},
-			readFileBytes: async () => new Uint8Array([9]),
-		};
-		const env = new ExecEnv({
-			isolate: fakeIsolate().isolate,
-			attachContainer: async () => container,
-			deadlines,
-			repoDir: "/repo",
-		});
-
-		await expect(env.readArtifact("evil.png")).rejects.toThrow("not a regular file");
-	});
-});
-
-describe("ExecEnv clone", () => {
-	const emptyVfs = {
-		readdir: async (path: string): Promise<Array<{ name: string; isDirectory: boolean }>> => {
-			throw new Error(`no such directory ${path}`);
-		},
-	};
-
-	test("cloneRepo runs a shallow isolate git clone of the public repo", async () => {
-		const iso = fakeIsolate(emptyVfs);
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => fakeContainer().container,
-			deadlines,
-			repoDir: "/repo",
-		});
-
-		await env.cloneRepo({
-			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/workspace/repo",
-			ref: "main",
-			depth: 50,
-		});
-
-		expect(iso.execs).toHaveLength(1);
-		expect(iso.execs[0]?.source).toBe(
-			"git clone --depth 50 --branch main 'https://github.com/emdash-cms/emdash.git' '/workspace/repo'",
-		);
-		expect(iso.execs[0]?.options.backend).toBe(ISOLATE_SHELL_BACKEND);
-	});
-
-	test("cloneRepo skips the clone when the durable VFS already holds a usable one", async () => {
-		const iso = fakeIsolate({
-			readdir: async () => [{ name: "HEAD", isDirectory: false }],
-		});
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => fakeContainer().container,
-			deadlines,
-			repoDir: "/repo",
-		});
-
-		await env.cloneRepo({
-			url: "https://github.com/emdash-cms/emdash.git",
-			dir: "/workspace/repo",
-		});
-
-		expect(iso.execs.map((e) => e.source)).toEqual(["git status --porcelain"]);
-		expect(iso.execs[0]?.options.cwd).toBe("/workspace/repo");
-	});
-
-	test("cloneRepo discards an unusable partial clone and re-clones", async () => {
-		const removed: string[] = [];
-		const iso = fakeIsolate({
-			readdir: async () => [{ name: "HEAD", isDirectory: false }],
-			rm: async (path) => {
-				removed.push(path);
-			},
-		});
-		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: not a git repository" });
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => fakeContainer().container,
-			deadlines,
-			repoDir: "/repo",
-		});
-
-		await expect(
-			env.cloneRepo({ url: "https://github.com/x/y.git", dir: "/workspace/repo" }),
-		).rejects.toThrow("git clone failed (128)");
-		expect(removed).toEqual(["/workspace/repo"]);
-		expect(iso.execs.map((e) => e.source)).toEqual([
-			"git status --porcelain",
-			"git clone --depth 50 'https://github.com/x/y.git' '/workspace/repo'",
+		expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+		expect(con.execs).toEqual([
+			"test -f '/repo/.bot-artifacts/shot.png' && test ! -L '/repo/.bot-artifacts/shot.png'",
 		]);
 	});
 
-	test("cloneRepo throws when the clone exits non-zero", async () => {
-		const iso = fakeIsolate(emptyVfs);
-		iso.setExecResult({ exitCode: 128, stdout: "", stderr: "fatal: repository not found" });
-		const env = new ExecEnv({
-			isolate: iso.isolate,
-			attachContainer: async () => fakeContainer().container,
-			deadlines,
-			repoDir: "/repo",
-		});
+	test("rejects any name that could escape the artifacts directory", async () => {
+		const env = makeEnv();
+		for (const name of ["", ".", "..", "a/b.png", "..\\evil", "/abs.png"]) {
+			await expect(env.readArtifact(name)).rejects.toThrow("invalid artifact name");
+		}
+	});
+
+	test("refuses a symlinked artifact", async () => {
+		const con = fakeContainer();
+		con.setExecResult({ exitCode: 1, stdout: "", stderr: "" });
+		const env = makeEnv({ container: con.container });
+
+		await expect(env.readArtifact("link.png")).rejects.toThrow("artifact is not a regular file");
+	});
+
+	test("rejects an artifact push when the remote branch does not match the local commit", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "committed", stderr: "" },
+			{ exitCode: 0, stdout: "artifact-sha\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "pushed", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "other-sha\trefs/heads/bot/artifacts-42\n",
+				stderr: "",
+			},
+		);
+		const env = makeEnv({ container: con.container });
 
 		await expect(
-			env.cloneRepo({ url: "https://github.com/x/y.git", dir: "/workspace/repo" }),
-		).rejects.toThrow("git clone failed (128)");
+			env.publishArtifacts({
+				branch: "bot/artifacts-42",
+				runId: "run-42",
+				baseRef: "base-sha",
+				files: ["shot.png"],
+			}),
+		).rejects.toThrow(/artifact branch verification failed/);
 	});
-});
-
-beforeEach(() => {
-	vi.clearAllMocks();
 });

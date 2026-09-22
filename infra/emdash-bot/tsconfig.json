@@ -4,7 +4,7 @@
 		"module": "preserve",
 		"moduleResolution": "bundler",
 		"lib": ["ES2023"],
-		"types": ["@cloudflare/vitest-pool-workers/types", "vite/client"],
+		"types": ["@cloudflare/vitest-plugin/types", "vite/client"],
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
@@ -14,5 +14,11 @@
 		"skipLibCheck": true,
 		"noEmit": true
 	},
-	"include": [".flue/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "worker-configuration.d.ts"]
+	"include": [
+		".flue/**/*.ts",
+		"scripts/**/*.ts",
+		"tests/**/*.ts",
+		"evals/**/*.ts",
+		"worker-configuration.d.ts"
+	]
 }

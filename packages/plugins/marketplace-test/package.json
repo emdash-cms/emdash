@@ -1,8 +1,8 @@
 {
 	"name": "@emdash-cms/plugin-marketplace-test",
 	"private": true,
-	"version": "0.1.2",
-	"description": "Test plugin for end-to-end registry publishing and audit workflow testing",
+	"version": "0.2.0",
+	"description": "Maximal sandboxed plugin fixture for registry, consent, runtime, and admin testing",
 	"type": "module",
 	"main": "dist/index.mjs",
 	"exports": {
@@ -26,12 +26,13 @@
 		"cms",
 		"plugin",
 		"test",
-		"marketplace"
+		"registry"
 	],
 	"author": "Matt Kane",
 	"license": "MIT",
 	"dependencies": {
-		"emdash": "workspace:*"
+		"emdash": "workspace:*",
+		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@emdash-cms/plugin-cli": "workspace:*",

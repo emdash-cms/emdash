@@ -1,88 +1,108 @@
 ---
-title: Admin Panel
-description: What the EmDash admin panel offers editors, administrators, and developers.
+title: Admin panel
+description: How editors, administrators, and developers use the EmDash admin panel.
 ---
 
-import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-The admin panel is the content management interface for your site. It is served at `/_emdash/admin/` inside your Astro site, and it adapts automatically to your collections, plugins, and the signed-in user's role. For how it is built, see [Architecture (internals)](/contributing/architecture/#admin-panel-internals).
+The admin panel is the editing interface included with an EmDash site. It is served by the Astro
+application at `/_emdash/admin/` and uses the same database, media storage, content model, and
+plugins as the public pages.
 
-## Screens
+The first visit to a new site's admin route opens the setup wizard. After setup, a signed-in user's
+permissions determine which content and administration tools are available.
 
-| Path                       | Screen                          |
-| -------------------------- | ------------------------------- |
-| `/`                        | Dashboard                       |
-| `/content/:collection`     | Content list                    |
-| `/content/:collection/:id` | Content editor                  |
-| `/content/:collection/new` | New entry                       |
-| `/media`                   | Media library                   |
-| `/content-types`           | Schema builder (administrators) |
-| `/menus`                   | Navigation menus                |
-| `/widgets`                 | Widget areas                    |
-| `/taxonomies`              | Categories and tags             |
-| `/settings`                | Site settings                   |
-| `/plugins/:pluginId/*`     | Plugin pages                    |
+## Work areas
 
-Navigation is generated from your collections and installed plugins, so a schema or plugin change appears in the admin immediately.
+The navigation adapts to the site's collections and installed plugins. These are the main areas an
+editor or administrator may see:
 
-## Roles
+| Area | What it is for |
+| --- | --- |
+| Dashboard | A starting view with site and plugin widgets |
+| Collection names, such as **Posts** | List, create, edit, publish, and move entries to the trash |
+| Collection groups | Collapsible folders that hold collections sharing a group, plus taxonomies assigned only to collections in that folder |
+| Media | Upload, search, inspect, replace, and delete files |
+| Taxonomies and Bylines | Organize content and manage credited authors |
+| Menus and Widget Areas | Manage navigation and editor-controlled regions rendered by the site |
+| Comments | Review and moderate comments when a collection enables them |
+| Content Types | Create collections and fields and change their settings |
+| Plugins | Install, configure, and open plugin-provided pages |
+| Settings | Configure the site, authentication, backups, email, search, and other services |
 
-What a user sees depends on their role. EmDash has five roles, from least to most access: Subscriber, Contributor, Author, Editor, Admin. See [User roles](/guides/authentication/#user-roles) for the full definitions.
-
-In the admin, lower roles see only the content they have permission to manage. The schema builder at `/content-types` and the settings screens are Admin-only. Type generation and the CLI are available to developers working on the project regardless of admin role.
-
-<Aside type="note">
-	The admin requires a signed-in user. Login is a separate page that
-	establishes a session; see [Authentication](/guides/authentication/).
-</Aside>
+This interface manages data and configuration. Astro pages and components still define the public
+layout. Adding a menu item or widget in the admin only changes the public site when an Astro
+component queries and renders that menu or widget area.
 
 ## Content editor
 
-The content editor builds a form from a collection's fields. Each field type uses a matching input:
+The content editor builds its form from the selected collection. A short-text field becomes a text
+input, a `portableText` field becomes the rich-text editor, a media field opens the media picker,
+and a reference field lets the editor select another entry. Collection settings add publishing,
+preview, revision, comment, and search controls where applicable.
 
-| Field type     | Editor            |
-| -------------- | ----------------- |
-| `string`       | Text input        |
-| `text`         | Textarea          |
-| `number`       | Number input      |
-| `boolean`      | Toggle            |
-| `datetime`     | Date/time picker  |
-| `select`       | Dropdown          |
-| `multiSelect`  | Multi-select      |
-| `portableText` | Rich text editor  |
-| `image`        | Media picker      |
-| `reference`    | Entry picker      |
+The rich-text editor supports headings, lists, quotations, code, links, images, and registered
+custom blocks. If imported content contains a block that the editor cannot display, EmDash preserves
+the stored block rather than removing it during the next save.
 
-Rich text fields edit as formatted content — headings, lists, quotes, code, links, and images from the media library. Content from plugins or imports that the editor does not recognise is preserved untouched.
+Saving and publishing are separate states for collections with drafts. **Save** stores the current
+work as a draft. **Publish** or **Publish changes** makes that saved version available to public
+queries. Scheduling records when a draft or pending change should become public.
 
-Lists are paginated and stay consistent even when content changes between pages.
+When edit locking is enabled for a collection, opening an entry holds a lock for that editor. Other
+writers are refused while the lock is active instead of silently overwriting the entry. If an entry
+changes after an editor loads it, EmDash also refuses the stale save so the editor can reload the
+newer version instead of overwriting it.
 
-## Media library
+<Aside>
+	Moving an entry to the trash is a reversible content action. Permanently deleting it from the
+	trash is not. Deleting a field or collection under **Content Types** is also destructive because
+	it removes stored columns or tables. See [Collections and fields](/concepts/collections/#changing-fields-later)
+	before changing a live model.
+</Aside>
 
-The media library supports:
+## Roles and permissions
 
-- Grid and list views
-- Search and filter by type and date
-- Drag-and-drop upload
-- Image preview with metadata
-- Bulk selection and delete
+EmDash includes five roles: Subscriber, Contributor, Author, Editor, and Admin. Permissions build as
+the role level increases, but ownership still matters for content and media actions. For example,
+Authors can edit and publish their own entries, while Editors can do so for any entry.
 
-Uploads go directly from the browser to your storage backend, so large files are not limited by request size.
+Administrative areas have separate permission checks:
 
-## Plugin pages and widgets
+- Editors can manage taxonomies, menus, bylines, widgets, sections, and content from other authors.
+- Admins can change the content model, users, plugins, redirects, backups, and settings, and can
+  permanently delete trashed content.
+- The server checks permissions for each action. Hiding a navigation item is not the security
+  boundary.
 
-A plugin can add pages and dashboard widgets to the admin. Plugin pages appear under `/_emdash/admin/plugins/:pluginId/`, and a plugin can only mount under its own namespace — it cannot override core admin screens. See [installing plugins](/plugins/installing/).
+Read [Authentication and user roles](/guides/authentication/#user-roles) for account setup and the
+complete role descriptions.
 
-## Next steps
+## Media
 
-<CardGrid>
-	<Card title="Getting Started" icon="rocket">
-		[Set up your first EmDash site](/getting-started/).
-	</Card>
-	<Card title="REST API" icon="puzzle">
-		The admin uses the [REST API](/reference/rest-api/); you can call it too.
-	</Card>
-	<Card title="Architecture" icon="open-book">
-		Review the [content model](/concepts/content-model/).
-	</Card>
-</CardGrid>
+The media library can show files in a grid or list, search and filter them, display metadata, and
+perform multi-item actions. Upload behavior depends on the configured storage adapter. When the
+adapter supports signed uploads, the browser sends the file to storage using a short-lived signed
+URL and then confirms the completed upload with EmDash.
+
+Deleting a media item can affect entries that refer to it. Use the media usage information and
+replacement tools before removing an asset used on public pages. See [Media library](/guides/media-library/)
+for the upload, replacement, and deletion workflows.
+
+## Plugin interfaces
+
+Plugins can add dashboard widgets, settings sections, editor controls, or complete admin pages. A
+plugin page is mounted under that plugin's own admin route; it cannot replace a core admin screen.
+The plugin still needs server-side permission checks for any protected action, even when the admin
+link is shown only to a particular role.
+
+Read [Installing plugins](/plugins/installing/) to add an extension. Site developers building an
+interface should use the [native plugin admin APIs](/plugins/creating-native-plugins/react-admin/)
+rather than modifying the core admin application.
+
+## Configuration requirements
+
+The admin is a React application, so the Astro project must install `@astrojs/react`, `react`, and
+`react-dom` and register `react()` in `astro.config.mjs`. The site also needs server output, a
+database, and media storage. [Add EmDash to an existing Astro project](/existing-project/) shows the
+complete local configuration.

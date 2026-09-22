@@ -5,9 +5,18 @@
  * Shows hierarchical structure for categories, flat list for tags.
  */
 
-import { Button, Checkbox, Dialog, Input, InputArea, Select, Toast } from "@cloudflare/kumo";
+import {
+	Button,
+	Checkbox,
+	Dialog,
+	DropdownMenu,
+	Input,
+	InputArea,
+	Select,
+	Toast,
+} from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown, CaretUp, Plus, Pencil, Trash, X } from "@phosphor-icons/react";
+import { CaretDown, CaretUp, DotsThree, Plus, Pencil, Trash, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -22,6 +31,7 @@ import {
 	createTermTranslation,
 	reorderTerms,
 	updateTerm,
+	deleteTaxonomy,
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
 import { slugify } from "../lib/utils";
@@ -30,8 +40,15 @@ import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
+export function TaxonomyNotFoundMessage({ taxonomyName }: { taxonomyName: string }) {
+	const { t } = useLingui();
+	return <>{t`Taxonomy not found: ${taxonomyName}`}</>;
+}
+
 interface TaxonomyManagerProps {
 	taxonomyName: string;
+	/** Called after the taxonomy itself is deleted, so the host can route away. */
+	onDeleted?: () => void;
 }
 
 // Regex patterns for taxonomy name generation and validation (module-scoped per lint rules)
@@ -434,7 +451,7 @@ function TermFormDialog({
 	const createMutation = useMutation({
 		mutationFn: () =>
 			createTerm(taxonomyName, {
-				slug,
+				...(autoSlug ? {} : { slug }),
 				label,
 				parentId: parentId || undefined,
 				description: description || undefined,
@@ -719,6 +736,7 @@ function CreateTaxonomyDialog({
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-defs"] });
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-def"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			onCreated();
 			resetForm();
 		},
@@ -882,7 +900,7 @@ function CreateTaxonomyDialog({
 /**
  * Main TaxonomyManager component
  */
-export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
+export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
@@ -890,6 +908,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	const [editingTerm, setEditingTerm] = React.useState<TaxonomyTerm | undefined>();
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
 	const [createTaxonomyOpen, setCreateTaxonomyOpen] = React.useState(false);
+	const [deleteTaxonomyOpen, setDeleteTaxonomyOpen] = React.useState(false);
 	const [translateTarget, setTranslateTarget] = React.useState<TaxonomyTerm | null>(null);
 
 	const { data: manifest } = useQuery({
@@ -926,6 +945,28 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", taxonomyName] });
 			setDeleteTarget(null);
 			toastManager.add({ title: t`Term deleted` });
+		},
+	});
+
+	const deleteTaxonomyMutation = useMutation({
+		mutationFn: () => deleteTaxonomy(taxonomyName),
+		onSuccess: () => {
+			setDeleteTaxonomyOpen(false);
+			onDeleted?.();
+			// The sidebar entry comes from the manifest, not from the taxonomy list.
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-defs"] });
+			// The page is still mounted while the route change settles, so refetching
+			// these would ask for the taxonomy that was just deleted.
+			void queryClient.invalidateQueries({
+				queryKey: ["taxonomy-def", taxonomyName],
+				refetchType: "none",
+			});
+			void queryClient.invalidateQueries({
+				queryKey: ["taxonomy-terms", taxonomyName],
+				refetchType: "none",
+			});
+			toastManager.add({ title: t`Taxonomy deleted` });
 		},
 	});
 
@@ -1011,7 +1052,7 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 	if (!taxonomyDef) {
 		return (
 			<div>
-				{t`Taxonomy not found:`} {taxonomyName}
+				<TaxonomyNotFoundMessage taxonomyName={taxonomyName} />
 			</div>
 		);
 	}
@@ -1040,6 +1081,28 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 					<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
 						{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 					</Button>
+					<DropdownMenu>
+						<DropdownMenu.Trigger
+							render={
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									icon={<DotsThree aria-hidden="true" />}
+									aria-label={t`More actions for ${taxonomyDef.label}`}
+								/>
+							}
+						/>
+						<DropdownMenu.Content align="end">
+							<DropdownMenu.Item
+								variant="danger"
+								icon={<Trash className="me-1.5 size-3.5" aria-hidden="true" />}
+								onClick={() => setDeleteTaxonomyOpen(true)}
+							>
+								{t`Delete taxonomy`}
+							</DropdownMenu.Item>
+						</DropdownMenu.Content>
+					</DropdownMenu>
 				</div>
 			</div>
 
@@ -1114,6 +1177,22 @@ export function TaxonomyManager({ taxonomyName }: TaxonomyManagerProps) {
 				isPending={deleteMutation.isPending}
 				error={deleteMutation.error}
 				onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+			/>
+
+			<ConfirmDialog
+				open={deleteTaxonomyOpen}
+				role="alertdialog"
+				onClose={() => {
+					setDeleteTaxonomyOpen(false);
+					deleteTaxonomyMutation.reset();
+				}}
+				title={t`Delete Taxonomy`}
+				description={t`Deleting "${taxonomyDef.label}" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={deleteTaxonomyMutation.isPending}
+				error={deleteTaxonomyMutation.error}
+				onConfirm={() => deleteTaxonomyMutation.mutate()}
 			/>
 
 			<CreateTaxonomyDialog

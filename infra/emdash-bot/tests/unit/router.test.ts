@@ -48,7 +48,7 @@ function assertClassify(
 }
 
 const MENTION_TEXT_RE = /mention/;
-const FOOTER_IMPLEMENT_RE = /@emdashbot implement/;
+const FOOTER_WORK_RE = /@emdashbot work/;
 const FOOTER_DECLINE_RE = /@emdashbot decline/;
 
 describe("router", () => {
@@ -68,7 +68,7 @@ describe("router", () => {
 		});
 		assertTransition(d);
 		expect(d.from).toBe("unmanaged");
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 	});
 
@@ -89,8 +89,9 @@ describe("router", () => {
 
 	test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 		expect(parseCommand("@emdashbot retry")).toEqual({ event: "retry", arg: null });
+		expect(parseCommand("@emdashbot resume")).toEqual({ event: "retry", arg: null });
 		expect(parseCommand("@emdashbot take over")).toEqual({ event: "take_over", arg: null });
-		expect(parseCommand("@emdashbot confirmed")).toEqual({ event: "confirm", arg: null }); // alias
+		expect(parseCommand("@emdashbot confirmed")).toEqual({ event: "accept", arg: null }); // alias
 		expect(parseCommand("@emdashbot hand back please")).toBe(null); // extra word
 		expect(parseCommand("@emdashbot implement use a LEFT JOIN")).toBe(null); // arg -> classifier
 		expect(parseCommand("@emdashbot I don't think we should implement this")).toBe(null); // prose
@@ -100,9 +101,71 @@ describe("router", () => {
 
 	test("classifierCommands excludes destructive events", () => {
 		const cmds = new Set(classifierCommands("blocked").map((c) => c.event));
-		expect(cmds.has("implement")).toBe(true);
+		expect(cmds.has("work")).toBe(true);
 		expect(cmds.has("decline")).toBe(false);
 		expect(cmds.has("take_over")).toBe(false);
+	});
+
+	test("failed runs offer classifier-routable retry", () => {
+		const commands = new Set(classifierCommands("failed").map((command) => command.event));
+		expect(commands.has("retry")).toBe(true);
+
+		const decision = resolve({
+			labels: ["bot:enhancement", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode: "work",
+		});
+		assertTransition(decision);
+		expect(decision.to).toBe("working");
+		expect(decision.action).toBe("investigate.work");
+	});
+
+	test.each([
+		{ retryMode: "implement", to: "fixing", action: "investigate.implement" },
+		{ retryMode: "fix", to: "fixing", action: "investigate.fix" },
+		{ retryMode: "revise", to: "working", action: "investigate.revise" },
+	] as const)("failed retry preserves $retryMode mode", ({ retryMode, to, action }) => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode,
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe(to);
+		expect(decision.action).toBe(action);
+	});
+
+	test("failed retry keeps the repro fallback for read modes", () => {
+		const decision = resolve({
+			labels: ["bot:bug", "bot:failed"],
+			event: "retry",
+			actor: "maintainer",
+			retryMode: "repro",
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe("working");
+		expect(decision.action).toBe("investigate.repro");
+	});
+
+	test.each([
+		{ state: "working", label: "bot:working" },
+		{ state: "fixing", label: "bot:fixing" },
+		{ state: "in_review", label: "bot:in-review" },
+	] as const)("system resume restarts a paused publication in $state", ({ state, label }) => {
+		const decision = resolve({
+			labels: ["bot:bug", label],
+			event: "resume",
+			actor: "system",
+			resumeState: state,
+		});
+
+		assertTransition(decision);
+		expect(decision.to).toBe(state);
+		expect(decision.action).toBe("investigate.resume");
 	});
 
 	test("isDestructive flags decline and take_over only", () => {
@@ -120,11 +183,10 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
-		expect(d.addLabel).toBe("bot:working");
-		expect(d.removeLabels).toContain("bot:blocked");
-		expect(d.removeLabels).not.toContain("bot:working");
+		expect(d.addLabel).toBe("bot:fixing");
+		expect(d.removeLabels).toEqual(["bot:blocked"]);
 	});
 
 	test("resolve: in_review accepts revise (PR feedback bridge)", () => {
@@ -135,7 +197,7 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("in_review");
 		expect(d.action).toBe("investigate.revise");
 	});
 
@@ -146,7 +208,7 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("fixing");
 		expect(d.action).toBe("investigate.implement");
 	});
 
@@ -158,15 +220,19 @@ describe("router", () => {
 		}
 	});
 
-	test("resolve: pr.closed moves in_review / working / awaiting_feedback to blocked", () => {
-		for (const label of ["bot:in-review", "bot:working", "bot:awaiting-feedback"] as const) {
+	test("resolve: pr.closed retains attached PR attention", () => {
+		for (const [label, expected] of [
+			["bot:in-review", "needs_attention"],
+			["bot:working", "blocked"],
+			["bot:awaiting-feedback", "blocked"],
+		] as const) {
 			const d = resolve({
 				labels: ["bot:bug", label],
 				event: "pr.closed",
 				actor: "system",
 			});
 			assertTransition(d);
-			expect(d.to).toBe("blocked");
+			expect(d.to).toBe(expected);
 			expect(d.action).toBe(null);
 		}
 	});
@@ -233,7 +299,7 @@ describe("router", () => {
 			allowDefault: true,
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("in_review");
 		expect(d.action).toBe("investigate.revise");
 		expect(d.arg).toBe("the test name is wrong, rename it");
 	});
@@ -268,8 +334,7 @@ describe("router", () => {
 		});
 		assertTransition(d);
 		expect(d.to).toBe("triage");
-		expect(d.removeLabels).toContain("bot:working");
-		expect(d.removeLabels).toContain("bot:blocked");
+		expect(d.removeLabels).toEqual(["bot:working", "bot:blocked"]);
 	});
 
 	test("reset: bare-verb only (destructive) -> not offered to the classifier", () => {
@@ -318,7 +383,7 @@ describe("router", () => {
 		assertClassify(d);
 		expect(d.state).toBe("blocked");
 		const events = new Set(d.commands.map((c) => c.event));
-		expect(events.has("implement")).toBe(true);
+		expect(events.has("work")).toBe(true);
 		expect(events.has("decline")).toBe(false);
 		expect(d.text).toBe("please try fixing it in the loader");
 	});
@@ -406,16 +471,15 @@ describe("router", () => {
 		);
 	});
 
-	test("outcomeFromResult allows implement and revise runs to produce a fix", () => {
-		for (const mode of ["implement", "revise"] as const) {
-			const input = {
+	test("outcomeFromResult allows revise runs to produce a fix", () => {
+		expect(
+			outcomeFromResult({
 				ok: true,
 				result: { fixed: true },
 				pushed: true,
-				mode,
-			};
-			expect(outcomeFromResult(input)).toBe("agent.fix_ready");
-		}
+				mode: "revise",
+			}),
+		).toBe("agent.fix_ready");
 	});
 
 	test("outcomeFromResult feeds resolve to advance the machine end-to-end", () => {
@@ -426,13 +490,13 @@ describe("router", () => {
 		});
 		const d = resolve({ labels: ["bot:bug", "bot:working"], event, actor: "system" });
 		assertTransition(d);
-		expect(d.to).toBe("awaiting_feedback");
+		expect(d.to).toBe("preview_building");
 		expect(d.action).toBe(null);
 	});
 
 	test("replyFooter lists the offered commands for the state", () => {
 		const footer = replyFooter("blocked");
-		expect(footer).toMatch(FOOTER_IMPLEMENT_RE);
+		expect(footer).toMatch(FOOTER_WORK_RE);
 		expect(footer).toMatch(FOOTER_DECLINE_RE);
 	});
 });
@@ -494,6 +558,66 @@ describe("router: investigation + fix loop", () => {
 		expect(d.action).toBe("investigate.fix");
 	});
 
+	test.each(["reproduced", "diagnosed"] as const)(
+		"implement redirects to the diagnosis-aware fix mode from %s",
+		(state) => {
+			const d = resolve({
+				labels: ["bot:bug", `bot:${state}`],
+				event: "implement",
+				arg: "apply the diagnosed fix",
+				actor: "maintainer",
+			});
+			assertTransition(d);
+			expect(d.to).toBe("fixing");
+			expect(d.action).toBe("investigate.fix");
+		},
+	);
+
+	test("legacy repro outcomes use the first-class verdict states", () => {
+		for (const [event, expected] of [
+			["agent.reproduced", "reproduced"],
+			["agent.diagnosed", "diagnosed"],
+			["agent.not_reproduced", "not_reproduced"],
+			["agent.needs_info", "needs_info"],
+		] as const) {
+			const d = resolve({
+				labels: ["bot:bug", "bot:working"],
+				event,
+				actor: "system",
+			});
+			assertTransition(d);
+			expect(d.to).toBe(expected);
+		}
+	});
+
+	test("fix remains available from the legacy blocked bucket", () => {
+		const d = resolve({
+			labels: ["bot:bug", "bot:blocked"],
+			event: "fix",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.implement");
+	});
+
+	test.each([
+		{ labels: [], from: "unmanaged" },
+		{ labels: ["bot:triage"], from: "triage" },
+	])("fix directly enters the bug delivery lane from $from", ({ labels, from }) => {
+		const d = resolve({
+			labels,
+			event: "fix",
+			arg: "unwrap the media response envelope",
+			actor: "maintainer",
+		});
+		assertTransition(d);
+		expect(d.from).toBe(from);
+		expect(d.to).toBe("fixing");
+		expect(d.action).toBe("investigate.implement");
+		expect(d.addLabels).toContain("bot:bug");
+	});
+
 	test("the fix loop advances through preview to the reporter wait", () => {
 		const fixReady = resolve({
 			labels: ["bot:bug", "bot:fixing"],
@@ -532,6 +656,30 @@ describe("router: investigation + fix loop", () => {
 		expect(d.to).toBe("reproduced");
 	});
 
+	test("enhancement delivery failures return to a retryable implementation state", () => {
+		const previewFailed = resolve({
+			labels: ["bot:enhancement", "bot:preview-building"],
+			event: "preview.failed",
+			actor: "system",
+		});
+		assertTransition(previewFailed);
+		expect(previewFailed.to).toBe("blocked");
+
+		for (const event of ["reject", "expire"] as const) {
+			const decision = resolve({
+				labels: ["bot:enhancement", "bot:awaiting-reporter"],
+				event,
+				actor: event === "reject" ? "reporter" : "system",
+			});
+			assertTransition(decision);
+			expect(decision.to).toBe("blocked");
+			expect(decision.action).toBe("reapBranch");
+		}
+
+		const commands = new Set(classifierCommands("blocked").map((command) => command.event));
+		expect(commands.has("work")).toBe(true);
+	});
+
 	test("confirm opens a draft PR; reject and expire reap the branch", () => {
 		const confirm = resolve({
 			labels: ["bot:bug", "bot:awaiting-reporter"],
@@ -561,9 +709,9 @@ describe("router: investigation + fix loop", () => {
 		expect(expire.action).toBe("reapBranch");
 	});
 
-	test("fix is offered to the classifier from a reproduced verdict", () => {
+	test("work is offered to the classifier from a reproduced verdict", () => {
 		const events = new Set(classifierCommands("reproduced").map((c) => c.event));
-		expect(events.has("fix")).toBe(true);
+		expect(events.has("work")).toBe(true);
 		expect(events.has("investigate")).toBe(true);
 		expect(events.has("decline")).toBe(false); // destructive
 		expect(events.has("take_over")).toBe(false); // destructive
@@ -591,5 +739,27 @@ describe("router: investigation + fix loop", () => {
 		expect(outcomeFromResult({ ok: true, result: { fixed: false }, mode: "fix" })).toBe(
 			"agent.failed",
 		);
+	});
+
+	test("outcomeFromResult implement mode uses implementation fields and verified publication", () => {
+		expect(
+			outcomeFromResult({
+				ok: true,
+				result: { implemented: true },
+				pushed: true,
+				mode: "implement",
+			}),
+		).toBe("agent.fix_ready");
+		expect(
+			outcomeFromResult({
+				ok: true,
+				result: { implemented: true },
+				pushed: false,
+				mode: "implement",
+			}),
+		).toBe("agent.failed");
+		expect(
+			outcomeFromResult({ ok: true, result: { fixed: true }, pushed: true, mode: "implement" }),
+		).toBe("agent.failed");
 	});
 });

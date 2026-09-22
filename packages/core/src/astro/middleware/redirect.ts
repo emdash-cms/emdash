@@ -104,8 +104,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
 
-		// Log 404s for unmatched paths (fire-and-forget)
-		if (response.status === 404) {
+		// Log misses (fire-and-forget) under the path the visitor requested.
+		// Two shapes count as a miss: an unmatched route rendering the error
+		// page with status 404, and a matched route answering a content miss
+		// with a redirect to /404 (the documented template pattern) — there the
+		// missed path exists only on this first pass, before the browser
+		// follows the redirect. The error page itself is never logged: /404
+		// answers 404 by design and carries no path information.
+		const location = response.headers.get("location");
+		const missedByRedirect =
+			isRedirectCode(response.status) && (location === "/404" || location === "/404/");
+		const missedDirectly = response.status === 404 && pathname !== "/404" && pathname !== "/404/";
+		if (missedDirectly || missedByRedirect) {
 			const referrer = context.request.headers.get("referer") ?? null;
 			const userAgent = context.request.headers.get("user-agent") ?? null;
 			repo

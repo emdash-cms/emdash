@@ -5,9 +5,9 @@ description: Bundle a sandboxed plugin and publish it to the EmDash plugin regis
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Once your sandboxed plugin works, publish it so other sites can install it. Publishing is sandboxed-only — native plugins distribute via npm.
+Publish a working sandboxed plugin so other sites can install it. Publishing is sandboxed-only — native plugins distribute through npm.
 
-When you publish, the CLI records the release to your own [Atmosphere account](#your-atmosphere-account). **You host the tarball** yourself — a GitHub release asset, R2, S3, or any public URL — and the registry stores a link to it.
+Publish directly from the CLI, or use the [automated release service](/plugins/creating-plugins/delegated-releases/) to build and publish from GitHub Actions. Both paths write the release to your [Atmosphere account](#your-atmosphere-account). You only need a separate artifact host when you explicitly choose the direct CLI's `--url` path.
 
 <Aside type="caution" title="Experimental">
 	The registry, its lexicon, and record shapes are governed by RFC 0001 and
@@ -18,9 +18,18 @@ When you publish, the CLI records the release to your own [Atmosphere account](#
 
 ## Prerequisites
 
-- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), and a security contact (`security` or `securityContacts`). Run `emdash-plugin validate` to confirm.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), a security contact (`security` or `securityContacts`), and a canonical HTTPS source repository in `repo`. When `repo` is omitted, manual publishing uses the Git `origin` or `package.json#repository`. Run `emdash-plugin validate` to confirm.
 - A `version` (in `package.json`, or the manifest for registry-only plugins).
 - An [Atmosphere account](#your-atmosphere-account) to publish under.
+
+## Choose a publishing method
+
+Both methods create publisher-owned package and release records. Choose where the release build should run and which credential should authorize it.
+
+| Method | Use it when | Account access |
+| --- | --- | --- |
+| `emdash-plugin publish` | You build and publish from your computer or another trusted environment. | The local CLI session writes the package profile, release, and blobs. |
+| [Automated releases](/plugins/creating-plugins/delegated-releases/) | GitHub Actions should build releases from version tags or manual workflow runs. | The local CLI prepares the profile; the release service retains create-only release and blob authority. |
 
 ## Your Atmosphere account
 
@@ -48,18 +57,18 @@ If you do not have an Atmosphere account yet, create one through any provider, t
 
 Whichever you choose, the `@handle` from that account is what you pass to `emdash-plugin login`, and the account's DID is what you pin as the [`publisher`](/plugins/creating-plugins/manifest/#publisher-pinning) in your manifest.
 
-## Three steps
+## Publish from your plugin directory
 
-The following commands log in, build a tarball, and publish a release that points at the hosted tarball:
+Log in once, then publish from the directory containing `emdash-plugin.jsonc`:
 
 ```sh
-emdash-plugin login                     # if not already logged in
-emdash-plugin bundle                    # produces dist/<slug>-<version>.tar.gz
-# upload that tarball to a public URL, then:
-emdash-plugin publish --url https://your-host/<slug>-<version>.tar.gz
+emdash-plugin login alice.example.com
+emdash-plugin publish
 ```
 
-`bundle` prints the next two steps when it finishes, including the `--url` invocation, so you don't have to remember the shape.
+`publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your personal data server (PDS), uploads any declared listing images, and writes the release record.
+
+The command signs the source repository into the package profile so sites can verify the release before installation. It refuses to publish when no canonical HTTPS repository can be detected. If `profile setup` configured the package to require provenance, publish through the generated GitHub Actions workflow instead.
 
 ## Bundle
 
@@ -84,8 +93,8 @@ emdash-plugin bundle [--dir <path>] [--out-dir|-o <path>] [--validate-only]
 | `manifest.json` | Yes      | Generated manifest: id, version, capabilities, hosts, and the hooks and routes read from your source. You do not maintain this by hand. |
 | `backend.js`    | Yes      | The built, self-contained runtime file (`dist/plugin.mjs`). |
 | `README.md`     | No       | Plugin documentation.                                        |
-| `icon.png`      | No       | 256×256 PNG.                                                 |
-| `screenshots/`  | No       | Up to 5, max 1920×1080.                                       |
+| `icon.png`      | No       | Conventional bundle icon. Must be a readable PNG; 256×256 is recommended. |
+| `screenshots/`  | No       | Up to eight `.png`, `.jpg`, or `.jpeg` files; 1920×1080 or smaller is recommended. |
 
 ### Validation
 
@@ -94,8 +103,8 @@ emdash-plugin bundle [--dir <path>] [--out-dir|-o <path>] [--validate-only]
 - **Size caps (RFC 0001, decompressed):** total ≤ 256 KB, per-file ≤ 128 KB, ≤ 20 files. The gzipped tarball is a fraction of that.
 - **No Node built-ins in `backend.js`** — sandbox code can't import `fs`, `path`, `child_process`, etc. Use Web APIs, or move that logic to a native plugin.
 - **Capability sanity** — names must be in the recognised set.
-- **Trust-contract coherence** — the `network:request` / `allowedHosts` cross-rules from [the manifest](/plugins/creating-plugins/manifest/#capabilities).
-- **Asset limits** — icon 256×256, ≤ 5 screenshots at ≤ 1920×1080.
+- **Trust-contract coherence** — the `network:request` / `allowedHosts` cross-rules from [Capabilities and hosts](/plugins/creating-plugins/manifest/#capabilities-and-hosts).
+- **Conventional bundle assets** — an unreadable `icon.png` or screenshot is skipped. The CLI warns when the icon is not 256×256 or a screenshot exceeds 1920×1080, but dimensions alone do not fail the bundle. Every included file still counts toward the file and decompressed-size caps.
 
 To inspect the tarball before publishing, list its contents:
 
@@ -106,34 +115,75 @@ tar tzf dist/my-plugin-1.1.0.tar.gz
 
 ## Publish
 
-Publishing writes the release record. The tarball must already be hosted at a public URL:
+Publish the current source and host its artifacts on your PDS:
 
 ```sh
-emdash-plugin publish --url <hosted-tarball-url>
+emdash-plugin publish
 ```
 
-`--url` is required: it is where the plugin's bytes live, and the registry record points at it. To verify the hosted URL serves the exact bytes you built before writing the record, pass `--local`:
+The following manifest block adds listing images. Paths are relative to `emdash-plugin.jsonc`; PNG, JPEG, and WebP are supported.
 
-```sh
-emdash-plugin publish --url https://your-host/foo-1.0.0.tar.gz --local dist/foo-1.0.0.tar.gz
+```jsonc title="emdash-plugin.jsonc"
+{
+  "release": {
+    "artifacts": {
+      "icon": { "file": "./icon.png" },
+      "banner": { "file": "./banner.webp" },
+      "screenshots": [
+        { "file": "./screenshots/editor.png" },
+        { "file": "./screenshots/settings.jpg", "lang": "en" }
+      ]
+    }
+  }
+}
 ```
+
+Manifest-declared listing images are separate from the conventional `icon.png` and `screenshots/` files included in the tarball. Publishing uploads each declared image to the publisher's PDS and writes its blob reference into the release record. Each image is limited to 1 MiB and 8,192 pixels in either dimension; a release can declare up to eight screenshots. See [Release fields](/plugins/creating-plugins/manifest/#release-fields) for the complete shape.
 
 What `publish` does:
 
 <Steps>
 
-1. Fetches the tarball at `--url` (with URL and size guards) and extracts the manifest from those bytes.
-2. Resumes your Atmosphere account session and checks [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning) — the active session must match the manifest's pinned `publisher`, or it refuses with `MANIFEST_PUBLISHER_MISMATCH`.
-3. Creates the package profile from the manifest on first publish (`license`, author, security contact). On later publishes, the existing profile wins.
-4. Publishes the profile and release records to your account.
+1. Builds the plugin, validates the decompressed limits, and creates the gzip archive.
+2. Resumes your Atmosphere account session and checks [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning).
+3. Confirms that the OAuth grant includes package and image blob scopes.
+4. Uploads the package and declared images to your PDS, then verifies each returned blob CID against the uploaded bytes.
+5. Creates the package profile on first publish and writes the immutable release record.
 
 </Steps>
 
-On first publish you can supply profile fields by flag (`--license`, `--security-email`, …) instead of the manifest; explicit flags override manifest values, which is handy in CI. `--no-manifest` opts out of the manifest entirely.
+The CLI identifies the published package as `@<publisher-handle>/<slug>`, prints the public page that becomes available after approval, and gives an `emdash-plugin info … --version <version> --watch` command. That command reads the labeler's current checks directly; unapproved package metadata remains absent from aggregator responses and the public plugin site.
 
-### Versions are immutable
+If an existing login predates blob publishing, `publish` reports `MISSING_BLOB_SCOPE`. Run `emdash-plugin logout`, then log in again to approve the new scopes.
 
-A published version cannot be overwritten or republished. Bump `version` before publishing again. The build reads `version` from `package.json` (see [the manifest reference](/plugins/creating-plugins/manifest/#version-lives-in-packagejson)). Bump **major** for a broadened [trust contract](/plugins/creating-plugins/manifest/#trust-contract), **minor** for new hooks or routes, and **patch** for fixes.
+### Use an external package URL
+
+Pass `--url` when the package bundle is already available over HTTPS or the account provider does not accept gzip blobs:
+
+```sh
+emdash-plugin publish --url https://downloads.example.com/gallery-1.0.0.tar.gz
+```
+
+The CLI downloads the URL, validates the served bundle, and computes its checksum. It does not upload the package blob on this path. Listing images still use PDS blobs.
+
+To compare the hosted bytes with a local tarball, add `--local`:
+
+```sh
+emdash-plugin publish \\
+  --url https://downloads.example.com/gallery-1.0.0.tar.gz \\
+  --local dist/gallery-1.0.0.tar.gz
+```
+
+### Versions are immutable by default
+
+`emdash-plugin publish` refuses to replace an existing release at the same slug and version. Bump `version` before publishing again. The build reads `version` from `package.json` (see [Keep one version value](/plugins/creating-plugins/manifest/#keep-one-version-value)). Bump **major** for a broadened [trust contract](/plugins/creating-plugins/manifest/#trust-contract), **minor** for new hooks or routes, and **patch** for fixes.
+
+<Aside type="caution" title="Overwriting can trigger a takedown">
+	The direct CLI exposes `--allow-overwrite` as a recovery option, but changing a release record at
+	an existing version breaks the registry's immutable-release expectation. Aggregators and labelers
+	may treat it as a takedown or replacement event. Automated releases are create-only. Prefer a new
+	version unless you are deliberately repairing a record and have checked the downstream effect.
+</Aside>
 
 ### Publisher mismatch
 
@@ -142,5 +192,6 @@ If `publish` fails with `MANIFEST_PUBLISHER_MISMATCH`, the active session is a d
 ## What to read next
 
 - [The `emdash-plugin` CLI](/plugins/creating-plugins/cli/) — every command
+- [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) — publish from an approved GitHub Actions workflow
 - [The manifest](/plugins/creating-plugins/manifest/) — fields, trust contract, publisher pinning
 - [Capabilities and security](/plugins/creating-plugins/capabilities/)

@@ -14,9 +14,11 @@ import {
 	findTransition,
 	KINDS,
 	STATES,
+	transitionTarget,
 	type Actor,
 	type EventId,
 	type Kind,
+	type RunMode,
 	type StateId,
 } from "./machine.js";
 
@@ -50,6 +52,7 @@ function isMachineActor(value: string): value is Actor {
 const MENTION_RE = /^[ \t]*@emdashbot(?=\s|$)([\s\S]*)/m;
 const WS_RE = /\s+/g;
 const UNDERSCORE_RE = /_/g;
+const NEEDS_CHANGES_WITH_FEEDBACK_RE = /^(?:reject|needs[ _]changes)\s+([\s\S]+)$/i;
 
 /**
  * The state id encoded in a label set.
@@ -83,9 +86,17 @@ const VERB_ALIASES: Record<string, EventId> = {
 	takeover: "take_over",
 	"hand back": "hand_back",
 	handback: "hand_back",
-	confirmed: "confirm",
-	verified: "confirm",
-	fixed: "confirm",
+	fix: "work",
+	implement: "work",
+	repro: "work",
+	revise: "work",
+	confirm: "accept",
+	confirmed: "accept",
+	verified: "accept",
+	fixed: "accept",
+	reject: "needs_changes",
+	"needs changes": "needs_changes",
+	resume: "retry",
 };
 
 /**
@@ -114,6 +125,10 @@ export interface ParsedCommand {
 export function parseCommand(body: string | null | undefined): ParsedCommand | null {
 	const text = parseMention(body);
 	if (text === null) return null;
+	const needsChanges = NEEDS_CHANGES_WITH_FEEDBACK_RE.exec(text);
+	if (needsChanges?.[1]) {
+		return { event: "needs_changes", arg: needsChanges[1].trim() };
+	}
 	const normalized = text.trim().toLowerCase().replace(WS_RE, " ");
 	const aliased = VERB_ALIASES[normalized];
 	const event = aliased ?? (isKnownEvent(normalized) ? normalized : null);
@@ -178,6 +193,29 @@ export interface ResolveInput {
 	event: EventId;
 	arg?: string | null;
 	actor?: Actor | "other";
+	resumeState?: StateId;
+	retryMode?: InvestigationMode;
+}
+
+function failedWriteRetry(mode: InvestigationMode | undefined): {
+	to: StateId;
+	action: string;
+} | null {
+	switch (mode) {
+		case "triage":
+			return { to: "triaging", action: "investigate.triage" };
+		case "work":
+			return { to: "working", action: "investigate.work" };
+		case "investigate":
+			return { to: "investigating", action: "investigate.diagnose" };
+		case "implement":
+		case "fix":
+			return { to: "fixing", action: `investigate.${mode}` };
+		case "revise":
+			return { to: "working", action: "investigate.revise" };
+		default:
+			return null;
+	}
 }
 
 /**
@@ -187,7 +225,14 @@ export interface ResolveInput {
  * handler, Orchestrator DO) is responsible for actor classification but the
  * router enforces that the event's `actors` list includes the caller.
  */
-export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
+export function resolve({
+	labels,
+	event,
+	arg,
+	actor,
+	resumeState,
+	retryMode,
+}: ResolveInput): Decision {
 	const from = currentState(labels);
 	const meta = EVENTS[event];
 	if (!meta) return { kind: "noop", reason: `unknown event "${event}"` };
@@ -210,7 +255,7 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 			action: null,
 			addLabel: toLabel,
 			addLabels: [toLabel],
-			removeLabels: STATE_LABELS.filter((l) => l !== toLabel),
+			removeLabels: labels.filter((label) => STATE_LABELS.includes(label) && label !== toLabel),
 			event,
 			arg: arg ?? null,
 		};
@@ -218,8 +263,17 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const toLabel = STATES[t.to].label;
-	const removeLabels = STATE_LABELS.filter((l) => l !== toLabel);
+	const retry =
+		event === "retry" &&
+		(from === "failed" || (from === "needs_attention" && retryMode === "revise"))
+			? failedWriteRetry(retryMode)
+			: null;
+	const to =
+		event === "resume" && resumeState
+			? resumeState
+			: (retry?.to ?? transitionTarget(t, currentKind(labels)));
+	const toLabel = STATES[to].label;
+	const removeLabels = labels.filter((label) => STATE_LABELS.includes(label) && label !== toLabel);
 
 	// Entry from unmanaged or triage: ensure the kind label matches the verb.
 	// `unmanaged` is the implicit start (no labels); `triage` is the labeled
@@ -243,8 +297,8 @@ export function resolve({ labels, event, arg, actor }: ResolveInput): Decision {
 	return {
 		kind: "transition",
 		from,
-		to: t.to,
-		action: t.action ?? null,
+		to,
+		action: retry?.action ?? t.action ?? null,
 		addLabel: toLabel,
 		addLabels,
 		removeLabels,
@@ -321,14 +375,19 @@ export function replyFooter(state: StateId | null): string {
 }
 
 export interface AgentResult {
+	disposition?: "auto-work" | "needs-info" | "await-approval";
+	kind?: Kind;
+	labels?: readonly string[];
 	skipped?: boolean;
 	reproduced?: boolean;
+	rootCauseFound?: boolean;
 	fixed?: boolean;
+	implemented?: boolean;
 	verdict?: string;
 	[key: string]: unknown;
 }
 
-export type InvestigationMode = "repro" | "implement" | "revise" | "diagnose" | "fix";
+export type InvestigationMode = RunMode;
 
 /**
  * Map the investigate agent's flat result to a machine event. Deterministic
@@ -356,16 +415,36 @@ export function outcomeFromResult({
 	if (result.skipped === true) return "agent.skipped";
 	if (result.verdict === "intended-behavior") return "agent.by_design";
 	const effectiveMode = mode ?? "repro";
-	if (effectiveMode === "diagnose") {
+	if (effectiveMode === "triage") {
+		if (result.disposition === "auto-work" && autoWorkAllowed(result)) return "agent.auto_work";
+		if (result.disposition === "needs-info") return "agent.needs_info";
+		return "agent.awaiting_approval";
+	}
+	if (effectiveMode === "diagnose" || effectiveMode === "investigate") {
 		if (result.verdict === "unclear") return "agent.needs_info";
-		return result.reproduced === true ? "agent.reproduced" : "agent.not_reproduced";
+		if (result.reproduced === true) return "agent.reproduced";
+		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
 	}
-	if (effectiveMode === "fix") {
-		return result.fixed === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	if (effectiveMode === "fix" || effectiveMode === "work") {
+		const delivered =
+			result.fixed === true || (effectiveMode === "work" && result.implemented === true);
+		return delivered && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
-	if (effectiveMode === "repro" && result.reproduced !== true) return "agent.not_reproduced";
+	if (effectiveMode === "implement") {
+		return result.implemented === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	}
+	if (effectiveMode === "repro" && result.reproduced !== true) {
+		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
+	}
 	if (result.fixed === true) return pushed === true ? "agent.fix_ready" : "agent.failed";
 	return effectiveMode === "repro" ? "agent.reproduced" : "agent.failed";
+}
+
+const RESTRICTED_AUTO_WORK_LABELS: ReadonlySet<string> = new Set(["area/auth", "area/ci"]);
+
+function autoWorkAllowed(result: AgentResult): boolean {
+	if (result.kind === "enhancement") return false;
+	return !(result.labels ?? []).some((label) => RESTRICTED_AUTO_WORK_LABELS.has(label));
 }
 
 /** Invariant check: exactly one kind + one state label. */

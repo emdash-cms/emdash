@@ -11,7 +11,7 @@ You read code, comments, docs, tests, and `AGENTS.md`. You **modify nothing.** N
 
 ## Environment
 
-Pure inspection -- **entirely isolate work.** Use `read`, `ls`, and `exec` grep/git to cross-reference code, docs, and tests. Do not attach a container.
+Pure inspection -- **entirely VFS work.** Use `read_file`, `ls`, `grep`, and `code` to cross-reference code, docs, and tests. Do not attach a container.
 
 ## Do not
 

@@ -12,6 +12,7 @@ function setup(
 		readBookmark?: string;
 		bookmarkSink?: BookmarkSink;
 		onRpc?: () => void;
+		forcePrimary?: boolean;
 	} = {},
 ) {
 	const query = opts.query ?? vi.fn().mockResolvedValue({ rows: [] });
@@ -22,6 +23,7 @@ function setup(
 		readBookmark: opts.readBookmark,
 		bookmarkSink: opts.bookmarkSink,
 		onRpc: opts.onRpc,
+		forcePrimary: opts.forcePrimary,
 	});
 	return { query, batchQuery, dialect };
 }
@@ -116,6 +118,22 @@ describe("CoalescingDOSqlDialect", () => {
 
 		// Sink (freshest write bookmark) wins over the initial cookie bookmark.
 		expect(batchQuery).toHaveBeenCalledWith(expect.any(Array), { bookmark: "bm-fresh" });
+	});
+
+	it("forces lone and coalesced reads to the primary when the scope mutates", async () => {
+		const query = vi.fn().mockResolvedValue({ rows: [] });
+		const batchQuery = vi.fn().mockResolvedValue([{ rows: [] }, { rows: [] }] as DOQueryResult[]);
+		const { dialect } = setup({ query, batchQuery, forcePrimary: true });
+		const conn = await dialect.createDriver().acquireConnection();
+
+		await conn.executeQuery(CompiledQuery.raw("SELECT * FROM solo"));
+		expect(query).toHaveBeenCalledWith("SELECT * FROM solo", [], { primary: true });
+
+		await Promise.all([
+			conn.executeQuery(CompiledQuery.raw("SELECT * FROM a")),
+			conn.executeQuery(CompiledQuery.raw("SELECT * FROM b")),
+		]);
+		expect(batchQuery).toHaveBeenCalledWith(expect.any(Array), { primary: true });
 	});
 
 	it("falls back to individual query() calls when the batch RPC fails", async () => {

@@ -16,6 +16,9 @@ const virtualStubs: Record<string, string> = {
 	// No Cloudflare bindings under test — like a Node build. Callers fall
 	// back to `import.meta.env`.
 	"virtual:emdash/env": "export const env = undefined;",
+	// Nothing was built under test, so there is no build dimension to fold
+	// into cache validators. Tests that need one still `vi.mock(...)`.
+	"virtual:emdash/build": "export const buildTime = 0;",
 };
 
 export default defineConfig({
@@ -46,6 +49,7 @@ export default defineConfig({
 		// The fixture has symlinked node_modules that contain test files
 		// from transitive deps (zod, emdash) — exclude them too.
 		exclude: [
+			"tests/workerd/**",
 			// Render tests import .astro components and need the Astro Vite
 			// plugin -- run them via the dedicated repro config (test:repro),
 			// not this plain-node config which cannot transform .astro.

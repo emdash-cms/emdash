@@ -27,13 +27,15 @@ interface Target {
 }
 
 const COLOR_PLUGIN_DIST = resolve(ROOT, "packages/plugins/color/dist/index.mjs");
+const REGISTRY_TEST_PLUGIN_DIST = resolve(ROOT, "packages/plugins/marketplace-test/dist/index.mjs");
+const WORKERD_DIST = resolve(ROOT, "packages/workerd/dist/index.mjs");
 const CLOUDFLARE_DIST = resolve(ROOT, "packages/cloudflare/dist/index.mjs");
 
 const TARGETS: Record<string, Target> = {
 	node: {
 		fixtureDir: resolve(ROOT, "e2e/fixture"),
 		buildFilter: "emdash-e2e-fixture...",
-		depsMarkers: [COLOR_PLUGIN_DIST],
+		depsMarkers: [COLOR_PLUGIN_DIST, REGISTRY_TEST_PLUGIN_DIST, WORKERD_DIST],
 		usesTempDb: true,
 	},
 	cloudflare: {
@@ -257,6 +259,31 @@ async function seedTestData(
 	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${imagePostId}/publish`, {});
 	postIds.push(imagePostId);
 
+	const codePost = await apiPost(baseUrl, token, "/_emdash/api/content/posts", {
+		data: {
+			title: "Post With Code",
+			excerpt: "A post containing supported and unsupported code blocks",
+			body: [
+				{
+					_type: "code",
+					_key: "code-js",
+					code: 'const greeting = "hello";\nconsole.log(greeting);',
+					language: "javascript",
+				},
+				{
+					_type: "code",
+					_key: "code-astro",
+					code: '---\nconst title = "Hello";\n---\n<h1>{title}</h1>',
+					language: "astro",
+				},
+			],
+		},
+		slug: "post-with-code",
+	});
+	const codePostId = codePost.item?.id ?? codePost.id;
+	await apiPost(baseUrl, token, `/_emdash/api/content/posts/${codePostId}/publish`, {});
+	postIds.push(codePostId);
+
 	return {
 		collections,
 		contentIds: { posts: postIds, pages: pageIds },
@@ -274,7 +301,8 @@ export default async function globalSetup(): Promise<void> {
 
 	// 0. Start mock marketplace server
 	const { startMockMarketplace } = await import("./fixtures/mock-marketplace.js");
-	const marketplaceServer = await startMockMarketplace(MARKETPLACE_PORT);
+	const { server: marketplaceServer, registryFixture } =
+		await startMockMarketplace(MARKETPLACE_PORT);
 	const marketplaceUrl = `http://127.0.0.1:${MARKETPLACE_PORT}`;
 	console.log(`[pw] Mock marketplace ready at ${marketplaceUrl}`);
 
@@ -285,6 +313,8 @@ export default async function globalSetup(): Promise<void> {
 	const workDir = FIXTURE_DIR;
 	const tempDataDir = mkdtempSync(join(tmpdir(), "emdash-pw-"));
 	const dbPath = join(tempDataDir, "test.db");
+	const registryFixturePath = join(tempDataDir, "registry-fixture.json");
+	writeFileSync(registryFixturePath, JSON.stringify(registryFixture));
 
 	const fixtureNodeModules = join(FIXTURE_DIR, "node_modules");
 
@@ -303,25 +333,42 @@ export default async function globalSetup(): Promise<void> {
 		cwd: workDir,
 		env: {
 			...process.env,
+			// Keep Astro's agent-mode server in this process so teardown owns it.
+			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_MARKETPLACE_URL: marketplaceUrl,
+			EMDASH_REGISTRY_URL: marketplaceUrl,
+			EMDASH_REGISTRY_FIXTURE: registryFixturePath,
 		},
 		stdio: "pipe",
 	});
 
+	let serverOutput = "";
+	const appendServerOutput = (data: Buffer) => {
+		const chunk = data.toString();
+		serverOutput = (serverOutput + chunk).slice(-20_000);
+		if (process.env.DEBUG) process.stderr.write(`[pw:${PORT}] ${chunk}`);
+	};
 	server.stdout?.on("data", (data: Buffer) => {
-		if (process.env.DEBUG) process.stderr.write(`[pw:${PORT}] ${data.toString()}`);
+		appendServerOutput(data);
 	});
 	server.stderr?.on("data", (data: Buffer) => {
-		if (process.env.DEBUG) process.stderr.write(`[pw:${PORT}] ${data.toString()}`);
+		appendServerOutput(data);
 	});
 
 	try {
-		// 3 + 4. Wait for the server and dev optimizer to settle, then run setup
-		// + create a PAT. The gate polls until dev-bypass actually returns 200,
-		// absorbing the optimizer's cold-start failures.
+		// Dev-bypass token creation is not idempotent: each call drops the named
+		// PAT and mints a new one. Poll the read-only status endpoint first, then
+		// call dev-bypass exactly once.
 		console.log("[pw] Waiting for server + setup...");
-		const setupRes = await waitForOk(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`, 120_000);
+		await waitForOk(`${baseUrl}/_emdash/api/setup/status`, 120_000);
+		const setupRes = await fetch(`${baseUrl}/_emdash/api/setup/dev-bypass?token=1`, {
+			signal: AbortSignal.timeout(120_000),
+		});
+		if (!setupRes.ok) {
+			const body = await setupRes.text().catch(() => "");
+			throw new Error(`Dev bypass failed (${setupRes.status}): ${body.slice(0, 300)}`);
+		}
 		const setupJson: { data: { user: { id: string }; token?: string } } = await setupRes.json();
 		const setupData = setupJson.data;
 		const token = setupData.token;
@@ -352,18 +399,6 @@ export default async function globalSetup(): Promise<void> {
 			}
 		}
 
-		// 5c. Warm the admin's data routes so the SPA's first client-side fetches
-		// don't race the dev optimizer. On a slow CI runner the Cloudflare runner
-		// otherwise serves a cold 500 for these, rendering an empty admin and
-		// failing the first specs before the route finishes compiling.
-		console.log("[pw] Warming up admin API routes...");
-		for (const path of [
-			"/_emdash/api/schema/collections?includeFields=true",
-			"/_emdash/api/media",
-		]) {
-			await waitForOk(`${baseUrl}${path}`, 60_000, token);
-		}
-
 		// 6. Write server info
 		const info = {
 			pid: server.pid!,
@@ -383,6 +418,9 @@ export default async function globalSetup(): Promise<void> {
 	} catch (error) {
 		server.kill("SIGTERM");
 		marketplaceServer.close();
-		throw error;
+		throw new Error(
+			`${error instanceof Error ? error.message : String(error)}\n\nServer output:\n${serverOutput}`,
+			{ cause: error },
+		);
 	}
 }

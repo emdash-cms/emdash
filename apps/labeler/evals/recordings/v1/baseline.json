@@ -1,0 +1,546 @@
+{
+	"schemaVersion": 1,
+	"recordingVersion": "listing-metadata-recorded-v1",
+	"modelIdentity": {
+		"adapterVersion": "listing-metadata-ai-v1",
+		"textModelId": "recorded/baseline-text-v1",
+		"textPromptVersion": "listing-text-v9",
+		"textPromptHash": "aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5",
+		"imageModelId": "recorded/baseline-image-v1",
+		"imagePromptVersion": "listing-image-v7",
+		"imagePromptHash": "7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0",
+		"parameters": {
+			"temperature": 0,
+			"maxTokens": 1024,
+			"seed": 1
+		}
+	},
+	"cases": {
+		"gold-explicit-sexual-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "explicit-sexual-content",
+						"confidence": 0.99,
+						"summary": "Describes explicit sexual content.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 420,
+			"usage": {
+				"inputTokens": 155,
+				"outputTokens": 42,
+				"totalTokens": 197,
+				"configuredUnits": 20
+			}
+		},
+		"gold-hateful-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "hateful-or-dehumanizing-content",
+						"confidence": 0.98,
+						"summary": "Dehumanizes a protected group.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 410,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
+		},
+		"gold-graphic-violence-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "graphic-violence",
+						"confidence": 0.98,
+						"summary": "Describes graphic severe injury.",
+						"evidenceRefs": ["profile.sections.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.sections.description"]
+			},
+			"latencyMs": 405,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 191,
+				"configuredUnits": 20
+			}
+		},
+		"gold-phishing-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "phishing-or-credential-solicitation",
+						"confidence": 0.99,
+						"summary": "Solicits administrator credentials.",
+						"evidenceRefs": ["profile.sections.installation"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.sections.installation"]
+			},
+			"latencyMs": 425,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 198,
+				"configuredUnits": 20
+			}
+		},
+		"gold-impersonation-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "material-impersonation",
+						"confidence": 0.97,
+						"summary": "Claims to be an official EmDash team plugin.",
+						"evidenceRefs": ["profile.name"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.name"]
+			},
+			"latencyMs": 400,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 184,
+				"configuredUnits": 20
+			}
+		},
+		"gold-scam-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "scam-or-spam",
+						"confidence": 0.99,
+						"summary": "Makes a deceptive guaranteed-profit offer.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 430,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 195,
+				"configuredUnits": 20
+			}
+		},
+		"gold-malicious-link": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "malicious-or-deceptive-link",
+						"confidence": 0.94,
+						"summary": "Uses a lookalike host for account verification.",
+						"evidenceRefs": ["profile.authors[0].url"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.authors[0].url"]
+			},
+			"latencyMs": 390,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 182,
+				"configuredUnits": 20
+			}
+		},
+		"gold-misleading-claim": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "material-impersonation",
+						"confidence": 1,
+						"summary": "Recorded policy fixture for material-impersonation.",
+						"evidenceRefs": ["profile.description"]
+					},
+					{
+						"category": "misleading-media-or-claims",
+						"confidence": 0.92,
+						"summary": "Makes a fabricated certification claim.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 415,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
+		},
+		"benign-gallery": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.name", "profile.description", "profile.authors[0].url"]
+			},
+			"latencyMs": 380,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 201,
+				"configuredUnits": 20
+			}
+		},
+		"benign-security-contact": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.sections.security"]
+			},
+			"latencyMs": 370,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 178,
+				"configuredUnits": 20
+			}
+		},
+		"benign-independent-compatibility": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 370,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
+		},
+		"benign-emdash-origin-phrase": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": [
+					"profile.slug",
+					"profile.name",
+					"profile.description",
+					"profile.keywords[0]",
+					"profile.keywords[1]",
+					"profile.keywords[2]",
+					"profile.keywords[3]",
+					"profile.keywords[4]",
+					"profile.license",
+					"profile.authors[0].name",
+					"profile.security[0].email",
+					"profile.authors[0].url"
+				]
+			},
+			"latencyMs": 3341,
+			"usage": {
+				"inputTokens": 910,
+				"outputTokens": 92,
+				"totalTokens": 1002,
+				"configuredUnits": 1
+			}
+		},
+		"benign-unsupported-marketing-claim": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 390,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
+		},
+		"borderline-official-compatibility": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "material-impersonation",
+						"confidence": 0.61,
+						"summary": "The official-quality wording may imply affiliation.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 395,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 188,
+				"configuredUnits": 20
+			}
+		},
+		"benign-prompt-injection-documentation": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 390,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
+		},
+		"adversarial-prompt-injection": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "moderation-manipulation",
+						"confidence": 0.99,
+						"summary": "Directly attempts to predetermine the moderation result.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 390,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 190,
+				"configuredUnits": 20
+			}
+		},
+		"prompt-injection-with-phishing-text": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "phishing-or-credential-solicitation",
+						"confidence": 0.99,
+						"summary": "Solicits administrator credentials despite injected instructions.",
+						"evidenceRefs": ["profile.description"]
+					},
+					{
+						"category": "moderation-manipulation",
+						"confidence": 0.99,
+						"summary": "Directly asks moderation to mark the listing safe.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 430,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 212,
+				"configuredUnits": 20
+			}
+		},
+		"unicode-confusable-login": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "phishing-or-credential-solicitation",
+						"confidence": 0.92,
+						"summary": "Prompts account sign-in using confusable text.",
+						"evidenceRefs": ["profile.description"]
+					},
+					{
+						"category": "malicious-or-deceptive-link",
+						"confidence": 0.97,
+						"summary": "Uses a confusable account-login host.",
+						"evidenceRefs": ["profile.authors[0].url"]
+					},
+					{
+						"category": "material-impersonation",
+						"confidence": 1,
+						"summary": "Recorded policy fixture for material-impersonation.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description", "profile.authors[0].url"]
+			},
+			"latencyMs": 440,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 222,
+				"configuredUnits": 20
+			}
+		},
+		"multilingual-phishing-es": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "phishing-or-credential-solicitation",
+						"confidence": 0.98,
+						"summary": "Solicita credenciales de administrador.",
+						"evidenceRefs": ["profile.description"]
+					}
+				],
+				"coveredEvidenceRefs": ["profile.description"]
+			},
+			"latencyMs": 445,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 196,
+				"configuredUnits": 20
+			}
+		},
+		"long-benign-markdown": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.sections.description"]
+			},
+			"latencyMs": 490,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 315,
+				"configuredUnits": 20
+			}
+		},
+		"shadow-redacted-realistic": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["profile.name", "profile.description"]
+			},
+			"latencyMs": 385,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 188,
+				"configuredUnits": 20
+			}
+		},
+		"image-clean-plugin-card": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["release.media.screenshot:0"]
+			},
+			"latencyMs": 780,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 210,
+				"configuredUnits": 35
+			}
+		},
+		"image-password-form": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["release.media.screenshot:0"]
+			},
+			"latencyMs": 820,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 245,
+				"configuredUnits": 35
+			}
+		},
+		"image-password-form-with-prompt-injection": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "moderation-manipulation",
+						"confidence": 0.99,
+						"summary": "Visible text directly attempts to predetermine the moderation result.",
+						"evidenceRefs": ["release.media.screenshot:0"]
+					}
+				],
+				"coveredEvidenceRefs": ["release.media.screenshot:0"]
+			},
+			"latencyMs": 830,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 255,
+				"configuredUnits": 35
+			}
+		},
+		"image-impersonation-badge": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [
+					{
+						"category": "material-impersonation",
+						"confidence": 0.98,
+						"summary": "The image claims official EmDash approval.",
+						"evidenceRefs": ["release.media.banner:0"]
+					},
+					{
+						"category": "misleading-media-or-claims",
+						"confidence": 0.96,
+						"summary": "Displays an unverified official-approval badge.",
+						"evidenceRefs": ["release.media.banner:0"]
+					}
+				],
+				"coveredEvidenceRefs": ["release.media.banner:0"]
+			},
+			"latencyMs": 810,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 260,
+				"configuredUnits": 35
+			}
+		},
+		"legacy-brand-logo": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["release.media.icon:0"]
+			},
+			"latencyMs": 1,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 0,
+				"configuredUnits": 0
+			}
+		},
+		"legacy-clean-icon": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": ["release.media.icon:0"]
+			},
+			"latencyMs": 1,
+			"usage": {
+				"inputTokens": 0,
+				"outputTokens": 0,
+				"totalTokens": 0,
+				"configuredUnits": 0
+			}
+		}
+	}
+}

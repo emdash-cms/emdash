@@ -184,15 +184,22 @@ describe("withEmDashRuntime (#1887)", () => {
 		expect(close).toHaveBeenCalledTimes(1);
 	});
 
-	it("uses the singleton path for a close-less scope", async () => {
+	it("runs outside-request work under a close-less scoped db", async () => {
 		const commit = vi.fn();
+		const scopedDb = { _marker: "scoped" };
 		vi.mocked(createRequestScopedDb).mockReturnValue({
-			db: { _marker: "scoped" } as never,
+			db: scopedDb as never,
 			commit,
 		});
 
-		await expect(withEmDashRuntime(() => "ok")).resolves.toBe("ok");
-		// Close-less scope is discarded — nothing to commit outside a request
-		expect(commit).not.toHaveBeenCalled();
+		let dbSeenByCallback: unknown;
+		await expect(
+			withEmDashRuntime(() => {
+				dbSeenByCallback = getRequestContext()?.db;
+				return "ok";
+			}),
+		).resolves.toBe("ok");
+		expect(dbSeenByCallback).toBe(scopedDb);
+		expect(commit).toHaveBeenCalledOnce();
 	});
 });

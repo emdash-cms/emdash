@@ -9,7 +9,9 @@
  * - Default value handling
  */
 
+import { PLUGIN_CAPABILITIES } from "@emdash-cms/plugin-types";
 import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 
@@ -180,15 +182,31 @@ describe("definePlugin", () => {
 	});
 
 	describe("capability validation", () => {
+		it.each(PLUGIN_CAPABILITIES)("accepts manifest capability %s", (capability) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					capabilities: [capability],
+				}),
+			).not.toThrow();
+		});
+
 		it("accepts valid capabilities", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["content:read", "content:write", "network:request"],
+				capabilities: [
+					"content:read",
+					"content:write",
+					"hooks.content-policy:register",
+					"network:request",
+				],
 			});
 
 			expect(plugin.capabilities).toContain("content:read");
 			expect(plugin.capabilities).toContain("content:write");
+			expect(plugin.capabilities).toContain("hooks.content-policy:register");
 			expect(plugin.capabilities).toContain("network:request");
 		});
 
@@ -224,6 +242,28 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).toContain("content:read");
 		});
 
+		it("normalizes content:revisions:read to include content:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["content:revisions:read"],
+			});
+
+			expect(plugin.capabilities).toContain("content:revisions:read");
+			expect(plugin.capabilities).toContain("content:read");
+		});
+
+		it("normalizes taxonomies:write to include taxonomies:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["taxonomies:write"],
+			});
+
+			expect(plugin.capabilities).toContain("taxonomies:write");
+			expect(plugin.capabilities).toContain("taxonomies:read");
+		});
+
 		it("normalizes media:write to include media:read", () => {
 			const plugin = definePlugin({
 				id: "test",
@@ -233,6 +273,26 @@ describe("definePlugin", () => {
 
 			expect(plugin.capabilities).toContain("media:write");
 			expect(plugin.capabilities).toContain("media:read");
+		});
+
+		it("normalizes comments:moderate to include comments:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["comments:moderate"],
+			});
+			expect(plugin.capabilities).toEqual(["comments:moderate", "comments:read"]);
+		});
+
+		it("normalizes redirects:write to include redirects:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["redirects:write"],
+			});
+
+			expect(plugin.capabilities).toContain("redirects:write");
+			expect(plugin.capabilities).toContain("redirects:read");
 		});
 
 		it("normalizes network:request:unrestricted to include network:request", () => {
@@ -517,9 +577,100 @@ describe("definePlugin", () => {
 			expect(plugin.routes.sync.handler).toBe(handler);
 			expect(plugin.routes.webhook).toBeDefined();
 		});
+
+		it("rejects MCP tools that reference a raw response route", () => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						download: {
+							permission: "plugins:manage",
+							response: "raw",
+							handler: async () => null,
+						},
+					},
+					mcp: {
+						tools: {
+							download: {
+								description: "Download a report.",
+								route: "download",
+								input: z.object({}),
+							},
+						},
+					},
+				}),
+			).toThrow("cannot reference a raw response route");
+		});
+
+		it.each([
+			{ methods: ["GET"] as const },
+			{ request: { body: "none" as const } },
+			{ request: { body: "form-data" as const } },
+		])("rejects MCP tools with an incompatible route %#", (routeOptions) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						tool: {
+							permission: "plugins:manage",
+							...routeOptions,
+							handler: async () => null,
+						},
+					},
+					mcp: {
+						tools: {
+							tool: {
+								description: "Manage a resource.",
+								route: "tool",
+								input: z.object({}),
+							},
+						},
+					},
+				}),
+			).toThrow("POST-compatible JSON route");
+		});
 	});
 
 	describe("admin passthrough", () => {
+		it.each([
+			{ response: "raw" as const },
+			{ methods: ["GET"] as const },
+			{ request: { body: "form-data" as const } },
+		])("rejects an editor panel with an incompatible route %#", (routeOptions) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						health: { ...routeOptions, handler: async () => ({ blocks: [] }) },
+					},
+					admin: {
+						editorPanels: [{ id: "health", title: "Health", route: "health" }],
+					},
+				}),
+			).toThrow("accepts POST JSON requests and returns JSON");
+		});
+
+		it.each([
+			{ response: "raw" as const },
+			{ methods: ["GET"] as const },
+			{ request: { body: "none" as const } },
+			{ request: { body: "form-data" as const } },
+		])("rejects an incompatible explicit Block Kit admin route %#", (routeOptions) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						admin: { ...routeOptions, handler: async () => ({ blocks: [] }) },
+					},
+					admin: { pages: [{ id: "overview", title: "Overview" }] },
+				}),
+			).toThrow("Block Kit admin route must accept POST JSON requests and return JSON");
+		});
+
 		it("preserves admin config", () => {
 			const plugin = definePlugin({
 				id: "test",

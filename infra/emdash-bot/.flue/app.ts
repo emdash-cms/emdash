@@ -1,6 +1,8 @@
 // Worker entry.
 //
 // Public surface:
+//   GET  /                 public workbench
+//   GET  /api/dashboard    managed issue state and safe activity
 //   GET  /health           liveness probe
 //   POST /webhook/github   GitHub App webhook ingress (signature-verified)
 //   /agents/investigate/*  Authenticated Flue agent control surface

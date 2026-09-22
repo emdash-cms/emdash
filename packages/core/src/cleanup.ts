@@ -17,7 +17,7 @@ import { MediaRepository } from "./database/repositories/media.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
-import { cleanupMediaUsageGenerations } from "./media/usage/gc.js";
+import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
 
 /**
@@ -31,9 +31,7 @@ export interface CleanupResult {
 	pendingUploadFiles: number;
 	uploadAttempts: number;
 	revisionsPruned: number;
-	mediaUsageStaleGenerations: number;
-	mediaUsageAbandonedGenerations: number;
-	mediaUsageOrphanOccurrences: number;
+	mediaUsage: number;
 }
 
 const REVISION_KEEP_COUNT = 50;
@@ -61,9 +59,7 @@ export async function runSystemCleanup(
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
 		revisionsPruned: -1,
-		mediaUsageStaleGenerations: -1,
-		mediaUsageAbandonedGenerations: -1,
-		mediaUsageOrphanOccurrences: -1,
+		mediaUsage: -1,
 	};
 
 	// 1. Passkey challenges (expire after 60s, clean anything past 5 min)
@@ -140,12 +136,10 @@ export async function runSystemCleanup(
 	}
 
 	try {
-		const usage = await cleanupMediaUsageGenerations(db);
-		result.mediaUsageStaleGenerations = usage.staleGenerations;
-		result.mediaUsageAbandonedGenerations = usage.abandonedGenerations;
-		result.mediaUsageOrphanOccurrences = usage.orphanOccurrences;
+		const mediaUsage = await cleanupMediaUsage(db);
+		result.mediaUsage = mediaUsage.status === "failed" ? -1 : mediaUsage.deletedRows;
 	} catch (error) {
-		console.error("[cleanup] Failed to clean media-usage generations:", error);
+		console.error("[cleanup] Failed to clean media usage:", error);
 	}
 
 	return result;

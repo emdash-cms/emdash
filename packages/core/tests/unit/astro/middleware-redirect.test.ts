@@ -344,6 +344,86 @@ describe("redirect middleware — issue #808", () => {
 	});
 });
 
+describe("redirect middleware — 404 logging attributes misses to the requested path", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("logs an unmatched path exactly once", async () => {
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+		const { context } = buildContext({ pathname: "/no-such-page" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await onRequest(context, next);
+
+		expect(log404).toHaveBeenCalledTimes(1);
+		expect(log404).toHaveBeenCalledWith(expect.objectContaining({ path: "/no-such-page" }));
+		// Await the fire-and-forget write before reading the table.
+		await log404.mock.results[0]!.value;
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+		expect(rows.map((r) => r.path)).toEqual(["/no-such-page"]);
+		log404.mockRestore();
+	});
+
+	it("logs a content miss under its real path across the redirect-to-/404 flow", async () => {
+		// The documented template pattern answers a content miss with
+		// Astro.redirect("/404"): the first request is a 302, the browser then
+		// requests /404, which renders with status 404.
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+
+		const miss = buildContext({ pathname: "/posts/deleted-post" });
+		const redirectNext = vi.fn(
+			async () => new Response(null, { status: 302, headers: { Location: "/404" } }),
+		);
+		await onRequest(miss.context, redirectNext);
+
+		const errorPage = buildContext({ pathname: "/404" });
+		const errorNext = vi.fn(async () => new Response("not found", { status: 404 }));
+		await onRequest(errorPage.context, errorNext);
+
+		expect(log404).toHaveBeenCalledTimes(1);
+		expect(log404).toHaveBeenCalledWith(expect.objectContaining({ path: "/posts/deleted-post" }));
+		await log404.mock.results[0]!.value;
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+		expect(rows.map((r) => r.path)).toEqual(["/posts/deleted-post"]);
+		log404.mockRestore();
+	});
+
+	it("does not log ordinary redirects", async () => {
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+		const { context } = buildContext({ pathname: "/moved" });
+		const next = vi.fn(
+			async () => new Response(null, { status: 302, headers: { Location: "/new-home" } }),
+		);
+		await onRequest(context, next);
+
+		expect(log404).not.toHaveBeenCalled();
+		log404.mockRestore();
+	});
+
+	it("does not log the site's own /404 error page render", async () => {
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+		for (const pathname of ["/404", "/404/"]) {
+			const { context } = buildContext({ pathname });
+			const next = vi.fn(async () => new Response("not found", { status: 404 }));
+			await onRequest(context, next);
+		}
+
+		expect(log404).not.toHaveBeenCalled();
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+		expect(rows).toEqual([]);
+		log404.mockRestore();
+	});
+});
+
 describe("redirect middleware — trailing-slash normalisation (issue #1271)", () => {
 	let db: Kysely<Database>;
 

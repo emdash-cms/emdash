@@ -50,6 +50,14 @@ describe("contentCreateBody schema", () => {
 		expect(result.publishedAt).toBe("2019-03-15T10:30:00+00:00");
 	});
 
+	it("accepts minute-precision ISO datetimes", () => {
+		const result = contentCreateBody.parse({
+			data: { title: "Hi" },
+			publishedAt: "2019-03-15T10:30Z",
+		});
+		expect(result.publishedAt).toBe("2019-03-15T10:30Z");
+	});
+
 	it("rejects malformed datetime strings", () => {
 		expect(() =>
 			contentCreateBody.parse({ data: { title: "Hi" }, publishedAt: "yesterday" }),
@@ -150,6 +158,77 @@ describe("localeCode validator", () => {
 	it("contentListQuery keeps the ?locale= filter casing", () => {
 		const result = contentListQuery.parse({ locale: "zh-TW" });
 		expect(result.locale).toBe("zh-TW");
+	});
+
+	it("contentListQuery parses bounded indexed field filters", () => {
+		const result = contentListQuery.parse({
+			fieldFilters: JSON.stringify({
+				priority: { in: ["urgent", "high"] },
+				score: { gte: 80 },
+				resolved: false,
+			}),
+		});
+
+		expect(result.fieldFilters).toEqual({
+			priority: { in: ["urgent", "high"] },
+			score: { gte: 80 },
+			resolved: false,
+		});
+	});
+
+	it("contentListQuery rejects malformed or unsupported field filters", () => {
+		expect(() => contentListQuery.parse({ fieldFilters: "not-json" })).toThrow();
+		expect(() =>
+			contentListQuery.parse({ fieldFilters: JSON.stringify({ priority: { in: [] } }) }),
+		).toThrow();
+		expect(() =>
+			contentListQuery.parse({ fieldFilters: JSON.stringify({ "priority;drop": "urgent" }) }),
+		).toThrow();
+	});
+
+	it("contentListQuery enforces indexed field filter boundaries", () => {
+		const twentyFilters = Object.fromEntries(
+			Array.from({ length: 20 }, (_, index) => [`field_${index}`, index]),
+		);
+		expect(
+			contentListQuery.parse({ fieldFilters: JSON.stringify(twentyFilters) }).fieldFilters,
+		).toEqual(twentyFilters);
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ ...twentyFilters, field_20: 20 }),
+			}),
+		).toThrow();
+
+		const fiftyValues = Array.from({ length: 50 }, (_, index) => index);
+		expect(
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ score: { in: fiftyValues } }),
+			}).fieldFilters,
+		).toEqual({ score: { in: fiftyValues } });
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ score: { in: [...fiftyValues, 50] } }),
+			}),
+		).toThrow();
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({
+					queue: { in: Array.from({ length: 30 }, (_, index) => `queue-${index}`) },
+					resolved: { in: Array.from({ length: 21 }, (_, index) => index % 2 === 0) },
+				}),
+			}),
+		).toThrow();
+
+		expect(
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ queue: "x".repeat(2048) }),
+			}).fieldFilters,
+		).toEqual({ queue: "x".repeat(2048) });
+		expect(() =>
+			contentListQuery.parse({
+				fieldFilters: JSON.stringify({ queue: "x".repeat(2049) }),
+			}),
+		).toThrow();
 	});
 
 	it("contentCreateBody keeps the locale casing", () => {

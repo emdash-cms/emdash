@@ -5,26 +5,29 @@
  * the `#artifact` record the release embeds: the multibase-multihash checksum,
  * the MIME content type, and the pixel dimensions. Dimensions come from
  * `image-size`, which reads only the header bytes (no decode), so it's cheap
- * and works for PNG / JPEG / WebP / GIF / AVIF.
+ * and works for PNG, JPEG, and WebP.
  *
  * Kept filesystem- and network-free so it tests against raw byte fixtures.
  * The CLI command reads files and uploads them; this module turns bytes +
- * URL into a record.
+ * artifact source into a record.
  */
 
+import type { Blob } from "@atcute/lexicons";
 import { imageSize } from "image-size";
 
-import { sha256Multihash } from "../multihash.js";
+import { multihashFromBlobCid, sha256Multihash } from "../multihash.js";
 
-/** An artifact record ready to embed in a release. Mirrors `release.json#artifact`. */
-export interface ArtifactRecord {
-	url: string;
+interface ArtifactRecordFields {
 	checksum: string;
 	contentType: string;
 	width: number;
 	height: number;
 	lang?: string;
 }
+
+/** An artifact record ready to embed in a release. Mirrors `release.json#imageArtifact`. */
+export type ArtifactRecord = ArtifactRecordFields &
+	({ blob: Blob; url?: string } | { blob?: Blob; url: string });
 
 /**
  * Image formats `image-size` reports that we accept as plugin artifacts, mapped
@@ -37,17 +40,19 @@ const MAX_ARTIFACT_DIMENSION = 8192;
 const TYPE_TO_CONTENT_TYPE: Record<string, string> = {
 	png: "image/png",
 	jpg: "image/jpeg",
-	gif: "image/gif",
 	webp: "image/webp",
-	avif: "image/avif",
 };
 
 /** Thrown when an artifact file isn't a supported image. */
 export class ArtifactError extends Error {
 	override readonly name = "ArtifactError";
-	readonly code: "ARTIFACT_UNSUPPORTED" | "ARTIFACT_UNREADABLE";
+	readonly code:
+		| "ARTIFACT_UNSUPPORTED"
+		| "ARTIFACT_UNREADABLE"
+		| "ARTIFACT_SOURCE_MISSING"
+		| "ARTIFACT_CHECKSUM_MISMATCH";
 
-	constructor(code: "ARTIFACT_UNSUPPORTED" | "ARTIFACT_UNREADABLE", message: string) {
+	constructor(code: ArtifactError["code"], message: string) {
 		super(message);
 		this.code = code;
 	}
@@ -76,7 +81,7 @@ export function measureImage(bytes: Uint8Array): {
 	if (type === undefined || !(type in TYPE_TO_CONTENT_TYPE)) {
 		throw new ArtifactError(
 			"ARTIFACT_UNSUPPORTED",
-			`Artifact image format ${type ? `"${type}"` : "(unknown)"} is not supported. Use PNG, JPEG, WebP, GIF, or AVIF.`,
+			`Artifact image format ${type ? `"${type}"` : "(unknown)"} is not supported. Use PNG, JPEG, or WebP.`,
 		);
 	}
 	const { width, height } = result;
@@ -105,17 +110,30 @@ export function measureImage(bytes: Uint8Array): {
  */
 export function buildArtifactRecord(input: {
 	bytes: Uint8Array;
-	url: string;
+	blob?: Blob;
+	url?: string;
 	lang?: string;
 }): ArtifactRecord {
+	if (!input.blob && !input.url) {
+		throw new ArtifactError("ARTIFACT_SOURCE_MISSING", "Artifact must provide a blob or URL.");
+	}
 	const { contentType, width, height } = measureImage(input.bytes);
-	const record: ArtifactRecord = {
-		url: input.url,
-		checksum: sha256Multihash(input.bytes),
+	const checksum = sha256Multihash(input.bytes);
+	if (input.blob && multihashFromBlobCid(input.blob.ref.$link) !== checksum) {
+		throw new ArtifactError(
+			"ARTIFACT_CHECKSUM_MISMATCH",
+			"Uploaded blob CID does not match the image bytes.",
+		);
+	}
+	const fields: ArtifactRecordFields = {
+		checksum,
 		contentType,
 		width,
 		height,
 	};
-	if (input.lang !== undefined) record.lang = input.lang;
+	if (input.lang !== undefined) fields.lang = input.lang;
+	const record: ArtifactRecord = input.blob
+		? { ...fields, blob: input.blob, ...(input.url ? { url: input.url } : {}) }
+		: { ...fields, url: input.url! };
 	return record;
 }

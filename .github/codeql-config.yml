@@ -1,0 +1,4 @@
+name: CodeQL config
+
+paths-ignore:
+  - apps/release-action/dist/**

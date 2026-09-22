@@ -10,7 +10,7 @@ const portableTextBlockSchema: z.ZodType<PortableTextBlock> = z
 		_type: z.string(),
 		_key: z.string(),
 	})
-	.passthrough();
+	.loose();
 
 /**
  * Portable Text field

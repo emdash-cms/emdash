@@ -10,6 +10,7 @@ import {
 	isDirNonEmpty,
 	parseTargetArg,
 	sanitizePackageName,
+	setWorkerLoader,
 	writeEncryptionKey,
 } from "../src/utils.js";
 
@@ -301,5 +302,74 @@ describe("writeEncryptionKey", () => {
 		expect(result).toBe("wrote");
 		const content = read();
 		expect(content.endsWith("\n")).toBe(true);
+	});
+});
+
+describe("setWorkerLoader", () => {
+	let tempDir: string;
+	const fileName = "wrangler.jsonc";
+	const legacy = `{
+	// Worker Loader for plugin sandboxing
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	"triggers": { "crons": ["* * * * *"] },
+}
+`;
+	const commented = `{
+	// Sandboxed plugins require Worker Loader, available on Workers paid plans. Uncomment to enable:
+	// "worker_loaders": [{ "binding": "LOADER" }],
+	"triggers": { "crons": ["* * * * *"] },
+}
+`;
+
+	beforeEach(() => {
+		tempDir = mkdtempSync(join(tmpdir(), "create-emdash-loader-"));
+	});
+
+	afterEach(() => {
+		rmSync(tempDir, { recursive: true, force: true });
+	});
+
+	function write(content: string): void {
+		writeFileSync(join(tempDir, fileName), content);
+	}
+
+	function read(): string {
+		return readFileSync(join(tempDir, fileName), "utf-8");
+	}
+
+	it("does nothing when wrangler.jsonc is absent", () => {
+		expect(setWorkerLoader(tempDir, true)).toBe("absent");
+		expect(setWorkerLoader(tempDir, false)).toBe("absent");
+	});
+
+	it("disables the legacy multi-line binding", () => {
+		write(legacy);
+
+		expect(setWorkerLoader(tempDir, false)).toBe("disabled");
+		expect(read()).not.toMatch(/^\s*"worker_loaders"\s*:/m);
+		expect(read()).toMatch(/^\s*\/\/\s*"worker_loaders"\s*:/m);
+		expect(read()).toContain(`"crons": ["* * * * *"]`);
+	});
+
+	it("enables the canonical commented binding", () => {
+		write(commented);
+
+		expect(setWorkerLoader(tempDir, true)).toBe("enabled");
+		expect(read()).toMatch(/^\s*"worker_loaders"\s*:/m);
+		expect(read()).not.toMatch(/^\s*\/\/\s*"worker_loaders"\s*:/m);
+	});
+
+	it("round-trips without duplicating the declaration", () => {
+		write(commented);
+
+		setWorkerLoader(tempDir, true);
+		setWorkerLoader(tempDir, false);
+
+		expect(read().match(/worker_loaders/g)).toHaveLength(1);
+		expect(read().endsWith("\n")).toBe(true);
 	});
 });

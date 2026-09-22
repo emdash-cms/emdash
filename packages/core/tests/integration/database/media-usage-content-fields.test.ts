@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { IdentifierError } from "../../../src/database/validate.js";
 import {
+	buildContentMediaUsageFieldFingerprint,
 	loadContentMediaUsageFields,
 	MediaUsageFieldDiscoveryError,
 } from "../../../src/media/usage/content-fields.js";
@@ -151,5 +152,47 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			.execute();
 
 		await expect(loadContentMediaUsageFields(ctx.db, "posts")).rejects.toThrow(IdentifierError);
+	});
+
+	it("fingerprints exact extraction and display-field definitions independent of row order", async () => {
+		const first = await buildContentMediaUsageFieldFingerprint({
+			extractionFields: [
+				{
+					slug: "sections",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "secondary", type: "image" },
+							{ slug: "primary", type: "image" },
+						],
+					},
+				},
+				{ slug: "hero", type: "image" },
+			],
+			displayFieldSlugs: ["title", "name"],
+		});
+		const reordered = await buildContentMediaUsageFieldFingerprint({
+			extractionFields: [
+				{ slug: "hero", type: "image" },
+				{
+					slug: "sections",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "primary", type: "image" },
+							{ slug: "secondary", type: "image" },
+						],
+					},
+				},
+			],
+			displayFieldSlugs: ["name", "title"],
+		});
+		const changed = await buildContentMediaUsageFieldFingerprint({
+			extractionFields: [{ slug: "hero", type: "file" }],
+			displayFieldSlugs: ["name", "title"],
+		});
+
+		expect(first).toBe(reordered);
+		expect(changed).not.toBe(first);
 	});
 });

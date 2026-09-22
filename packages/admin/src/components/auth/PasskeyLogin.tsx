@@ -20,6 +20,7 @@ import {
 	isPasskeyEnvironmentUsable,
 	isWebAuthnSecureContext,
 } from "../../lib/webauthn-environment";
+import { InsecurePasskeyContextMessage } from "./PasskeyContextMessage.js";
 
 // ============================================================================
 // Constants
@@ -301,16 +302,7 @@ export function PasskeyLogin({
 				<h3 className="font-medium text-kumo-danger">{t`Passkeys Not Available Here`}</h3>
 				<p className="mt-1 text-sm text-kumo-subtle">
 					{insecureContext ? (
-						<>
-							{t`Passkeys require a`}{" "}
-							<strong className="text-kumo-default">{t`secure context`}</strong>
-							{t`: use`} <strong className="text-kumo-default">HTTPS</strong>
-							{t`, or open the admin at`}{" "}
-							<strong className="text-kumo-default">http://localhost</strong>{" "}
-							{t`(with your dev port).`}
-							{t`Plain`} <code className="text-xs">http://</code>{" "}
-							{t`on a custom hostname is not treated as secure, even on loopback.`}
-						</>
+						<InsecurePasskeyContextMessage />
 					) : (
 						<>
 							{t`Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge.`}

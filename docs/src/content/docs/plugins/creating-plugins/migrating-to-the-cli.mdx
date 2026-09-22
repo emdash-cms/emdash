@@ -12,7 +12,7 @@ This guide is for authors of **sandboxed** plugins written against the previous 
 	`PluginDefinition` shape. Nothing on this page applies to them.
 </Aside>
 
-For the full list of changes in each package, see the [EmDash changelog](https://github.com/emdash-cms/emdash/blob/main/CHANGELOG.md).
+For the full list of changes in each package, see its entry on the [releases page](https://github.com/emdash-cms/emdash/releases).
 
 ## Breaking changes
 
@@ -33,11 +33,34 @@ pnpm add -D @emdash-cms/plugin-cli
 
 Replace `emdash-registry` with `emdash-plugin` everywhere you call it. Every subcommand keeps its name (`bundle`, `publish`, `login`, `whoami`, `switch`, `validate`), and `init`, `build`, and `dev` are added. See [The plugin CLI](/plugins/creating-plugins/cli/).
 
-### Changed: sandboxed plugins are defined with `satisfies SandboxedPlugin`
+### Renamed: capability names use resource-first spelling
+
+Earlier manifests used capability names such as `read:content` and `network:fetch`. The authoring manifest accepts only the current names, although the runtime still normalizes legacy names in already-published bundles during the compatibility window.
+
+#### What should I do?
+
+Replace every legacy name in the manifest:
+
+| Earlier name | Current name |
+| --- | --- |
+| `network:fetch` | `network:request` |
+| `network:fetch:any` | `network:request:unrestricted` |
+| `read:content` | `content:read` |
+| `write:content` | `content:write` |
+| `read:media` | `media:read` |
+| `write:media` | `media:write` |
+| `read:users` | `users:read` |
+| `email:provide` | `hooks.email-transport:register` |
+| `email:intercept` | `hooks.email-events:register` |
+| `page:inject` | `hooks.page-fragments:register` |
+
+Use `network:request` with a non-empty `allowedHosts` list. Use `network:request:unrestricted` with an empty list only when an operator chooses the destination at runtime. [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the current permissions and network rules.
+
+### Changed: sandboxed plugins use an explicit `SandboxedPlugin` annotation
 
 Earlier releases wrapped the plugin's hooks and routes in `definePlugin()` imported from `emdash`, with each handler's parameters annotated by hand.
 
-A sandboxed plugin is now a bare default export annotated with `satisfies SandboxedPlugin`. The type comes from `emdash/plugin`, a type-only entry point that the bundler erases. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations.
+A sandboxed plugin assigns its definition to a `SandboxedPlugin`-typed constant and exports that constant as default. Import the type from `emdash/plugin` with `import type`; the bundler erases that import. The same subpath also exports the lightweight `pluginRoute()` and `pluginResponse()` runtime helpers. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations. The explicit annotation also keeps generated declarations portable under isolated package-manager layouts.
 
 #### What should I do?
 
@@ -48,11 +71,13 @@ import { definePlugin, type ContentHookEvent, type PluginContext } from "emdash"
 import type { SandboxedPlugin } from "emdash/plugin";
 ```
 
-Replace the `definePlugin()` wrapper with a bare object and a `satisfies` annotation:
+Replace the `definePlugin()` wrapper with an explicitly typed constant:
 
-```ts del={1} ins={2} "} satisfies SandboxedPlugin;"
+```ts del={1} ins={2-4}
 export default definePlugin({ /* hooks, routes */ });
-export default { /* hooks, routes */ } satisfies SandboxedPlugin;
+const plugin: SandboxedPlugin = { /* hooks, routes */ };
+
+export default plugin;
 ```
 
 Remove the parameter annotations from every handler:
@@ -67,7 +92,7 @@ The result is one default-exported object:
 ```ts title="src/plugin.ts"
 import type { SandboxedPlugin } from "emdash/plugin";
 
-export default {
+const plugin: SandboxedPlugin = {
 	hooks: {
 		"content:beforeSave": {
 			handler: async (event, ctx) => {
@@ -75,7 +100,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
 To name an event type in a helper function, import it from `emdash/plugin`:
@@ -164,13 +191,13 @@ These are removed. They were helper aliases for the previous `definePlugin` shap
 
 #### What should I do?
 
-Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plugin's default export is already typed by its `satisfies SandboxedPlugin` annotation, so there is no replacement for `isStandardPluginDefinition`; identify a plugin by its structure (`{ hooks?, routes? }`) if you need to.
+Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plugin's exported definition is already typed by its `SandboxedPlugin` annotation, so there is no replacement for `isStandardPluginDefinition`; identify a plugin by its structure (`{ hooks?, routes? }`) if you need to.
 
-### Renamed: the runtime `SandboxedPlugin` type is now `SandboxedPluginInstance`
+### Renamed: sandbox-runner handles use `SandboxedPluginInstance`
 
 This affects only authors of a custom `SandboxRunner`, such as `@emdash-cms/cloudflare`. Most plugin authors can skip it.
 
-`SandboxedPlugin` from `emdash` now refers to the author-facing source shape. The runtime handle returned by `SandboxRunner.load` is `SandboxedPluginInstance`.
+The author-facing `SandboxedPlugin` type is available from the `emdash/plugin` authoring entry point. The runtime handle returned by `SandboxRunner.load` is exported from `emdash` as `SandboxedPluginInstance`.
 
 #### What should I do?
 
@@ -199,7 +226,20 @@ export default defineConfig({
 });
 ```
 
-If your plugin accepted configuration through its factory, that configuration moves to the admin UI's plugin settings. Read it at runtime through `ctx.kv` or settings instead. See [Settings](/plugins/creating-plugins/settings/).
+If your plugin accepted configuration through its factory, move that configuration to an admin settings page and read it from `ctx.settings`. Sandboxed plugin descriptors are plain objects and cannot receive constructor options. See [Settings](/plugins/creating-plugins/settings/).
+
+## Verify the migrated plugin
+
+Run the plugin's tests, validate the authoring manifest, and execute the complete build and bundle checks:
+
+```sh
+pnpm test
+pnpm exec emdash-plugin validate
+pnpm exec emdash-plugin build
+pnpm exec emdash-plugin bundle --validate-only
+```
+
+Then install the local package into a development site and exercise each migrated hook and route. The build can confirm their names and shapes, but it cannot confirm that a route returns the intended data or that a hook preserves content correctly.
 
 ## Next
 

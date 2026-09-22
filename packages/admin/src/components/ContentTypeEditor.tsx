@@ -160,6 +160,9 @@ export function ContentTypeEditor({
 	const [labelSingular, setLabelSingular] = React.useState(collection?.labelSingular ?? "");
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
+	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
+	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
+	const [group, setGroup] = React.useState(collection?.group ?? "");
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -200,6 +203,9 @@ export function ContentTypeEditor({
 			labelSingular !== (collection.labelSingular ?? "") ||
 			description !== (collection.description ?? "") ||
 			urlPattern !== (collection.urlPattern ?? "") ||
+			routable !== (collection.routable ?? true) ||
+			editLocking !== (collection.editLocking ?? true) ||
+			group !== (collection.group ?? "") ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -216,6 +222,9 @@ export function ContentTypeEditor({
 		labelSingular,
 		description,
 		urlPattern,
+		routable,
+		editLocking,
+		group,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -261,6 +270,9 @@ export function ContentTypeEditor({
 				labelSingular: labelSingular || undefined,
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
+				routable,
+				editLocking,
+				group: group.trim() || undefined,
 				supports,
 				hasSeo,
 			});
@@ -270,6 +282,9 @@ export function ContentTypeEditor({
 				labelSingular: labelSingular || undefined,
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
+				routable,
+				editLocking,
+				group: group.trim() || null,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -296,6 +311,7 @@ export function ContentTypeEditor({
 	};
 
 	const handleEditField = (field: SchemaField) => {
+		if (field.unsupportedType) return;
 		setEditingField(field);
 		setFieldEditorOpen(true);
 	};
@@ -325,10 +341,6 @@ export function ContentTypeEditor({
 
 	return (
 		<div className="space-y-6">
-			{/* Sticky header keeps the primary save action in view while users
-			    scroll through the settings + fields panels. The bottom-of-form
-			    save button is preserved below for keyboard / screen-reader users
-			    so DOM order still ends with a submit control. */}
 			<EditorHeader
 				leading={
 					<RouterLinkButton
@@ -418,6 +430,34 @@ export function ContentTypeEditor({
 								disabled={isFromCode}
 							/>
 
+							<Switch
+								checked={routable}
+								onCheckedChange={setRoutable}
+								disabled={isFromCode}
+								label={
+									<div>
+										<span className="text-sm font-medium">{t`Routable`}</span>
+										<p className="text-xs text-kumo-subtle">
+											{t`Require a slug before content can be published`}
+										</p>
+									</div>
+								}
+							/>
+
+							<Switch
+								checked={editLocking}
+								onCheckedChange={setEditLocking}
+								disabled={isFromCode}
+								label={
+									<div>
+										<span className="text-sm font-medium">{t`Edit locking`}</span>
+										<p className="text-xs text-kumo-subtle">
+											{t`Hold an entry while someone is editing it, and refuse other writers`}
+										</p>
+									</div>
+								}
+							/>
+
 							<div>
 								<Input
 									label={t`URL Pattern`}
@@ -432,8 +472,24 @@ export function ContentTypeEditor({
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">
-									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}`}
+									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`}
 								</p>
+							</div>
+
+							<div className="space-y-3">
+								<Label>{t`Navigation`}</Label>
+								<div>
+									<Input
+										label={t`Group`}
+										value={group}
+										onChange={(e) => setGroup(e.target.value)}
+										placeholder={t`Calendar`}
+										disabled={isFromCode}
+									/>
+									<p className="text-xs text-kumo-subtle mt-1">
+										{t`Content types with the same group share a collapsible folder in the sidebar`}
+									</p>
+								</div>
 							</div>
 
 							<div className="space-y-3">
@@ -726,7 +782,10 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 					</code>
 				</div>
 				<div className="flex items-center space-x-2 mt-1">
-					<span className="text-xs text-kumo-subtle capitalize">{field.type}</span>
+					<span className={cn("text-xs text-kumo-subtle", !field.unsupportedType && "capitalize")}>
+						{field.unsupportedType?.type ?? field.type}
+					</span>
+					{field.unsupportedType && <Badge variant="secondary">{t`Unsupported`}</Badge>}
 					{field.required && <Badge variant="secondary">{t`Required`}</Badge>}
 					{field.unique && <Badge variant="secondary">{t`Unique`}</Badge>}
 					{field.searchable && <Badge variant="secondary">{t`Searchable`}</Badge>}
@@ -738,6 +797,7 @@ function FieldRow({ field, isFromCode, onEdit, onDelete }: FieldRowProps) {
 						variant="ghost"
 						shape="square"
 						onClick={onEdit}
+						disabled={Boolean(field.unsupportedType)}
 						aria-label={t`Edit ${field.label} field`}
 					>
 						<Pencil className="h-4 w-4" />

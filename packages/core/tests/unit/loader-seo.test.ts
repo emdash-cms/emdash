@@ -3,6 +3,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { SeoRepository } from "../../src/database/repositories/seo.js";
 import { emdashLoader } from "../../src/loader.js";
+import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { runWithContext } from "../../src/request-context.js";
 import {
 	describeEachDialect,
@@ -135,5 +136,35 @@ describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 		// The SEO panel value lands on the nested object, distinct from the field.
 		expect((data.seo as Record<string, unknown>).title).toBe("panel value");
 		expect((data.seo as Record<string, unknown>).noIndex).toBe(true);
+	});
+
+	it("primes the request-scoped SEO panel cache keyed by the content-row id", async () => {
+		const post = await createPublishedPost("Primed Post");
+		await seoRepo.upsert("post", post.id, {
+			title: "Panel Title",
+			canonical: "/elsewhere",
+		});
+
+		// Load and peek within ONE request context — exactly the shape of a
+		// page render, where the template's getEmDashEntry() call and the
+		// <EmDashHead> overlay share the request.
+		const loader = emdashLoader();
+		await runWithContext({ db: ctx.db }, async () => {
+			await loader.loadEntry!({ filter: { type: "post", id: post.slug! } });
+
+			const panel = await peekSeoPanel("post", post.id);
+			expect(panel).toMatchObject({ title: "Panel Title", canonical: "/elsewhere" });
+		});
+	});
+
+	it("primes nothing when the entry has no SEO row", async () => {
+		const post = await createPublishedPost("Unprimed Post");
+
+		const loader = emdashLoader();
+		await runWithContext({ db: ctx.db }, async () => {
+			await loader.loadEntry!({ filter: { type: "post", id: post.slug! } });
+
+			expect(await peekSeoPanel("post", post.id)).toBeNull();
+		});
 	});
 });

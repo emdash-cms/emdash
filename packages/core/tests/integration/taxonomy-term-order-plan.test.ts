@@ -89,12 +89,17 @@ function bindable(p: unknown): unknown {
  * Plan of the last captured query whose SQL matches — the repository's real
  * emitted SQL, so the assertions can't drift from a hand-copied literal.
  */
-function planOf(match: (sql: string) => boolean): string {
+function queryOf(match: (sql: string) => boolean): CapturedQuery {
 	const query = captured.findLast((q) => match(q.sql));
 	expect(query, "expected a matching query to have been emitted").toBeDefined();
+	return query!;
+}
+
+function planOf(match: (sql: string) => boolean): string {
+	const query = queryOf(match);
 	const rows = sqlite
-		.prepare(`EXPLAIN QUERY PLAN ${query!.sql}`)
-		.all(...query!.parameters.map(bindable)) as { detail: string }[];
+		.prepare(`EXPLAIN QUERY PLAN ${query.sql}`)
+		.all(...query.parameters.map(bindable)) as { detail: string }[];
 	return rows.map((r) => r.detail).join("\n");
 }
 
@@ -105,6 +110,31 @@ it("seeks findByName through the composite index rather than scanning the locale
 	const plan = planOf((sql) => sql.includes('"name" = ?') && sql.includes("sort_order"));
 	expect(plan).toContain("idx_taxonomies_name_locale");
 	// The locale-only index reads every term in the locale to filter `name`.
+	expect(plan).not.toContain("idx_taxonomies_locale");
+	expect(plan).not.toContain("SCAN taxonomies");
+	expect(plan).toContain("TEMP B-TREE");
+});
+
+it("bounds manual keyset pages while seeking the taxonomy index", async () => {
+	const terms = await repo.findByName("category", { locale: "en" });
+	const cursor = terms[0]!;
+	const match = (query: string) => query.includes('"sort_order" > ?') && query.includes("limit ?");
+
+	captured = [];
+	await repo.findPageByName("category", {
+		locale: "en",
+		limit: 2,
+		cursor: {
+			sortOrder: cursor.sortOrder,
+			label: cursor.label,
+			id: cursor.id,
+		},
+	});
+
+	const query = queryOf(match);
+	expect(query.parameters.at(-1)).toBe(3);
+	const plan = planOf(match);
+	expect(plan).toContain("idx_taxonomies_name_locale");
 	expect(plan).not.toContain("idx_taxonomies_locale");
 	expect(plan).not.toContain("SCAN taxonomies");
 	expect(plan).toContain("TEMP B-TREE");

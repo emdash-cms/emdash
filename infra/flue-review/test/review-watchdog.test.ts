@@ -24,4 +24,8 @@ describe("review watchdog", () => {
 		expect(deadline).toBe(3 * 60_000);
 		expect(isReviewAttemptStale(1_000, 1_000 + deadline, "hydrating")).toBe(true);
 	});
+
+	it("allows a review publisher to wait through GitHub's hourly rate-limit window", () => {
+		expect(reviewStaleAfter("posting_review")).toBeGreaterThan(60 * 60_000);
+	});
 });

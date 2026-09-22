@@ -1,5 +1,17 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.6
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
+## 0.2.5
+
+### Patch Changes
+
+- [#2173](https://github.com/emdash-cms/emdash/pull/2173) [`c91d56b`](https://github.com/emdash-cms/emdash/commit/c91d56bb30b9a865c6e7cbb8c490fb6cc6126611) Thanks [@masonjames](https://github.com/masonjames)! - Fixes the documented `@emdash-cms/plugin-forms/ui` import so standalone forms can be embedded outside Portable Text content.
+
 ## 0.2.4
 
 ### Patch Changes

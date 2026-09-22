@@ -32,6 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
@@ -54,6 +55,7 @@ declare global {
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
+const COMMENT_SUBMISSION_PATH = /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/;
 
 function isUnsafeMethod(method: string): boolean {
 	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
@@ -105,10 +107,13 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
+	"/_emdash/api/health",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
-	// Public site search — read-only. The query layer hardcodes status='published'
-	// so unauthenticated callers only see published content. Admin endpoints
+	"/_emdash/api/visual-editing/toolbar-labels",
+	// Public site search — read-only. Unauthenticated callers only see
+	// published content: /search forces status='published' without the
+	// content:read_drafts permission and /suggest hardcodes it. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
 	"/_emdash/api/search/suggest",
@@ -190,6 +195,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
+		}
+		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+			return handlePublicRouteAuth(context, next);
+		}
+		// Search filters drafts by permission, so resolve the session user when
+		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
+		// are not resolved on public routes; token callers continue to receive
+		// published results only.
+		if (url.pathname === "/_emdash/api/search") {
+			return handlePublicRouteAuth(context, next);
 		}
 		return next();
 	}
@@ -286,7 +301,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			response.headers.set(
 				"Content-Security-Policy",
 				buildEmDashCsp(
-					context.locals.emdash?.config.experimental?.registry,
+					getRegistryConfigInput(
+						context.locals.emdash?.config.registry,
+						context.locals.emdash?.config.experimental?.registry,
+					),
 					getConfiguredStorageEndpoint(
 						context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
@@ -304,7 +322,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		response.headers.set(
 			"Content-Security-Policy",
 			buildEmDashCsp(
-				context.locals.emdash?.config.experimental?.registry,
+				getRegistryConfigInput(
+					context.locals.emdash?.config.registry,
+					context.locals.emdash?.config.experimental?.registry,
+				),
 				getConfiguredStorageEndpoint(
 					context.locals.emdash?.config.storage,
 					context.locals.emdash?.storage,

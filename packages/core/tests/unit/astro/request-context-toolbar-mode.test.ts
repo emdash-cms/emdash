@@ -1,5 +1,5 @@
 /**
- * Tests for the `toolbar` config modes (Discussion #1742).
+ * Tests for the `toolbar` config modes.
  *
  * - `"server"` (default): current behavior — the toolbar is injected
  *   server-side for authenticated editors.
@@ -12,6 +12,8 @@
  * The middleware reads the mode from `virtual:emdash/config` at module scope,
  * so each case loads a fresh module instance via `vi.resetModules()`.
  */
+import { runInNewContext } from "node:vm";
+
 import { describe, it, expect, vi } from "vitest";
 
 type Middleware = (context: unknown, next: () => Promise<Response>) => Promise<Response> | Response;
@@ -164,6 +166,108 @@ describe("toolbar bootstrap script", () => {
 		// Throws SyntaxError if the template literal produced broken JS.
 		// eslint-disable-next-line typescript/no-implied-eval -- deliberate parse-only syntax check of generated script, never invoked
 		expect(() => new Function(script)).not.toThrow();
+	});
+
+	it("renders controls from the editor's localized label payload", async () => {
+		const { renderToolbarBootstrap } =
+			await import("../../../src/visual-editing/toolbar-bootstrap.js");
+		const html = renderToolbarBootstrap();
+		const open = html.indexOf("<script>");
+		const close = html.lastIndexOf("</script>");
+		const script = html.slice(open + "<script>".length, close);
+		const elements: Array<{
+			tag: string;
+			textContent?: string;
+			title?: string;
+			attributes: Record<string, string>;
+			style: { cssText?: string };
+			appendChild(child: unknown): void;
+			addEventListener(): void;
+			setAttribute(name: string, value: string): void;
+		}> = [];
+		const document = {
+			getElementById: () => null,
+			createElement: (tag: string) => {
+				const element = {
+					tag,
+					attributes: {} as Record<string, string>,
+					style: {},
+					appendChild: () => {},
+					addEventListener: () => {},
+					setAttribute(name: string, value: string) {
+						this.attributes[name] = value;
+					},
+				};
+				elements.push(element);
+				return element;
+			},
+			body: { appendChild: () => {} },
+		};
+		const stored = new Map([
+			["emdash-editor", "1"],
+			[
+				"emdash-toolbar-labels",
+				JSON.stringify({ editMode: "Editar", hideToolbar: "Ocultar barra" }),
+			],
+		]);
+
+		runInNewContext(script, {
+			document,
+			localStorage: {
+				getItem: (key: string) => stored.get(key) ?? null,
+				setItem: () => {},
+				removeItem: () => {},
+			},
+		});
+
+		const buttons = elements.filter((element) => element.tag === "button");
+		expect(buttons[0]?.textContent).toBe("Editar");
+		expect(buttons[1]?.title).toBe("Ocultar barra");
+		expect(buttons[1]?.attributes["aria-label"]).toBe("Ocultar barra");
+		expect(html).not.toContain('editBtn.textContent = "Edit"');
+		expect(html).not.toContain('closeBtn.title = "Hide toolbar"');
+	});
+
+	it("migrates browsers with the legacy editor flag to localized labels", async () => {
+		const { renderToolbarBootstrap } =
+			await import("../../../src/visual-editing/toolbar-bootstrap.js");
+		const html = renderToolbarBootstrap();
+		const open = html.indexOf("<script>");
+		const close = html.lastIndexOf("</script>");
+		const script = html.slice(open + "<script>".length, close);
+		const buttons: Array<{ textContent?: string; title?: string }> = [];
+		const document = {
+			getElementById: () => null,
+			createElement: (tag: string) => {
+				const element = {
+					style: {},
+					appendChild: () => {},
+					addEventListener: () => {},
+					setAttribute: () => {},
+				};
+				if (tag === "button") buttons.push(element);
+				return element;
+			},
+			body: { appendChild: () => {} },
+		};
+		const stored = new Map([["emdash-editor", "1"]]);
+
+		runInNewContext(script, {
+			document,
+			localStorage: {
+				getItem: (key: string) => stored.get(key) ?? null,
+				setItem: (key: string, value: string) => stored.set(key, value),
+				removeItem: () => {},
+			},
+			fetch: async () => ({
+				ok: true,
+				json: async () => ({ data: { editMode: "Editar", hideToolbar: "Ocultar barra" } }),
+			}),
+		});
+
+		await vi.waitFor(() => expect(buttons).toHaveLength(2));
+		expect(buttons[0]?.textContent).toBe("Editar");
+		expect(buttons[1]?.title).toBe("Ocultar barra");
 	});
 });
 

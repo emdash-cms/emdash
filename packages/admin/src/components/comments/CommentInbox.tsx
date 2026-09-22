@@ -5,10 +5,10 @@
  * table with row actions, bulk selection, and detail slide-over.
  */
 
-import { Badge, Button, Checkbox, Input, Select, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Select, Tabs } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, Check, Trash, Warning } from "@phosphor-icons/react";
+import { Check, Trash, Warning } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type {
@@ -21,6 +21,7 @@ import { cn } from "../../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
+import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
 import { CommentDetail } from "./CommentDetail.js";
 
 // ---------------------------------------------------------------------------
@@ -153,34 +154,6 @@ export function CommentInbox({
 				</div>
 			</div>
 
-			{/* Filters row */}
-			<div className="flex items-center gap-3 flex-wrap">
-				{/* Search */}
-				<div className="relative max-w-xs flex-1 min-w-[200px]">
-					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-					<Input
-						type="search"
-						placeholder={t`Search comments...`}
-						aria-label={t`Search comments`}
-						value={searchQuery}
-						onChange={(e) => onSearchChange(e.target.value)}
-						className="ps-9"
-					/>
-				</div>
-
-				{/* Collection filter */}
-				{Object.keys(collections).length > 1 && (
-					<div className="w-48">
-						<Select
-							value={collectionFilter}
-							onValueChange={(v) => onCollectionFilterChange(v ?? "")}
-							items={collectionItems}
-							aria-label={t`Filter by collection`}
-						/>
-					</div>
-				)}
-			</div>
-
 			{/* Tabs */}
 			<Tabs
 				variant="underline"
@@ -221,6 +194,24 @@ export function CommentInbox({
 					},
 				]}
 			/>
+
+			<TableToolbar>
+				<TableToolbarSearch
+					placeholder={t`Search comments...`}
+					aria-label={t`Search comments`}
+					value={searchQuery}
+					onChange={(e) => onSearchChange(e.target.value)}
+				/>
+				{Object.keys(collections).length > 1 && (
+					<Select
+						size="sm"
+						value={collectionFilter}
+						onValueChange={(v) => onCollectionFilterChange(v ?? "")}
+						items={collectionItems}
+						aria-label={t`Filter by collection`}
+					/>
+				)}
+			</TableToolbar>
 
 			{/* Bulk action bar */}
 			{selected.size > 0 && (

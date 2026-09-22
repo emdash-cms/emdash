@@ -2,7 +2,6 @@ dist/
 .wrangler/
 .flue-vite/
 .flue-vite*.wrangler.jsonc
-worker-configuration.d.ts
 .dev.vars
 .dev.vars.*
 .env

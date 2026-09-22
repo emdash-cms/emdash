@@ -9,13 +9,17 @@ import type {
 	ReleaseProvenance,
 	VerifiedProvenance,
 } from "../src/index.js";
-import { verifyPackageReleaseRecords } from "../src/index.js";
+import { inspectPackageReleaseRecords, verifyPackageReleaseRecords } from "../src/index.js";
+import { verifyPackageReleaseRecords as verifyPackageReleaseRecordsWithExplicitVerifier } from "../src/records-entry.js";
 
 const publisherDid = "did:plc:publisher";
 const packageSlug = "gallery";
 const version = "1.2.3";
 const rkey = `${packageSlug}:${version}`;
 const repository = "https://github.com/example/gallery";
+const legacyPublisherDid = "did:plc:n4mihg5idgr5ne4jigcmbh4k";
+const legacyPackageSlug = "ai-search";
+const legacyProfileCid = "bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a";
 const provenance: ReleaseProvenance = {
 	predicateType: "https://slsa.dev/provenance/v1",
 	url: "https://github.com/example/gallery/attestation.sigstore.json",
@@ -80,6 +84,23 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("keeps unattested releases available through the runtime-neutral entrypoint", async () => {
+		const report = await verifyPackageReleaseRecordsWithExplicitVerifier({
+			publisherDid,
+			package: packageSlug,
+			version,
+			rkey,
+			profile: cloneProfile(),
+			release: cloneRelease(),
+		});
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			code: "PROVENANCE_ABSENT_OPTIONAL",
+		});
+	});
+
 	it.each([
 		["profile", { profile: { nope: true } }, "PROFILE_LEXICON_INVALID"],
 		["release", { release: { nope: true } }, "RELEASE_LEXICON_INVALID"],
@@ -125,6 +146,64 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("rejects an artifact with no retrieval source", async () => {
+		const release = cloneRelease();
+		delete release.artifacts.package.url;
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "RELEASE_ARTIFACT_SOURCE_MISSING",
+		});
+	});
+
+	it("rejects a blob checksum that does not match the blob CID", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.blob = {
+			$type: "blob",
+			ref: { $link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy" },
+			mimeType: "application/gzip",
+			size: 24_000,
+		};
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "CHECKSUM_MISMATCH",
+		});
+	});
+
+	it("rejects unknown authentication methods without trusting their display text", async () => {
+		const release = cloneRelease();
+		release.auth = {
+			$type: "com.example.package.auth",
+			hint: "Sign in to the publisher account",
+			hint_url: "https://example.com/help",
+		};
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "AUTH_METHOD_UNSUPPORTED",
+			reasons: [
+				{
+					code: "AUTH_METHOD_UNSUPPORTED",
+					message: "This release requires an authentication method the client does not support.",
+				},
+			],
+			details: {
+				hintUrl: "https://example.com/help",
+			},
+		});
+	});
+
+	it("rejects gated artifacts without a supported authentication method", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.requiresAuth = true;
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "AUTH_METHOD_UNSUPPORTED",
+		});
+	});
+
 	it.each([
 		"http://github.com/example/gallery",
 		"https://github.com/example/gallery/",
@@ -161,6 +240,64 @@ describe("verifyPackageReleaseRecords", () => {
 			success: false,
 			code: "PROVENANCE_REQUIRED",
 			provenance: { status: "absent-required" },
+		});
+	});
+
+	it("accepts only the exact legacy profile CID without a repository extension", async () => {
+		const report = await verify(legacyOverrides());
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			value: {
+				profileExtension: null,
+				repository: null,
+				policy: { requireProvenance: false },
+			},
+		});
+	});
+
+	it("rejects a changed CID for a legacy exception publisher and slug", async () => {
+		expect(
+			await verify(legacyOverrides({ profileCid: `${legacyProfileCid}-changed` })),
+		).toMatchObject({
+			success: false,
+			code: "PROFILE_EXTENSION_MISSING",
+		});
+	});
+
+	it("rejects provenance when a legacy profile has no repository anchor", async () => {
+		const release = legacyRelease();
+		release.artifacts.package.checksum = artifactChecksum;
+		release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance =
+			provenance;
+
+		expect(await verify(legacyOverrides({ release }))).toMatchObject({
+			success: false,
+			code: "PROVENANCE_UNVERIFIABLE",
+			provenance: { status: "failed" },
+		});
+	});
+
+	it("inspects signed policy before provenance evidence is available", async () => {
+		const profile = cloneProfile();
+		profile.extensions["com.emdashcms.experimental.package.profileExtension"].releasePolicy = {
+			requireProvenance: true,
+		};
+		expect(
+			await inspectPackageReleaseRecords({
+				publisherDid,
+				package: packageSlug,
+				version,
+				rkey,
+				profile,
+				release: cloneRelease(),
+			}),
+		).toMatchObject({
+			success: true,
+			status: "inspected",
+			provenance: { status: "not-checked" },
+			value: { policy: { requireProvenance: true } },
 		});
 	});
 
@@ -298,6 +435,30 @@ function withProvenance() {
 	const release = cloneRelease();
 	release.artifacts.package.checksum = artifactChecksum;
 	release.extensions["com.emdashcms.experimental.package.releaseExtension"].provenance = provenance;
+	return release;
+}
+
+function legacyOverrides(
+	override: Partial<RecordVerificationInput> = {},
+): Partial<RecordVerificationInput> {
+	const profile = cloneProfile();
+	profile.id = `at://${legacyPublisherDid}/com.emdashcms.experimental.package.profile/${legacyPackageSlug}`;
+	profile.slug = legacyPackageSlug;
+	delete (profile as { extensions?: unknown }).extensions;
+	return {
+		publisherDid: legacyPublisherDid,
+		package: legacyPackageSlug,
+		rkey: `${legacyPackageSlug}:${version}`,
+		profileCid: legacyProfileCid,
+		profile,
+		release: legacyRelease(),
+		...override,
+	};
+}
+
+function legacyRelease() {
+	const release = cloneRelease();
+	release.package = legacyPackageSlug;
 	return release;
 }
 

@@ -25,6 +25,7 @@ import { prefetchLayoutData } from "../../../src/astro/prefetch.js";
 import { getDb } from "../../../src/loader.js";
 import {
 	getTaxonomyTerms,
+	getTerm,
 	invalidateTermCache,
 	resetTaxonomyDefsCacheForTests,
 } from "../../../src/taxonomies/index.js";
@@ -164,5 +165,39 @@ describe("visible term counts are only computed on demand", () => {
 				expect(countAggregateQueries(), `aggregate run ${run}`).toHaveLength(1);
 			});
 		}
+	});
+
+	it("does not aggregate counts for a getTerm caller that opts out", async () => {
+		await runWithContext({ editMode: false }, async () => {
+			queries = [];
+			const term = await getTerm("category", "tech", { includeCounts: false });
+
+			expect(term!.slug).toBe("tech");
+			expect(term!.children.map((c) => c.slug)).toEqual(["web"]);
+			expect(term).not.toHaveProperty("count");
+			expect(countAggregateQueries()).toEqual([]);
+		});
+	});
+
+	it("aggregates once for a getTerm caller that wants counts", async () => {
+		await runWithContext({ editMode: false }, async () => {
+			queries = [];
+			const term = await getTerm("category", "tech");
+
+			expect(term!.count).toBe(2);
+			expect(countAggregateQueries()).toHaveLength(1);
+		});
+	});
+
+	it("shares one request-cached count map across getTerm calls", async () => {
+		await runWithContext({ editMode: false }, async () => {
+			queries = [];
+			const tech = await getTerm("category", "tech");
+			const web = await getTerm("category", "web");
+
+			expect(tech!.count).toBe(2);
+			expect(web!.count).toBe(1);
+			expect(countAggregateQueries()).toHaveLength(1);
+		});
 	});
 });

@@ -12,14 +12,17 @@
 import {
 	ENTRY_STATE,
 	EVENTS,
+	ISSUE_PHASES,
 	KINDS,
 	machineSnapshot,
+	runMachineSnapshot,
 	STATES,
 	TRANSITIONS,
+	transitionTargets,
 } from "../.flue/lib/machine.ts";
 
 export function renderMachineJson(): string {
-	return `${JSON.stringify(machineSnapshot(), null, "\t")}\n`;
+	return `${JSON.stringify({ ...machineSnapshot(), run: runMachineSnapshot() }, null, "\t")}\n`;
 }
 
 function code(value: string): string {
@@ -39,30 +42,34 @@ function eventCategory(id: string): string {
 }
 
 function statesTable(): string {
-	const rows = Object.entries(STATES).map(
-		([id, meta]) =>
-			`| ${code(id)} | ${meta.label ? code(meta.label) : "—"} | ${meta.boardColumn} | ${
-				meta.terminal ? "yes" : "no"
-			} | ${meta.transient ? "yes" : "no"} | ${commandList(meta.offeredCommands)} |`,
-	);
+	const rows = Object.entries(STATES)
+		.filter(([, meta]) => !meta.legacy)
+		.map(
+			([id, meta]) =>
+				`| ${code(id)} | ${code(meta.phase)} | ${meta.label ? code(meta.label) : "—"} | ${meta.boardColumn} | ${
+					meta.terminal ? "yes" : "no"
+				} | ${meta.transient ? "yes" : "no"} | ${commandList(meta.offeredCommands)} |`,
+		);
 	return [
-		"## States",
+		"### States",
 		"",
-		"| State | Label | Board column | Terminal | Transient | Offered commands |",
-		"| --- | --- | --- | --- | --- | --- |",
+		"| State | Phase | Label | Board column | Terminal | Transient | Offered commands |",
+		"| --- | --- | --- | --- | --- | --- | --- |",
 		...rows,
 	].join("\n");
 }
 
 function eventsTable(): string {
-	const rows = Object.entries(EVENTS).map(
-		([id, meta]) =>
-			`| ${code(id)} | ${eventCategory(id)} | ${meta.actors.join(", ")} | ${
-				meta.arg ? code(meta.arg) : "—"
-			} | ${meta.description} |`,
-	);
+	const rows = Object.entries(EVENTS)
+		.filter(([, meta]) => !meta.legacy)
+		.map(
+			([id, meta]) =>
+				`| ${code(id)} | ${eventCategory(id)} | ${meta.actors.join(", ")} | ${
+					meta.arg ? code(meta.arg) : "—"
+				} | ${meta.description} |`,
+		);
 	return [
-		"## Events",
+		"### Events",
 		"",
 		"| Event | Category | Actors | Arg | Description |",
 		"| --- | --- | --- | --- | --- |",
@@ -71,12 +78,12 @@ function eventsTable(): string {
 }
 
 function transitionsTable(): string {
-	const rows = TRANSITIONS.map(
+	const rows = currentTransitions().map(
 		(t) =>
-			`| ${code(t.from)} | ${code(t.event)} | ${code(t.to)} | ${t.action ? code(t.action) : "—"} |`,
+			`| ${code(t.from)} | ${code(t.event)} | ${transitionDestination(t)} | ${t.action ? code(t.action) : "—"} |`,
 	);
 	return [
-		"## Transitions",
+		"### Transitions",
 		"",
 		"| From | Event | To | Action |",
 		"| --- | --- | --- | --- |",
@@ -84,12 +91,38 @@ function transitionsTable(): string {
 	].join("\n");
 }
 
+function transitionDestination(transition: (typeof TRANSITIONS)[number]): string {
+	if (transition.event === "resume") {
+		return `saved: ${code("working")}, ${code("investigating")}, or ${code("fixing")}`;
+	}
+	const overrides = Object.entries(transition.toByKind ?? {});
+	if (overrides.length === 0) return code(transition.to);
+	return [
+		`default: ${code(transition.to)}`,
+		...overrides.map(([kind, target]) => `${code(kind)}: ${code(target)}`),
+	].join("; ");
+}
+
 function diagram(): string {
-	const edges = TRANSITIONS.map(
-		(t) => `    ${t.from} --> ${t.to}: ${t.event}${t.action ? ` / ${t.action}` : ""}`,
+	const edges = currentTransitions().flatMap((transition) =>
+		(transition.event === "resume"
+			? (["working", "investigating", "fixing"] as const)
+			: transitionTargets(transition)
+		).map((target) => {
+			const kinds = Object.entries(transition.toByKind ?? {})
+				.filter(([, kindTarget]) => kindTarget === target)
+				.map(([kind]) => kind);
+			const qualifier =
+				target === transition.to
+					? transition.toByKind
+						? " [default]"
+						: ""
+					: ` [${kinds.join(", ")}]`;
+			return `    ${transition.from} --> ${target}: ${transition.event}${transition.event === "resume" ? " [saved]" : qualifier}${transition.action ? ` / ${transition.action}` : ""}`;
+		}),
 	);
 	return [
-		"## Diagram",
+		"### Diagram",
 		"",
 		"```mermaid",
 		"stateDiagram-v2",
@@ -99,14 +132,94 @@ function diagram(): string {
 	].join("\n");
 }
 
+function currentTransitions() {
+	return TRANSITIONS.filter(
+		(transition) =>
+			!STATES[transition.from].legacy &&
+			!STATES[transition.to].legacy &&
+			!EVENTS[transition.event].legacy,
+	);
+}
+
+function issuePhasesTable(): string {
+	return [
+		"### Phases",
+		"",
+		"| Phase | Label |",
+		"| --- | --- |",
+		...ISSUE_PHASES.map((phase) => `| ${code(phase.id)} | ${phase.label} |`),
+	].join("\n");
+}
+
+function runLifecycle(): string {
+	const run = runMachineSnapshot();
+	const currentModes = new Set(["triage", "investigate", "work", "revise"]);
+	const plans = Object.entries(run.plans).filter(([mode]) => currentModes.has(mode));
+	const planRows = plans.map(
+		([mode, phases]) => `| ${code(mode)} | ${phases.map(code).join(" → ")} |`,
+	);
+	const edges = new Map<string, string[]>();
+	for (const [mode, phases] of plans) {
+		for (let index = 0; index < phases.length - 1; index += 1) {
+			const from = phases[index];
+			const to = phases[index + 1];
+			if (!from || !to) continue;
+			const key = `${from} --> ${to}`;
+			edges.set(key, [...(edges.get(key) ?? []), mode]);
+		}
+	}
+	return [
+		"## Agent run lifecycle",
+		"",
+		"A run stores its mode, selected phase plan, current phase, status, attempt, and fixed deadline independently from the issue state. Triage and investigation are read-only; work and revision runs may publish a candidate.",
+		"",
+		"### Phases",
+		"",
+		"| Phase | Label |",
+		"| --- | --- |",
+		...run.phases.map((phase) => `| ${code(phase.id)} | ${phase.label} |`),
+		"",
+		"### Plans",
+		"",
+		"| Mode | Ordered phases |",
+		"| --- | --- |",
+		...planRows,
+		"",
+		"### Task-specific work plan",
+		"",
+		"Each agent run creates a bounded work plan for its specific directive through `update_work_plan`. The plan is independent from the run phase plan: it may describe arbitrary repository work, while the run phases track deadlines and publication.",
+		"",
+		"The Orchestrator stores the plan and projects it into one evolving GitHub comment for that run and into the dashboard. Resume updates the same run comment. A fresh retry or directive creates a new run comment. The final agent result updates the same comment; `Completed` is used only when the mode's trusted outcome succeeds.",
+		"",
+		"### Statuses",
+		"",
+		run.statuses.map(code).join(", "),
+		"",
+		"### Diagram",
+		"",
+		"```mermaid",
+		"stateDiagram-v2",
+		"    [*] --> prepare",
+		...Array.from(edges.entries(), ([edge, modes]) => `    ${edge}: ${modes.join(", ")}`),
+		"    report --> [*]",
+		"```",
+	].join("\n");
+}
+
 export function renderMachineDoc(): string {
 	const kinds = KINDS.map(code).join(", ");
 	return `${[
-		"# emdashbot state machine",
+		"# emdashbot lifecycle machines",
 		"",
 		"<!-- Generated from .flue/lib/machine.ts by `pnpm bot:generate`. Do not edit by hand. -->",
 		"",
+		"The issue lifecycle coordinates the long-lived GitHub item. The agent run lifecycle records one bounded execution attempt. GitHub labels project the issue state; run mode and phase remain in Durable Object storage.",
+		"",
+		"## Issue lifecycle",
+		"",
 		`Entry state: ${code(ENTRY_STATE)}. Kinds: ${kinds}.`,
+		"",
+		issuePhasesTable(),
 		"",
 		statesTable(),
 		"",
@@ -115,5 +228,7 @@ export function renderMachineDoc(): string {
 		transitionsTable(),
 		"",
 		diagram(),
+		"",
+		runLifecycle(),
 	].join("\n")}\n`;
 }

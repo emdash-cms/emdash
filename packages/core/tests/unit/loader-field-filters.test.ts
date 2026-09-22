@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
@@ -14,6 +14,12 @@ describe("Loader field filters", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabaseWithCollections();
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 		// Add a 'series' field to the post collection for field filtering tests
 		const registry = new SchemaRegistry(db);
 		await registry.createField("post", {

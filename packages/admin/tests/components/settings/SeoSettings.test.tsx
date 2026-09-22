@@ -218,7 +218,7 @@ describe("SeoSettings", () => {
 
 		await userEvent.click(screen.getByRole("button", { name: "Select Image" }));
 		await expect
-			.element(screen.getByRole("dialog", { name: "Select Default Social Image" }))
+			.element(screen.getByRole("dialog", { name: "Select default social image" }))
 			.toBeInTheDocument();
 		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
 		await expect.element(screen.getByRole("img", { name: "Social card" })).toBeInTheDocument();

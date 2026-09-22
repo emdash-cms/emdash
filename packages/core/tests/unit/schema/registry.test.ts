@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { setDevTypegenRefresh } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
@@ -64,6 +65,19 @@ describe("SchemaRegistry", () => {
 			});
 
 			expect(collection.supports).toEqual([]);
+		});
+
+		it("defaults collections to routable and preserves explicit opt-out", async () => {
+			const routable = await registry.createCollection({ slug: "posts", label: "Posts" });
+			const internal = await registry.createCollection({
+				slug: "blocks",
+				label: "Blocks",
+				routable: false,
+			});
+
+			expect(routable.routable).toBe(true);
+			expect(internal.routable).toBe(false);
+			expect((await registry.updateCollection("blocks", { routable: true })).routable).toBe(true);
 		});
 
 		it("should create the content table when creating a collection", async () => {
@@ -220,6 +234,19 @@ describe("SchemaRegistry", () => {
 			expect(updated.supports).toEqual(["drafts"]);
 		});
 
+		it("touches updatedAt for an empty update", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await db
+				.updateTable("_emdash_collections")
+				.set({ updated_at: "2000-01-01T00:00:00.000Z" })
+				.where("slug", "=", "posts")
+				.execute();
+
+			const updated = await registry.updateCollection("posts", {});
+
+			expect(updated.updatedAt).not.toBe("2000-01-01T00:00:00.000Z");
+		});
+
 		it("collections are visible in the sidebar by default", async () => {
 			const collection = await registry.createCollection({ slug: "posts", label: "Posts" });
 
@@ -256,6 +283,37 @@ describe("SchemaRegistry", () => {
 
 			expect(updated.label).toBe("Blog Posts");
 			expect(updated.hidden).toBe(true);
+		});
+
+		it("groups a collection into a sidebar folder and moves it back inline", async () => {
+			const created = await registry.createCollection({
+				slug: "calendar_entries",
+				label: "Entries",
+				group: "  Calendar ",
+			});
+			expect(created.group).toBe("Calendar");
+
+			const relabeled = await registry.updateCollection("calendar_entries", { label: "Dates" });
+			expect(relabeled.group).toBe("Calendar");
+
+			const inline = await registry.updateCollection("calendar_entries", { group: null });
+			expect(inline.group).toBeUndefined();
+
+			const blank = await registry.updateCollection("calendar_entries", { group: "" });
+			expect(blank.group).toBeUndefined();
+		});
+
+		it("persists collection admin list columns", async () => {
+			const created = await registry.createCollection({
+				slug: "tickets",
+				label: "Tickets",
+				admin: { listColumns: ["ticket_number", "priority"] },
+			});
+
+			expect(created.admin?.listColumns).toEqual(["ticket_number", "priority"]);
+
+			const updated = await registry.updateCollection("tickets", { label: "Support tickets" });
+			expect(updated.admin?.listColumns).toEqual(["ticket_number", "priority"]);
 		});
 
 		it("should throw when updating non-existent collection", async () => {
@@ -307,6 +365,56 @@ describe("SchemaRegistry", () => {
 	});
 
 	describe("Field Operations", () => {
+		it("preserves unsupported stored field types instead of treating them as strings", async () => {
+			await registry.createField("posts", {
+				slug: "future",
+				label: "Future",
+				type: "string",
+			});
+
+			await db
+				.updateTable("_emdash_fields")
+				.set({ type: "future_blocks" })
+				.where("slug", "=", "future")
+				.execute();
+
+			const field = await registry.getField("posts", "future");
+			expect(field?.unsupportedType).toEqual({
+				type: "future_blocks",
+				path: "type",
+			});
+			await expect(
+				registry.updateField("posts", "future", { label: "Changed" }),
+			).rejects.toMatchObject({ code: "UNSUPPORTED_FIELD_TYPE" });
+		});
+
+		it("preserves unsupported stored repeater sub-field types", async () => {
+			await registry.createField("posts", {
+				slug: "sections",
+				label: "Sections",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "title", label: "Title", type: "string" }],
+				},
+			});
+
+			await db
+				.updateTable("_emdash_fields")
+				.set({
+					validation: JSON.stringify({
+						subFields: [{ slug: "title", label: "Title", type: "future_nested" }],
+					}),
+				})
+				.where("slug", "=", "sections")
+				.execute();
+
+			const field = await registry.getField("posts", "sections");
+			expect(field?.unsupportedType).toEqual({
+				type: "future_nested",
+				path: "validation.subFields[0].type",
+			});
+		});
+
 		beforeEach(async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 		});
@@ -324,6 +432,162 @@ describe("SchemaRegistry", () => {
 			expect(field.type).toBe("string");
 			expect(field.columnType).toBe("TEXT");
 			expect(field.required).toBe(true);
+		});
+
+		it("keeps an indexed field's physical index in sync", async () => {
+			const listFieldIndexes = async () =>
+				(
+					await sql<{ name: string }>`
+						SELECT name
+						FROM sqlite_master
+						WHERE type = 'index'
+							AND tbl_name = 'ec_posts'
+							AND name LIKE 'idx_cf_%'
+					`.execute(db)
+				).rows;
+
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+
+			expect(field.indexed).toBe(true);
+			expect(await listFieldIndexes()).toHaveLength(2);
+
+			await registry.updateField("posts", "priority", { indexed: false });
+			expect(await listFieldIndexes()).toHaveLength(0);
+
+			await registry.updateField("posts", "priority", { indexed: true });
+			expect(await listFieldIndexes()).toHaveLength(2);
+
+			await registry.deleteField("posts", "priority");
+			expect(await listFieldIndexes()).toHaveLength(0);
+		});
+
+		it.each([
+			[true, false],
+			[false, true],
+		] as const)(
+			"keeps metadata and its physical index aligned when indexed changes from %s to %s during concurrent updates",
+			async (indexed, nextIndexed) => {
+				const field = await registry.createField("posts", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+					indexed,
+				});
+				const indexName = `idx_cf_${field.id.toLowerCase()}`;
+
+				await Promise.all([
+					registry.updateField("posts", "priority", { indexed: nextIndexed }),
+					registry.updateField("posts", "priority", { label: "Updated priority" }),
+				]);
+
+				const updated = await registry.getField("posts", "priority");
+				const indexes = await sql<{ name: string }>`
+					SELECT name FROM sqlite_master
+					WHERE type = 'index' AND name LIKE ${`${indexName}%`}
+				`.execute(db);
+
+				expect(updated).toMatchObject({ label: "Updated priority", indexed: nextIndexed });
+				expect(indexes.rows).toHaveLength(nextIndexed ? 2 : 0);
+			},
+		);
+
+		it("drops the index when an indexed field moves to a type that cannot carry one", async () => {
+			await registry.createField("posts", {
+				slug: "summary",
+				label: "Summary",
+				type: "string",
+				indexed: true,
+			});
+
+			await expect(
+				registry.updateField("posts", "summary", { type: "text" }),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
+
+			const updated = await registry.updateField("posts", "summary", {
+				type: "text",
+				indexed: false,
+			});
+
+			expect(updated.type).toBe("text");
+			expect(updated.indexed).toBe(false);
+		});
+
+		it("reuses an existing generated index when enabling indexed metadata", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
+
+			await sql`
+				CREATE INDEX ${sql.ref(indexName)}
+				ON ec_posts ((priority IS NOT NULL), priority, id)
+				WHERE deleted_at IS NULL
+			`.execute(db);
+
+			await expect(
+				registry.updateField("posts", "priority", { indexed: true }),
+			).resolves.toMatchObject({ indexed: true });
+
+			const indexes = await sql<{ name: string }>`
+				SELECT name FROM sqlite_master
+				WHERE type = 'index' AND name LIKE ${`${indexName}%`}
+			`.execute(db);
+			expect(indexes.rows.map((row) => row.name).toSorted()).toEqual(
+				[indexName, localeIndexName].toSorted(),
+			);
+		});
+
+		it("uses the generated index for indexed custom field ordering", async () => {
+			const field = await registry.createField("posts", {
+				slug: "priority",
+				label: "Priority",
+				type: "number",
+				indexed: true,
+			});
+			const indexName = `idx_cf_${field.id.toLowerCase()}`;
+			const localeIndexName = `${indexName}_loc`;
+
+			const ascending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+					AND locale = 'en'
+				ORDER BY (priority IS NOT NULL) ASC, priority ASC, id ASC
+				LIMIT 51
+			`.execute(db);
+			const descending = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT * FROM ec_posts
+				WHERE deleted_at IS NULL
+					AND locale = 'en'
+				ORDER BY (priority IS NOT NULL) DESC, priority DESC, id DESC
+				LIMIT 51
+			`.execute(db);
+
+			for (const plan of [ascending, descending]) {
+				const details = plan.rows.map((row) => row.detail).join("\n");
+				expect(details).toContain(`USING INDEX ${localeIndexName}`);
+				expect(details).not.toContain("USE TEMP B-TREE");
+			}
+		});
+
+		it("rejects indexes for non-scalar fields", async () => {
+			await expect(
+				registry.createField("posts", {
+					slug: "body",
+					label: "Body",
+					type: "portableText",
+					indexed: true,
+				}),
+			).rejects.toMatchObject({ code: "FIELD_NOT_INDEXABLE" });
 		});
 
 		it("should add column to content table when creating field", async () => {
@@ -393,12 +657,12 @@ describe("SchemaRegistry", () => {
 
 			const updated = await registry.updateField("posts", "title", {
 				label: "Post Title",
-				required: true,
+				sortOrder: 3,
 				widget: "text",
 			});
 
 			expect(updated.label).toBe("Post Title");
-			expect(updated.required).toBe(true);
+			expect(updated.sortOrder).toBe(3);
 			expect(updated.widget).toBe("text");
 		});
 
@@ -883,6 +1147,28 @@ describe("SchemaRegistry", () => {
 
 			const field = await registry.getField("articles", "body");
 			expect(field).toBeNull();
+		});
+	});
+
+	describe("dev typegen hook", () => {
+		it("triggers the registered refresh callback after a schema mutation", async () => {
+			const originalDev = (import.meta.env as { DEV?: boolean }).DEV;
+			(import.meta.env as { DEV?: boolean }).DEV = true;
+
+			const refresh = vi.fn();
+			setDevTypegenRefresh(refresh);
+
+			await registry.createCollection({
+				slug: "typed",
+				label: "Typed",
+				supports: ["drafts", "revisions"],
+			});
+
+			expect(refresh).toHaveBeenCalledTimes(1);
+			expect(refresh).toHaveBeenCalledWith(db);
+
+			setDevTypegenRefresh(() => {});
+			(import.meta.env as { DEV?: boolean }).DEV = originalDev;
 		});
 	});
 });

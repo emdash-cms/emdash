@@ -41,7 +41,7 @@
  * authenticated request, every write, and every request under `/_emdash`
  * (admin, setup, auth, internal APIs) — including anonymous GETs such as the
  * post-setup status check, which must observe a write made moments earlier.
- * Migrations and the per-isolate singleton always use the primary binding.
+ * Runtime migrations and the per-isolate singleton always use the primary binding.
  * Omit `cachedBinding` and the adapter behaves exactly as before.
  *
  * Known limitation — sandboxed plugins are D1-only. The sandbox plugin bridge
@@ -61,6 +61,7 @@
  */
 
 import { env, waitUntil } from "cloudflare:workers";
+import { EmDashConfigurationError } from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
 import { FailFastPostgresDialect } from "emdash/database/pg-migration-lock";
 import { type Dialect, Kysely, PostgresDialect } from "kysely";
@@ -324,7 +325,7 @@ function getBinding(bindingName: string): HyperdriveBinding | null {
 }
 
 function requireBinding(config: HyperdriveConfig): HyperdriveBinding {
-	// Migrations and the per-isolate singleton always use the primary binding —
+	// Runtime migrations and the per-isolate singleton always use the primary binding —
 	// never the cache-enabled one.
 	const binding = getBinding(config.binding);
 	if (!binding) {
@@ -333,17 +334,19 @@ function requireBinding(config: HyperdriveConfig): HyperdriveBinding {
 			null,
 			2,
 		);
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`Hyperdrive binding "${config.binding}" not found in environment. ` +
 				`Check your wrangler.jsonc configuration:\n\n${example}\n\n` +
 				`Hyperdrive also requires compatibility_flags: ["nodejs_compat"] and ` +
 				`compatibility_date >= "2024-09-23".`,
+			"BINDING_NOT_FOUND",
 		);
 	}
 	if (!binding.connectionString) {
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`Hyperdrive binding "${config.binding}" is present but has no connectionString. ` +
 				`Ensure the binding points at a valid Hyperdrive configuration.`,
+			"CONFIGURATION_ERROR",
 		);
 	}
 	return binding;

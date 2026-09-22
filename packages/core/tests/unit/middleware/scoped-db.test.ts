@@ -5,6 +5,7 @@ import {
 	ASTRO_COOKIES_SYMBOL,
 	coordinateScopedDbLifecycle,
 	finishScoped,
+	requestEndedAuthenticated,
 	wrapResponseForScopedClose,
 } from "../../../src/astro/middleware/scoped-db.js";
 import { runWithContext } from "../../../src/request-context.js";
@@ -25,6 +26,39 @@ function streamingResponse(chunks: string[], init?: ResponseInit): Response {
 async function drain(response: Response): Promise<string> {
 	return response.body ? await new Response(response.body).text() : "";
 }
+
+describe("requestEndedAuthenticated", () => {
+	/**
+	 * Minimal AstroCookies stand-in: headers() yields serialized Set-Cookie
+	 * strings for cookies set during the request, and nothing for cookies that
+	 * only arrived on the request.
+	 */
+	function jar(outgoing: string[]) {
+		return { headers: () => outgoing };
+	}
+
+	it("is true when the request started authenticated", () => {
+		expect(requestEndedAuthenticated(true, jar([]))).toBe(true);
+	});
+
+	it("is true when the route created a session mid-request", () => {
+		expect(requestEndedAuthenticated(false, jar(["astro-session=abc123; Path=/; HttpOnly"]))).toBe(
+			true,
+		);
+	});
+
+	it("is false for an anonymous request that merely arrived with a session cookie", () => {
+		// A stale astro-session cookie on the request is not an outgoing
+		// cookie, so it yields nothing from headers().
+		expect(requestEndedAuthenticated(false, jar([]))).toBe(false);
+	});
+
+	it("ignores other cookies set during the request", () => {
+		expect(
+			requestEndedAuthenticated(false, jar(["emdash-edit-mode=true; Path=/", "theme=dark"])),
+		).toBe(false);
+	});
+});
 
 describe("wrapResponseForScopedClose", () => {
 	it("closes immediately for a bodyless response", () => {

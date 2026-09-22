@@ -66,6 +66,7 @@ export function GeneralSettings() {
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Settings saved successfully`,
 				variant: "success",
@@ -196,7 +197,7 @@ export function GeneralSettings() {
 											<img
 												src={formData.logo.url}
 												alt={formData.logo.alt || t`Logo`}
-												className="h-16 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2 sm:ms-auto"
+												className="emdash-media-transparency-grid h-16 max-w-full rounded border border-kumo-line object-contain p-2 sm:ms-auto"
 											/>
 										) : (
 											<div
@@ -256,7 +257,7 @@ export function GeneralSettings() {
 											<img
 												src={formData.favicon.url}
 												alt={t`Favicon`}
-												className="h-8 w-8 rounded border border-kumo-line bg-kumo-tint object-contain p-1 sm:ms-auto"
+												className="emdash-media-transparency-grid h-8 w-8 rounded border border-kumo-line object-contain p-1 sm:ms-auto"
 											/>
 										) : (
 											<div
@@ -353,7 +354,7 @@ export function GeneralSettings() {
 				onSelect={handleLogoSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select Logo`}
+				title={t`Select logo`}
 			/>
 			<MediaPickerModal
 				open={faviconPickerOpen}
@@ -361,7 +362,7 @@ export function GeneralSettings() {
 				onSelect={handleFaviconSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select Favicon`}
+				title={t`Select favicon`}
 			/>
 		</SettingsFrame>
 	);

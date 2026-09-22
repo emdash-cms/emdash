@@ -46,6 +46,8 @@ interface BackendHolder {
 	backend: ObjectCacheBackend | null;
 	/** In-flight initialization promise (dedupes concurrent first calls). */
 	initPromise: Promise<ObjectCacheBackend | null> | null;
+	/** `Date.now()` when the in-flight initialization started. */
+	initPromiseAt?: number;
 	config: Required<Pick<ObjectCacheRuntimeConfig, "keyPrefix">> & {
 		defaultTtl: number;
 		revalidate: number;
@@ -124,6 +126,18 @@ function raceInFlightEpochRead(
 	let timer: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<number>((resolve) => {
 		timer = setTimeout(resolve, Math.max(ms, 1), fallback);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/** Bound a waiter on another request's backend initialization. */
+function raceInFlightBackendInit(
+	promise: Promise<ObjectCacheBackend | null>,
+	ms: number,
+): Promise<ObjectCacheBackend | null> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<ObjectCacheBackend | null>((resolve) => {
+		timer = setTimeout(resolve, Math.max(ms, 1), null);
 	});
 	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
@@ -215,8 +229,15 @@ const contentWritePersist: { pending: boolean } =
  */
 async function getBackend(): Promise<ObjectCacheBackend | null> {
 	if (holder.initialized) return holder.backend;
-	if (holder.initPromise) return holder.initPromise;
+	if (holder.initPromise) {
+		const age = Date.now() - (holder.initPromiseAt ?? 0);
+		const deadline = epochReadDeadline();
+		if (age < deadline) {
+			return raceInFlightBackendInit(holder.initPromise, deadline - age);
+		}
+	}
 
+	holder.initPromiseAt = Date.now();
 	holder.initPromise = (async () => {
 		try {
 			const mod: {
@@ -258,10 +279,19 @@ async function getBackend(): Promise<ObjectCacheBackend | null> {
 		}
 		holder.initialized = true;
 		holder.initPromise = null;
+		holder.initPromiseAt = undefined;
 		return holder.backend;
 	})();
 
-	return holder.initPromise;
+	const started = holder.initPromise;
+	after(() =>
+		started.then(
+			() => undefined,
+			() => undefined,
+		),
+	);
+
+	return started;
 }
 
 /**
@@ -278,6 +308,7 @@ export function __setObjectCacheBackendForTests(
 ): void {
 	holder.initialized = true;
 	holder.initPromise = null;
+	holder.initPromiseAt = undefined;
 	holder.backend = backend;
 	holder.config = { ...holder.config, ...config };
 	epochCache.clear();
@@ -286,6 +317,17 @@ export function __setObjectCacheBackendForTests(
 	lastContentWrite.promise = undefined;
 	lastContentWrite.promiseAt = undefined;
 	contentWritePersist.pending = false;
+}
+
+/** @internal */
+export function __setObjectCacheBackendInitForTests(
+	promise: Promise<ObjectCacheBackend | null>,
+	startedAt: number,
+): void {
+	holder.initialized = false;
+	holder.backend = null;
+	holder.initPromise = promise;
+	holder.initPromiseAt = startedAt;
 }
 
 /** Build the backend key for a namespace's epoch anchor. */

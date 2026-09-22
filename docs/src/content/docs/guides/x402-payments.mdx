@@ -1,21 +1,23 @@
 ---
 title: x402 Payments
-description: Monetize content with the x402 payment protocol — charge bots, not humans.
+description: Require x402 payments for server-rendered Astro routes.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-The `@emdash-cms/x402` package adds [x402 payment protocol](https://www.x402.org/) support to any Astro site on Cloudflare. It runs as a standalone Astro integration, and pairs with EmDash's CMS fields for per-page pricing when you use EmDash.
+The `@emdash-cms/x402` package adds [x402 payment protocol](https://www.x402.org/) support to server-rendered Astro sites. It is a standalone Astro integration, so payment enforcement does not require EmDash. When the site also uses EmDash, a content field can supply the price for each entry.
 
 x402 is an HTTP-native payment protocol. When a client requests a paid resource without payment, the server responds with `402 Payment Required` and machine-readable payment instructions. Agents and browsers that understand x402 can complete payment automatically and retry the request.
 
-## When to Use This
+## Choose an enforcement mode
 
-The most common use case is **bot-only mode**: charge AI agents and scrapers for content access while letting human visitors read for free. This uses Cloudflare Bot Management to distinguish bots from humans.
+Use normal enforcement when every request to the route must present a valid payment. This mode does not depend on Cloudflare-specific request metadata.
 
-You can also enforce payment for all visitors, or check for payment headers without enforcing (conditional rendering).
+Use **bot-only mode** when the site runs on Cloudflare Workers with Bot Management enabled and only low-score requests should pay. The package reads `request.cf.botManagement.score`; when that value is absent, it treats the request as human and skips enforcement. Do not use bot-only mode when missing bot data must fail closed.
 
-## Installation
+`hasPayment()` provides a third behavior for presentation only. It reports whether the request has a payment header but does not verify or settle the payment.
+
+## Install the package
 
 Install the package with your package manager:
 
@@ -37,9 +39,9 @@ yarn add @emdash-cms/x402
 </TabItem>
 </Tabs>
 
-## Setup
+## Configure the integration
 
-Add the integration to your Astro config:
+Choose a wallet, network, and facilitator that work together. The integration supports Ethereum Virtual Machine (EVM) networks by default, but the facilitator must also support the configured network and asset. The following example uses Base mainnet and enforces payment for every request:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -51,8 +53,6 @@ export default defineConfig({
 			payTo: "0xYourWalletAddress",
 			network: "eip155:8453", // Base mainnet
 			defaultPrice: "$0.01",
-			botOnly: true,
-			botScoreThreshold: 30,
 		}),
 	],
 });
@@ -64,7 +64,7 @@ Add the type reference so TypeScript knows about `Astro.locals.x402`:
 /// <reference types="@emdash-cms/x402/locals" />
 ```
 
-## Basic Usage
+## Enforce payment on a route
 
 The integration puts an enforcer on `Astro.locals.x402`. Call `enforce()` in your page frontmatter to gate content behind payment:
 
@@ -96,9 +96,21 @@ The `enforce()` method returns either:
 - A **`Response`** (402) — the client needs to pay. Return it directly.
 - An **`EnforceResult`** — the request should proceed. The content was paid for, or enforcement was skipped (human in botOnly mode).
 
-## Bot-Only Mode
+## Enable bot-only mode
 
-When `botOnly` is `true`, the integration reads `request.cf.botManagement.score` to classify requests:
+Enable `botOnly` in the integration configuration:
+
+```js title="astro.config.mjs"
+x402({
+	payTo: "0xYourWalletAddress",
+	network: "eip155:8453",
+	defaultPrice: "$0.01",
+	botOnly: true,
+	botScoreThreshold: 30,
+});
+```
+
+The integration reads Cloudflare's `request.cf.botManagement.score` to classify requests:
 
 - **Score below threshold** (default 30) -> treated as bot, payment enforced
 - **Score at or above threshold** -> treated as human, enforcement skipped
@@ -119,12 +131,12 @@ x402.applyHeaders(result, Astro.response);
 ---
 ```
 
-<Aside>
-	Bot-only mode requires a Cloudflare deployment with Bot Management enabled. In local development,
-	all requests are treated as human and enforcement is skipped.
+<Aside type="caution">
+	Bot-only mode requires a Cloudflare Workers deployment with Bot Management enabled. Local,
+	non-Cloudflare, and Cloudflare requests without Bot Management data all skip enforcement.
 </Aside>
 
-## Per-Page Pricing with EmDash
+## Read a price from EmDash
 
 When using EmDash, add a regular `number` field to your collection for per-page pricing and read it at request time:
 
@@ -139,9 +151,9 @@ if (!entry) return Astro.redirect("/404");
 
 const { x402 } = Astro.locals;
 
-// Use the price from the CMS, falling back to a default
+// Use the price from the CMS, falling back only when it is absent.
 const result = await x402.enforce(Astro.request, {
-  price: entry.data.price || "$0.01",
+  price: entry.data.price ?? "$0.01",
   description: entry.data.title,
 });
 if (result instanceof Response) return result;
@@ -154,30 +166,30 @@ x402.applyHeaders(result, Astro.response);
 </article>
 ```
 
-## Checking for Payment Without Enforcing
+## Check for a payment header without enforcing
 
-Use `hasPayment()` to check if a request includes payment headers without verifying or enforcing. This is useful for conditional rendering — showing different content to paying vs non-paying visitors:
+Use `hasPayment()` to check whether a request includes a payment header without verifying or enforcing it. This can change a prompt or sign-in message, but it must not unlock protected content:
 
 ```astro
 ---
 const { x402 } = Astro.locals;
 
-const hasPaid = x402.hasPayment(Astro.request);
+const hasPaymentHeader = x402.hasPayment(Astro.request);
 ---
 
-{hasPaid ? (
-  <p>Full premium content here.</p>
+{hasPaymentHeader ? (
+  <p>Payment supplied. Verification is still required.</p>
 ) : (
-  <p>Subscribe for the full article.</p>
+  <p>This page requires payment.</p>
 )}
 ```
 
 <Aside type="caution">
-	`hasPayment()` only checks for the presence of a payment header. It does not verify the payment
-	is valid. Use `enforce()` when you need verified payment.
+	`hasPayment()` only checks for the presence of a payment header. An attacker can send an invalid
+	header. Use `enforce()` before returning paid content.
 </Aside>
 
-## Configuration Reference
+## Configuration reference
 
 | Option              | Type      | Default                          | Description                                      |
 | ------------------- | --------- | -------------------------------- | ------------------------------------------------ |
@@ -187,12 +199,12 @@ const hasPaid = x402.hasPayment(Astro.request);
 | `facilitatorUrl`    | `string`  | `https://x402.org/facilitator`   | Payment facilitator URL                           |
 | `scheme`            | `string`  | `"exact"`                        | Payment scheme                                    |
 | `maxTimeoutSeconds` | `number`  | `60`                             | Maximum timeout for payment signatures            |
-| `evm`               | `boolean` | `true`                           | Enable EVM chain support                          |
-| `svm`               | `boolean` | `false`                          | Enable Solana chain support (requires `@x402/svm`) |
+| `evm`               | `boolean` | `true`                           | Enable Ethereum Virtual Machine network support  |
+| `svm`               | `boolean` | `false`                          | Enable Solana Virtual Machine support (requires `@x402/svm`) |
 | `botOnly`           | `boolean` | `false`                          | Only enforce payment for bots                     |
 | `botScoreThreshold` | `number`  | `30`                             | Bot score threshold (1-99, lower = more likely bot) |
 
-### Price Format
+### Price format
 
 Prices can be specified in several formats:
 
@@ -201,18 +213,11 @@ Prices can be specified in several formats:
 - **Number** — `0.10`
 - **Object** — `{ amount: "100000", asset: "0x...", extra: {} }` for explicit asset/amount
 
-### Network Identifiers
+### Network identifiers
 
-Networks use [CAIP-2](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-2.md) format:
+[CAIP-2](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-2.md) gives blockchain networks unambiguous identifiers such as `eip155:8453` for Base mainnet. Use the exact identifier advertised by the facilitator. The package accepts the `eip155:*` family when EVM support is enabled and the `solana:*` family when Solana Virtual Machine (SVM) support is enabled; this does not guarantee that a facilitator accepts every network in that family.
 
-| Network       | Identifier       |
-| ------------- | ---------------- |
-| Base mainnet  | `eip155:8453`    |
-| Base Sepolia  | `eip155:84532`   |
-| Ethereum      | `eip155:1`       |
-| Solana        | `solana:mainnet` |
-
-## Enforce Options
+## Override one request
 
 Override config defaults for a specific page:
 
@@ -226,7 +231,7 @@ await x402.enforce(Astro.request, {
 });
 ```
 
-## Solana Support
+## Enable Solana support
 
 Solana is opt-in. Install `@x402/svm` and enable it in config:
 
@@ -234,24 +239,21 @@ Solana is opt-in. Install `@x402/svm` and enable it in config:
 pnpm add @x402/svm
 ```
 
-Set the network to a Solana identifier and disable EVM if you only use Solana:
+Set `svm: true`, use the CAIP-2 Solana identifier supported by the facilitator, and disable EVM if the site only accepts Solana payments. For example, the Solana mainnet identifier used by `@x402/svm` 2.8 is `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`:
 
 ```js title="astro.config.mjs"
 x402({
 	payTo: "YourSolanaAddress",
-	network: "solana:mainnet",
+	network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
 	svm: true,
 	evm: false, // Disable EVM if only using Solana
 });
 ```
 
-## How It Works
+## Request flow
 
-1. The `x402()` integration registers middleware that creates an enforcer and places it on `Astro.locals.x402`
-2. Configuration is passed to the middleware via a Vite virtual module (`virtual:x402/config`)
-3. When `enforce()` is called, it checks for a `payment-signature` header on the request
-4. If no payment header is present, a `402 Payment Required` response is returned with payment instructions in the `PAYMENT-REQUIRED` header
-5. If a payment header is present, it's verified through the facilitator service and settled
-6. After settlement, `PAYMENT-RESPONSE` headers are set on the response via `applyHeaders()`
-
-The resource server is initialized lazily on first request and cached for the worker lifetime.
+1. The integration puts the payment enforcer on `Astro.locals.x402` before the page runs.
+2. `enforce()` checks for a `payment-signature` header.
+3. Without a payment header, `enforce()` returns a `402 Payment Required` response whose body and `PAYMENT-REQUIRED` header describe the accepted payment.
+4. With a matching payment, the configured facilitator verifies and settles it.
+5. `enforce()` returns the payer and settlement result. Call `applyHeaders()` so the page response includes the facilitator's `PAYMENT-RESPONSE` proof.

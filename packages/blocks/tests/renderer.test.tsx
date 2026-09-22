@@ -20,6 +20,19 @@ vi.mock("@cloudflare/kumo", () => ({
 			{children}
 		</button>
 	),
+	Link: Object.assign(({ children, ...props }: any) => <a {...props}>{children}</a>, {
+		ExternalIcon: () => <span data-testid="external-link-icon" />,
+	}),
+	LinkButton: ({ children, external, variant, ...props }: any) => (
+		<a
+			{...props}
+			data-variant={variant}
+			target={external ? "_blank" : undefined}
+			rel={external ? "noopener noreferrer" : undefined}
+		>
+			{children}
+		</a>
+	),
 	Badge: ({ children }: any) => <span data-testid="badge">{children}</span>,
 	Input: ({ label, value, defaultValue, onChange, onBlur, placeholder, type, min, max }: any) => (
 		<div>
@@ -271,9 +284,18 @@ afterEach(cleanup);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function renderBlocks(blocks: Block[], onAction?: (i: BlockInteraction) => void) {
+function renderBlocks(
+	blocks: Block[],
+	onAction?: (i: BlockInteraction) => void,
+	resolveLinkTarget?: (target: import("../src/types.js").LinkTarget) => string | null,
+) {
 	const handler = onAction ?? vi.fn();
-	return { ...render(<BlockRenderer blocks={blocks} onAction={handler} />), onAction: handler };
+	return {
+		...render(
+			<BlockRenderer blocks={blocks} onAction={handler} resolveLinkTarget={resolveLinkTarget} />,
+		),
+		onAction: handler,
+	};
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -300,6 +322,67 @@ describe("BlockRenderer", () => {
 		]);
 		expect(screen.getByText("Webhook endpoint")).toBeTruthy();
 		expect(screen.getByText("Edit")).toBeTruthy();
+	});
+
+	it("renders host-resolved internal and external navigation without dispatching actions", () => {
+		const onAction = vi.fn();
+		renderBlocks(
+			[
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Edit article",
+							target: { kind: "content", collection: "posts", id: "post-1" },
+							appearance: "primary",
+						},
+						{
+							type: "link",
+							label: "Service status",
+							target: { kind: "external", url: "https://status.example.com" },
+						},
+					],
+				},
+			],
+			onAction,
+			(target) =>
+				target.kind === "content"
+					? `/_emdash/admin/content/${target.collection}/${target.id}`
+					: target.kind === "external"
+						? target.url
+						: null,
+		);
+
+		const internal = screen.getByRole("link", { name: "Edit article" });
+		expect(internal.getAttribute("href")).toBe("/_emdash/admin/content/posts/post-1");
+		expect(internal.getAttribute("target")).toBeNull();
+		const external = screen.getByRole("link", { name: /Service status/ });
+		expect(external.getAttribute("target")).toBe("_blank");
+		expect(external.getAttribute("rel")).toBe("noopener noreferrer");
+
+		fireEvent.keyDown(internal, { key: "Enter" });
+		expect(onAction).not.toHaveBeenCalled();
+	});
+
+	it("fails closed when the host does not resolve a link target", () => {
+		renderBlocks(
+			[
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Unknown page",
+							target: { kind: "plugin-page", path: "/missing" },
+						},
+					],
+				},
+			],
+			undefined,
+			() => null,
+		);
+		expect(screen.queryByRole("link")).toBeNull();
 	});
 
 	it("divider block renders hr", () => {

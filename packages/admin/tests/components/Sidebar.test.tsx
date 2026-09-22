@@ -29,13 +29,20 @@ import {
 	Trophy,
 	ClockCounterClockwise,
 	IdentificationCard,
+	SquaresFour,
 } from "@phosphor-icons/react";
 import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect } from "vitest";
 
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
+	getSidebarTaxonomies,
+	isItemActive,
+	NavIcon,
+	parseFolderState,
+	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
 	toPhosphorIconName,
@@ -50,6 +57,64 @@ const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 const ROLE_ADMIN = 50;
+
+describe("getSidebarTaxonomies", () => {
+	const taxonomies = [
+		{ id: "course-en", name: "course", label: "Courses", locale: "en", translationGroup: "course" },
+		{ id: "course-de", name: "course", label: "Gänge", locale: "de", translationGroup: "course" },
+		{
+			id: "course-fr",
+			name: "course",
+			label: "Types de plats",
+			locale: "fr",
+			translationGroup: "course",
+		},
+	];
+
+	it("renders one logical taxonomy using the active route locale", () => {
+		expect(getSidebarTaxonomies(taxonomies, "de").map((taxonomy) => taxonomy.label)).toEqual([
+			"Gänge",
+		]);
+	});
+
+	it("falls back to the configured default locale, then deterministically", () => {
+		expect(getSidebarTaxonomies(taxonomies, "it", "fr")[0]?.label).toBe("Types de plats");
+		expect(getSidebarTaxonomies(taxonomies, "it")[0]?.label).toBe("Gänge");
+	});
+});
+
+describe("resolveItemPath", () => {
+	it("preserves the active locale on taxonomy-management links", () => {
+		expect(
+			resolveItemPath({
+				to: "/taxonomies/$taxonomy",
+				label: "Gänge",
+				icon: Gear,
+				params: { taxonomy: "course" },
+				search: { locale: "de" },
+			}),
+		).toBe("/taxonomies/course?locale=de");
+	});
+});
+
+describe("isItemActive", () => {
+	it("matches taxonomy links independently of their locale query", () => {
+		expect(isItemActive("/taxonomies/course?locale=de", "/taxonomies/course")).toBe(true);
+	});
+});
+
+describe("NavIcon", () => {
+	it("uses Phosphor's filled variant while its navigation item is active", () => {
+		const inactiveIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive={false} />);
+		const activeIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive />);
+
+		expect(inactiveIcon).toBe(
+			renderToStaticMarkup(<SquaresFour weight="regular" aria-hidden="true" />),
+		);
+		expect(activeIcon).toBe(renderToStaticMarkup(<SquaresFour weight="fill" aria-hidden="true" />));
+		expect(activeIcon).not.toBe(inactiveIcon);
+	});
+});
 
 describe("BYLINE_SCHEMA_NAV_ITEM invariants", () => {
 	it("points to the /byline-schema route", () => {
@@ -103,6 +168,22 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("parseFolderState", () => {
+	it("keeps only label → boolean pairs from the stored value", () => {
+		expect(parseFolderState('{"Calendar":false,"Club":true,"x":"yes","y":1}')).toEqual({
+			Calendar: false,
+			Club: true,
+		});
+	});
+
+	it("treats missing, malformed, or non-object storage as no choices", () => {
+		expect(parseFolderState(null)).toEqual({});
+		expect(parseFolderState("{oops")).toEqual({});
+		expect(parseFolderState("[true]")).toEqual({});
+		expect(parseFolderState("null")).toEqual({});
 	});
 });
 

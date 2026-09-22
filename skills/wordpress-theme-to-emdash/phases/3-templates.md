@@ -1,114 +1,41 @@
-# Phase 3: Template Conversion
+# Phase 3: Convert templates
 
-Convert WordPress PHP templates to Astro components.
+Convert the in-scope WordPress templates into Astro routes, layouts, and components. Use [concept mapping](../references/concept-mapping.md) for WordPress-to-Astro responsibilities. Read the current [querying and rendering reference](../../building-emdash-site/references/querying-and-rendering.md) before writing EmDash queries; it is the canonical source for result shapes, cache hints, images, Portable Text, pagination, and visual-editing attributes.
 
-## 3.1 Analyze Theme Structure
+## Inventory the source templates
 
-Read `functions.php` to identify:
+Read the applicable PHP templates and `functions.php`. Record:
 
-- `register_nav_menu()` → EmDash menus
-- `register_sidebar()` → EmDash widget areas
-- `add_theme_support()` → Features (thumbnails, formats, etc.)
-- `register_post_type()` → Collections
-- `register_taxonomy()` → EmDash taxonomy defs
-- `add_shortcode()` → Portable Text blocks
+- the template hierarchy and fallbacks;
+- menu and widget locations;
+- custom post types and taxonomies;
+- page-template choices;
+- conditional layout and body classes;
+- shortcodes, blocks, or plugin calls the theme assumes.
 
-## 3.2 Template Mapping
+Map only the routes the requested site needs. A common mapping is:
 
-| WP Template    | Astro Route                         |
-| -------------- | ----------------------------------- |
-| `index.php`    | `src/pages/index.astro`             |
-| `single.php`   | `src/pages/posts/[slug].astro`      |
-| `page.php`     | `src/pages/pages/[slug].astro`      |
-| `archive.php`  | `src/pages/posts/index.astro`       |
-| `category.php` | `src/pages/categories/[slug].astro` |
-| `tag.php`      | `src/pages/tags/[slug].astro`       |
-| `search.php`   | `src/pages/search.astro`            |
-| `404.php`      | `src/pages/404.astro`               |
-| `header.php`   | Component in layout                 |
-| `footer.php`   | Component in layout                 |
+| WordPress template                | Astro destination              |
+| --------------------------------- | ------------------------------ |
+| `front-page.php` or home template | `src/pages/index.astro`        |
+| `single.php`                      | `src/pages/posts/[slug].astro` |
+| `page.php`                        | `src/pages/pages/[slug].astro` |
+| `archive.php`                     | collection archive route       |
+| `category.php` or `tag.php`       | taxonomy archive route         |
+| `search.php`                      | search route                   |
+| `404.php`                         | `src/pages/404.astro`          |
+| `header.php` and `footer.php`     | shared layout or components    |
 
-## 3.3 Convert Templates
+The exact route names follow the target site's URL design, not WordPress filenames.
 
-### The Loop → getEmDashCollection
+## Preserve dynamic behavior
 
-```php
-// WordPress
-<?php while (have_posts()) : the_post(); ?>
-  <h2><?php the_title(); ?></h2>
-<?php endwhile; ?>
-```
+Use `getEmDashCollection()` and `getEmDashEntry()` at request time and pass every returned `cacheHint` to `Astro.cache.set()`. Dynamic EmDash content routes remain server-rendered; do not generate them with `getStaticPaths()` or opt them into prerendering.
 
-```astro
----
-// Astro/EmDash
-import { getEmDashCollection } from "emdash";
-const { entries: posts } = await getEmDashCollection("posts");
----
-{posts.map(post => <h2>{post.data.title}</h2>)}
-```
+`entry.id` is the URL slug. `entry.data.id` is the database ID used by APIs such as `getEntryTerms()` and comments. Use the EmDash `Image` component for CMS image fields and `PortableText` for Portable Text content.
 
-### Single Post → getEmDashEntry
+For WordPress page-template choices, add a schema field only when editors need to choose the layout. Map the stored value to a fixed set of imported Astro layouts; do not construct component import paths from content.
 
-```php
-// WordPress
-<?php the_content(); ?>
-```
+## Keep presentation separate
 
-```astro
----
-// Astro/EmDash
-import { getEmDashEntry } from "emdash";
-import { PortableText } from "emdash/ui";
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
----
-{post && <PortableText value={post.data.content} />}
-```
-
-## 3.4 Page Templates
-
-WordPress themes often register page templates (Full Width, Sidebar, Landing Page, etc.). In EmDash, this is a `select` field on the pages collection:
-
-1. Add a `template` select field to the pages collection with the theme's template names as options (e.g. "Default", "Full Width", "Landing Page")
-2. Create an Astro layout component for each template in `src/layouts/`
-3. Map the field value to a layout component in the page route:
-
-```astro
----
-// src/pages/pages/[slug].astro
-import { getEmDashEntry } from "emdash";
-import PageDefault from "../../layouts/PageDefault.astro";
-import PageFullWidth from "../../layouts/PageFullWidth.astro";
-
-const { slug } = Astro.params;
-const { entry: page } = await getEmDashEntry("pages", slug!);
-if (!page) return Astro.redirect("/404");
-
-const layouts = {
-  "Default": PageDefault,
-  "Full Width": PageFullWidth,
-};
-const Layout = layouts[page.data.template as keyof typeof layouts] ?? PageDefault;
----
-<Layout page={page} />
-```
-
-Use human-readable option names (matching what the WP theme displayed) since these appear in the admin dropdown.
-
-## Important: Server-Rendered Pages
-
-**Never use `getStaticPaths()` or `export const prerender = true` for EmDash content pages.** Content changes at runtime, so pages must be server-rendered.
-
-```astro
----
-// CORRECT - server-rendered
-const { slug } = Astro.params;
-const { entry: post } = await getEmDashEntry("posts", slug!);
-
-if (!post) {
-  return Astro.redirect("/404");
-}
----
-```
-
-See `references/template-patterns.md` for more conversion patterns.
+Move shared markup into components when the source theme repeats it. Keep CMS queries near the route or server component that owns the data, and pass typed data into presentational components. Recreate behavior that users can observe; do not carry over PHP helpers or WordPress-specific abstractions that no longer serve a purpose.

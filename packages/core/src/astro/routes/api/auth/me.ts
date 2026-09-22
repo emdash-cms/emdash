@@ -15,16 +15,28 @@ import { authMeActionBody } from "#api/schemas.js";
 import { UserRepository } from "#db/repositories/user.js";
 
 export const GET: APIRoute = async ({ locals }) => {
-	const { user } = locals;
+	const { user, emdash } = locals;
 
 	if (!user) {
 		return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 	}
 
+	let userData = user.data;
+	if (locals.__playgroundDb) {
+		if (!emdash) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+
+		try {
+			const persistedUser = await new UserRepository(emdash.db).findById(user.id);
+			if (persistedUser) userData = persistedUser.data;
+		} catch (error) {
+			return handleError(error, "Failed to fetch current user", "CURRENT_USER_ERROR");
+		}
+	}
+
 	// Check if this is the user's first login (for welcome modal).
 	// The flag is persisted in the user's `data` JSON column so it survives
 	// session expiry / rotation.
-	const isFirstLogin = !user.data?.welcomeDismissed;
+	const isFirstLogin = !userData?.welcomeDismissed;
 
 	// Return safe user info (no sensitive data)
 	return apiSuccess({

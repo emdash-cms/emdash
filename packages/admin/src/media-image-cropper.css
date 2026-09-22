@@ -1,0 +1,168 @@
+@import "react-image-crop/dist/ReactCrop.css";
+
+.emdash-react-image-crop {
+	--rc-border-color: var(--color-kumo-brand);
+	--rc-drag-handle-size: 24px;
+	--rc-focus-color: var(--color-kumo-brand);
+}
+
+.emdash-react-image-crop.ReactCrop .ReactCrop__crop-selection {
+	container-type: size;
+	animation: none;
+	border: 2px solid var(--color-kumo-brand);
+	background-image: none;
+}
+
+.emdash-react-image-crop .ReactCrop__crop-selection:focus-visible,
+.emdash-react-image-crop .ReactCrop__drag-handle:focus-visible {
+	outline: 2px solid var(--color-kumo-brand);
+	outline-offset: 2px;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle,
+.emdash-react-image-crop .ReactCrop__drag-handle:focus {
+	width: min(24px, 33.333cqw, 33.333cqh);
+	height: min(24px, 33.333cqw, 33.333cqh);
+	border: 0;
+	background: transparent;
+}
+
+.emdash-react-image-crop.ReactCrop--fixed-aspect .ReactCrop__drag-handle {
+	width: min(24px, 50cqw, 50cqh);
+	height: min(24px, 50cqw, 50cqh);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle::after {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: min(10px, 20cqw, 20cqh);
+	height: min(10px, 20cqw, 20cqh);
+	transform: translate(-50%, -50%);
+	border-radius: 1px;
+	background: var(--color-kumo-brand);
+	box-shadow: 0 0 0 1px var(--color-kumo-base);
+	content: "";
+}
+
+.emdash-react-image-crop.ReactCrop--fixed-aspect .ReactCrop__drag-handle::after {
+	width: min(10px, 30cqw, 30cqh);
+	height: min(10px, 30cqw, 30cqh);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle:hover::after,
+.emdash-react-image-crop .ReactCrop__drag-handle:active::after,
+.emdash-react-image-crop .ReactCrop__drag-handle:focus-visible::after {
+	box-shadow: 0 0 0 2px var(--color-kumo-base);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-nw {
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-n {
+	transform: translate(-50%, 0);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-ne {
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-e {
+	transform: translate(0, -50%);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-se {
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-s {
+	transform: translate(-50%, 0);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-sw {
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-w {
+	transform: translate(0, -50%);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-nw::after {
+	top: 0;
+	left: 0;
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-n::after {
+	top: 0;
+	transform: translate(-50%, 0);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-ne::after {
+	top: 0;
+	right: 0;
+	left: auto;
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-e::after {
+	top: 50%;
+	right: 0;
+	left: auto;
+	transform: translate(0, -50%);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-se::after {
+	top: auto;
+	right: 0;
+	bottom: 0;
+	left: auto;
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-s::after {
+	top: auto;
+	bottom: 0;
+	transform: translate(-50%, 0);
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-sw::after {
+	top: auto;
+	bottom: 0;
+	left: 0;
+	transform: none;
+}
+
+.emdash-react-image-crop .ReactCrop__drag-handle.ord-w::after {
+	top: 50%;
+	left: 0;
+	transform: translate(0, -50%);
+}
+
+.emdash-react-image-crop .ReactCrop__rule-of-thirds-vt::before,
+.emdash-react-image-crop .ReactCrop__rule-of-thirds-vt::after {
+	width: 0;
+	border-inline-start-width: 1px;
+	border-inline-start-style: dashed;
+	border-inline-start-color: var(--color-kumo-info);
+	background: transparent;
+}
+
+.emdash-react-image-crop .ReactCrop__rule-of-thirds-hz::before,
+.emdash-react-image-crop .ReactCrop__rule-of-thirds-hz::after {
+	height: 0;
+	border-top-width: 1px;
+	border-top-style: dashed;
+	border-top-color: var(--color-kumo-info);
+	background: transparent;
+}
+
+@media (pointer: coarse) {
+	.emdash-react-image-crop:not(.ReactCrop--fixed-aspect) .ReactCrop__drag-handle.ord-n,
+	.emdash-react-image-crop:not(.ReactCrop--fixed-aspect) .ReactCrop__drag-handle.ord-e,
+	.emdash-react-image-crop:not(.ReactCrop--fixed-aspect) .ReactCrop__drag-handle.ord-s,
+	.emdash-react-image-crop:not(.ReactCrop--fixed-aspect) .ReactCrop__drag-handle.ord-w {
+		display: block;
+	}
+}
