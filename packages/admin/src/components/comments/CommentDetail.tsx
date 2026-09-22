@@ -12,6 +12,7 @@ import * as React from "react";
 import type { ComponentProps } from "react";
 
 import type { AdminComment, CommentStatus } from "../../lib/api/comments.js";
+import { formatDate } from "../../lib/utils";
 
 export interface CommentDetailProps {
 	comment: AdminComment;
@@ -30,7 +31,7 @@ export function CommentDetail({
 	isAdmin,
 	isStatusPending,
 }: CommentDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	// Close on Escape
 	React.useEffect(() => {
@@ -67,7 +68,9 @@ export function CommentDetail({
 					<div className="flex items-center justify-between">
 						<CommentStatusBadge status={comment.status} />
 						<span className="text-sm text-kumo-subtle">
-							{date.toLocaleDateString()} {date.toLocaleTimeString()}
+							<bdi>
+								{formatDate(date, i18n.locale, { dateStyle: "medium", timeStyle: "short" })}
+							</bdi>
 						</span>
 					</div>
 

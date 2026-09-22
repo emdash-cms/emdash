@@ -17,6 +17,7 @@ import type {
 	CommentStatus,
 	BulkAction,
 } from "../../lib/api/comments.js";
+import { formatDate } from "../../lib/utils";
 import { cn } from "../../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
@@ -435,7 +436,7 @@ function CommentRow({
 	isAdmin,
 	isStatusPending,
 }: CommentRowProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const date = new Date(comment.createdAt);
 	const excerpt = comment.body.length > 120 ? comment.body.slice(0, 120) + "..." : comment.body;
 
@@ -469,7 +470,7 @@ function CommentRow({
 				</div>
 			</td>
 			<td className="px-4 py-3 text-sm text-kumo-subtle whitespace-nowrap">
-				{date.toLocaleDateString()}
+				<bdi>{formatDate(date, i18n.locale)}</bdi>
 			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end gap-1">

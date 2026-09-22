@@ -54,7 +54,7 @@ import {
 	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
-import { cn } from "../lib/utils";
+import { cn, formatDate } from "../lib/utils";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
@@ -237,7 +237,7 @@ interface PluginCardProps {
 }
 
 function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: PluginCardProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const [expanded, setExpanded] = React.useState(false);
 	const [showUpdateConsent, setShowUpdateConsent] = React.useState(false);
 	const [mcpUpdateTools, setMcpUpdateTools] = React.useState<PluginMcpConsentTool[]>([]);
@@ -644,19 +644,19 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 							{plugin.installedAt && (
 								<div>
 									<span className="text-kumo-subtle">{t`Installed:`}</span>{" "}
-									{new Date(plugin.installedAt).toLocaleDateString()}
+									<bdi>{formatDate(plugin.installedAt, i18n.locale)}</bdi>
 								</div>
 							)}
 							{plugin.activatedAt && (
 								<div>
 									<span className="text-kumo-subtle">{t`Last enabled:`}</span>{" "}
-									{new Date(plugin.activatedAt).toLocaleDateString()}
+									<bdi>{formatDate(plugin.activatedAt, i18n.locale)}</bdi>
 								</div>
 							)}
 							{plugin.deactivatedAt && !plugin.enabled && (
 								<div>
 									<span className="text-kumo-subtle">{t`Disabled:`}</span>{" "}
-									{new Date(plugin.deactivatedAt).toLocaleDateString()}
+									<bdi>{formatDate(plugin.deactivatedAt, i18n.locale)}</bdi>
 								</div>
 							)}
 						</div>

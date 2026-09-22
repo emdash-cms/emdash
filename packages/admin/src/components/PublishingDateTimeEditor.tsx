@@ -11,6 +11,7 @@ import {
 	serializeFuturePublishingDateTime,
 	type PublishingDateTimeError,
 } from "../lib/publishing-datetime.js";
+import { isolate } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -599,7 +600,7 @@ export function PublicationDateDialog({
 						type="button"
 						variant="ghost"
 						className="-mx-2 h-9 w-[calc(100%+1rem)] min-w-0 overflow-hidden whitespace-nowrap px-2 py-1.5 font-normal"
-						aria-label={t`Change publication date: ${formattedValue}`}
+						aria-label={t`Change publication date: ${isolate(formattedValue)}`}
 					/>
 				}
 			>
@@ -610,7 +611,7 @@ export function PublicationDateDialog({
 					<span className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap text-end">
 						<time dateTime={publishedAt}>
 							<Text as="span" variant="secondary" size="sm">
-								{formattedValue}
+								<bdi>{formattedValue}</bdi>
 							</Text>
 						</time>
 						<PencilSimple className="size-3 shrink-0" aria-hidden="true" />

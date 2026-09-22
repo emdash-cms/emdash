@@ -46,7 +46,7 @@ import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
-import { cn, parseTimestamp } from "../lib/utils";
+import { cn, formatDate, parseTimestamp } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
@@ -1246,7 +1246,7 @@ function ContentListItem({
 	onToggleSelect,
 	extensionColumns,
 }: ContentListItemProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	// A configured dateField drives the Date column; fall back to the
 	// last-updated / created date when it's unset, empty, or unparseable.
@@ -1291,7 +1291,7 @@ function ContentListItem({
 				</td>
 			)}
 			<td data-testid="content-updated" className="px-4 py-3 text-sm text-kumo-subtle">
-				{date.toLocaleDateString()}
+				<bdi>{formatDate(date, lingui.locale)}</bdi>
 			</td>
 			{extensionColumns?.map(({ pluginId, extension }) => {
 				const Cell = extension.cell;
@@ -1506,7 +1506,7 @@ function TrashedListItem({
 	onRestore,
 	onPermanentDelete,
 }: TrashedListItemProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
 	const deletedDate = parseTimestamp(item.deletedAt);
 
@@ -1522,7 +1522,9 @@ function TrashedListItem({
 					</span>
 				</td>
 			)}
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{deletedDate.toLocaleDateString()}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">
+				<bdi>{formatDate(deletedDate, i18n.locale)}</bdi>
+			</td>
 			<td className="px-4 py-3 text-end">
 				<div className="flex items-center justify-end space-x-1">
 					<Button

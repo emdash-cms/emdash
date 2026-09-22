@@ -70,7 +70,7 @@ export interface RegistryPluginDetailProps {
 }
 
 export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
 	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
@@ -568,12 +568,16 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 							{lastUpdated ? (
 								<div className="flex items-center gap-1">
 									<dt className="font-medium">{t`Updated`}</dt>
-									<dd>{formatDate(lastUpdated)}</dd>
+									<dd>
+										<bdi>{formatDate(lastUpdated, i18n.locale)}</bdi>
+									</dd>
 								</div>
 							) : null}
 							<div className="flex items-center gap-1">
 								<dt className="font-medium">{t`Indexed`}</dt>
-								<dd>{formatDate(release.indexedAt)}</dd>
+								<dd>
+									<bdi>{formatDate(release.indexedAt, i18n.locale)}</bdi>
+								</dd>
 							</div>
 						</dl>
 					) : null}
@@ -923,9 +927,9 @@ function envLabel(key: string): string {
 	return key.startsWith("env:") ? key.slice("env:".length) : key;
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: string): string {
 	try {
-		return new Date(iso).toLocaleDateString();
+		return new Intl.DateTimeFormat(locale).format(new Date(iso));
 	} catch {
 		return iso;
 	}

@@ -245,7 +245,7 @@ export function MediaDetailPanel({
 	onUnavailable,
 	onDeleted,
 }: MediaDetailPanelProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const restoreFocusAfterDeleteRef = React.useRef(false);
@@ -1321,9 +1321,9 @@ export function MediaDetailPanel({
 											<span className="shrink-0 text-kumo-subtle">{t`Uploaded:`}</span>
 											<span
 												className="min-w-0 truncate tabular-nums"
-												title={formatDate(item.createdAt)}
+												title={formatDate(item.createdAt, i18n.locale)}
 											>
-												{formatDate(item.createdAt)}
+												<bdi>{formatDate(item.createdAt, i18n.locale)}</bdi>
 											</span>
 										</p>
 									</div>
@@ -2003,14 +2003,14 @@ export function MediaDetailPanel({
 	);
 }
 
-function formatDate(isoString: string): string {
-	return new Date(isoString).toLocaleDateString(undefined, {
+function formatDate(isoString: string, locale: string): string {
+	return new Intl.DateTimeFormat(locale, {
 		year: "numeric",
 		month: "short",
 		day: "numeric",
 		hour: "2-digit",
 		minute: "2-digit",
-	});
+	}).format(new Date(isoString));
 }
 
 function formatFileFormat(mimeType: string): string {

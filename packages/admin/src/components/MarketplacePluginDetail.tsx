@@ -28,6 +28,7 @@ import {
 } from "../lib/api/marketplace.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { isSafeUrl, safeIconUrl } from "../lib/url.js";
+import { formatDate, isolate } from "../lib/utils";
 import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -44,7 +45,7 @@ export function MarketplacePluginDetail({
 	pluginId,
 	installedPluginIds = new Set(),
 }: MarketplacePluginDetailProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const queryClient = useQueryClient();
 	const [showConsent, setShowConsent] = React.useState(false);
 	const [mcpConsentTools, setMcpConsentTools] = React.useState<PluginMcpConsentTool[]>([]);
@@ -220,7 +221,7 @@ export function MarketplacePluginDetail({
 			<div className="flex flex-wrap items-center gap-4 rounded-lg border bg-kumo-tint/30 p-3 text-sm">
 				<div className="flex items-center gap-1.5">
 					<DownloadSimple className="h-4 w-4 text-kumo-subtle" />
-					<span>{t`${plugin.installCount.toLocaleString()} installs`}</span>
+					<span>{t`${plugin.installCount.toLocaleString(i18n.locale)} installs`}</span>
 				</div>
 				{latest?.audit && <AuditBadge verdict={latest.audit.verdict} />}
 				{plugin.license && <span className="text-kumo-subtle">{plugin.license}</span>}
@@ -344,7 +345,7 @@ export function MarketplacePluginDetail({
 								{latest.minEmDashVersion && (
 									<div>{t`Requires EmDash ${latest.minEmDashVersion}`}</div>
 								)}
-								<div>{t`Published ${new Date(latest.publishedAt).toLocaleDateString()}`}</div>
+								<div>{t`Published ${isolate(formatDate(latest.publishedAt, i18n.locale))}`}</div>
 								{latest.bundleSize > 0 && <div>{formatBytes(latest.bundleSize)}</div>}
 							</div>
 						</div>
