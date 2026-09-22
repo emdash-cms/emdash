@@ -1,0 +1,39 @@
+packages/admin/src/components/BlockKitFieldWidget.tsx
+  s_d1b87a9d1cbff4::t_00ce9e35a4a99d 45,127
+packages/admin/src/components/ContentEditor.tsx
+  s_d1b87a9d1cbff4::t_b4acb5d9bcea2f 1194-1200,1618,2134,2197,2199,2316,2321,2373
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_d1b87a9d1cbff4::t_7a2d6e55be96b0 395,467-472,493,525,592,597
+.changeset/refined-editor-sidebar-type.md
+  s_0b1e5dd344ca36::t_b153b074fce120 5
+packages/admin/src/components/BlockKitMediaPickerField.tsx
+  s_0b1e5dd344ca36::t_f4ba241336f946 61,67,131
+packages/admin/src/components/PluginFieldErrorBoundary.tsx
+  s_0b1e5dd344ca36::t_448123ef907c7e 33
+packages/admin/src/components/RepeaterField.tsx
+  s_0b1e5dd344ca36::t_71e08252106922 150,153,167,271,353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f3ac941220211fcdd5b4660b5603813513c255ae",
+  "prompts": {},
+  "sessions": {
+    "s_0b1e5dd344ca36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ca04-3048-7b61-856b-56575de4b436",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d1b87a9d1cbff4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c9ee-365e-7c03-b68c-e15052602738",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
