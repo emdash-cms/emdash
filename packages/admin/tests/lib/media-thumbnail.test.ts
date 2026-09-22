@@ -9,6 +9,18 @@ import {
 const LOCAL_IMAGE = "/_emdash/api/media/file/01ABC.jpg";
 
 describe("getMediaThumbnailUrl", () => {
+	it("preserves imported image URLs when their storage key cannot be transformed", () => {
+		const original = "https://media.example.com/content/images/2024/photo.png";
+		expect(
+			getMediaThumbnailUrl(
+				original,
+				"image/png",
+				400,
+				"sha256:new",
+				"content/images/2024/photo.png",
+			),
+		).toBe(original);
+	});
 	it("transforms storage-backed public HEIC URLs and preserves replacement versions", () => {
 		const result = getMediaThumbnailUrl(
 			"https://media.example.com/photo.heic",
