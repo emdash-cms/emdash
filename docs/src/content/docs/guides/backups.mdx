@@ -19,7 +19,8 @@ A JSON backup includes:
 - Menus and menu items, sections, widget areas and widgets, SEO records, revision history, media
   metadata, and database migration history
 - Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles,
-  and SEO defaults. These come from the `site:`, `emdash:site_`, and `emdash:locale` setting groups.
+  and SEO defaults. These come from the `site:` setting group and the `emdash:site_title`,
+  `emdash:site_tagline`, and `emdash:locale` settings.
 
 It omits all other database tables, including:
 
@@ -28,7 +29,8 @@ It omits all other database tables, including:
 - Comments and reactions, redirects and 404 logs, bylines, content relations and references, audit logs, rate limits, and scheduled-task state
 - Media folders, records of where media is used, incomplete or in-progress uploads, and the media
   files themselves
-- Other site options, including the preview signing secret and backup schedule
+- Other site options, including the deployment URL recorded at setup (`emdash:site_url`), the
+  preview signing secret, and the backup schedule
 
 Backups are JSON files in the same snapshot format used by EmDash's preview system, versioned with the EmDash release that created them.
 
