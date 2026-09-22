@@ -1,0 +1,21 @@
+docs/astro.config.mjs
+  s_6ef6767f529ece::t_d5b346509b7fa0 10
+docs/src/content/docs/getting-started.mdx
+  s_6ef6767f529ece::t_57dd961e7391b9 11-13,28,31,34-43,48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0b77d0ec4b7a21133f6403c3e582da66b5e01479",
+  "prompts": {},
+  "sessions": {
+    "s_6ef6767f529ece": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5e2-2c5e-7771-9057-e04912240451",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
