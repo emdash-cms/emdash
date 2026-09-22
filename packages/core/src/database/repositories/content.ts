@@ -1001,6 +1001,7 @@ export class ContentRepository {
 			const audit = sql`
 				INSERT INTO revisions (id, collection, entry_id, data, author_id)
 				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+				RETURNING id
 			`;
 			const update = sql`
 				UPDATE ${sql.ref(tableName)}
@@ -1013,6 +1014,7 @@ export class ContentRepository {
 				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
 				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
 				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+				RETURNING id
 			`;
 			const removeUnappliedAudit = sql`
 				DELETE FROM revisions
@@ -1030,6 +1032,7 @@ export class ContentRepository {
 				WHERE id = ${id}
 				AND draft_revision_id = ${revisionId}
 				AND version = ${existing.version + 1}
+				RETURNING id
 			`;
 			return [audit, update, removeUnappliedAudit, releaseMarker] as const;
 		};
@@ -1037,9 +1040,9 @@ export class ContentRepository {
 		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
 		if (batched) {
 			if (
-				(batched[0]?.numAffectedRows ?? 0n) !== 1n ||
-				(batched[1]?.numAffectedRows ?? 0n) !== 1n ||
-				(batched[3]?.numAffectedRows ?? 0n) !== 1n
+				batched[0]?.rows.length !== 1 ||
+				batched[1]?.rows.length !== 1 ||
+				batched[3]?.rows.length !== 1
 			) {
 				throw new ContentMutationConflictError();
 			}
@@ -1047,16 +1050,13 @@ export class ContentRepository {
 			await withTransaction(this.db, async (trx) => {
 				const [audit, update, removeUnappliedAudit, releaseMarker] = buildQueries();
 				const auditResult = await audit.execute(trx);
-				if ((auditResult.numAffectedRows ?? 0n) !== 1n) {
+				if (auditResult.rows.length !== 1) {
 					throw new ContentMutationConflictError();
 				}
 				const updateResult = await update.execute(trx);
 				await removeUnappliedAudit.execute(trx);
 				const releaseResult = await releaseMarker.execute(trx);
-				if (
-					(updateResult.numAffectedRows ?? 0n) !== 1n ||
-					(releaseResult.numAffectedRows ?? 0n) !== 1n
-				) {
+				if (updateResult.rows.length !== 1 || releaseResult.rows.length !== 1) {
 					throw new ContentMutationConflictError();
 				}
 			});
@@ -1086,6 +1086,7 @@ export class ContentRepository {
 			const audit = sql`
 				INSERT INTO revisions (id, collection, entry_id, data, author_id)
 				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+				RETURNING id
 			`;
 			const stage = sql`
 				UPDATE ${sql.ref(tableName)}
@@ -1099,6 +1100,7 @@ export class ContentRepository {
 				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
 				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
 				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+				RETURNING id
 			`;
 			const removeUnstagedAudit = sql`
 				DELETE FROM revisions
@@ -1115,22 +1117,19 @@ export class ContentRepository {
 
 		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
 		if (batched) {
-			if (
-				(batched[0]?.numAffectedRows ?? 0n) !== 1n ||
-				(batched[1]?.numAffectedRows ?? 0n) !== 1n
-			) {
+			if (batched[0]?.rows.length !== 1 || batched[1]?.rows.length !== 1) {
 				throw new ContentMutationConflictError();
 			}
 		} else {
 			await withTransaction(this.db, async (trx) => {
 				const [audit, stage, removeUnstagedAudit] = buildQueries();
 				const auditResult = await audit.execute(trx);
-				if ((auditResult.numAffectedRows ?? 0n) !== 1n) {
+				if (auditResult.rows.length !== 1) {
 					throw new ContentMutationConflictError();
 				}
 				const stageResult = await stage.execute(trx);
 				await removeUnstagedAudit.execute(trx);
-				if ((stageResult.numAffectedRows ?? 0n) !== 1n) {
+				if (stageResult.rows.length !== 1) {
 					throw new ContentMutationConflictError();
 				}
 			});

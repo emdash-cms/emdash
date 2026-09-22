@@ -28,7 +28,11 @@ let revisionRepo: RevisionRepository;
 let runtime: ReturnType<typeof createTestRuntime>;
 
 beforeAll(() => {
-	db = new Kysely<Database>({ dialect: new RawBindingD1Dialect({ database: env.DB }) });
+	// Local D1 can report cumulative `meta.changes` across a batch; returned
+	// rows remain statement-local and are the restore contract's success signal.
+	db = new Kysely<Database>({
+		dialect: new RawBindingD1Dialect({ database: withCumulativeBatchChanges(env.DB) }),
+	});
 });
 
 beforeEach(async () => {
@@ -201,4 +205,53 @@ describe("revision restore on D1", () => {
 			revisionCount + 1,
 		);
 	});
+
+	it("restores an older revision after publishing twice", async () => {
+		const created = await runtime.handleContentCreate(REVISION_COLLECTION, {
+			data: { title: "Original title" },
+			slug: "published-restore",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+		expect((await runtime.handleContentPublish(REVISION_COLLECTION, id)).success).toBe(true);
+		expect(
+			(
+				await runtime.handleContentUpdate(REVISION_COLLECTION, id, {
+					data: { title: "Changed title" },
+				})
+			).success,
+		).toBe(true);
+		expect((await runtime.handleContentPublish(REVISION_COLLECTION, id)).success).toBe(true);
+
+		const revisions = await runtime.handleRevisionList(REVISION_COLLECTION, id);
+		expect(revisions.success).toBe(true);
+		const target = revisions.data!.items.at(1);
+		expect(target).toBeDefined();
+
+		const restored = await runtime.handleRevisionRestore(target!.id, "restore-author");
+
+		expect(restored).toMatchObject({
+			success: true,
+			data: { item: { data: { title: "Original title" } } },
+		});
+	});
 });
+
+function withCumulativeBatchChanges(database: D1Database): D1Database {
+	return new Proxy(database, {
+		get(target, property) {
+			if (property === "batch") {
+				return async <T>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> => {
+					const results = await target.batch<T>(statements);
+					let changes = 0;
+					return results.map((result) => {
+						changes += result.meta.changes;
+						return { ...result, meta: { ...result.meta, changes } };
+					});
+				};
+			}
+			const value: unknown = Reflect.get(target, property, target);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
