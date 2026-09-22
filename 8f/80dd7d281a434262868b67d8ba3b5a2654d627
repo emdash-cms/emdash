@@ -1,0 +1,19 @@
+.changeset/refined-editor-sidebar-type.md
+  s_0b1e5dd344ca36::t_dd39067ed5330d 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8f80dd7d281a434262868b67d8ba3b5a2654d627",
+  "prompts": {},
+  "sessions": {
+    "s_0b1e5dd344ca36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ca04-3048-7b61-856b-56575de4b436",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

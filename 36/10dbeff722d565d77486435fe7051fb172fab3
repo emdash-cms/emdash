@@ -1,0 +1,43 @@
+packages/admin/src/components/BylineCreditsEditor.tsx
+  s_d1b87a9d1cbff4::t_0c366e97c62632 465-467,471-473,492,518,540-542,548,647-649,656,659,694,848
+packages/admin/src/components/TaxonomySidebar.tsx
+  s_d1b87a9d1cbff4::t_011151cb889269 446,520,525,566-568,590,596,602,840,893
+packages/admin/src/components/TranslationsPanel.tsx
+  s_d1b87a9d1cbff4::t_190e95c579e4f3 59,70,81-84
+packages/admin/src/components/editor/DocumentOutline.tsx
+  s_d1b87a9d1cbff4::t_7f2c6d4f4780f8 190,213-215,225
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_d1b87a9d1cbff4::t_099a8aba71e2d0 341,361,368,503,557,578,587,706
+packages/admin/src/components/media/ImageDropTarget.tsx
+  s_d1b87a9d1cbff4::t_a783a1ab5eb7a3 117,148
+packages/admin/src/components/RevisionHistory.tsx
+  s_0b1e5dd344ca36::t_c874fc3cd00dde 167,170-172,199,203-205,285
+packages/admin/src/components/SeoPanel.tsx
+  s_0b1e5dd344ca36::t_55648f7d511c7b 214
+packages/admin/src/components/editor/GalleryDetailPanel.tsx
+  s_0b1e5dd344ca36::t_439ae70e1eff5a 235,270-272,397,477,510
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3610dbeff722d565d77486435fe7051fb172fab3",
+  "prompts": {},
+  "sessions": {
+    "s_0b1e5dd344ca36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ca04-3048-7b61-856b-56575de4b436",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d1b87a9d1cbff4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c9ee-365e-7c03-b68c-e15052602738",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

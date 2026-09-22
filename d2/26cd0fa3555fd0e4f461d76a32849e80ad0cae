@@ -1,0 +1,131 @@
+.changeset/sleek-taxonomy-tags.md
+  s_0df06e584efdf4::t_9381d00fd431cf 1-4
+  s_0df06e584efdf4::t_cd5a6bf6493639 5
+packages/admin/src/components/TaxonomySidebar.tsx
+  s_0df06e584efdf4::t_38f55c44844631 660,696,710-730,735,745-747
+  s_0df06e584efdf4::t_4c582ef37c2fd8 19,425,467,483-484,815-842,846-848,850,852-860,862-864,893
+  s_0df06e584efdf4::t_a36e89229925b3 430-432,478
+  s_0df06e584efdf4::t_d0f5b0f864950c 218,256-261,376,456,468,490-518,520-527
+  s_0df06e584efdf4::t_e312afd191eadb 890
+  s_0df06e584efdf4::t_6670b65e5919fd 455
+  s_0df06e584efdf4::t_30b304952f50ca 382-387,389-392,394-401,403-406,436
+  s_d8e9f234e54e68::t_0288697b9cd5d1 393
+  s_0df06e584efdf4::t_bd85d67208e108 211-213,268-271,340,369,388,402,407-424,437-440,458-461
+  s_0df06e584efdf4::t_c93310980754df 532
+  s_0df06e584efdf4::t_f9e82f9b2f4935 519,565,580,600-601,697-700,704-709
+  s_0df06e584efdf4::t_4b85a6509d24f2 585-589,592-595,598-599
+  s_0df06e584efdf4::t_577fcd36dd70b4 446
+packages/admin/tests/components/TaxonomySidebar.test.tsx
+  s_0df06e584efdf4::t_2b32df8c45b972 105,115,169-171,175,178-183,562-569,571-594,596-611
+  s_0df06e584efdf4::t_9e9605d8b287ac 738-743,745,747-749
+  s_6a24d1836b3bff::t_61acaeda61aaa1 212-222,233,260,284,298,311,390,407,427,450,470,491,517,539,556,570,595,618,621,632,654,681-683,718,752,758-759,766-767,789,829,848,884,917,950,989,1009
+  s_0df06e584efdf4::t_5a23767c7cc293 239-242,244-246,249-250
+  s_0df06e584efdf4::t_675f58929cf57d 238,243,247-248
+  s_0df06e584efdf4::t_5bcb736e98dd21 686-717
+  s_0df06e584efdf4::t_3b9d602302fe85 106,116,172-174,337-382
+packages/admin/src/styles.css
+  s_0df06e584efdf4::t_37f0d694fb3199 593-621
+e2e/tests/form-data-loss.spec.ts
+  s_d8e9f234e54e68::t_1556ca6243087e 131,165
+pnpm-lock.yaml
+  s_6a24d1836b3bff::t_6d217fdb4a143f 85-86,486,663,1489,1835,1850,1905,1976,2513,2617,2654,4359-4360,14884,14886,14890,14896
+pnpm-workspace.yaml
+  s_6a24d1836b3bff::t_1d4a8b13acb08b 102
+packages/admin/tests/components/taxonomy-term-cache.test.tsx
+  s_0df06e584efdf4::t_8175639fbafb5b 5,116,118
+  s_0df06e584efdf4::t_2d61d17501112d 173,186
+packages/admin/src/components/editor/TableControls.tsx
+  s_dff17cd7a57b2b::t_4fb65dddc4a6e0 408-409
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_d1b87a9d1cbff4::t_4a2a415de07b4a 109,249,253,267-268,879,887,953,975,979,982,986,1010,1060,1076,1159,1215
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_d1b87a9d1cbff4::t_2fcc2b39e89d76 607-613,618
+packages/admin/src/lib/content-editor-panels.tsx
+  s_d1b87a9d1cbff4::t_82560180fb59ad 190
+packages/admin/src/components/FieldHelpLabel.tsx
+  s_0b1e5dd344ca36::t_798dbb7b829dfd 10
+packages/admin/src/components/SandboxedContentEditorPanel.tsx
+  s_0b1e5dd344ca36::t_478f21615c1b23 156-158,167
+packages/admin/src/components/SortableContentSettingsSections.tsx
+  s_0b1e5dd344ca36::t_4cdb5f7379e28c 205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d226cd0fa3555fd0e4f461d76a32849e80ad0cae",
+  "prompts": {},
+  "sessions": {
+    "s_0b1e5dd344ca36": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ca04-3048-7b61-856b-56575de4b436",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_0df06e584efdf4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd9e-f3f6-7e31-be97-b2eb60a9124c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_2737083220aeab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c00f-0eff-7f02-900f-8419ee6098f2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a24d1836b3bff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bb85-b3e3-7b61-b4fa-2125fc41aef8",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a07c4cd2c1a8aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeaf-aa8c-7290-b6ae-8db7c63c2b59",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d1b87a9d1cbff4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c9ee-365e-7c03-b68c-e15052602738",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_d8e9f234e54e68": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c3e3-6132-71e2-9fcb-8f638d31f35c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_dff17cd7a57b2b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b6c1-d0e4-7c11-b264-c8c83dfb7e8d",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_eaccc41f37afbd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b4e5-d398-7b40-a100-3d4fcef93a0e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
