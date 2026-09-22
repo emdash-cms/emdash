@@ -10,7 +10,14 @@
  * works cross-dialect.
  */
 
-import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
+import type {
+	ColumnDataType,
+	Compilable,
+	CompiledQuery,
+	Kysely,
+	QueryResult,
+	RawBuilder,
+} from "kysely";
 import { PostgresAdapter, sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
@@ -48,6 +55,34 @@ export function isPostgres(db: Kysely<any>): boolean {
 export interface CompoundSelectLimitedAdapter {
 	/** Maximum terms per compound SELECT. Must be a positive integer. */
 	readonly compoundSelectLimit: number;
+}
+
+/**
+ * Declared by an adapter that can execute independent compiled statements as
+ * one atomic batch. The statements run in order and either all commit or none
+ * do. D1 exposes this through `D1Database.batch()` even though it does not
+ * support Kysely's interactive transaction API.
+ */
+export interface AtomicBatchAdapter {
+	executeAtomicBatch(queries: readonly CompiledQuery[]): Promise<readonly QueryResult<unknown>[]>;
+}
+
+/**
+ * Execute a fixed statement list atomically when the active adapter supports
+ * it. Returns `null` for adapters that should use an ordinary transaction.
+ */
+export async function executeAtomicBatchIfSupported<DB>(
+	db: Kysely<DB>,
+	queries: readonly (Compilable | RawBuilder<unknown>)[],
+): Promise<readonly QueryResult<unknown>[] | null> {
+	const adapter: object = db.getExecutor().adapter;
+	if (!("executeAtomicBatch" in adapter) || typeof adapter.executeAtomicBatch !== "function") {
+		return null;
+	}
+
+	return adapter.executeAtomicBatch(
+		queries.map((query) => ("isRawBuilder" in query ? query.compile(db) : query.compile())),
+	);
 }
 
 /**

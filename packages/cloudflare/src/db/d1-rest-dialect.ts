@@ -9,7 +9,7 @@ import type {
 } from "kysely";
 import { SqliteQueryCompiler } from "kysely";
 
-import { D1Adapter } from "./d1-dialect.js";
+import { D1BaseAdapter } from "./d1-dialect.js";
 import { D1Introspector } from "./d1-introspector.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -291,8 +291,8 @@ export class D1RestDialect implements Dialect {
 		this.#config = config;
 	}
 
-	createAdapter(): D1Adapter {
-		return new D1Adapter();
+	createAdapter(): D1BaseAdapter {
+		return new D1BaseAdapter();
 	}
 
 	createDriver(): Driver {

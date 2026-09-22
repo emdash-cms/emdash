@@ -3,8 +3,6 @@ title: Content Lifecycle
 description: State transitions, revisions, permissions, conflicts, and hooks for EmDash content.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
-
 EmDash keeps the published version of an entry separate from unpublished changes. The admin panel,
 REST API, command-line interface (CLI), and Model Context Protocol (MCP) tools use the same lifecycle
 rules.
@@ -38,12 +36,6 @@ and draft pointers. Restoring a revision writes the selected field values direct
 
 Restoring a revision on a revision-enabled collection does not publish it. Publish the entry after
 reviewing the restored draft.
-
-<Aside type="caution">
-	On Cloudflare D1, revision restore for a collection without revision support updates the content
-	and writes its audit revision as separate operations. If the request fails after the content update,
-	read the entry and its revision history before retrying.
-</Aside>
 
 ## Permissions and write protection
 
@@ -89,6 +81,9 @@ state, and then decide whether to retry.
 An error response does not always prove that no state changed. If a connection ends before the
 client receives a response, read the entry before retrying a lifecycle operation. This also prevents
 a retry from replacing work completed by another editor.
+
+Revision restore commits the restored content and its audit revision together. If either write
+fails, EmDash preserves the content and revision history from before the request.
 
 See the [REST API reference](/reference/rest-api/) for HTTP request and response schemas, the
 [MCP server reference](/reference/mcp-server/) for tool inputs, and the [hook
