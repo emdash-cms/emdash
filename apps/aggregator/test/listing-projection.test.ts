@@ -182,32 +182,19 @@ beforeAll(async () => {
 	await applyD1Migrations(testEnv.DB, migrations.slice(11, 12));
 	await testEnv.DB.batch([
 		testEnv.DB.prepare(
-			`CREATE INDEX idx_package_profile_revisions_installability
-			 ON package_profile_revisions(installability_status, did, slug)
-			 WHERE installability_status = 'pending'`,
-		),
-		testEnv.DB.prepare(
-			`CREATE TABLE profile_installability_reconciliation (
-			 id INTEGER PRIMARY KEY CHECK (id = 1),
-			 status TEXT NOT NULL DEFAULT 'pending',
-			 completed_at TEXT
-			)`,
-		),
-		testEnv.DB.prepare(
 			`UPDATE packages
 			 SET installability_status = 'invalid',
 			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
-		),
-		testEnv.DB.prepare(
-			`UPDATE package_profile_revisions
-			 SET installability_status = 'pending',
-			     installability_error = NULL`,
 		),
 		testEnv.DB.prepare(
 			`UPDATE public_packages
 			 SET installability_status = 'invalid',
 			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
 		),
+		testEnv.DB.prepare(
+			`UPDATE profile_installability_reconciliation
+			 SET status = 'complete', completed_at = ? WHERE id = 1`,
+		).bind(NOW.toISOString()),
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(12));
 	const removedInstallabilityArtifacts = await testEnv.DB.prepare(
