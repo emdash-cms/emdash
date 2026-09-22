@@ -169,13 +169,13 @@ export async function exportSeed(
 
 	// Decide locale-awareness from the data. The runtime sets the i18n config via
 	// middleware, but the CLI never does, so `isI18nEnabled()` is always false
-	// under `emdash export-seed` (#1330). Detecting multiple locales in the data
+	// under `emdash export-seed`. Detecting multiple locales in the data
 	// keeps the export locale-aware without the runtime flag.
 	const { i18nEnabled, defaultLocale } = await detectLocaleInfo(db, seed.collections);
 
 	// Self-describe the default locale so a non-`en` single-locale project
 	// survives the round-trip: `emdash seed` runs outside the runtime and would
-	// otherwise backfill omitted locales as `en` (#1421).
+	// otherwise backfill omitted locales as `en`.
 	if (defaultLocale) seed.defaultLocale = defaultLocale;
 
 	// 3. Export taxonomy definitions and terms
@@ -191,7 +191,7 @@ export async function exportSeed(
 	if (withContent !== undefined) {
 		// Treat "all" as a synonym for the bare flag and "true". The args help
 		// text documents `all` as a valid value, but without this the literal
-		// string is read as a collection name and matches no collection (#1329).
+		// string is read as a collection name and matches no collection.
 		const includeAll = withContent === "" || withContent === "true" || withContent === "all";
 		const collections = includeAll
 			? null // all collections
@@ -311,7 +311,7 @@ async function exportBylines(
  * Determine locale-awareness and the data's default locale for the export.
  *
  * The runtime initializes the i18n config in middleware, but the CLI never does,
- * so `isI18nEnabled()` is always false under `emdash export-seed` (#1330). When
+ * so `isI18nEnabled()` is always false under `emdash export-seed`. When
  * the flag is unset, fall back to the data: a project is multi-locale when its
  * i18n-aware tables hold rows in more than one distinct locale. `locale` is
  * NOT NULL (defaulting to the site's default locale), so a per-row presence
@@ -321,7 +321,7 @@ async function exportBylines(
  * per-locale suffix they need to avoid duplicate seed ids.
  *
  * `defaultLocale` self-describes the single-locale case so a non-`en` default
- * survives the round-trip (#1421). When more than one locale is present every
+ * survives the round-trip. When more than one locale is present every
  * row already carries its own `locale`, so no fallback is needed and we leave it
  * undefined rather than guess which locale is the "default" without the runtime
  * config.
