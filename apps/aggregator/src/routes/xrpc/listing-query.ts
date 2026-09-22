@@ -69,7 +69,6 @@ export async function lookupPackage(
 			 FROM packages p
 			 WHERE p.did = ? AND p.slug = ?
 			   AND p.installability_status = 'valid'
-			   AND p.emdash_extension IS NOT NULL
 			   AND ${ACTIVE_PROFILE_SQL}
 			   AND ${ACTIVE_PROFILE_REDACTION_SQL}`,
 		)

@@ -48,6 +48,9 @@ const RELEASE_CID_2 = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoi
 const PENDING_PROFILE_CID = "bafyreidjv6bgt6jlqsi2jl7ezijrkwfurtrsp6jtpm5nol4y7mtnpzjzr4";
 const PENDING_RELEASE_CID = "bafyreigqlqgt5yvojkoox6shh33bcnbab2g6z6ygtbbl5es6eys5jlp6ae";
 const NOW = new Date("2026-08-24T10:00:00.000Z");
+const LEGACY_DID = "did:plc:n4mihg5idgr5ne4jigcmbh4k";
+const LEGACY_SLUG = "ai-search";
+const LEGACY_PROFILE_CID = "bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a";
 
 const moderationPolicy: ListingModerationPolicy = {
 	schemaVersion: 1,
@@ -383,6 +386,35 @@ describe("revision migration and ingest", () => {
 });
 
 describe("projection policy", () => {
+	it("projects an exact legacy profile revision with no extension", async () => {
+		await seedProfile({
+			did: LEGACY_DID,
+			slug: LEGACY_SLUG,
+			cid: LEGACY_PROFILE_CID,
+			name: "Legacy AI search",
+			at: NOW,
+			installable: false,
+		});
+		await seedRelease({
+			did: LEGACY_DID,
+			slug: LEGACY_SLUG,
+			cid: RELEASE_CID_1,
+			version: "1.0.0",
+			at: NOW,
+		});
+
+		await rebuild("open");
+
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status
+				 FROM public_packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(LEGACY_DID, LEGACY_SLUG)
+				.first(),
+		).toEqual({ emdash_extension: null, installability_status: "valid" });
+	});
+
 	it("keeps an approved but uninstallable profile out of public discovery", async () => {
 		await seedProfile({
 			cid: PROFILE_CID_1,

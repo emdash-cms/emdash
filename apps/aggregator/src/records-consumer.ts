@@ -39,6 +39,7 @@ import {
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
+import { isLegacyProfileWithoutExtension } from "@emdash-cms/registry-verification/records";
 import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification/repository";
 
 import { createProductionDidResolver, DidResolver } from "./did-resolver.js";
@@ -135,7 +136,7 @@ export class IngestError extends Error {
 export type ProfileInstallabilityError = "PROFILE_EXTENSION_MISSING" | "PROFILE_EXTENSION_INVALID";
 
 export type ProfileInstallability =
-	| { status: "valid"; extension: string; error: null }
+	| { status: "valid"; extension: string | null; error: null }
 	| { status: "invalid"; extension: null; error: ProfileInstallabilityError };
 
 export async function processBatch(
@@ -394,11 +395,10 @@ export async function ingestPackageProfile(
 			);
 		}
 	}
-	let installability: ProfileInstallability = {
-		status: "invalid",
-		extension: null,
-		error: "PROFILE_EXTENSION_MISSING",
-	};
+	const legacyException = isLegacyProfileWithoutExtension(job.did, job.rkey, verified.cid);
+	let installability: ProfileInstallability = legacyException
+		? { status: "valid", extension: null, error: null }
+		: { status: "invalid", extension: null, error: "PROFILE_EXTENSION_MISSING" };
 	if (
 		isPlainObject(record.extensions) &&
 		record.extensions[NSID.packageProfileExtension] !== undefined

@@ -104,6 +104,7 @@ export async function readAuthoritativePackageRelease(
 			package: packageSlug,
 			version,
 			rkey: release.rkey,
+			profileCid: profile.cid,
 			profile: profile.value,
 			release: release.value,
 		});
@@ -141,6 +142,12 @@ export async function verifyAuthoritativePackageRelease(
 ): Promise<RecordVerificationReport> {
 	const context = records.inspection.value;
 	const provenanceReference = context.releaseExtension.provenance;
+	if (provenanceReference && context.repository === null) {
+		return verificationFailure(
+			"PROVENANCE_UNVERIFIABLE",
+			"The release supplies provenance, but its signed profile has no repository anchor.",
+		);
+	}
 	let document: Uint8Array | undefined;
 	if (provenanceReference) {
 		const fetched = await fetchVerifiedResource(provenanceReference.url, {
@@ -163,6 +170,7 @@ export async function verifyAuthoritativePackageRelease(
 		package: records.packageSlug,
 		version: records.version,
 		rkey: records.release.rkey,
+		profileCid: records.profile.cid,
 		profile: records.profile.value,
 		release: records.release.value,
 		provenance:

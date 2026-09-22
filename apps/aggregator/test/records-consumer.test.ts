@@ -109,6 +109,9 @@ function jobFor(
 }
 
 const NOW = new Date("2026-05-09T12:00:00.000Z");
+const LEGACY_DID = "did:plc:n4mihg5idgr5ne4jigcmbh4k";
+const LEGACY_SLUG = "ai-search";
+const LEGACY_CID = "bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a";
 
 // ─── Writer: package.profile ────────────────────────────────────────────────
 
@@ -160,6 +163,50 @@ describe("ingestPackageProfile", () => {
 		expect(row?.emdash_extension).toBeNull();
 		expect(row?.installability_status).toBe("invalid");
 		expect(row?.installability_error).toBe("PROFILE_EXTENSION_MISSING");
+	});
+
+	it("accepts only the exact legacy profile CID without an extension", async () => {
+		const record = {
+			...validRecord,
+			id: `at://${LEGACY_DID}/${NSID.packageProfile}/${LEGACY_SLUG}`,
+			slug: LEGACY_SLUG,
+		};
+		delete (record as { extensions?: unknown }).extensions;
+		const job = jobFor(LEGACY_DID, NSID.packageProfile, LEGACY_SLUG, {
+			operation: "update",
+		});
+
+		await ingestPackageProfile(testEnv.DB, job, { ...fakeVerified(record), cid: LEGACY_CID }, NOW);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(LEGACY_DID, LEGACY_SLUG)
+				.first(),
+		).toEqual({
+			emdash_extension: null,
+			installability_status: "valid",
+			installability_error: null,
+		});
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: `${LEGACY_CID}-changed` },
+			new Date(NOW.getTime() + 1_000),
+		);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(LEGACY_DID, LEGACY_SLUG)
+				.first(),
+		).toEqual({
+			installability_status: "invalid",
+			installability_error: "PROFILE_EXTENSION_MISSING",
+		});
 	});
 
 	it("records a stable reason for a malformed install-verification extension", async () => {
