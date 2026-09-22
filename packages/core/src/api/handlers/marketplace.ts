@@ -814,11 +814,6 @@ export async function handleMarketplaceUninstall(
 		const version = existing.marketplaceVersion ?? existing.version;
 		await opts?.beforeDelete?.();
 
-		// Delete bundle from site R2
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version);
-		}
-
 		// Optionally delete plugin storage data
 		let dataDeleted = false;
 		if (opts?.deleteData) {
@@ -838,6 +833,12 @@ export async function handleMarketplaceUninstall(
 
 		// Delete state row
 		await stateRepo.delete(pluginId);
+
+		// Delete the bundle after database state. A failed external cleanup can
+		// leave an inert orphan, but never an active row pointing at missing bytes.
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version);
+		}
 
 		return {
 			success: true,

@@ -25,6 +25,10 @@ const {
 	mockGetPluginRouteMeta,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
+	mockGetRuntimePluginSettingsSchema,
+	mockRunPluginActivateLifecycle,
+	mockRunPluginInstallLifecycle,
+	mockRunPluginUninstallLifecycle,
 } = vi.hoisted(() => {
 	const publicPluginResult = { success: true, data: { ok: true } };
 	const ok = async () => ({ success: true });
@@ -36,6 +40,10 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const runPluginInstallLifecycle = vi.fn(async () => undefined);
+	const runPluginActivateLifecycle = vi.fn(async () => undefined);
+	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
+	const getRuntimePluginSettingsSchema = vi.fn(() => ({ apiKey: { type: "secret" } }));
 	return {
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl },
@@ -89,12 +97,20 @@ const {
 			isSandboxBypassed: () => false,
 			syncMarketplacePlugins: async () => undefined,
 			syncRegistryPlugins: async () => undefined,
+			runPluginInstallLifecycle,
+			runPluginActivateLifecycle,
+			runPluginUninstallLifecycle,
+			getRuntimePluginSettingsSchema,
 			setPluginStatus: async () => undefined,
 		},
 		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
+		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
+		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
+		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
+		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
 	};
 });
 
@@ -181,6 +197,10 @@ function resetSetupVerified() {
 beforeEach(() => {
 	resetSetupVerified();
 	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
+	mockGetRuntimePluginSettingsSchema.mockClear();
+	mockRunPluginActivateLifecycle.mockClear();
+	mockRunPluginInstallLifecycle.mockClear();
+	mockRunPluginUninstallLifecycle.mockClear();
 });
 
 /** A getDb stub whose migrations-probe query throws `error`. */
@@ -544,6 +564,39 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(response.status).toBe(200);
 		expect(sessionGet).toHaveBeenCalledWith("user");
+	});
+
+	it("exposes plugin install lifecycle through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/admin/plugins/registry/install",
+			method: "POST",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		expect(typeof emdash.runPluginInstallLifecycle).toBe("function");
+		expect(typeof emdash.runPluginActivateLifecycle).toBe("function");
+		expect(typeof emdash.runPluginUninstallLifecycle).toBe("function");
+		expect(typeof emdash.getRuntimePluginSettingsSchema).toBe("function");
+		await (emdash.runPluginInstallLifecycle as (pluginId: string) => Promise<void>)("gallery");
+		await (emdash.runPluginActivateLifecycle as (pluginId: string) => Promise<void>)("gallery");
+		await (
+			emdash.runPluginUninstallLifecycle as (pluginId: string, deleteData: boolean) => Promise<void>
+		)("gallery", true);
+		expect(
+			(emdash.getRuntimePluginSettingsSchema as (pluginId: string) => Record<string, unknown>)(
+				"gallery",
+			),
+		).toEqual({ apiKey: { type: "secret" } });
+		expect(mockRunPluginInstallLifecycle).toHaveBeenCalledWith("gallery");
+		expect(mockRunPluginActivateLifecycle).toHaveBeenCalledWith("gallery");
+		expect(mockRunPluginUninstallLifecycle).toHaveBeenCalledWith("gallery", true);
+		expect(mockGetRuntimePluginSettingsSchema).toHaveBeenCalledWith("gallery");
 	});
 });
 
