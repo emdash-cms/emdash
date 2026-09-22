@@ -247,6 +247,21 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check selected test results
+        env:
+          PLAN_RESULT: ${{ needs.change-plan.result }}
+          CORE_UNIT_SELECTED: ${{ needs.change-plan.outputs.unit_mode == 'full' }}
+          CORE_UNIT_RESULT: ${{ needs.test-shards.result }}
+          PACKAGE_SELECTED: ${{ needs.change-plan.outputs.unit }}
+          PACKAGE_RESULT: ${{ needs.test-packages.result }}
+          SMOKE_SELECTED: ${{ needs.change-plan.outputs.smoke }}
+          SMOKE_RESULT: ${{ needs.test-smoke.result }}
+          INTEGRATION_SELECTED: ${{ needs.change-plan.outputs.integration }}
+          INTEGRATION_RESULT: ${{ needs.test-integration.result }}
+          D1_SELECTED: ${{ needs.change-plan.outputs.d1 }}
+          D1_RESULT: ${{ needs.test-workerd.result }}
+          BROWSER_SELECTED: ${{ needs.change-plan.outputs.browser }}
+          BROWSER_RESULT: ${{ needs.test-browser.result }}
+          E2E_ROLLUP_RESULT: ${{ needs.test-e2e-rollup.result }}
         run: |
           failed=0
           check_lane() {
@@ -261,18 +276,18 @@ jobs:
             fi
           }
 
-          if [ "${{ needs.change-plan.result }}" != success ]; then
+          if [ "$PLAN_RESULT" != success ]; then
             echo "::error::Test planning failed or was cancelled"
             failed=1
           fi
-          check_lane "Core unit tests" "${{ needs.change-plan.outputs.unit_mode == 'full' }}" "${{ needs.test-shards.result }}"
-          check_lane "Package tests" "${{ needs.change-plan.outputs.unit }}" "${{ needs.test-packages.result }}"
-          check_lane "Smoke tests" "${{ needs.change-plan.outputs.smoke }}" "${{ needs.test-smoke.result }}"
-          check_lane "Integration tests" "${{ needs.change-plan.outputs.integration }}" "${{ needs.test-integration.result }}"
-          check_lane "D1 tests" "${{ needs.change-plan.outputs.d1 }}" "${{ needs.test-workerd.result }}"
-          check_lane "Browser tests" "${{ needs.change-plan.outputs.browser }}" "${{ needs.test-browser.result }}"
-          if [ "${{ needs.test-e2e-rollup.result }}" != success ]; then
-            echo "::error::E2E Tests rollup was ${{ needs.test-e2e-rollup.result }}"
+          check_lane "Core unit tests" "$CORE_UNIT_SELECTED" "$CORE_UNIT_RESULT"
+          check_lane "Package tests" "$PACKAGE_SELECTED" "$PACKAGE_RESULT"
+          check_lane "Smoke tests" "$SMOKE_SELECTED" "$SMOKE_RESULT"
+          check_lane "Integration tests" "$INTEGRATION_SELECTED" "$INTEGRATION_RESULT"
+          check_lane "D1 tests" "$D1_SELECTED" "$D1_RESULT"
+          check_lane "Browser tests" "$BROWSER_SELECTED" "$BROWSER_RESULT"
+          if [ "$E2E_ROLLUP_RESULT" != success ]; then
+            echo "::error::E2E Tests rollup was $E2E_ROLLUP_RESULT"
             failed=1
           fi
           exit "$failed"
@@ -400,6 +415,14 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Check E2E results
+        env:
+          PLAN_RESULT: ${{ needs.change-plan.result }}
+          E2E_SELECTED: ${{ needs.change-plan.outputs.e2e_node == 'true' || needs.change-plan.outputs.e2e_cloudflare == 'true' }}
+          E2E_RESULT: ${{ needs.test-e2e.result }}
+          TABLE_SELECTED: ${{ needs.change-plan.outputs.e2e_table }}
+          TABLE_RESULT: ${{ needs.test-e2e-table.result }}
+          PLAYGROUND_SELECTED: ${{ needs.change-plan.outputs.e2e_playground }}
+          PLAYGROUND_RESULT: ${{ needs.test-e2e-playground.result }}
         run: |
           failed=0
           check_lane() {
@@ -414,13 +437,13 @@ jobs:
             fi
           }
 
-          if [ "${{ needs.change-plan.result }}" != success ]; then
+          if [ "$PLAN_RESULT" != success ]; then
             echo "::error::Test planning failed or was cancelled"
             failed=1
           fi
-          check_lane "Node/Cloudflare E2E" "${{ needs.change-plan.outputs.e2e_node == 'true' || needs.change-plan.outputs.e2e_cloudflare == 'true' }}" "${{ needs.test-e2e.result }}"
-          check_lane "Table E2E" "${{ needs.change-plan.outputs.e2e_table }}" "${{ needs.test-e2e-table.result }}"
-          check_lane "Playground E2E" "${{ needs.change-plan.outputs.e2e_playground }}" "${{ needs.test-e2e-playground.result }}"
+          check_lane "Node/Cloudflare E2E" "$E2E_SELECTED" "$E2E_RESULT"
+          check_lane "Table E2E" "$TABLE_SELECTED" "$TABLE_RESULT"
+          check_lane "Playground E2E" "$PLAYGROUND_SELECTED" "$PLAYGROUND_RESULT"
           exit "$failed"
 
   test-e2e:
