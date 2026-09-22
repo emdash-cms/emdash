@@ -569,7 +569,11 @@ export const releaseSetupCommand = defineCommand({
 		},
 		repository: {
 			type: "string",
-			description: "Canonical HTTPS GitHub repository URL (defaults to manifest repo)",
+			description: "Canonical HTTPS GitHub repository URL (defaults to manifest or Git origin)",
+		},
+		provenance: {
+			type: "string",
+			description: "Provenance policy: required or optional",
 		},
 		confirmation: {
 			type: "string",
@@ -578,7 +582,7 @@ export const releaseSetupCommand = defineCommand({
 		yes: {
 			type: "boolean",
 			alias: "y",
-			description: "Accept the default package-profile approval policy without prompting",
+			description: "Accept the default package-profile policies without prompting",
 			default: false,
 		},
 	},
@@ -620,6 +624,7 @@ export const releaseSetupCommand = defineCommand({
 					runProfileSetup({
 						dir: args.dir,
 						repository: args.repository,
+						provenance: args.provenance,
 						confirmation: args.confirmation,
 						yes: args.yes,
 						nextSteps: false,
