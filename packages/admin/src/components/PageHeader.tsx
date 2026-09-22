@@ -28,7 +28,9 @@ export function PageHeader({
 	return (
 		<header className={cn("grid min-w-0 gap-4 border-b border-kumo-line pb-4", className)}>
 			<div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1">
-				<h1 className="min-w-0 self-center text-2xl font-semibold leading-tight">{title}</h1>
+				<h1 className="flex min-h-9 min-w-0 items-center text-2xl font-semibold leading-tight">
+					{title}
+				</h1>
 				{actions && <div className="flex shrink-0 justify-end gap-2">{actions}</div>}
 				{description && (
 					<p className="col-span-2 text-sm leading-5 text-pretty text-kumo-subtle">{description}</p>
