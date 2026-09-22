@@ -17,6 +17,7 @@ import {
 } from "../src/commands/profile.js";
 import {
 	PackageProfileSetupError,
+	readPackageProfilePolicy,
 	setupPackageProfile,
 	type PackageProfilePublisher,
 } from "../src/profile/setup.js";
@@ -217,6 +218,23 @@ describe("package profile setup", () => {
 			],
 			skipValidation: true,
 		});
+	});
+
+	it("treats a pre-delegation profile as having no current provenance policy", async () => {
+		const fixture = publisher({
+			cid: "bafyexisting",
+			value: {
+				$type: NSID.packageProfile,
+				id: PROFILE_URI,
+				type: "emdash-plugin",
+				license: "MIT",
+				authors: [{ name: "Example Publisher" }],
+				security: [{ email: "security@example.com" }],
+			},
+		});
+
+		await expect(readPackageProfilePolicy(fixture.publisher, "gallery")).resolves.toBeNull();
+		await expect(resolveProfileProvenance(undefined, false, undefined)).resolves.toBe(true);
 	});
 
 	it("creates an optional-provenance profile when selected", async () => {

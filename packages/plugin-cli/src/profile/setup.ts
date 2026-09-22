@@ -226,7 +226,7 @@ export async function readPackageProfilePolicy(
 	}
 	const rawExtension = rawExtensions?.[NSID.packageProfileExtension];
 	if (rawExtension === undefined) {
-		return { requireProvenance: false, confirmation: "escalation-only" };
+		return null;
 	}
 	const extension = safeParse(PackageProfileExtension.mainSchema, rawExtension);
 	if (!extension.ok) {
