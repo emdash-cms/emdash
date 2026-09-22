@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type ContentItem, type Revision } from "../lib/api";
-import { cn, formatDate, formatRelativeTime, isolate } from "../lib/utils";
+import { cn, formatDate, formatRelativeTime, isolate } from "../lib/utils.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================

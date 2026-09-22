@@ -12,7 +12,7 @@ import * as React from "react";
 import type { ComponentProps } from "react";
 
 import type { AdminComment, CommentStatus } from "../../lib/api/comments.js";
-import { formatDate } from "../../lib/utils";
+import { formatDate } from "../../lib/utils.js";
 
 export interface CommentDetailProps {
 	comment: AdminComment;

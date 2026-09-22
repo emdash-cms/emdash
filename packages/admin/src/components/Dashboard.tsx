@@ -10,7 +10,7 @@ import { useCurrentUser } from "../lib/api/current-user.js";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
 import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons";
 import {
 	ContentStatusIcon,

@@ -61,12 +61,13 @@ export function formatRelativeTime(dateString: string, locale: string): string {
  * Format a timestamp in the admin's locale.
  *
  * Every date in the admin goes through here rather than `toLocaleDateString()` with no locale,
- * which follows the browser's language and leaves a Hebrew admin printing English months.
+ * which follows the browser's language and leaves a Hebrew admin printing English months. With no
+ * options it formats exactly as `toLocaleDateString()` did, so no call site changes how it looks.
  */
 export function formatDate(
 	value: string | Date,
 	locale: string,
-	options: Intl.DateTimeFormatOptions = { dateStyle: "medium" },
+	options: Intl.DateTimeFormatOptions = {},
 ): string {
 	const date = typeof value === "string" ? parseTimestamp(value) : value;
 	return new Intl.DateTimeFormat(locale, options).format(date);

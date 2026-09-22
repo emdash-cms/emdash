@@ -54,7 +54,7 @@ import {
 	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
-import { cn, formatDate } from "../lib/utils";
+import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";

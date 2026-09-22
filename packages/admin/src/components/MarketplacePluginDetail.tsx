@@ -28,7 +28,7 @@ import {
 } from "../lib/api/marketplace.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { isSafeUrl, safeIconUrl } from "../lib/url.js";
-import { formatDate, isolate } from "../lib/utils";
+import { formatDate, isolate } from "../lib/utils.js";
 import { ArrowPrev, CaretNext, CaretPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";

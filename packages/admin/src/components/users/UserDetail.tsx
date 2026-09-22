@@ -14,7 +14,7 @@ import * as React from "react";
 
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { cn, formatDate, isolate } from "../../lib/utils";
+import { cn, formatDate, isolate } from "../../lib/utils.js";
 import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserDetailProps {

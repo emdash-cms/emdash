@@ -46,7 +46,7 @@ import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
-import { cn, formatDate, parseTimestamp } from "../lib/utils";
+import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";

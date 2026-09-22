@@ -53,7 +53,7 @@ import {
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
 import { resolveSandboxedEditorPanels } from "../lib/sandboxed-editor-extensions.js";
-import { cn, isolate } from "../lib/utils";
+import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";

@@ -56,6 +56,7 @@ import {
 } from "../lib/api/registry.js";
 import { renderMarkdown } from "../lib/markdown.js";
 import { registryIdentity } from "../lib/registry-identity.js";
+import { formatDate } from "../lib/utils.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
@@ -569,14 +570,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 								<div className="flex items-center gap-1">
 									<dt className="font-medium">{t`Updated`}</dt>
 									<dd>
-										<bdi>{formatDate(lastUpdated, i18n.locale)}</bdi>
+										<bdi>{formatRegistryDate(lastUpdated, i18n.locale)}</bdi>
 									</dd>
 								</div>
 							) : null}
 							<div className="flex items-center gap-1">
 								<dt className="font-medium">{t`Indexed`}</dt>
 								<dd>
-									<bdi>{formatDate(release.indexedAt, i18n.locale)}</bdi>
+									<bdi>{formatRegistryDate(release.indexedAt, i18n.locale)}</bdi>
 								</dd>
 							</div>
 						</dl>
@@ -927,9 +928,10 @@ function envLabel(key: string): string {
 	return key.startsWith("env:") ? key.slice("env:".length) : key;
 }
 
-function formatDate(iso: string, locale: string): string {
+/** Registry timestamps come from a third party: show the raw value rather than throw on a bad one. */
+function formatRegistryDate(iso: string, locale: string): string {
 	try {
-		return new Intl.DateTimeFormat(locale).format(new Date(iso));
+		return formatDate(iso, locale, {});
 	} catch {
 		return iso;
 	}

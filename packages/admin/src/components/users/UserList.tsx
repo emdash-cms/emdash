@@ -4,7 +4,7 @@ import { UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
-import { cn, formatDate } from "../../lib/utils";
+import { cn, formatDate } from "../../lib/utils.js";
 import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
@@ -211,7 +211,9 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 					</span>
 				)}
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{lastLogin}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">
+				<bdi>{lastLogin}</bdi>
+			</td>
 			<td className="px-4 py-3">
 				<span className={cn("text-sm", user.credentialCount === 0 && "text-kumo-subtle")}>
 					{user.credentialCount}
