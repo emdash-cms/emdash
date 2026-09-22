@@ -49,7 +49,7 @@ msgstr "„{0}“ წაიშლება მისი მედია პრ�
 msgid "\"{0}\" will be permanently deleted."
 msgstr "„{0}“ სამუდამოდ წაიშლება."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:598
+#: packages/admin/src/components/RegistryPluginDetail.tsx:608
 msgid "(pre-release)"
 msgstr "(წინასწარი გამოშვება)"
 
@@ -57,7 +57,7 @@ msgstr "(წინასწარი გამოშვება)"
 msgid "(synced)"
 msgstr "(სინქრონიზებული)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:601
+#: packages/admin/src/components/RegistryPluginDetail.tsx:611
 msgid "(too new)"
 msgstr "(ძალიან ახალი)"
 
@@ -162,6 +162,11 @@ msgstr "{0, plural, one {# მენიუ იმპორტირდა} other
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# მენიუ იმპორტირდება} other {# მენიუ იმპორტირდება}}"
 
+#. placeholder {0}: capabilities.length
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:226
+msgid "{0, plural, one {# permission requested} other {# permissions requested}}"
+msgstr ""
+
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
 #: packages/admin/src/components/PluginManager.tsx:492
@@ -261,7 +266,7 @@ msgstr "{0, plural, one {მომხმარებელი} other {მომ�
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:705
+#: packages/admin/src/components/RegistryPluginDetail.tsx:715
 msgid "{0} {1} required — you have {2}."
 msgstr "საჭიროა {0} {1} — გაქვთ {2}."
 
@@ -277,7 +282,7 @@ msgid "{0} added to this post."
 msgstr "{0} დაემატა ამ პოსტს."
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:508
+#: packages/admin/src/components/RegistryPluginDetail.tsx:518
 msgid "{0} banner"
 msgstr "{0} ბანერი"
 
@@ -307,7 +312,7 @@ msgid "{0} has been removed"
 msgstr "{0} მოიხსნა"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:520
+#: packages/admin/src/components/RegistryPluginDetail.tsx:530
 msgid "{0} icon"
 msgstr "{0} ხატულა"
 
@@ -549,11 +554,11 @@ msgstr "{overdueCount, plural, one {ერთი დაგეგმილი ე
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {# ფაილი არ დაემატა, რადგან ატვირთვების სია სავსეა.} other {# ფაილი არ დაემატა, რადგან ატვირთვების სია სავსეა.}}"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:105
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:115
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} დამატებით ნებართვებს ითხოვს:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} საჭიროებს შემდეგ ნებართვებს:"
 
@@ -811,11 +816,11 @@ msgstr "ფოკუსის წერტილის შესახებ"
 msgid "About inferred bylines"
 msgstr "ავტომატურად დადგენილი ბაილაინების შესახებ"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:295
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:357
 msgid "Accept & Install"
 msgstr "მიღება და დაყენება"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:294
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:356
 msgid "Accept & Update"
 msgstr "მიღება და განახლება"
 
@@ -1076,12 +1081,12 @@ msgstr ""
 msgid "After send:"
 msgstr "გაგზავნის შემდეგ:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:126
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:136
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to external websites without a host restriction."
 msgstr ""
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:135
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr ""
 
@@ -1094,7 +1099,7 @@ msgstr "აგენტის წვდომა"
 msgid "Agent access for {0} has been updated"
 msgstr "{0}-ისთვის აგენტის წვდომა განახლდა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:233
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "Agent-callable MCP tools"
 msgstr "აგენტის მიერ გამოძახებადი MCP ინსტრუმენტები"
 
@@ -1285,7 +1290,7 @@ msgstr "დაშიფრული ციფრული გასაღებ�
 #: packages/admin/src/router.tsx:2099
 #: packages/admin/src/router.tsx:2115
 #: packages/admin/src/router.tsx:2140
-#: packages/admin/src/router.tsx:2642
+#: packages/admin/src/router.tsx:2644
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1490,7 +1495,7 @@ msgstr "ავტორიზაცია"
 msgid "Authorize Device"
 msgstr "მოწყობილობის ავტორიზაცია"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:170
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:208
 msgid "Authorized approvers"
 msgstr "ავტორიზებული დამმტკიცებლები"
 
@@ -1498,7 +1503,7 @@ msgstr "ავტორიზებული დამმტკიცებლ�
 msgid "Authorizing..."
 msgstr "მიმდინარეობს ავტორიზაცია..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:754
+#: packages/admin/src/components/RegistryPluginDetail.tsx:764
 msgid "Authors"
 msgstr "ავტორები"
 
@@ -1597,7 +1602,7 @@ msgid "Back to marketplace"
 msgstr "დაბრუნება მარკეტპლეისზე"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:898
+#: packages/admin/src/components/RegistryPluginDetail.tsx:908
 msgid "Back to plugins"
 msgstr "დაბრუნება პლაგინებზე"
 
@@ -1718,6 +1723,10 @@ msgstr "გადახედეთ <0>რეესტრს</0> პლაგი
 msgid "Browse themes and preview them with your own content."
 msgstr "დაათვალიერეთ თემები და გადახედეთ მათ საკუთარი შიგთავსით."
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:159
+msgid "Build provenance verified"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
 #: packages/admin/src/components/PortableTextEditor.tsx:1613
 #: packages/admin/src/components/PortableTextEditor.tsx:4526
@@ -1779,7 +1788,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1012
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:286
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
 #: packages/admin/src/components/ContentList.tsx:545
 #: packages/admin/src/components/ContentList.tsx:1378
@@ -1849,7 +1858,7 @@ msgstr "კანონიკური URL"
 msgid "Capabilities"
 msgstr "შესაძლებლობები"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:83
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:93
 msgid "Capability consent"
 msgstr "შესაძლებლობაზე თანხმობა"
 
@@ -1941,7 +1950,7 @@ msgstr "განრიგის შეცვლა"
 msgid "Change where visitors are sent"
 msgstr "ვიზიტორების გადამისამართების სამიზნის შეცვლა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:886
+#: packages/admin/src/components/RegistryPluginDetail.tsx:896
 msgid "Changelog"
 msgstr "ცვლილებების ისტორია"
 
@@ -2968,7 +2977,7 @@ msgstr "თარიღის დიაპაზონი"
 msgid "Decimal number"
 msgstr "ათწილადი რიცხვი"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:819
+#: packages/admin/src/components/RegistryPluginDetail.tsx:829
 msgid "Declared permissions"
 msgstr "გამოცხადებული ნებართვები"
 
@@ -3269,7 +3278,7 @@ msgid "Describe what this section is for..."
 msgstr "აღწერეთ, რისთვისაა ეს სექცია..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:425
-#: packages/admin/src/components/RegistryPluginDetail.tsx:883
+#: packages/admin/src/components/RegistryPluginDetail.tsx:893
 #: packages/admin/src/components/SectionEditor.tsx:295
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:438
@@ -3288,7 +3297,7 @@ msgstr "დანიშნულება"
 msgid "Destination path"
 msgstr "დანიშნულების ბილიკი"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:247
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:309
 #: packages/admin/src/components/PluginManager.tsx:608
 msgid "Destructive"
 msgstr "დესტრუქციული"
@@ -3522,7 +3531,7 @@ msgstr "სარეზერვო ასლის გადმოწერა"
 msgid "Download backups and schedule automatic backups to storage"
 msgstr "სარეზერვო ასლების გადმოწერა და ავტომატური სარეზერვო ასლების დაგეგმვა საცავში"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:561
+#: packages/admin/src/components/RegistryPluginDetail.tsx:571
 msgid "Download SBOM"
 msgstr "SBOM-ის გადმოწერა"
 
@@ -4004,7 +4013,7 @@ msgstr "შეიყვანეთ WordPress-ის საიტის URL"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:982
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2859
+#: packages/admin/src/router.tsx:2861
 msgid "Error"
 msgstr "შეცდომა"
 
@@ -4036,7 +4045,7 @@ msgstr "ყველგან, სადაც ეს სურათი გა�
 msgid "Every place using this image will update to the selected version."
 msgstr "ყველგან, სადაც ეს სურათი გამოიყენება, განახლდება არჩეული ვერსიით."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:665
+#: packages/admin/src/components/RegistryPluginDetail.tsx:675
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "ამ პლაგინის ყველა გამოქვეყნებული გამოშვება გაწვეულია ან ვერ დადასტურდა. შეამოწმეთ მოგვიანებით ან დაუკავშირდით გამომცემელს."
 
@@ -4602,7 +4611,7 @@ msgstr "URL-ების გადაწერა ვერ მოხერხ�
 
 #: packages/admin/src/router.tsx:735
 #: packages/admin/src/router.tsx:1101
-#: packages/admin/src/router.tsx:2641
+#: packages/admin/src/router.tsx:2643
 msgid "Failed to save"
 msgstr "შენახვა ვერ მოხერხდა"
 
@@ -4735,7 +4744,7 @@ msgstr "პლაგინის დადასტურება ვერ მ
 msgid "Failed to verify registration"
 msgstr "რეგისტრაციის დადასტურება ვერ მოხერხდა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:885
+#: packages/admin/src/components/RegistryPluginDetail.tsx:895
 msgid "FAQ"
 msgstr "ხშირად დასმული კითხვები"
 
@@ -5039,7 +5048,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2879
+#: packages/admin/src/router.tsx:2881
 msgid "Go to Dashboard"
 msgstr "დაფაზე გადასვლა"
 
@@ -5444,16 +5453,12 @@ msgstr "შეუთავსებელი"
 msgid "Increase column width"
 msgstr "სვეტის სიგანის გაზრდა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:135
-msgid "Independent verification"
-msgstr "დამოუკიდებელი შემოწმება"
-
 #: packages/admin/src/components/MediaLibrary.tsx:886
 msgid "Index existing content and keep Used in results up to date."
 msgstr "არსებული შიგთავსის ინდექსირება და გამოყენების შედეგების აქტუალურად შენარჩუნება."
 
 #: packages/admin/src/components/FieldEditor.tsx:494
-#: packages/admin/src/components/RegistryPluginDetail.tsx:575
+#: packages/admin/src/components/RegistryPluginDetail.tsx:585
 msgid "Indexed"
 msgstr "ინდექსირებულია"
 
@@ -5562,7 +5567,7 @@ msgid "Instagram"
 msgstr "Instagram"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:213
-#: packages/admin/src/components/RegistryPluginDetail.tsx:626
+#: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "Install"
 msgstr "დაყენება"
 
@@ -5578,7 +5583,7 @@ msgstr "დაყენება დაბლოკილია"
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "დააყენეთ EmDash Exporter პლაგინი WordPress-ის საიტზე და შექმენით გასაღები მენიუში ინსტრუმენტები → EmDash Migration."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:884
+#: packages/admin/src/components/RegistryPluginDetail.tsx:894
 msgid "Installation"
 msgstr "ინსტალაცია"
 
@@ -5589,7 +5594,7 @@ msgstr "ინსტალაცია მიუწვდომელია."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:194
 #: packages/admin/src/components/RegistryBrowse.tsx:234
-#: packages/admin/src/components/RegistryPluginDetail.tsx:611
+#: packages/admin/src/components/RegistryPluginDetail.tsx:621
 msgid "Installed"
 msgstr "დაყენებულია"
 
@@ -5602,7 +5607,7 @@ msgstr "დაყენებულია მარკეტპლეისი�
 msgid "Installed:"
 msgstr "დაყენებულია:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:292
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:354
 msgid "Installing..."
 msgstr "ყენდება..."
 
@@ -5683,7 +5688,7 @@ msgstr "ელემენტი წაიშალა"
 msgid "Item updated"
 msgstr "ელემენტი განახლდა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:479
+#: packages/admin/src/components/RegistryPluginDetail.tsx:489
 msgid "Its listing has not been approved for display. Check back later."
 msgstr "მისი განთავსება ჯერ არ არის დამტკიცებული გამოსაჩენად. შეამოწმეთ მოგვიანებით."
 
@@ -5932,7 +5937,7 @@ msgstr "მეტის ჩატვირთვა"
 msgid "Load more folders"
 msgstr "მეტი საქაღალდის ჩატვირთვა"
 
-#: packages/admin/src/router.tsx:2834
+#: packages/admin/src/router.tsx:2836
 msgid "Loading"
 msgstr "იტვირთება"
 
@@ -5948,8 +5953,8 @@ msgstr "კოლექციები იტვირთება..."
 msgid "Loading comments..."
 msgstr "კომენტარები იტვირთება..."
 
-#: packages/admin/src/router.tsx:2836
-#: packages/admin/src/router.tsx:2848
+#: packages/admin/src/router.tsx:2838
+#: packages/admin/src/router.tsx:2850
 msgid "Loading configuration..."
 msgstr "კონფიგურაცია იტვირთება..."
 
@@ -6212,11 +6217,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "მარკეტპლეისი"
 
-#: packages/admin/src/router.tsx:2378
+#: packages/admin/src/router.tsx:2380
 msgid "Marketplace browsing is no longer available."
 msgstr "მარკეტპლეისში დათვალიერება აღარ არის ხელმისაწვდომი."
 
-#: packages/admin/src/router.tsx:2353
+#: packages/admin/src/router.tsx:2355
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "მარკეტპლეისში დათვალიერება აღარ არის ხელმისაწვდომი. დაყენებული პლაგინები მართეთ პლაგინების განყოფილებიდან."
 
@@ -6680,7 +6685,7 @@ msgstr "ახალი"
 msgid "New"
 msgstr "ახალი"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:203
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
 msgstr "ახალი"
 
@@ -6713,7 +6718,7 @@ msgstr "ახალი საქაღალდე"
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
 msgstr "პლაგინების ახალი ძებნა რეესტრს იყენებს. გადასვლის დროს არსებული მარკეტპლეისის პლაგინები მაინც შეიძლება განახლდეს ან წაიშალოს."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:214
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "New public routes"
 msgstr "ახალი საჯარო მარშრუტები"
 
@@ -6925,7 +6930,7 @@ msgstr "დოკუმენტში სათაურები არ არ
 msgid "No images in this gallery yet."
 msgstr "ამ გალერეაში სურათები ჯერ არ არის."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:663
+#: packages/admin/src/components/RegistryPluginDetail.tsx:673
 msgid "No installable releases"
 msgstr "დასაყენებელი გამოშვებები არ არის"
 
@@ -7035,10 +7040,6 @@ msgstr "პლაგინები „{debouncedQuery}“-ს არ ემთ�
 msgid "No preview"
 msgstr "გადახედვა არ არის"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
-msgid "No provenance was supplied; the signed publisher policy permits this."
-msgstr "წარმომავლობის მონაცემები არ არის მოწოდებული; ხელმოწერილი გამომცემლის პოლიტიკა ამას უშვებს."
-
 #: packages/admin/src/components/MediaDetailPanel.tsx:1358
 msgid "No public URL available"
 msgstr "საჯარო URL მიუწვდომელია"
@@ -7129,7 +7130,7 @@ msgstr "არცერთი"
 msgid "None (top level)"
 msgstr "არცერთი (ზედა დონე)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:698
+#: packages/admin/src/components/RegistryPluginDetail.tsx:708
 msgid "Not compatible with this environment"
 msgstr "ამ გარემოსთან თავსებადი არ არის"
 
@@ -7347,7 +7348,7 @@ msgstr "მფლობელობა"
 msgid "Package"
 msgstr "პაკეტი"
 
-#: packages/admin/src/router.tsx:2874
+#: packages/admin/src/router.tsx:2876
 msgid "Page Not Found"
 msgstr "გვერდი ვერ მოიძებნა"
 
@@ -7589,7 +7590,7 @@ msgstr ""
 msgid "Plugin column unavailable"
 msgstr "პლაგინის სვეტი მიუწვდომელია"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:831
+#: packages/admin/src/components/RegistryPluginDetail.tsx:841
 msgid "Plugin details"
 msgstr "პლაგინის დეტალები"
 
@@ -7630,7 +7631,7 @@ msgstr "პლაგინის MCP ინსტრუმენტები მ
 msgid "Plugin not found"
 msgstr "პლაგინი ვერ მოიძებნა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:494
+#: packages/admin/src/components/RegistryPluginDetail.tsx:504
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "პლაგინი ვერ მოიძებნა. გამომცემელი ან სლაგი შეიძლება არასწორი იყოს."
 
@@ -7643,7 +7644,7 @@ msgstr "პლაგინის გვერდები"
 msgid "Plugin panel unavailable."
 msgstr "პლაგინის პანელი მიუწვდომელია."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:99
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:109
 msgid "Plugin Permissions"
 msgstr "პლაგინის ნებართვები"
 
@@ -7656,8 +7657,8 @@ msgstr "პლაგინების რეესტრი"
 msgid "Plugin registry configuration error"
 msgstr "პლაგინების რეესტრის კონფიგურაციის შეცდომა"
 
-#: packages/admin/src/router.tsx:2313
-#: packages/admin/src/router.tsx:2344
+#: packages/admin/src/router.tsx:2315
+#: packages/admin/src/router.tsx:2346
 msgid "Plugin registry is not configured."
 msgstr "პლაგინების რეესტრი კონფიგურირებული არ არის."
 
@@ -7727,7 +7728,7 @@ msgstr "პოსტები და გვერდები"
 msgid "Posts Per Page"
 msgstr "პოსტები გვერდზე"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:547
+#: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Pre-release"
 msgstr "წინასწარი გამოშვება"
 
@@ -7786,7 +7787,7 @@ msgstr "ძირითადი ნავიგაცია"
 msgid "Private"
 msgstr "პირადი"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:183
 msgid "Profile CID"
 msgstr "პროფილის CID"
 
@@ -7794,15 +7795,11 @@ msgstr "პროფილის CID"
 msgid "Propose unsaved changes to selected editor fields for your review"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:138
-msgid "Provenance is verified against the signed release and artifact."
-msgstr "წარმომავლობა დადასტურებულია ხელმოწერილ გამოშვებასა და არტეფაქტთან შედარებით."
-
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:161
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:199
 msgid "Provenance optional"
 msgstr "წარმომავლობა არასავალდებულოა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:160
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Provenance required"
 msgstr "წარმომავლობა სავალდებულოა"
 
@@ -7810,7 +7807,7 @@ msgstr "წარმომავლობა სავალდებულო�
 msgid "Provider:"
 msgstr "პროვაიდერი:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:214
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Public routes"
 msgstr "საჯარო მარშრუტები"
 
@@ -7882,23 +7879,23 @@ msgstr "გამოქვეყნდა {total} ელემენტი"
 msgid "Published At"
 msgstr "გამოქვეყნების დრო"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:539
+#: packages/admin/src/components/RegistryPluginDetail.tsx:549
 msgid "Published by <0/>"
 msgstr "გამოქვეყნებულია: <0/>"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:164
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:202
 msgid "Publisher approval required for every delegated release"
 msgstr "გამომცემლის მოწონება საჭიროა ყოველი დელეგირებული გამოშვებისთვის"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:165
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:203
 msgid "Publisher approval required only for permission escalation"
 msgstr "გამომცემლის მოწონება საჭიროა მხოლოდ ნებართვების გაფართოებისთვის"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:648
+#: packages/admin/src/components/RegistryPluginDetail.tsx:658
 msgid "Publisher handle verification failed"
 msgstr "გამომცემლის სახელის დადასტურება ვერ მოხერხდა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:157
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:195
 msgid "Publisher release policy"
 msgstr "გამომცემლის გამოშვების პოლიტიკა"
 
@@ -8102,11 +8099,11 @@ msgstr "რეგისტრაცია გაუქმდა ან დრო
 msgid "Registry"
 msgstr "რეესტრი"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:151
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:189
 msgid "Release CID"
 msgstr "გამოშვების CID"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:679
+#: packages/admin/src/components/RegistryPluginDetail.tsx:689
 msgid "Release is too new to install"
 msgstr "გამოშვება ძალიან ახალია დასაყენებლად"
 
@@ -8479,7 +8476,7 @@ msgstr "აღდგენა..."
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:237
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2862
+#: packages/admin/src/router.tsx:2864
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "ხელახლა ცდა"
@@ -8529,7 +8526,7 @@ msgstr "გადახედვა"
 msgid "Review and block publishing, scheduling, and unpublishing content"
 msgstr "შიგთავსის გამოქვეყნების, დაგეგმვისა და გამოქვეყნების გაუქმების გადახედვა და დაბლოკვა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:108
 msgid "Review New Permissions"
 msgstr "ახალი ნებართვების გადახედვა"
 
@@ -8537,15 +8534,15 @@ msgstr "ახალი ნებართვების გადახედ�
 msgid "Review proposed changes"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:113
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
 msgstr "გაგრძელებამდე გადახედეთ დამოუკიდებლად დადასტურებულ გამოშვების მტკიცებულებებსა და {pluginName}-ის ნებართვებს."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:96
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "Review Verified Plugin"
 msgstr "დადასტურებული პლაგინის გადახედვა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:95
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:105
 msgid "Review Verified Update"
 msgstr "დადასტურებული განახლების გადახედვა"
 
@@ -8630,7 +8627,7 @@ msgstr "მარშრუტიზებადი"
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:243
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:305
 #: packages/admin/src/components/PluginManager.tsx:612
 msgid "Route: {0} · Permission: {1}"
 msgstr "მარშრუტი: {0} · ნებართვა: {1}"
@@ -8756,12 +8753,12 @@ msgstr "ინახება..."
 msgid "Saving…"
 msgstr "ინახება…"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:551
+#: packages/admin/src/components/RegistryPluginDetail.tsx:561
 msgid "SBOM"
 msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:549
+#: packages/admin/src/components/RegistryPluginDetail.tsx:559
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
@@ -8830,7 +8827,7 @@ msgstr "სქოუპები"
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:264
-#: packages/admin/src/components/RegistryPluginDetail.tsx:724
+#: packages/admin/src/components/RegistryPluginDetail.tsx:734
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -8851,10 +8848,14 @@ msgid "Screenshot viewer"
 msgstr "სკრინშოტების ნახვა"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:254
-#: packages/admin/src/components/RegistryPluginDetail.tsx:718
+#: packages/admin/src/components/RegistryPluginDetail.tsx:728
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "სკრინშოტები"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:234
+msgid "Scroll to review all"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:51
 msgid "SCSS"
@@ -9056,7 +9057,7 @@ msgstr "სექციები"
 msgid "Secure your account"
 msgstr "ანგარიშის დაცვა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:887
+#: packages/admin/src/components/RegistryPluginDetail.tsx:897
 #: packages/admin/src/components/Settings.tsx:85
 msgid "Security"
 msgstr "უსაფრთხოება"
@@ -9073,11 +9074,11 @@ msgstr "უსაფრთხოების აუდიტი ვერ ჩა
 msgid "Security audit flagged concerns"
 msgstr "უსაფრთხოების აუდიტმა პრობლემები გამოავლინა"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:335
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "უსაფრთხოების აუდიტმა ამ პლაგინთან დაკავშირებით შესაძლო პრობლემები გამოავლინა."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:274
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:336
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "უსაფრთხოების აუდიტმა ეს პლაგინი პოტენციურად სახიფათოდ მონიშნა."
 
@@ -9085,7 +9086,7 @@ msgstr "უსაფრთხოების აუდიტმა ეს პლ
 msgid "Security audit passed"
 msgstr "უსაფრთხოების აუდიტი წარმატებით გაიარა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:787
+#: packages/admin/src/components/RegistryPluginDetail.tsx:797
 msgid "Security contacts"
 msgstr "უსაფრთხოების კონტაქტები"
 
@@ -9137,7 +9138,7 @@ msgstr "აირჩიეთ მდებარეობა"
 msgid "Select a menu..."
 msgstr "აირჩიეთ მენიუ..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:398
+#: packages/admin/src/components/RegistryPluginDetail.tsx:400
 msgid "Select a release before verifying it"
 msgstr "გადამოწმებამდე აირჩიეთ რელიზი"
 
@@ -9500,6 +9501,10 @@ msgstr "შესვლა პასკით"
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:190
 msgid "Signed in as {0}"
 msgstr "შესულია როგორც {0}"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:160
+msgid "Signed release verified"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:219
 msgid "Single choice from options"
@@ -9885,6 +9890,10 @@ msgstr "ტაქსონომია ვერ მოიძებნა: {taxo
 msgid "Taxonomy: {taxonomyName}"
 msgstr "ტაქსონომია: {taxonomyName}"
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:172
+msgid "Technical verification details"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:155
 msgid "Template:"
 msgstr "შაბლონი:"
@@ -9924,6 +9933,10 @@ msgstr "ზუსტ მოთხოვნას ბრაუზერი აკ
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
 msgid "The browser will usually show a QR code."
 msgstr "ბრაუზერი, როგორც წესი, QR კოდს აჩვენებს."
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:164
+msgid "The build provenance matches this release and its package."
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
 msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
@@ -9978,7 +9991,7 @@ msgstr "მენიუ წაიშალა."
 msgid "The name of your site, used in the header and metadata"
 msgstr "საიტის სახელი, რომელიც გამოიყენება თავსართსა და მეტამონაცემებში"
 
-#: packages/admin/src/router.tsx:2876
+#: packages/admin/src/router.tsx:2878
 msgid "The page you're looking for doesn't exist."
 msgstr "გვერდი, რომელსაც ეძებთ, არ არსებობს."
 
@@ -10004,7 +10017,7 @@ msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "საიტის საჯარო URL (გამოიყენება კანონიკური ბმულებისა და საიტის რუკისთვის)"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
-#: packages/admin/src/components/RegistryPluginDetail.tsx:533
+#: packages/admin/src/components/RegistryPluginDetail.tsx:543
 msgid "The publisher identity cannot be verified."
 msgstr "გამომცემლის იდენტობის დადასტურება შეუძლებელია."
 
@@ -10023,6 +10036,10 @@ msgstr "არჩეული საქაღალდე აღარ არს
 #: packages/admin/src/components/MediaDetailPanel.tsx:914
 msgid "The selected image could not be read."
 msgstr "არჩეული სურათის წაკითხვა ვერ მოხერხდა."
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:165
+msgid "The signed publisher records and package are valid. Build provenance was not provided."
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -10057,7 +10074,7 @@ msgstr "თემის მიერ მოწოდებული სექც
 msgid "Themes"
 msgstr "თემები"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:235
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:297
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr "ეს ხელსაწყოები დაყენების შემდეგ გამორთული რჩება, სანამ აგენტისთვის წვდომას ცალკე არ ჩართავთ."
 
@@ -10196,7 +10213,7 @@ msgstr "ამ პლაგინის დაყენება შეუძლ
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან გამომცემლის ხელმოწერილი ჩანაწერები ვერ გადამოწმდა. სთხოვეთ გამომცემელს, გამოაქვეყნოს შესწორებული რელიზი."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:219
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:281
 msgid "This plugin exposes the following routes without authentication:"
 msgstr "ეს პლაგინი შემდეგ მარშრუტებს ავტორიზაციის გარეშე ამჟღავნებს:"
 
@@ -10204,7 +10221,7 @@ msgstr "ეს პლაგინი შემდეგ მარშრუტე
 msgid "This plugin has no configurable settings."
 msgstr "ამ პლაგინს კონფიგურირებადი პარამეტრები არ აქვს."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:477
+#: packages/admin/src/components/RegistryPluginDetail.tsx:487
 msgid "This plugin is not available yet"
 msgstr "ეს პლაგინი ჯერ მიუწვდომელია"
 
@@ -10216,7 +10233,7 @@ msgstr "ეს პლაგინი განსაკუთრებულ ნ
 msgid "This publisher identity no longer resolves."
 msgstr "გამომცემლის ეს იდენტობა აღარ დასტურდება."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:650
+#: packages/admin/src/components/RegistryPluginDetail.tsx:660
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr "გამომცემლის სახელი მის იდენტობას არ უკავშირდება. დაყენება გამორთულია, სანამ გამომცემელი სახელს არ გამოასწორებს."
 
@@ -10224,7 +10241,7 @@ msgstr "გამომცემლის სახელი მის იდე
 msgid "This redirect rule will be permanently removed."
 msgstr "ეს გადამისამართების წესი სამუდამოდ წაიშლება."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:700
+#: packages/admin/src/components/RegistryPluginDetail.tsx:710
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "ეს რელიზი ითხოვს უფრო ახალ გარემოს, ვიდრე საიტი ამჟამად იყენებს. დაყენებამდე განაახლეთ."
 
@@ -10265,7 +10282,7 @@ msgstr "ამ ცხრილის უსაფრთხოდ რედაქ
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "ამ ცხრილს აქვს მხარდაუჭერელი უჯრების ფორმატირება, გაერთიანებული უჯრები ან სვეტების სიგანეები. ჩასვით როგორც ჩვეულებრივი ტექსტი ან გაამარტივეთ ცხრილი და სცადეთ ხელახლა."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:218
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:280
 msgid "This update exposes the following routes without authentication:"
 msgstr "ეს განახლება შემდეგ მარშრუტებს ავტორიზაციის გარეშე ამჟღავნებს:"
 
@@ -10629,7 +10646,7 @@ msgstr "აღმოჩენილია დაურეგისტრირ�
 msgid "Unresolved assignment"
 msgstr "გადაუწყვეტელი მიკუთვნება"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:121
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
 msgstr ""
 
@@ -10702,7 +10719,7 @@ msgstr "v{0}-ზე განახლება"
 
 #: packages/admin/src/components/ContentList.tsx:869
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
-#: packages/admin/src/components/RegistryPluginDetail.tsx:570
+#: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
 msgstr "განახლებულია"
 
@@ -10718,7 +10735,7 @@ msgstr "მიმდინარეობს შიგთავსის URL-ე
 msgid "Updating usage"
 msgstr "მიმდინარეობს გამოყენების განახლება"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:291
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:353
 #: packages/admin/src/components/PluginManager.tsx:510
 msgid "Updating..."
 msgstr "მიმდინარეობს განახლება..."
@@ -10989,7 +11006,7 @@ msgstr "ვალიდაცია"
 msgid "Verified publisher"
 msgstr "დადასტურებული გამომცემელი"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:415
+#: packages/admin/src/components/RegistryPluginDetail.tsx:417
 msgid "Verify the plugin before installing it"
 msgstr "დაყენებამდე გადაამოწმეთ პლაგინი"
 
@@ -11003,18 +11020,18 @@ msgstr "მიმდინარეობს ბმულის შემოწ�
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
-#: packages/admin/src/components/RegistryPluginDetail.tsx:626
+#: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "Verifying..."
 msgstr "მოწმდება..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:110
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:120
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:341
-#: packages/admin/src/components/RegistryPluginDetail.tsx:584
+#: packages/admin/src/components/RegistryPluginDetail.tsx:594
 msgid "Version"
 msgstr "ვერსია"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:546
+#: packages/admin/src/components/RegistryPluginDetail.tsx:556
 msgid "Version {0}"
 msgstr "ვერსია {0}"
 
@@ -11046,11 +11063,11 @@ msgstr "კონფიგურაციის ნახვა"
 msgid "View Site"
 msgstr "საიტის ნახვა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:745
+#: packages/admin/src/components/RegistryPluginDetail.tsx:755
 msgid "View source"
 msgstr "წყაროს ნახვა"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:990
+#: packages/admin/src/components/RegistryPluginDetail.tsx:1000
 msgid "View the {license} license on spdx.org"
 msgstr "{license} ლიცენზიის ნახვა spdx.org-ზე"
 
@@ -11123,7 +11140,7 @@ msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn ამ ბრაუზერში მხარდაჭერილი არ არის"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:246
-#: packages/admin/src/components/RegistryPluginDetail.tsx:770
+#: packages/admin/src/components/RegistryPluginDetail.tsx:780
 msgid "Website"
 msgstr "ვებსაიტი"
 
@@ -11515,7 +11532,7 @@ msgid "Your Role"
 msgstr "როლი"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:681
+#: packages/admin/src/components/RegistryPluginDetail.tsx:691
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "საიტი მოითხოვს, რომ გამოშვებები დაყენებამდე მინიმუმ {0} ხნის იყოს. ეს გამოშვება მოგვიანებით დასაყენებელი გახდება."
 

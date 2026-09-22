@@ -632,6 +632,12 @@ export interface EmDashHandlers {
 
 	// Sync registry plugin states (after install/update/uninstall)
 	syncRegistryPlugins: () => Promise<void>;
+	// Run install and activation hooks after the runtime loads a new plugin.
+	runPluginInstallLifecycle: (pluginId: string) => Promise<void>;
+	runPluginActivateLifecycle: (pluginId: string) => Promise<void>;
+	runPluginUninstallLifecycle: (pluginId: string, deleteData: boolean) => Promise<void>;
+	// Read settings metadata for runtime-installed plugins.
+	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;

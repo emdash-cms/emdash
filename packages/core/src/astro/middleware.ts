@@ -925,6 +925,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Media handlers
 					handleMediaList: runtime.handleMediaList.bind(runtime),
 					handleMediaGet: runtime.handleMediaGet.bind(runtime),
+					handleMediaUpload: runtime.handleMediaUpload.bind(runtime),
 					handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
 					handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
 					...(runtime.handleMediaReplaceMetadata
@@ -1009,6 +1010,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Sync registry plugin states (after install/update/uninstall)
 					syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
+					runPluginInstallLifecycle: runtime.runPluginInstallLifecycle.bind(runtime),
+					runPluginActivateLifecycle: runtime.runPluginActivateLifecycle.bind(runtime),
+					runPluginUninstallLifecycle: runtime.runPluginUninstallLifecycle.bind(runtime),
+					getRuntimePluginSettingsSchema: runtime.getRuntimePluginSettingsSchema.bind(runtime),
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),
