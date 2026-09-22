@@ -2,7 +2,10 @@ import { createContext, runInContext, runInNewContext } from "node:vm";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { renderToolbar as renderToolbarWithLabels } from "../../../src/visual-editing/toolbar.js";
+import {
+	adminWindowName,
+	renderToolbar as renderToolbarWithLabels,
+} from "../../../src/visual-editing/toolbar.js";
 
 const TEST_LABELS = {
 	publish: "Publicar",
@@ -256,5 +259,34 @@ describe("renderToolbar", () => {
 		expect(html).toContain("emdash-tb-badge--saving");
 		expect(html).toContain("emdash-tb-badge--saved");
 		expect(html).toContain("emdash-tb-badge--error");
+	});
+});
+
+describe("adminWindowName", () => {
+	it("builds a stable, per-entry window name", () => {
+		expect(adminWindowName("posts", "hello-world")).toBe("emdash-admin-posts-hello-world");
+	});
+
+	it("sanitizes characters that are invalid in a browsing-context name", () => {
+		expect(adminWindowName("my collection", "entry id")).toBe(
+			"emdash-admin-my_collection-entry_id",
+		);
+		expect(adminWindowName("posts", "entry/with/slashes")).toBe(
+			"emdash-admin-posts-entry_with_slashes",
+		);
+	});
+
+	it("produces distinct names for distinct entries", () => {
+		expect(adminWindowName("posts", "a")).not.toBe(adminWindowName("posts", "b"));
+		expect(adminWindowName("posts", "x")).not.toBe(adminWindowName("pages", "x"));
+	});
+
+	it("is wired to the toolbar admin link and fallback opener", () => {
+		const html = renderToolbar({ editMode: true, isPreview: false });
+		expect(html).toContain("function adminWindowName(");
+		expect(html).toContain("adminLink.target = adminWindowName(ref.collection, ref.id);");
+		expect(html).toContain(
+			"window.open(url, adminWindowName(annotation.collection, annotation.id));",
+		);
 	});
 });

@@ -37,6 +37,10 @@ function inlineScriptJson(value: unknown): string {
 		.replace(SCRIPT_PARAGRAPH_SEPARATOR_RE, "\\u2029");
 }
 
+export function adminWindowName(collection: string, id: string): string {
+	return `emdash-admin-${(collection + "-" + id).replace(/[^A-Za-z0-9_-]/g, "_")}`;
+}
+
 export function renderToolbar(config: ToolbarConfig): string {
 	const { editMode, isPreview, actionToken = "", labels } = config;
 	const recoveryBadge = `<span class="emdash-tb-badge emdash-tb-badge--error">${escapeHtml(labels.sessionExpired)}</span>`;
@@ -581,6 +585,10 @@ export function renderToolbar(config: ToolbarConfig): string {
   var toolbarLabels = ${inlineScriptJson(labels)};
   var visualActionRefreshTimer = null;
 
+  function adminWindowName(collection, id) {
+    return "emdash-admin-" + (collection + "-" + id).replace(/[^A-Za-z0-9_-]/g, "_");
+  }
+
   function showVisualActionRecovery() {
     if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
     visualActionRefreshTimer = null;
@@ -730,6 +738,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       var adminLink = document.getElementById("emdash-tb-admin");
       if (adminLink) {
         adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(ref.collection) + "/" + encodeURIComponent(ref.id);
+        adminLink.target = adminWindowName(ref.collection, ref.id);
         adminLink.style.display = "";
       }
 
@@ -954,7 +963,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     if (annotation.field) {
       url += "?field=" + encodeURIComponent(annotation.field);
     }
-    window.open(url, "emdash-admin");
+    window.open(url, adminWindowName(annotation.collection, annotation.id));
   }
 
   // --- Inline image editing ---
