@@ -582,17 +582,21 @@ function TaxonomyTermPicker({
 								</div>
 							) : null}
 
-							<div className="flex flex-wrap items-center justify-between gap-2 border-t border-kumo-hairline bg-kumo-elevated px-3 py-2 text-xs text-kumo-subtle">
-								<span className="flex items-center gap-1.5">
-									<kbd className="rounded bg-kumo-base px-1.5 py-1 ring ring-kumo-line">↑↓</kbd>
+							<div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-kumo-hairline bg-kumo-elevated px-3 py-2 text-xs leading-4 text-kumo-subtle">
+								<span className="flex items-center gap-1.5 whitespace-nowrap">
+									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-[10px] leading-4 text-kumo-default">
+										↑ ↓
+									</kbd>
 									{t`Navigate`}
 								</span>
-								<span className="flex items-center gap-1.5">
-									<kbd className="rounded bg-kumo-base px-1.5 py-1 ring ring-kumo-line">↵</kbd>
+								<span className="flex items-center gap-1.5 whitespace-nowrap">
+									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-[10px] leading-4 text-kumo-default">
+										↵
+									</kbd>
 									{t`Toggle`}
 								</span>
-								<span className="flex items-center gap-1.5">
-									<kbd className="rounded bg-kumo-base px-1.5 py-1 ring ring-kumo-line">
+								<span className="ms-auto flex items-center gap-1.5 whitespace-nowrap">
+									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-[10px] leading-4 text-kumo-default">
 										{t`Esc`}
 									</kbd>
 									{t`Close`}
