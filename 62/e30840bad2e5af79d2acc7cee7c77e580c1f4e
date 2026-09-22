@@ -1,0 +1,23 @@
+.changeset/comments-compact-page-header.md
+  s_428695602bab5c::t_a819ff74008cab 5
+packages/admin/src/components/comments/CommentInbox.tsx
+  s_428695602bab5c::t_d7eb3d812a48fb 11-18,66-74,193-194,196-201,209-220,224-225,227-232,240-241,243-248
+packages/admin/tests/components/CommentInbox.test.tsx
+  s_428695602bab5c::t_5b440a3d836a15 67-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "62e30840bad2e5af79d2acc7cee7c77e580c1f4e",
+  "prompts": {},
+  "sessions": {
+    "s_428695602bab5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0caa2-221d-7933-88c8-8e003403d851",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
