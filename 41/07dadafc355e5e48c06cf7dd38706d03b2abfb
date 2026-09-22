@@ -1,0 +1,25 @@
+packages/admin/src/components/PageHeader.tsx
+  s_dec5ec248e7b66::t_0a3a862c50a883 8-9,13-14,18-27,29-39,41-57
+.changeset/redirect-tabs-page-header.md
+  s_dec5ec248e7b66::t_d89b976635b4d9 5
+packages/admin/src/components/Redirects.tsx
+  s_dec5ec248e7b66::t_87cc1b6ab0af20 34,359,364-365,370-399,418
+packages/admin/tests/components/Redirects.test.tsx
+  s_dec5ec248e7b66::t_babe26b027acb6 81,84,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4107dadafc355e5e48c06cf7dd38706d03b2abfb",
+  "prompts": {},
+  "sessions": {
+    "s_dec5ec248e7b66": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ca2f-28ee-77f1-92b6-762f68aa9174",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
