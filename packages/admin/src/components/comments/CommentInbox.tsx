@@ -5,7 +5,7 @@
  * table with row actions, bulk selection, and detail slide-over.
  */
 
-import { Badge, Button, Checkbox, Select, Tabs } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Select } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Trash, Warning } from "@phosphor-icons/react";
@@ -18,10 +18,10 @@ import type {
 	BulkAction,
 } from "../../lib/api/comments.js";
 import { cn } from "../../lib/utils.js";
-import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
-import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
+import { PageHeader } from "../PageHeader.js";
+import { TableToolbarSearch } from "../TableToolbar.js";
 import { CommentDetail } from "./CommentDetail.js";
 
 // ---------------------------------------------------------------------------
@@ -138,34 +138,43 @@ export function CommentInbox({
 	}
 
 	const total = counts.pending + counts.approved + counts.spam + counts.trash;
+	const searchPlaceholder = t`Search comments...`;
 
 	return (
-		<div className="space-y-4">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<ADMIN_NAV_ICONS.comments className="h-6 w-6" />
-					<h1 className="text-2xl font-semibold leading-tight">{t`Comments`}</h1>
-					{total > 0 && (
-						<span className="text-sm text-kumo-subtle tabular-nums">
-							{plural(total, { one: "# total", other: "# total" })}
-						</span>
-					)}
-				</div>
-			</div>
-
-			{/* Tabs */}
-			<Tabs
-				variant="underline"
+		<div className="space-y-6">
+			<PageHeader
+				title={t`Comments`}
+				description={total > 0 ? plural(total, { one: "# total", other: "# total" }) : undefined}
 				value={activeStatus}
 				onValueChange={(v) => {
 					if (v === "pending" || v === "approved" || v === "spam" || v === "trash") {
 						onStatusChange(v);
 					}
 				}}
+				tools={
+					<>
+						<TableToolbarSearch
+							size="base"
+							placeholder={searchPlaceholder}
+							aria-label={t`Search comments`}
+							value={searchQuery}
+							onChange={(e) => onSearchChange(e.target.value)}
+						/>
+						{Object.keys(collections).length > 1 && (
+							<Select
+								className="w-full sm:w-auto"
+								value={collectionFilter}
+								onValueChange={(v) => onCollectionFilterChange(v ?? "")}
+								items={collectionItems}
+								aria-label={t`Filter by collection`}
+							/>
+						)}
+					</>
+				}
 				tabs={[
 					{
 						value: "pending",
+						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-2">
 								{t`Pending`}
@@ -173,9 +182,14 @@ export function CommentInbox({
 							</span>
 						),
 					},
-					{ value: "approved", label: t`Approved` },
+					{
+						value: "approved",
+						label: t`Approved`,
+						className: "flex-1 justify-center text-sm sm:flex-none",
+					},
 					{
 						value: "spam",
+						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-2">
 								{t`Spam`}
@@ -185,6 +199,7 @@ export function CommentInbox({
 					},
 					{
 						value: "trash",
+						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-2">
 								{t`Trash`}
@@ -194,24 +209,6 @@ export function CommentInbox({
 					},
 				]}
 			/>
-
-			<TableToolbar>
-				<TableToolbarSearch
-					placeholder={t`Search comments...`}
-					aria-label={t`Search comments`}
-					value={searchQuery}
-					onChange={(e) => onSearchChange(e.target.value)}
-				/>
-				{Object.keys(collections).length > 1 && (
-					<Select
-						size="sm"
-						value={collectionFilter}
-						onValueChange={(v) => onCollectionFilterChange(v ?? "")}
-						items={collectionItems}
-						aria-label={t`Filter by collection`}
-					/>
-				)}
-			</TableToolbar>
 
 			{/* Bulk action bar */}
 			{selected.size > 0 && (
