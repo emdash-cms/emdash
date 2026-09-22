@@ -5,6 +5,6 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes registry plugins published with `emdash-plugin publish` appearing in discovery but failing installation because their signed profiles lacked verification metadata.
+Fixes registry plugins appearing in discovery but failing installation when their signed profiles predated repository metadata.
 
-Manual publishing now detects or requires a canonical HTTPS source repository, writes the repository anchor on first publish, preserves profile extensions on later releases, and refuses manual releases when the publisher policy requires provenance. EmDash hides incomplete profiles from public discovery, routes installation verification correctly, and shows site administrators actionable publisher guidance when signed records fail verification.
+Profiles without the optional repository extension permit releases without provenance. Manual publishing adds an available canonical HTTPS repository with optional provenance, preserves explicit profile policies on later releases, and refuses manual releases when the publisher requires provenance. EmDash routes installation verification correctly and shows site administrators actionable publisher guidance when signed records fail verification.
