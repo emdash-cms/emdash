@@ -64,6 +64,8 @@ describe("CommentInbox", () => {
 		const approvedTab = screen.getByRole("tab", { name: "Approved" });
 
 		await expect.element(pendingTab).toHaveAttribute("aria-selected", "true");
+		expect(pendingTab.element().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+		expect(approvedTab.element().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
 		await approvedTab.click();
 
 		expect(noopProps.onStatusChange).toHaveBeenCalledWith("approved");
