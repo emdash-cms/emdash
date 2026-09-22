@@ -61,6 +61,7 @@ export function installRegistryAuthoritativeFixture(input: unknown): void {
 			package: packageSlug,
 			version,
 			rkey,
+			profileCid: fixture.profileCid,
 			profile: fixture.profile,
 			release: fixture.release,
 		});
