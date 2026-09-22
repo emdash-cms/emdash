@@ -2,7 +2,6 @@ import { Badge, Button, Dialog, Input, Label, Select, Switch } from "@cloudflare
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	MagnifyingGlass,
 	Plus,
 	ArrowsLeftRight,
 	Trash,
@@ -32,6 +31,7 @@ import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { PageHeader } from "./PageHeader.js";
+import { TableToolbarSearch } from "./TableToolbar.js";
 
 // ---------------------------------------------------------------------------
 // Redirect form dialog (create + edit)
@@ -356,14 +356,47 @@ export function Redirects() {
 	const loopRedirectIds = new Set(
 		redirectsQuery.data?.pages.flatMap((page) => page.loopRedirectIds ?? []) ?? [],
 	);
+	const searchPlaceholder = t`Search source or destination...`;
 
 	return (
 		<div className="space-y-6">
 			<PageHeader
+				title={t`Redirects`}
+				description={t`Manage URL redirects and view 404 errors.`}
 				value={tab}
 				onValueChange={(value) => {
 					if (value === "redirects" || value === "404s") setTab(value);
 				}}
+				actions={
+					<Button variant="primary" icon={<Plus />} onClick={() => setShowCreate(true)}>
+						{t`New Redirect`}
+					</Button>
+				}
+				tools={
+					tab === "redirects" ? (
+						<>
+							<TableToolbarSearch
+								size="base"
+								placeholder={searchPlaceholder}
+								aria-label={searchPlaceholder}
+								value={search}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+							/>
+							<Select
+								value={filterEnabled}
+								onValueChange={(v) => setFilterEnabled(v ?? "all")}
+								items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
+								aria-label={t`Filter by status`}
+							/>
+							<Select
+								value={filterAuto}
+								onValueChange={(v) => setFilterAuto(v ?? "all")}
+								items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
+								aria-label={t`Filter by type`}
+							/>
+						</>
+					) : undefined
+				}
 				tabs={[
 					{
 						value: "redirects",
@@ -382,50 +415,11 @@ export function Redirects() {
 					},
 					{ value: "404s", label: t`404 Errors`, className: "text-sm" },
 				]}
-			>
-				<Button icon={<Plus />} onClick={() => setShowCreate(true)}>
-					{t`New Redirect`}
-				</Button>
-			</PageHeader>
-
-			<div>
-				<h1 className="text-2xl font-semibold leading-tight">{t`Redirects`}</h1>
-				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-					{t`Manage URL redirects and view 404 errors.`}
-				</p>
-			</div>
+			/>
 
 			{/* Tab content */}
 			{tab === "redirects" && (
 				<>
-					{/* Filters */}
-					<div className="flex items-center gap-4">
-						<div className="relative flex-1 max-w-md">
-							<MagnifyingGlass
-								className="absolute start-3 top-1/2 -translate-y-1/2 text-kumo-subtle"
-								size={16}
-							/>
-							<Input
-								placeholder={t`Search source or destination...`}
-								className="ps-10"
-								value={search}
-								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-							/>
-						</div>
-						<Select
-							value={filterEnabled}
-							onValueChange={(v) => setFilterEnabled(v ?? "all")}
-							items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
-							aria-label={t`Filter by status`}
-						/>
-						<Select
-							value={filterAuto}
-							onValueChange={(v) => setFilterAuto(v ?? "all")}
-							items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
-							aria-label={t`Filter by type`}
-						/>
-					</div>
-
 					{/* Loop warning banner */}
 					{loopRedirectIds.size > 0 && (
 						<div

@@ -78,11 +78,14 @@ describe("Redirects", () => {
 
 		const redirectsTab = screen.getByRole("tab", { name: /^Redirects/ });
 		const notFoundTab = screen.getByRole("tab", { name: "404 Errors" });
+		const search = screen.getByRole("searchbox", { name: "Search source or destination..." });
 
 		await expect.element(redirectsTab).toHaveAttribute("aria-selected", "true");
+		await expect.element(search).toBeInTheDocument();
 		await notFoundTab.click();
 
 		await expect.element(notFoundTab).toHaveAttribute("aria-selected", "true");
 		await expect.element(screen.getByText("No 404 errors recorded yet.")).toBeInTheDocument();
+		expect(search.query()).toBeNull();
 	});
 });
