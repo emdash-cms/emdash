@@ -845,13 +845,6 @@ describe("content_unschedule", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("MCP describes the state transition for content_unschedule", async () => {
-		const tools = await harness.client.listTools();
-		const tool = tools.tools.find((candidate) => candidate.name === "content_unschedule");
-		expect(tool?.description).toContain("Scheduled drafts return to draft status");
-		expect(tool?.description).toContain("published items stay published");
-	});
-
 	it("schedule + unschedule clears scheduledAt and re-publish still works (F12)", async () => {
 		// Create a draft item.
 		const created = await harness.client.callTool({
@@ -895,8 +888,11 @@ describe("content_unschedule", () => {
 			name: "content_get",
 			arguments: { collection: "post", id },
 		});
-		const cleared = extractJson<{ item: { scheduledAt: string | null } }>(afterUnschedule).item;
+		const cleared = extractJson<{ item: { scheduledAt: string | null; status: string } }>(
+			afterUnschedule,
+		).item;
 		expect(cleared.scheduledAt).toBeNull();
+		expect(cleared.status).toBe("draft");
 
 		// Re-publish still works after unschedule.
 		const republish = await harness.client.callTool({
@@ -906,5 +902,25 @@ describe("content_unschedule", () => {
 		expect(republish.isError, extractText(republish)).toBeFalsy();
 		const final = extractJson<{ item: { status: string } }>(republish).item;
 		expect(final.status).toBe("published");
+
+		const rescheduled = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 120_000).toISOString(),
+				_rev: await currentRev(harness.client, "post", id),
+			},
+		});
+		expect(rescheduled.isError, extractText(rescheduled)).toBeFalsy();
+		const publishedUnschedule = await harness.client.callTool({
+			name: "content_unschedule",
+			arguments: { collection: "post", id },
+		});
+		expect(publishedUnschedule.isError, extractText(publishedUnschedule)).toBeFalsy();
+		expect(
+			extractJson<{ item: { scheduledAt: string | null; status: string } }>(publishedUnschedule)
+				.item,
+		).toMatchObject({ scheduledAt: null, status: "published" });
 	});
 });

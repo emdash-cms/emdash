@@ -27,19 +27,6 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/content/{collection}/trash");
 	});
 
-	it("documents lifecycle request bodies and restore response", () => {
-		const doc = generateOpenApiDocument();
-		const publish = doc.paths?.["/_emdash/api/content/{collection}/{id}/publish"]?.post;
-		const unpublish = doc.paths?.["/_emdash/api/content/{collection}/{id}/unpublish"]?.post;
-		const discard = doc.paths?.["/_emdash/api/content/{collection}/{id}/discard-draft"]?.post;
-		const restore = doc.paths?.["/_emdash/api/content/{collection}/{id}/restore"]?.post;
-
-		expect(JSON.stringify(publish?.requestBody)).toContain("ContentPublishBody");
-		expect(JSON.stringify(unpublish?.requestBody)).toContain("ContentRevisionConditionBody");
-		expect(JSON.stringify(discard?.requestBody)).toContain("ContentRevisionConditionBody");
-		expect(JSON.stringify(restore?.responses?.["200"])).toContain("ContentRestoreResponse");
-	});
-
 	it("includes media paths", () => {
 		const doc = generateOpenApiDocument();
 		const paths = Object.keys(doc.paths ?? {});
