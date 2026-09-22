@@ -28,7 +28,7 @@ interface ProfileRevisionRow {
 	security: string;
 	keywords: string | null;
 	sections: string | null;
-	emdash_extension: string;
+	emdash_extension: string | null;
 	installability_status: "valid";
 	installability_error: null;
 	last_updated: string | null;
@@ -351,7 +351,6 @@ async function readProfileRevisions(db: D1Database): Promise<ProfileRevisionRow[
 				 JOIN package_profile_heads h ON h.did = r.did AND h.slug = r.slug
 				 WHERE h.deleted_at IS NULL
 				   AND r.installability_status = 'valid'
-				   AND r.emdash_extension IS NOT NULL
 				   AND r.rowid > ?
 				 ORDER BY r.rowid ASC LIMIT ?`,
 			)

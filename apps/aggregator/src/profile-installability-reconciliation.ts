@@ -310,7 +310,10 @@ async function mapConcurrent<T, R>(
 	fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
 	if (items.length === 0) return [];
-	const concurrency = Math.max(1, Math.min(MAX_CONCURRENCY, Math.floor(requestedConcurrency)));
+	const finiteConcurrency = Number.isFinite(requestedConcurrency)
+		? requestedConcurrency
+		: DEFAULT_CONCURRENCY;
+	const concurrency = Math.max(1, Math.min(MAX_CONCURRENCY, Math.floor(finiteConcurrency)));
 	const results: R[] = [];
 	results.length = items.length;
 	let cursor = 0;

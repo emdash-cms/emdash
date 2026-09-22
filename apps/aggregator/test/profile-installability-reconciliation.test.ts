@@ -67,6 +67,15 @@ describe("profile installability reconciliation route", () => {
 			pending: 0,
 		});
 	});
+
+	it("accepts a case-insensitive bearer scheme", async () => {
+		const response = await SELF.fetch("https://test/_internal/reconcile/profile-installability", {
+			method: "POST",
+			headers: { authorization: "bearer test-reconciliation-token" },
+		});
+
+		expect(response.status).toBe(200);
+	});
 });
 
 describe("profile installability reconciliation", () => {
@@ -137,7 +146,7 @@ describe("profile installability reconciliation", () => {
 			verify,
 			now: () => NOW,
 			activateProjection,
-			concurrency: 2,
+			concurrency: Number.POSITIVE_INFINITY,
 		};
 
 		const partial = await reconcileProfileInstallability(deps);

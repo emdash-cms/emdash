@@ -121,7 +121,6 @@ function listReleasesSql(policy: ListingPolicyConfig, hasCursor: boolean): strin
 		JOIN releases r ON r.did = p.did AND r.package = p.slug
 		WHERE r.did = ? AND r.package = ?
 		  AND p.installability_status = 'valid'
-		  AND p.emdash_extension IS NOT NULL
 		  AND ${ACTIVE_PROFILE_SQL}
 		  AND ${ACTIVE_PROFILE_REDACTION_SQL}
 		  AND r.tombstoned_at IS NULL
