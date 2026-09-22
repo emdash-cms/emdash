@@ -4,6 +4,7 @@ import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
 	ArrowsLeftRight,
+	FileX,
 	Trash,
 	PencilSimple,
 	WarningCircle,
@@ -406,7 +407,12 @@ export function Redirects() {
 						value: "redirects",
 						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
-							<span className="flex items-center gap-2">
+							<span className="flex items-center gap-1.5">
+								<ArrowsLeftRight
+									className="size-4 shrink-0"
+									weight={tab === "redirects" ? "fill" : "regular"}
+									aria-hidden="true"
+								/>
 								{t`Redirects`}
 								{redirectsQuery.data && (
 									<Badge variant="secondary">
@@ -419,8 +425,17 @@ export function Redirects() {
 					},
 					{
 						value: "404s",
-						label: t`404 Errors`,
 						className: "flex-1 justify-center text-sm sm:flex-none",
+						label: (
+							<span className="flex items-center gap-1.5">
+								<FileX
+									className="size-4 shrink-0"
+									weight={tab === "404s" ? "fill" : "regular"}
+									aria-hidden="true"
+								/>
+								{t`404 Errors`}
+							</span>
+						),
 					},
 				]}
 			/>
