@@ -219,7 +219,7 @@ export async function exportSeed(
 
 	seed.widgetAreas = await exportWidgetAreas(db);
 
-	const sections = await exportSections(db);
+	const sections = await exportSections(db, warn);
 	if (sections.length > 0) {
 		seed.sections = sections;
 	}
@@ -794,6 +794,10 @@ function isSeedRedirectType(type: number): type is NonNullable<SeedRedirect["typ
 /**
  * Export redirect rules. Terminal rules (410/451) have no seed representation
  * and are reported through `warn` instead.
+ *
+ * Databases migrated from before the source guard can hold several rows for
+ * one source; only the guarded row is exported, since a seed rejects duplicate
+ * sources.
  */
 async function exportRedirects(
 	db: Kysely<Database>,
@@ -801,13 +805,25 @@ async function exportRedirects(
 ): Promise<SeedRedirect[]> {
 	const rows = await db
 		.selectFrom("_emdash_redirects")
-		.select(["source", "destination", "type", "enabled", "group_name"])
+		.select(["source", "destination", "type", "enabled", "group_name", "source_guard"])
 		.orderBy("created_at")
 		.orderBy("id")
 		.execute();
 
+	const guardedRows = new Map<string, (typeof rows)[number]>();
+	for (const row of rows) {
+		const current = guardedRows.get(row.source);
+		if (!current || (row.source_guard === 1 && current.source_guard !== 1)) {
+			guardedRows.set(row.source, row);
+		}
+	}
+
 	const result: SeedRedirect[] = [];
 	for (const row of rows) {
+		if (guardedRows.get(row.source) !== row) {
+			warn(`Skipping duplicate rule for "${row.source}" -> "${row.destination}".`);
+			continue;
+		}
 		if (!isSeedRedirectType(row.type)) {
 			warn(`Skipping ${row.type} rule for "${row.source}": seeds only carry 301/302/307/308.`);
 			continue;
@@ -828,14 +844,27 @@ function isSeedSectionSource(source: string): source is NonNullable<SeedSection[
 	return source === "theme" || source === "user" || source === "import";
 }
 
-async function exportSections(db: Kysely<Database>): Promise<SeedSection[]> {
+/** Section slugs a seed accepts. The WordPress importer can store others. */
+const SEED_SECTION_SLUG_PATTERN = /^[a-z0-9-]+$/;
+
+async function exportSections(
+	db: Kysely<Database>,
+	warn: (message: string) => void,
+): Promise<SeedSection[]> {
 	const rows = await db
 		.selectFrom("_emdash_sections")
 		.select(["slug", "title", "description", "keywords", "content", "source"])
 		.orderBy("slug")
 		.execute();
 
-	return rows.map((row) => {
+	const result: SeedSection[] = [];
+	for (const row of rows) {
+		if (!SEED_SECTION_SLUG_PATTERN.test(row.slug)) {
+			warn(
+				`Skipping section "${row.slug}": seed section slugs may only contain lowercase letters, digits, and hyphens.`,
+			);
+			continue;
+		}
 		const section: SeedSection = {
 			slug: row.slug,
 			title: row.title,
@@ -844,8 +873,9 @@ async function exportSections(db: Kysely<Database>): Promise<SeedSection[]> {
 		if (row.description) section.description = row.description;
 		if (row.keywords) section.keywords = JSON.parse(row.keywords);
 		if (isSeedSectionSource(row.source)) section.source = row.source;
-		return section;
-	});
+		result.push(section);
+	}
+	return result;
 }
 
 /** An entry read for export, paired with the seed id it will be written under. */

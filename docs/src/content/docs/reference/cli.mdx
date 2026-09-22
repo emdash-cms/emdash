@@ -703,7 +703,7 @@ The exported seed file includes:
 - **Sections**: Reusable content blocks
 - **Content** (if requested): Entries with `$media` references and `$ref:` syntax for portability
 
-Scheduled entries are exported as drafts, because a seed has no field for a publish time. Redirect rules with status 410 or 451 are left out with a warning on stderr.
+Scheduled entries are exported as drafts, because a seed has no field for a publish time. The export leaves out, with a warning on stderr, anything `emdash seed` would reject: redirect rules with status 410 or 451, extra rules that share a source (possible in older databases), and sections whose slug contains characters other than lowercase letters, digits, and hyphens.
 
 #### Media URLs
 

@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 import { ulid } from "ulidx";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -150,6 +151,71 @@ describe("exportSeed → applySeed round trip", () => {
 				},
 			]);
 		});
+	});
+
+	it("leaves out sections whose slug a seed cannot carry", async () => {
+		const now = new Date().toISOString();
+		await db
+			.insertInto("_emdash_sections")
+			.values(
+				["valid-slug", "wp_block_slug"].map((slug) => ({
+					id: ulid(),
+					slug,
+					title: slug,
+					description: null,
+					keywords: null,
+					content: "[]",
+					preview_media_id: null,
+					source: "import",
+					theme_id: null,
+					created_at: now,
+					updated_at: now,
+				})),
+			)
+			.execute();
+
+		const warnings: string[] = [];
+		const seed = await exportSeed(db, undefined, { warn: (message) => warnings.push(message) });
+
+		expect(seed.sections?.map((s) => s.slug)).toEqual(["valid-slug"]);
+		expect(warnings).toEqual([expect.stringContaining('"wp_block_slug"')]);
+		await applyToFreshDatabase(seed, async () => {});
+	});
+
+	it("exports one redirect per source when older rows share a source", async () => {
+		const redirects = new RedirectRepository(db);
+		await redirects.create({ source: "/dup", destination: "/current" });
+		// Duplicate sources survive only from before the source guard existed;
+		// the guard trigger would otherwise claim the uniqueness slot.
+		await sql`DROP TRIGGER emdash_redirect_guard_insert`.execute(db);
+		const now = new Date().toISOString();
+		await db
+			.insertInto("_emdash_redirects")
+			.values({
+				id: ulid(),
+				source: "/dup",
+				destination: "/stale",
+				type: 301,
+				is_pattern: 0,
+				enabled: 1,
+				hits: 0,
+				last_hit_at: null,
+				group_name: null,
+				auto: 0,
+				config_revision: ulid(),
+				source_guard: 0,
+				write_generation: 0,
+				created_at: now,
+				updated_at: now,
+			})
+			.execute();
+
+		const warnings: string[] = [];
+		const seed = await exportSeed(db, undefined, { warn: (message) => warnings.push(message) });
+
+		expect(seed.redirects).toEqual([{ source: "/dup", destination: "/current", type: 301 }]);
+		expect(warnings).toEqual([expect.stringContaining('"/dup"')]);
+		await applyToFreshDatabase(seed, async () => {});
 	});
 
 	it("restores redirects", async () => {

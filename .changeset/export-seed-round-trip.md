@@ -4,7 +4,7 @@
 
 Fixes `emdash export-seed` output so it survives `emdash seed` on a fresh database, and adds `--media-base-url` so exported media can be imported.
 
-- Exports sections and redirect rules. Rules with status 410 or 451 have no seed representation; they are left out with a warning on stderr.
+- Exports sections and redirect rules. Anything a seed cannot represent is left out with a warning on stderr: redirect rules with status 410 or 451, duplicate redirect sources kept from older databases, and imported sections whose slug contains characters other than lowercase letters, digits, and hyphens.
 - Menu items that link to exported content now point at the restored entries instead of losing their link. `emdash seed` also restores links to entries in custom collections and collection archive links.
 - Scheduled entries are exported as drafts instead of being published on import.
 - Exports each collection's comments setting and its title and date fields, and whether each field is translatable. Seed fields accept `translatable`, and sections accept `source: "user"`.
