@@ -170,7 +170,7 @@ describe("taxonomy list cache", () => {
 
 	it("drops a deleted taxonomy from an editor sidebar that cached it", async () => {
 		const screen = await render(<EditorThenDeleteGenre />, { wrapper: makeWrapper() });
-		await expect.element(screen.getByRole("combobox", { name: "Add Genres" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Choose Genres" })).toBeInTheDocument();
 
 		await screen.getByRole("button", { name: "Open settings" }).click();
 		await screen.getByRole("button", { name: "More actions for Genres" }).click();
@@ -183,7 +183,7 @@ describe("taxonomy list cache", () => {
 
 		await expect.element(screen.getByText("Categories", { exact: true })).toBeInTheDocument();
 		await expect
-			.element(screen.getByRole("combobox", { name: "Add Genres" }))
+			.element(screen.getByRole("button", { name: "Choose Genres" }))
 			.not.toBeInTheDocument();
 	});
 });
