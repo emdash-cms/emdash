@@ -112,7 +112,7 @@ function normalizeScopes(requested?: string[]): string[] {
 	if (!requested || requested.length === 0) {
 		return [...DEFAULT_SCOPES];
 	}
-	return requested.filter(isValidScope);
+	return [...new Set(requested.filter(isValidScope))];
 }
 
 /**

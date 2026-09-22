@@ -63,6 +63,22 @@ describe("DeviceAuthorizePage", () => {
 		await expect.element(screen.getByRole("button", { name: "Authorize" })).toBeEnabled();
 	});
 
+	it("normalizes a code supplied in the URL before looking it up", async () => {
+		window.history.replaceState(null, "", "/_emdash/admin/device?code=%20abcd-efgh%20");
+		respondWith(
+			Response.json({
+				data: { requestedScopes: ["content:read"], grantedScopes: ["content:read"] },
+			}),
+		);
+
+		const screen = await render(<DeviceAuthorizePage />);
+
+		await expect.element(screen.getByRole("button", { name: "Authorize" })).toBeEnabled();
+		expect(mockApiFetch).toHaveBeenCalledWith(
+			"/_emdash/api/oauth/device/authorize?user_code=ABCDEFGH",
+		);
+	});
+
 	it("disables approval and explains an unknown code", async () => {
 		respondWith(
 			Response.json(

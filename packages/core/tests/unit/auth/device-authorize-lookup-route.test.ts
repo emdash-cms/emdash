@@ -85,6 +85,13 @@ describe("GET /_emdash/api/oauth/device/authorize", () => {
 		const body = await res.json();
 		expect(body.error.code).toBe("EXPIRED_CODE");
 		expect(body.data).toBeUndefined();
+
+		const row = await db
+			.selectFrom("_emdash_device_codes")
+			.select("device_code")
+			.where("device_code", "=", "dc-ABCD-EFGH")
+			.executeTakeFirst();
+		expect(row).toBeDefined();
 	});
 
 	it("does not reveal scopes of a code that is no longer pending", async () => {

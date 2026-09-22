@@ -59,6 +59,23 @@ const SCOPE_DETAILS = new Map<string, (typeof API_TOKEN_SCOPE_VALUES)[number]>(
 );
 const PLUGIN_MCP_SCOPE_PREFIX = "mcp:tools:";
 
+/** Uppercase, strip invalid characters, and shape as XXXX-XXXX */
+function formatDeviceCode(raw: string): string {
+	let value = raw.toUpperCase().replace(DEVICE_CODE_INVALID_CHARS_REGEX, "");
+
+	// Auto-insert hyphen after 4 chars if not already present
+	if (value.length === 4 && !value.includes("-")) {
+		value = value + "-";
+	}
+
+	// Limit to 9 chars (XXXX-XXXX)
+	if (value.length > 9) {
+		value = value.slice(0, 9);
+	}
+
+	return value;
+}
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -104,7 +121,7 @@ export function DeviceAuthorizePage() {
 		const params = new URLSearchParams(window.location.search);
 		const urlCode = params.get("code");
 		if (urlCode) {
-			setCode(urlCode);
+			setCode(formatDeviceCode(urlCode));
 		}
 	}, []);
 
@@ -160,21 +177,8 @@ export function DeviceAuthorizePage() {
 		}
 	}
 
-	// Format code as user types (insert hyphen after 4 chars)
 	function handleCodeChange(e: React.ChangeEvent<HTMLInputElement>) {
-		let value = e.target.value.toUpperCase().replace(DEVICE_CODE_INVALID_CHARS_REGEX, "");
-
-		// Auto-insert hyphen after 4 chars if not already present
-		if (value.length === 4 && !value.includes("-")) {
-			value = value + "-";
-		}
-
-		// Limit to 9 chars (XXXX-XXXX)
-		if (value.length > 9) {
-			value = value.slice(0, 9);
-		}
-
-		setCode(value);
+		setCode(formatDeviceCode(e.target.value));
 	}
 
 	if (isLoading) {
@@ -331,10 +335,10 @@ function RequestedScopes({
 
 	if (isLoading) {
 		return (
-			<p className="flex items-center gap-2 text-sm text-kumo-subtle mt-4">
+			<div className="flex items-center gap-2 text-sm text-kumo-subtle mt-4">
 				<Loader size="sm" />
 				{t`Checking code...`}
-			</p>
+			</div>
 		);
 	}
 
