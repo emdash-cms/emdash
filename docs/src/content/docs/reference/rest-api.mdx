@@ -264,6 +264,9 @@ The operation ID is stable within the generated contract and is commonly used as
 
 ## Content lifecycle and bylines
 
+The [content lifecycle reference](/reference/content-lifecycle/) defines the state, revision,
+permission, conflict, and hook behavior shared by REST, MCP, the CLI, and the admin panel.
+
 Content reads return an opaque `_rev` token when one is available. Send `_rev` with `PUT /content/{collection}/{id}` to prevent overwriting a change made since the read. A stale token produces a conflict; read the item again before retrying. The CLI makes this check mandatory for `content update`, while the REST field remains optional for clients that deliberately choose an unconditional write.
 
 ### Read and update an entry

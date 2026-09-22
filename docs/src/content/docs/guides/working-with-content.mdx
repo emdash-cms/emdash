@@ -179,9 +179,10 @@ inside the request's `data` object. An update saves a draft revision; publishing
 Pass the latest `_rev` value when updating or publishing so the server rejects a stale write instead
 of replacing newer work.
 
-Use the [REST API reference](/reference/rest-api/#content-endpoints) for request bodies, permissions,
-lock overrides, publishing, scheduling, restoring, and permanent deletion. Use the
-[CLI reference](/reference/cli/#emdash-content) for equivalent terminal commands.
+Use the [content lifecycle reference](/reference/content-lifecycle/) for state transitions,
+permissions, conflicts, and hooks. The [REST API reference](/reference/rest-api/) defines request and
+response bodies, and the [CLI reference](/reference/cli/#emdash-content) covers equivalent terminal
+commands.
 
 Continue with [Querying Content](/guides/querying-content/) to render published entries in an Astro
 site, or [Media Library](/guides/media-library/) to add and manage reusable files.

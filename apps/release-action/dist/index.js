@@ -12769,20 +12769,9 @@ const verifier = new import_dist$2.Verifier((0, import_dist$2.toTrustMaterial)(i
 	ctlogThreshold: 1,
 	timestampThreshold: 1
 });
-const LEGACY_PROFILES_WITHOUT_EXTENSION = new Set([
-	legacyProfileKey("did:plc:n4mihg5idgr5ne4jigcmbh4k", "ai-search", "bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a"),
-	legacyProfileKey("did:plc:nna4pfpnegfsgaym44xqhawf", "forward-email", "bafyreiftqwqkeswo7wlmjpsuaahx3eq67qxyhbyzb3rx3uxxg6y7skn2iu"),
-	legacyProfileKey("did:plc:juoj6qmxkdbbino76mobq2on", "emdash-to-buffer", "bafyreihr554isikxf2bl4vt3w2frsi6sdm6okdhswantu2l6sgjaspjuge"),
-	legacyProfileKey("did:plc:tsp7az5h6qsqjzqsgz37wonx", "freeform", "bafyreieycjq4jve7dpx73e3ven4osxe4keihgd6k2ij56gzjca35n2cotu"),
-	legacyProfileKey("did:plc:iilkrygvrmyedxyfqnwmnfe5", "contact-form", "bafyreicnqc7sqhq2pb77swwo2hm3eakltsy2pz3pl6jcybrwkxh4lqpgkq"),
-	legacyProfileKey("did:plc:5htva5ewwisu7gfjou2o4mee", "emdash-cf-email-sending", "bafyreidy4456iepmc5qtetivyqph6czibq5lw56ubhiia43n4hun32mdwi")
-]);
-function legacyProfileKey(publisherDid, packageSlug, profileCid) {
-	return `${publisherDid}\u0000${packageSlug}\u0000${profileCid}`;
-}
 
 //#endregion
-//#region ../../packages/registry-verification/dist/errors-CI-j3m_y.js
+//#region ../../packages/registry-verification/dist/errors-D3_zxvwe.js
 function verificationError(code, message, details) {
 	return {
 		success: false,

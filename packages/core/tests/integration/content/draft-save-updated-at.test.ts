@@ -304,12 +304,14 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		const targetRevisionId = published.data!.item.liveRevisionId!;
 		const revisionRepo = new RevisionRepository(db);
 		const beforeCount = await revisionRepo.countByEntry("posts", id);
-		const originalCreate = RevisionRepository.prototype.create;
-		vi.spyOn(RevisionRepository.prototype, "create").mockImplementationOnce(async function (input) {
-			const revision = await originalCreate.call(this, input);
-			await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(db);
-			return revision;
-		});
+		await sql`
+			CREATE TRIGGER race_revision_restore
+			AFTER INSERT ON revisions
+			WHEN NEW.author_id = 'author-1'
+			BEGIN
+				UPDATE ec_posts SET version = version + 1 WHERE id = ${sql.lit(id)};
+			END
+		`.execute(db);
 
 		const restored = await runtime.handleRevisionRestore(targetRevisionId, "author-1");
 
