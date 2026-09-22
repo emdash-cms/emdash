@@ -3,7 +3,7 @@ title: Create your first EmDash site
 description: Scaffold a local EmDash site, complete setup, and publish an edit.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Aside, Steps, TabItem, Tabs } from "@astrojs/starlight/components";
 
 This tutorial creates a Node.js site from the Starter template. The result uses SQLite and local
 media storage, so you can complete the tutorial without a cloud account.
@@ -27,16 +27,35 @@ The command must report `v22.16.0` or a later version.
 
 1. Start the interactive scaffolder:
 
+   <Tabs syncKey="package-manager">
+   <TabItem label="npm">
    ```bash
    npm create emdash@latest
    ```
+   </TabItem>
+   <TabItem label="pnpm">
+   ```bash
+   pnpm create emdash@latest
+   ```
+   </TabItem>
+   <TabItem label="yarn">
+   ```bash
+   yarn create emdash
+   ```
+   </TabItem>
+   <TabItem label="bun">
+   ```bash
+   bun create emdash@latest
+   ```
+   </TabItem>
+   </Tabs>
 
 2. Choose the following options when prompted:
 
    - **Project name:** `my-emdash-site`
    - **Where will you deploy?** **Node.js**
    - **Which template?** **Starter**
-   - **Which package manager?** **npm**
+   - **Which package manager?** Keep the package manager detected from the command in step 1.
    - **Install dependencies?** **Yes**
 
    These choices create a general-purpose Node.js site with Posts and Pages. The scaffolder also
@@ -47,10 +66,32 @@ The command must report `v22.16.0` or a later version.
 
 3. Enter the project directory and start the development server:
 
+   <Tabs syncKey="package-manager">
+   <TabItem label="npm">
    ```bash
    cd my-emdash-site
    npm run dev
    ```
+   </TabItem>
+   <TabItem label="pnpm">
+   ```bash
+   cd my-emdash-site
+   pnpm dev
+   ```
+   </TabItem>
+   <TabItem label="yarn">
+   ```bash
+   cd my-emdash-site
+   yarn dev
+   ```
+   </TabItem>
+   <TabItem label="bun">
+   ```bash
+   cd my-emdash-site
+   bun dev
+   ```
+   </TabItem>
+   </Tabs>
 
    Keep this terminal open. Astro prints the local site URL, normally `http://localhost:4321/`.
 
