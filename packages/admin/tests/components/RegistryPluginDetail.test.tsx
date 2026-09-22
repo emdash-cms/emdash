@@ -426,7 +426,7 @@ describe("RegistryPluginDetail independent install consent", () => {
 			slug: "myplugin",
 			version: "1.2.3",
 		});
-		await expect.element(screen.getByText("Signed release verified")).toBeInTheDocument();
+		await expect.element(screen.getByText("Build provenance verified")).toBeInTheDocument();
 		await expect.element(screen.getByText("Read user accounts")).toBeInTheDocument();
 		await expect.element(screen.getByText("Public routes")).toBeInTheDocument();
 		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();

@@ -152,7 +152,7 @@ describe("RegistryBrowse listing safety", () => {
 			</QueryClientProvider>,
 		);
 
-		await expect.element(screen.getByText("Installed")).toBeInTheDocument();
+		await expect.element(screen.getByText("Installed", { exact: true })).toBeInTheDocument();
 	});
 
 	it("shows a conspicuous invalid-handle state without rendering an unverified handle", async () => {

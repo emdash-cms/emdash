@@ -110,5 +110,38 @@ test.describe("Registry cutover", () => {
 		expect((await installResponse).status()).toBe(201);
 		await expect(dialog).toBeHidden();
 		await expect(page.getByRole("button", { name: "Installed" })).toBeDisabled();
+
+		const pluginsResponse = await page.request.get("/_emdash/api/admin/plugins");
+		expect(pluginsResponse.status()).toBe(200);
+		const plugins = (await pluginsResponse.json()) as {
+			data: {
+				items: Array<{
+					id: string;
+					source?: string;
+					registryPublisherDid?: string;
+					registrySlug?: string;
+				}>;
+			};
+		};
+		const installed = plugins.data.items.find(
+			(item) =>
+				item.source === "registry" &&
+				item.registryPublisherDid === "did:plc:delegated00000000000000" &&
+				item.registrySlug === "gallery",
+		);
+		expect(installed).toBeDefined();
+
+		const uninstallResponse = await page.request.post(
+			`/_emdash/api/admin/plugins/registry/${encodeURIComponent(installed!.id)}/uninstall`,
+			{
+				headers: { "X-EmDash-Request": "1" },
+				data: { deleteData: true },
+			},
+		);
+		expect(uninstallResponse.status()).toBe(200);
+		await expect(uninstallResponse.json()).resolves.toMatchObject({
+			success: true,
+			data: { pluginId: installed!.id, dataDeleted: true },
+		});
 	});
 });

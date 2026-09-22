@@ -23,6 +23,7 @@ const {
 	MOCK_RUNTIME,
 	PUBLIC_PLUGIN_RESULT,
 	mockGetPluginRouteMeta,
+	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
 	mockGetRuntimePluginSettingsSchema,
@@ -40,6 +41,7 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const handleMediaUpload = vi.fn(ok);
 	const runPluginInstallLifecycle = vi.fn(async () => undefined);
 	const runPluginActivateLifecycle = vi.fn(async () => undefined);
 	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
@@ -73,6 +75,7 @@ const {
 			handleContentTranslations: ok,
 			handleMediaList: ok,
 			handleMediaGet: ok,
+			handleMediaUpload,
 			handleMediaCreate: ok,
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
@@ -105,6 +108,7 @@ const {
 		},
 		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
+		mockHandleMediaUpload: handleMediaUpload,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
 		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
@@ -198,6 +202,7 @@ beforeEach(() => {
 	resetSetupVerified();
 	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
 	mockGetRuntimePluginSettingsSchema.mockClear();
+	mockHandleMediaUpload.mockClear();
 	mockRunPluginActivateLifecycle.mockClear();
 	mockRunPluginInstallLifecycle.mockClear();
 	mockRunPluginUninstallLifecycle.mockClear();
@@ -597,6 +602,26 @@ describe("astro middleware anonymous session reads", () => {
 		expect(mockRunPluginActivateLifecycle).toHaveBeenCalledWith("gallery");
 		expect(mockRunPluginUninstallLifecycle).toHaveBeenCalledWith("gallery", true);
 		expect(mockGetRuntimePluginSettingsSchema).toHaveBeenCalledWith("gallery");
+	});
+
+	it("exposes media upload through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/media",
+			method: "POST",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		const input = { filename: "photo.jpg", base64: "cGhvdG8=" };
+		await (emdash.handleMediaUpload as (value: typeof input) => Promise<{ success: boolean }>)(
+			input,
+		);
+		expect(mockHandleMediaUpload).toHaveBeenCalledWith(input);
 	});
 });
 
