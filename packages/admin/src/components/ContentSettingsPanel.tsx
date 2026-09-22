@@ -106,7 +106,7 @@ function PublishingVersionRow({
 				<Text as="p" bold>
 					{title}
 				</Text>
-				<Text as="p" variant="secondary" DANGEROUS_className="mt-0.5 text-pretty">
+				<Text as="p" variant="secondary" size="xs" DANGEROUS_className="mt-0.5 text-pretty">
 					{description}
 				</Text>
 				{action ? <div className="-ms-2 mt-1">{action}</div> : null}
@@ -246,11 +246,11 @@ function PublishingVersionRelationship({
 function TimestampValue({
 	value,
 	locale,
-	size = "base",
+	size = "xs",
 }: {
 	value: string;
 	locale: string;
-	size?: "sm" | "base";
+	size?: "xs" | "base";
 }) {
 	return (
 		<time dateTime={value}>
@@ -264,8 +264,8 @@ function TimestampValue({
 function TimestampRow({
 	label,
 	children,
-	size = "base",
-}: React.PropsWithChildren<{ label: string; size?: "sm" | "base" }>) {
+	size = "xs",
+}: React.PropsWithChildren<{ label: string; size?: "xs" | "base" }>) {
 	return (
 		<div className="flex items-center justify-between gap-2 whitespace-nowrap">
 			<dt className="min-w-0 flex-1">
@@ -876,7 +876,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	return (
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
 		// animation, which would stop long field descriptions from wrapping.
-		<div className="flex flex-col whitespace-normal">
+		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
 			<SortableContentSettingsSections
 				collection={collection}
 				userId={currentUser?.id}
@@ -884,7 +884,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
 					<div className="p-4">
-						<Text bold as="h3" DANGEROUS_className="mb-4">
+						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 							{t`Publish`}
 						</Text>
 						{showPublishingRelationship || item ? (
@@ -950,7 +950,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													/>
 												}
 											>
-												<Text as="span" variant="secondary" size="sm">
+												<Text as="span" variant="secondary" size="xs">
 													{t`Created and updated`}
 												</Text>
 												<CaretDown
@@ -972,18 +972,18 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												})}
 											>
 												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
-													<TimestampRow label={t`Created`} size="sm">
+													<TimestampRow label={t`Created`} size="xs">
 														<TimestampValue
 															value={item.createdAt}
 															locale={lingui.locale}
-															size="sm"
+															size="xs"
 														/>
 													</TimestampRow>
-													<TimestampRow label={t`Updated`} size="sm">
+													<TimestampRow label={t`Updated`} size="xs">
 														<TimestampValue
 															value={item.updatedAt}
 															locale={lingui.locale}
-															size="sm"
+															size="xs"
 														/>
 													</TimestampRow>
 												</dl>
@@ -1007,7 +1007,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 				<SortableContentSettingsSection id="url-language" label={t`URL & language`}>
 					<div className="p-4">
-						<Text bold as="h3" DANGEROUS_className="mb-4">
+						<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 							{t`URL & language`}
 						</Text>
 						<div className="grid gap-4">
@@ -1057,7 +1057,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{currentUser && currentUser.role >= ROLE_EDITOR && users && users.length > 0 && (
 					<SortableContentSettingsSection id="ownership" label={t`Ownership`}>
 						<div className="p-4">
-							<Text bold as="h3" DANGEROUS_className="mb-4">
+							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`Ownership`}
 							</Text>
 							<AuthorSelector
@@ -1073,7 +1073,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 					<SortableContentSettingsSection id="bylines" label={t`Bylines`}>
 						<div className="p-4">
 							<div className="mb-4 flex items-center gap-1.5 pe-24">
-								<Text bold as="h3">
+								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
 								</Text>
 								<Tooltip
@@ -1156,7 +1156,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{hasSeo && !isNew && onSeoChange && (
 					<SortableContentSettingsSection id="seo" label={t`SEO`}>
 						<div className="p-4">
-							<Text bold as="h3" DANGEROUS_className="mb-4">
+							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`SEO`}
 							</Text>
 							<SeoPanel
@@ -1212,7 +1212,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						return (
 							<SortableContentSettingsSection key={sectionId} id={sectionId} label={title}>
 								<div className="min-w-0 p-4">
-									<Text bold as="h3" DANGEROUS_className="mb-4">
+									<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 										{title}
 									</Text>
 									<ContentEditorPanelBoundary
