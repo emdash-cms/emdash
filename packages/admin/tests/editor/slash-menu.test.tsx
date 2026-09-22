@@ -641,9 +641,14 @@ describe("Slash Command Menu", () => {
 
 			const menu = await waitForSlashMenu();
 			const selectedItem = getSlashMenuItems(menu)[0]!;
+			const tintReference = document.createElement("div");
+			tintReference.style.backgroundColor = "var(--color-kumo-tint)";
+			document.body.append(tintReference);
+			const expectedColor = getComputedStyle(tintReference).backgroundColor;
+			tintReference.remove();
 
 			await vi.waitFor(() => {
-				expect(getComputedStyle(selectedItem).backgroundColor).toBe("rgb(240, 240, 241)");
+				expect(getComputedStyle(selectedItem).backgroundColor).toBe(expectedColor);
 			});
 		} finally {
 			if (previousMode === null) root.removeAttribute("data-mode");
