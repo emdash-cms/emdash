@@ -19,6 +19,8 @@ import type { PortableTextEditorProps } from "../../src/components/PortableTextE
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
 
+import "../../src/styles.css";
+
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
@@ -623,6 +625,32 @@ describe("Slash Command Menu", () => {
 		const classes = selectedItem.className.split(WHITESPACE_SPLIT_REGEX);
 		expect(classes).toContain("bg-kumo-interact");
 		expect(classes).not.toContain("bg-kumo-tint");
+	});
+
+	it("uses a quieter interaction surface for light-mode selection", async () => {
+		const root = document.documentElement;
+		const previousMode = root.getAttribute("data-mode");
+		const previousTheme = root.getAttribute("data-theme");
+		root.dataset.mode = "light";
+		root.dataset.theme = "classic";
+
+		try {
+			const { editor, pm } = await renderEditor();
+			await focusEditor(pm);
+			editor.commands.insertContent("/");
+
+			const menu = await waitForSlashMenu();
+			const selectedItem = getSlashMenuItems(menu)[0]!;
+
+			await vi.waitFor(() => {
+				expect(getComputedStyle(selectedItem).backgroundColor).toBe("rgb(240, 240, 241)");
+			});
+		} finally {
+			if (previousMode === null) root.removeAttribute("data-mode");
+			else root.setAttribute("data-mode", previousMode);
+			if (previousTheme === null) root.removeAttribute("data-theme");
+			else root.setAttribute("data-theme", previousTheme);
+		}
 	});
 
 	it("moves selection down with ArrowDown", async () => {
