@@ -422,6 +422,8 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"comments:read": msg`Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata`,
 	"comments:moderate": msg`Approve comments and mark them as pending or spam`,
 	"schema:read": msg`Read collection and field definitions`,
+	"admin.editor-draft:read": msg`Read selected unsaved editor content after you explicitly invoke the plugin`,
+	"admin.editor-draft:patch": msg`Propose unsaved changes to selected editor fields for your review`,
 	"hooks.content-policy:register": msg`Review and block publishing, scheduling, and unpublishing content`,
 	"taxonomies:read": msg`Read your taxonomies and terms`,
 	"taxonomies:write": msg`Create taxonomy terms and change content classifications`,

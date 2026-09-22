@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
@@ -13,6 +14,44 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  change-plan:
+    name: Test Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      unit: ${{ steps.plan.outputs.unit }}
+      unit_mode: ${{ steps.plan.outputs.unit_mode }}
+      unit_packages: ${{ steps.plan.outputs.unit_packages }}
+      smoke: ${{ steps.plan.outputs.smoke }}
+      integration: ${{ steps.plan.outputs.integration }}
+      d1: ${{ steps.plan.outputs.d1 }}
+      browser: ${{ steps.plan.outputs.browser }}
+      browser_admin: ${{ steps.plan.outputs.browser_admin }}
+      browser_release: ${{ steps.plan.outputs.browser_release }}
+      e2e_node: ${{ steps.plan.outputs.e2e_node }}
+      e2e_cloudflare: ${{ steps.plan.outputs.e2e_cloudflare }}
+      e2e_table: ${{ steps.plan.outputs.e2e_table }}
+      e2e_playground: ${{ steps.plan.outputs.e2e_playground }}
+      full: ${{ steps.plan.outputs.full }}
+      plan: ${{ steps.plan.outputs.plan }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select tests for this change
+        id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only --no-renames --diff-filter=ACDMRT "$BASE_SHA...$HEAD_SHA" |
+              node .github/scripts/test-plan.mjs --github-output >> "$GITHUB_OUTPUT"
+          else
+            node .github/scripts/test-plan.mjs --github-output </dev/null >> "$GITHUB_OUTPUT"
+          fi
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
@@ -100,10 +139,12 @@ jobs:
 
   test-shards:
     name: Test Shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    needs: change-plan
+    if: needs.change-plan.outputs.unit_mode == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         shardIndex: [1, 2, 3, 4]
         shardTotal: [4]
@@ -130,45 +171,131 @@ jobs:
           node-version: 22.16.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Build emdash + its deps AND the plugin-cli + registry packages.
-      # They aren't deps of `emdash`, so the `emdash...` filter would
-      # leave them unbuilt and their tests would fail to resolve workspace
-      # links to dist/.
-      - run: pnpm run --filter emdash... --filter "@emdash-cms/aggregator" --filter "@emdash-cms/labeler" --filter "@emdash-cms/plugin-cli" --filter "@emdash-cms/registry-*" --filter "@emdash-cms/plugin-types" build
-      - name: Check registry-verification package
-        if: matrix.shardIndex == 1
-        run: pnpm --filter @emdash-cms/registry-verification test:package
+      - run: pnpm run --filter emdash... build
       - run: pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-        env:
-          EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
-      - name: Test other packages
-        if: matrix.shardIndex == 1
-        run: pnpm run --filter @emdash-cms/aggregator --filter @emdash-cms/auth --filter @emdash-cms/blocks --filter @emdash-cms/gutenberg-to-portable-text --filter @emdash-cms/labeler --filter @emdash-cms/marketplace --filter @emdash-cms/plugin-cli --filter @emdash-cms/plugin-forms --filter @emdash-cms/plugin-types --filter @emdash-cms/registry-client --filter @emdash-cms/registry-lexicons --filter @emdash-cms/registry-moderation test
         env:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
       # Render tests use the Astro Vite plugin (vitest.repro.config.ts);
       # they can't run under the plain-node config in test:unit.
       - if: matrix.shardIndex == 1
         run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
-      - if: matrix.shardIndex == 1
-        run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action test
+
+  test-packages:
+    name: Package Tests
+    needs: change-plan
+    if: needs.change-plan.outputs.unit == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build and test selected packages
+        env:
+          UNIT_PACKAGES: ${{ needs.change-plan.outputs.unit_packages }}
+        run: |
+          packages=()
+          while IFS= read -r package; do
+            packages+=("$package")
+          done < <(node -e 'for (const name of JSON.parse(process.env.UNIT_PACKAGES)) console.log(name)')
+          if [ "${#packages[@]}" -eq 0 ]; then
+            echo "::error::Unit tests were selected without any packages"
+            exit 1
+          fi
+
+          build_filters=()
+          test_filters=()
+          check_registry_verification=false
+          for package in "${packages[@]}"; do
+            build_filters+=(--filter "${package}...")
+            if [ "$package" = "@emdash-cms/registry-verification" ]; then
+              check_registry_verification=true
+            else
+              test_filters+=(--filter "$package")
+            fi
+          done
+
+          pnpm run --if-present "${build_filters[@]}" build
+          if [ "${#test_filters[@]}" -gt 0 ]; then
+            pnpm run "${test_filters[@]}" test
+          fi
+          if [ "$check_registry_verification" = true ]; then
+            pnpm --filter @emdash-cms/registry-verification test:package
+          fi
 
   test:
     name: Tests
     if: always()
-    needs: [test-shards]
+    needs:
+      [
+        change-plan,
+        test-shards,
+        test-packages,
+        test-smoke,
+        test-integration,
+        test-workerd,
+        test-browser,
+        test-e2e-rollup,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check test shard results
+      - name: Check selected test results
+        env:
+          PLAN_RESULT: ${{ needs.change-plan.result }}
+          CORE_UNIT_SELECTED: ${{ needs.change-plan.outputs.unit_mode == 'full' }}
+          CORE_UNIT_RESULT: ${{ needs.test-shards.result }}
+          PACKAGE_SELECTED: ${{ needs.change-plan.outputs.unit }}
+          PACKAGE_RESULT: ${{ needs.test-packages.result }}
+          SMOKE_SELECTED: ${{ needs.change-plan.outputs.smoke }}
+          SMOKE_RESULT: ${{ needs.test-smoke.result }}
+          INTEGRATION_SELECTED: ${{ needs.change-plan.outputs.integration }}
+          INTEGRATION_RESULT: ${{ needs.test-integration.result }}
+          D1_SELECTED: ${{ needs.change-plan.outputs.d1 }}
+          D1_RESULT: ${{ needs.test-workerd.result }}
+          BROWSER_SELECTED: ${{ needs.change-plan.outputs.browser }}
+          BROWSER_RESULT: ${{ needs.test-browser.result }}
+          E2E_ROLLUP_RESULT: ${{ needs.test-e2e-rollup.result }}
         run: |
-          if [ "${{ needs.test-shards.result }}" != "success" ]; then
-            echo "Tests failed or were cancelled"
-            exit 1
+          failed=0
+          check_lane() {
+            name="$1"
+            selected="$2"
+            result="$3"
+            expected=skipped
+            if [ "$selected" = true ]; then expected=success; fi
+            if [ "$result" != "$expected" ]; then
+              echo "::error::$name was $result; test plan expected $expected"
+              failed=1
+            fi
+          }
+
+          if [ "$PLAN_RESULT" != success ]; then
+            echo "::error::Test planning failed or was cancelled"
+            failed=1
           fi
+          check_lane "Core unit tests" "$CORE_UNIT_SELECTED" "$CORE_UNIT_RESULT"
+          check_lane "Package tests" "$PACKAGE_SELECTED" "$PACKAGE_RESULT"
+          check_lane "Smoke tests" "$SMOKE_SELECTED" "$SMOKE_RESULT"
+          check_lane "Integration tests" "$INTEGRATION_SELECTED" "$INTEGRATION_RESULT"
+          check_lane "D1 tests" "$D1_SELECTED" "$D1_RESULT"
+          check_lane "Browser tests" "$BROWSER_SELECTED" "$BROWSER_RESULT"
+          if [ "$E2E_ROLLUP_RESULT" != success ]; then
+            echo "::error::E2E Tests rollup was $E2E_ROLLUP_RESULT"
+            failed=1
+          fi
+          exit "$failed"
 
   test-smoke:
     name: Smoke Tests
+    needs: change-plan
+    if: needs.change-plan.outputs.smoke == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -200,6 +327,8 @@ jobs:
 
   test-integration:
     name: Integration Tests
+    needs: change-plan
+    if: needs.change-plan.outputs.integration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -216,6 +345,8 @@ jobs:
 
   test-workerd:
     name: D1 Tests
+    needs: change-plan
+    if: needs.change-plan.outputs.d1 == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -235,6 +366,8 @@ jobs:
 
   test-browser:
     name: Browser Tests
+    needs: change-plan
+    if: needs.change-plan.outputs.browser == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -247,7 +380,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter @emdash-cms/admin... --filter @emdash-cms/release-service... build
+      - name: Build selected browser suites
+        env:
+          BROWSER_ADMIN: ${{ needs.change-plan.outputs.browser_admin }}
+          BROWSER_RELEASE: ${{ needs.change-plan.outputs.browser_release }}
+        run: |
+          filters=()
+          if [ "$BROWSER_ADMIN" = true ]; then filters+=(--filter "@emdash-cms/admin..."); fi
+          if [ "$BROWSER_RELEASE" = true ]; then filters+=(--filter "@emdash-cms/release-service..."); fi
+          if [ "${#filters[@]}" -eq 0 ]; then
+            echo "::error::Browser tests were selected without a browser suite"
+            exit 1
+          fi
+          pnpm run "${filters[@]}" build
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
@@ -255,32 +400,60 @@ jobs:
           key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-      - run: pnpm --filter @emdash-cms/release-service test:browser
-      - run: pnpm run --filter @emdash-cms/admin test
+      - name: Test release service in Chromium
+        if: needs.change-plan.outputs.browser_release == 'true'
+        run: pnpm --filter @emdash-cms/release-service test:browser
+      - name: Test admin UI
+        if: needs.change-plan.outputs.browser_admin == 'true'
+        run: pnpm run --filter @emdash-cms/admin test
 
   test-e2e-rollup:
     name: E2E Tests
     if: always()
-    needs: [test-e2e, test-e2e-table, test-e2e-cloudflare, test-e2e-playground]
+    needs: [change-plan, test-e2e, test-e2e-table, test-e2e-playground]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Check E2E results
+        env:
+          PLAN_RESULT: ${{ needs.change-plan.result }}
+          E2E_SELECTED: ${{ needs.change-plan.outputs.e2e_node == 'true' || needs.change-plan.outputs.e2e_cloudflare == 'true' }}
+          E2E_RESULT: ${{ needs.test-e2e.result }}
+          TABLE_SELECTED: ${{ needs.change-plan.outputs.e2e_table }}
+          TABLE_RESULT: ${{ needs.test-e2e-table.result }}
+          PLAYGROUND_SELECTED: ${{ needs.change-plan.outputs.e2e_playground }}
+          PLAYGROUND_RESULT: ${{ needs.test-e2e-playground.result }}
         run: |
-          if [ "${{ needs.test-e2e.result }}" != "success" ] ||
-             [ "${{ needs.test-e2e-table.result }}" != "success" ] ||
-             [ "${{ needs.test-e2e-cloudflare.result }}" != "success" ] ||
-             [ "${{ needs.test-e2e-playground.result }}" != "success" ]; then
-            echo "E2E tests failed or were cancelled"
-            exit 1
+          failed=0
+          check_lane() {
+            name="$1"
+            selected="$2"
+            result="$3"
+            expected=skipped
+            if [ "$selected" = true ]; then expected=success; fi
+            if [ "$result" != "$expected" ]; then
+              echo "::error::$name was $result; test plan expected $expected"
+              failed=1
+            fi
+          }
+
+          if [ "$PLAN_RESULT" != success ]; then
+            echo "::error::Test planning failed or was cancelled"
+            failed=1
           fi
+          check_lane "Node/Cloudflare E2E" "$E2E_SELECTED" "$E2E_RESULT"
+          check_lane "Table E2E" "$TABLE_SELECTED" "$TABLE_RESULT"
+          check_lane "Playground E2E" "$PLAYGROUND_SELECTED" "$PLAYGROUND_RESULT"
+          exit "$failed"
 
   test-e2e:
-    name: E2E tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    name: E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    needs: change-plan
+    if: needs.change-plan.outputs.e2e_node == 'true' || needs.change-plan.outputs.e2e_cloudflare == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
         shardTotal: [8]
@@ -294,32 +467,55 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter emdash... build
+      - name: Build Node fixture
+        id: node-build
+        if: ${{ !cancelled() && needs.change-plan.outputs.e2e_node == 'true' }}
+        run: pnpm run --filter emdash... build
+      - name: Build Cloudflare fixture
+        id: cloudflare-build
+        if: ${{ !cancelled() && needs.change-plan.outputs.e2e_cloudflare == 'true' }}
+        run: pnpm run --filter "emdash-e2e-fixture-cloudflare..." build
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !cancelled() && (steps.node-build.outcome == 'success' || steps.cloudflare-build.outcome == 'success') }}
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-      - run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        if: ${{ !cancelled() && (steps.node-build.outcome == 'success' || steps.cloudflare-build.outcome == 'success') && steps.playwright-cache.outputs.cache-hit != 'true' }}
+      - name: Run Node E2E
+        id: node-e2e
+        if: ${{ !cancelled() && steps.node-build.outcome == 'success' }}
+        run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
+        if: failure() && steps.node-e2e.outcome == 'failure'
         with:
-          name: playwright-report-${{ matrix.shardIndex }}
+          name: playwright-report-node-${{ matrix.shardIndex }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Run Cloudflare E2E
+        id: cloudflare-e2e
+        if: ${{ !cancelled() && steps.cloudflare-build.outcome == 'success' }}
+        run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        env:
+          EMDASH_E2E_TARGET: cloudflare
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure() && steps.cloudflare-e2e.outcome == 'failure'
+        with:
+          name: playwright-report-cloudflare-${{ matrix.shardIndex }}
           path: |
             playwright-report/
             test-results/
           retention-days: 7
 
   test-e2e-table:
-    name: Table E2E (${{ matrix.browser }})
+    name: Table E2E
+    needs: change-plan
+    if: needs.change-plan.outputs.e2e_table == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -335,15 +531,15 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ matrix.browser }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install ${{ matrix.browser }}
+          key: playwright-all-browsers-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install chromium firefox webkit
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-      - run: pnpm exec playwright install-deps ${{ matrix.browser }}
-      - run: pnpm run test:e2e:table --project=${{ matrix.browser }}
+      - run: pnpm exec playwright install-deps chromium firefox webkit
+      - run: pnpm run test:e2e:table
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-table-${{ matrix.browser }}
+          name: playwright-table
           path: |
             playwright-report/
             test-results/
@@ -351,6 +547,8 @@ jobs:
 
   test-e2e-playground:
     name: Playground E2E
+    needs: change-plan
+    if: needs.change-plan.outputs.e2e_playground == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -377,46 +575,4 @@ jobs:
         with:
           name: playwright-report-playground
           path: test-results/
-          retention-days: 7
-
-  test-e2e-cloudflare:
-    name: E2E Cloudflare (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
-        shardTotal: [8]
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run --filter "emdash-e2e-fixture-cloudflare..." build
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-      # Runs the full e2e suite against the workerd runtime. Sharded like the Node
-      # lane: per-shard setup (dev-server boot + seed) is ~30s, so wall-clock is
-      # dominated by test execution and shards parallelize it near-linearly.
-      - run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-        env:
-          EMDASH_E2E_TARGET: cloudflare
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: playwright-report-cloudflare-${{ matrix.shardIndex }}
-          path: |
-            playwright-report/
-            test-results/
           retention-days: 7

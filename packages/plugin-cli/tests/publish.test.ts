@@ -92,7 +92,7 @@ describe("publishRelease", () => {
 			expect(pds.records.has(result.releaseUri)).toBe(true);
 		});
 
-		it("anchors the profile to the repository without requiring provenance", async () => {
+		it("anchors the profile to the repository with optional provenance", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			await publishRelease(buildOptions(pds));
 
@@ -103,23 +103,26 @@ describe("publishRelease", () => {
 					[NSID.packageProfileExtension]: {
 						$type: NSID.packageProfileExtension,
 						repository: "https://github.com/example/test-plugin",
+						releasePolicy: { requireProvenance: false },
 					},
 				},
 			});
-			expect(
-				(
-					profile!.value as {
-						extensions: Record<string, { releasePolicy?: unknown }>;
-					}
-				).extensions[NSID.packageProfileExtension]?.releasePolicy,
-			).toBeUndefined();
 		});
 
-		it("refuses to publish an uninstallable profile without a repository", async () => {
+		it("publishes without a repository extension when no repository is configured", async () => {
 			const pds = new MockPds({ did: TEST_DID });
-			await expect(publishRelease(buildOptions(pds, { repo: undefined }))).rejects.toMatchObject({
-				code: "PROFILE_REPOSITORY_MISSING",
-			});
+			await publishRelease(buildOptions(pds, { repo: undefined }));
+
+			const profile = pds.records.get(`at://${TEST_DID}/${NSID.packageProfile}/test-plugin`);
+			expect(profile?.value).toMatchObject({ extensions: {} });
+		});
+
+		it("rejects a non-canonical configured repository", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+
+			await expect(
+				publishRelease(buildOptions(pds, { repo: "http://github.com/example/test-plugin" })),
+			).rejects.toMatchObject({ code: "PROFILE_REPOSITORY_INVALID" });
 			expect(pds.records.size).toBe(0);
 		});
 
@@ -387,9 +390,10 @@ describe("publishRelease", () => {
 			});
 		});
 
-		it("adds manual-install verification metadata to an older profile", async () => {
+		it("adds optional-provenance metadata to an older profile", async () => {
 			const pds = new MockPds({ did: TEST_DID });
-			pds.seedRecord(NSID.packageProfile, "test-plugin", wellShapedProfile);
+			const { extensions: _extensions, ...olderProfile } = wellShapedProfile;
+			pds.seedRecord(NSID.packageProfile, "test-plugin", olderProfile);
 
 			await publishRelease(buildOptions(pds, { manifest: buildManifest({ version: "1.1.0" }) }));
 
@@ -398,6 +402,7 @@ describe("publishRelease", () => {
 				extensions: {
 					[NSID.packageProfileExtension]: {
 						repository: "https://github.com/example/test-plugin",
+						releasePolicy: { requireProvenance: false },
 					},
 				},
 			});

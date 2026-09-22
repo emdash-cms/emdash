@@ -20,6 +20,7 @@ import type {
 } from "../plugins/routes.js";
 import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
+import type { CollectionWithFields } from "../schema/types.js";
 
 // Re-export core types
 export type {
@@ -65,6 +66,7 @@ export interface ManifestCollection {
 			kind: string;
 			label?: string;
 			required?: boolean;
+			translatable?: boolean;
 			widget?: string;
 			/**
 			 * Field options. Two shapes:
@@ -519,6 +521,7 @@ export interface EmDashHandlers {
 		extensionId: string,
 		collection: string,
 	) => ResolvedPluginEditorExtension | null;
+	getPluginEditorDraftSchema: (collection: string) => Promise<CollectionWithFields | null>;
 
 	// Public-only plugin API route handler for SSR page components.
 	handlePublicPluginApiRoute: (

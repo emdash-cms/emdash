@@ -67,6 +67,10 @@ import type { BlockSidebarPanel } from "./PortableTextEditor";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
+import type {
+	BrowserEditorDraftRequest,
+	EditorDraftResponse,
+} from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
 import {
@@ -727,6 +731,14 @@ export interface ContentSettingsPanelProps {
 	blockSidebarPanel: BlockSidebarPanel | null;
 	onBlockSidebarClose: () => void;
 	onBlockSidebarDelete: () => void;
+	captureEditorDraft?: (
+		access: import("../lib/sandboxed-editor-extensions.js").EditorDraftAccessDeclaration,
+	) => BrowserEditorDraftRequest | null;
+	onEditorDraftResponse?: (
+		access: import("../lib/sandboxed-editor-extensions.js").EditorDraftAccessDeclaration,
+		response: EditorDraftResponse,
+	) => void;
+	onEntryRefresh?: () => void | Promise<void>;
 }
 
 /**
@@ -781,6 +793,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	blockSidebarPanel,
 	onBlockSidebarClose,
 	onBlockSidebarDelete,
+	captureEditorDraft,
+	onEditorDraftResponse,
+	onEntryRefresh,
 }: ContentSettingsPanelProps) {
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
@@ -1201,6 +1216,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											entryId={item.id}
 											locale={item.locale ?? entryLocale}
 											versionToken={item._rev ?? item.updatedAt}
+											draftAccess={extension.draft}
+											captureDraft={captureEditorDraft}
+											onDraftResponse={onEditorDraftResponse}
+											onEntryRefresh={onEntryRefresh}
 										/>
 									</ContentEditorPanelBoundary>
 								</SortableContentSettingsSection>

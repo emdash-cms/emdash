@@ -197,6 +197,19 @@ describe("declaredAccess facet mapping", () => {
 		});
 	});
 
+	it("keeps editor draft read and patch as independent authorities", () => {
+		expect(capabilitiesToDeclaredAccess(["admin.editor-draft:read"], [])).toEqual({
+			admin: { editorDraftRead: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["admin.editor-draft:patch"], [])).toEqual({
+			admin: { editorDraftPatch: {} },
+		});
+		expect(declaredAccessToCapabilities({ admin: { editorDraftPatch: {} } })).toEqual({
+			capabilities: ["admin.editor-draft:patch"],
+			allowedHosts: [],
+		});
+	});
+
 	it("distinguishes host-restricted from unrestricted network", () => {
 		expect(capabilitiesToDeclaredAccess(["network:request"], ["api.example.com"])).toEqual({
 			network: { request: { allowedHosts: ["api.example.com"] } },

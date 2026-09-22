@@ -6,6 +6,8 @@ import type { Element } from "@emdash-cms/blocks";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+import type { EditorDraftAccessDeclaration } from "../sandboxed-editor-extensions.js";
+
 export const API_BASE = "/_emdash/api";
 
 /**
@@ -160,6 +162,7 @@ export interface AdminManifest {
 					kind: string;
 					label?: string;
 					required?: boolean;
+					translatable?: boolean;
 					widget?: string;
 					/**
 					 * For `select` / `multiSelect`: the list of enum choices.
@@ -204,6 +207,7 @@ export interface AdminManifest {
 				route: string;
 				collections?: string[];
 				order?: number;
+				draft?: EditorDraftAccessDeclaration;
 			}>;
 			editorActions?: Array<{
 				id: string;
@@ -213,6 +217,7 @@ export interface AdminManifest {
 				collections?: string[];
 				style?: "default" | "danger";
 				confirm?: import("@emdash-cms/blocks").ConfirmDialog;
+				draft?: EditorDraftAccessDeclaration;
 			}>;
 			fieldWidgets?: Array<{
 				name: string;

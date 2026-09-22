@@ -460,8 +460,8 @@ describe("RegistryPluginDetail independent install consent", () => {
 			new ApiResponseError(
 				400,
 				"RECORD_VERIFICATION_FAILED",
-				"The signed repository extension is absent.",
-				{ verificationCode: "PROFILE_EXTENSION_MISSING" },
+				"The signed repository extension is malformed.",
+				{ verificationCode: "PROFILE_EXTENSION_INVALID" },
 			),
 		);
 		const screen = await render(
@@ -485,8 +485,8 @@ describe("RegistryPluginDetail independent install consent", () => {
 			new ApiResponseError(
 				400,
 				"RECORD_VERIFICATION_FAILED",
-				"The signed repository extension is absent.",
-				{ verificationCode: "PROFILE_EXTENSION_MISSING" },
+				"The signed repository extension is malformed.",
+				{ verificationCode: "PROFILE_EXTENSION_INVALID" },
 			),
 		);
 		const screen = await render(
