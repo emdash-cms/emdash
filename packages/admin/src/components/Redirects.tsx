@@ -31,6 +31,7 @@ import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { PageHeader } from "./PageHeader.js";
 
 // ---------------------------------------------------------------------------
 // Redirect form dialog (create + edit)
@@ -358,49 +359,40 @@ export function Redirects() {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{t`Redirects`}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Manage URL redirects and view 404 errors.`}
-					</p>
-				</div>
+			<PageHeader
+				value={tab}
+				onValueChange={(value) => {
+					if (value === "redirects" || value === "404s") setTab(value);
+				}}
+				tabs={[
+					{
+						value: "redirects",
+						className: "text-sm",
+						label: (
+							<span className="flex items-center gap-2">
+								{t`Redirects`}
+								{redirectsQuery.data && (
+									<Badge variant="secondary">
+										{redirects.length}
+										{redirectsQuery.hasNextPage ? "+" : ""}
+									</Badge>
+								)}
+							</span>
+						),
+					},
+					{ value: "404s", label: t`404 Errors`, className: "text-sm" },
+				]}
+			>
 				<Button icon={<Plus />} onClick={() => setShowCreate(true)}>
 					{t`New Redirect`}
 				</Button>
-			</div>
+			</PageHeader>
 
-			{/* Tabs */}
-			<div className="flex gap-1 border-b">
-				<button
-					onClick={() => setTab("redirects")}
-					className={cn(
-						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-						tab === "redirects"
-							? "border-kumo-brand text-kumo-link"
-							: "border-transparent text-kumo-subtle hover:text-kumo-default",
-					)}
-				>
-					{t`Redirects`}
-					{redirectsQuery.data && (
-						<Badge variant="secondary" className="ms-2">
-							{redirects.length}
-							{redirectsQuery.hasNextPage ? "+" : ""}
-						</Badge>
-					)}
-				</button>
-				<button
-					onClick={() => setTab("404s")}
-					className={cn(
-						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-						tab === "404s"
-							? "border-kumo-brand text-kumo-link"
-							: "border-transparent text-kumo-subtle hover:text-kumo-default",
-					)}
-				>
-					{t`404 Errors`}
-				</button>
+			<div>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Redirects`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+					{t`Manage URL redirects and view 404 errors.`}
+				</p>
 			</div>
 
 			{/* Tab content */}

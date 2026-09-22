@@ -72,4 +72,17 @@ describe("Redirects", () => {
 		await expect.element(screen.getByRole("button", { name: "Load more" })).toBeInTheDocument();
 		expect(screen.getByText("/source-101").query()).toBeNull();
 	});
+
+	it("uses accessible tabs to switch between redirects and 404 errors", async () => {
+		const screen = await render(<Redirects />);
+
+		const redirectsTab = screen.getByRole("tab", { name: /^Redirects/ });
+		const notFoundTab = screen.getByRole("tab", { name: "404 Errors" });
+
+		await expect.element(redirectsTab).toHaveAttribute("aria-selected", "true");
+		await notFoundTab.click();
+
+		await expect.element(notFoundTab).toHaveAttribute("aria-selected", "true");
+		await expect.element(screen.getByText("No 404 errors recorded yet.")).toBeInTheDocument();
+	});
 });
