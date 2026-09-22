@@ -1,0 +1,23 @@
+packages/admin/tests/editor/block-menu.test.tsx
+  s_d1b87a9d1cbff4::t_c40bb9343c4312 23-24,299-340
+packages/admin/tests/editor/slash-menu.test.tsx
+  s_d1b87a9d1cbff4::t_c3aba372d02cf4 644-648,651
+packages/admin/tests/editor/toolbar.test.tsx
+  s_d1b87a9d1cbff4::t_f4e1411de6975a 14-15,324-353
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6fbc47a0a4b98372f6a395332784810858ca6913",
+  "prompts": {},
+  "sessions": {
+    "s_d1b87a9d1cbff4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c9ee-365e-7c03-b68c-e15052602738",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
