@@ -529,11 +529,11 @@ msgstr "{needsNewFields, plural, one {ველები დაემატე�
 
 #: packages/admin/src/components/Dashboard.tsx:138
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr "{overdueCount, plural, one {ერთი დაგეგმილი ელემენტი დაგვიანებულია და შედულერის heartbeat მოძველებულია. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.} other {# დაგეგმილი ელემენტი დაგვიანებულია და შედულერის heartbeat მოძველებულია. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.}}"
+msgstr "{overdueCount, plural, one {ერთი დაგეგმილი ელემენტი დაგვიანებულია და დამგეგმავის heartbeat მოძველებულია. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.} other {# დაგეგმილი ელემენტი დაგვიანებულია და დამგეგმავის heartbeat მოძველებულია. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.}}"
 
 #: packages/admin/src/components/Dashboard.tsx:133
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
-msgstr "{overdueCount, plural, one {ერთი დაგეგმილი ელემენტი დაგვიანებულია, მაგრამ შედულერის არცერთი გაშვება არ დასრულებულა. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.} other {# დაგეგმილი ელემენტი დაგვიანებულია, მაგრამ შედულერის არცერთი გაშვება არ დასრულებულა. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.}}"
+msgstr "{overdueCount, plural, one {ერთი დაგეგმილი ელემენტი დაგვიანებულია, მაგრამ დამგეგმავის არცერთი გაშვება არ დასრულებულა. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.} other {# დაგეგმილი ელემენტი დაგვიანებულია, მაგრამ დამგეგმავის არცერთი გაშვება არ დასრულებულა. გაუშვით `npx emdash doctor` და შეამოწმეთ განლაგებული Cron Trigger.}}"
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:305
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
@@ -587,7 +587,7 @@ msgstr "{rows, plural, one {მწკრივი წაიშალა} other {
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2823
 msgid "{rows} × {columns} table pasted"
-msgstr "ჩასვეს {rows} × {columns} ცხრილი"
+msgstr "{rows} × {columns} ცხრილი ჩაისვა"
 
 #: packages/admin/src/components/ContentList.tsx:494
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
@@ -880,11 +880,11 @@ msgstr "დამატება"
 #: packages/admin/src/components/TaxonomyManager.tsx:557
 #: packages/admin/src/components/TaxonomyManager.tsx:1082
 msgid "Add {0}"
-msgstr "დაამატეთ {0}"
+msgstr "{0}-ის დამატება"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:316
 msgid "Add {label}"
-msgstr "დაამატეთ {label}"
+msgstr "{label}-ის დამატება"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:160
 msgid "Add a new passkey"
@@ -924,7 +924,7 @@ msgstr "მორგებული ბმულის დამატება"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:452
 msgid "Add dark mode variant"
-msgstr "ბნელი რეჟიმის ვარიანტის დამატება"
+msgstr "მუქი რეჟიმის ვარიანტის დამატება"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:220
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
@@ -992,7 +992,7 @@ msgstr "ახლის დამატება"
 #. placeholder {0}: (taxonomy.labelSingular || taxonomy.label).toLowerCase()
 #: packages/admin/src/components/TaxonomySidebar.tsx:631
 msgid "Add new {0}"
-msgstr "დაამატეთ ახალი {0}"
+msgstr "ახალი {0}-ის დამატება"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
 #: packages/admin/src/components/MediaLibrary.tsx:852
@@ -1134,7 +1134,7 @@ msgstr "ყველა კომენტარი საჭიროებს 
 
 #: packages/admin/src/components/WordPressImport.tsx:2534
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
-msgstr "მთელი იმპორტირებული შიგთავსი ავტორების გარეშე დარჩება. ავტორების ხელახლა მიჭება მოგვიანებით შიგთავსის რედაქტორიდან შეგიძლიათ."
+msgstr "მთელი იმპორტირებული შიგთავსი ავტორების გარეშე დარჩება. ავტორების ხელახლა მინიჭება მოგვიანებით შიგთავსის რედაქტორიდან შეგიძლიათ."
 
 #: packages/admin/src/components/LocaleSwitcher.tsx:68
 msgid "All locales"
@@ -1399,7 +1399,7 @@ msgstr "დარწმუნებული ხართ, რომ გსუ�
 
 #: packages/admin/src/components/WelcomeModal.tsx:59
 msgid "As an administrator, you can invite other users from the Users section."
-msgstr "როგორც ადმინისტრატორს, შეგიძლიათ სხვა მომხმარებლები მოიწვიოთ მომხმარებლების განყოფილებიდან."
+msgstr "როგორც ადმინისტრატორს, შეგიძლიათ სხვა მომხმარებლები მოიწვიოთ მომხმარებლების სექციიდან."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:307
 msgid "Ask an administrator to complete this setup."
@@ -2015,7 +2015,7 @@ msgstr "მოწმდება ამ მოწყობილობის პ
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
 msgid "Choose a credential manager on this device, another device, or a security key."
-msgstr "აირჩიეთ ამ მოწყობილობაზე არსებული საკრედიტო მონაცემების მენეჯერი, სხვა მოწყობილობა ან უსაფრთხოების გასაღები."
+msgstr "აირჩიეთ ამ მოწყობილობაზე არსებული შესვლის მონაცემების მენეჯერი, სხვა მოწყობილობა ან უსაფრთხოების გასაღები."
 
 #: packages/admin/src/components/ContentList.tsx:1045
 #: packages/admin/src/components/ContentList.tsx:1051
@@ -2058,7 +2058,7 @@ msgstr "შემცვლელი სურათის არჩევა"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
-msgstr "აირჩიეთ Touch ID ან სხვა ხელმისაწვდომი საკრედიტო მონაცემების მენეჯერი, შემდეგ დაადასტურეთ თითის ანაბეჭდით ან Mac-ის პაროლით."
+msgstr "აირჩიეთ Touch ID ან სხვა ხელმისაწვდომი შესვლის მონაცემების მენეჯერი, შემდეგ დაადასტურეთ თითის ანაბეჭდით ან Mac-ის პაროლით."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
 msgid "Choose when these changes replace the live version."
@@ -2070,7 +2070,7 @@ msgstr "აირჩიეთ, როდის გახდება ეს მ�
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
-msgstr "აირჩიეთ Windows Hello ან სხვა ხელმისაწვდომი საკრედიტო მონაცემების მენეჯერი, შემდეგ დაადასტურეთ PIN-ით, თითის ანაბეჭდით ან სახით."
+msgstr "აირჩიეთ Windows Hello ან სხვა ხელმისაწვდომი შესვლის მონაცემების მენეჯერი, შემდეგ დაადასტურეთ PIN-ით, თითის ანაბეჭდით ან სახით."
 
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Choose your preferred admin language"
@@ -2321,7 +2321,7 @@ msgstr "დადასტურება"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
 msgid "Confirm using the secure prompt from your device or credential manager."
-msgstr "დაადასტურეთ მოწყობილობის ან საკრედიტო მონაცემების მენეჯერის უსაფრთხო მოთხოვნით."
+msgstr "დაადასტურეთ მოწყობილობის ან შესვლის მონაცემების მენეჯერის უსაფრთხო მოთხოვნით."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:194
 msgid "Confirm with Face ID, Touch ID, or your device passcode."
@@ -3215,7 +3215,7 @@ msgstr "მომხმარებლის დაქვეითება"
 
 #: packages/admin/src/routes/users.tsx:294
 msgid "Demote User?"
-msgstr "დავუქვეითოთ მომხმარებელს?"
+msgstr "დავაქვეითოთ მომხმარებელი?"
 
 #: packages/admin/src/routes/users.tsx:304
 msgid "Demoting..."
@@ -3899,11 +3899,11 @@ msgstr "გადამისამართების ჩართვა"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
 msgid "Enable tracking"
-msgstr "თვალთვალის ჩართვა"
+msgstr "თვალყურის დევნების ჩართვა"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:454
 msgid "Enable tracking to index existing content and keep references up to date."
-msgstr "ჩართეთ თვალთვალი, რომ არსებული შიგთავსი დაინდექსირდეს და მითითებები აქტუალური დარჩეს."
+msgstr "ჩართეთ თვალყურის დევნება, რომ არსებული შიგთავსი დაინდექსირდეს და მითითებები აქტუალური დარჩეს."
 
 #: packages/admin/src/components/Redirects.tsx:176
 #: packages/admin/src/components/Redirects.tsx:426
@@ -4611,7 +4611,7 @@ msgstr "ჩანაწერის ტერმინების დაყე�
 #: packages/admin/src/lib/api/marketplace.ts:387
 #: packages/admin/src/lib/api/registry.ts:1040
 msgid "Failed to uninstall plugin"
-msgstr "პლაგინის დედაყენება ვერ მოხერხდა"
+msgstr "პლაგინის დეინსტალაცია ვერ მოხერხდა"
 
 #: packages/admin/src/router.tsx:1246
 msgid "Failed to unpublish"
@@ -5133,7 +5133,7 @@ msgstr "ტოკენის დამალვა"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:32
 msgid "visualEditing.hideToolbar"
-msgstr "visualEditing.hideToolbar"
+msgstr "ხელსაწყოთა ზოლის დამალვა"
 
 #: packages/admin/src/components/Shell.tsx:86
 msgid "Hide toolbar"
@@ -5202,7 +5202,7 @@ msgstr "https://yoursite.com"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:604
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
-msgstr "ეს ნაბიჯები შესრულებულია და მესმის, რომ თვალთვალი ვერ გამოირთვება."
+msgstr "ეს ნაბიჯები შესრულებულია და მესმის, რომ თვალყურის დევნება ვერ გამოირთვება."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
 msgid "I've set it up — check again"
@@ -5391,7 +5391,7 @@ msgstr "Windows-ის პარამეტრებში გახსენ�
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
-msgstr "გამოთვლილი ბაილაინების ჩართვა"
+msgstr "ავტომატურად დადგენილი ბაილაინების ჩართვა"
 
 #: packages/admin/src/components/SetupWizard.tsx:138
 msgid "Include sample content (recommended for new sites)"
@@ -5619,7 +5619,7 @@ msgstr "მხოლოდ ამ პლაგინის ჩართული
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
-msgstr "მას ინახავს აუთენტიფიკატორი ან რწმუნებების მენეჯერი, რომელიც უსაფრთხო სისტემურ დიალოგში აირჩიეთ."
+msgstr "მას ინახავს ავთენტიფიკატორი ან შესვლის მონაცემების მენეჯერი, რომელიც უსაფრთხო სისტემურ დიალოგში აირჩიეთ."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3980
 #: packages/admin/src/components/PortableTextEditor.tsx:4484
@@ -5938,7 +5938,7 @@ msgstr "მედია იტვირთება"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:619
 msgid "Loading media usage tracking settings…"
-msgstr "მედიის გამოყენების თვალთვალის პარამეტრები იტვირთება…"
+msgstr "მედიის გამოყენების თვალყურის დევნების პარამეტრები იტვირთება…"
 
 #: packages/admin/src/components/MenuEditor.tsx:342
 msgid "Loading menu..."
@@ -6262,27 +6262,27 @@ msgstr "მედიის შედეგები"
 #: packages/admin/src/components/Settings.tsx:74
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
 msgid "Media usage tracking"
-msgstr "მედიის გამოყენების თვალთვალი"
+msgstr "მედიის გამოყენების თვალყურის დევნება"
 
 #: packages/admin/src/components/MediaLibrary.tsx:883
 msgid "Media usage tracking is indexing existing content"
-msgstr "მედიის გამოყენების თვალთვალი აინდექსირებს არსებულ შიგთავსს"
+msgstr "მედიის გამოყენების თვალყურის დევნება აინდექსირებს არსებულ შიგთავსს"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:453
 msgid "Media usage tracking is off"
-msgstr "მედიის გამოყენების თვალთვალი გამორთულია"
+msgstr "მედიის გამოყენების თვალყურის დევნება გამორთულია"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:469
 msgid "Media usage tracking is ready"
-msgstr "მედიის გამოყენების თვალთვალი მზადაა"
+msgstr "მედიის გამოყენების თვალყურის დევნება მზადაა"
 
 #: packages/admin/src/components/MediaLibrary.tsx:884
 msgid "Media usage tracking is setting up"
-msgstr "მედიის გამოყენების თვალთვალი ეწყობა"
+msgstr "მედიის გამოყენების თვალყურის დევნება ეწყობა"
 
 #: packages/admin/src/components/MediaLibrary.tsx:881
 msgid "Media usage tracking needs attention"
-msgstr "მედიის გამოყენების თვალთვალი ყურადღებას საჭიროებს"
+msgstr "მედიის გამოყენების თვალყურის დევნება ყურადღებას საჭიროებს"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:62
 msgid "Media Write"
@@ -6455,12 +6455,12 @@ msgstr "ყველაზე პოპულარული"
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:439
 msgid "Move \"{0}\" down"
-msgstr "გადაიტანეთ „{0}“ ქვემოთ"
+msgstr "„{0}“-ის ქვემოთ გადატანა"
 
 #. placeholder {0}: field.label
 #: packages/admin/src/routes/byline-schema.tsx:429
 msgid "Move \"{0}\" up"
-msgstr "გადაიტანეთ „{0}“ ზემოთ"
+msgstr "„{0}“-ის ზემოთ გადატანა"
 
 #: packages/admin/src/components/ContentList.tsx:1372
 msgid "Move \"{title}\" to trash? You can restore it later."
@@ -6469,36 +6469,36 @@ msgstr "გადავიტანოთ „{title}“ ნაგავში? �
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:268
 msgid "Move {0} down"
-msgstr "გადაიტანეთ {0} ქვემოთ"
+msgstr "{0}-ის ქვემოთ გადატანა"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:267
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
-msgstr "გადაიტანეთ {0} ქვემოთ — მიუწვდომელია, მის მშობელს ამ ლოკალში თარგმანი არ აქვს"
+msgstr "{0}-ის ქვემოთ გადატანა — მიუწვდომელია, მის მშობელს ამ ლოკალში თარგმანი არ აქვს"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:313
 msgid "Move {0} earlier"
-msgstr "გადაიტანეთ {0} წინ"
+msgstr "{0}-ის წინ გადატანა"
 
 #. placeholder {0}: item.filename
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:322
 msgid "Move {0} later"
-msgstr "გადაიტანეთ {0} უკან"
+msgstr "{0}-ის უკან გადატანა"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:255
 msgid "Move {0} up"
-msgstr "გადაიტანეთ {0} ზემოთ"
+msgstr "{0}-ის ზემოთ გადატანა"
 
 #. placeholder {0}: term.label
 #: packages/admin/src/components/TaxonomyManager.tsx:254
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
-msgstr "გადაიტანეთ {0} ზემოთ — მიუწვდომელია, მის მშობელს ამ ლოკალში თარგმანი არ აქვს"
+msgstr "{0}-ის ზემოთ გადატანა — მიუწვდომელია, მის მშობელს ამ ლოკალში თარგმანი არ აქვს"
 
 #: packages/admin/src/components/ContentList.tsx:1363
 msgid "Move {title} to trash"
-msgstr "გადაიტანეთ {title} ნაგავში"
+msgstr "{title}-ის ნაგავში გადატანა"
 
 #: packages/admin/src/components/MenuEditor.tsx:537
 msgid "Move down"
@@ -6602,7 +6602,7 @@ msgstr "სახელი"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:760
 msgid "Name and label are required"
-msgstr "სახელი და ლეიბლი სავალდებულოა"
+msgstr "სახელი და იარლიყი სავალდებულოა"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:766
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
@@ -7162,7 +7162,7 @@ msgstr "გახსნა"
 #: packages/admin/src/components/MediaLibrary.tsx:1458
 #: packages/admin/src/components/MediaLibrary.tsx:1529
 msgid "Open folder {0}"
-msgstr "გახსენით საქაღალდე {0}"
+msgstr "{0} საქაღალდის გახსნა"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:31
@@ -7260,11 +7260,11 @@ msgstr "ან გააგრძელეთ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1407
 msgid "Or upload an export file"
-msgstr "ან ატვირთეთ ექსპორტის ფაილი"
+msgstr "ან ექსპორტის ფაილის ატვირთვა"
 
 #: packages/admin/src/components/WordPressImport.tsx:1125
 msgid "or upload directly"
-msgstr "ან ატვირთეთ პირდაპირ"
+msgstr "ან პირდაპირ ატვირთვა"
 
 #: packages/admin/src/components/MenuEditor.tsx:227
 msgid "Order saved"
@@ -7417,7 +7417,7 @@ msgstr "ჩასვით მიგრაციის გასაღები"
 
 #: packages/admin/src/components/Redirects.tsx:225
 msgid "Path"
-msgstr "გზა"
+msgstr "ბილიკი"
 
 #: packages/admin/src/components/FieldEditor.tsx:518
 msgid "Pattern (Regex)"
@@ -7480,7 +7480,7 @@ msgstr "სამუდამოდ წავშალოთ „{title}“? ვ�
 
 #: packages/admin/src/components/ContentList.tsx:1543
 msgid "Permanently delete {title}"
-msgstr "სამუდამოდ წაშალეთ {title}"
+msgstr "{title}-ის სამუდამოდ წაშლა"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:294
 msgid "Permissions"
@@ -7839,19 +7839,19 @@ msgstr "გამოქვეყნებულია: <0/>"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:146
 msgid "Publisher approval required for every delegated release"
-msgstr "გამომქვეყნებლის მოწონება საჭიროა ყოველი დელეგირებული გამოშვებისთვის"
+msgstr "გამომცემლის მოწონება საჭიროა ყოველი დელეგირებული გამოშვებისთვის"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:147
 msgid "Publisher approval required only for permission escalation"
-msgstr "გამომქვეყნებლის მოწონება საჭიროა მხოლოდ ნებართვების გაფართოებისთვის"
+msgstr "გამომცემლის მოწონება საჭიროა მხოლოდ ნებართვების გაფართოებისთვის"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:648
 msgid "Publisher handle verification failed"
-msgstr "გამომქვეყნებლის სახელის დადასტურება ვერ მოხერხდა"
+msgstr "გამომცემლის სახელის დადასტურება ვერ მოხერხდა"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:139
 msgid "Publisher release policy"
-msgstr "გამომქვეყნებლის გამოშვების პოლიტიკა"
+msgstr "გამომცემლის გამოშვების პოლიტიკა"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:892
 msgid "Publishing summary"
@@ -8109,7 +8109,7 @@ msgstr "მინიჭების მოცილება"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:437
 msgid "Remove dark mode variant"
-msgstr "ბნელი რეჟიმის ვარიანტის მოცილება"
+msgstr "მუქი რეჟიმის ვარიანტის მოცილება"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:383
 msgid "Remove Domain"
@@ -8233,11 +8233,11 @@ msgstr "{label}-ის შეცვლა"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:410
 msgid "Replace dark mode image"
-msgstr "ბნელი რეჟიმის სურათის შეცვლა"
+msgstr "მუქი რეჟიმის სურათის შეცვლა"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:569
 msgid "Replace dark mode variant for {label}"
-msgstr "{label}-ის ბნელი რეჟიმის ვარიანტის შეცვლა"
+msgstr "{label}-ის მუქი რეჟიმის ვარიანტის შეცვლა"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:503
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:323
@@ -8376,7 +8376,7 @@ msgstr "პარამეტრების პანელის ზომი�
 
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:94
 msgid "Resolving publisher handle..."
-msgstr "გამომქვეყნებლის სახელის დადგენა..."
+msgstr "გამომცემლის სახელის დადგენა..."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:4550
 msgid "Restart numbering"
@@ -9050,7 +9050,7 @@ msgstr "არჩევა"
 #: packages/admin/src/components/ContentEditor.tsx:2363
 #: packages/admin/src/components/ImageFieldRenderer.tsx:573
 msgid "Select {label}"
-msgstr "აირჩიეთ {label}"
+msgstr "{label}-ის არჩევა"
 
 #: packages/admin/src/components/ContentList.tsx:1263
 msgid "Select {title}"
@@ -9087,7 +9087,7 @@ msgstr "სვეტის არჩევა"
 #. placeholder {0}: comment.authorName
 #: packages/admin/src/components/comments/CommentInbox.tsx:448
 msgid "Select comment by {0}"
-msgstr "აირჩიეთ {0}-ის კომენტარი"
+msgstr "{0}-ის კომენტარის არჩევა"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:117
 msgid "Select Content"
@@ -9095,7 +9095,7 @@ msgstr "შიგთავსის არჩევა"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:570
 msgid "Select dark mode variant for {label}"
-msgstr "აირჩიეთ {label}-ის მუქი რეჟიმის ვარიანტი"
+msgstr "{label}-ის მუქი რეჟიმის ვარიანტის არჩევა"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:284
 msgid "Select default social image"
@@ -9276,7 +9276,7 @@ msgstr "მონახაზად დაყენება"
 
 #: packages/admin/src/components/MediaLibrary.tsx:879
 msgid "Set up media usage tracking"
-msgstr "მედიის გამოყენების თვალთვალის გამართვა"
+msgstr "მედიის გამოყენების თვალყურის დევნების გამართვა"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
@@ -9478,7 +9478,7 @@ msgstr "საიტის URL"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:330
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
-msgstr "Cloudflare D1-ზე განთავსებულ საიტებს დამატებით შეუძლიათ ბაზის აღდგენა ბოლო 30 დღის ნებისმიერ წუთამდე D1 Time Travel-ის საშუალებით — ყოველთვის ჩართულია, დაყენება არ საჭიროებს."
+msgstr "Cloudflare D1-ზე განთავსებულ საიტებს დამატებით შეუძლიათ ბაზის აღდგენა ბოლო 30 დღის ნებისმიერ წუთამდე D1 Time Travel-ის საშუალებით — ყოველთვის ჩართულია, დაყენება არ არის საჭირო."
 
 #: packages/admin/src/components/MediaLibrary.tsx:1207
 msgid "Size"
@@ -9588,7 +9588,7 @@ msgstr "წყარო"
 
 #: packages/admin/src/components/Redirects.tsx:132
 msgid "Source path"
-msgstr "წყაროს გზა"
+msgstr "წყაროს ბილიკი"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:197
 msgid "spam"
@@ -9924,15 +9924,15 @@ msgstr "საიტის საჯარო URL (გამოიყენე�
 #: packages/admin/src/components/RegistryBrowse.tsx:219
 #: packages/admin/src/components/RegistryPluginDetail.tsx:533
 msgid "The publisher identity cannot be verified."
-msgstr "გამომქვეყნებლის იდენტობის დადასტურება შეუძლებელია."
+msgstr "გამომცემლის იდენტობის დადასტურება შეუძლებელია."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:192
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
-msgstr "მითითებული სურათი აღარ არის ხელმისაწვდომი. აირჩიეთ ახალი ან წაშალეთ მითითება."
+msgstr "მითითებული სურათი აღარ არის ხელმისაწვდომი. აირჩიეთ ახალი ან მოაცილეთ მითითება."
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:210
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
-msgstr "მითითებული ლოგო აღარ არის ხელმისაწვდომი. აირჩიეთ ახალი ან წაშალეთ მითითება."
+msgstr "მითითებული ლოგო აღარ არის ხელმისაწვდომი. აირჩიეთ ახალი ან მოაცილეთ მითითება."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
 msgid "The selected folder no longer exists. Choose another location and save again."
@@ -10032,7 +10032,7 @@ msgstr "ეს ველი შეიცავს ცხრილის ში�
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3643
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
-msgstr "ეს ველი შეიცავს Portable Text-ის მხარდაუჭერელ ნიშნებს: <0>{markList}</0>. წაშალეთ ისინი API-ის მეშვეობით, სანამ ამ შიგთავსს დაარედაქტირებთ ან შეინახავთ."
+msgstr "ეს ველი შეიცავს Portable Text-ის მხარდაუჭერელ ნიშნებს: <0>{markList}</0>. მოაცილეთ ისინი API-ის მეშვეობით, სანამ ამ შიგთავსს დაარედაქტირებთ ან შეინახავთ."
 
 #. placeholder {0}: file.type
 #: packages/admin/src/components/media/ImageDropTarget.tsx:57
@@ -10132,7 +10132,7 @@ msgstr "ეს პლაგინი განსაკუთრებულ ნ
 
 #: packages/admin/src/components/PluginManager.tsx:445
 msgid "This publisher identity no longer resolves."
-msgstr "გამომქვეყნებლის ეს იდენტობა ვეღარ წყდება."
+msgstr "გამომცემლის ეს იდენტობა აღარ დასტურდება."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:650
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
@@ -10201,7 +10201,7 @@ msgstr "ეს მიანიჭებს CLI-ს წვდომას თქ�
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1285
 msgid "This will move the item to trash. You can restore it later from the trash."
-msgstr "ეს ელემენტს სანაგვეში გადაიტანს. მისი აღდგენა სანაგვიდან მოგვიანებით შეძლებთ."
+msgstr "ეს ელემენტს სანაგვეში გადაიტანს. მის აღდგენას მოგვიანებით შეძლებთ სანაგვიდან."
 
 #. placeholder {0}: deleteTarget?.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
@@ -10485,19 +10485,19 @@ msgstr "დაბრუნება"
 #: packages/admin/src/components/PluginManager.tsx:674
 #: packages/admin/src/components/PluginManager.tsx:793
 msgid "Uninstall"
-msgstr "დედაყენება"
+msgstr "დეინსტალაცია"
 
 #: packages/admin/src/components/PluginManager.tsx:777
 msgid "Uninstall {pluginName}?"
-msgstr "გსურთ {pluginName}-ის დედაყენება?"
+msgstr "გსურთ {pluginName}-ის დეინსტალაცია?"
 
 #: packages/admin/src/components/PluginManager.tsx:772
 msgid "Uninstall confirmation"
-msgstr "დედაყენების დადასტურება"
+msgstr "დეინსტალაციის დადასტურება"
 
 #: packages/admin/src/components/PluginManager.tsx:793
 msgid "Uninstalling..."
-msgstr "მიმდინარეობს დედაყენება..."
+msgstr "მიმდინარეობს დეინსტალაცია..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:790
 #: packages/admin/src/components/FieldEditor.tsx:478
