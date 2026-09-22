@@ -1,0 +1,21 @@
+packages/admin/src/styles.css
+  s_f81a3cfca876be::t_336872f2673b87 173-179
+packages/admin/tests/editor/slash-menu.test.tsx
+  s_f81a3cfca876be::t_9c0563696eabfc 22-23,630-655
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b2c14743d0d0bd97a7514e1750307577c9592d65",
+  "prompts": {},
+  "sessions": {
+    "s_f81a3cfca876be": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c9e8-213e-7311-9caa-117921e5ce30",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
