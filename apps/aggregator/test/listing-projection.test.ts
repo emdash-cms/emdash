@@ -200,8 +200,8 @@ beforeAll(async () => {
 		),
 		testEnv.DB.prepare(
 			`UPDATE package_profile_revisions
-			 SET installability_status = 'invalid',
-			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
+			 SET installability_status = 'pending',
+			     installability_error = NULL`,
 		),
 		testEnv.DB.prepare(
 			`UPDATE public_packages
