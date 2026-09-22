@@ -24,7 +24,11 @@
  */
 
 import { env } from "cloudflare:workers";
-import type { CreateObjectCacheBackendFn, ObjectCacheBackend } from "emdash";
+import {
+	EmDashConfigurationError,
+	type CreateObjectCacheBackendFn,
+	type ObjectCacheBackend,
+} from "emdash";
 
 /**
  * Workers KV enforces a 60-second floor on `expirationTtl`. Clamp shorter TTLs
@@ -59,17 +63,21 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 export const createObjectCache: CreateObjectCacheBackendFn = (config): ObjectCacheBackend => {
 	const binding = typeof config.binding === "string" ? config.binding : "";
 	if (!binding) {
-		throw new Error("KV object-cache requires a `binding` name in its config.");
+		throw new EmDashConfigurationError(
+			"KV object-cache requires a `binding` name in its config.",
+			"CONFIGURATION_ERROR",
+		);
 	}
 
 	// `env` from cloudflare:workers has no index signature.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- KVNamespace binding accessed from untyped env object
 	const kv = (env as Record<string, unknown>)[binding] as KVNamespace | undefined;
 	if (!kv) {
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`KV binding "${binding}" not found. Add it to wrangler.jsonc:\n\n` +
 				`{\n  "kv_namespaces": [{ "binding": "${binding}", "id": "<namespace-id>" }]\n}\n\n` +
 				`and ensure you're running on Cloudflare Workers.`,
+			"BINDING_NOT_FOUND",
 		);
 	}
 

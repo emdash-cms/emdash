@@ -12,7 +12,7 @@ interface Props {
 
 const { showCount = false, limit = 20 } = Astro.props;
 
-const allTags = await getTaxonomyTerms("tag");
+const allTags = await getTaxonomyTerms("tag", { includeCounts: showCount });
 const tags = allTags.slice(0, limit);
 ---
 

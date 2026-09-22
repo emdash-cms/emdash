@@ -8,7 +8,7 @@
 
 import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	Gear,
 	FileText,
@@ -36,17 +36,22 @@ import {
 } from "../lib/api";
 import {
 	checkPluginUpdates,
+	MarketplaceUpdateEscalationError,
+	MarketplaceUpdateMcpConsentRequiredError,
 	PluginMcpConsentRequiredError,
 	updateMarketplacePlugin,
 	uninstallMarketplacePlugin,
 	type PluginUpdateInfo,
 	type PluginMcpConsentTool,
+	type UpdatePluginOpts,
 } from "../lib/api/marketplace.js";
 import {
+	RegistryMcpConsentRequiredError,
 	RegistryUpdateEscalationError,
 	uninstallRegistryPlugin,
 	updateRegistryPlugin,
 	type RegistryUpdateOpts,
+	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
@@ -54,10 +59,23 @@ import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { RegistryPluginIdentity, useRegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
+export function RegistryInstallMessage() {
+	return (
+		<Trans>
+			Browse the{" "}
+			<Link to="/plugins/registry" className="text-kumo-link hover:underline">
+				registry
+			</Link>{" "}
+			to install plugins, or add them to your astro.config.mjs.
+		</Trans>
+	);
+}
+
 export interface PluginManagerProps {
-	/** Admin manifest — used to check if marketplace is configured */
+	/** Admin manifest — used to check if registry discovery is available */
 	manifest?: AdminManifest;
 }
 
@@ -65,7 +83,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
-	const hasMarketplace = !!manifest?.marketplace;
+	const hasRegistry = !!manifest?.registry;
 
 	const {
 		data: plugins,
@@ -136,7 +154,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	if (isLoading) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Plugins`}</h1>
 				<div className="text-kumo-subtle">{t`Loading plugins...`}</div>
 			</div>
 		);
@@ -145,7 +163,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	if (error) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Plugins`}</h1>
 				<div className="text-kumo-danger">{t`Failed to load plugins: ${error.message}`}</div>
 			</div>
 		);
@@ -153,9 +171,14 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">{t`Plugins`}</h1>
-				<div className="flex items-center gap-3">
+			<div className="flex flex-wrap items-start justify-between gap-4">
+				<div className="min-w-0">
+					<h1 className="text-2xl font-semibold leading-tight">{t`Plugins`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Manage installed plugins. Enable or disable plugins to control their functionality.`}
+					</p>
+				</div>
+				<div className="flex flex-wrap items-center gap-3">
 					{hasUpdatableSources && (
 						<Button
 							variant="ghost"
@@ -166,18 +189,14 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 							{t`Check for updates`}
 						</Button>
 					)}
-					{hasMarketplace && (
-						<RouterLinkButton to="/plugins/marketplace" variant="ghost" icon={<Storefront />}>
-							{t`Marketplace`}
+					{hasRegistry && (
+						<RouterLinkButton to="/plugins/registry" variant="ghost" icon={<Storefront />}>
+							{t`Registry`}
 						</RouterLinkButton>
 					)}
 					<span className="text-sm text-kumo-subtle">{t`${plugins?.length ?? 0} plugins`}</span>
 				</div>
 			</div>
-
-			<p className="text-kumo-subtle">
-				{t`Manage installed plugins. Enable or disable plugins to control their functionality.`}
-			</p>
 
 			<div className="grid gap-4">
 				{plugins?.map((plugin) => (
@@ -188,7 +207,6 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 						onEnable={() => enableMutation.mutate(plugin.id)}
 						onDisable={() => disableMutation.mutate(plugin.id)}
 						isToggling={enableMutation.isPending || disableMutation.isPending}
-						hasMarketplace={hasMarketplace}
 					/>
 				))}
 			</div>
@@ -198,14 +216,8 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 					<ADMIN_NAV_ICONS.plugins className="mx-auto h-12 w-12 text-kumo-subtle" />
 					<h3 className="mt-4 text-lg font-medium">{t`No plugins configured`}</h3>
 					<p className="mt-2 text-sm text-kumo-subtle">
-						{hasMarketplace ? (
-							<>
-								{t`Browse the`}{" "}
-								<Link to="/plugins/marketplace" className="text-kumo-brand hover:underline">
-									{t`marketplace`}
-								</Link>{" "}
-								{t`to install plugins, or add them to your astro.config.mjs.`}
-							</>
+						{hasRegistry ? (
+							<RegistryInstallMessage />
 						) : (
 							t`Add plugins to your astro.config.mjs to extend EmDash functionality.`
 						)}
@@ -222,18 +234,9 @@ interface PluginCardProps {
 	onEnable: () => void;
 	onDisable: () => void;
 	isToggling: boolean;
-	/** Whether the marketplace is configured (controls "View in Marketplace" link) */
-	hasMarketplace: boolean;
 }
 
-function PluginCard({
-	plugin,
-	updateInfo,
-	onEnable,
-	onDisable,
-	isToggling,
-	hasMarketplace,
-}: PluginCardProps) {
+function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: PluginCardProps) {
 	const { t } = useLingui();
 	const [expanded, setExpanded] = React.useState(false);
 	const [showUpdateConsent, setShowUpdateConsent] = React.useState(false);
@@ -241,42 +244,77 @@ function PluginCard({
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [registryEscalation, setRegistryEscalation] =
 		React.useState<RegistryUpdateEscalationError | null>(null);
+	const [marketplaceEscalation, setMarketplaceEscalation] =
+		React.useState<MarketplaceUpdateEscalationError | null>(null);
+	const [marketplaceReviewedVersion, setMarketplaceReviewedVersion] = React.useState<string | null>(
+		null,
+	);
+	const [registryVerification, setRegistryVerification] =
+		React.useState<RegistryRecordVerificationSummary | null>(null);
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
+	const registryIdentity = useRegistryPluginIdentity(
+		isRegistry ? plugin.registryPublisherDid : undefined,
+		isRegistry ? plugin.registrySlug : undefined,
+	);
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
 	const mcpTools = plugin.mcpTools ?? [];
 
 	const updateMutation = useMutation({
-		mutationFn: (opts: RegistryUpdateOpts) =>
-			isRegistry
-				? updateRegistryPlugin(plugin.id, opts)
-				: updateMarketplacePlugin(plugin.id, {
-						confirmCapabilityChanges: true,
-						confirmMcpTools: mcpUpdateTools.length > 0,
-					}),
-		onSuccess: () => {
+		mutationFn: (opts: RegistryUpdateOpts & UpdatePluginOpts) =>
+			isRegistry ? updateRegistryPlugin(plugin.id, opts) : updateMarketplacePlugin(plugin.id, opts),
+		onSuccess: (_result, opts) => {
+			const installedVersion = opts.version ?? updateInfo?.latest;
 			setShowUpdateConsent(false);
 			setRegistryEscalation(null);
+			setMarketplaceEscalation(null);
+			setMarketplaceReviewedVersion(null);
+			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Plugin updated`,
-				description: t`${plugin.name} updated to v${updateInfo?.latest}`,
+				description: t`${plugin.name} updated to v${installedVersion}`,
 			});
 		},
 		onError: (err) => {
 			if (err instanceof RegistryUpdateEscalationError) {
 				setRegistryEscalation(err);
+				setRegistryVerification(err.verification ?? null);
 				setShowUpdateConsent(true);
-			}
-			if (err instanceof PluginMcpConsentRequiredError) {
+			} else if (err instanceof MarketplaceUpdateEscalationError) {
+				setMarketplaceEscalation(err);
+				setMcpUpdateTools(err.mcpTools);
+				setShowUpdateConsent(true);
+			} else if (err instanceof RegistryMcpConsentRequiredError) {
+				setMcpUpdateTools(err.tools);
+				setRegistryVerification(err.verification ?? null);
+				setShowUpdateConsent(true);
+			} else if (err instanceof MarketplaceUpdateMcpConsentRequiredError) {
+				setMarketplaceEscalation(
+					new MarketplaceUpdateEscalationError(
+						"CAPABILITY_ESCALATION",
+						err.message,
+						err.capabilityChanges,
+						err.routeVisibilityChanges,
+					),
+				);
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
+			} else if (err instanceof PluginMcpConsentRequiredError) {
+				setMcpUpdateTools(err.tools);
+				setShowUpdateConsent(true);
+			} else {
+				toastManager.add({
+					title: t`Failed to update plugin`,
+					description: err instanceof Error ? err.message : t`An error occurred`,
+					type: "error",
+				});
 			}
 		},
 	});
@@ -288,9 +326,15 @@ function PluginCard({
 			// is none); `onError` opens the consent dialog populated with
 			// the actual diff.
 			setRegistryEscalation(null);
+			setRegistryVerification(null);
 			updateMutation.mutate({});
 		} else {
-			setShowUpdateConsent(true);
+			const targetVersion = updateInfo?.latest;
+			if (!targetVersion) return;
+			setMarketplaceEscalation(null);
+			setMarketplaceReviewedVersion(targetVersion);
+			setMcpUpdateTools([]);
+			updateMutation.mutate({ version: targetVersion });
 		}
 	};
 
@@ -299,13 +343,19 @@ function PluginCard({
 			const opts: RegistryUpdateOpts = {
 				confirmCapabilityChanges: true,
 				confirmMcpTools: mcpUpdateTools.length > 0,
+				acknowledgedProfileCid: registryVerification?.profileCid,
+				acknowledgedReleaseCid: registryVerification?.releaseCid,
 			};
-			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
-				opts.confirmRouteVisibilityChanges = true;
-			}
+			opts.acknowledgedPublicRoutes = registryEscalation?.routeVisibilityChanges?.newlyPublic ?? [];
 			updateMutation.mutate(opts);
 		} else {
-			updateMutation.mutate({});
+			if (!marketplaceReviewedVersion) return;
+			updateMutation.mutate({
+				version: marketplaceReviewedVersion,
+				confirmCapabilityChanges: (marketplaceEscalation?.capabilityChanges.added.length ?? 0) > 0,
+				acknowledgedPublicRoutes: marketplaceEscalation?.routeVisibilityChanges?.newlyPublic ?? [],
+				confirmMcpTools: mcpUpdateTools.length > 0,
+			});
 		}
 	};
 
@@ -348,8 +398,9 @@ function PluginCard({
 		<>
 			<div
 				className={cn(
-					"rounded-lg border bg-kumo-base transition-colors",
+					"rounded-lg border border-kumo-border bg-kumo-base transition-colors",
 					!plugin.enabled && "opacity-75",
+					registryIdentity?.status === "invalid" && "border-kumo-danger",
 				)}
 			>
 				<div className="flex items-center gap-4 p-4">
@@ -369,7 +420,7 @@ function PluginCard({
 							)}
 						>
 							<ADMIN_NAV_ICONS.plugins
-								className={cn("h-5 w-5", plugin.enabled ? "text-kumo-brand" : "text-kumo-subtle")}
+								className={cn("h-5 w-5", plugin.enabled ? "text-kumo-link" : "text-kumo-subtle")}
 							/>
 						</div>
 					)}
@@ -381,15 +432,23 @@ function PluginCard({
 							<span className="text-xs text-kumo-subtle">v{plugin.version}</span>
 							{!plugin.enabled && <Badge variant="secondary">{t`Disabled`}</Badge>}
 							{isMarketplace && <Badge variant="secondary">{t`Marketplace`}</Badge>}
+							{isRegistry && <Badge variant="secondary">{t`Registry`}</Badge>}
 							{hasUpdate && (
-								<Badge variant="outline" className="border-kumo-brand text-kumo-brand">
+								<Badge variant="outline" className="border-kumo-brand text-kumo-link">
 									{t`v${updateInfo.latest} available`}
 								</Badge>
 							)}
 						</div>
+						{registryIdentity && (
+							<RegistryPluginIdentity
+								identity={registryIdentity}
+								invalidMessage={t`This publisher identity no longer resolves.`}
+								className="mt-0.5"
+							/>
+						)}
 
 						{/* Description */}
-						{plugin.description && (
+						{plugin.description && registryIdentity?.status !== "invalid" && (
 							<p className="mt-0.5 text-sm text-kumo-subtle line-clamp-1">{plugin.description}</p>
 						)}
 
@@ -452,18 +511,6 @@ function PluginCard({
 							</Button>
 						)}
 
-						{isMarketplace && hasMarketplace && (
-							<RouterLinkButton
-								to="/plugins/marketplace/$pluginId"
-								params={{ pluginId: plugin.id }}
-								variant="ghost"
-								size="sm"
-								icon={<Storefront />}
-							>
-								{t`View in Marketplace`}
-							</RouterLinkButton>
-						)}
-
 						{plugin.hasSettings && plugin.enabled && (
 							<RouterLinkButton
 								to="/plugins-manager/$pluginId/settings"
@@ -501,9 +548,7 @@ function PluginCard({
 							aria-expanded={expanded}
 						>
 							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
-							<span className="sr-only">
-								{expanded ? t`Collapse` : t`Expand`} {t`details`}
-							</span>
+							<span className="sr-only">{expanded ? t`Collapse details` : t`Expand details`}</span>
 						</Button>
 					</div>
 				</div>
@@ -639,13 +684,31 @@ function PluginCard({
 				<CapabilityConsentDialog
 					mode="update"
 					pluginName={plugin.name}
-					capabilities={plugin.capabilities}
-					newCapabilities={registryEscalation?.capabilityChanges.added ?? []}
-					newlyPublicRoutes={registryEscalation?.routeVisibilityChanges?.newlyPublic ?? []}
+					version={isMarketplace ? (marketplaceReviewedVersion ?? undefined) : undefined}
+					capabilities={[
+						...new Set([
+							...plugin.capabilities,
+							...(registryEscalation?.capabilityChanges.added ?? []),
+							...(marketplaceEscalation?.capabilityChanges.added ?? []),
+						]),
+					]}
+					newCapabilities={
+						registryEscalation?.capabilityChanges.added ??
+						marketplaceEscalation?.capabilityChanges.added ??
+						[]
+					}
+					newlyPublicRoutes={
+						registryEscalation?.routeVisibilityChanges?.newlyPublic ??
+						marketplaceEscalation?.routeVisibilityChanges?.newlyPublic ??
+						[]
+					}
 					mcpTools={mcpUpdateTools}
+					verification={registryVerification ?? undefined}
 					isPending={updateMutation.isPending}
 					error={
-						updateMutation.error instanceof RegistryUpdateEscalationError
+						updateMutation.error instanceof RegistryUpdateEscalationError ||
+						updateMutation.error instanceof MarketplaceUpdateEscalationError ||
+						updateMutation.error instanceof PluginMcpConsentRequiredError
 							? null
 							: getMutationError(updateMutation.error)
 					}
@@ -653,6 +716,9 @@ function PluginCard({
 					onCancel={() => {
 						setShowUpdateConsent(false);
 						setRegistryEscalation(null);
+						setMarketplaceEscalation(null);
+						setMarketplaceReviewedVersion(null);
+						setRegistryVerification(null);
 						setMcpUpdateTools([]);
 						updateMutation.reset();
 					}}

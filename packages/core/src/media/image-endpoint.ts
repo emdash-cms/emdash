@@ -50,8 +50,11 @@ export interface ImageTransformOptions {
 	quality?: number;
 }
 
-/** Long-lived immutable cache -- transform output is deterministic per key+params. */
+/** Long-lived cache for content-addressed image URLs. */
 export const IMMUTABLE_IMAGE_CACHE = "public, max-age=31536000, immutable";
+
+/** Cache policy for media keys that Replace original may overwrite. */
+export const MUTABLE_MEDIA_CACHE_CONTROL = "public, max-age=0, must-revalidate";
 
 /**
  * Raster types safe to render inline. Anything else (SVG, PDF, ...) is served
@@ -77,7 +80,7 @@ const SAFE_INLINE_IMAGE_TYPES = new Set([
 export function originalMediaHeaders(contentType: string): Record<string, string> {
 	return {
 		"Content-Type": contentType,
-		"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+		"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 		"X-Content-Type-Options": "nosniff",
 		"Content-Security-Policy":
 			"sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",

@@ -22,7 +22,10 @@ const fixtureSeed: SeedFile = {
 		{
 			slug: "posts",
 			label: "Posts",
-			fields: [{ slug: "title", label: "Title", type: "string" }],
+			fields: [
+				{ slug: "title", label: "Title", type: "string" },
+				{ slug: "featured_image", label: "Featured image", type: "image" },
+			],
 		},
 	],
 	taxonomies: [
@@ -36,7 +39,21 @@ const fixtureSeed: SeedFile = {
 	],
 	bylines: [{ id: "sample", slug: "sample-author", displayName: "Sample Author" }],
 	content: {
-		posts: [{ id: "post-1", slug: "sample-post", data: { title: "Sample Post" } }],
+		posts: [
+			{
+				id: "post-1",
+				slug: "sample-post",
+				data: {
+					title: "Sample Post",
+					featured_image: {
+						id: "seed-media-1",
+						provider: "local",
+						filename: "sample.jpg",
+						mimeType: "image/jpeg",
+					},
+				},
+			},
+		],
 	},
 	menus: [
 		{
@@ -49,12 +66,29 @@ const fixtureSeed: SeedFile = {
 
 vi.mock("virtual:emdash/seed", () => ({ seed: fixtureSeed, userSeed: null }), { virtual: true });
 
+import { GET as AUTH_GET } from "../../../src/astro/routes/api/auth/dev-bypass.js";
 import { GET } from "../../../src/astro/routes/api/setup/dev-bypass.js";
+import { POST as SETUP_POST } from "../../../src/astro/routes/api/setup/index.js";
+import { MIGRATION_NAMES } from "../../../src/database/migrations/runner.js";
 
 function makeContext(db: Kysely<Database>, search = ""): APIContext {
 	return {
 		locals: { emdash: { db, storage: null, config: {} } },
 		url: new URL(`http://localhost:4321/_emdash/api/setup/dev-bypass${search}`),
+		session: undefined,
+	} as unknown as APIContext;
+}
+
+function makeSetupContext(db: Kysely<Database>): APIContext {
+	const url = new URL("http://localhost:4321/_emdash/api/setup");
+	return {
+		locals: { emdash: { db, storage: null, config: { migrations: { runtime: "manual" } } } },
+		url,
+		request: new Request(url, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ title: "Manual Site", tagline: "", includeContent: false }),
+		}),
 		session: undefined,
 	} as unknown as APIContext;
 }
@@ -87,6 +121,34 @@ describe("setup dev-bypass seed gating", () => {
 		expect(await countPosts(db)).toBe(1);
 		expect(await countRows(db, "taxonomies")).toBe(1);
 		expect(await countRows(db, "_emdash_bylines")).toBe(1);
+	});
+
+	it("makes seeded media usage ready without activating incremental capture", async () => {
+		const response = await GET(makeContext(db));
+		expect(response.status).toBe(200);
+
+		const usage = await db
+			.selectFrom("_emdash_media_usage")
+			.select(["media_id", "field_slug"])
+			.where("media_id", "=", "seed-media-1")
+			.execute();
+		expect(usage).toEqual([{ media_id: "seed-media-1", field_slug: "featured_image" }]);
+
+		const coverage = await db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select(["status", "indexed_source_count"])
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", "posts")
+			.executeTakeFirstOrThrow();
+		expect(coverage).toEqual({ status: "complete", indexed_source_count: 1 });
+
+		const activation = await db
+			.selectFrom("_emdash_media_usage_activation")
+			.select("state")
+			.where("task_key", "=", "incremental_capture")
+			.executeTakeFirstOrThrow();
+		expect(activation.state).toBe("expanded");
 	});
 
 	it("applies schema only with ?content=0", async () => {
@@ -125,5 +187,24 @@ describe("setup dev-bypass seed gating", () => {
 		expect(response.status).toBe(200);
 
 		expect(await countPosts(db)).toBe(0);
+	});
+
+	it.each([
+		["setup dev bypass", (database: Kysely<Database>) => GET(makeContext(database, "?content=0"))],
+		["auth dev bypass", (database: Kysely<Database>) => AUTH_GET(makeContext(database))],
+		["setup wizard", (database: Kysely<Database>) => SETUP_POST(makeSetupContext(database))],
+	])("does not migrate from the %s route", async (_name, invoke) => {
+		const pending = MIGRATION_NAMES.at(-1)!;
+		await db.deleteFrom("_emdash_migrations").where("name", "=", pending).execute();
+
+		const response = await invoke(db);
+
+		expect(response.status).toBe(200);
+		const record = await db
+			.selectFrom("_emdash_migrations")
+			.select("name")
+			.where("name", "=", pending)
+			.executeTakeFirst();
+		expect(record).toBeUndefined();
 	});
 });

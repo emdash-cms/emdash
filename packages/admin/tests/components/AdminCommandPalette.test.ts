@@ -43,4 +43,44 @@ describe("buildNavItems", () => {
 			ClockCounterClockwise,
 		);
 	});
+
+	it("builds a navigable route for a plugin page declared without a leading slash", () => {
+		const items = buildNavItems(
+			{
+				collections: {},
+				plugins: {
+					"audit-log": {
+						enabled: true,
+						adminPages: [{ path: "history", label: "Audit History" }],
+					},
+				},
+			},
+			50,
+			(id) => id,
+		);
+
+		expect(items.find((item) => item.id === "plugin-audit-log-history")?.to).toBe(
+			"/plugins/audit-log/history",
+		);
+	});
+
+	it("keeps a native plugin root page in navigation", () => {
+		const items = buildNavItems(
+			{
+				collections: {},
+				plugins: {
+					"emdash-forms": {
+						enabled: true,
+						adminPages: [{ path: "/", label: "Forms" }],
+					},
+				},
+			},
+			50,
+			(id) => id,
+		);
+
+		expect(items.find((item) => item.id === "plugin-emdash-forms-/")?.to).toBe(
+			"/plugins/emdash-forms/",
+		);
+	});
 });

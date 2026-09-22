@@ -17,6 +17,14 @@
  *    literal private IPs even without an explicit allowlist.
  */
 
+import {
+	bufferPluginHttpRequest,
+	pluginHttpRedirectAction,
+	pluginHttpResponseToWire,
+	rewritePluginHttpRedirect,
+	type PluginHttpResponseWire,
+} from "emdash/plugins/http-wire";
+
 /** Maximum redirect chain length before we give up. */
 const MAX_REDIRECTS = 5;
 
@@ -189,12 +197,6 @@ export interface SandboxHttpFetchOptions {
 	fetchImpl?: typeof fetch;
 }
 
-export interface SandboxHttpFetchResult {
-	status: number;
-	headers: Record<string, string>;
-	text: string;
-}
-
 /**
  * Fetch a URL on behalf of a sandboxed plugin with manual redirect handling.
  *
@@ -205,7 +207,7 @@ export async function sandboxHttpFetch(
 	url: string,
 	init: RequestInit | undefined,
 	options: SandboxHttpFetchOptions,
-): Promise<SandboxHttpFetchResult> {
+): Promise<PluginHttpResponseWire> {
 	const { capabilities, allowedHosts } = options;
 	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
 
@@ -222,7 +224,9 @@ export async function sandboxHttpFetch(
 	}
 
 	let currentUrl = url;
-	let currentInit: RequestInit | undefined = init;
+	let currentInit = init;
+	let requestBuffered = false;
+	let redirected = false;
 
 	for (let i = 0; i <= MAX_REDIRECTS; i++) {
 		const parsed = new URL(currentUrl);
@@ -246,42 +250,35 @@ export async function sandboxHttpFetch(
 		if (!hasUnrestricted && !isHostAllowed(hostname, allowedHosts)) {
 			throw new Error(`Host not allowed: ${hostname}`);
 		}
+		if (!requestBuffered) {
+			currentInit = await bufferPluginHttpRequest(currentInit);
+			requestBuffered = true;
+		}
 
 		const response = await fetchImpl(currentUrl, {
 			...currentInit,
 			redirect: "manual",
 		});
 
-		// Not a redirect — return directly.
-		if (response.status < 300 || response.status >= 400) {
-			const headers: Record<string, string> = {};
-			response.headers.forEach((value, key) => {
-				headers[key] = value;
-			});
-			return {
-				status: response.status,
-				headers,
-				text: await response.text(),
-			};
-		}
-
 		const location = response.headers.get("Location");
-		if (!location) {
-			const headers: Record<string, string> = {};
-			response.headers.forEach((value, key) => {
-				headers[key] = value;
-			});
-			return {
-				status: response.status,
-				headers,
-				text: await response.text(),
-			};
+		if (location === null) {
+			return pluginHttpResponseToWire(response, currentUrl, redirected);
+		}
+		const redirectAction = pluginHttpRedirectAction(response.status, true, currentInit);
+		if (redirectAction === "return") {
+			return pluginHttpResponseToWire(response, currentUrl, redirected);
+		}
+		await response.body?.cancel();
+		if (redirectAction === "error") {
+			throw new Error('Plugin HTTP redirect mode is "error"');
 		}
 
 		// Resolve relative redirects; strip credentials on cross-origin hops.
 		const previousOrigin = parsed.origin;
 		currentUrl = new URL(location, currentUrl).href;
+		redirected = true;
 		const nextOrigin = new URL(currentUrl).origin;
+		currentInit = rewritePluginHttpRedirect(response.status, currentInit);
 		if (previousOrigin !== nextOrigin && currentInit) {
 			currentInit = stripCredentialHeaders(currentInit);
 		}

@@ -18,6 +18,7 @@ import { DurableObject } from "cloudflare:workers";
 
 import { RealJetstreamClient } from "./jetstream-client.js";
 import { JetstreamIngestor, type IngestorStorage } from "./jetstream-ingestor.js";
+import { RestartableRunLoop } from "./run-loop-lifecycle.js";
 
 /** SQL `time_us` floor across the four content tables. Microseconds since
  * epoch (Jetstream's cursor unit). Returns null when no rows exist
@@ -46,27 +47,25 @@ async function deriveJetstreamCursorFloor(db: D1Database): Promise<number | null
 /** Singleton DO ID. There's exactly one ingestor per deployment. */
 export const RECORDS_DO_NAME = "main";
 
-export class RecordsJetstreamDO extends DurableObject {
-	private readonly ingestor: JetstreamIngestor;
-	/** Held so the run loop isn't garbage-collected. */
-	private readonly runPromise: Promise<void>;
+export class RecordsJetstreamDO extends DurableObject<Env> {
+	private readonly runLoop: RestartableRunLoop<JetstreamIngestor>;
 
 	constructor(state: DurableObjectState, env: Env) {
 		super(state, env);
-		this.ingestor = new JetstreamIngestor({
-			client: new RealJetstreamClient(env.JETSTREAM_URL),
-			queue: env.RECORDS_QUEUE,
-			storage: wrapDoStorage(state.storage),
-			cursorFloor: () => deriveJetstreamCursorFloor(env.DB),
-		});
-		// Fire-and-forget. The run loop absorbs every error path internally
-		// today (transient queue failures, connection drops, parse errors
-		// all retry with backoff). The catch is here defensively — if a
-		// future change introduces a non-recoverable rejection, we want it
-		// in the logs rather than as an unhandled promise.
-		this.runPromise = this.ingestor.run().catch((err) => {
-			console.error("[aggregator] jetstream ingestor crashed", err);
-		});
+		this.runLoop = new RestartableRunLoop(
+			state,
+			() =>
+				new JetstreamIngestor({
+					client: new RealJetstreamClient(this.env.JETSTREAM_URL),
+					queue: this.env.RECORDS_QUEUE,
+					storage: wrapDoStorage(this.ctx.storage),
+					cursorFloor: () => deriveJetstreamCursorFloor(this.env.DB),
+				}),
+			(error) => {
+				console.error("[aggregator] jetstream ingestor crashed", error);
+			},
+		);
+		this.runLoop.ensureStarted();
 	}
 
 	/**
@@ -83,9 +82,10 @@ export class RecordsJetstreamDO extends DurableObject {
 	 * effectively internal to the DO + cron pump.
 	 */
 	override async fetch(_request: Request): Promise<Response> {
+		const ingestor = this.runLoop.ensureStarted();
 		return Response.json({
-			cursor: this.ingestor.currentCursor,
-			consecutiveFailures: this.ingestor.consecutiveFailures,
+			cursor: ingestor.currentCursor,
+			consecutiveFailures: ingestor.consecutiveFailures,
 		});
 	}
 }

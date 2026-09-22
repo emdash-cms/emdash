@@ -12,6 +12,7 @@
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { APIContext } from "astro";
 import { z } from "zod";
 
 import {
@@ -20,18 +21,55 @@ import {
 	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	createCollectionBody,
+	createTaxonomyDefBody,
+	updateCollectionBody,
+	updateFieldBody,
+	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
+import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import type { RouteCallerInput } from "../plugins/routes.js";
+import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 import { pluginToolName } from "./plugin-tool-name.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+/**
+ * Shared wording for the `_rev` parameter on write tools. Agents only see the
+ * tool schema, so the retry protocol is stated here.
+ */
+const REV_PARAM_DESCRIPTION =
+	"Revision token proving you have read the current item. Call content_get " +
+	"first and pass back the _rev it returns. If this call fails with CONFLICT " +
+	"the item changed in the meantime: call content_get again and retry with " +
+	"the new token.";
+
+/**
+ * Replaces Zod's "expected string, received undefined" for a caller that never
+ * read the schema, so the message says where the token comes from.
+ */
+const REV_MISSING_ERROR =
+	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
+const TAXONOMY_CURSOR_VERSION = 2;
+const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
+const contentDateTimeInputSchema = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.or(
+		z.iso.datetime({
+			offset: true,
+			precision: -1,
+			message: "must be an ISO 8601 datetime",
+		}),
+	);
 
 // ---------------------------------------------------------------------------
 // Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
@@ -108,6 +146,96 @@ const mediaUsageRepairToolSchema = z
 		}
 	});
 
+const schemaUpdateCollectionToolSchema = z.object({
+	slug: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+		.describe("Collection slug to update; the slug itself cannot be changed"),
+	label: updateCollectionBody.shape.label.describe("New plural display name"),
+	labelSingular: updateCollectionBody.shape.labelSingular.describe("New singular display name"),
+	description: updateCollectionBody.shape.description.describe("New collection description"),
+	icon: updateCollectionBody.shape.icon.describe("New admin UI icon name"),
+	supports: updateCollectionBody.shape.supports.describe(
+		"Complete feature list to enable; omit to preserve the current list",
+	),
+	urlPattern: updateCollectionBody.shape.urlPattern.describe(
+		"New public URL pattern; pass null to clear it",
+	),
+	routable: updateCollectionBody.shape.routable.describe(
+		"Whether entries require a slug before they can be published",
+	),
+	hasSeo: updateCollectionBody.shape.hasSeo.describe(
+		"Whether the collection supports SEO metadata",
+	),
+	group: updateCollectionBody.shape.group.describe(
+		"Admin sidebar folder shared with other collections of the same group; pass null to move the collection back inline",
+	),
+	commentsEnabled: updateCollectionBody.shape.commentsEnabled.describe(
+		"Whether comments are enabled for this collection",
+	),
+	commentsModeration: updateCollectionBody.shape.commentsModeration.describe(
+		"Comment moderation policy",
+	),
+	commentsClosedAfterDays: updateCollectionBody.shape.commentsClosedAfterDays.describe(
+		"Close comments after this many days; 0 keeps them open",
+	),
+	commentsAutoApproveUsers: updateCollectionBody.shape.commentsAutoApproveUsers.describe(
+		"Whether comments from authenticated users are automatically approved",
+	),
+	editLocking: updateCollectionBody.shape.editLocking.describe(
+		"Whether opening an entry takes an edit lock that refuses other editors' writes",
+	),
+	titleField: updateCollectionBody.shape.titleField.describe(
+		"Field slug to use as the Title column in admin lists; pass null to fall back to the default",
+	),
+	dateField: updateCollectionBody.shape.dateField.describe(
+		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
+	),
+});
+
+const schemaUpdateFieldToolSchema = z.object({
+	collection: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+		.describe("Collection slug containing the field"),
+	fieldSlug: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid field slug")
+		.describe("Field slug to update; the slug itself cannot be changed"),
+	label: updateFieldBody.shape.label.describe("New display name"),
+	type: updateFieldBody.shape.type.describe(
+		"New field type; only string, text, and slug aliases can be changed in place",
+	),
+	required: updateFieldBody.shape.required.describe(
+		"Whether the field is required; changing this requires a manual content migration",
+	),
+	unique: updateFieldBody.shape.unique.describe(
+		"Whether field values must be unique; changing this requires a manual content migration",
+	),
+	defaultValue: updateFieldBody.shape.defaultValue.describe("Default value for new content"),
+	validation: updateFieldBody.shape.validation.describe(
+		"Validation constraints; pass null to clear existing constraints",
+	),
+	widget: updateFieldBody.shape.widget.describe("Admin editor widget name"),
+	options: updateFieldBody.shape.options.describe("Widget configuration"),
+	sortOrder: updateFieldBody.shape.sortOrder.describe("Field order in the content editor"),
+	searchable: updateFieldBody.shape.searchable.describe(
+		"Whether full-text search indexes the field",
+	),
+	translatable: updateFieldBody.shape.translatable.describe(
+		"Whether values vary by locale; changing to false requires a manual content migration",
+	),
+	indexed: updateFieldBody.shape.indexed.describe(
+		"Create or remove a physical index for structured sorting",
+	),
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -129,6 +257,58 @@ type ErrorEnvelope = {
 	isError: true;
 	_meta: { code: string; details?: Record<string, unknown> };
 };
+
+type TaxonomyListCursor = { id: string };
+
+function encodeTaxonomyCursor(term: { id: string }): string {
+	const cursor = encodeBase64(
+		JSON.stringify({
+			v: TAXONOMY_CURSOR_VERSION,
+			id: term.id,
+		}),
+	);
+	if (cursor.length > MAX_TAXONOMY_CURSOR_LENGTH) {
+		throw new InvalidCursorError(cursor);
+	}
+	return cursor;
+}
+
+function decodeTaxonomyCursor(cursor: string): TaxonomyListCursor {
+	if (!cursor || cursor.length > MAX_TAXONOMY_CURSOR_LENGTH) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(decodeBase64(cursor));
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (parsed === null || typeof parsed !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+
+	const candidate = parsed as Record<string, unknown>;
+	if ("v" in candidate) {
+		const { v, id } = candidate;
+		if (
+			v !== TAXONOMY_CURSOR_VERSION ||
+			typeof id !== "string" ||
+			id.length === 0 ||
+			id.includes("\0")
+		) {
+			throw new InvalidCursorError(cursor);
+		}
+		return { id };
+	}
+
+	const legacy = decodeCursor(cursor);
+	if (legacy.orderValue.includes("\0") || legacy.id.length === 0 || legacy.id.includes("\0")) {
+		throw new InvalidCursorError(cursor);
+	}
+	return { id: legacy.id };
+}
 
 /**
  * Return a successful tool response with the data as pretty-printed JSON.
@@ -275,16 +455,19 @@ function jsonResult(data: unknown): SuccessEnvelope {
 // ---------------------------------------------------------------------------
 // Context extraction
 //
-// The route handler passes emdash + userId in authInfo.extra.
+// The route handler passes the runtime and authenticated user in authInfo.extra.
 // ---------------------------------------------------------------------------
 
 interface EmDashExtra {
 	emdash: EmDashHandlers;
+	user: RouteCallerInput;
 	userId: string;
 	/** The authenticated user's RBAC role level. */
 	userRole: RoleLevel;
 	/** Token scopes — undefined for session auth (all access allowed). */
 	tokenScopes?: string[];
+	/** The route cache of the MCP request, used to invalidate the same tags the REST routes do. */
+	cache?: APIContext["cache"];
 }
 
 function isPublished(t: unknown): boolean {
@@ -306,6 +489,24 @@ function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): Em
 
 function getEmDash(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashHandlers {
 	return getExtra(extra).emdash;
+}
+
+/**
+ * Unwrap a write result, first invalidating `tags` in the route cache when the
+ * write succeeded. Pass `changedEarlier` when an earlier step of the same tool
+ * already changed live content, so a failure in a later step still invalidates.
+ */
+async function unwrapAndInvalidate(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	result: HandlerResult,
+	tags: string[],
+	changedEarlier = false,
+): Promise<SuccessEnvelope | ErrorEnvelope> {
+	if (result.success || changedEarlier) {
+		const { cache } = getExtra(extra);
+		if (cache?.enabled) await cache.invalidate({ tags });
+	}
+	return unwrap(result);
 }
 
 async function getCollectionFields(
@@ -479,6 +680,13 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/** Extract the `_rev` token from a content handler response. */
+function extractContentRev(data: unknown): string | undefined {
+	if (!data || typeof data !== "object") return undefined;
+	const rev = (data as Record<string, unknown>)._rev;
+	return typeof rev === "string" ? rev : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
@@ -532,7 +740,7 @@ export function createMcpServer(
 	}) as typeof server.registerTool;
 
 	for (const tool of pluginTools) {
-		if (!(tool.permission in Permissions)) continue;
+		if (!Object.hasOwn(Permissions, tool.permission)) continue;
 		server.registerTool(
 			pluginToolName(tool.pluginId, tool.name),
 			{
@@ -577,6 +785,7 @@ export function createMcpServer(
 					);
 				}
 				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const routeCache = payload.cache;
 				const result = await payload.emdash.handlePluginMcpTool(
 					tool.pluginId,
 					tool.name,
@@ -584,6 +793,8 @@ export function createMcpServer(
 					input,
 					payload.userId,
 					request,
+					payload.user,
+					routeCache?.enabled ? (tags) => routeCache.invalidate({ tags }) : undefined,
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {
@@ -688,8 +899,9 @@ export function createMcpServer(
 			title: "Get Content",
 			description:
 				"Get a single content item by its ID or slug. Returns the full content data " +
-				"including all field values, metadata, and a _rev token for optimistic " +
-				"concurrency (pass _rev back when updating to detect conflicts).",
+				"including all field values, metadata, and a _rev token. content_update, " +
+				"content_publish, content_unpublish and content_discard_draft require that " +
+				"token, so read the item here before calling them.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				id: z.string().describe("Content item ID (ULID) or slug"),
@@ -791,7 +1003,8 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
-			const { emdash, userId } = getExtra(extra);
+			const { emdash, userId, userRole } = getExtra(extra);
+			const actor = { id: userId, role: userRole };
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -809,7 +1022,7 @@ export function createMcpServer(
 
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
-				const user = { id: userId, role: getExtra(extra).userRole };
+				const user = { id: userId, role: userRole };
 				if (!hasPermission(user, "content:publish_own")) {
 					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
@@ -824,16 +1037,26 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					actor,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
 				if (itemId) {
-					return unwrap(await emdash.handleContentPublish(args.collection, itemId));
+					return unwrapAndInvalidate(
+						extra,
+						await emdash.handleContentPublish(args.collection, itemId, {
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						[args.collection, itemId],
+						true,
+					);
 				}
-				return unwrap(result);
+				return unwrapAndInvalidate(extra, result, [args.collection]);
 			}
 
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -842,7 +1065,9 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					actor,
 				}),
+				[args.collection],
 			);
 		},
 	);
@@ -856,9 +1081,12 @@ export function createMcpServer(
 				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
 				"(portableText) fields accept a Markdown string (recommended, converted " +
 				"automatically); use a Portable Text JSON array only for complex content " +
-				"Markdown can't express (custom blocks, embeds). Pass the " +
-				"_rev token from content_get to enable optimistic concurrency checking " +
-				"(the update fails if the item was modified since you read it). " +
+				"Markdown can't express (custom blocks, embeds). Requires the _rev " +
+				"token from content_get, so read the item before updating it: the " +
+				"update fails if the item changed since that read. When status is not " +
+				"set, a change to a published item is staged as a draft, so the " +
+				"response shows the new values while the live version keeps the old " +
+				"ones until content_publish. " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
 				"single transaction. `publishedAt` requires the content:publish_any " +
 				"permission and is useful for migrations or correcting historical dates.",
@@ -904,22 +1132,19 @@ export function createMcpServer(
 					.describe(
 						"Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
 					),
-				publishedAt: z.iso
-					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+				publishedAt: contentDateTimeInputSchema
 					.nullish()
 					.describe(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
 					),
-				_rev: z
-					.string()
-					.optional()
-					.describe("Revision token from content_get for conflict detection"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
 			const { emdash, userId, userRole } = getExtra(extra);
+			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
 			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
@@ -951,6 +1176,8 @@ export function createMcpServer(
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
 				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+				let rev: string | undefined = args._rev;
+				let liveChanged = false;
 				if (
 					args.data ||
 					args.slug ||
@@ -962,7 +1189,7 @@ export function createMcpServer(
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data,
 						slug: args.slug,
-						authorId: userId,
+						actor,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
@@ -971,12 +1198,25 @@ export function createMcpServer(
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					liveChanged = updateResult.liveContentChanged !== false;
+					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(await emdash.handleContentPublish(args.collection, resolvedId));
+				return unwrapAndInvalidate(
+					extra,
+					await emdash.handleContentPublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
+					[args.collection, resolvedId],
+					liveChanged,
+				);
 			}
 
 			if (args.status === "draft") {
 				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+				let rev: string | undefined = args._rev;
+				let liveChanged = false;
 				if (
 					args.data ||
 					args.slug ||
@@ -988,7 +1228,7 @@ export function createMcpServer(
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data,
 						slug: args.slug,
-						authorId: userId,
+						actor,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
@@ -997,23 +1237,34 @@ export function createMcpServer(
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					liveChanged = updateResult.liveContentChanged !== false;
+					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(await emdash.handleContentUnpublish(args.collection, resolvedId));
+				return unwrapAndInvalidate(
+					extra,
+					await emdash.handleContentUnpublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
+					[args.collection, resolvedId],
+					liveChanged,
+				);
 			}
 
-			return unwrap(
-				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data,
-					slug: args.slug,
-					authorId: userId,
-					locale: args.locale,
-					seo: args.seo,
-					bylines: args.bylines,
-					taxonomies: args.taxonomies,
-					publishedAt: args.publishedAt,
-					_rev: args._rev,
-				}),
-			);
+			const result = await emdash.handleContentUpdate(args.collection, resolvedId, {
+				data,
+				slug: args.slug,
+				actor,
+				locale: args.locale,
+				seo: args.seo,
+				bylines: args.bylines,
+				taxonomies: args.taxonomies,
+				publishedAt: args.publishedAt,
+				_rev: args._rev,
+			});
+			if (result.liveContentChanged === false) return unwrap(result);
+			return unwrapAndInvalidate(extra, result, [args.collection, resolvedId]);
 		},
 	);
 
@@ -1049,7 +1300,10 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentDelete(args.collection, resolvedId));
+			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
+				args.collection,
+				resolvedId,
+			]);
 		},
 	);
 
@@ -1057,7 +1311,9 @@ export function createMcpServer(
 		"content_restore",
 		{
 			title: "Restore Content",
-			description: "Restore a soft-deleted content item from the trash back to its previous state.",
+			description:
+				"Restore a soft-deleted content item from the trash. It comes back as a draft " +
+				"with no schedule, even if it was published or scheduled before it was trashed.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1081,7 +1337,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentRestore(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentRestore(args.collection, resolvedId),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1102,7 +1362,11 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentPermanentDelete(args.collection, args.id));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentPermanentDelete(args.collection, args.id),
+				[args.collection, args.id],
+			);
 		},
 	);
 
@@ -1121,8 +1385,8 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				publishedAt: z.iso
-					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				publishedAt: contentDateTimeInputSchema
 					.optional()
 					.describe(
 						"Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",
@@ -1155,10 +1419,15 @@ export function createMcpServer(
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
 				}),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1169,16 +1438,18 @@ export function createMcpServer(
 			title: "Unpublish Content",
 			description:
 				"Unpublish a content item, reverting it to draft status. It will no " +
-				"longer be visible on the live site but its content is preserved.",
+				"longer be visible on the live site, but its content and publication date are preserved. " +
+				"Any pending schedule is cancelled.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1193,7 +1464,15 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentUnpublish(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentUnpublish(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1208,15 +1487,16 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				scheduledAt: z
-					.string()
-					.describe("ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				scheduledAt: contentDateTimeInputSchema.describe(
+					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
+				),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1231,7 +1511,15 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1240,9 +1528,9 @@ export function createMcpServer(
 		{
 			title: "Cancel Scheduled Publication",
 			description:
-				"Cancel a previously scheduled publication. The item remains in its current " +
-				"status (typically 'draft' or 'scheduled'); only the scheduledAt timestamp is " +
-				"cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+				"Cancel a previously scheduled publication. Scheduled drafts return to draft status; " +
+				"published items stay published. The scheduledAt timestamp is cleared. Idempotent — " +
+				"calling on an item that isn't scheduled is a no-op.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1265,7 +1553,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentUnschedule(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentUnschedule(args.collection, resolvedId),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1296,11 +1588,12 @@ export function createMcpServer(
 		{
 			title: "Discard Draft",
 			description:
-				"Discard the current draft changes and revert to the last published " +
-				"version. Only works on items that have been published at least once.",
+				"Discard the current draft revision. Published content reverts to its live " +
+				"version; an item without a pending draft is unchanged.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1322,7 +1615,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentDiscardDraft(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1370,7 +1667,9 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentDuplicate(args.collection, args.id));
+			return unwrapAndInvalidate(extra, await ec.handleContentDuplicate(args.collection, args.id), [
+				args.collection,
+			]);
 		},
 	);
 
@@ -1665,7 +1964,8 @@ export function createMcpServer(
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing).",
+				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
 					.string()
@@ -1675,10 +1975,18 @@ export function createMcpServer(
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
 				icon: z.string().optional().describe("Icon name for the admin UI"),
-				supports: z
-					.array(z.enum(["drafts", "revisions", "preview", "scheduling", "search"]))
-					.optional()
-					.describe("Features to enable (default: ['drafts', 'revisions'])"),
+				supports: createCollectionBody.shape.supports.describe(
+					"Features to enable (default: ['drafts', 'revisions'])",
+				),
+				routable: createCollectionBody.shape.routable.describe(
+					"Require a slug before publishing (default: true)",
+				),
+				editLocking: createCollectionBody.shape.editLocking.describe(
+					"Take an edit lock when an entry is opened (default: true)",
+				),
+				group: createCollectionBody.shape.group.describe(
+					"Admin sidebar folder shared with other collections of the same group",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1697,6 +2005,9 @@ export function createMcpServer(
 					// SchemaRegistry.createCollection now defaults `supports` to
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
+					routable: args.routable,
+					editLocking: args.editLocking,
+					group: args.group,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);
@@ -1734,6 +2045,33 @@ export function createMcpServer(
 				return jsonResult({ deleted: args.slug });
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"schema_update_collection",
+		{
+			title: "Update Collection",
+			description:
+				"Update an existing collection without deleting its table, fields, or content. " +
+				"Only provided settings change; omitted settings keep their current values. " +
+				"The collection slug cannot be changed.",
+			inputSchema: schemaUpdateCollectionToolSchema,
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { slug, ...input } = args;
+			try {
+				const { handleSchemaCollectionUpdate } = await import("../api/handlers/schema.js");
+				const result = await handleSchemaCollectionUpdate(ec.db, slug, input);
+				if (result.success) ec.invalidateUrlPatternCache();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_UPDATE_ERROR");
 			}
 		},
 	);
@@ -1799,13 +2137,14 @@ export function createMcpServer(
 							.describe("Target collection slug for reference fields"),
 						rows: z.number().optional().describe("Number of rows for textarea"),
 					})
-					.passthrough()
+					.loose()
 					.optional()
 					.describe("Widget configuration"),
 				searchable: z
 					.boolean()
 					.optional()
 					.describe("Include in full-text search index (default false)"),
+				indexed: z.boolean().optional().describe("Create a physical index for structured sorting"),
 				translatable: z
 					.boolean()
 					.optional()
@@ -1832,6 +2171,7 @@ export function createMcpServer(
 					validation: args.validation,
 					options: args.options,
 					searchable: args.searchable,
+					indexed: args.indexed,
 					translatable: args.translatable,
 				});
 				return jsonResult(field);
@@ -1865,6 +2205,31 @@ export function createMcpServer(
 				return jsonResult({ deleted: args.fieldSlug, collection: args.collection });
 			} catch (error) {
 				return respondHandlerError(error, "FIELD_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"schema_update_field",
+		{
+			title: "Update Field",
+			description:
+				"Update an existing field without deleting its column or stored values. Only " +
+				"provided settings change; omitted settings keep their current values. Changes " +
+				"that require a content or column migration are rejected with migration guidance.",
+			inputSchema: schemaUpdateFieldToolSchema,
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { collection, fieldSlug, ...input } = args;
+			try {
+				const { handleSchemaFieldUpdate } = await import("../api/handlers/schema.js");
+				return unwrap(await handleSchemaFieldUpdate(ec.db, collection, fieldSlug, input));
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_FIELD_UPDATE_ERROR");
 			}
 		},
 	);
@@ -1971,7 +2336,6 @@ export function createMcpServer(
 					.optional()
 					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
 				url: z
-					.string()
 					.url()
 					.optional()
 					.describe(
@@ -1997,9 +2361,8 @@ export function createMcpServer(
 				return respondError("NO_STORAGE", "Storage not configured");
 			}
 			try {
-				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
 				return unwrap(
-					await handleMediaUpload(emdash.db, emdash.storage, {
+					await emdash.handleMediaUpload({
 						filename: args.filename,
 						base64: args.base64,
 						url: args.url,
@@ -2227,6 +2590,164 @@ export function createMcpServer(
 	);
 
 	server.registerTool(
+		"taxonomy_get",
+		{
+			title: "Get Taxonomy Definition",
+			description:
+				"Get a single taxonomy definition by name. Taxonomy definitions describe " +
+				"a classification system (e.g. categories or tags), which collections " +
+				"it applies to, and whether it is hierarchical. Pass `locale` to resolve " +
+				"a specific translation; otherwise the lowest matching locale is returned.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
+				locale: z.string().optional().describe("Locale to resolve the definition for"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyGet } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTaxonomyGet(ec.db, args.name, { locale: args.locale }));
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_create",
+		{
+			title: "Create Taxonomy Definition",
+			description:
+				"Create a new taxonomy definition. Definitions are per-locale; pass " +
+				"`locale` when the same taxonomy name exists in multiple translations. " +
+				"`collections` names which content types the taxonomy applies to. " +
+				"If `translationOf` is set, the new definition joins the source's " +
+				"translation group and inherits `hierarchical` and `collections` from " +
+				"the source when those fields are omitted.",
+			inputSchema: z.object({
+				name: createTaxonomyDefBody.shape.name.describe(
+					"Taxonomy name (lowercase letters, numbers, underscores)",
+				),
+				label: createTaxonomyDefBody.shape.label.describe("Display name"),
+				labelSingular: createTaxonomyDefBody.shape.labelSingular.describe(
+					"Singular form of the display name",
+				),
+				hierarchical: createTaxonomyDefBody.shape.hierarchical.describe(
+					"Whether the taxonomy supports parent/child terms (defaults to false, or inherited from translationOf)",
+				),
+				collections: createTaxonomyDefBody.shape.collections.describe(
+					"Collection slugs this taxonomy applies to (defaults to [], or inherited from translationOf)",
+				),
+				locale: z.string().optional().describe("Locale for this definition (e.g. 'fr-fr')"),
+				translationOf: z
+					.string()
+					.optional()
+					.describe("Existing taxonomy definition id to create this locale variant from"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyCreate } = await import("../api/handlers/taxonomies.js");
+				return unwrapAndInvalidate(
+					extra,
+					await handleTaxonomyCreate(ec.db, {
+						name: args.name,
+						label: args.label,
+						labelSingular: args.labelSingular,
+						hierarchical: args.hierarchical,
+						collections: args.collections,
+						locale: args.locale,
+						translationOf: args.translationOf,
+					}),
+					[taxonomyTag(args.name)],
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_update",
+		{
+			title: "Update Taxonomy Definition",
+			description:
+				"Update an existing taxonomy definition. The taxonomy `name` cannot be " +
+				"changed. Pass `locale` to update a specific translation; otherwise the " +
+				"lowest matching locale is updated. Any field may be omitted to leave it " +
+				"unchanged.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name to update"),
+				label: updateTaxonomyDefBody.shape.label.describe("New display name"),
+				labelSingular: updateTaxonomyDefBody.shape.labelSingular.describe(
+					"New singular display name; pass null to clear",
+				),
+				hierarchical: updateTaxonomyDefBody.shape.hierarchical.describe(
+					"Whether the taxonomy supports parent/child terms",
+				),
+				collections: updateTaxonomyDefBody.shape.collections.describe(
+					"Collection slugs this taxonomy applies to",
+				),
+				locale: z.string().optional().describe("Locale of the definition to update"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyUpdate } = await import("../api/handlers/taxonomies.js");
+				return unwrapAndInvalidate(
+					extra,
+					await handleTaxonomyUpdate(ec.db, args.name, {
+						label: args.label,
+						labelSingular: args.labelSingular,
+						hierarchical: args.hierarchical,
+						collections: args.collections,
+						locale: args.locale,
+					}),
+					[taxonomyTag(args.name)],
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_delete",
+		{
+			title: "Delete Taxonomy Definition",
+			description:
+				"Delete a taxonomy definition and all of its terms in every locale, " +
+				"along with any content assignments those terms hold. This cannot be undone.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyDelete } = await import("../api/handlers/taxonomies.js");
+				return unwrapAndInvalidate(extra, await handleTaxonomyDelete(ec.db, args.name), [
+					taxonomyTag(args.name),
+				]);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
 		"taxonomy_list_terms",
 		{
 			title: "List Taxonomy Terms",
@@ -2237,7 +2758,12 @@ export function createMcpServer(
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(MAX_TAXONOMY_CURSOR_LENGTH)
+					.optional()
+					.describe("Pagination cursor"),
 				locale: z.string().optional().describe("Filter by locale (omit for all)"),
 			}),
 			annotations: { readOnlyHint: true },
@@ -2256,46 +2782,47 @@ export function createMcpServer(
 				if (!taxonomy) return respondError("NOT_FOUND", `Taxonomy '${args.taxonomy}' not found`);
 
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
-				const { decodeCursor, encodeCursor, InvalidCursorError } =
-					await import("../database/repositories/types.js");
 				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
-				const terms = await repo.findByName(args.taxonomy, { locale: args.locale });
-
-				// Manual keyset pagination over the sorted-by-label results.
-				// Using a base64-encoded `(label, id)` cursor matches the
-				// scheme other list endpoints use and tolerates concurrent
-				// deletion of the cursor-term — the cursor is a position,
-				// not a row reference, so a missing row just means we skip
-				// past it rather than erroring.
-				let startIdx = 0;
+				let cursor: TaxonomyListCursor | undefined;
 				if (args.cursor) {
-					let decoded: { orderValue: string; id: string };
 					try {
-						decoded = decodeCursor(args.cursor);
+						cursor = decodeTaxonomyCursor(args.cursor);
 					} catch (error) {
 						if (error instanceof InvalidCursorError) {
 							return respondError("INVALID_CURSOR", error.message);
 						}
 						throw error;
 					}
-					// Find the first term that sorts strictly after the cursor
-					// position. Stable order is `(label asc, id asc)` so a
-					// `(label, id)` tuple comparison is the keyset.
-					startIdx = terms.findIndex(
-						(t) =>
-							t.label > decoded.orderValue || (t.label === decoded.orderValue && t.id > decoded.id),
-					);
-					if (startIdx < 0) startIdx = terms.length;
 				}
 
-				const page = terms.slice(startIdx, startIdx + limit);
-				const hasMore = startIdx + limit < terms.length;
-				const last = page.at(-1);
-				const nextCursor = hasMore && last ? encodeCursor(last.label, last.id) : undefined;
+				let pageCursor: { sortOrder: number; label: string; id: string } | undefined;
+				if (cursor) {
+					const cursorTerm = await repo.findById(cursor.id);
+					if (
+						!cursorTerm ||
+						cursorTerm.name !== args.taxonomy ||
+						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+					) {
+						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
+					}
+					pageCursor = {
+						sortOrder: cursorTerm.sortOrder,
+						label: cursorTerm.label,
+						id: cursorTerm.id,
+					};
+				}
+
+				const page = await repo.findPageByName(args.taxonomy, {
+					locale: args.locale,
+					limit,
+					...(pageCursor ? { cursor: pageCursor } : {}),
+				});
+				const last = page.items.at(-1);
+				const nextCursor = page.hasMore && last ? encodeTaxonomyCursor(last) : undefined;
 
 				return jsonResult({
-					items: page.map((t) => ({
+					items: page.items.map((t) => ({
 						id: t.id,
 						name: t.name,
 						slug: t.slug,
@@ -2325,7 +2852,11 @@ export function createMcpServer(
 				"new term beneath a chain of 100+ existing ancestors are rejected.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
-				slug: z.string().describe("URL-safe identifier for the term"),
+				slug: z
+					.string()
+					.min(1)
+					.optional()
+					.describe("URL identifier for the term; omit to derive it from the label"),
 				label: z.string().describe("Display name"),
 				parentId: z.string().optional().describe("Parent term ID for hierarchical taxonomies"),
 				description: z.string().optional().describe("Description of the term"),
@@ -2342,7 +2873,8 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermCreate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleTermCreate(ec.db, args.taxonomy, {
 						slug: args.slug,
 						label: args.label,
@@ -2351,6 +2883,7 @@ export function createMcpServer(
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_CREATE_ERROR");
@@ -2369,7 +2902,9 @@ export function createMcpServer(
 				"parent must exist, belong to the same taxonomy, and not introduce a cycle " +
 				"(a term cannot be its own ancestor). The new parent's ancestor chain must " +
 				"not exceed 100 levels — reparenting under a chain of 100+ ancestors is " +
-				"rejected.",
+				"rejected. Translations of a term can share a slug: pass `locale` to " +
+				"update a specific translation; otherwise the lowest matching locale is " +
+				"updated.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				termSlug: z.string().describe("Current slug of the term to update"),
@@ -2377,6 +2912,7 @@ export function createMcpServer(
 				label: z.string().optional().describe("New display name"),
 				parentId: z.string().nullable().optional().describe("New parent term ID; null to detach"),
 				description: z.string().optional().describe("New description"),
+				locale: z.string().optional().describe("Locale of the term to update (e.g. 'fr')"),
 			}),
 		},
 		async (args, extra) => {
@@ -2385,13 +2921,21 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
-					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
-						slug: args.slug,
-						label: args.label,
-						parentId: args.parentId,
-						description: args.description,
-					}),
+				return unwrapAndInvalidate(
+					extra,
+					await handleTermUpdate(
+						ec.db,
+						args.taxonomy,
+						args.termSlug,
+						{
+							slug: args.slug,
+							label: args.label,
+							parentId: args.parentId,
+							description: args.description,
+						},
+						{ locale: args.locale },
+					),
+					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_UPDATE_ERROR");
@@ -2406,10 +2950,13 @@ export function createMcpServer(
 			description:
 				"Permanently delete a term from a taxonomy. Any content tagged with this " +
 				"term loses the association. Cannot delete a term that has children — " +
-				"delete children first.",
+				"delete children first. Translations of a term can share a slug: pass " +
+				"`locale` to delete a specific translation; otherwise the lowest matching " +
+				"locale is deleted.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name"),
 				termSlug: z.string().describe("Slug of the term to delete"),
+				locale: z.string().optional().describe("Locale of the term to delete (e.g. 'fr')"),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -2419,7 +2966,11 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
-				return unwrap(await handleTermDelete(ec.db, args.taxonomy, args.termSlug));
+				return unwrapAndInvalidate(
+					extra,
+					await handleTermDelete(ec.db, args.taxonomy, args.termSlug, { locale: args.locale }),
+					[taxonomyTag(args.taxonomy)],
+				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_DELETE_ERROR");
 			}
@@ -2558,13 +3109,15 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuCreate } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuCreate(ec.db, {
 						name: args.name,
 						label: args.label,
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_CREATE_ERROR");
@@ -2591,8 +3144,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuUpdate } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuUpdate(ec.db, args.name, { label: args.label, locale: args.locale }),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_UPDATE_ERROR");
@@ -2619,7 +3174,11 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuDelete } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuDelete(ec.db, args.name, { locale: args.locale }));
+				return unwrapAndInvalidate(
+					extra,
+					await handleMenuDelete(ec.db, args.name, { locale: args.locale }),
+					[menuTag(args.name)],
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_DELETE_ERROR");
 			}
@@ -2682,8 +3241,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuSetItems } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuSetItems(ec.db, args.name, args.items, { locale: args.locale }),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
@@ -2819,10 +3380,7 @@ export function createMcpServer(
 					.describe("Favicon media reference ({ mediaId, alt? })"),
 				url: z
 					.union([
-						z
-							.string()
-							.url()
-							.refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
+						z.url().refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
 						z.literal(""),
 					])
 					.optional()
@@ -2846,7 +3404,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
-				return unwrap(await handleSettingsUpdate(ec.db, ec.storage, args));
+				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
+					siteSettingsTag(),
+				]);
 			} catch (error) {
 				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
 			}

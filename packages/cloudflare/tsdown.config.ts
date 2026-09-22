@@ -4,7 +4,9 @@ export default defineConfig({
 	entry: [
 		"src/index.ts",
 		"src/db/d1.ts",
+		"src/db/d1-migrations.ts",
 		"src/db/hyperdrive.ts",
+		"src/db/hyperdrive-migrations.ts",
 		"src/db/do.ts",
 		"src/db/do-sql.ts",
 		"src/db/playground.ts",
@@ -13,12 +15,16 @@ export default defineConfig({
 		"src/image-endpoint.ts",
 		"src/auth/index.ts",
 		"src/sandbox/index.ts",
+		"src/sandbox/bridge.ts",
 		"src/worker.ts",
 		"src/plugins/index.ts",
 		// Standalone entry: cloudflareEmail() descriptors reference this module
 		// as their `entrypoint`, so the astro integration can statically import
 		// `createPlugin` from it (#1721).
 		"src/plugins/cloudflare-email.ts",
+		"src/plugins/ai-search.ts",
+		"src/plugins/ai-search-admin.tsx",
+
 		// Media provider runtimes
 		"src/media/images-runtime.ts",
 		"src/media/stream-runtime.ts",

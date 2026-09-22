@@ -1,0 +1,29 @@
+@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+@source "./**/*.{ts,tsx}";
+
+@import "@cloudflare/kumo/styles";
+@import "tailwindcss";
+
+@theme {
+	--font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+* {
+	border-color: var(--color-kumo-line);
+}
+
+body {
+	margin: 0;
+	min-width: 20rem;
+	min-height: 100vh;
+	background: var(--color-kumo-canvas);
+	color: var(--text-color-kumo-default);
+	font-family: var(--font-sans);
+}
+
+button,
+input,
+textarea,
+select {
+	font: inherit;
+}

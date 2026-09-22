@@ -9,6 +9,7 @@ import { invalidateCollectionCache } from "../../object-cache/index.js";
 import {
 	SchemaRegistry,
 	SchemaError,
+	invalidateSchemaCache,
 	type Collection,
 	type Field,
 	type CreateCollectionInput,
@@ -18,6 +19,11 @@ import {
 	type CollectionWithFields,
 } from "../../schema/index.js";
 import type { ApiResult } from "../types.js";
+
+function invalidateFieldCaches(collectionSlug: string): void {
+	invalidateCollectionCache(collectionSlug);
+	invalidateSchemaCache(collectionSlug);
+}
 
 export interface CollectionListResponse {
 	items: Collection[];
@@ -317,7 +323,7 @@ export async function handleSchemaFieldCreate(
 		const item = await registry.createField(collectionSlug, input);
 
 		// Content snapshots embed field values; a column change invalidates them.
-		invalidateCollectionCache(collectionSlug);
+		invalidateFieldCaches(collectionSlug);
 
 		return {
 			success: true,
@@ -357,7 +363,7 @@ export async function handleSchemaFieldUpdate(
 		const registry = new SchemaRegistry(db);
 		const item = await registry.updateField(collectionSlug, fieldSlug, input);
 
-		invalidateCollectionCache(collectionSlug);
+		invalidateFieldCaches(collectionSlug);
 
 		return {
 			success: true,
@@ -396,7 +402,7 @@ export async function handleSchemaFieldDelete(
 		const registry = new SchemaRegistry(db);
 		await registry.deleteField(collectionSlug, fieldSlug);
 
-		invalidateCollectionCache(collectionSlug);
+		invalidateFieldCaches(collectionSlug);
 
 		return {
 			success: true,
@@ -418,6 +424,43 @@ export async function handleSchemaFieldDelete(
 			error: {
 				code: "SCHEMA_FIELD_DELETE_ERROR",
 				message: "Failed to delete field",
+			},
+		};
+	}
+}
+
+/**
+ * Reorder collections in the admin sidebar
+ */
+export async function handleSchemaCollectionReorder(
+	db: Kysely<Database>,
+	slugs: string[],
+): Promise<ApiResult<{ success: boolean }>> {
+	try {
+		const registry = new SchemaRegistry(db);
+		await registry.reorderCollections(slugs);
+
+		return {
+			success: true,
+			data: { success: true },
+		};
+	} catch (error) {
+		if (error instanceof SchemaError) {
+			return {
+				success: false,
+				error: {
+					code: error.code,
+					message: error.message,
+					details: error.details,
+				},
+			};
+		}
+		console.error("[emdash] Failed to reorder collections:", error);
+		return {
+			success: false,
+			error: {
+				code: "SCHEMA_COLLECTION_REORDER_ERROR",
+				message: "Failed to reorder collections",
 			},
 		};
 	}

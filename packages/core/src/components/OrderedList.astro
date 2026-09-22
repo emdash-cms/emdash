@@ -1,0 +1,14 @@
+---
+import type { List, Props as ComponentProps } from "astro-portabletext/types";
+import { normalizeListStart } from "../content/converters/numbered-list.js";
+
+type OrderedListNode = List & { start?: unknown };
+type Props = ComponentProps<OrderedListNode>;
+
+const { node, index: _index, isInline: _isInline, ...attrs } = Astro.props;
+const start = normalizeListStart(node.start) ?? 1;
+---
+
+<ol {...attrs} start={start === 1 ? undefined : start}>
+	<slot />
+</ol>

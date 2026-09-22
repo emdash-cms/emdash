@@ -1,0 +1,15 @@
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "emdash-labeler-model-sweep",
+	"main": "./sweep-worker.ts",
+	"compatibility_date": "2026-08-22",
+	"compatibility_flags": ["nodejs_compat"],
+	"ai": {
+		"binding": "AI",
+		"remote": true,
+	},
+	"images": {
+		"binding": "IMAGES",
+		"remote": true,
+	},
+}

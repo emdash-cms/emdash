@@ -1,7 +1,13 @@
 import { CompiledQuery, Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
-import { EmDashD1Dialect, RawBindingD1Dialect } from "../../src/db/d1-dialect.js";
+import { CoalescingD1Dialect } from "../../src/db/coalescing-d1.js";
+import {
+	D1Adapter,
+	D1_COMPOUND_SELECT_LIMIT,
+	EmDashD1Dialect,
+	RawBindingD1Dialect,
+} from "../../src/db/d1-dialect.js";
 
 /**
  * Regression tests for #2040: with the default D1 config the singleton
@@ -24,8 +30,9 @@ interface MockStatement {
 	all: () => Promise<unknown>;
 }
 
-function createMockD1() {
+function createMockD1(rows: Record<string, unknown>[] = []) {
 	const allCalls: string[] = [];
+	const batchCalls: MockStatement[][] = [];
 	let inFlight = 0;
 	let maxInFlight = 0;
 	const database = {
@@ -45,10 +52,16 @@ function createMockD1() {
 					await new Promise((resolve) => setTimeout(resolve, 5));
 					inFlight--;
 					allCalls.push(sql);
-					return { success: true, results: [], meta: { changes: 0, last_row_id: 0 } };
+					return { success: true, results: rows, meta: { changes: 0, last_row_id: 0 } };
 				},
 			};
 			return stmt;
+		},
+		async batch(statements: MockStatement[]) {
+			batchCalls.push(statements);
+			const results = [];
+			for (const statement of statements) results.push(await statement.all());
+			return results;
 		},
 	};
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- mock implements the prepare/batch subset the dialect uses
@@ -56,6 +69,7 @@ function createMockD1() {
 	return {
 		database: db,
 		allCalls,
+		batchCalls,
 		maxInFlight: () => maxInFlight,
 	};
 }
@@ -107,5 +121,70 @@ describe("EmDashD1Dialect (session path keeps the mutex)", () => {
 		]);
 
 		expect(maxInFlight()).toBe(1);
+	});
+});
+
+describe("D1 compound-SELECT ceiling", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+		["coalescing", CoalescingD1Dialect],
+	])("declares the ceiling on the %s adapter so core splits statements", (_name, Dialect) => {
+		const { database } = createMockD1();
+		const adapter = new Dialect({ database }).createAdapter();
+
+		// Core reads the ceiling off the adapter and leaves undeclaring backends
+		// on a single statement, so an adapter that drops it sends D1 compound
+		// SELECTs it rejects outright.
+		expect(adapter).toHaveProperty("compoundSelectLimit", D1_COMPOUND_SELECT_LIMIT);
+	});
+});
+
+describe("D1 atomic batches", () => {
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+		["coalescing", CoalescingD1Dialect],
+	])("exposes atomic batches on the %s adapter", (_name, Dialect) => {
+		const { database } = createMockD1();
+		const adapter = new Dialect({ database }).createAdapter();
+
+		expect(adapter).toHaveProperty("executeAtomicBatch", expect.any(Function));
+	});
+});
+
+describe("D1 write results", () => {
+	it("forwards compiled statements to one binding batch and maps results", async () => {
+		const { database, batchCalls } = createMockD1();
+		const adapter = new D1Adapter(database);
+
+		const results = await adapter.executeAtomicBatch([
+			CompiledQuery.raw("update entries set title = ?", ["Restored"]),
+			CompiledQuery.raw("insert into revisions (id) values (?)", ["revision-1"]),
+		]);
+
+		expect(batchCalls).toHaveLength(1);
+		expect(batchCalls[0]?.map((statement) => [statement.sql, statement.params])).toEqual([
+			["update entries set title = ?", ["Restored"]],
+			["insert into revisions (id) values (?)", ["revision-1"]],
+		]);
+		expect(results).toHaveLength(2);
+	});
+
+	it.each([
+		["raw binding", RawBindingD1Dialect],
+		["session", EmDashD1Dialect],
+	])("preserves DELETE RETURNING rows through the %s dialect", async (_name, Dialect) => {
+		const rows = [{ storage_key: "expired.png" }];
+		const { database } = createMockD1(rows);
+		const db = new Kysely<any>({ dialect: new Dialect({ database }) });
+
+		const result = await db.executeQuery(
+			CompiledQuery.raw('delete from "media" where "status" = ? returning "storage_key"', [
+				"pending",
+			]),
+		);
+
+		expect(result.rows).toEqual(rows);
 	});
 });

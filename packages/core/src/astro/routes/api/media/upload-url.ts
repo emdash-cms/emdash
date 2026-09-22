@@ -10,7 +10,6 @@
 import * as path from "node:path";
 
 import type { APIRoute } from "astro";
-import { MediaRepository } from "emdash";
 import { ulid } from "ulidx";
 
 import { requirePerm } from "#api/authorize.js";
@@ -18,6 +17,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 
 export const prerender = false;
@@ -37,6 +37,10 @@ interface ExistingMediaResponse {
 	mediaId: string;
 	storageKey: string;
 	url: string;
+}
+
+function isUnsupportedSignedUpload(error: unknown): boolean {
+	return error instanceof Error && "code" in error && error.code === "NOT_SUPPORTED";
 }
 
 /**
@@ -71,6 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
 		if (isParseError(body)) return body;
+		const normalizedContentType = normalizeMime(body.contentType);
 
 		// Validate content type (field-aware widening)
 		const fieldAllowlist = body.fieldId
@@ -85,9 +90,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const repo = new MediaRepository(emdash.db);
 
 		// Check for existing content with same hash (deduplication)
-		if (body.contentHash) {
+		if (body.deduplicate !== false && body.contentHash && body.size > 0) {
 			const existing = await repo.findByContentHash(body.contentHash);
-			if (existing) {
+			if (existing && existing.mimeType === normalizedContentType && existing.size === body.size) {
 				const response: ExistingMediaResponse = {
 					existing: true,
 					mediaId: existing.id,
@@ -97,55 +102,51 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				return apiSuccess(response);
 			}
 		}
+		const filename = body.ensureUniqueFilename
+			? await repo.findAvailableFilename(body.filename)
+			: body.filename;
 
 		// Generate unique storage key
 		const id = ulid();
-		const ext = path.extname(body.filename) || "";
+		const ext = path.extname(filename) || "";
 		const storageKey = `${id}${ext}`;
 
-		// Create pending media record with content hash
+		let signedUrl: Awaited<ReturnType<typeof emdash.storage.getSignedUploadUrl>> | null;
+		try {
+			signedUrl = await emdash.storage.getSignedUploadUrl({
+				key: storageKey,
+				contentType: body.contentType,
+				size: body.size,
+				expiresIn: 3600,
+			});
+		} catch (error) {
+			if (!isUnsupportedSignedUpload(error)) throw error;
+			signedUrl = null;
+		}
+
 		const mediaItem = await repo.createPending({
-			filename: body.filename,
-			mimeType: normalizeMime(body.contentType),
+			filename,
+			mimeType: normalizedContentType,
 			size: body.size,
 			storageKey,
-			contentHash: body.contentHash,
 			authorId: user?.id,
-		});
-
-		// Get signed upload URL from storage
-		const signedUrl = await emdash.storage.getSignedUploadUrl({
-			key: storageKey,
-			contentType: body.contentType,
-			size: body.size,
-			expiresIn: 3600, // 1 hour
+			folderId: body.folderId,
 		});
 
 		const response: UploadUrlResponse = {
-			uploadUrl: signedUrl.url,
-			method: signedUrl.method,
-			headers: signedUrl.headers,
+			uploadUrl: signedUrl?.url ?? `/_emdash/api/media/${mediaItem.id}/upload`,
+			method: signedUrl?.method ?? "PUT",
+			headers: signedUrl?.headers ?? {
+				"Content-Type": normalizedContentType,
+				"X-EmDash-Request": "1",
+			},
 			mediaId: mediaItem.id,
 			storageKey,
-			expiresAt: signedUrl.expiresAt,
+			expiresAt: signedUrl?.expiresAt ?? new Date(Date.now() + 3600 * 1000).toISOString(),
 		};
 
 		return apiSuccess(response);
 	} catch (error) {
-		// Check if storage doesn't support signed URLs (e.g., local storage)
-		if (
-			error instanceof Error &&
-			"code" in error &&
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing error to check custom code property after "code" in error guard
-			(error as { code: string }).code === "NOT_SUPPORTED"
-		) {
-			return apiError(
-				"NOT_SUPPORTED",
-				"Storage does not support signed upload URLs. Use direct upload.",
-				501,
-			);
-		}
-
 		return handleError(error, "Failed to generate upload URL", "UPLOAD_URL_ERROR");
 	}
 };

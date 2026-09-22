@@ -87,11 +87,109 @@ test.describe("Bylines", () => {
 		await page.getByRole("button", { name }).click();
 		await expect(page.getByText("Avatar", { exact: true })).toBeVisible();
 
-		// Open the avatar picker and upload an image. The picker auto-selects
-		// the freshly uploaded item, enabling the Insert button.
+		// Open the avatar picker and upload an image. The upload stays inside
+		// this picker and becomes the selected library card when it finishes.
 		await page.getByRole("button", { name: "Select image" }).click();
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Select Avatar" });
 		await expect(dialog).toBeVisible();
+		await expect(dialog).not.toContainText("No media selected");
+		await expect(dialog.locator("[data-media-results-viewport]")).toBeVisible();
+		const libraryTab = dialog.getByRole("tab", { name: "Library" });
+		const fromUrlTab = dialog.getByRole("tab", { name: "From URL" });
+		const uploadButton = dialog.getByRole("button", { name: "Upload files" });
+		await uploadButton.hover();
+
+		const [libraryTabBox, uploadButtonBox, searchBox] = await Promise.all([
+			libraryTab.boundingBox(),
+			uploadButton.boundingBox(),
+			dialog.getByRole("searchbox", { name: "Search media" }).boundingBox(),
+		]);
+		expect(libraryTabBox).not.toBeNull();
+		expect(uploadButtonBox).not.toBeNull();
+		expect(searchBox).not.toBeNull();
+		expect(
+			Math.abs(
+				libraryTabBox!.y +
+					libraryTabBox!.height / 2 -
+					uploadButtonBox!.y -
+					uploadButtonBox!.height / 2,
+			),
+		).toBeLessThanOrEqual(2);
+		expect(Math.abs(uploadButtonBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
+		const [libraryTabSizing, uploadButtonSizing] = await Promise.all([
+			libraryTab.evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					fontSize: style.fontSize,
+					paddingInlineStart: style.paddingInlineStart,
+					paddingInlineEnd: style.paddingInlineEnd,
+				};
+			}),
+			uploadButton.evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					fontSize: style.fontSize,
+					paddingInlineStart: style.paddingInlineStart,
+					paddingInlineEnd: style.paddingInlineEnd,
+				};
+			}),
+		]);
+		expect(libraryTabSizing).toEqual(uploadButtonSizing);
+		await expect(libraryTab).toBeInViewport({ ratio: 1 });
+		await expect(fromUrlTab).toBeInViewport({ ratio: 1 });
+		await expect(libraryTab.locator("svg")).toBeVisible();
+		await expect(fromUrlTab.locator("svg")).toBeVisible();
+
+		const gridTab = dialog.getByRole("tab", { name: "Grid view" });
+		const listTab = dialog.getByRole("tab", { name: "List view" });
+		const [typeFilterBox, viewModeBox, resultsViewportBox] = await Promise.all([
+			dialog.getByRole("combobox", { name: "Filter by type" }).boundingBox(),
+			dialog.getByRole("group", { name: "View mode" }).boundingBox(),
+			dialog.locator("[data-media-results-viewport]").boundingBox(),
+		]);
+		expect(typeFilterBox).not.toBeNull();
+		expect(viewModeBox).not.toBeNull();
+		expect(resultsViewportBox).not.toBeNull();
+		expect(Math.abs(viewModeBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
+		await expect(gridTab).toBeInViewport({ ratio: 1 });
+		await expect(listTab).toBeInViewport({ ratio: 1 });
+		const toolbarBottom = Math.max(
+			searchBox!.y + searchBox!.height,
+			typeFilterBox!.y + typeFilterBox!.height,
+			viewModeBox!.y + viewModeBox!.height,
+		);
+		expect(resultsViewportBox!.y).toBeGreaterThan(toolbarBottom);
+		const gridDialogWidth = await dialog.evaluate((element) => element.clientWidth);
+		await listTab.click();
+		await expect(dialog.locator('[data-media-layout="list"]').first()).toBeVisible();
+		expect(await dialog.evaluate((element) => element.clientWidth)).toBe(gridDialogWidth);
+		await gridTab.click();
+		await expect(dialog.locator('[data-media-layout="grid"]').first()).toBeVisible();
+
+		const libraryDialogSize = await dialog.evaluate((element) => ({
+			width: element.clientWidth,
+			height: element.clientHeight,
+		}));
+		await fromUrlTab.click();
+		await expect(dialog.getByLabel("Image URL")).toBeVisible();
+		const urlDialogSize = await dialog.evaluate((element) => ({
+			width: element.clientWidth,
+			height: element.clientHeight,
+		}));
+		expect(urlDialogSize).toEqual(libraryDialogSize);
+		await libraryTab.click();
+		await expect(dialog.getByRole("searchbox", { name: "Search media" })).toBeVisible();
+
+		const originalViewport = page.viewportSize();
+		expect(originalViewport).not.toBeNull();
+		for (const width of [320, 640, 768, 784]) {
+			await page.setViewportSize({ width, height: 800 });
+			const responsiveDialogBox = await dialog.boundingBox();
+			expect(responsiveDialogBox).not.toBeNull();
+			expect(responsiveDialogBox!.x).toBeGreaterThanOrEqual(0);
+			expect(responsiveDialogBox!.x + responsiveDialogBox!.width).toBeLessThanOrEqual(width);
+		}
+		await page.setViewportSize(originalViewport!);
 
 		const uploadDone = page.waitForResponse(
 			(res) => /\/api\/media/.test(res.url()) && res.request().method() === "POST" && res.ok(),
@@ -99,10 +197,12 @@ test.describe("Bylines", () => {
 		);
 		await dialog.locator('input[type="file"]').setInputFiles(TEST_IMAGE_PATH);
 		await uploadDone;
+		await expect(page.getByRole("dialog")).toHaveCount(1);
+		await expect(
+			dialog.getByRole("button", { name: "test-image.png", exact: true }),
+		).toHaveAttribute("aria-pressed", "true");
 
-		// Two "Insert" buttons exist (the disabled "Insert from URL" action and
-		// the footer confirm); the confirm enables once an item is selected.
-		await dialog.getByRole("button", { name: "Insert", disabled: false }).click();
+		await dialog.getByRole("button", { name: "Select", disabled: false }).click();
 		await expect(dialog).not.toBeVisible();
 
 		// Persist the byline and wait for the PUT to land.
@@ -139,7 +239,7 @@ test.describe("Bylines", () => {
 		expect(afterEdit.avatarMediaId).toBe(avatarId);
 	});
 
-	test("assigns and reorders bylines, preserves bylines on ownership change", async ({
+	test("assigns bylines and preserves them on ownership change", async ({
 		admin,
 		page,
 		serverInfo,
@@ -164,8 +264,6 @@ test.describe("Bylines", () => {
 			return body.data.id as string;
 		};
 
-		// Create two bylines for the test post. IDs aren't needed downstream;
-		// the test selects them by name via the bylines combobox.
 		await createByline(primaryName, `primary-writer-${unique}`);
 		await createByline(secondaryName, `secondary-writer-${unique}`);
 
@@ -175,49 +273,29 @@ test.describe("Bylines", () => {
 		await admin.clickSave();
 		await expect(page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
 
-		const contentId = page.url().split("/").pop();
+		const contentId = new URL(page.url()).pathname.split("/").pop();
 		expect(contentId).toBeTruthy();
 		await admin.waitForLoading();
 
-		// Scope the byline picker to the Bylines section to avoid hitting the Ownership combobox
-		const bylinesSidebar = page
+		const bylinesSection = page
 			.getByRole("heading", { name: "Bylines" })
-			.locator("xpath=ancestor::div[contains(@class,'p-4')]")
+			.locator("xpath=ancestor::section")
 			.first();
-		// The picker is a debounced server search: type a name, wait for the result
-		// button to appear, click it, then wait for the credit row to commit before
-		// the next add (the search debounce + React commit race otherwise drops one).
-		const bylineSearch = bylinesSidebar.getByLabel("Search bylines");
-		const creditRow = (displayName: string) =>
-			bylinesSidebar.locator("p.text-sm.font-medium").filter({ hasText: displayName });
 		const addByline = async (displayName: string) => {
-			await bylineSearch.fill(displayName);
-			const result = bylinesSidebar.getByRole("button", { name: displayName });
-			await expect(result).toBeVisible({ timeout: 5000 });
-			await result.click();
-			await expect(creditRow(displayName)).toBeVisible({ timeout: 5000 });
+			await bylinesSection
+				.getByRole("button", { name: /Choose bylines|Add another byline/ })
+				.click();
+			await page.getByLabel("Search bylines").fill(displayName);
+			await page.getByRole("button", { name: `Add ${displayName}` }).click();
+			await expect(
+				bylinesSection.getByRole("button", { name: `More actions for ${displayName}` }),
+			).toBeVisible();
 		};
 
 		await addByline(primaryName);
 		await addByline(secondaryName);
-
-		// Move the secondary credit above the primary via its own row's "Up" button,
-		// then confirm the reorder committed before saving.
-		const secondaryCreditRow = bylinesSidebar
-			.locator("div.rounded-lg.border.p-2")
-			.filter({ hasText: secondaryName });
-		await secondaryCreditRow.getByLabel("Role label").fill("Co-author");
-		await secondaryCreditRow.getByRole("button", { name: "Up" }).click();
-		await expect(bylinesSidebar.locator("p.text-sm.font-medium").first()).toContainText(
-			secondaryName,
-		);
-
 		await admin.clickSave();
 		await admin.waitForSaveComplete();
-
-		await expect(bylinesSidebar.locator("p.text-sm.font-medium").first()).toContainText(
-			secondaryName,
-		);
 
 		const ownershipUpdateResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
@@ -233,14 +311,16 @@ test.describe("Bylines", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 
-		const bylineSectionAfterReload = page
+		const bylinesAfterReload = page
 			.getByRole("heading", { name: "Bylines" })
-			.locator("xpath=ancestor::div[contains(@class,'p-4')]")
+			.locator("xpath=ancestor::section")
 			.first();
-
-		await expect(bylineSectionAfterReload.locator("p.text-sm.font-medium").first()).toContainText(
-			secondaryName,
-		);
+		await expect(
+			bylinesAfterReload.getByRole("button", { name: `More actions for ${primaryName}` }),
+		).toBeVisible();
+		await expect(
+			bylinesAfterReload.getByRole("button", { name: `More actions for ${secondaryName}` }),
+		).toBeVisible();
 
 		const contentResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
@@ -248,15 +328,10 @@ test.describe("Bylines", () => {
 		);
 		expect(contentResponse.ok).toBe(true);
 		const contentBody: any = await contentResponse.json();
-		const item = contentBody.data?.item;
-
-		expect(item.byline?.displayName).toBe(secondaryName);
-		expect(item.bylines).toHaveLength(2);
-		expect(item.bylines[0]?.byline?.displayName).toBe(secondaryName);
-		expect(item.bylines[1]?.byline?.displayName).toBe(primaryName);
-		const secondaryCredit = item.bylines.find(
-			(credit: any) => credit?.byline?.displayName === secondaryName,
+		const names = (contentBody.data?.item?.bylines ?? []).map(
+			(credit: { byline?: { displayName?: string } }) => credit?.byline?.displayName,
 		);
-		expect(secondaryCredit?.roleLabel).toBe("Co-author");
+		expect(names).toHaveLength(2);
+		expect(names).toEqual(expect.arrayContaining([primaryName, secondaryName]));
 	});
 });

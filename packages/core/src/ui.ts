@@ -45,6 +45,8 @@ export {
 export {
 	// Main Image component for EmDash media
 	EmDashImage as Image,
+	// Unified media component that delegates rendering to the provider's getEmbed()
+	EmDashMedia as Media,
 	// Main component (wrapper with EmDash defaults)
 	PortableText,
 	// Block style override (paragraph/heading/blockquote — emits
@@ -52,9 +54,6 @@ export {
 	// Shares the name with the `type Block` re-export above; the
 	// type and the component live in different namespaces.
 	Block,
-	// Comment components
-	Comments,
-	CommentForm,
 	// Widget components
 	WidgetArea,
 	// Components object for manual use
@@ -78,3 +77,14 @@ export {
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "./components/index.js";
+
+/**
+ * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
+ * comment CSS into every page that imports `emdash/ui` (#2039). Will be removed in 1.0.
+ */
+export { Comments } from "./components/index.js";
+/**
+ * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
+ * comment CSS into every page that imports `emdash/ui` (#2039). Will be removed in 1.0.
+ */
+export { CommentForm } from "./components/index.js";

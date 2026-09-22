@@ -42,6 +42,7 @@ export interface RepeaterFieldProps {
 	subFields: RepeaterSubFieldDef[];
 	minItems?: number;
 	maxItems?: number;
+	timezone?: string;
 }
 
 type RepeaterItem = Record<string, unknown> & { _key: string };
@@ -65,6 +66,7 @@ export function RepeaterField({
 	subFields,
 	minItems = 0,
 	maxItems,
+	timezone = "UTC",
 }: RepeaterFieldProps) {
 	const { t } = useLingui();
 	const rawItems = Array.isArray(value) ? value : [];
@@ -194,6 +196,7 @@ export function RepeaterField({
 									onChange={(fieldSlug, fieldValue) =>
 										handleItemChange(item._key, fieldSlug, fieldValue)
 									}
+									timezone={timezone}
 								/>
 							))}
 						</div>
@@ -212,6 +215,7 @@ interface SortableRepeaterItemProps {
 	onToggleCollapse: () => void;
 	onRemove?: () => void;
 	onChange: (fieldSlug: string, value: unknown) => void;
+	timezone: string;
 }
 
 function SortableRepeaterItem({
@@ -222,6 +226,7 @@ function SortableRepeaterItem({
 	onToggleCollapse,
 	onRemove,
 	onChange,
+	timezone,
 }: SortableRepeaterItemProps) {
 	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -288,6 +293,7 @@ function SortableRepeaterItem({
 							subField={sf}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
+							timezone={timezone}
 						/>
 					))}
 				</div>
@@ -300,9 +306,10 @@ interface SubFieldInputProps {
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	timezone: string;
 }
 
-function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
+function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
@@ -351,8 +358,14 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				<Input
 					label={subField.label}
 					type="datetime-local"
-					value={toDatetimeLocalInputValue(value)}
-					onChange={(e) => onChange(fromDatetimeLocalInputValue(e.target.value))}
+					value={toDatetimeLocalInputValue(value, timezone)}
+					onChange={(e) => {
+						try {
+							onChange(fromDatetimeLocalInputValue(e.target.value, timezone));
+						} catch {
+							onChange(e.target.value);
+						}
+					}}
 					required={subField.required}
 				/>
 			);

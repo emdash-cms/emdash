@@ -18,11 +18,7 @@ import { defineMiddleware } from "astro:middleware";
 
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
-import {
-	getCachedRedirects,
-	matchCachedPatterns,
-	setCachedRedirects,
-} from "../../redirects/cache.js";
+import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 
 /** Paths that should never be intercepted by redirects */
@@ -68,11 +64,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// One query loads both exact and pattern rules into the cache; warm
 		// requests issue zero queries. Empty-redirect sites cache an empty
 		// Map + array, so the next request returns immediately without probing.
-		let cached = getCachedRedirects();
-		if (!cached) {
-			const all = await repo.findAllEnabled();
-			cached = setCachedRedirects(all);
-		}
+		const cached = await loadCachedRedirects(() => repo.findAllEnabled());
 
 		// 1. Exact match (O(1) Map lookup)
 		let exact = cached.exact.get(pathname);
@@ -112,8 +104,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
 
-		// Log 404s for unmatched paths (fire-and-forget)
-		if (response.status === 404) {
+		// Log misses (fire-and-forget) under the path the visitor requested.
+		// Two shapes count as a miss: an unmatched route rendering the error
+		// page with status 404, and a matched route answering a content miss
+		// with a redirect to /404 (the documented template pattern) — there the
+		// missed path exists only on this first pass, before the browser
+		// follows the redirect. The error page itself is never logged: /404
+		// answers 404 by design and carries no path information.
+		const location = response.headers.get("location");
+		const missedByRedirect =
+			isRedirectCode(response.status) && (location === "/404" || location === "/404/");
+		const missedDirectly = response.status === 404 && pathname !== "/404" && pathname !== "/404/";
+		if (missedDirectly || missedByRedirect) {
 			const referrer = context.request.headers.get("referer") ?? null;
 			const userAgent = context.request.headers.get("user-agent") ?? null;
 			repo

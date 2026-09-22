@@ -1,15 +1,38 @@
-import type { Kysely } from "kysely";
+import type {
+	Kysely,
+	KyselyPlugin,
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
 import { sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
 import {
 	runMigrations,
+	getExactMigrationStatus,
 	getMigrationStatus,
 	MIGRATION_COUNT,
+	MIGRATION_NAMES,
 } from "../../../src/database/migrations/runner.js";
 import type { Database } from "../../../src/database/types.js";
 import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
+
+class QueryCountingPlugin implements KyselyPlugin {
+	count = 0;
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.count += 1;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
 
 describe("Database Migrations (Integration)", () => {
 	let db: Kysely<Database>;
@@ -51,7 +74,11 @@ describe("Database Migrations (Integration)", () => {
 			"_emdash_byline_field_group_values",
 			"_emdash_media_usage_sources",
 			"_emdash_media_usage",
+			"_emdash_media_usage_cleanup",
+			"_emdash_media_usage_generation_writes",
+			"_emdash_media_usage_cleanup_fence",
 			"_emdash_media_usage_index_status",
+			"_emdash_media_usage_collection_deletions",
 		];
 
 		for (const table of tables) {
@@ -118,29 +145,10 @@ describe("Database Migrations (Integration)", () => {
 		await db.destroy();
 		db = await setupTestDatabaseWithCollections();
 
-		// Kysely only re-runs trailing entries; include the latest migrations.
-		const trailing = [
-			"034_published_at_index",
-			"035_bounded_404_log",
-			"036_i18n_menus_and_taxonomies",
-			"037_credential_algorithm",
-			"038_registry_plugin_state",
-			"039_fix_fts5_triggers",
-			"040_byline_i18n",
-			"041_content_locale_list_index",
-			"042_byline_fields",
-			"043_content_references",
-			"044_comment_reactions",
-			"045_taxonomy_parent_group",
-			"046_media_usage_index",
-			"047_restore_taxonomy_parent_index",
-			"048_restore_content_taxonomies_term_index",
-			"049_taxonomies_name_locale_index",
-			"050_media_usage_index_status",
-			"051_content_taxonomies_denorm",
-			"052_media_usage_read_index",
-			"053_plugin_mcp_tools",
-		];
+		// Kysely requires the retained migration records to form a contiguous prefix.
+		const start = MIGRATION_NAMES.indexOf("034_published_at_index");
+		expect(start).toBeGreaterThanOrEqual(0);
+		const trailing = MIGRATION_NAMES.slice(start);
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
 
@@ -164,6 +172,92 @@ describe("Database Migrations (Integration)", () => {
 		expect(statusAfter.applied).toContain("001_initial");
 		expect(statusAfter.applied).toContain("002_media_status");
 		expect(statusAfter.pending).toHaveLength(0);
+	});
+
+	describe("exact migration status", () => {
+		it("registers each migration under a unique increasing sequence number", () => {
+			const sequence = MIGRATION_NAMES.map((name) => Number(name.slice(0, 3)));
+
+			expect(MIGRATION_NAMES).toEqual(MIGRATION_NAMES.toSorted());
+			expect(sequence.every(Number.isInteger)).toBe(true);
+			expect(new Set(sequence)).toHaveLength(sequence.length);
+			expect(sequence).toEqual(sequence.toSorted((left, right) => left - right));
+		});
+
+		it("exports the registered migration names in execution order", async () => {
+			await runMigrations(db);
+			const rows = await db
+				.selectFrom("_emdash_migrations")
+				.select("name")
+				.orderBy("timestamp")
+				.execute();
+
+			expect(MIGRATION_NAMES).toEqual(rows.map((row) => row.name));
+			expect(MIGRATION_NAMES).toHaveLength(MIGRATION_COUNT);
+			expect(Object.isFrozen(MIGRATION_NAMES)).toBe(true);
+		});
+
+		it("reports every registered migration as pending for a fresh database", async () => {
+			const counter = new QueryCountingPlugin();
+
+			await expect(getExactMigrationStatus(db.withPlugin(counter))).resolves.toEqual({
+				knownApplied: [],
+				pending: MIGRATION_NAMES,
+				unknownApplied: [],
+			});
+			expect(counter.count).toBe(1);
+		});
+
+		it("recognizes a missing schema-qualified migration table", async () => {
+			await sql`ATTACH DATABASE ':memory:' AS migration_status`.execute(db);
+
+			await expect(
+				getExactMigrationStatus(db, { migrationTableSchema: "migration_status" }),
+			).resolves.toEqual({
+				knownApplied: [],
+				pending: MIGRATION_NAMES,
+				unknownApplied: [],
+			});
+		});
+
+		it("reports a current database with one migration-table query", async () => {
+			await runMigrations(db);
+			const counter = new QueryCountingPlugin();
+
+			await expect(getExactMigrationStatus(db.withPlugin(counter))).resolves.toEqual({
+				knownApplied: MIGRATION_NAMES,
+				pending: [],
+				unknownApplied: [],
+			});
+			expect(counter.count).toBe(1);
+		});
+
+		it("reports pending and unknown names in deterministic order", async () => {
+			await runMigrations(db);
+			const pending = [MIGRATION_NAMES[1]!, MIGRATION_NAMES.at(-2)!];
+			await db.deleteFrom("_emdash_migrations").where("name", "in", pending).execute();
+			await db
+				.insertInto("_emdash_migrations")
+				.values([
+					{ name: "999_future_z", timestamp: new Date().toISOString() },
+					{ name: "999_future_a", timestamp: new Date().toISOString() },
+				])
+				.execute();
+
+			const status = await getExactMigrationStatus(db);
+
+			expect(status.knownApplied).toEqual(
+				MIGRATION_NAMES.filter((name) => !pending.includes(name)),
+			);
+			expect(status.pending).toEqual(pending);
+			expect(status.unknownApplied).toEqual(["999_future_a", "999_future_z"]);
+		});
+
+		it("rethrows migration-table query errors other than a missing table", async () => {
+			await sql`CREATE TABLE _emdash_migrations (unexpected TEXT)`.execute(db);
+
+			await expect(getExactMigrationStatus(db)).rejects.toThrow(/no such column.*name/i);
+		});
 	});
 
 	it("should create schema registry tables", async () => {
@@ -424,7 +518,7 @@ describe("Database Migrations (Integration)", () => {
 			EXPLAIN QUERY PLAN
 			SELECT * FROM "taxonomies"
 			WHERE "name" = ${"category"} AND "locale" = ${"en"}
-			ORDER BY "label" ASC, "id" ASC
+			ORDER BY "sort_order" ASC, "label" ASC, "id" ASC
 		`.execute(db);
 		const details = plan.rows.map((r) => r.detail).join("\n");
 

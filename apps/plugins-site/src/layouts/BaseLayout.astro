@@ -1,0 +1,192 @@
+---
+import { Font } from "astro:assets";
+
+import Logo from "../components/Logo.astro";
+import "../styles/global.css";
+
+interface Props {
+	title?: string;
+	description?: string;
+	canonical?: string;
+	image?: string;
+}
+
+const {
+	title = "EmDash Plugins",
+	description = "Discover plugins for EmDash, the Astro-native content management system.",
+	canonical = Astro.url.pathname,
+	image,
+} = Astro.props;
+const pageTitle =
+	title === "EmDash Plugins" ? title : `${title} · EmDash Plugins`;
+const canonicalUrl = new URL(canonical, Astro.site ?? Astro.url.origin);
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="description" content={description} />
+		<meta name="theme-color" content="#f9f9f9" />
+		<link rel="canonical" href={canonicalUrl} />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="EmDash Plugins" />
+		<meta property="og:title" content={pageTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalUrl} />
+		{image && <meta property="og:image" content={image} />}
+		<meta
+			name="twitter:card"
+			content={image ? "summary_large_image" : "summary"}
+		/>
+		<title>{pageTitle}</title>
+		{import.meta.env.PROD && <Font cssVariable="--font-sans" preload />}
+		<script is:inline>
+			(() => {
+				const stored = localStorage.getItem("emdash-theme");
+				const theme =
+					stored === "light" || stored === "dark" ? stored : "system";
+				const resolved =
+					theme === "system"
+						? matchMedia("(prefers-color-scheme: dark)").matches
+							? "dark"
+							: "light"
+						: theme;
+				document.documentElement.dataset.theme = resolved;
+				document.documentElement.dataset.themePreference = theme;
+			})();
+		</script>
+	</head>
+	<body>
+		<header class="site-header">
+			<nav class="site-nav shell" aria-label="Primary navigation">
+				<a class="brand-link" href="/" aria-label="EmDash Plugins home"
+					><Logo /></a
+				>
+				<div class="nav-links">
+					<a href="https://emdashcms.com">EmDash</a>
+					<a href="https://docs.emdashcms.com/">Docs</a>
+					<a href="https://docs.emdashcms.com/plugins/creating-plugins/choosing-a-format/"
+						>Build a plugin</a
+					>
+				</div>
+				<a class="nav-cta" href="https://try.emdashcms.com">Try EmDash</a>
+			</nav>
+		</header>
+
+		<main><slot /></main>
+
+		<footer class="site-footer">
+			<div class="footer-grid shell">
+				<div class="footer-brand">
+					<a class="brand-link" href="/" aria-label="EmDash Plugins home"
+						><Logo compact /></a
+					>
+					<p>Open-source plugins for an Astro-native CMS.</p>
+				</div>
+				<nav aria-label="Footer navigation">
+					<div>
+						<h2>Plugins</h2>
+						<a href="/">Browse</a>
+						<a href="https://docs.emdashcms.com/plugins/creating-plugins/choosing-a-format/"
+							>Build a plugin</a
+						>
+						<a
+							href="https://docs.emdashcms.com/plugins/creating-plugins/publishing/"
+							>Publish</a
+						>
+					</div>
+					<div>
+						<h2>EmDash</h2>
+						<a href="https://emdashcms.com">Home</a>
+						<a href="https://docs.emdashcms.com">Documentation</a>
+						<a href="https://github.com/emdash-cms/emdash">GitHub</a>
+					</div>
+					<div>
+						<h2>Community</h2>
+						<a href="https://discord.gg/YY9vBaQRYt">Discord</a>
+						<a href="https://github.com/emdash-cms/emdash/discussions"
+							>Discussions</a
+						>
+					</div>
+				</nav>
+			</div>
+			<div class="footer-bottom shell">
+				<span>© {new Date().getFullYear()} EmDash CMS</span>
+				<div class="theme-toggle">
+					<button
+						type="button"
+						aria-label="Switch to dark"
+						title="Switch to dark"
+					>
+						<svg
+							class="theme-icon sun-icon"
+							viewBox="0 0 20 20"
+							aria-hidden="true"
+						>
+							<circle cx="10" cy="10" r="3.25"></circle>
+							<path
+								d="M10 1.75v1.5m0 13.5v1.5M1.75 10h1.5m13.5 0h1.5M4.17 4.17l1.06 1.06m9.54 9.54 1.06 1.06m0-11.66-1.06 1.06m-9.54 9.54-1.06 1.06"
+							></path>
+						</svg>
+						<svg
+							class="theme-icon moon-icon"
+							viewBox="0 0 20 20"
+							aria-hidden="true"
+						>
+							<path d="M16.7 12.4A7 7 0 0 1 7.6 3.3a7 7 0 1 0 9.1 9.1Z"></path>
+						</svg>
+						<span class="visually-hidden">Switch to dark</span>
+					</button>
+				</div>
+			</div>
+		</footer>
+
+		<script>
+			import { toggledThemePreference } from "../lib/theme.js";
+
+			const query = matchMedia("(prefers-color-scheme: dark)");
+			const button = document.querySelector<HTMLButtonElement>(
+				".theme-toggle button",
+			);
+			const applyTheme = (preference: "light" | "dark" | "system") => {
+				const resolved =
+					preference === "system"
+						? query.matches
+							? "dark"
+							: "light"
+						: preference;
+				document.documentElement.dataset.theme = resolved;
+				document.documentElement.dataset.themePreference = preference;
+				if (preference === "system") localStorage.removeItem("emdash-theme");
+				else localStorage.setItem("emdash-theme", preference);
+				const label =
+					resolved === "light" ? "Switch to dark" : "Switch to light";
+				button?.setAttribute("aria-label", label);
+				button?.setAttribute("title", label);
+				const hiddenLabel =
+					button?.querySelector<HTMLElement>(".visually-hidden");
+				if (hiddenLabel) hiddenLabel.textContent = label;
+			};
+
+			button?.addEventListener("click", () => {
+				const resolved =
+					document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+				const systemTheme = query.matches ? "dark" : "light";
+				applyTheme(toggledThemePreference(resolved, systemTheme));
+			});
+			query.addEventListener("change", () => {
+				if (document.documentElement.dataset.themePreference === "system")
+					applyTheme("system");
+			});
+			applyTheme(
+				document.documentElement.dataset.themePreference === "light" ||
+					document.documentElement.dataset.themePreference === "dark"
+					? document.documentElement.dataset.themePreference
+					: "system",
+			);
+		</script>
+	</body>
+</html>

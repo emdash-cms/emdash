@@ -37,13 +37,7 @@ export function extractMediaUsageOccurrences({
 		const value = data[field.slug];
 
 		if (field.type === "image") {
-			addOccurrence(occurrences, seen, {
-				fieldSlug: field.slug,
-				fieldPath: field.slug,
-				referenceType: "image_field",
-				value,
-				fallbackKind: "image",
-			});
+			addImageOccurrences(occurrences, seen, field.slug, field.slug, value);
 			continue;
 		}
 
@@ -86,14 +80,39 @@ function extractRepeaterOccurrences(
 		for (const subField of subFields) {
 			if (subField.type !== "image") continue;
 
-			addOccurrence(occurrences, seen, {
+			addImageOccurrences(
+				occurrences,
+				seen,
 				fieldSlug,
-				fieldPath: `${fieldSlug}[${itemIndex}].${subField.slug}`,
-				referenceType: "image_field",
-				value: item[subField.slug],
-				fallbackKind: "image",
-			});
+				`${fieldSlug}[${itemIndex}].${subField.slug}`,
+				item[subField.slug],
+			);
 		}
+	}
+}
+
+function addImageOccurrences(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	fieldSlug: string,
+	fieldPath: string,
+	value: unknown,
+): void {
+	addOccurrence(occurrences, seen, {
+		fieldSlug,
+		fieldPath,
+		referenceType: "image_field",
+		value,
+		fallbackKind: "image",
+	});
+	if (isRecord(value) && value.darkVariant != null) {
+		addOccurrence(occurrences, seen, {
+			fieldSlug,
+			fieldPath: `${fieldPath}.darkVariant`,
+			referenceType: "image_field",
+			value: value.darkVariant,
+			fallbackKind: "image",
+		});
 	}
 }
 
@@ -106,24 +125,59 @@ function extractPortableTextOccurrences(
 	if (!Array.isArray(value)) return;
 
 	for (const [blockIndex, block] of value.entries()) {
-		if (!isRecord(block) || block._type !== "image" || !isRecord(block.asset)) continue;
+		if (!isRecord(block)) continue;
 
-		const provider = normalizeProvider(block.asset.provider);
-		const ref = readPortableTextAssetRef(block.asset, provider);
-		if (!ref) continue;
+		if (block._type === "image") {
+			addPortableTextAssetOccurrence(
+				occurrences,
+				seen,
+				fieldSlug,
+				`${fieldSlug}[${blockIndex}]`,
+				block.asset,
+			);
+			continue;
+		}
 
-		addRefOccurrence(occurrences, seen, {
-			fieldSlug,
-			fieldPath: `${fieldSlug}[${blockIndex}].asset.${ref.key}`,
-			referenceType: "portable_text_image",
-			ref: buildMediaRef({
-				id: ref.id,
-				provider,
-				mimeType: normalizeMimeValue(block.asset.mimeType),
-				fallbackKind: "image",
-			}),
-		});
+		// A gallery block holds its images in `images[]`, each with its own asset.
+		if (block._type === "gallery" && Array.isArray(block.images)) {
+			for (const [imageIndex, image] of block.images.entries()) {
+				if (!isRecord(image)) continue;
+				addPortableTextAssetOccurrence(
+					occurrences,
+					seen,
+					fieldSlug,
+					`${fieldSlug}[${blockIndex}].images[${imageIndex}]`,
+					image.asset,
+				);
+			}
+		}
 	}
+}
+
+function addPortableTextAssetOccurrence(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	fieldSlug: string,
+	pathPrefix: string,
+	asset: unknown,
+): void {
+	if (!isRecord(asset)) return;
+
+	const provider = normalizeProvider(asset.provider);
+	const ref = readPortableTextAssetRef(asset, provider);
+	if (!ref) return;
+
+	addRefOccurrence(occurrences, seen, {
+		fieldSlug,
+		fieldPath: `${pathPrefix}.asset.${ref.key}`,
+		referenceType: "portable_text_image",
+		ref: buildMediaRef({
+			id: ref.id,
+			provider,
+			mimeType: normalizeMimeValue(asset.mimeType),
+			fallbackKind: "image",
+		}),
+	});
 }
 
 function addOccurrence(

@@ -94,6 +94,23 @@ describe("CommentRepository", () => {
 	// -------------------------------------------------------------------------
 
 	describe("Status transitions", () => {
+		it("applies exactly one concurrent expected-status transition", async () => {
+			const created = await repo.create(makeInput({ status: "pending" }));
+			const results = await Promise.all([
+				repo.updateStatusIf(created.id, "approved", "pending"),
+				repo.updateStatusIf(created.id, "spam", "pending"),
+			]);
+			expect(results.filter((result) => result.state === "updated")).toHaveLength(1);
+			expect(results.filter((result) => result.state === "conflict")).toHaveLength(1);
+		});
+
+		it("does not update timestamps or report a transition for an unchanged status", async () => {
+			const created = await repo.create(makeInput({ status: "pending" }));
+			await expect(repo.updateStatusIf(created.id, "pending", "pending")).resolves.toEqual({
+				state: "unchanged",
+				comment: created,
+			});
+		});
 		it("updateStatus changes status", async () => {
 			const created = await repo.create(makeInput());
 			const updated = await repo.updateStatus(created.id, "approved");
@@ -227,6 +244,19 @@ describe("CommentRepository", () => {
 	// -------------------------------------------------------------------------
 
 	describe("Cursor pagination", () => {
+		it("paginates plugin administration reads and excludes trash from list and count", async () => {
+			for (let index = 0; index < 3; index++) {
+				await repo.create(makeInput({ body: `Visible ${index}`, status: "pending" }));
+			}
+			await repo.create(makeInput({ body: "Trashed", status: "trash" }));
+
+			const first = await repo.findForPlugin({ limit: 2 });
+			expect(first.items).toHaveLength(2);
+			expect(first.nextCursor).toBeTruthy();
+			const second = await repo.findForPlugin({ limit: 2, cursor: first.nextCursor });
+			expect(second.items).toHaveLength(1);
+			await expect(repo.countForPlugin()).resolves.toBe(3);
+		});
 		it("findByContent paginates with cursor", async () => {
 			// Create 5 comments
 			for (let i = 0; i < 5; i++) {

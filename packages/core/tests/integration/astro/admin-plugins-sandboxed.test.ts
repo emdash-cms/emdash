@@ -15,9 +15,14 @@ import { GET as listPlugins } from "../../../src/astro/routes/api/admin/plugins/
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime, type SandboxedPluginEntry } from "../../../src/emdash-runtime.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-function buildRuntime(db: Kysely<Database>, entries: SandboxedPluginEntry[]): EmDashRuntime {
+function buildRuntime(
+	db: Kysely<Database>,
+	entries: SandboxedPluginEntry[],
+	sandboxedPlugins: Map<string, SandboxedPluginInstance> = new Map(),
+): EmDashRuntime {
 	const config: EmDashConfig = {};
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline([], pipelineFactoryOptions);
@@ -39,7 +44,7 @@ function buildRuntime(db: Kysely<Database>, entries: SandboxedPluginEntry[]): Em
 		db,
 		storage: null,
 		configuredPlugins: [],
-		sandboxedPlugins: new Map(),
+		sandboxedPlugins,
 		sandboxedPluginEntries: entries,
 		hooks,
 		enabledPlugins: new Set(),
@@ -135,5 +140,61 @@ describe("admin plugin routes: statically-sandboxed plugins (real runtime)", () 
 		expect(on.status).toBe(200);
 		body = await listIds(runtime);
 		expect(body.items.find((p) => p.id === "webhook-notifier")?.enabled).toBe(true);
+	});
+
+	it("rejects plugin lifecycle changes while media usage activation is incomplete", async () => {
+		await db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "activating" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+
+		const response = await enablePlugin(ctx(runtime, { id: "webhook-notifier" }));
+
+		expect(response.status).toBe(503);
+		expect((await response.json()) as unknown).toEqual({
+			success: false,
+			error: {
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				message: "Media usage activation is in progress",
+			},
+		});
+	});
+
+	it("preserves a sandboxed content-write fence as a retryable route error", async () => {
+		const routeError = Object.assign(new Error("Media usage activation is in progress"), {
+			name: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+			code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+			status: 503,
+		});
+		const plugin: SandboxedPluginInstance = {
+			id: "content-writer:1.0.0",
+			invokeHook: async () => undefined,
+			invokeRoute: async () => {
+				throw routeError;
+			},
+			terminate: async () => undefined,
+		};
+		const sandboxedRuntime = buildRuntime(
+			db,
+			[sandboxedEntry({ id: "content-writer", version: "1.0.0" })],
+			new Map([[plugin.id, plugin]]),
+		);
+
+		const result = await sandboxedRuntime.handlePluginApiRoute(
+			"content-writer",
+			"POST",
+			"/write",
+			new Request("http://test.local/_emdash/api/plugins/content-writer/write"),
+		);
+
+		expect(result).toEqual({
+			success: false,
+			status: 503,
+			error: {
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				message: "Media usage activation is in progress",
+			},
+		});
 	});
 });

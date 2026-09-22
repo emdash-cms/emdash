@@ -175,11 +175,30 @@ describe("Registry handlers", () => {
 				})
 				.execute();
 
+			const encoder = new TextEncoder();
+			await storage.upload({
+				key: "registry/r_bbbbbbbbbbbbbbbb/0.1.0/manifest.json",
+				body: encoder.encode("{}"),
+				contentType: "application/json",
+			});
+			let cleanupSawState = false;
 			const result = await handleRegistryUninstall(db, storage, "r_bbbbbbbbbbbbbbbb", {
 				deleteData: true,
+				beforeDelete: async () => {
+					cleanupSawState =
+						(
+							await db
+								.selectFrom("_plugin_storage")
+								.select("id")
+								.where("plugin_id", "=", "r_bbbbbbbbbbbbbbbb")
+								.executeTakeFirst()
+						)?.id === "k" &&
+						(await storage.exists("registry/r_bbbbbbbbbbbbbbbb/0.1.0/manifest.json"));
+				},
 			});
 			expect(result.success).toBe(true);
 			expect(result.data?.dataDeleted).toBe(true);
+			expect(cleanupSawState).toBe(true);
 
 			const rows = await db
 				.selectFrom("_plugin_storage")

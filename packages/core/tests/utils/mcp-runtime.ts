@@ -15,6 +15,7 @@
 import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
@@ -69,6 +70,7 @@ function createAuthenticatedPair(authInfo: {
 	userId: string;
 	userRole: RoleLevel;
 	tokenScopes?: string[];
+	cache?: APIContext["cache"];
 }): [AuthInjectingTransport, InMemoryTransport] {
 	const clientTransport = new AuthInjectingTransport(authInfo);
 	const serverTransport = new InMemoryTransport();
@@ -249,6 +251,8 @@ export interface ConnectMcpOptions {
 	userId: string;
 	userRole: RoleLevel;
 	tokenScopes?: string[];
+	/** Route cache handed to the tools, as the MCP route passes Astro's `cache`. */
+	cache?: APIContext["cache"];
 	runtimeOptions?: TestRuntimeOptions;
 }
 
@@ -269,6 +273,7 @@ export async function connectMcpHarness(opts: ConnectMcpOptions): Promise<McpHar
 		userId: opts.userId,
 		userRole: opts.userRole,
 		tokenScopes: opts.tokenScopes,
+		cache: opts.cache,
 	});
 
 	const client = new Client({ name: "test", version: "1.0" });
@@ -307,6 +312,28 @@ export function extractText(result: unknown): string {
 	const r = result as ToolResult;
 	const block = r.content?.[0];
 	return typeof block?.text === "string" ? block.text : "";
+}
+
+/** The `_rev` a content tool returned, for the next write in a chain. */
+export function revOf(result: unknown): string {
+	return extractJson<{ _rev: string }>(result)._rev;
+}
+
+/** Reads an item's current `_rev`, for tests whose subject is not concurrency. */
+export async function currentRev(
+	client: {
+		callTool: (req: { name: string; arguments: Record<string, unknown> }) => Promise<unknown>;
+	},
+	collection: string,
+	id: string,
+	locale?: string,
+): Promise<string> {
+	return revOf(
+		await client.callTool({
+			name: "content_get",
+			arguments: locale ? { collection, id, locale } : { collection, id },
+		}),
+	);
 }
 
 /** Parse the JSON success payload of a tool result. Throws if the call errored. */

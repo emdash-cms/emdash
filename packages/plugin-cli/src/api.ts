@@ -40,6 +40,16 @@ export {
 	publishRelease,
 } from "./publish/api.js";
 
+export {
+	canonicalGitHubRepository,
+	type PackageProfilePublisher,
+	type PackageProfileSetupErrorCode,
+	type SetupPackageProfileOptions,
+	type SetupPackageProfileResult,
+	PackageProfileSetupError,
+	setupPackageProfile,
+} from "./profile/setup.js";
+
 // `sanitiseSlug` was previously exported from `./publish/api.js`. The
 // canonical helper now lives in `@emdash-cms/plugin-types` as
 // `deriveSlugFromId` (alongside the validation regex constants and
@@ -62,6 +72,8 @@ export {
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
 	type PluginAdminConfig,
+	type PluginEditorPanel,
+	type PluginEditorAction,
 	type PluginCapability,
 	type PluginManifest,
 	type PluginStorageConfig,

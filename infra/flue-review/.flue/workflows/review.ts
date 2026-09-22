@@ -2,7 +2,8 @@
 //
 // Reviews one pull request and returns structured findings plus a verdict. No
 // firecracker container: the PR is hydrated into a durable cf-shell Workspace
-// (DO SQLite + R2 for large files) via JS git, and the agent inspects it with a
+// (DO SQLite + R2 for large files) from the GitHub tarball of the PR head, and
+// the agent inspects it with a
 // Worker-Loader-backed `code` tool. It does NOT post to GitHub: the workflow's
 // trusted Action code posts with a write-scoped installation token, so no
 // secret is ever reachable by the model.
@@ -16,8 +17,6 @@
 // agent initializer and the clone performed in the Action target the exact same
 // DO SQLite + R2 namespace.
 
-import { WorkspaceFileSystem } from "@cloudflare/shell";
-import { createGit } from "@cloudflare/shell/git";
 import {
 	defineAgent,
 	defineWorkflow,
@@ -28,23 +27,31 @@ import { getCloudflareContext, getDurableObjectIdentity } from "@flue/runtime/cl
 import * as v from "valibot";
 
 import { withCapacityRetry } from "../lib/capacity.js";
+import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
-	mintInstallationToken,
+	githubRateLimitGate,
 	fetchUnifiedDiff,
-	fetchPullRequestHeadSha,
+	fetchPullRequestRevision,
+	classifyPullRequestHeadMove,
 	fetchPriorReview,
 	postReview,
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
+	type GitHubToken,
 } from "../lib/github.js";
+import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
+import { omitReviewArtifacts } from "../lib/review-context.js";
+import { formatReviewFailureSummary } from "../lib/review-failure.js";
+import { reviewUntilCurrentHead, type PullRequestRevision } from "../lib/review-head.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
 	getReviewWatchdog,
 	type ReviewStage,
 	type ReviewTerminal,
 } from "../lib/review-watchdog.js";
+import { untarInto } from "../lib/untar.js";
 import { getDefaultWorkspace, getShellSandbox } from "../sandboxes/cloudflare-shell.js";
 import review from "../skills/review/SKILL.md" with { type: "skill" };
 
@@ -52,6 +59,7 @@ const reviewPayloadSchema = v.object({
 	prNumber: v.number(),
 	prTitle: v.string(),
 	prBody: v.string(),
+	authorLogin: v.optional(v.string()),
 	headRef: v.string(),
 	// Optional only so persisted pre-observability runs remain readable; run() fails closed without them.
 	headSha: v.optional(v.string()),
@@ -64,6 +72,12 @@ const reviewPayloadSchema = v.object({
 	deliveryId: v.optional(v.string()),
 	checkRunId: v.optional(v.number()),
 });
+
+async function coordinatedToken(env: Env, consumer: string): Promise<GitHubToken> {
+	const gate = githubRateLimitGate(env);
+	const token = await gate.getInstallationToken();
+	return { token, gate, consumer };
+}
 
 type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
 
@@ -128,6 +142,7 @@ const reviewAgent = defineAgent<Env>(({ env }) => {
 	return {
 		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
 		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		compaction: REVIEW_COMPACTION,
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
 		instructions: [
@@ -158,35 +173,56 @@ function buildPrContext(payload: ReviewPayload, priorReview?: string): string {
 	return lines.join("\n");
 }
 
-// Hydrate the PR into the durable Workspace via JS git (shallow clone of base,
-// then fetch + checkout the PR head -- refs/pull/N/head covers fork PRs). Large
-// objects (the git packfile) spill to R2 under the workspace name. Idempotent:
-// a HYDRATED marker skips re-cloning on workflow re-entry.
-async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
-	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
-	if (await workspace.exists(HYDRATED)) return;
+// Hydration stage logs bracket each phase so a hang shows as a start line
+// with no matching end line. R2 operations are instrumented in the shared
+// getDefaultWorkspace.
+function hydrateStep(payload: ReviewPayload, step: string, startedAt: number): void {
+	console.log(
+		JSON.stringify({
+			message: "hydrate step",
+			step,
+			ms: Date.now() - startedAt,
+			attemptId: payload.attemptId,
+			prNumber: payload.prNumber,
+		}),
+	);
+}
 
-	const fs = new WorkspaceFileSystem(workspace);
-	const cloneUrl = `https://github.com/${payload.owner}/${payload.repo}.git`;
-	const git = createGit(fs);
-	await git.clone({
-		url: cloneUrl,
-		dir: REPO_DIR,
-		branch: payload.baseRef,
-		singleBranch: true,
-		depth: 1,
-	});
-	const fetched = await git.fetch({
-		ref: `pull/${payload.prNumber}/head`,
-		depth: 1,
-		dir: REPO_DIR,
-	});
-	if (!fetched.fetchHead) throw new Error("PR head fetch did not return a commit");
-	if (payload.headSha && fetched.fetchHead.toLowerCase() !== payload.headSha.toLowerCase()) {
-		throw new Error("PR head changed after the review was requested");
+// Hydrate the PR into the durable Workspace from the GitHub tarball of the PR
+// head SHA (reachable in the base repo for fork PRs too). No git objects and
+// no pack indexing: pure-JS pack inflation in the DO stops completing once
+// the repo's shallow pack grows past roughly 16MB, so hydration must not
+// depend on git. gzip decompression is the runtime-native DecompressionStream.
+// Idempotent for one head and replaceable when a re-review advances to a new head.
+async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+	const t0 = Date.now();
+	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
+	hydrateStep(payload, "workspace created", t0);
+	if (!payload.headSha) throw new Error("hydrate requires the PR head SHA");
+	const hydratedHead = await workspace.readFile(HYDRATED);
+	if (hydratedHead?.trim().toLowerCase() === payload.headSha.toLowerCase()) {
+		await omitReviewArtifacts(workspace, REPO_DIR);
+		hydrateStep(payload, "already hydrated", t0);
+		return;
 	}
-	await git.checkout({ ref: fetched.fetchHead, dir: REPO_DIR, force: true });
-	await workspace.writeFile(HYDRATED, new Date().toISOString());
+	await workspace.rm(REPO_DIR, { recursive: true, force: true });
+
+	const url = `https://api.github.com/repos/${payload.owner}/${payload.repo}/tarball/${payload.headSha}`;
+	const response = await fetch(url, {
+		headers: { "User-Agent": "emdash-flue-review", Accept: "application/vnd.github+json" },
+	});
+	if (!response.ok || !response.body) {
+		throw new Error(`tarball fetch failed: ${response.status} ${await response.text()}`);
+	}
+	hydrateStep(payload, "tarball response", t0);
+
+	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
+	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
+	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
+	await omitReviewArtifacts(workspace, REPO_DIR);
+
+	await workspace.writeFile(HYDRATED, payload.headSha);
+	hydrateStep(payload, "hydrated", t0);
 }
 
 function logReviewEvent(
@@ -212,7 +248,7 @@ function logReviewEvent(
 
 async function reportStage(
 	env: Env,
-	token: string | undefined,
+	token: GitHubToken | undefined,
 	payload: ReviewPayload,
 	runId: string,
 	stage: ReviewStage,
@@ -280,7 +316,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 	// GitHub access lives only in this trusted Action code, never in the agent's
 	// workspace. Without app creds (local dev) we skip posting and return.
 	const creds = readAppCreds(env);
-	let token: string | undefined;
+	let token: GitHubToken | undefined;
 	let priorReview: string | undefined;
 	let reactionId: number | undefined;
 	let stage: ReviewStage = "admitted";
@@ -302,132 +338,181 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			throw new Error("Review attempt is no longer active");
 		}
 		if (creds) {
-			token = await mintInstallationToken(creds);
+			token = await coordinatedToken(env, `review-workflow:${payload.attemptId ?? runId}`);
 			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
 			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
 		}
 
-		// Hydrate the Workspace (clone + checkout the PR head) into the same DO
-		// SQLite + R2 namespace the agent's sandbox reads from.
-		stage = "hydrating";
-		if (
-			!(await reportStage(env, token, payload, runId, "hydrating", "Preparing the PR workspace."))
-		) {
-			throw new Error("Review attempt is no longer active");
-		}
-		await hydrate(env, payload);
+		const initialRevision = { headSha: payload.headSha, baseSha: payload.baseSha };
+		const reviewRevision = async (revision: PullRequestRevision): Promise<ReviewResult> => {
+			const activePayload = { ...payload, ...revision };
 
-		const session = await context.harness.session();
-
-		// Stage the canonical unified diff into the Workspace (no `git` in cf-shell).
-		stage = "fetching_diff";
-		if (
-			!(await reportStage(
-				env,
-				token,
-				payload,
-				runId,
-				"fetching_diff",
-				"Fetching the canonical PR diff.",
-			))
-		) {
-			throw new Error("Review attempt is no longer active");
-		}
-		const diff = await fetchUnifiedDiff(
-			payload.owner,
-			payload.repo,
-			payload.prNumber,
-			token,
-			payload.baseSha,
-			payload.headSha,
-		);
-		await context.harness.fs.writeFile(DIFF_PATH, diff);
-
-		stage = "model_review";
-		if (
-			!(await reportStage(
-				env,
-				token,
-				payload,
-				runId,
-				"model_review",
-				"The model is reviewing the diff.",
-			))
-		) {
-			throw new Error("Review attempt is no longer active");
-		}
-		const { data } = await withCapacityRetry(
-			(signal) =>
-				session.skill("review", {
-					args: {
-						prContext: buildPrContext(payload, priorReview),
-						owner: payload.owner,
-						repo: payload.repo,
-						prNumber: payload.prNumber,
-						baseRef: payload.baseRef,
-						headRef: payload.headRef,
-						repoDir: REPO_DIR,
-						diffPath: DIFF_PATH,
-					},
-					result: reviewResultSchema,
-					signal,
-				}),
-			{
-				label: `review#${payload.prNumber}`,
-				attempts: 3,
-				perAttemptTimeoutMs: 30 * 60_000,
-				onRetry: ({ attempt, delayMs, error }) =>
-					context.log.warn?.("[review] model over capacity, backing off", {
-						prNumber: payload.prNumber,
-						attempt,
-						delayMs,
-						error: String(error),
-					}),
-			},
-		);
-
-		logReviewEvent("log", payload, runId, "review model result received", {
-			hasToken: Boolean(token),
-			verdict: data.verdict,
-			summaryLength: data.summary.length,
-			findingCount: data.findings.length,
-		});
-
-		if (token) {
-			stage = "posting_review";
+			stage = "hydrating";
 			if (
 				!(await reportStage(
 					env,
 					token,
-					payload,
+					activePayload,
 					runId,
-					"posting_review",
-					"Posting the review to GitHub.",
+					"hydrating",
+					"Preparing the PR workspace.",
 				))
 			) {
 				throw new Error("Review attempt is no longer active");
 			}
-			if (payload.headSha) {
-				const currentHeadSha = await fetchPullRequestHeadSha(
+			await hydrate(env, activePayload);
+
+			const session = await context.harness.session(`review-${revision.headSha}`);
+
+			stage = "fetching_diff";
+			if (
+				!(await reportStage(
+					env,
 					token,
-					payload.owner,
-					payload.repo,
-					payload.prNumber,
-				);
-				if (currentHeadSha.toLowerCase() !== payload.headSha.toLowerCase()) {
-					throw new Error("PR head changed before the review could be posted");
-				}
+					activePayload,
+					runId,
+					"fetching_diff",
+					"Fetching the canonical PR diff.",
+				))
+			) {
+				throw new Error("Review attempt is no longer active");
 			}
-			await postReview(
+			const diff = await fetchUnifiedDiff(
+				activePayload.owner,
+				activePayload.repo,
+				activePayload.prNumber,
 				token,
-				payload.owner,
-				payload.repo,
-				payload.prNumber,
-				data,
-				payload.headSha,
-				payload.attemptId,
+				revision.baseSha,
+				revision.headSha,
 			);
+			await context.harness.fs.writeFile(DIFF_PATH, elideLargeDiffSections(diff));
+
+			stage = "model_review";
+			if (
+				!(await reportStage(
+					env,
+					token,
+					activePayload,
+					runId,
+					"model_review",
+					"The model is reviewing the diff.",
+				))
+			) {
+				throw new Error("Review attempt is no longer active");
+			}
+			const { data } = await withCapacityRetry(
+				(signal) =>
+					session.skill("review", {
+						args: {
+							prContext: buildPrContext(activePayload, priorReview),
+							owner: activePayload.owner,
+							repo: activePayload.repo,
+							prNumber: activePayload.prNumber,
+							baseRef: activePayload.baseRef,
+							headRef: activePayload.headRef,
+							repoDir: REPO_DIR,
+							diffPath: DIFF_PATH,
+						},
+						result: reviewResultSchema,
+						signal,
+					}),
+				{
+					label: `review#${activePayload.prNumber}`,
+					attempts: 3,
+					perAttemptTimeoutMs: 30 * 60_000,
+					onRetry: ({ attempt, delayMs, error }) =>
+						context.log.warn?.("[review] model over capacity, backing off", {
+							prNumber: activePayload.prNumber,
+							attempt,
+							delayMs,
+							error: String(error),
+						}),
+				},
+			);
+
+			logReviewEvent("log", activePayload, runId, "review model result received", {
+				hasToken: Boolean(token),
+				verdict: data.verdict,
+				summaryLength: data.summary.length,
+				findingCount: data.findings.length,
+			});
+			return data;
+		};
+
+		let data: ReviewResult;
+		if (token) {
+			const reviewToken = token;
+			data = await reviewUntilCurrentHead(initialRevision, {
+				review: reviewRevision,
+				currentRevision: () =>
+					fetchPullRequestRevision(reviewToken, payload.owner, payload.repo, payload.prNumber),
+				classifyMove: async (fromHeadSha, toHeadSha) => {
+					const move = await classifyPullRequestHeadMove(
+						reviewToken,
+						payload.owner,
+						payload.repo,
+						fromHeadSha,
+						toHeadSha,
+					);
+					logReviewEvent("log", payload, runId, "review head changed", {
+						fromHeadSha,
+						toHeadSha,
+						move,
+					});
+					return move;
+				},
+				publish: async (result, reviewedRevision) => {
+					const reviewedPayload = { ...payload, ...reviewedRevision };
+					stage = "posting_review";
+					if (
+						!(await reportStage(
+							env,
+							reviewToken,
+							reviewedPayload,
+							runId,
+							"posting_review",
+							"Posting the review to GitHub.",
+						))
+					) {
+						throw new Error("Review attempt is no longer active");
+					}
+					await postReview(
+						reviewToken,
+						payload.owner,
+						payload.repo,
+						payload.prNumber,
+						result,
+						reviewedRevision.headSha,
+						payload.attemptId,
+						{
+							pullRequestAuthorLogin: payload.authorLogin,
+							beforeRetry: async ({ retry, maxRetries, delayMs }) => {
+								const retryToken = creds
+									? await coordinatedToken(
+											env,
+											`review-publication-retry:${payload.attemptId ?? runId}`,
+										)
+									: undefined;
+								if (
+									!(await reportStage(
+										env,
+										retryToken,
+										reviewedPayload,
+										runId,
+										"posting_review",
+										`GitHub rate limit wait completed after ${Math.ceil(delayMs / 1_000)} seconds. Retrying review publication (${retry} of ${maxRetries}).`,
+									))
+								) {
+									throw new Error("Review attempt is no longer active");
+								}
+								return retryToken;
+							},
+						},
+					);
+				},
+			});
 		} else {
+			data = await reviewRevision(initialRevision);
 			logReviewEvent("log", payload, runId, "GitHub App credentials unavailable; skipping post");
 		}
 
@@ -441,10 +526,9 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 		logReviewEvent("error", payload, runId, "review run failed", {
 			error: error instanceof Error ? error.message : String(error),
 		});
-		const errorName = error instanceof Error ? error.name : "Error";
 		await finishReviewCheck(env, payload, runId, {
 			conclusion: "failure",
-			summary: `The review failed during the \`${stage}\` stage (\`${errorName}\`). Reapply the \`bot:review\` label to retry.`,
+			summary: formatReviewFailureSummary(stage, error),
 		});
 		throw error;
 	} finally {

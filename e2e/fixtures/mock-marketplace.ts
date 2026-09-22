@@ -1,17 +1,22 @@
 /**
- * Lightweight mock marketplace server for e2e tests.
+ * Lightweight mock marketplace and registry server for e2e tests.
  *
  * Serves canned JSON responses for the endpoints the admin UI hits:
  *   - GET /api/v1/plugins       (search)
  *   - GET /api/v1/plugins/:id   (detail)
  *   - GET /api/v1/themes        (search)
  *   - GET /api/v1/themes/:id    (detail)
+ *   - GET /xrpc/com.emdashcms.experimental.aggregator.getPackage
+ *   - GET /xrpc/com.emdashcms.experimental.aggregator.listReleases
+ *   - GET /registry/gallery.tgz (checksum-bound package artifact)
  *   - GET /health               (health check)
  *
  * Runs on a configurable port and returns deterministic fixture data.
  */
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
+
+import { createDelegatedReleaseConformanceFixture } from "../../packages/registry-verification/fixtures/conformance/delegated-release.js";
 
 // ---------------------------------------------------------------------------
 // Fixture data
@@ -208,6 +213,28 @@ const THEME_DETAILS: Record<string, object> = {
 
 const PLUGIN_DETAIL_PATTERN = /^\/api\/v1\/plugins\/([^/]+)$/;
 const THEME_DETAIL_PATTERN = /^\/api\/v1\/themes\/([^/]+)$/;
+const REGISTRY_PROFILE_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
+const REGISTRY_RELEASE_CID = "bafyreic3z2zsc6hr3xnjg5z5vixd7baqfk7x3h5cxqv4hqe7dxr5zxmtnu";
+const PROFILE_NSID = "com.emdashcms.experimental.package.profile";
+const PROFILE_EXTENSION_NSID = "com.emdashcms.experimental.package.profileExtension";
+const RELEASE_NSID = "com.emdashcms.experimental.package.release";
+const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
+const REGISTRY_PACKAGE_PATH = "/xrpc/com.emdashcms.experimental.aggregator.getPackage";
+const REGISTRY_RELEASES_PATH = "/xrpc/com.emdashcms.experimental.aggregator.listReleases";
+const REGISTRY_ARTIFACT_PATH = "/registry/gallery.tgz";
+
+export interface RegistryFixtureDescriptor {
+	publisherDid: string;
+	packageSlug: string;
+	version: string;
+	profileCid: string;
+	releaseCid: string;
+	profile: unknown;
+	release: unknown;
+}
+
+let registryFixture: RegistryFixtureDescriptor | undefined;
+let registryArtifact: Uint8Array | undefined;
 
 // ---------------------------------------------------------------------------
 // Request handler
@@ -231,6 +258,45 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 	// Health
 	if (path === "/health") {
 		json(res, { status: "ok" });
+		return;
+	}
+	if (path === REGISTRY_ARTIFACT_PATH && req.method === "GET" && registryArtifact) {
+		res.writeHead(200, { "Content-Type": "application/gzip" });
+		res.end(registryArtifact);
+		return;
+	}
+
+	if (path === REGISTRY_PACKAGE_PATH && req.method === "GET" && registryFixture) {
+		json(res, {
+			uri: `at://${registryFixture.publisherDid}/${PROFILE_NSID}/${registryFixture.packageSlug}`,
+			cid: registryFixture.profileCid,
+			did: registryFixture.publisherDid,
+			slug: registryFixture.packageSlug,
+			profile: registryFixture.profile,
+			latestVersion: registryFixture.version,
+			indexedAt: "2026-01-01T00:00:00.000Z",
+			labels: [],
+		});
+		return;
+	}
+
+	if (path === REGISTRY_RELEASES_PATH && req.method === "GET" && registryFixture) {
+		const releases = [
+			{
+				uri: `at://${registryFixture.publisherDid}/${RELEASE_NSID}/${registryFixture.packageSlug}:${registryFixture.version}`,
+				cid: registryFixture.releaseCid,
+				did: registryFixture.publisherDid,
+				package: registryFixture.packageSlug,
+				version: registryFixture.version,
+				release: registryFixture.release,
+				artifactCaches: [],
+				indexedAt: "2026-01-01T00:00:00.000Z",
+				labels: [],
+			},
+		];
+		json(res, {
+			releases,
+		});
 		return;
 	}
 
@@ -311,14 +377,50 @@ function json(res: ServerResponse, data: unknown, status = 200): void {
 // Server lifecycle
 // ---------------------------------------------------------------------------
 
-export function startMockMarketplace(port: number): Promise<Server> {
-	return new Promise((resolve, reject) => {
-		const server = createServer(handleRequest);
-		server.on("error", reject);
-		server.listen(port, "127.0.0.1", () => {
-			resolve(server);
+export async function startMockMarketplace(
+	port: number,
+): Promise<{ server: Server; registryFixture: RegistryFixtureDescriptor }> {
+	const generated = await createDelegatedReleaseConformanceFixture();
+	registryArtifact = generated.artifactBytes;
+	registryFixture = {
+		publisherDid: generated.publisherDid,
+		packageSlug: generated.packageSlug,
+		version: generated.version,
+		profileCid: REGISTRY_PROFILE_CID,
+		releaseCid: REGISTRY_RELEASE_CID,
+		profile: {
+			...generated.profile,
+			extensions: {
+				[PROFILE_EXTENSION_NSID]: {
+					$type: PROFILE_EXTENSION_NSID,
+					repository: generated.expected.repository,
+				},
+			},
+		},
+		release: {
+			...generated.release,
+			artifacts: {
+				package: {
+					url: `http://127.0.0.1:${port}${REGISTRY_ARTIFACT_PATH}`,
+					checksum: generated.artifactChecksum,
+				},
+			},
+			extensions: {
+				[RELEASE_EXTENSION_NSID]: {
+					$type: RELEASE_EXTENSION_NSID,
+					declaredAccess: { content: { read: {} } },
+				},
+			},
+		},
+	};
+	const server = await new Promise<Server>((resolve, reject) => {
+		const mockServer = createServer(handleRequest);
+		mockServer.on("error", reject);
+		mockServer.listen(port, "127.0.0.1", () => {
+			resolve(mockServer);
 		});
 	});
+	return { server, registryFixture };
 }
 
 export function stopMockMarketplace(server: Server): Promise<void> {

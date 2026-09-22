@@ -11,6 +11,7 @@ vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual
 // behaviors that don't need a real waitUntil: the callback fires,
 // errors don't escape, and the caller doesn't block.
 import { after } from "../../src/after.js";
+import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
 
 describe("after()", () => {
 	it("runs the callback", async () => {
@@ -52,5 +53,25 @@ describe("after()", () => {
 		});
 		// after() returned already — the callback hasn't completed.
 		expect(ran).toBe(false);
+	});
+
+	it("exposes deferred work for lifecycle teardown", async () => {
+		let settle!: () => void;
+		let completed = false;
+		after(async () => {
+			await new Promise<void>((resolve) => {
+				settle = resolve;
+			});
+			completed = true;
+		});
+		await Promise.resolve();
+
+		const drained = waitForDeferredTasks();
+		await Promise.resolve();
+		expect(completed).toBe(false);
+
+		settle();
+		await drained;
+		expect(completed).toBe(true);
 	});
 });

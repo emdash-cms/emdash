@@ -8,15 +8,6 @@ minimumReleaseAgeExclude:
   - "@rolldown/binding-*"
   - "@emnapi/core"
   - "@emnapi/runtime"
-  # Astro 7.0.0 and the whole @astrojs/* family (adapters, markdown-satteri,
-  # internal helpers, etc.) were published together on 2026-06-22 and are all
-  # still inside the 24h cooldown. Exclude them so the upgrade install doesn't
-  # stall. TEMPORARY: remove this scope exclusion once the cooldown has elapsed.
-  - astro
-  - "@astrojs/*"
-  # The bot is intentionally pinned to this reviewed Flue 2 nightly.
-  - "@flue/runtime@0.4.0-nightly.202605171039"
-  - "@flue/vite@0.4.0-nightly.202605171039"
 trustPolicy: no-downgrade
 strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
@@ -24,6 +15,11 @@ blockExoticSubdeps: true
 verifyStoreIntegrity: true
 strictStorePkgContentCheck: true
 verifyDepsBeforeRun: error
+# Worker bundles resolve browser-native packages to their WASM targets.
+supportedArchitectures:
+  cpu:
+    - current
+    - wasm32
 allowBuilds:
   "@parcel/watcher": true
   sharp: true
@@ -49,10 +45,13 @@ overrides:
   # 1.3.0 is deprecated (CWE-502); pin the patched line.
   "@ungap/structured-clone": "^1.3.1"
   # Flue exports Hono types, so its copy must match the bot's exact pin.
-  "@flue/runtime@0.4.0-nightly.202605171039>hono": "4.12.27"
-
+  "@flue/runtime@2.0.3>hono": "4.12.27"
+  # 2.2.27 causes pathological selector performance in jsdom UI tests.
+  nwsapi: "2.2.25"
 patchedDependencies:
   "@sigstore/core@4.0.1": patches/@sigstore__core@4.0.1.patch
+  image-size@2.0.2: patches/image-size@2.0.2.patch
+  partysocket@1.1.18: patches/partysocket@1.1.18.patch
 
 enablePrePostScripts: true
 
@@ -71,10 +70,10 @@ packages:
   - infra/*
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
-  "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^14.0.0
-  "@astrojs/node": ^11.0.0
-  "@astrojs/react": ^6.0.0
+  "@astrojs/check": ^0.9.10
+  "@astrojs/cloudflare": ^14.3.1
+  "@astrojs/node": ^11.1.5
+  "@astrojs/react": ^6.0.5
   "@atcute/atproto": ^4.0.2
   "@atcute/car": ^6.0.0
   "@atcute/cbor": ^2.3.3
@@ -102,14 +101,15 @@ catalog:
   # Kumo identical: bump this version deliberately and rebuild admin.
   "@cloudflare/kumo": 2.6.0
   "@cloudflare/vite-plugin": ^1.36.3
-  "@cloudflare/vitest-pool-workers": ^0.16.3
-  "@cloudflare/workers-types": ^4.20260305.1
+  "@cloudflare/vitest-plugin": ^1.0.0
+  "@cloudflare/workers-types": ^5.20260820.1
   "@iconify-json/ph": ^1.2.2
   "@lingui/babel-plugin-lingui-macro": ^5.9.4
   "@lingui/cli": ^5.9.4
   "@lingui/conf": ^5.9.4
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
+  "@lingui/message-utils": ^5.9.4
   "@lingui/react": ^5.9.4
   "@oslojs/crypto": ^1.0.1
   "@oslojs/encoding": ^1.1.0
@@ -119,7 +119,9 @@ catalog:
   "@tanstack/react-router": 1.163.2
   "@tiptap/core": ^3.20.0
   "@tiptap/extension-character-count": ^3.20.0
+  "@tiptap/extension-code": ^3.20.0
   "@tiptap/extension-code-block": ^3.20.0
+  "@tiptap/extension-code-block-lowlight": 3.20.0
   "@tiptap/extension-collaboration": ^3.20.0
   "@tiptap/extension-drag-handle": ^3.20.0
   "@tiptap/extension-drag-handle-react": ^3.20.0
@@ -127,8 +129,11 @@ catalog:
   "@tiptap/extension-focus": ^3.20.0
   "@tiptap/extension-image": ^3.20.0
   "@tiptap/extension-link": ^3.20.0
+  "@tiptap/extension-list": ^3.20.0
   "@tiptap/extension-node-range": ^3.20.0
   "@tiptap/extension-placeholder": ^3.20.0
+  "@tiptap/extension-subscript": ^3.20.0
+  "@tiptap/extension-superscript": ^3.20.0
   "@tiptap/extension-table": ^3.20.0
   "@tiptap/extension-table-cell": ^3.20.0
   "@tiptap/extension-table-header": ^3.20.0
@@ -146,22 +151,26 @@ catalog:
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   "@types/semver": ^7.5.8
-  astro: ^7.0.0
+  astro: ^7.3.2
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   chokidar: ^5.0.0
-  image-size: ^2.0.2
+  highlight.js: 11.11.2
+  hono: 4.12.27
+  image-size: 2.0.2
   jsonc-parser: ^3.3.1
   kysely: ^0.29.0
+  lowlight: ^3.3.0
   publint: 0.3.17
   react: 19.2.4
+  react-day-picker: ^9.14.0
   react-dom: 19.2.4
   semver: ^7.6.3
   tsdown: 0.20.3
   typescript: ^6.0.3
   vite: ^8.0.11
   vitest: ^4.1.5
-  wrangler: ^4.99.0
+  wrangler: ^4.125.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
-  zod: ^4.4.1
+  zod: 4.5.4

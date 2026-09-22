@@ -1,6 +1,53 @@
 import { describe, it, expect } from "vitest";
 
-import { sanitizeRedirectUrl } from "../../src/lib/url";
+import { contentUrl, sanitizeRedirectUrl } from "../../src/lib/url";
+
+describe("contentUrl", () => {
+	it("prefixes published links with the entry's non-default locale", () => {
+		expect(
+			contentUrl("posts", "polski-test", "/posts/{slug}", {
+				locale: "pl",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: false },
+			}),
+		).toBe("/pl/posts/polski-test");
+	});
+
+	it("leaves the default locale unprefixed when configured", () => {
+		expect(
+			contentUrl("posts", "english-test", "/posts/{slug}", {
+				locale: "en",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: false },
+			}),
+		).toBe("/posts/english-test");
+	});
+
+	it("prefixes the default locale when configured", () => {
+		expect(
+			contentUrl("posts", "english-test", "/posts/{slug}", {
+				locale: "en",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: true },
+			}),
+		).toBe("/en/posts/english-test");
+	});
+
+	it("resolves date tokens from the publish date and still applies the locale prefix", () => {
+		expect(
+			contentUrl("posts", "witaj", "/{year}/{month}/{day}/{slug}", {
+				locale: "pl",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: false },
+				date: "2023-05-08T12:00:00.000Z",
+			}),
+		).toBe("/pl/2023/05/08/witaj");
+	});
+
+	it("keeps date tokens literal without a publish date", () => {
+		expect(contentUrl("posts", "hello", "/{year}/{slug}", { date: null })).toBe("/{year}/hello");
+	});
+
+	it("resolves {id} tokens from the entry id", () => {
+		expect(contentUrl("posts", "hello", "/p/{id}", { id: "01ABC" })).toBe("/p/01ABC");
+	});
+});
 
 describe("sanitizeRedirectUrl", () => {
 	it("allows simple relative paths", () => {

@@ -25,14 +25,8 @@
  * (did, collection) pair already on the log line.
  */
 
-import {
-	AtprotoWebDidDocumentResolver,
-	CompositeDidDocumentResolver,
-	PlcDidDocumentResolver,
-} from "@atcute/identity-resolver";
-
 import { processBackfillJob, type ProcessBackfillJobDeps } from "./backfill.js";
-import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
+import { createProductionDidResolver } from "./did-resolver.js";
 import type { BackfillJob } from "./env.js";
 import type { MessageBatchLike } from "./records-consumer.js";
 import { boundFetch } from "./utils.js";
@@ -123,17 +117,8 @@ function formatErrorChain(err: unknown): string {
 }
 
 function createProductionDeps(env: Env): ProcessBackfillJobDeps {
-	const composite = new CompositeDidDocumentResolver({
-		methods: {
-			plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
-			web: new AtprotoWebDidDocumentResolver({ fetch: boundFetch }),
-		},
-	});
 	return {
-		resolver: new DidResolver({
-			cache: createD1DidDocCache(env.DB),
-			resolver: composite,
-		}),
+		resolver: createProductionDidResolver(env),
 		queue: env.RECORDS_QUEUE,
 		// listRecords + sendBatch use this fetch for the PDS calls. Same
 		// bound-wrapper requirement as the resolver constructors —

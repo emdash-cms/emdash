@@ -7,9 +7,17 @@ vi.mock("astro:middleware", () => ({
 // vi.mock factories are hoisted above normal `const` declarations; use
 // vi.hoisted so the marker object is available both to the mock factory and
 // to assertions below.
-const { DB_CONFIG_MARKER } = vi.hoisted(() => ({
-	DB_CONFIG_MARKER: { binding: "DB", session: "auto" },
-}));
+const { DB_CONFIG_MARKER, DB_DESCRIPTOR_MARKER, mockGetLastContentWriteAt } = vi.hoisted(() => {
+	const config = { binding: "DB", session: "auto" };
+	return {
+		DB_CONFIG_MARKER: config,
+		DB_DESCRIPTOR_MARKER: {
+			config,
+			needsLastContentWriteAt: undefined as boolean | undefined,
+		},
+		mockGetLastContentWriteAt: vi.fn(async () => 123_456),
+	};
+});
 
 const {
 	MOCK_RUNTIME,
@@ -28,7 +36,6 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
-
 	return {
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl },
@@ -65,6 +72,7 @@ const {
 			handleRevisionGet: ok,
 			handleRevisionRestore: ok,
 			getPluginRouteMeta,
+			getPluginEditorExtension: () => null,
 			handlePluginApiRoute,
 			getPluginMcpTools: async () => [],
 			getEnabledPluginMcpTools: async () => [],
@@ -90,11 +98,13 @@ const {
 	};
 });
 
+const mockCreateRuntime = vi.hoisted(() => vi.fn());
+
 vi.mock(
 	"virtual:emdash/config",
 	() => ({
 		default: {
-			database: { config: DB_CONFIG_MARKER },
+			database: DB_DESCRIPTOR_MARKER,
 			auth: { mode: "none" },
 		},
 	}),
@@ -131,7 +141,7 @@ vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
-		create: async () => MOCK_RUNTIME,
+		create: mockCreateRuntime,
 	},
 }));
 
@@ -147,11 +157,18 @@ vi.mock("../../../src/loader.js", () => ({
 	})),
 }));
 
+vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../src/object-cache/index.js")>()),
+	getLastContentWriteAt: mockGetLastContentWriteAt,
+}));
+
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import onRequest from "../../../src/astro/middleware.js";
+import { EmDashConfigurationError } from "../../../src/config/errors.js";
 import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
+import { EmDashStorageError } from "../../../src/storage/types.js";
 
 /** Reset the globalThis-backed singletons between tests. */
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
@@ -160,6 +177,11 @@ function resetSetupVerified() {
 	delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
 	delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 }
+
+beforeEach(() => {
+	resetSetupVerified();
+	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
+});
 
 /** A getDb stub whose migrations-probe query throws `error`. */
 function getDbThatFailsProbe(error: Error) {
@@ -176,21 +198,37 @@ function getDbThatFailsProbe(error: Error) {
 	};
 }
 
-function createAnonymousPublicPageContext(locals: Record<string, unknown> = {}) {
+interface RequestContextOptions {
+	url?: string;
+	method?: string;
+	headers?: HeadersInit;
+	cookieValues?: Record<string, string>;
+	sessionUser?: unknown;
+	locals?: Record<string, unknown>;
+}
+
+function createRequestContext({
+	url = "https://example.com/contact",
+	method = "GET",
+	headers,
+	cookieValues = {},
+	sessionUser = null,
+	locals = {},
+}: RequestContextOptions = {}) {
 	const cookies = {
-		get: vi.fn((name: string) => {
-			if (name === "astro-session") return undefined;
-			return undefined;
-		}),
+		get: vi.fn((name: string) =>
+			cookieValues[name] === undefined ? undefined : { value: cookieValues[name] },
+		),
 		set: vi.fn(),
 	};
-	const sessionGet = vi.fn(async () => null);
+	const sessionGet = vi.fn(async () => sessionUser);
 	const astroSession = { get: sessionGet };
+	const parsedUrl = new URL(url);
 
 	return {
 		context: {
-			request: new Request("https://example.com/contact"),
-			url: new URL("https://example.com/contact"),
+			request: new Request(parsedUrl, { method, headers }),
+			url: parsedUrl,
 			cookies,
 			locals,
 			redirect: vi.fn(),
@@ -201,6 +239,70 @@ function createAnonymousPublicPageContext(locals: Record<string, unknown> = {}) 
 		sessionGet,
 	};
 }
+
+function createAnonymousPublicPageContext(locals: Record<string, unknown> = {}) {
+	return createRequestContext({ locals });
+}
+
+describe("astro middleware runtime initialization errors", () => {
+	it.each([
+		[
+			"D1",
+			new EmDashConfigurationError(
+				'D1 binding "SITE_DB" not found in environment. Check your wrangler.jsonc configuration.',
+				"BINDING_NOT_FOUND",
+			),
+		],
+		[
+			"R2",
+			new EmDashStorageError(
+				'R2 binding "SITE_MEDIA" not found. Make sure the binding is defined in wrangler.jsonc.',
+				"BINDING_NOT_FOUND",
+			),
+		],
+	])("returns the %s configuration failure from an EmDash API route", async (_kind, error) => {
+		mockCreateRuntime.mockRejectedValue(error);
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/dashboard",
+		});
+		const next = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" } },
+				{ status: 500 },
+			),
+		);
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(response.status).toBe(500);
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "BINDING_NOT_FOUND", message: error.message },
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("does not expose an arbitrary runtime initialization error", async () => {
+		mockCreateRuntime.mockRejectedValue(new Error("database password leaked here"));
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/dashboard",
+		});
+		const next = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" } },
+				{ status: 500 },
+			),
+		);
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" },
+		});
+		expect(next).toHaveBeenCalledTimes(1);
+	});
+});
 
 describe("astro middleware prerendered routes", () => {
 	beforeEach(() => {
@@ -239,6 +341,7 @@ describe("astro middleware prerendered routes", () => {
 		expect(response.status).toBe(200);
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
+		expect(typeof emdash.getPluginEditorExtension).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
 		// Regression for #1462: the author filter route reads
 		// `locals.emdash.handleContentAuthors`; it must be wired onto the
@@ -447,9 +550,80 @@ describe("astro middleware anonymous session reads", () => {
 describe("astro middleware request-scoped db", () => {
 	beforeEach(() => {
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+		mockGetLastContentWriteAt.mockClear();
+		DB_DESCRIPTOR_MARKER.needsLastContentWriteAt = undefined;
 		mockGetPluginRouteMeta.mockClear();
 		mockHandlePluginApiRoute.mockClear();
 		mockGetPublicUrl.mockClear();
+	});
+
+	it("does not read the content-write marker when the adapter does not request it", async () => {
+		const { context } = createAnonymousPublicPageContext();
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0].lastContentWriteAt).toBeUndefined();
+	});
+
+	it.each([
+		["anonymous public GETs", () => createRequestContext()],
+		["anonymous public HEADs", () => createRequestContext({ method: "HEAD" })],
+		[
+			"anonymous public runtime reads",
+			() => createRequestContext({ url: "https://example.com/robots.txt" }),
+		],
+	] as const)("passes the content-write marker for %s", async (_name, makeContext) => {
+		DB_DESCRIPTOR_MARKER.needsLastContentWriteAt = true;
+		const { context } = makeContext();
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(mockGetLastContentWriteAt).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0]).toMatchObject({
+			canUseCachedBinding: true,
+			lastContentWriteAt: 123_456,
+		});
+	});
+
+	it.each([
+		["anonymous public writes", () => createRequestContext({ method: "POST" })],
+		[
+			"authenticated public reads",
+			() =>
+				createRequestContext({
+					cookieValues: { "astro-session": "session-id" },
+					sessionUser: { id: "user-id" },
+				}),
+		],
+		[
+			"Bearer-authenticated public reads",
+			() => createRequestContext({ headers: { authorization: "Bearer ec_pat_example" } }),
+		],
+		[
+			"internal API reads",
+			() => createRequestContext({ url: "https://example.com/_emdash/api/setup/status" }),
+		],
+		[
+			"edit-mode reads",
+			() => createRequestContext({ cookieValues: { "emdash-edit-mode": "true" } }),
+		],
+		[
+			"preview reads",
+			() => createRequestContext({ url: "https://example.com/contact?_preview=token" }),
+		],
+		["playground reads", () => createRequestContext({ locals: { __playgroundDb: {} } })],
+	] as const)("does not fetch the content-write marker for %s", async (_name, makeContext) => {
+		DB_DESCRIPTOR_MARKER.needsLastContentWriteAt = true;
+		const { context } = makeContext();
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+		expect(vi.mocked(createRequestScopedDb).mock.calls[0]?.[0]).toMatchObject({
+			canUseCachedBinding: false,
+			lastContentWriteAt: undefined,
+		});
 	});
 
 	it("asks the adapter for a scoped db on anonymous public pages and exposes it via ALS", async () => {
@@ -540,6 +714,7 @@ describe("astro middleware request-scoped db", () => {
 			isAuthenticated: true,
 			isWrite: false,
 		});
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
 	});
 
 	it("forces isWrite true for POST requests on public pages", async () => {

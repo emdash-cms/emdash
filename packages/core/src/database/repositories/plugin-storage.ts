@@ -11,21 +11,69 @@ import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import {
+	assertStorageKey,
+	assertStorageRevision,
+	serializeConditionalValue,
+} from "../../plugins/conditional-storage.js";
+import {
 	buildWhereClause,
 	validateWhereClause,
 	validateOrderByClause,
 	getIndexedFields,
 	jsonOrderExtract,
+	StorageQueryError,
+	isInFilter,
+	StorageSerializationError,
 } from "../../plugins/storage-query.js";
+import { parseStorageUpdate } from "../../plugins/storage-update.js";
 import type {
 	StorageCollection,
 	QueryOptions,
 	PaginatedResult,
 	WhereClause,
+	UpdateIfResult,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
 } from "../../plugins/types.js";
+import { pluginDataWriteExpr, pluginDataUpdateGuard } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
+
+/**
+ * SQLSTATEs a losing concurrent `updateIf` writer can abort with.
+ *
+ * `40001` (serialization_failure) is raised only above READ COMMITTED, where
+ * the loser cannot re-evaluate its guard against a newer snapshot. `40P01`
+ * (deadlock_detected) is not tied to isolation level: it needs only two
+ * transactions taking row locks in opposite order, which a caller reaches at
+ * READ COMMITTED by wrapping several `updateIf` calls in one transaction.
+ */
+const SERIALIZATION_SQLSTATES = new Set(["40001", "40P01"]);
+
+function errSqlState(err: unknown): string | undefined {
+	if (typeof err !== "object" || err === null) return undefined;
+	const code = (err as { code?: unknown }).code;
+	if (typeof code === "string") return code;
+	const cause = (err as { cause?: unknown }).cause;
+	if (typeof cause === "object" && cause !== null) {
+		const causeCode = (cause as { code?: unknown }).code;
+		if (typeof causeCode === "string") return causeCode;
+	}
+	return undefined;
+}
+
+export function mapSerializationFailure(err: unknown): unknown {
+	const sqlState = errSqlState(err);
+	if (sqlState !== undefined && SERIALIZATION_SQLSTATES.has(sqlState)) {
+		return new StorageSerializationError(
+			"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+			{ cause: err, sqlState },
+		);
+	}
+	return err;
+}
 
 /**
  * Interleave a `?`-placeholder SQL string with its params into a single
@@ -52,6 +100,19 @@ function rawWhereExpr(sqlText: string, params: unknown[]): RawBuilder<boolean> {
  *
  * Implements the StorageCollection interface for a specific plugin and collection.
  */
+/**
+ * Rank a sort expression so NULLs get a deterministic position.
+ *
+ * A missing key in a schemaless document extracts as NULL, which sorts
+ * differently per dialect (SQLite first, Postgres last) and makes every
+ * comparison against it UNKNOWN. Sorting on this rank ahead of the value puts
+ * NULLs in the same place on both dialects and keeps the seek operands
+ * non-NULL.
+ */
+function nullRank(expr: RawBuilder<unknown>): RawBuilder<number> {
+	return sql`(case when ${expr} is null then 1 else 0 end)`;
+}
+
 export class PluginStorageRepository<T = unknown> implements StorageCollection<T> {
 	private indexedFields: Set<string>;
 
@@ -87,6 +148,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	async put(id: string, data: T): Promise<void> {
 		const now = new Date().toISOString();
 		const jsonData = JSON.stringify(data);
+		const revision = crypto.randomUUID();
 
 		await this.db
 			.insertInto("_plugin_storage")
@@ -95,16 +157,83 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 				collection: this.collection,
 				id,
 				data: jsonData,
+				revision,
 				created_at: now,
 				updated_at: now,
 			})
 			.onConflict((oc) =>
 				oc.columns(["plugin_id", "collection", "id"]).doUpdateSet({
 					data: jsonData,
+					revision,
 					updated_at: now,
 				}),
 			)
 			.execute();
+	}
+
+	async getVersioned(id: string): Promise<VersionedValue<T> | null> {
+		assertStorageKey(id);
+		const row = await this.db
+			.selectFrom("_plugin_storage")
+			.select(["data", "revision"])
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return null;
+		return { value: JSON.parse(row.data), revision: row.revision };
+	}
+
+	async compareAndSet(
+		id: string,
+		expectedRevision: string | null,
+		data: T,
+	): Promise<ConditionalWriteResult> {
+		assertStorageKey(id);
+		if (expectedRevision !== null) assertStorageRevision(expectedRevision);
+		const jsonData = serializeConditionalValue(data);
+		const revision = crypto.randomUUID();
+		const now = new Date().toISOString();
+		const row =
+			expectedRevision === null
+				? await this.db
+						.insertInto("_plugin_storage")
+						.values({
+							plugin_id: this.pluginId,
+							collection: this.collection,
+							id,
+							data: jsonData,
+							revision,
+							created_at: now,
+							updated_at: now,
+						})
+						.onConflict((oc) => oc.columns(["plugin_id", "collection", "id"]).doNothing())
+						.returning("revision")
+						.executeTakeFirst()
+				: await this.db
+						.updateTable("_plugin_storage")
+						.set({ data: jsonData, revision, updated_at: now })
+						.where("plugin_id", "=", this.pluginId)
+						.where("collection", "=", this.collection)
+						.where("id", "=", id)
+						.where("revision", "=", expectedRevision)
+						.returning("revision")
+						.executeTakeFirst();
+		return row ? { applied: true, revision: row.revision } : { applied: false };
+	}
+
+	async compareAndDelete(id: string, expectedRevision: string): Promise<ConditionalDeleteResult> {
+		assertStorageKey(id);
+		assertStorageRevision(expectedRevision);
+		const row = await this.db
+			.deleteFrom("_plugin_storage")
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.where("revision", "=", expectedRevision)
+			.returning("id")
+			.executeTakeFirst();
+		return { applied: row !== undefined };
 	}
 
 	/**
@@ -171,6 +300,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		await withTransaction(this.db, async (trx) => {
 			for (const item of items) {
 				const jsonData = JSON.stringify(item.data);
+				const revision = crypto.randomUUID();
 				await trx
 					.insertInto("_plugin_storage")
 					.values({
@@ -178,12 +308,14 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 						collection: this.collection,
 						id: item.id,
 						data: jsonData,
+						revision,
 						created_at: now,
 						updated_at: now,
 					})
 					.onConflict((oc) =>
 						oc.columns(["plugin_id", "collection", "id"]).doUpdateSet({
 							data: jsonData,
+							revision,
 							updated_at: now,
 						}),
 					)
@@ -234,24 +366,75 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
 		}
 
+		const orderEntries = Object.entries(orderBy);
+		const orderDirections = new Set(orderEntries.map(([, direction]) => direction));
+		const descending = orderEntries.length > 0 && orderEntries[0][1] === "desc";
+
+		// A missing key in a schemaless document extracts as NULL, and NULL sorts
+		// differently per dialect (SQLite first, Postgres last) and makes any
+		// comparison against it UNKNOWN. Rank nulls explicitly so both the sort and
+		// the seek agree on where they sit, on either dialect, and so no comparison
+		// operand is ever NULL.
+		const sortExpr = (field: string): RawBuilder<unknown> =>
+			sql`${sql.raw(jsonOrderExtract(this.db, field))}`;
+
 		// Handle cursor-based pagination — throws on invalid cursor.
 		if (cursor) {
 			const decoded = decodeCursor(cursor);
-			query = query.where(({ eb }) =>
-				eb(sql`(created_at, id)`, ">", sql`(${decoded.orderValue}, ${decoded.id})`),
-			);
+			if (orderEntries.length === 0) {
+				query = query.where(({ eb }) =>
+					eb(sql`(created_at, id)`, ">", sql`(${decoded.orderValue}, ${decoded.id})`),
+				);
+			} else {
+				if (orderDirections.size > 1) {
+					throw new StorageQueryError(
+						"Cursor pagination requires every orderBy field to share one direction.",
+						Object.keys(orderBy).join(", "),
+						"Sort every field the same way, or page without a cursor.",
+					);
+				}
+				const op = descending ? sql`<` : sql`>`;
+				// The cursor row's sort values, recomputed with the same expression
+				// rather than carried in the cursor, so nothing is bound as a literal
+				// and neither dialect has to coerce a JSON value to compare it.
+				const cursorExpr = (field: string): RawBuilder<unknown> =>
+					sql`(select ${sql.raw(jsonOrderExtract(this.db, field))} from _plugin_storage where plugin_id = ${this.pluginId} and collection = ${this.collection} and id = ${decoded.id})`;
+
+				const fields = orderEntries.map(([field]) => {
+					const own = sortExpr(field);
+					const theirs = cursorExpr(field);
+					return {
+						equal: sql`(${nullRank(own)} = ${nullRank(theirs)} and (${nullRank(own)} = 1 or ${own} = ${theirs}))`,
+						after: sql`(${nullRank(own)} ${op} ${nullRank(theirs)} or (${nullRank(own)} = ${nullRank(theirs)} and ${nullRank(own)} = 0 and ${own} ${op} ${theirs}))`,
+					};
+				});
+
+				// Lexicographic seek: ties on every earlier field, then strictly after
+				// on this one; finally all fields tied and strictly after on id.
+				const terms = fields.map(
+					(_, k) =>
+						sql`(${sql.join([...fields.slice(0, k).map((f) => f.equal), fields[k].after], sql` and `)})`,
+				);
+				terms.push(
+					sql`(${sql.join([...fields.map((f) => f.equal), sql`id ${op} ${decoded.id}`], sql` and `)})`,
+				);
+				query = query.where(sql<boolean>`(${sql.join(terms, sql` or `)})`);
+			}
 		}
 
 		// Build ORDER BY using sql template
-		if (Object.keys(orderBy).length > 0) {
-			for (const [field, direction] of Object.entries(orderBy)) {
+		if (orderEntries.length > 0) {
+			for (const [field, direction] of orderEntries) {
+				const dir = direction === "desc" ? sql`desc` : sql`asc`;
+				const expr = sortExpr(field);
+				// Null rank first so NULL placement is identical on both dialects.
+				query = query.orderBy(sql`${nullRank(expr)} ${dir}`);
 				// Order over the jsonb-native value on Postgres so numeric fields sort
 				// numerically, not lexically. See pluginDataOrderExpr.
-				const extract = jsonOrderExtract(this.db, field);
-				const orderExpr =
-					direction === "desc" ? sql`${sql.raw(extract)} desc` : sql`${sql.raw(extract)} asc`;
-				query = query.orderBy(orderExpr);
+				query = query.orderBy(sql`${expr} ${dir}`);
 			}
+			// Total order, so a page boundary can never fall inside a group of ties.
+			query = query.orderBy("id", descending ? "desc" : "asc");
 		} else {
 			// Default ordering for consistent pagination
 			query = query.orderBy("created_at", "asc").orderBy("id", "asc");
@@ -306,6 +489,47 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		const result = await query.executeTakeFirst();
 		// Number() because the pg driver returns COUNT(*) (bigint) as a string.
 		return Number(result?.count ?? 0);
+	}
+
+	async updateIf(id: string, args: unknown): Promise<UpdateIfResult<T>> {
+		if (typeof id !== "string") throw new TypeError("Storage ID must be a string");
+		const { where, setEntries, deltaEntries } = parseStorageUpdate(args);
+
+		// Defensive empty-`in` guard: an empty `in: []` matches nothing. The shared
+		// where-translation would emit invalid `IN ()`; short-circuit to a no-op
+		// (matches nothing → applied:false) BEFORE building any SQL.
+		for (const value of Object.values(where)) {
+			if (isInFilter(value) && value.in.length === 0) {
+				return { applied: false };
+			}
+		}
+
+		const now = new Date().toISOString();
+		const dataExpr = pluginDataWriteExpr(this.db, setEntries, deltaEntries);
+
+		let query = this.db
+			.updateTable("_plugin_storage")
+			.set({ data: dataExpr, updated_at: now })
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.where(pluginDataUpdateGuard(this.db, deltaEntries));
+
+		const whereResult = buildWhereClause(this.db, where);
+		if (whereResult.sql) {
+			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
+		}
+
+		let row: { data: string } | undefined;
+		try {
+			row = await query.returning("data").executeTakeFirst();
+		} catch (err) {
+			throw mapSerializationFailure(err);
+		}
+		if (!row) return { applied: false };
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+		const data = JSON.parse(row.data) as T;
+		return { applied: true, data };
 	}
 }
 
