@@ -1,0 +1,19 @@
+docs/src/content/docs/getting-started.mdx
+  s_0bdf1d05365491::t_387ef320323dc7 6,30-31,35-51,58,69-70,75-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ccb7ffac2999f771f22067a2a98af55f293165db",
+  "prompts": {},
+  "sessions": {
+    "s_0bdf1d05365491": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c923-8e3a-76f3-8694-9b90216e0b87",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
