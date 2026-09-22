@@ -549,19 +549,17 @@ export async function applySeed(
 						: await contentRepo.findById(collectionSlug, entry.id);
 
 					if (!existing) {
-						const trashed = await contentRepo.findBySlugIncludingTrashed(
-							collectionSlug,
-							entry.slug,
-							entryLocale,
-						);
+						const trashed = entrySlug
+							? await contentRepo.findBySlugIncludingTrashed(collectionSlug, entrySlug, entryLocale)
+							: await contentRepo.findByIdIncludingTrashed(collectionSlug, entry.id);
 						if (trashed) {
 							if (onConflict === "error") {
 								throw new Error(
-									`Conflict: content "${entry.slug}" in "${collectionSlug}" already exists (in trash)`,
+									`Conflict: content "${entrySlug ?? entry.id}" in "${collectionSlug}" already exists (in trash)`,
 								);
 							}
 							console.warn(
-								`content.${collectionSlug}: "${entry.slug}" (${entryLocale}) exists in the trash — skipping`,
+								`content.${collectionSlug}: "${entrySlug ?? entry.id}" (${entryLocale}) exists in the trash — skipping`,
 							);
 							result.content.skipped++;
 							// References may only target live content.

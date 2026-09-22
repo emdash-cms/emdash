@@ -1739,14 +1739,33 @@ describe("applySeed", () => {
 		});
 	});
 
-	describe("content conflicts with trashed entries", () => {
-		// The live-entry lookup ignores trashed rows, but the content table's
-		// UNIQUE(slug, locale) constraint does not — so re-applying a seed
-		// against a database where a seeded entry had been moved to the trash
-		// used to crash with a raw SQLite UNIQUE violation instead of
-		// honoring onConflict. Hit in the wild via the setup dev-bypass,
-		// which re-applies the seed on every call.
+	it.each(["skip", "update"] as const)(
+		"honors %s for trashed slugless seed IDs",
+		async (onConflict) => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "blocks",
+						label: "Blocks",
+						routable: false,
+						fields: [{ slug: "title", type: "string", label: "Title" }],
+					},
+				],
+				content: { blocks: [{ id: "hero", data: { title: "Original" } }] },
+			};
+			await applySeed(db, seed, { includeContent: true });
+			const repo = new ContentRepository(db);
+			await repo.delete("blocks", "hero");
+			seed.content!.blocks![0]!.data.title = "Replacement";
+			const apply = applySeed(db, seed, { includeContent: true, onConflict });
+			expect((await apply).content).toEqual({ created: 0, skipped: 1, updated: 0 });
+			expect(await repo.findById("blocks", "hero")).toBeNull();
+			expect((await repo.findByIdIncludingTrashed("blocks", "hero"))?.data.title).toBe("Original");
+		},
+	);
 
+	describe("content conflicts with trashed entries", () => {
 		async function setupTrashedEntry(): Promise<string> {
 			const registry = new SchemaRegistry(db);
 			await registry.createCollection({
@@ -1826,12 +1845,6 @@ describe("applySeed", () => {
 		});
 
 		it("does not resolve references through a skipped trashed entry", async () => {
-			// A skipped trashed collision must not become a resolution target:
-			// translationOf resolves through the live-only findById, so mapping
-			// the seed id to the trashed row's id would crash the whole apply
-			// with "Translation source content not found" — the same class of
-			// failure this fix exists to prevent. The sibling instead behaves
-			// like any unresolved seed reference: created, minus the link.
 			await setupTrashedEntry();
 
 			const seedWithTranslation: SeedFile = {
