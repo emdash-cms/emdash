@@ -14,11 +14,13 @@ const sqliteIntegration = emdash({
 		directory: "./uploads",
 		baseUrl: "/_emdash/api/media/file",
 	}),
+	fonts: false,
 });
 
 const d1Integration = emdash({
 	database: d1({ binding: "DB", session: "auto" }),
 	storage: r2({ binding: "MEDIA" }),
+	fonts: false,
 });
 
 export default defineConfig({

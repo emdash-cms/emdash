@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 
+import type { MediaUsageRepairResponse } from "../../../src/client/index.js";
 import type { TestServerContext } from "../server.js";
 import { assertNodeVersion, createTestServer } from "../server.js";
 
@@ -274,11 +275,11 @@ describe("CLI Integration", () => {
 			);
 
 			// Schedule does not produce JSON output, just a success message
-			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T09:00:00Z");
+			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T04:00:00-05:00");
 
 			// Verify via get
 			const fetched = await cliJson<{ scheduledAt: string }>("content", "get", "posts", item.id);
-			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00Z");
+			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00.000Z");
 
 			// Clean up
 			await cli("content", "delete", "posts", item.id);
@@ -299,9 +300,9 @@ describe("CLI Integration", () => {
 			// Restore
 			await cli("content", "restore", "posts", item.id);
 
-			// Should be accessible again (auto-published before deletion, so restored as published)
+			// Accessible again, as a draft even though it was auto-published before deletion
 			const fetched = await cliJson<{ status: string }>("content", "get", "posts", item.id);
-			expect(fetched.status).toBe("published");
+			expect(fetched.status).toBe("draft");
 
 			// Final cleanup
 			await cli("content", "delete", "posts", item.id);
@@ -313,6 +314,31 @@ describe("CLI Integration", () => {
 	// -----------------------------------------------------------------------
 
 	describe("media", () => {
+		it("repairs media usage for a collection", async () => {
+			const result = await cliJson<MediaUsageRepairResponse>(
+				"media",
+				"repair-usage",
+				"--collection",
+				"posts",
+			);
+
+			expect(result.status).toBe("complete");
+			expect(result.collections).toHaveLength(1);
+			expect(result.collections[0]).toMatchObject({
+				collection: "posts",
+				status: "complete",
+			});
+			expect(result.indexedSourceCount).toBeGreaterThanOrEqual(0);
+		});
+
+		it("repairs media usage for all collections", async () => {
+			const result = await cliJson<MediaUsageRepairResponse>("media", "repair-usage", "--all");
+
+			expect(result.status).toBe("complete");
+			expect(result.collections.map(({ collection }) => collection)).toEqual(["pages", "posts"]);
+			expect(result.collections.every(({ status }) => status === "complete")).toBe(true);
+		});
+
 		it("uploads, lists, gets, and deletes media", async () => {
 			// Create a temp file to upload
 			const { writeFileSync } = await import("node:fs");

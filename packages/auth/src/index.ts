@@ -65,6 +65,7 @@ export {
 	// Scopes
 	VALID_SCOPES,
 	validateScopes,
+	isValidScope,
 	hasScope,
 	type ApiTokenScope,
 	// PKCE
@@ -110,6 +111,7 @@ export {
 	createAuthorizationUrl,
 	handleOAuthCallback,
 	findOrCreateOAuthUser,
+	acceptInviteViaOAuth,
 	OAuthError,
 	github,
 	google,

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import { AdminBrandingProvider } from "../../src/lib/admin-branding-context";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -139,5 +140,34 @@ describe("LoginPage", () => {
 			</QueryWrapper>,
 		);
 		await expect.element(screen.getByText("Sign up")).toBeInTheDocument();
+	});
+
+	// Regression test for #639 / PR #705: the login page must reflect the
+	// configured admin.logo/siteName (white-label branding), not the stock
+	// hardcoded EmDash mark — same as the Sidebar and SetupWizard already do.
+	it("renders the configured admin logo and site name instead of the stock EmDash mark", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<AdminBrandingProvider
+					adminBranding={{ logo: "https://example.com/logo.png", siteName: "Acme CMS" }}
+				>
+					<LoginPage />
+				</AdminBrandingProvider>
+			</QueryWrapper>,
+		);
+		const logoImg = screen.getByRole("img", { name: "Acme CMS" });
+		await expect.element(logoImg).toBeInTheDocument();
+		expect(logoImg.element().getAttribute("src")).toBe("https://example.com/logo.png");
+		// The stock lockup must not also be rendered
+		expect(screen.getByRole("img", { name: "EmDash" }).query()).toBeNull();
+	});
+
+	it("falls back to the stock EmDash mark when no admin branding is configured", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<LoginPage />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByRole("img", { name: "EmDash" })).toBeInTheDocument();
 	});
 });

@@ -21,14 +21,13 @@ export default defineConfig({
 			plugins: [formsPlugin()],
 			sandboxed: [webhookNotifier],
 			sandboxRunner: sandbox(),
-			marketplace: "https://marketplace.emdashcms.com",
 		}),
 	],
 	fonts: [
 		{
 			provider: fontProviders.google(),
 			name: "Inter",
-			cssVariable: "--font-sans",
+			cssVariable: "--font-body",
 			weights: [400, 500, 600, 700],
 			fallbacks: ["sans-serif"],
 		},

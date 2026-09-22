@@ -232,7 +232,7 @@ describe("tokenInterceptor", () => {
 // ---------------------------------------------------------------------------
 
 describe("refreshInterceptor", () => {
-	it("unwraps { data: { access_token } } envelope from token endpoint", async () => {
+	it("unwraps { success, data: { access_token } } envelope from token endpoint", async () => {
 		let retryAuth: string | null = null;
 		let refreshedToken: string | null = null;
 		let refreshedRefresh: string | null = null;
@@ -253,9 +253,10 @@ describe("refreshInterceptor", () => {
 		globalThis.fetch = async (input: string | URL | Request) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 			if (url.includes("/oauth/token/refresh")) {
-				// Server wraps in { data: ... } via apiSuccess/unwrapResult
+				// Server wraps in { success, data: ... } via apiSuccess/unwrapResult
 				return new Response(
 					JSON.stringify({
+						success: true,
 						data: {
 							access_token: "new_access",
 							refresh_token: "new_refresh",
@@ -288,6 +289,63 @@ describe("refreshInterceptor", () => {
 			expect(retryAuth).toBe("Bearer new_access");
 			expect(refreshedToken).toBe("new_access");
 			expect(refreshedRefresh).toBe("new_refresh");
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it("retries a request that has a body, resending the same payload", async () => {
+		const payload = JSON.stringify({ title: "hello" });
+		const seenBodies: string[] = [];
+		let retryAuth: string | null = null;
+
+		const interceptor = refreshInterceptor({
+			refreshToken: "rt_old",
+			tokenEndpoint: "https://example.com/_emdash/api/oauth/token/refresh",
+		});
+
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = async (input: string | URL | Request) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes("/oauth/token/refresh")) {
+				return new Response(
+					JSON.stringify({
+						success: true,
+						data: { access_token: "new_access", expires_in: 3600 },
+					}),
+					{ status: 200, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			return originalFetch(input);
+		};
+
+		try {
+			const backend: Interceptor = async (req) => {
+				// Read the body, as a real fetch does — this is what leaves the
+				// request used and makes it unusable as a template for the retry
+				seenBodies.push(await req.text());
+				if (seenBodies.length === 1) {
+					return new Response("unauthorized", { status: 401 });
+				}
+				retryAuth = req.headers.get("Authorization");
+				return new Response("ok", { status: 200 });
+			};
+
+			const transport = createTransport({
+				interceptors: [interceptor, backend],
+			});
+
+			const res = await transport.fetch(
+				new Request("https://example.com/_emdash/api/content/posts", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: payload,
+				}),
+			);
+
+			expect(res.status).toBe(200);
+			expect(retryAuth).toBe("Bearer new_access");
+			expect(seenBodies).toEqual([payload, payload]);
 		} finally {
 			globalThis.fetch = originalFetch;
 		}

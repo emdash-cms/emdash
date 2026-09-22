@@ -8,12 +8,13 @@
  * - User preference stored in localStorage, applied via data-mode attribute on <html>
  */
 
+@import "@cloudflare/kumo/styles";
+@import "./media-image-cropper.css";
 @import "tailwindcss";
-@import "@cloudflare/kumo/styles/tailwind";
 @plugin "@tailwindcss/typography";
 
 /* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
-@source "../node_modules/@cloudflare/kumo/dist";
+@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
 
 /* Map Tailwind dark: variant to kumo's data-mode attribute */
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
@@ -29,17 +30,11 @@
  * Overrides kumo CSS custom properties with classic CMS admin values.
  * Applied via data-theme="classic" on <html> so portals inherit too.
  */
-[data-theme="classic"] {
-	/* Primary brand blue */
-	--color-kumo-brand: #2271b1;
-	--color-kumo-brand-hover: #135e96;
-	--text-color-kumo-brand: #2271b1;
-}
-
 [data-theme="classic"]:not([data-mode="dark"]) {
 	/* Surfaces */
+	--color-kumo-canvas: oklch(98.75% 0 0);
 	--color-kumo-base: #ffffff;
-	--color-kumo-elevated: #f0f0f1;
+	--color-kumo-elevated: oklch(98.75% 0 0);
 	--color-kumo-recessed: #dcdcde;
 	--color-kumo-overlay: #ffffff;
 	--color-kumo-control: #ffffff;
@@ -50,15 +45,13 @@
 	--color-kumo-interact: #c3c4c7;
 
 	/* Borders */
-	--color-kumo-line: #c3c4c7;
-	--color-kumo-ring: #2271b1;
+	--color-kumo-line: oklch(14.5% 0 0 / 0.1);
 
 	/* Text hierarchy */
 	--text-color-kumo-default: #1d2327;
 	--text-color-kumo-strong: #50575e;
-	--text-color-kumo-subtle: #787c82;
+	--text-color-kumo-subtle: #646970;
 	--text-color-kumo-inactive: #a7aaad;
-	--text-color-kumo-link: #2271b1;
 
 	/* Semantic colors */
 	--color-kumo-info: #72aee6;
@@ -72,6 +65,7 @@
 	--text-color-kumo-success: #00a32a;
 	--text-color-kumo-danger: #d63638;
 	--text-color-kumo-warning: #dba617;
+	--text-color-kumo-info: #72aee6;
 }
 
 /**
@@ -86,6 +80,7 @@
  * Override Tailwind's --font-sans so all font-sans utilities use it.
  */
 @theme {
+	--text-color-emdash-media-folder: light-dark(var(--color-blue-500), var(--color-blue-400));
 	--font-sans: var(
 		--font-emdash,
 		ui-sans-serif,
@@ -106,6 +101,123 @@
 body {
 	background-color: var(--color-kumo-elevated);
 	color: var(--text-color-kumo-default);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+.emdash-media-transparency-grid {
+	background-color: var(--color-kumo-base);
+	background-image: repeating-conic-gradient(
+		var(--color-kumo-tint) 0% 25%,
+		var(--color-kumo-base) 0% 50%
+	);
+	background-position: 50%;
+	background-size: 20px 20px;
+}
+
+@media (max-width: 639px) {
+	.emdash-featured-image-preview {
+		aspect-ratio: 4 / 3 !important;
+	}
+}
+
+/*
+ * Mirrors the pre-React EmDash boot loader exactly. Keep these values in sync
+ * with packages/core/src/astro/routes/admin.astro so the two loading stages do
+ * not visibly shift or change animation as React takes over.
+ */
+.emdash-configuration-loader {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 100vh;
+	width: 100%;
+	background: var(--color-kumo-elevated);
+}
+
+.emdash-configuration-loader .loader-inner {
+	text-align: center;
+}
+
+.emdash-configuration-loader .spinner {
+	width: 24px;
+	height: 24px;
+	margin: 0 auto;
+	border: 2.5px solid var(--color-kumo-line);
+	border-top-color: var(--text-color-kumo-subtle);
+	border-radius: 50%;
+	animation: emdash-configuration-spin 0.8s linear infinite;
+}
+
+.emdash-configuration-loader p {
+	margin-top: 1rem;
+	font-family: var(--font-emdash, ui-sans-serif, system-ui, sans-serif);
+	font-size: 0.875rem;
+	color: var(--text-color-kumo-subtle);
+}
+
+@keyframes emdash-configuration-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Keep editor menu choices visibly distinct from their dropdown surfaces. */
+[data-emdash-heading-item][data-highlighted],
+[data-emdash-block-menu-item][data-highlighted] {
+	background-color: var(--color-kumo-interact) !important;
+}
+
+div:has(> [role="listbox"] > .emdash-compact-select-option) {
+	width: var(--anchor-width);
+	min-width: var(--anchor-width);
+}
+
+/* Transitions.dev — Text states swap */
+:root {
+	--text-swap-dur: 150ms;
+	--text-swap-translate-y: 4px;
+	--text-swap-blur: 2px;
+	--text-swap-ease: ease-in-out;
+}
+
+.t-text-swap {
+	display: inline-block;
+	line-height: 1;
+	transform: translateY(0);
+	filter: blur(0);
+	opacity: 1;
+	transition:
+		transform var(--text-swap-dur) var(--text-swap-ease),
+		filter var(--text-swap-dur) var(--text-swap-ease),
+		opacity var(--text-swap-dur) var(--text-swap-ease);
+	will-change: transform, filter, opacity;
+}
+
+.t-text-swap.is-exit {
+	transform: translateY(calc(var(--text-swap-translate-y) * -1));
+	filter: blur(var(--text-swap-blur));
+	opacity: 0;
+}
+
+.t-text-swap.is-enter-start {
+	transform: translateY(var(--text-swap-translate-y));
+	filter: blur(var(--text-swap-blur));
+	opacity: 0;
+	transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.t-text-swap {
+		transition: none !important;
+	}
+}
+
+[data-sidebar-popup] {
+	width: var(--sidebar-width);
+	transition-property: transform, translate, opacity !important;
 }
 
 /* Fix text selection contrast */
@@ -153,14 +265,152 @@ body {
 	--tw-prose-pre-bg: var(--color-kumo-contrast);
 }
 
+.emdash-code-block {
+	--emdash-code-background: #f7f7f5;
+	--emdash-code-foreground: #24292f;
+	--emdash-code-muted: #57606a;
+	--emdash-code-keyword: #b8172a;
+	--emdash-code-string: #0a3069;
+	--emdash-code-number: #0550ae;
+	--emdash-code-title: #7545c7;
+
+	background: var(--emdash-code-background);
+	color: var(--emdash-code-foreground);
+	caret-color: var(--emdash-code-foreground);
+	padding-block: 1.875rem;
+}
+
+[data-mode="dark"] .emdash-code-block {
+	--emdash-code-background: #202020;
+	--emdash-code-foreground: #f0f3f6;
+	--emdash-code-muted: #c9d1d9;
+	--emdash-code-keyword: #ffc1bb;
+	--emdash-code-string: #b9ddff;
+	--emdash-code-number: #a8d5ff;
+	--emdash-code-title: #e5ccff;
+}
+
+.emdash-code-block code {
+	background: transparent;
+	color: inherit;
+	font-size: 0.8125rem;
+}
+
+.emdash-code-block :is(.hljs-comment, .hljs-quote) {
+	color: var(--emdash-code-muted);
+}
+
+.emdash-code-block
+	:is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-link, .hljs-deletion) {
+	color: var(--emdash-code-keyword);
+}
+
+.emdash-code-block
+	:is(.hljs-string, .hljs-attr, .hljs-attribute, .hljs-symbol, .hljs-bullet, .hljs-addition) {
+	color: var(--emdash-code-string);
+}
+
+.emdash-code-block :is(.hljs-number, .hljs-meta) {
+	color: var(--emdash-code-number);
+}
+
+.emdash-code-block
+	:is(
+		.hljs-title,
+		.hljs-name,
+		.hljs-type,
+		.hljs-built_in,
+		.hljs-selector-id,
+		.hljs-selector-class
+	) {
+	color: var(--emdash-code-title);
+}
+
+.emdash-code-block-controls {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease-out;
+}
+.emdash-code-block-node:hover .emdash-code-block-controls,
+.emdash-code-block-node:focus-within .emdash-code-block-controls,
+.emdash-code-block-controls[data-persistent="true"] {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.emdash-code-language-list {
+	scrollbar-color: transparent transparent;
+	scrollbar-width: thin;
+}
+
+.emdash-code-language-list::-webkit-scrollbar {
+	width: 4px;
+}
+
+.emdash-code-language-list::-webkit-scrollbar-track,
+.emdash-code-language-list::-webkit-scrollbar-thumb {
+	background-color: transparent;
+}
+
+.emdash-code-language-list::-webkit-scrollbar-thumb {
+	border-radius: 9999px;
+}
+
+.emdash-code-language-list:hover {
+	scrollbar-color: var(--color-kumo-interact) transparent;
+}
+
+.emdash-code-language-list:hover::-webkit-scrollbar-thumb {
+	background-color: var(--color-kumo-interact);
+}
+
+[data-mode="light"] .emdash-code-language-list [data-highlighted]:not([data-disabled]) {
+	background-color: var(--color-kumo-tint);
+}
+
+.emdash-code-language-input:focus {
+	border-color: color-mix(in oklab, var(--color-kumo-focus) 50%, transparent);
+}
+
+.emdash-code-language-popover[data-instant] {
+	transition-duration: 150ms;
+}
+
+@media (hover: none), (pointer: coarse) {
+	.emdash-code-block-controls {
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.emdash-code-block-controls {
+		transition: none;
+	}
+
+	.emdash-code-language-popover,
+	.emdash-code-language-popover[data-instant] {
+		transition: none;
+	}
+
+	.emdash-code-language-popover[data-starting-style],
+	.emdash-code-language-popover[data-ending-style] {
+		scale: 1;
+	}
+}
 /**
  * TipTap placeholder styles
  */
+.tiptap p.is-empty {
+	display: flow-root;
+}
+
 .tiptap p.is-empty::before {
-	color: var(--text-color-kumo-subtle);
+	color: var(--text-color-kumo-inactive);
 	content: attr(data-placeholder);
-	float: left;
-	height: 0;
+	float: inline-start;
+	/* Leave room for the text caret alongside the full-width placeholder. */
+	width: 100%;
+	margin-inline-end: -100%;
 	pointer-events: none;
 }
 
@@ -175,11 +425,6 @@ body {
 .spotlight-mode .ProseMirror > .has-focus {
 	opacity: 1;
 	transition: opacity 0.2s ease;
-}
-
-/* Add left padding to accommodate block handles */
-.ProseMirror {
-	padding-left: 2.5rem;
 }
 
 /* Block dragging styles */
@@ -205,7 +450,7 @@ body {
 }
 
 /*
- * Reduce margins in editor to minimize drag preview offset.
+ * Keep heading margins compact to minimize drag preview offset.
  */
 .ProseMirror.prose > h1 {
 	margin-top: 0.5em !important;
@@ -217,36 +462,76 @@ body {
 	margin-bottom: 0.4em !important;
 }
 
-.ProseMirror.prose > h3 {
+.ProseMirror.prose > h3,
+.ProseMirror.prose > h4,
+.ProseMirror.prose > h5,
+.ProseMirror.prose > h6 {
 	margin-top: 0.3em !important;
 	margin-bottom: 0.3em !important;
 }
 
+/* Top margins add blank space above the text in block drag previews. */
 .ProseMirror.prose > p {
-	margin-top: 0.25em !important;
-	margin-bottom: 0.25em !important;
+	font-size: 1rem;
+	line-height: 1.5;
+	margin-block: 0 1em !important;
 }
 
 .ProseMirror.prose > *:first-child {
 	margin-top: 0 !important;
 }
 
+[data-emdash-editor-surface] {
+	container-type: inline-size;
+}
+
+.ProseMirror .tableWrapper {
+	max-inline-size: 100%;
+	margin-block: 1rem;
+	overflow-x: auto;
+	overflow-y: hidden;
+	overscroll-behavior-inline: contain;
+	scrollbar-width: none;
+	background:
+		linear-gradient(to right, var(--color-kumo-base), transparent) left / 1rem 100% no-repeat local,
+		linear-gradient(to left, var(--color-kumo-base), transparent) right / 1rem 100% no-repeat local,
+		linear-gradient(to right, color-mix(in srgb, currentcolor 5%, transparent), transparent) left /
+			6px 100% no-repeat scroll,
+		linear-gradient(to left, color-mix(in srgb, currentcolor 5%, transparent), transparent) right /
+			6px 100% no-repeat scroll;
+}
+
+.ProseMirror .tableWrapper::-webkit-scrollbar {
+	display: none;
+}
+
+.ProseMirror.prose > p:last-child {
+	margin-bottom: 0 !important;
+}
+
 /* TipTap table styles */
 .ProseMirror table {
 	border-collapse: collapse;
-	width: 100%;
-	margin: 1rem 0;
+	inline-size: 100%;
+	margin: 0;
 	table-layout: fixed;
-	overflow: hidden;
 }
 
 .ProseMirror td,
 .ProseMirror th {
 	border: 1px solid var(--color-kumo-line);
-	padding: 0.5rem 0.75rem;
-	vertical-align: top;
 	position: relative;
-	min-width: 80px;
+	padding: 0.375rem 0.5rem;
+	vertical-align: top;
+}
+
+.ProseMirror :is(td, th) > p {
+	margin-block: 0 !important;
+	min-block-size: 1.5rem;
+}
+
+.ProseMirror :is(td, th) p.is-empty::before {
+	content: none;
 }
 
 .ProseMirror th {
@@ -256,20 +541,96 @@ body {
 
 .ProseMirror .selectedCell {
 	background-color: var(--color-kumo-info-tint);
+	box-shadow: inset 0 0 0 2px var(--color-kumo-brand);
+}
+
+.ProseMirror :is(td, th).has-focus:not(.selectedCell) {
+	box-shadow: inset 0 0 0 1px var(--color-kumo-brand);
 }
 
 .ProseMirror .column-resize-handle {
 	position: absolute;
-	right: -2px;
-	top: 0;
-	bottom: -2px;
-	width: 4px;
-	background-color: var(--color-kumo-brand);
+	inset-block: -1px;
+	inset-inline-end: 0;
+	inline-size: 1.5rem;
+	background-color: transparent;
+	pointer-events: auto;
+}
+
+.ProseMirror .column-resize-handle::after {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-end: 0;
+	inline-size: 0.125rem;
+	background-color: color-mix(in srgb, var(--color-kumo-brand) 55%, transparent);
+	content: "";
 	pointer-events: none;
 }
 
 .ProseMirror.resize-cursor {
 	cursor: col-resize;
+}
+
+.ProseMirror.table-resize-dragging .column-resize-handle::after {
+	background-color: var(--color-kumo-brand);
+}
+
+@container (max-width: 30rem) {
+	[data-emdash-editor-surface] .ProseMirror {
+		padding-inline: 1rem;
+	}
+}
+
+.emdash-table-menu {
+	overscroll-behavior: contain;
+	scrollbar-width: none;
+}
+
+.emdash-table-menu::-webkit-scrollbar {
+	display: none;
+}
+
+[data-mode="light"] .emdash-table-menu [data-highlighted]:not([data-disabled]) {
+	background-color: var(--color-kumo-tint);
+}
+
+[data-emdash-header-checkbox] {
+	padding-inline: 0.5rem !important;
+	padding-inline-start: 2rem !important;
+}
+
+[data-emdash-header-checkbox] > span:first-child {
+	inset-inline-start: 0.5rem !important;
+	inset-inline-end: auto !important;
+}
+
+@media (forced-colors: active) {
+	[role="gridcell"][aria-selected="true"] {
+		outline: 2px solid Highlight;
+		outline-offset: -2px;
+	}
+
+	.ProseMirror .selectedCell,
+	.ProseMirror :is(td, th).has-focus:not(.selectedCell) {
+		outline: 2px solid Highlight;
+		outline-offset: -2px;
+		box-shadow: none;
+	}
+
+	.ProseMirror .column-resize-handle::after {
+		inline-size: 0;
+		border-inline-end: 2px solid CanvasText;
+		background-color: transparent;
+	}
+
+	.ProseMirror.table-resize-dragging .column-resize-handle::after {
+		border-color: Highlight;
+	}
+}
+
+/* TipTap owns slash-menu focus, so Base UI's portal guards must not enter the Tab order. */
+.slash-command-menu-positioner > [data-base-ui-focus-guard] {
+	display: none;
 }
 
 /**

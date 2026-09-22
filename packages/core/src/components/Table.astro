@@ -1,83 +1,156 @@
 ---
-/**
- * Portable Text Table block component
- *
- * Renders tables from content imports. Cell content is rendered through the
- * standard Portable Text pipeline so all marks (bold, italic, links, etc.) are
- * handled by the registered mark components -- including `sanitizeHref` for links.
- */
+import {
+	TABLE_CELL_MIN_WIDTH,
+	createPortableTextTableCellMarkResolver,
+	getPortableTextTableColumnWidths,
+	normalizePortableTextTable,
+	type PortableTextTableBlock,
+	type PortableTextTableCell,
+} from "@emdash-cms/admin/portable-text-table";
 import { PortableText } from "astro-portabletext";
 import { emdashMarkComponents } from "./marks.js";
 
 export interface Props {
-	node: {
-		_type: "table";
-		_key: string;
-		rows: Array<{
-			_type: "tableRow";
-			_key: string;
-			cells: Array<{
-				_type: "tableCell";
-				_key: string;
-				content: Array<{
-					_type: "span";
-					_key: string;
-					text: string;
-					marks?: string[];
-				}>;
-				markDefs?: Array<{
-					_type: string;
-					_key: string;
-					[key: string]: unknown;
-				}>;
-				isHeader?: boolean;
-			}>;
-		}>;
-		hasHeaderRow?: boolean;
-	};
+	node: unknown;
+}
+
+interface PlacedCell {
+	cell: PortableTextTableCell;
+	column: number;
 }
 
 const markComponents = { mark: emdashMarkComponents };
-
 const { node } = Astro.props;
-const rows = node?.rows ?? [];
+let generatedKey = 0;
+const normalized = normalizePortableTextTable(node, {
+	path: "render:table",
+	createKey: () => `render-table-${generatedKey++}`,
+});
+const table = normalized.ok ? normalized.table : normalized.renderFallback;
+const resolveCellMarkDefs = table ? createPortableTextTableCellMarkResolver(table) : undefined;
+const rawRows = table ? undefined : getRawRows(normalized.raw);
+const placedRows = table ? placeCells(table) : [];
+const visualWidth = normalized.ok
+	? normalized.width
+	: table
+		? getVisualWidth(placedRows)
+		: getRawWidth(rawRows ?? []);
+const columnWidths = table ? getPortableTextTableColumnWidths(table) : undefined;
+const minimumWidth = columnWidths
+	? columnWidths.reduce((total, columnWidth) => total + columnWidth, 0)
+	: visualWidth * TABLE_CELL_MIN_WIDTH;
+const hasHeaderRow =
+	table?.hasHeaderRow === true &&
+	table.rows[0]?.cells.length > 0 &&
+	table.rows[0].cells.every((cell) => cell.isHeader === true && (cell.rowspan ?? 1) === 1);
+const headerRow = hasHeaderRow ? placedRows[0] : undefined;
+const bodyRows = hasHeaderRow ? placedRows.slice(1) : placedRows;
 
-if (!rows.length) {
-	return null;
+function placeCells(value: PortableTextTableBlock): PlacedCell[][] {
+	const occupied = Array.from({ length: value.rows.length }, () => new Set<number>());
+	return value.rows.map((row, rowIndex) => {
+		let column = 0;
+		return row.cells.map((cell) => {
+			while (occupied[rowIndex]?.has(column)) column++;
+			const start = column;
+			const colspan = cell.colspan ?? 1;
+			const rowspan = cell.rowspan ?? 1;
+			for (let rowOffset = 0; rowOffset < rowspan; rowOffset++) {
+				for (let columnOffset = 0; columnOffset < colspan; columnOffset++) {
+					occupied[rowIndex + rowOffset]?.add(start + columnOffset);
+				}
+			}
+			column += colspan;
+			return { cell, column: start };
+		});
+	});
 }
 
-/**
- * Wrap a table cell's inline content as a Portable Text block so it can be
- * rendered through the standard pipeline (marks, markDefs, etc.).
- */
-function cellToBlock(cell: Props["node"]["rows"][number]["cells"][number]) {
+function getVisualWidth(rows: PlacedCell[][]): number {
+	let result = 1;
+	for (const row of rows) {
+		for (const { cell, column } of row) {
+			result = Math.max(result, column + (cell.colspan ?? 1));
+		}
+	}
+	return result;
+}
+
+function getRawRows(value: unknown): unknown[] {
+	return isRecord(value) && Array.isArray(value.rows) ? value.rows : [];
+}
+
+function getRawCells(value: unknown): unknown[] {
+	return isRecord(value) && Array.isArray(value.cells) ? value.cells : [];
+}
+
+function getRawWidth(rows: unknown[]): number {
+	let rawWidth = 1;
+	for (const row of rows) rawWidth = Math.max(rawWidth, getRawCells(row).length);
+	return rawWidth;
+}
+
+function recoverRawCellText(value: unknown, depth = 0): string {
+	if (depth > 32) return "";
+	if (typeof value === "string") return value;
+	if (Array.isArray(value)) {
+		return value.map((entry) => recoverRawCellText(entry, depth + 1)).join("");
+	}
+	if (!isRecord(value)) return "";
+	if (typeof value.text === "string") return value.text;
+	if (typeof value.content === "string") return value.content;
+	const nested = Array.isArray(value.content)
+		? value.content
+		: Array.isArray(value.children)
+			? value.children
+			: [];
+	return recoverRawCellText(nested, depth + 1);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function cellToBlock(cell: PortableTextTableCell) {
 	return [
 		{
 			_type: "block" as const,
 			_key: cell._key,
+			style: "normal",
 			children: cell.content,
-			markDefs: cell.markDefs ?? [],
+			markDefs: resolveCellMarkDefs?.(cell) ?? [],
 		},
 	];
 }
 
-const hasHeader = node?.hasHeaderRow;
-const headerRow = hasHeader ? rows[0] : null;
-const bodyRows = hasHeader ? rows.slice(1) : rows;
+function cellAttributes(cell: PortableTextTableCell, scope?: "col" | "row") {
+	return {
+		scope,
+		colspan: (cell.colspan ?? 1) > 1 ? cell.colspan : undefined,
+		rowspan: (cell.rowspan ?? 1) > 1 ? cell.rowspan : undefined,
+		style: cell.textAlign ? `text-align: ${cell.textAlign};` : undefined,
+	};
+}
 ---
 
 <div class="emdash-table-wrapper">
-	<table class="emdash-table">
+	<table class="emdash-table" style={`min-width: ${minimumWidth}px;`}>
+		{table ? (
+			<>
+		{
+			columnWidths && (
+				<colgroup>
+					{columnWidths.map((columnWidth) => <col style={`width: ${columnWidth}px;`} />)}
+				</colgroup>
+			)
+		}
 		{
 			headerRow && (
 				<thead>
 					<tr>
-						{headerRow.cells.map((cell) => (
-							<th>
-								<PortableText
-									value={cellToBlock(cell)}
-									components={markComponents}
-								/>
+						{headerRow.map(({ cell }) => (
+							<th {...cellAttributes(cell, "col")}>
+								<PortableText value={cellToBlock(cell)} components={markComponents} />
 							</th>
 						))}
 					</tr>
@@ -88,14 +161,13 @@ const bodyRows = hasHeader ? rows.slice(1) : rows;
 			{
 				bodyRows.map((row) => (
 					<tr>
-						{row.cells.map((cell) => {
+						{row.map(({ cell, column }) => {
 							const CellTag = cell.isHeader ? "th" : "td";
+							const scope =
+								cell.isHeader && column === 0 && (cell.rowspan ?? 1) === 1 ? "row" : undefined;
 							return (
-								<CellTag>
-									<PortableText
-										value={cellToBlock(cell)}
-										components={markComponents}
-									/>
+								<CellTag {...cellAttributes(cell, scope)}>
+									<PortableText value={cellToBlock(cell)} components={markComponents} />
 								</CellTag>
 							);
 						})}
@@ -103,26 +175,39 @@ const bodyRows = hasHeader ? rows.slice(1) : rows;
 				))
 			}
 		</tbody>
+			</>
+		) : (
+			<tbody>
+				{rawRows?.map((row) => (
+					<tr>
+						{getRawCells(row).map((cell) => <td>{recoverRawCellText(cell)}</td>)}
+					</tr>
+				))}
+			</tbody>
+		)}
 	</table>
 </div>
 
 <style>
 	.emdash-table-wrapper {
-		margin: 1.5rem 0;
+		max-inline-size: 100%;
+		margin-block: 1.5rem;
 		overflow-x: auto;
+		overscroll-behavior-inline: contain;
 	}
 	.emdash-table {
-		width: 100%;
+		inline-size: 100%;
 		border-collapse: collapse;
 		font-size: 0.9rem;
 	}
 	.emdash-table th,
 	.emdash-table td {
+		position: relative;
 		border: 1px solid var(--color-border, #ddd);
 		padding: 0.75rem;
-		text-align: left;
+		text-align: start;
+		vertical-align: top;
 	}
-	/* Remove default block margins inside cells */
 	.emdash-table th :global(p),
 	.emdash-table td :global(p) {
 		margin: 0;

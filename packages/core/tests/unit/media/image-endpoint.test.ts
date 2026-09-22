@@ -4,8 +4,10 @@ import {
 	matchInternalMediaKey,
 	isSafeTransformKey,
 	parseTransformParams,
+	resolveTransformQuality,
 	isTransformFormat,
 	originalMediaHeaders,
+	DEFAULT_TRANSFORM_QUALITY,
 	MAX_TRANSFORM_DIMENSION,
 } from "../../../src/media/image-endpoint.js";
 
@@ -94,9 +96,15 @@ describe("parseTransformParams", () => {
 		});
 	});
 
-	it("defaults format to webp and leaves height/quality undefined", () => {
+	it("defaults format to webp, leaves quality and height undefined when not requested", () => {
+		// Quality stays undefined when no `q` is requested: the Cloudflare
+		// endpoint applies DEFAULT_TRANSFORM_QUALITY for lossy formats itself,
+		// while lossless PNG must get none (explicit PNG quality → lossy PNG8).
 		const r = parse("w=800");
-		expect(r).toEqual({ ok: true, options: { width: 800, format: "webp" } });
+		expect(r).toEqual({
+			ok: true,
+			options: { width: 800, format: "webp", quality: undefined },
+		});
 	});
 
 	it("rejects out-of-range and non-integer dimensions", () => {
@@ -121,10 +129,28 @@ describe("parseTransformParams", () => {
 	});
 });
 
+describe("resolveTransformQuality", () => {
+	it("applies the default quality to lossy formats when none is requested", () => {
+		expect(resolveTransformQuality("webp", undefined)).toBe(DEFAULT_TRANSFORM_QUALITY);
+		expect(resolveTransformQuality("avif", undefined)).toBe(DEFAULT_TRANSFORM_QUALITY);
+		expect(resolveTransformQuality("jpeg", undefined)).toBe(DEFAULT_TRANSFORM_QUALITY);
+	});
+
+	it("sends no quality for lossless PNG when none is requested (avoids PNG8)", () => {
+		expect(resolveTransformQuality("png", undefined)).toBeUndefined();
+	});
+
+	it("honors an explicitly requested quality for every format, including PNG", () => {
+		expect(resolveTransformQuality("webp", 70)).toBe(70);
+		expect(resolveTransformQuality("png", 70)).toBe(70);
+	});
+});
+
 describe("originalMediaHeaders", () => {
 	it("renders safe raster types inline with a sandbox CSP", () => {
 		const h = originalMediaHeaders("image/png");
 		expect(h["Content-Type"]).toBe("image/png");
+		expect(h["Cache-Control"]).toBe("public, max-age=0, must-revalidate");
 		expect(h["Content-Disposition"]).toBe("inline");
 		expect(h["X-Content-Type-Options"]).toBe("nosniff");
 		expect(h["Content-Security-Policy"]).toContain("sandbox");

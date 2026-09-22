@@ -159,7 +159,7 @@ export async function exportHandler(ctx: RouteContext<ExportInput>) {
 
 	do {
 		const batch = await submissions(ctx).query({
-			where: where as Record<string, string | number | boolean | null>,
+			where: where,
 			orderBy: { createdAt: "desc" },
 			limit: 100,
 			cursor,

@@ -1,0 +1,774 @@
+// GitHub webhook helpers: signature verification, payload normalization,
+// actor classification, anchor extraction.
+//
+// Everything here is PURE -- no I/O, no DO calls, no env access. The route
+// in app.ts composes these into a request pipeline:
+//
+//   raw body  →  verifyWebhookSignature
+//             →  JSON.parse + dispatchByEventType
+//             →  normalizeWebhook → NormalizedEvent | { skip: reason }
+//             →  env.Orchestrator.getByName(anchor).event(normalized)
+//
+// Keeping it pure makes it unit-testable against synthetic GitHub fixtures
+// without booting the workers pool. The pool tests (tests/integration/) cover
+// the full HTTP path end-to-end.
+
+import type { NormalizedEvent } from "./orchestrator.js";
+import { parseCommand, parseMention } from "./router.js";
+
+// ---------------- HMAC verification ----------------
+
+const encoder = new TextEncoder();
+const NON_HEX = /[^0-9a-fA-F]/;
+
+/**
+ * Verify the `X-Hub-Signature-256` header against the raw request body using
+ * the shared webhook secret (HMAC-SHA256). Constant-time comparison via
+ * `crypto.subtle.timingSafeEqual`.
+ *
+ * Critical: callers MUST pass the raw request body (the bytes GitHub sent),
+ * not the parsed-then-restringified JSON. Round-tripping reorders keys and
+ * strips whitespace, which breaks the HMAC.
+ */
+export async function verifyWebhookSignature(
+	secret: string,
+	rawBody: string,
+	signatureHeader: string | undefined | null,
+): Promise<boolean> {
+	if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
+	const key = await crypto.subtle.importKey(
+		"raw",
+		encoder.encode(secret),
+		{ name: "HMAC", hash: "SHA-256" },
+		false,
+		["sign"],
+	);
+	const provided = hexToBytes(signatureHeader.slice("sha256=".length));
+	if (!provided) return false;
+	const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody)));
+	if (provided.length !== mac.length) return false;
+	return crypto.subtle.timingSafeEqual(provided, mac);
+}
+
+function hexToBytes(hex: string): Uint8Array | null {
+	if (hex.length === 0 || hex.length % 2 !== 0 || NON_HEX.test(hex)) return null;
+	const out = new Uint8Array(hex.length / 2);
+	for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	return out;
+}
+
+// ---------------- Actor classification ----------------
+
+/**
+ * Author associations GitHub assigns on comment/issue payloads. Treat
+ * OWNER/MEMBER/COLLABORATOR as `maintainer` -- they have push access (in
+ * practice; emdash is a single-org repo so OWNER + MEMBER is the maintainer
+ * set, COLLABORATOR is added explicit access).
+ *
+ * CONTRIBUTOR / FIRST_TIMER / FIRST_TIME_CONTRIBUTOR / NONE / MANNEQUIN are
+ * not maintainers. They may still be the reporter if they opened the issue.
+ */
+const MAINTAINER_ASSOCIATIONS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+const EMDASHBOT_LOGIN = "emdashbot[bot]";
+
+export type Actor = "maintainer" | "reporter" | "system" | "other";
+
+export interface ActorInput {
+	/** Login of the user who sent the event (commenter / issue opener). */
+	readonly senderLogin: string | undefined | null;
+	/** `author_association` from the payload, if present. */
+	readonly authorAssociation?: string | null;
+	/** Login of the anchor issue's opener. */
+	readonly issueOpenerLogin?: string | null;
+}
+
+/**
+ * Resolve the actor's role for the router. Maintainer wins over reporter --
+ * if the issue opener is a maintainer, their action runs with full
+ * maintainer authority, not the limited reporter set.
+ *
+ * Only the EmDashBot GitHub App account is `system`. Other bot accounts are
+ * untrusted callers and cannot emit the agent-only events accepted by the
+ * state machine.
+ */
+export function classifyActor({
+	senderLogin,
+	authorAssociation,
+	issueOpenerLogin,
+}: ActorInput): Actor {
+	if (!senderLogin) return "other";
+	if (senderLogin.toLowerCase() === EMDASHBOT_LOGIN) return "system";
+	if (senderLogin.endsWith("[bot]")) return "other";
+	if (authorAssociation && MAINTAINER_ASSOCIATIONS.has(authorAssociation)) return "maintainer";
+	if (issueOpenerLogin && senderLogin === issueOpenerLogin) return "reporter";
+	return "other";
+}
+
+// ---------------- Payload types ----------------
+
+// Minimal structural types over the GitHub payloads we read. NOT exhaustive;
+// optional fields stay optional and unknown branches resolve to a skip. We
+// avoid pulling in @octokit/webhooks-types to keep the bundle small and the
+// types narrowly scoped to what we actually consume.
+
+interface User {
+	login?: string;
+	type?: string;
+}
+
+interface Label {
+	name?: string;
+}
+
+interface IssueLike {
+	number?: number;
+	user?: User;
+	labels?: Label[];
+	/** Set on PR-as-issue payloads (issue_comment on a PR). */
+	pull_request?: unknown;
+	author_association?: string;
+}
+
+interface CommentLike {
+	id?: number;
+	body?: string | null;
+	user?: User;
+	author_association?: string;
+	created_at?: string;
+}
+
+interface PullRequest {
+	number?: number;
+	user?: User;
+	head?: { ref?: string; repo?: { full_name?: string } | null };
+	base?: { repo?: { full_name?: string } };
+	labels?: Label[];
+	draft?: boolean;
+	state?: string;
+	/** True when closed via merge; false when closed without merging. */
+	merged?: boolean;
+	author_association?: string;
+}
+
+export interface IssuesEvent {
+	action?: string;
+	issue?: IssueLike;
+	sender?: User;
+}
+
+export interface IssueCommentEvent {
+	action?: string;
+	issue?: IssueLike;
+	comment?: CommentLike;
+	sender?: User;
+}
+
+export interface PullRequestEvent {
+	action?: string;
+	pull_request?: PullRequest;
+	sender?: User;
+}
+
+export interface PullRequestReviewEvent {
+	action?: string;
+	review?: {
+		id?: number;
+		body?: string | null;
+		state?: string;
+		user?: User;
+		author_association?: string;
+	};
+	pull_request?: PullRequest;
+	sender?: User;
+}
+
+export interface PullRequestReviewCommentEvent {
+	action?: string;
+	comment?: CommentLike;
+	pull_request?: PullRequest;
+	sender?: User;
+}
+
+// ---------------- Normalization ----------------
+
+export type NormalizeResult =
+	| { kind: "dispatch"; anchor: string; event: NormalizedEvent }
+	| {
+			kind: "pull_request";
+			pullRequestNumber: number;
+			event: Omit<NormalizedEvent, "anchorNumber">;
+	  }
+	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
+	| { kind: "review_state"; pullRequestNumber: number; authorLogin: string; draft: boolean }
+	| { kind: "skip"; reason: string }
+	| { kind: "pong" };
+
+export interface NormalizeContext {
+	/** GitHub delivery id for idempotency tracking. */
+	readonly deliveryId?: string;
+	/** GitHub event type from `X-GitHub-Event`. */
+	readonly eventType: string;
+	/** Parsed JSON payload. */
+	readonly payload: unknown;
+}
+
+/**
+ * Map a GitHub webhook delivery to a (anchor, NormalizedEvent) pair the
+ * orchestrator DO can consume, or a skip reason. The route handler is just
+ * a thin shell around this: this function decides what the bot does.
+ *
+ * Skips return a reason for logging; they're not errors. Examples:
+ *   - issue_comment.edited                (we only act on .created)
+ *   - issues.labeled                       (label changes don't drive state)
+ *   - pull_request.converted_to_draft      (not a lifecycle transition)
+ *   - comment has no @emdashbot mention    (the deterministic gate)
+ *
+ * Skips happen FAST: no DO dispatch, no log spam beyond a single line.
+ */
+export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
+	if (ctx.eventType === "ping") return { kind: "pong" };
+
+	switch (ctx.eventType) {
+		case "issues":
+			return normalizeIssues(asRecord(ctx.payload), ctx.deliveryId);
+		case "issue_comment":
+			return normalizeIssueComment(asRecord(ctx.payload), ctx.deliveryId);
+		case "pull_request":
+			return normalizePullRequest(asRecord(ctx.payload), ctx.deliveryId);
+		case "pull_request_review":
+			return normalizePullRequestReview(asRecord(ctx.payload), ctx.deliveryId);
+		case "pull_request_review_comment":
+			return normalizePullRequestReviewComment(asRecord(ctx.payload), ctx.deliveryId);
+		case "check_run":
+		case "check_suite":
+		case "status":
+			return normalizePullRequestReadiness(asRecord(ctx.payload), ctx.eventType, ctx.deliveryId);
+		default:
+			return { kind: "skip", reason: `event "${ctx.eventType}" is not handled` };
+	}
+}
+
+/**
+ * Issues events. New and reopened issues enter the bounded triage run
+ * automatically. Triage can ask for missing information, await approval, or
+ * start low-risk work without requiring the reporter to know command syntax.
+ * `labeled` / `unlabeled` are skipped because the DO is the source of truth
+ * for state; label drift is reconciled by the Orchestrator DO's periodic alarm
+ * tick (`reconcileLabels`), not by webhooks.
+ */
+function normalizeIssues(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action) ?? "";
+	// A closed issue reaps its fix-loop branches.
+	// PR-as-issue closes arrive as pull_request events too; skip them here.
+	if (action === "closed") {
+		const issue = asRecord(event?.issue);
+		const number = readNumber(issue?.number);
+		if (!number) return { kind: "skip", reason: "issues.closed missing issue.number" };
+		if (issue?.pull_request) return { kind: "skip", reason: "issues.closed on a PR-as-issue" };
+		return {
+			kind: "cleanup",
+			anchor: anchorForIssue(number),
+			anchorNumber: number,
+			...(deliveryId ? { deliveryId } : {}),
+		};
+	}
+	if (action !== "opened" && action !== "reopened") {
+		return { kind: "skip", reason: `issues.${action} not handled` };
+	}
+	const issue = asRecord(event?.issue);
+	const number = readNumber(issue?.number);
+	if (!number) return { kind: "skip", reason: "issues event missing issue.number" };
+	if (issue?.pull_request) return { kind: "skip", reason: "issues event is for a pull request" };
+	return dispatchFor(number, {
+		event: "triage",
+		arg: action === "reopened" ? "Re-triage this reopened issue." : null,
+		actor: "system",
+		labels: collectLabels(issue?.labels),
+		needsClassify: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
+}
+
+/**
+ * Issue comments (and PR comments -- GitHub fires the same event type).
+ * Restricted to `action === "created"` so comment edits don't re-fire the
+ * verb. The DO handles deduping by deliveryId already, but a `.edited`
+ * delivery has a different id than the original `.created`, so we filter
+ * here.
+ */
+function normalizeIssueComment(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action);
+	if (action !== "created") {
+		return { kind: "skip", reason: `issue_comment.${action} not handled` };
+	}
+	const issue = asRecord(event?.issue);
+	const number = readNumber(issue?.number);
+	if (!number) return { kind: "skip", reason: "issue_comment missing issue.number" };
+	const comment = asRecord(event?.comment);
+	const body = readString(comment?.body) ?? "";
+	const mentionText = parseMention(body);
+
+	const sender = asRecord(event?.sender);
+	const issueUser = asRecord(issue?.user);
+	const senderLogin =
+		readString(sender?.login) ?? readString(asRecord(comment?.user)?.login) ?? null;
+	const authorAssociation = readString(comment?.author_association) ?? null;
+	const actor = classifyActor({
+		senderLogin,
+		authorAssociation,
+		issueOpenerLogin: readString(issueUser?.login),
+	});
+	const labels = collectLabels(issue?.labels);
+	const triggeringComment = {
+		id: readNumber(comment?.id) ?? null,
+		body,
+		authorLogin: senderLogin,
+		authorAssociation,
+		actor,
+	};
+	const isPullRequest = issue?.pull_request !== undefined;
+	if (isPullRequest && readString(issueUser?.login) !== "emdashbot[bot]") {
+		return { kind: "skip", reason: "issue_comment is not on an emdashbot pull request" };
+	}
+	const dispatch = (normalized: Omit<NormalizedEvent, "anchorNumber">): NormalizeResult =>
+		isPullRequest
+			? {
+					kind: "pull_request",
+					pullRequestNumber: number,
+					event: { ...normalized, pullRequestNumber: number },
+				}
+			: dispatchFor(number, normalized);
+	if (mentionText === null) {
+		if (
+			!isPullRequest &&
+			(actor === "reporter" || actor === "maintainer") &&
+			labels.includes("bot:awaiting-reporter")
+		) {
+			return dispatch({
+				event: null,
+				arg: null,
+				actor,
+				labels,
+				needsClassify: true,
+				classifyText: body,
+				triggeringComment,
+				...(deliveryId ? { deliveryId } : {}),
+			});
+		}
+		if (!isPullRequest && actor === "reporter" && labels.includes("bot:needs-info")) {
+			return dispatch({
+				event: "triage",
+				arg: "The reporter supplied the requested information. Re-triage the issue.",
+				actor: "system",
+				labels,
+				needsClassify: false,
+				triggeringComment,
+				...(deliveryId ? { deliveryId } : {}),
+			});
+		}
+		if (!isPullRequest && actor === "reporter" && labels.includes("bot:in-review")) {
+			return dispatch({
+				event: "needs_changes",
+				arg: body,
+				actor,
+				labels,
+				needsClassify: false,
+				triggeringComment,
+				...(deliveryId ? { deliveryId } : {}),
+			});
+		}
+		return { kind: "skip", reason: "no @emdashbot mention" };
+	}
+
+	// Three-way grammar (mirrors router.resolveComment):
+	//   1. Bare verb (parseCommand returns a known event) -> deterministic.
+	//   2. Empty mention "@emdashbot " (mention text empty) -> readonly status.
+	//      The DO resolves the readonly via the resolve() path; we just hand
+	//      it the `status` event.
+	//   3. Free text on an issue -> classifier. On a verified bot PR it is
+	//      revision feedback for the originating issue.
+	const cmd = parseCommand(body);
+	if (cmd) {
+		return dispatch({
+			event: cmd.event,
+			arg: cmd.arg,
+			actor,
+			labels,
+			needsClassify: false,
+			triggeringComment,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+
+	if (mentionText === "") {
+		return dispatch({
+			event: "status",
+			arg: null,
+			actor,
+			labels,
+			needsClassify: false,
+			triggeringComment,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+
+	return dispatch({
+		event: isPullRequest ? "revise" : null,
+		arg: isPullRequest ? mentionText : null,
+		actor,
+		labels,
+		needsClassify: !isPullRequest,
+		...(isPullRequest ? {} : { classifyText: mentionText }),
+		triggeringComment,
+		...(deliveryId ? { deliveryId } : {}),
+	});
+}
+
+/**
+ * Pull request events. We act on `opened` / `reopened` / `closed` for
+ * bot-authored PRs as `pr.*` events the machine consumes (pr.opened,
+ * pr.merged). For non-bot PRs we skip -- the bot doesn't manage the
+ * lifecycle of PRs it didn't open.
+ *
+ * The bot-owned head branch is the trusted link back to the issue lifecycle.
+ */
+function normalizePullRequest(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action) ?? "";
+	const pr = asRecord(event?.pull_request);
+	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null)
+		return { kind: "skip", reason: "pull_request is not an emdashbot fix PR" };
+
+	let machineEvent: NormalizedEvent["event"];
+	switch (action) {
+		case "opened":
+		case "reopened":
+			machineEvent = "pr.opened";
+			break;
+		case "synchronize":
+		case "ready_for_review":
+		case "converted_to_draft":
+			machineEvent = "pr.updated";
+			break;
+		case "closed":
+			// Same GitHub action for merge and close-without-merge; the payload
+			// field `pull_request.merged` distinguishes them.
+			machineEvent = pr?.merged === true ? "pr.merged" : "pr.closed";
+			break;
+		default:
+			return { kind: "skip", reason: `pull_request.${action} not handled` };
+	}
+
+	return dispatchFor(issueNumber, {
+		event: machineEvent,
+		pullRequestNumber: readNumber(pr?.number),
+		arg: null,
+		actor: "system",
+		labels: collectLabels(pr?.labels),
+		needsClassify: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
+}
+
+function normalizePullRequestReview(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action);
+	const pr = asRecord(event?.pull_request);
+	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null) return normalizeReviewState(action, pr);
+	if (action === "dismissed") {
+		const pullRequestNumber = readNumber(pr?.number);
+		if (!pullRequestNumber) return { kind: "skip", reason: "dismissed review missing PR number" };
+		return dispatchFor(issueNumber, {
+			event: "pr.updated",
+			arg: null,
+			actor: "system",
+			pullRequestNumber,
+			labels: collectLabels(pr?.labels),
+			needsClassify: false,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+	if (action !== "submitted")
+		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
+	const pullRequestNumber = readNumber(pr?.number);
+	if (!pullRequestNumber || pr?.state === "closed") {
+		return { kind: "skip", reason: "pull_request_review is not on an open emdashbot fix PR" };
+	}
+	const review = asRecord(event?.review);
+	const authorLogin = readString(asRecord(review?.user)?.login) ?? null;
+	const authorAssociation = readString(review?.author_association) ?? null;
+	const actor = classifyActor({ senderLogin: authorLogin, authorAssociation });
+	if (actor !== "maintainer") return { kind: "skip", reason: "review author is not a maintainer" };
+	const state = (readString(review?.state) ?? "").toLowerCase();
+	if (state === "approved") {
+		return dispatchFor(issueNumber, {
+			event: "pr.approved",
+			arg: null,
+			actor: "system",
+			pullRequestNumber,
+			labels: collectLabels(pr?.labels),
+			needsClassify: false,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+	if (state !== "changes_requested" && state !== "commented") {
+		return { kind: "skip", reason: `review state "${state}" not actionable` };
+	}
+	const reviewId = readNumber(review?.id);
+	if (!reviewId) return { kind: "skip", reason: "submitted review missing review.id" };
+	const body = readString(review?.body) ?? "";
+	return dispatchFor(issueNumber, {
+		event: "revise",
+		arg: body,
+		actor,
+		pullRequestNumber,
+		reviewId,
+		labels: collectLabels(pr?.labels),
+		needsClassify: false,
+		triggeringComment: { body, authorLogin, authorAssociation, actor },
+		...(deliveryId ? { deliveryId } : {}),
+	});
+}
+
+function normalizePullRequestReadiness(
+	event: Record<string, unknown> | undefined,
+	eventType: string,
+	deliveryId?: string,
+): NormalizeResult {
+	let branch: string | undefined;
+	let pullRequestNumber: number | undefined;
+	if (eventType === "check_run") {
+		const suite = asRecord(asRecord(event?.check_run)?.check_suite);
+		branch = readString(suite?.head_branch);
+		pullRequestNumber = readNumber(firstRecord(suite?.pull_requests)?.number);
+	} else if (eventType === "check_suite") {
+		const suite = asRecord(event?.check_suite);
+		branch = readString(suite?.head_branch);
+		pullRequestNumber = readNumber(firstRecord(suite?.pull_requests)?.number);
+	} else {
+		const branches = Array.isArray(event?.branches) ? event.branches : [];
+		branch = branches
+			.map((candidate) => readString(asRecord(candidate)?.name))
+			.find((name) => name?.startsWith("bot/fix-"));
+	}
+	const match = branch?.match(BOT_FIX_BRANCH);
+	const issueNumber = match?.[1] ? Number(match[1]) : null;
+	if (!issueNumber || !Number.isSafeInteger(issueNumber)) {
+		return { kind: "skip", reason: `${eventType} is not for an emdashbot fix PR` };
+	}
+	return dispatchFor(issueNumber, {
+		event: "pr.updated",
+		arg: null,
+		actor: "system",
+		...(pullRequestNumber ? { pullRequestNumber } : {}),
+		labels: [],
+		needsClassify: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
+}
+
+function firstRecord(value: unknown): Record<string, unknown> | undefined {
+	return Array.isArray(value) ? asRecord(value[0]) : undefined;
+}
+
+/**
+ * A review on a fork PR the bot did not open only refreshes that PR's review/*
+ * label (see review-state.ts). review-state.yml handles reviews on same-repo
+ * PRs itself. Bot-authored PRs carry no review label.
+ */
+function normalizeReviewState(
+	action: string | undefined,
+	pr: Record<string, unknown> | undefined,
+): NormalizeResult {
+	if (action !== "submitted" && action !== "dismissed") {
+		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
+	}
+	const pullRequestNumber = readNumber(pr?.number);
+	if (!pullRequestNumber) return { kind: "skip", reason: "pull_request_review missing PR number" };
+	if (pr?.state === "closed") return { kind: "skip", reason: "pull_request_review on a closed PR" };
+	const headRepo = readString(asRecord(asRecord(pr?.head)?.repo)?.full_name);
+	if (headRepo && headRepo === readString(asRecord(asRecord(pr?.base)?.repo)?.full_name)) {
+		return { kind: "skip", reason: "pull_request_review on a same-repo PR" };
+	}
+	const author = asRecord(pr?.user);
+	const authorLogin = readString(author?.login);
+	if (!authorLogin) return { kind: "skip", reason: "pull_request_review missing PR author" };
+	if (readString(author?.type) === "Bot" || authorLogin.endsWith("[bot]")) {
+		return { kind: "skip", reason: "pull_request_review on a bot-authored PR" };
+	}
+	return { kind: "review_state", pullRequestNumber, authorLogin, draft: pr?.draft === true };
+}
+
+/**
+ * Inline PR review comments (review-thread comments, not top-level review
+ * bodies). A bare verb remains deterministic; other mentioned text is
+ * revision feedback for the originating issue.
+ */
+function normalizePullRequestReviewComment(
+	event: Record<string, unknown> | undefined,
+	deliveryId?: string,
+): NormalizeResult {
+	const action = readString(event?.action);
+	if (action !== "created") {
+		return { kind: "skip", reason: `pull_request_review_comment.${action} not handled` };
+	}
+	const pr = asRecord(event?.pull_request);
+	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null) {
+		return { kind: "skip", reason: "pr_review_comment is not on an emdashbot fix PR" };
+	}
+	const comment = asRecord(event?.comment);
+	const body = readString(comment?.body) ?? "";
+	const mentionText = parseMention(body);
+
+	const senderLogin =
+		readString(asRecord(event?.sender)?.login) ??
+		readString(asRecord(comment?.user)?.login) ??
+		null;
+	const authorAssociation = readString(comment?.author_association) ?? null;
+	const actor = classifyActor({
+		senderLogin,
+		authorAssociation,
+		issueOpenerLogin: readString(asRecord(pr?.user)?.login),
+	});
+	const labels = collectLabels(pr?.labels);
+	const triggeringComment = {
+		id: readNumber(comment?.id) ?? null,
+		body: [readString(comment?.path), readString(comment?.diff_hunk), body]
+			.filter(Boolean)
+			.join("\n\n"),
+		authorLogin: senderLogin,
+		authorAssociation,
+		actor,
+	};
+	if (mentionText === null) {
+		return {
+			kind: "skip",
+			reason: "unmentioned inline feedback is collected with its submitted review",
+		};
+	}
+
+	const cmd = parseCommand(body);
+	if (cmd) {
+		return dispatchFor(issueNumber, {
+			event: cmd.event,
+			arg: cmd.arg,
+			actor,
+			labels,
+			needsClassify: false,
+			pullRequestNumber: readNumber(pr?.number),
+			triggeringComment,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+	if (mentionText === "") {
+		return dispatchFor(issueNumber, {
+			event: "status",
+			arg: null,
+			actor,
+			labels,
+			needsClassify: false,
+			pullRequestNumber: readNumber(pr?.number),
+			triggeringComment,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+	return dispatchFor(issueNumber, {
+		event: "revise",
+		arg: mentionText,
+		actor,
+		labels,
+		needsClassify: false,
+		pullRequestNumber: readNumber(pr?.number),
+		triggeringComment,
+		...(deliveryId ? { deliveryId } : {}),
+	});
+}
+
+// ---------------- Helpers ----------------
+
+const BOT_FIX_BRANCH = /^bot\/fix-([1-9]\d*)$/;
+
+function issueNumberFromBotFixBranch(headBranch: string | null | undefined): number | null {
+	if (!headBranch) return null;
+	const match = BOT_FIX_BRANCH.exec(headBranch);
+	if (!match?.[1]) return null;
+	const issueNumber = Number(match[1]);
+	return Number.isSafeInteger(issueNumber) && issueNumber > 0 ? issueNumber : null;
+}
+
+function botFixIssueNumber(pr: Record<string, unknown> | undefined): number | null {
+	if (readString(asRecord(pr?.user)?.login) !== "emdashbot[bot]") return null;
+	return issueNumberFromBotFixBranch(readString(asRecord(pr?.head)?.ref));
+}
+
+export function resolvePullRequestWebhook(
+	result: Extract<NormalizeResult, { kind: "pull_request" }>,
+	headBranch: string | null,
+): NormalizeResult {
+	const issueNumber = issueNumberFromBotFixBranch(headBranch);
+	if (issueNumber === null) {
+		return { kind: "skip", reason: "pull request head is not an issue-scoped bot branch" };
+	}
+	return dispatchFor(issueNumber, result.event);
+}
+
+/**
+ * Stable DO instance name for an issue number.
+ */
+export function anchorForIssue(number: number): string {
+	return `issue-${number}`;
+}
+
+/**
+ * Wrap a NormalizedEvent in a dispatch result, injecting the anchor name and
+ * the anchor number (used by the DO for GitHub API calls).
+ */
+function dispatchFor(
+	number: number,
+	event: Omit<NormalizedEvent, "anchorNumber">,
+): NormalizeResult {
+	return {
+		kind: "dispatch",
+		anchor: anchorForIssue(number),
+		event: { ...event, anchorNumber: number },
+	};
+}
+
+function collectLabels(labels: unknown): readonly string[] {
+	if (!Array.isArray(labels)) return [];
+	const out: string[] = [];
+	for (const l of labels) {
+		const name = readString(asRecord(l)?.name);
+		if (name) out.push(name);
+	}
+	return out;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+	return isRecord(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | undefined {
+	return typeof value === "string" ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}

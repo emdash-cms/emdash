@@ -149,6 +149,13 @@ jobs:
           repository: ${{ steps.pr.outputs.full_name }}
           ref: ${{ steps.pr.outputs.sha }}
           persist-credentials: false
+          # Reviewed opt-in to checkout v7's fork guard: no code from the
+          # fork tree is ever executed here. The steps below only `git apply`
+          # the patch from the trusted format artifact and run git
+          # add/commit/push — no scripts, hooks, or tooling from the
+          # checked-out tree. Credentials are not persisted; the push uses
+          # a scoped app token via GIT_ASKPASS.
+          allow-unsafe-pr-checkout: true
 
       - name: Apply patch
         if: steps.download.outputs.found == 'true'

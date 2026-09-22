@@ -18,22 +18,100 @@ export function apiFetch(input: string | URL | Request, init?: RequestInit): Pro
 	return fetch(input, { ...init, headers });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+export class ApiResponseError extends Error {
+	constructor(
+		public status: number,
+		public code: string,
+		message: string,
+		public details?: Record<string, unknown>,
+	) {
+		super(message);
+		this.name = "ApiResponseError";
+	}
+}
+
+/**
+ * Extract per-field validation issue messages from a `VALIDATION_ERROR`
+ * response's `error.details.issues` array (see `packages/core/src/api/parse.ts`).
+ * Returns undefined when the shape doesn't match, so callers can fall back
+ * to the generic top-level message.
+ */
+function formatValidationIssues(error: Record<string, unknown>): string | undefined {
+	if (error.code !== "VALIDATION_ERROR") return undefined;
+	if (!isRecord(error.details)) return undefined;
+	const issues = error.details.issues;
+	if (!Array.isArray(issues) || issues.length === 0) return undefined;
+
+	const messages = issues
+		.map((issue: unknown) => {
+			if (!isRecord(issue)) return undefined;
+			const { path, message } = issue;
+			if (typeof message !== "string") return undefined;
+			return typeof path === "string" && path.length > 0 ? `${path}: ${message}` : message;
+		})
+		.filter((m): m is string => m !== undefined);
+
+	return messages.length > 0 ? messages.join("; ") : undefined;
+}
+
+function formatSandboxedSaveRejection(error: Record<string, unknown>): string | undefined {
+	if (error.code !== "SAVE_REJECTED" || !isRecord(error.details)) return undefined;
+	const { pluginId, reason } = error.details;
+	if (typeof pluginId !== "string" || typeof reason !== "string") return undefined;
+	if (pluginId.length === 0 || reason.length === 0) return undefined;
+	return i18n._(msg`Plugin ${pluginId} rejected the save: ${reason}`);
+}
+
+/**
+ * Client errors that pass no verdict on the request body, so resending it
+ * unchanged can still succeed. Every other 4xx repeats its verdict on every
+ * attempt.
+ */
+const RETRYABLE_CLIENT_ERROR_STATUSES: ReadonlySet<number> = new Set([
+	408, // Request Timeout: the server gave up waiting for the request
+	421, // Misdirected Request: another connection can be routed correctly
+	425, // Too Early: sent as TLS early data, replayable after the handshake
+	429, // Too Many Requests: succeeds once the rate limit window has passed
+]);
+
+/** Whether retrying the same request unchanged can never succeed. */
+export function isTerminalRequestError(error: unknown): boolean {
+	if (!(error instanceof ApiResponseError)) return false;
+	return (
+		error.status >= 400 && error.status < 500 && !RETRYABLE_CLIENT_ERROR_STATUSES.has(error.status)
+	);
+}
+
 /**
  * Throw an error with the message from the API response body if available,
  * falling back to a generic message. All API error responses use the shape
- * `{ error: { code, message } }`.
+ * `{ success: false, error: { code, message, details? } }`. For validation
+ * errors, the field-level messages in `error.details.issues` are surfaced
+ * instead of the generic "Invalid request data" top-level message.
  */
 export async function throwResponseError(res: Response, fallback: string): Promise<never> {
 	const body: unknown = await res.json().catch(() => ({}));
 	let message: string | undefined;
-	if (typeof body === "object" && body !== null && "error" in body) {
+	let code = "UNKNOWN_ERROR";
+	let details: Record<string, unknown> | undefined;
+	if (isRecord(body) && isRecord(body.error)) {
 		const { error } = body;
-		if (typeof error === "object" && error !== null && "message" in error) {
-			const { message: errorMessage } = error;
-			if (typeof errorMessage === "string") message = errorMessage;
-		}
+		message = formatValidationIssues(error);
+		if (!message) message = formatSandboxedSaveRejection(error);
+		if (!message && typeof error.message === "string") message = error.message;
+		if (typeof error.code === "string") code = error.code;
+		if (isRecord(error.details)) details = error.details;
 	}
-	throw new Error(message || `${fallback}: ${res.statusText}`);
+	throw new ApiResponseError(
+		res.status,
+		code,
+		message || `${fallback}: ${res.statusText}`,
+		details,
+	);
 }
 
 /**
@@ -56,6 +134,8 @@ export interface AdminManifest {
 	version: string;
 	/** Version of Astro the host is built with, when resolvable. */
 	astroVersion?: string;
+	/** IANA timezone used to interpret datetime-local editor values. */
+	timezone?: string;
 	hash: string;
 	collections: Record<
 		string,
@@ -65,6 +145,13 @@ export interface AdminManifest {
 			supports: string[];
 			hasSeo: boolean;
 			urlPattern?: string;
+			routable?: boolean;
+			titleField?: string;
+			dateField?: string;
+			hidden?: boolean;
+			/** Sidebar folder shared with other collections of the same group */
+			group?: string;
+			listColumns?: string[];
 			fields: Record<
 				string,
 				{
@@ -80,6 +167,7 @@ export interface AdminManifest {
 					 */
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
+					unsupportedType?: { type: string; path: string };
 				}
 			>;
 		}
@@ -109,6 +197,22 @@ export interface AdminManifest {
 				id: string;
 				title?: string;
 				size?: "full" | "half" | "third";
+			}>;
+			editorPanels?: Array<{
+				id: string;
+				title: string;
+				route: string;
+				collections?: string[];
+				order?: number;
+			}>;
+			editorActions?: Array<{
+				id: string;
+				label: string;
+				route: string;
+				placement: "toolbar" | "overflow";
+				collections?: string[];
+				style?: "default" | "danger";
+				confirm?: import("@emdash-cms/blocks").ConfirmDialog;
 			}>;
 			fieldWidgets?: Array<{
 				name: string;
@@ -146,27 +250,35 @@ export interface AdminManifest {
 	i18n?: {
 		defaultLocale: string;
 		locales: string[];
+		prefixDefaultLocale?: boolean;
+	};
+	/** Stored-content locale policy, independent from the admin UI language. */
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
 	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */
 	taxonomies: Array<{
+		id?: string;
 		name: string;
 		label: string;
 		labelSingular?: string;
 		hierarchical: boolean;
 		collections: string[];
+		locale?: string;
+		translationGroup?: string | null;
 	}>;
 	/**
-	 * Marketplace registry URL. Present when `marketplace` is configured
-	 * in the EmDash integration. Enables marketplace features in the UI.
+	 * Whether legacy marketplace lifecycle support is configured. The admin
+	 * uses this to show migration guidance; marketplace discovery stays hidden.
+	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
-	marketplace?: string;
+	marketplace?: boolean;
 	/**
-	 * Experimental decentralized plugin registry. Present when
-	 * `experimental.registry` is configured in the EmDash integration.
-	 * When present, the admin UI uses the registry instead of the
-	 * centralized marketplace for browse and install.
+	 * Decentralized plugin registry. Defaults to the hosted aggregator when
+	 * the plugin sandbox is enabled, or reflects an explicit registry config.
 	 */
 	registry?: {
 		aggregatorUrl: string;
@@ -175,6 +287,22 @@ export interface AdminManifest {
 			minimumReleaseAgeSeconds?: number;
 			minimumReleaseAgeExclude?: string[];
 		};
+	};
+	/** Field-level diagnostic returned when registry configuration is invalid. */
+	registryConfigurationError?: {
+		code:
+			| "REGISTRY_AGGREGATOR_URL_REQUIRED"
+			| "REGISTRY_AGGREGATOR_URL_INVALID"
+			| "REGISTRY_AGGREGATOR_URL_FORBIDDEN"
+			| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
+			| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
+		field:
+			| "registry.aggregatorUrl"
+			| "registry.policy.minimumReleaseAge"
+			| "registry.policy.minimumReleaseAgeExclude"
+			| "experimental.registry.aggregatorUrl"
+			| "experimental.registry.policy.minimumReleaseAge"
+			| "experimental.registry.policy.minimumReleaseAgeExclude";
 	};
 	/**
 	 * Admin branding overrides for white-labeling.
@@ -188,7 +316,7 @@ export interface AdminManifest {
 }
 
 /**
- * Parse an API response with the { data: T } envelope.
+ * Parse an API response with the { success, data: T } envelope.
  *
  * Handles error responses via throwResponseError, then unwraps the data envelope.
  * Replaces both bare `response.json()` and field-unwrap patterns.

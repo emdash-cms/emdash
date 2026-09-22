@@ -12,7 +12,7 @@ interface Props {
 
 const { showCount = true, hierarchical = true } = Astro.props;
 
-const categories = await getTaxonomyTerms("category");
+const categories = await getTaxonomyTerms("category", { includeCounts: showCount });
 ---
 
 <ul class="widget-categories">

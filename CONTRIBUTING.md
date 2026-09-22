@@ -93,7 +93,21 @@ pnpm test        # all packages
 pnpm test:e2e    # Playwright
 ```
 
+`pnpm build` is required before the first typecheck in a fresh checkout. Scoped package typechecks such as `pnpm --filter @emdash-cms/plugin-cli typecheck` resolve internal workspace type declarations from `dist/`, which the build emits; this matches CI's build-then-typecheck order.
+
 Tests use real in-memory SQLite -- no mocking. Each test gets a fresh database. Typecheck and lint must pass.
+
+### Visual regression tests
+
+The admin UI has a Playwright visual-regression suite (`e2e/tests/visual-regression.spec.ts`) that screenshots key screens in both LTR (English) and RTL (Arabic). It is gated behind `EMDASH_VISUAL=1` so it stays out of the default `pnpm test:e2e` run:
+
+```bash
+EMDASH_VISUAL=1 pnpm test:e2e visual-regression
+```
+
+Baselines are platform-specific. **CI (Linux) is the source of truth** -- committed baselines are `*-chromium-linux.png`. Locally generated macOS/Windows baselines (`*-darwin.png`, `*-win32.png`) are gitignored; never commit them, they won't match CI.
+
+When a PR changes how a screen renders, the `Visual Regression` check goes red and a bot posts a sticky comment with the diff images. A maintainer reviews the diffs and, if the change is intended, comments `/accept-baselines`. The `Visual Regression — Apply` job then commits the regenerated Linux baselines to the PR branch. Baselines are never updated automatically on push -- a maintainer must accept each change.
 
 ### Building your own site in the monorepo
 
@@ -139,86 +153,39 @@ AI-assisted contributions are welcome and held to the same quality bar as any ot
 - AI-generated PRs must pass CI, follow project patterns, and include tests.
 - Check the PR template's AI disclosure box and name the model/tool (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6). This isn't punitive -- it helps reviewers focus on edge cases that AI tools tend to miss and run the review pass with a different model family.
 
+### Interface screenshots
+
+An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include screenshots of the rendered result. Include before-and-after images when the result alone does not make the change clear. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+
+In the GitHub web interface, drag or paste the images into the issue or PR body. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
+
+The following command attaches two screenshots to a PR body:
+
+```bash
+gh pr create --body-file /tmp/emdash-pr.md \
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
+```
+
+If the body contains `![Settings screen after the change](./after.png)`, pass `--attach ./after.png` to upload the image and replace the local path in place. GitHub appends attached files that are not referenced in the body. See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
+
 ### PR rules
 
 - Branch from `main`.
 - Fill out the PR template completely. **PRs with an empty or missing template will be closed automatically.** The template is loaded by the GitHub UI; if you create a PR via API/CLI, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body.
 - `pnpm typecheck` and `pnpm lint` must pass before pushing.
 - Run relevant tests.
+- Include screenshots for every UI change.
 - Commit messages describe _why_, not just _what_.
 
 ## Changesets
 
-Every PR that changes a published package's behavior needs a **changeset** -- a small Markdown file that describes the change for the CHANGELOG and determines the version bump. Without one, the change won't trigger a release.
+Follow [Writing and reviewing changesets](.changeset/README.md) for when a change needs one, package bump types, the user-facing writing standard, examples, and review criteria.
 
-### When you need one
-
-- Bug fixes, features, refactors, or anything that affects a published package's behavior or API.
-- Multi-package changes need one changeset listing all affected packages.
-- A PR making multiple distinct changes can include a changeset per change -- each becomes its own CHANGELOG entry.
-
-### When you don't
-
-- Docs-only, test-only, CI/tooling changes, or changes to demos and templates (these are in the ignore list -- see `.changeset/config.json`).
-
-### How
+Create the file with the Changesets CLI, then edit the generated Markdown:
 
 ```bash
 pnpm changeset
-```
-
-The CLI walks you through affected packages, bump type, and description. Edit the resulting `.md` file in `.changeset/` if needed.
-
-### Writing the description
-
-A changeset is the **release note a user reads while upgrading** -- it lands verbatim in the CHANGELOG. It is not a commit message, a PR description, or a summary of your diff. Don't paste your PR text into it: those explain the change to a reviewer reading the code, the changeset explains the effect to someone who will run the new version.
-
-Write for that reader:
-
-- Start with a present-tense verb -- **Fixes** (bug), **Adds** (feature), **Updates** (enhancement), **Removes** (removed functionality), **Refactors** (no behavior change).
-- Describe the observable effect -- what's different for someone using the package.
-- Leave out internal mechanics -- file names, function names, which catalog entry you bumped, how you implemented it. If a sentence only makes sense to someone who has read the diff, it doesn't belong here.
-- For a breaking change, include the migration step.
-
-One sentence is often enough.
-
-```diff
-- # too low-level -- reads like a commit message
-- Align the catalog so identity-resolver's lexicons peer resolves; migrates parseCanonicalResourceUri off the result-object API in backfill.ts.
-+ # right altitude -- the effect on the user
-+ Fixes peer dependency warnings on install caused by mismatched `@atcute` package versions.
-```
-
-**Patch** (bug fix or small improvement):
-
-```markdown
----
-"emdash": patch
----
-
-Fixes CLI `--json` flag so JSON output is clean. Log messages now go to stderr when `--json` is set.
-```
-
-**Minor** (new non-breaking feature):
-
-```markdown
----
-"emdash": minor
----
-
-Adds `scheduled_at` field to content entries, enabling scheduled publishing via the admin UI.
-```
-
-**Major** (breaking change) -- include migration guidance:
-
-```markdown
----
-"emdash": major
----
-
-Removes the `legacyAuth` option from the integration config. All sites must use passkey authentication.
-
-To migrate, remove `legacyAuth: true` from your `emdash()` config in `astro.config.mjs`.
 ```
 
 ## Internationalization
@@ -255,6 +222,7 @@ For RTL rules and the full Lingui pattern reference, see [AGENTS.md § Admin UI:
 ## Getting Help
 
 - [AGENTS.md](AGENTS.md) -- architecture and code patterns
+- [TRIAGE.md](TRIAGE.md) -- guidance for community triagers
 - [docs.emdashcms.com](https://docs.emdashcms.com) -- user guides and API reference
 - [Discussions](https://github.com/emdash-cms/emdash/discussions) -- ask questions, propose features
 - [Issues](https://github.com/emdash-cms/emdash/issues) -- bug reports

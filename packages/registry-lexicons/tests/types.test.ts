@@ -1,7 +1,29 @@
 import { is, safeParse } from "@atcute/lexicons/validations";
 import { describe, expect, it } from "vitest";
 
-import { NSID, PackageProfile, PackageRelease, PublisherProfile } from "../src/index.js";
+import {
+	getDelegatedReleasePermission,
+	NSID,
+	PackageProfile,
+	PackageProfileExtension,
+	PackageRelease,
+	PackageReleaseExtension,
+	PublisherProfile,
+} from "../src/index.js";
+
+describe("delegated release permission", () => {
+	it("exposes only the active release collection's create scope", () => {
+		const permission = getDelegatedReleasePermission();
+
+		expect(permission).toEqual({
+			collection: NSID.packageRelease,
+			scope:
+				"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+		});
+		expect(Object.isFrozen(permission)).toBe(true);
+		expect(permission.scope).not.toContain("transition:generic");
+	});
+});
 
 /**
  * Smoke tests over the generated types and validation schemas. The goal isn't
@@ -90,6 +112,92 @@ describe("PackageProfile", () => {
 		expect(is(PackageProfile.mainSchema, known)).toBe(true);
 		expect(is(PackageProfile.mainSchema, custom)).toBe(true);
 	});
+
+	it("intentionally treats extension entries as opaque until consumers dispatch them", () => {
+		const profile: PackageProfile.Main = {
+			$type: NSID.packageProfile,
+			id: "at://did:plc:abc123/com.emdashcms.experimental.package.profile/gallery",
+			type: "emdash-plugin",
+			license: "MIT",
+			authors: [{ name: "Alice Example" }],
+			security: [{ email: "security@example.com" }],
+			extensions: {
+				[NSID.packageProfileExtension]: "not validated by the base profile schema",
+			},
+		};
+
+		expect(safeParse(PackageProfile.mainSchema, profile)).toMatchObject({ ok: true });
+		// Consumers validate an entry only after dispatching its NSID to this schema.
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+			}),
+		).toBe(true);
+	});
+});
+
+describe("PackageProfileExtension", () => {
+	it("round-trips a release policy", () => {
+		const extension: PackageProfileExtension.Main = {
+			$type: NSID.packageProfileExtension,
+			repository: "https://github.com/example/gallery",
+			releasePolicy: {
+				requireProvenance: true,
+				confirmation: "always",
+				approvers: ["did:plc:abc123"],
+			},
+		};
+
+		expect(safeParse(PackageProfileExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
+	it("accepts an absent policy", () => {
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+			}),
+		).toBe(true);
+	});
+
+	it("rejects invalid repository URIs, approver DIDs, and oversized approver lists", () => {
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "not-a-uri",
+			}),
+		).toBe(false);
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: { approvers: ["not-a-did"] },
+			}),
+		).toBe(false);
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: {
+					approvers: Array.from({ length: 33 }, (_, index) => `did:plc:${index}`),
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("intentionally defers unknown confirmation values and duplicate approvers to consumers", () => {
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: {
+					confirmation: "manual-review",
+					approvers: ["did:plc:abc123", "did:plc:abc123"],
+				},
+			}),
+		).toBe(true);
+	});
 });
 
 describe("PackageRelease", () => {
@@ -126,6 +234,133 @@ describe("PackageRelease", () => {
 
 		expect(is(PackageRelease.mainSchema, bad)).toBe(false);
 	});
+
+	it("validates blob-hosted package and image artifacts", () => {
+		const release: PackageRelease.Main = {
+			$type: NSID.packageRelease,
+			package: "gallery",
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					blob: {
+						$type: "blob",
+						ref: { $link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy" },
+						mimeType: "application/gzip",
+						size: 24_000,
+					},
+					checksum: "bciqft3cnxjpwrjxnsvfdz5xeckn7shz3rxfxbyjyb4x35ap2mlnucfwq",
+				},
+				icon: {
+					blob: {
+						$type: "blob",
+						ref: { $link: "bafkreifxfs7hxymrqjjxjoz2nalc4o5n2hzqctqc74wp5bsvoodw7rr3me" },
+						mimeType: "image/webp",
+						size: 4_096,
+					},
+					checksum: "bciqlole7pprrdbetoys3bifrodo3xiptafhadxzmp2dfk44hn6ohoyq",
+				},
+			},
+		};
+
+		expect(is(PackageRelease.mainSchema, release)).toBe(true);
+	});
+
+	it("accepts an unknown authentication variant", () => {
+		const release: PackageRelease.Main = {
+			$type: NSID.packageRelease,
+			package: "gallery",
+			version: "1.0.0",
+			artifacts: {
+				package: {
+					url: "https://example.com/gallery.tar.gz",
+					checksum: "bciqinvalid",
+				},
+			},
+			auth: {
+				$type: "com.example.package.auth",
+				hint: "Sign in to the publisher account",
+				hint_url: "https://example.com/help",
+			},
+		};
+
+		expect(is(PackageRelease.mainSchema, release)).toBe(true);
+	});
+});
+
+describe("PackageReleaseExtension", () => {
+	it("accepts explicit comment personal-data and moderation authority", () => {
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: { comments: { read: {}, moderate: {} } },
+			}),
+		).toBe(true);
+	});
+
+	it("validates redirect read and write authority", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: { redirects: { read: {}, write: {} } },
+		};
+
+		expect(safeParse(PackageReleaseExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
+	it("validates publication policy authority as a separate content operation", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: { content: { policy: {} } },
+		};
+
+		expect(is(PackageReleaseExtension.mainSchema, extension)).toBe(true);
+	});
+
+	it("intentionally leaves unknown provenance predicates for consumer verification", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: {},
+			provenance: {
+				predicateType: "https://example.com/provenance/v2",
+				url: "https://github.com/example/gallery/attestation.json",
+				checksum: "bciqkkpvkbtfcwq6kjkbq3kgjxe5j6ihzkxlfxkzqhwzaaaa3wkbq3a",
+				sourceRepository: "https://github.com/example/gallery",
+				builderId:
+					"https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
+			},
+		};
+
+		expect(safeParse(PackageReleaseExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
+	it("rejects incomplete provenance", () => {
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: {},
+				provenance: {
+					predicateType: "https://slsa.dev/provenance/v1",
+					url: "https://github.com/example/gallery/attestation.json",
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("does not enforce profile policy across records", () => {
+		// requireProvenance is enforced by later consumers, not a cross-record Lexicon rule.
+		expect(
+			is(PackageProfileExtension.mainSchema, {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/gallery",
+				releasePolicy: { requireProvenance: true },
+			}),
+		).toBe(true);
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: {},
+			}),
+		).toBe(true);
+	});
 });
 
 describe("PublisherProfile", () => {
@@ -157,6 +392,7 @@ describe("NSID map", () => {
 		// also sanity-checked in the schema modules' `$type` literals above.
 		const expected = [
 			"com.emdashcms.experimental.package.profile",
+			"com.emdashcms.experimental.package.profileExtension",
 			"com.emdashcms.experimental.package.release",
 			"com.emdashcms.experimental.package.releaseExtension",
 			"com.emdashcms.experimental.publisher.profile",
@@ -167,6 +403,11 @@ describe("NSID map", () => {
 			"com.emdashcms.experimental.aggregator.listReleases",
 			"com.emdashcms.experimental.aggregator.resolvePackage",
 			"com.emdashcms.experimental.aggregator.searchPackages",
+			"com.emdashcms.experimental.labeler.defs",
+			"com.emdashcms.experimental.labeler.getAssessment",
+			"com.emdashcms.experimental.labeler.getCurrentAssessment",
+			"com.emdashcms.experimental.labeler.getPolicy",
+			"com.emdashcms.experimental.labeler.listAssessments",
 		].toSorted();
 
 		const actual = Object.values(NSID).toSorted();

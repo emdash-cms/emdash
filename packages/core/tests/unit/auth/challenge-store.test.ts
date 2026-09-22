@@ -54,6 +54,26 @@ describe("ChallengeStore", () => {
 			expect(result?.userId).toBeUndefined();
 		});
 
+		it("round-trips typed challenge context", async () => {
+			const challenge = "context-challenge-789";
+			const expiresAt = Date.now() + 5 * 60 * 1000;
+			const context = '{"type":"passkey-enrolment","version":1,"value":{"role":"approver"}}';
+
+			await store.set(challenge, {
+				type: "registration",
+				userId: "user-1",
+				expiresAt,
+				context,
+			});
+
+			await expect(store.get(challenge)).resolves.toEqual({
+				type: "registration",
+				userId: "user-1",
+				expiresAt,
+				context,
+			});
+		});
+
 		it("updates existing challenge on conflict", async () => {
 			const challenge = "update-test";
 			const expiresAt1 = Date.now() + 5 * 60 * 1000;

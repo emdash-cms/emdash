@@ -32,9 +32,10 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
-import { buildEmDashCsp } from "./csp.js";
+import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
 
 declare global {
 	namespace App {
@@ -54,19 +55,14 @@ declare global {
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
+const COMMENT_SUBMISSION_PATH = /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/;
 
 function isUnsafeMethod(method: string): boolean {
 	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
 }
 
 function csrfRejectedResponse(): Response {
-	return new Response(
-		JSON.stringify({ error: { code: "CSRF_REJECTED", message: "Missing required header" } }),
-		{
-			status: 403,
-			headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-		},
-	);
+	return apiError("CSRF_REJECTED", "Missing required header", 403);
 }
 
 function mcpUnauthorizedResponse(
@@ -74,16 +70,13 @@ function mcpUnauthorizedResponse(
 	config?: Parameters<typeof getPublicOrigin>[1],
 ): Response {
 	const origin = getPublicOrigin(url, config);
-	return Response.json(
-		{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-		{
-			status: 401,
-			headers: {
-				"WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
-				...MW_CACHE_HEADERS,
-			},
-		},
+	const response = apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
+	// Preserve the OAuth discovery header so MCP clients can find the auth server.
+	response.headers.set(
+		"WWW-Authenticate",
+		`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
 	);
+	return response;
 }
 
 /**
@@ -114,12 +107,16 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
+	"/_emdash/api/health",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
-	// Public site search — read-only. The query layer hardcodes status='published'
-	// so unauthenticated callers only see published content. Admin endpoints
+	"/_emdash/api/visual-editing/toolbar-labels",
+	// Public site search — read-only. Unauthenticated callers only see
+	// published content: /search forces status='published' without the
+	// content:read_drafts permission and /suggest hardcodes it. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
+	"/_emdash/api/search/suggest",
 ]);
 
 // Build merged public routes at module load from auth provider descriptors.
@@ -199,6 +196,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
 		}
+		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+			return handlePublicRouteAuth(context, next);
+		}
+		// Search filters drafts by permission, so resolve the session user when
+		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
+		// are not resolved on public routes; token callers continue to receive
+		// published results only.
+		if (url.pathname === "/_emdash/api/search") {
+			return handlePublicRouteAuth(context, next);
+		}
 		return next();
 	}
 
@@ -223,15 +230,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
 			const csrfHeader = context.request.headers.get("X-EmDash-Request");
 			if (csrfHeader !== "1") {
-				return new Response(
-					JSON.stringify({
-						error: { code: "CSRF_REJECTED", message: "Missing required header" },
-					}),
-					{
-						status: 403,
-						headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-					},
-				);
+				return apiError("CSRF_REJECTED", "Missing required header", 403);
 			}
 		}
 		return next();
@@ -249,20 +248,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const bearerResult = await handleBearerAuth(context);
 
 	if (bearerResult === "invalid") {
-		const headers: Record<string, string> = {
-			"Content-Type": "application/json",
-			...MW_CACHE_HEADERS,
-		};
+		const response = apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		// Add WWW-Authenticate header on MCP endpoint 401s to trigger OAuth discovery
 		if (url.pathname === "/_emdash/api/mcp") {
 			const origin = getPublicOrigin(url, context.locals.emdash?.config);
-			headers["WWW-Authenticate"] =
-				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`;
+			response.headers.set(
+				"WWW-Authenticate",
+				`Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+			);
 		}
-		return new Response(
-			JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
-			{ status: 401, headers },
-		);
+		return response;
 	}
 
 	const isTokenAuth = bearerResult === "authenticated";
@@ -305,7 +300,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (!import.meta.env.DEV) {
 			response.headers.set(
 				"Content-Security-Policy",
-				buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+				buildEmDashCsp(
+					getRegistryConfigInput(
+						context.locals.emdash?.config.registry,
+						context.locals.emdash?.config.experimental?.registry,
+					),
+					getConfiguredStorageEndpoint(
+						context.locals.emdash?.config.storage,
+						context.locals.emdash?.storage,
+					),
+				),
 			);
 		}
 		return response;
@@ -317,7 +321,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!import.meta.env.DEV) {
 		response.headers.set(
 			"Content-Security-Policy",
-			buildEmDashCsp(context.locals.emdash?.config.experimental?.registry),
+			buildEmDashCsp(
+				getRegistryConfigInput(
+					context.locals.emdash?.config.registry,
+					context.locals.emdash?.config.experimental?.registry,
+				),
+				getConfiguredStorageEndpoint(
+					context.locals.emdash?.config.storage,
+					context.locals.emdash?.storage,
+				),
+			),
 		);
 	}
 
@@ -371,15 +384,28 @@ async function handleEmDashAuth(
 }
 
 /**
- * Soft auth for plugin routes: resolve user from Bearer token or session if present,
- * but never block unauthenticated requests. The catch-all handler checks route
- * metadata to decide whether auth is required (public vs private routes).
+ * Plugin-route auth. Resolves the user in three steps, stopping at the first that
+ * applies:
+ *
+ * 1. Bearer token (all modes). A valid token authenticates; an invalid/expired one
+ *    returns 401 (we never silently downgrade a bad token to anonymous).
+ * 2. External provider — only for a *private* route in production external-auth
+ *    mode. Here `handleExternalAuth` is the sole authority: the provider (e.g.
+ *    Cloudflare Access) is re-verified on every request, so it hard-blocks with
+ *    401 on failure. It does persist an EmDash session (so public pages can
+ *    identify the user), but on these routes that session is deliberately NOT
+ *    consulted as a fallback — the provider check is authoritative every time.
+ * 3. Session — everything else (non-external mode, DEV, and all public routes).
+ *    This is soft: it sets `locals.user` if a session exists but never blocks.
+ *
+ * Public routes are always allowed through. The catch-all handler still enforces
+ * the `plugins:manage` permission and CSRF for private invocations.
  */
 async function handlePluginRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
-	const { locals } = context;
+	const { locals, url } = context;
 	const { emdash } = locals;
 
 	try {
@@ -392,17 +418,20 @@ async function handlePluginRouteAuth(
 		if (bearerResult === "invalid") {
 			// A token was presented but is invalid/expired — return 401 so the
 			// caller knows their token is bad (don't silently downgrade to no-auth).
-			return new Response(
-				JSON.stringify({ error: { code: "INVALID_TOKEN", message: "Invalid or expired token" } }),
-				{
-					status: 401,
-					headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS },
-				},
-			);
+			return apiError("INVALID_TOKEN", "Invalid or expired token", 401);
 		}
-		// "none" — no token presented, try session auth below.
+		// "none" — no token presented, try external/session auth below.
 	} catch (error) {
 		console.error("Plugin route bearer auth error:", error);
+	}
+
+	const authMode = getAuthMode(emdash?.config);
+	if (
+		authMode.type === "external" &&
+		!import.meta.env.DEV &&
+		!isPublicPluginApiRoute(url.pathname, emdash)
+	) {
+		return handleExternalAuth(context, next, authMode, true);
 	}
 
 	try {
@@ -422,6 +451,17 @@ async function handlePluginRouteAuth(
 	}
 
 	return next();
+}
+
+function isPublicPluginApiRoute(pathname: string, emdash: EmDashHandlers | undefined): boolean {
+	const prefix = "/_emdash/api/plugins/";
+	const route = pathname.slice(prefix.length);
+	const slashIndex = route.indexOf("/");
+	if (slashIndex <= 0 || !emdash?.getPluginRouteMeta) return false;
+
+	return (
+		emdash.getPluginRouteMeta(route.slice(0, slashIndex), route.slice(slashIndex))?.public === true
+	);
 }
 
 /**
@@ -655,10 +695,7 @@ async function handlePasskeyAuth(
 
 		if (!sessionUser?.id) {
 			if (isApiRoute) {
-				return Response.json(
-					{ error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" } },
-					{ status: 401, headers: MW_CACHE_HEADERS },
-				);
+				return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			loginUrl.searchParams.set("redirect", url.pathname);
@@ -673,10 +710,7 @@ async function handlePasskeyAuth(
 			// User no longer exists - clear session
 			session?.destroy();
 			if (isApiRoute) {
-				return Response.json(
-					{ error: { code: "NOT_FOUND", message: "User not found" } },
-					{ status: 401, headers: MW_CACHE_HEADERS },
-				);
+				return apiError("NOT_FOUND", "User not found", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
 			return context.redirect(loginUrl.toString());
@@ -757,9 +791,6 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// settings:manage are not rejected at the middleware level.
 	["/_emdash/api/settings", "GET", "settings:read"],
 	["/_emdash/api/settings", "WRITE", "settings:manage"],
-
-	// MCP endpoint — scopes enforced per-tool inside mcp/server.ts
-	["/_emdash/api/mcp", "*", "content:read"],
 ];
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -778,6 +809,11 @@ function enforceTokenScope(
 	// Session auth — implicit full access, no scope restrictions
 	if (!tokenScopes) return null;
 
+	// MCP is authenticated here, but each tool enforces its own scope. A
+	// blanket content:read/admin requirement would prevent plugin-scoped tokens
+	// from reaching `mcp/server.ts`, where the actual tool policy lives.
+	if (pathname === MCP_ENDPOINT_PATH) return null;
+
 	const isWrite = WRITE_METHODS.has(method);
 
 	for (const [prefix, ruleMethod, scope] of SCOPE_RULES) {
@@ -788,28 +824,12 @@ function enforceTokenScope(
 		if (ruleMethod === "*" || (ruleMethod === "WRITE" && isWrite) || ruleMethod === method) {
 			if (hasScope(tokenScopes, scope)) return null;
 
-			return new Response(
-				JSON.stringify({
-					error: {
-						code: "INSUFFICIENT_SCOPE",
-						message: `Token lacks required scope: ${scope}`,
-					},
-				}),
-				{ status: 403, headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS } },
-			);
+			return apiError("INSUFFICIENT_SCOPE", `Token lacks required scope: ${scope}`, 403);
 		}
 	}
 
 	// No rule matched — default to admin scope (fail-closed)
 	if (hasScope(tokenScopes, "admin")) return null;
 
-	return new Response(
-		JSON.stringify({
-			error: {
-				code: "INSUFFICIENT_SCOPE",
-				message: "Token lacks required scope: admin",
-			},
-		}),
-		{ status: 403, headers: { "Content-Type": "application/json", ...MW_CACHE_HEADERS } },
-	);
+	return apiError("INSUFFICIENT_SCOPE", "Token lacks required scope: admin", 403);
 }

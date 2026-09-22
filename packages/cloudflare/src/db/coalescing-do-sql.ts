@@ -30,7 +30,7 @@ import {
 
 import { D1Introspector } from "./d1-introspector.js";
 import type { DOSqlDialectConfig } from "./do-sql-dialect.js";
-import type { EmDashDBStub } from "./do-sql-types.js";
+import type { DOQueryOptions, EmDashDBStub } from "./do-sql-types.js";
 import { isReadStatement } from "./do-sql-types.js";
 
 /**
@@ -54,6 +54,19 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 	#buffer: PendingQuery[] = [];
 	#flushScheduled = false;
 	/**
+	 * Time by which the currently-scheduled flush must have run; if it hasn't
+	 * (its timer was dropped by a cancelled owner), the next caller reclaims
+	 * the flag and reschedules. A DO connection is long-lived and its buffer
+	 * can be shared across requests, so a stranded flush would wedge every
+	 * later query — this makes it reclaimable (#1927).
+	 */
+	#flushDeadline = 0;
+	/**
+	 * How long a scheduled flush may go unfired before a later caller treats
+	 * it as stranded. Generous — a live setTimeout(0) fires within a turn.
+	 */
+	static readonly #FLUSH_RECLAIM_MS = 1_000;
+	/**
 	 * Tail of a promise chain that serializes every physical RPC against the
 	 * DO (direct-path statements and batch flushes alike), so a write and a
 	 * read batch never overlap and the bookmark advances in execution order.
@@ -68,6 +81,15 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 	/** The freshest write bookmark seen this request, else the cookie floor. */
 	#effectiveBookmark(): string | undefined {
 		return this.#config.bookmarkSink?.latest ?? this.#config.readBookmark;
+	}
+
+	#readOptions(): DOQueryOptions | undefined {
+		const bookmark = this.#effectiveBookmark();
+		if (!bookmark && !this.#config.forcePrimary) return undefined;
+		return {
+			...(bookmark ? { bookmark } : {}),
+			...(this.#config.forcePrimary ? { primary: true } : {}),
+		};
 	}
 
 	/**
@@ -88,9 +110,9 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 
 	/** Single-statement path: full `query()` semantics (bookmark, sink, writes). */
 	async #single<R>(sql: string, params: unknown[]): Promise<QueryResult<R>> {
-		const bookmark = isReadStatement(sql) ? this.#effectiveBookmark() : undefined;
+		const opts = isReadStatement(sql) ? this.#readOptions() : undefined;
 		this.#config.onRpc?.();
-		const result = await this.#stub.query(sql, params, bookmark ? { bookmark } : undefined);
+		const result = await this.#stub.query(sql, params, opts);
 		if (result.bookmark && this.#config.bookmarkSink) {
 			this.#config.bookmarkSink.latest = result.bookmark;
 		}
@@ -122,13 +144,33 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 	 * between acquiring the connection and executing each query, so a microtask
 	 * window would close before sibling queries issued in the same turn reach
 	 * the buffer.
+	 *
+	 * Cancellation-safe on workerd (#1927): the flush flag is reclaimable. Each
+	 * schedule stamps a deadline; if it lapses with the flag still set (the
+	 * timer was dropped by a cancelled owner), the next caller clears the stale
+	 * flag and reschedules rather than queueing behind a flush that never runs.
 	 */
 	#scheduleFlush(): void {
-		if (this.#flushScheduled) return;
+		if (this.#flushScheduled) {
+			this.#reclaimStrandedFlush();
+			if (this.#flushScheduled) return;
+		}
 		this.#flushScheduled = true;
+		this.#flushDeadline = Date.now() + CoalescingDOSqlConnection.#FLUSH_RECLAIM_MS;
 		setTimeout(() => {
 			void this.#flush();
 		}, 0);
+	}
+
+	/**
+	 * If the pending flush is older than its deadline, its timer was dropped
+	 * by a cancelled owner — clear the flag so this caller reschedules rather
+	 * than queueing behind a flush that will never run.
+	 */
+	#reclaimStrandedFlush(): void {
+		if (this.#flushScheduled && Date.now() > this.#flushDeadline) {
+			this.#flushScheduled = false;
+		}
 	}
 
 	async #flush(): Promise<void> {
@@ -151,13 +193,13 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 
 			// Compute the bookmark inside the enqueued op so it reflects any write
 			// that ran just before this flush.
-			const bookmark = this.#effectiveBookmark();
+			const opts = this.#readOptions();
 			let results;
 			try {
 				this.#config.onRpc?.();
 				results = await this.#stub.batchQuery(
 					pending.map((p) => ({ sql: p.sql, params: p.params })),
-					bookmark ? { bookmark } : undefined,
+					opts,
 				);
 			} catch {
 				// The batch RPC failed as a unit. Fall back to running each buffered

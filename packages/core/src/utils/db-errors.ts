@@ -26,10 +26,12 @@ function messageOf(error: unknown): string {
  * Returns true when `error` is a "column does not exist" error.
  * Used to handle where filters that reference non-existent field names
  * gracefully (return empty results) instead of propagating a SQL error.
+ * When `column` is given, only errors naming that column match.
  */
-export function isMissingColumnError(error: unknown): boolean {
+export function isMissingColumnError(error: unknown, column?: string): boolean {
 	const message = messageOf(error);
 	if (!message) return false;
+	if (column && !message.includes(column.toLowerCase())) return false;
 
 	// SQLite / D1: "no such column: foo"
 	if (message.includes("no such column")) return true;

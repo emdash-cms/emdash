@@ -7,15 +7,36 @@
  * so assignments span every locale of a post.
  */
 
-import type { Kysely, Selectable } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
-import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
+import { TaxonomyRepository, type SiblingPosition } from "../../database/repositories/taxonomy.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database, TaxonomyDefTable } from "../../database/types.js";
-import { invalidateTermCache } from "../../taxonomies/index.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../i18n/config.js";
+import { invalidateTaxonomyDefsCache, invalidateTermCache } from "../../taxonomies/index.js";
+import { fetchVisibleTermCounts } from "../../taxonomies/term-counts.js";
 import type { ApiResult } from "../types.js";
 
 const NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
+const MAX_GENERATED_TERM_SLUG_ATTEMPTS = 16;
+
+function isTermSlugUniqueViolation(error: unknown): boolean {
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
+	return (
+		(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+		message.includes("slug")
+	);
+}
+
+function isTermTranslationLocaleUniqueViolation(error: unknown): boolean {
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
+	return (
+		(message.includes("unique constraint failed") || message.includes("duplicate key")) &&
+		(message.includes("translation_group") ||
+			message.includes("idx_taxonomies_translation_group_locale_unique"))
+	);
+}
 
 // ---------------------------------------------------------------------------
 // Response types
@@ -36,6 +57,10 @@ export interface TaxonomyListResponse {
 	taxonomies: TaxonomyDef[];
 }
 
+export interface TaxonomyResponse {
+	taxonomy: TaxonomyDef;
+}
+
 export interface TermData {
 	id: string;
 	name: string;
@@ -48,12 +73,17 @@ export interface TermData {
 }
 
 export interface TermWithCount extends TermData {
-	count: number;
+	/** Absent when the caller opted out of counts (`includeCounts: false`). */
+	count?: number;
 	children: TermWithCount[];
 }
 
 export interface TermListResponse {
 	terms: TermWithCount[];
+}
+
+export interface TermReorderResponse {
+	reordered: true;
 }
 
 export interface TermResponse {
@@ -94,13 +124,25 @@ export interface TaxonomyDefTranslationsResponse {
 /**
  * Build tree structure from flat terms
  */
-function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
-	const map = new Map<string, TermWithCount>();
+function buildTree(flatTerms: TermWithCount[], resolveByGroup = false): TermWithCount[] {
+	// `parentId` holds the parent's translation_group, so resolve links by group.
+	// Key by (locale, group): a child's parent lives in the same locale, and an
+	// unfiltered list mixes locales whose translated siblings share a group —
+	// keying by group alone would collide and misattach children across locales.
+	const byLocaleGroup = new Map<string, TermWithCount>();
 	const roots: TermWithCount[] = [];
-	for (const term of flatTerms) map.set(term.id, term);
 	for (const term of flatTerms) {
-		if (term.parentId && map.has(term.parentId)) {
-			map.get(term.parentId)!.children.push(term);
+		const key = resolveByGroup
+			? (term.translationGroup ?? term.id)
+			: `${term.locale}::${term.translationGroup ?? term.id}`;
+		byLocaleGroup.set(key, term);
+	}
+	for (const term of flatTerms) {
+		const parent = term.parentId
+			? byLocaleGroup.get(resolveByGroup ? term.parentId : `${term.locale}::${term.parentId}`)
+			: undefined;
+		if (parent) {
+			parent.children.push(term);
 		} else {
 			roots.push(term);
 		}
@@ -108,28 +150,124 @@ function buildTree(flatTerms: TermWithCount[]): TermWithCount[] {
 	return roots;
 }
 
-/**
- * Look up a taxonomy definition by name (optionally scoped to a locale).
- * Returns the lowest-locale match when no locale is provided.
- */
+type TaxonomyDefLookup =
+	| { success: true; def: Selectable<TaxonomyDefTable> }
+	| { success: false; error: { code: string; message: string } };
+
+function taxonomyDefNotFound(name: string, locale?: string): TaxonomyDefLookup {
+	return {
+		success: false,
+		error: {
+			code: "NOT_FOUND",
+			message: `Taxonomy '${name}' not found${locale !== undefined ? ` in locale '${locale}'` : ""}`,
+		},
+	};
+}
+
+/** Look up the exact definition addressed by a mutation. */
 async function requireTaxonomyDef(
 	db: Kysely<Database>,
 	name: string,
 	locale?: string,
-): Promise<
-	| { success: true; def: Selectable<TaxonomyDefTable> }
-	| { success: false; error: { code: string; message: string } }
-> {
+): Promise<TaxonomyDefLookup> {
 	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll().where("name", "=", name);
 	if (locale !== undefined) query = query.where("locale", "=", locale);
-	const def = await query.orderBy("locale", "asc").executeTakeFirst();
-	if (!def) {
-		return {
-			success: false,
-			error: { code: "NOT_FOUND", message: `Taxonomy '${name}' not found` },
-		};
-	}
-	return { success: true, def };
+	const def = await query.orderBy("locale", "asc").orderBy("id", "asc").executeTakeFirst();
+	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
+}
+
+/**
+ * Prefer the requested locale, then the configured default. Incomplete
+ * translation groups fall back deterministically so their terms remain usable.
+ */
+async function requireTaxonomyDefWithFallback(
+	db: Kysely<Database>,
+	name: string,
+	locale?: string,
+): Promise<TaxonomyDefLookup> {
+	const defs = await db
+		.selectFrom("_emdash_taxonomy_defs")
+		.selectAll()
+		.where("name", "=", name)
+		.orderBy("locale", "asc")
+		.orderBy("id", "asc")
+		.execute();
+	const defaultLocale = getI18nConfig()?.defaultLocale;
+	const def =
+		(locale ? defs.find((candidate) => candidate.locale === locale) : undefined) ??
+		(defaultLocale ? defs.find((candidate) => candidate.locale === defaultLocale) : undefined) ??
+		defs[0];
+	return def ? { success: true, def } : taxonomyDefNotFound(name, locale);
+}
+
+function validateHierarchicalParent(
+	def: Selectable<TaxonomyDefTable>,
+	taxonomyName: string,
+	parentId: string | null | undefined,
+): { code: "VALIDATION_ERROR"; message: string } | null {
+	if (parentId === undefined || parentId === null || def.hierarchical === 1) return null;
+	return {
+		code: "VALIDATION_ERROR",
+		message: `Taxonomy '${taxonomyName}' is not hierarchical and cannot have parent terms`,
+	};
+}
+
+/** The subset of `slugs` that still has a row in `_emdash_collections`. */
+async function findExistingCollections(
+	db: Kysely<Database>,
+	slugs: readonly string[],
+): Promise<Set<string>> {
+	if (slugs.length === 0) return new Set();
+	const rows = await db
+		.selectFrom("_emdash_collections")
+		.select("slug")
+		.where("slug", "in", [...slugs])
+		.execute();
+	return new Set(rows.map((r) => r.slug));
+}
+
+/**
+ * Reject a `collections` list naming collections that don't exist. Shared by
+ * create and update so both fail the same way instead of storing a reference
+ * that reads back filtered out.
+ */
+async function validateCollections(
+	db: Kysely<Database>,
+	collections: readonly string[],
+): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
+	const existing = await findExistingCollections(db, collections);
+	const invalid = collections.filter((slug) => !existing.has(slug));
+	if (invalid.length === 0) return null;
+	return {
+		code: "VALIDATION_ERROR",
+		message: `Unknown collection(s): ${invalid.join(", ")}`,
+	};
+}
+
+/**
+ * Shape one definition row for a response, dropping collection references whose
+ * collection is gone. Storage is untouched — re-creating the collection
+ * re-links automatically, same as `handleTaxonomyList`.
+ */
+async function toTaxonomyResponse(
+	db: Kysely<Database>,
+	row: Selectable<TaxonomyDefTable>,
+): Promise<TaxonomyResponse> {
+	const def = rowToDef(row);
+	const realCollections = await findExistingCollections(db, def.collections);
+	return {
+		taxonomy: {
+			...def,
+			collections: def.collections.filter((slug) => realCollections.has(slug)),
+		},
+	};
+}
+
+/** Declared collections of a taxonomy def row (deduped, parsed from JSON). */
+function defCollections(def: Selectable<TaxonomyDefTable>): string[] {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- column stores a JSON string[] written by handleTaxonomyCreate
+	const parsed = def.collections ? (JSON.parse(def.collections) as string[]) : [];
+	return [...new Set(parsed)];
 }
 
 function rowToDef(row: Selectable<TaxonomyDefTable>): TaxonomyDef {
@@ -157,8 +295,9 @@ export async function handleTaxonomyList(
 	options: { locale?: string } = {},
 ): Promise<ApiResult<TaxonomyListResponse>> {
 	try {
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 		let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-		if (options.locale !== undefined) query = query.where("locale", "=", options.locale);
+		if (locale !== undefined) query = query.where("locale", "=", locale);
 		const [rows, collectionRows] = await Promise.all([
 			query.execute(),
 			db.selectFrom("_emdash_collections").select("slug").execute(),
@@ -184,6 +323,31 @@ export async function handleTaxonomyList(
 }
 
 /**
+ * Get a single taxonomy definition by name.
+ *
+ * Definitions are per-locale, so `locale` picks which one. Without it the
+ * configured default locale wins, then the lowest locale code.
+ */
+export async function handleTaxonomyGet(
+	db: Kysely<Database>,
+	name: string,
+	options: { locale?: string } = {},
+): Promise<ApiResult<TaxonomyResponse>> {
+	try {
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const lookup = await requireTaxonomyDefWithFallback(db, name, locale);
+		if (!lookup.success) return lookup;
+
+		return { success: true, data: await toTaxonomyResponse(db, lookup.def) };
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_GET_ERROR", message: "Failed to get taxonomy" },
+		};
+	}
+}
+
+/**
  * Create a new taxonomy definition
  */
 export async function handleTaxonomyCreate(
@@ -197,8 +361,9 @@ export async function handleTaxonomyCreate(
 		locale?: string;
 		translationOf?: string;
 	},
-): Promise<ApiResult<{ taxonomy: TaxonomyDef }>> {
+): Promise<ApiResult<TaxonomyResponse>> {
 	try {
+		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
 		if (!NAME_PATTERN.test(input.name)) {
 			return {
 				success: false,
@@ -210,26 +375,8 @@ export async function handleTaxonomyCreate(
 			};
 		}
 
-		const collections = [...new Set(input.collections ?? [])];
-		if (collections.length > 0) {
-			const existingCollections = await db
-				.selectFrom("_emdash_collections")
-				.select("slug")
-				.where("slug", "in", collections)
-				.execute();
-			const existingSlugs = new Set(existingCollections.map((c) => c.slug));
-			const invalid = collections.filter((c) => !existingSlugs.has(c));
-			if (invalid.length > 0) {
-				return {
-					success: false,
-					error: {
-						code: "VALIDATION_ERROR",
-						message: `Unknown collection(s): ${invalid.join(", ")}`,
-					},
-				};
-			}
-		}
-
+		let hierarchical = input.hierarchical ?? false;
+		let collections = [...new Set(input.collections ?? [])];
 		let translationGroup: string | null = null;
 		if (input.translationOf) {
 			const source = await db
@@ -243,27 +390,45 @@ export async function handleTaxonomyCreate(
 					error: { code: "NOT_FOUND", message: "Source taxonomy for translation not found" },
 				};
 			}
+			if (source.name !== input.name) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `A translation of taxonomy '${source.name}' must use the same name`,
+					},
+				};
+			}
 			translationGroup = source.translation_group ?? source.id;
+			if (input.hierarchical === undefined) {
+				hierarchical = source.hierarchical === 1;
+			}
+			if (input.collections === undefined) {
+				collections = [...new Set(defCollections(source))];
+			}
+		}
+
+		const collectionError = await validateCollections(db, collections);
+		if (collectionError) {
+			return { success: false, error: collectionError };
 		}
 
 		// Duplicate guard scoped to locale (so the same name can exist in ES
 		// and EN).
-		if (input.locale !== undefined) {
-			const existing = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.select("id")
-				.where("name", "=", input.name)
-				.where("locale", "=", input.locale)
-				.executeTakeFirst();
-			if (existing) {
-				return {
-					success: false,
-					error: {
-						code: "CONFLICT",
-						message: `Taxonomy '${input.name}' already exists in locale '${input.locale}'`,
-					},
-				};
-			}
+		const existing = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select("id")
+			.where("name", "=", input.name)
+			.where("locale", "=", locale)
+			.executeTakeFirst();
+		if (existing) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Taxonomy '${input.name}' already exists in locale '${locale}'`,
+				},
+			};
 		}
 
 		const id = ulid();
@@ -274,12 +439,16 @@ export async function handleTaxonomyCreate(
 				name: input.name,
 				label: input.label,
 				label_singular: input.labelSingular ?? null,
-				hierarchical: input.hierarchical ? 1 : 0,
+				hierarchical: hierarchical ? 1 : 0,
 				collections: JSON.stringify(collections),
-				...(input.locale !== undefined ? { locale: input.locale } : {}),
+				locale,
 				translation_group: translationGroup ?? id,
 			})
 			.execute();
+
+		// A new def changes which taxonomies exist — drop the isolate-wide
+		// defs/names caches so this isolate reflects it immediately.
+		invalidateTaxonomyDefsCache();
 
 		const row = await db
 			.selectFrom("_emdash_taxonomy_defs")
@@ -297,6 +466,119 @@ export async function handleTaxonomyCreate(
 		return {
 			success: false,
 			error: { code: "TAXONOMY_CREATE_ERROR", message: "Failed to create taxonomy" },
+		};
+	}
+}
+
+/**
+ * Update a taxonomy definition.
+ *
+ * Writes the one row `(name, locale)` resolves to — every field here belongs to
+ * a single locale's definition, so translating a taxonomy and then editing the
+ * translation leaves the other locales alone. `name` and `locale` are immutable
+ * (renaming would strand the terms, which are keyed on `name`).
+ */
+export async function handleTaxonomyUpdate(
+	db: Kysely<Database>,
+	name: string,
+	input: {
+		label?: string;
+		labelSingular?: string | null;
+		hierarchical?: boolean;
+		collections?: string[];
+		locale?: string;
+	},
+): Promise<ApiResult<TaxonomyResponse>> {
+	try {
+		const locale = input.locale ? resolveConfiguredLocale(input.locale) : undefined;
+		const lookup = await requireTaxonomyDef(db, name, locale);
+		if (!lookup.success) return lookup;
+
+		const collections = input.collections ? [...new Set(input.collections)] : undefined;
+		if (collections !== undefined) {
+			const collectionError = await validateCollections(db, collections);
+			if (collectionError) {
+				return { success: false, error: collectionError };
+			}
+		}
+
+		const updates: {
+			label?: string;
+			label_singular?: string | null;
+			hierarchical?: number;
+			collections?: string;
+		} = {};
+		if (input.label !== undefined) updates.label = input.label;
+		if (input.labelSingular !== undefined) updates.label_singular = input.labelSingular;
+		if (input.hierarchical !== undefined) updates.hierarchical = input.hierarchical ? 1 : 0;
+		if (collections !== undefined) updates.collections = JSON.stringify(collections);
+
+		if (Object.keys(updates).length > 0) {
+			await db
+				.updateTable("_emdash_taxonomy_defs")
+				.set(updates)
+				.where("id", "=", lookup.def.id)
+				.execute();
+			invalidateTaxonomyDefsCache();
+		}
+
+		const row = await db
+			.selectFrom("_emdash_taxonomy_defs")
+			.selectAll()
+			.where("id", "=", lookup.def.id)
+			.executeTakeFirstOrThrow();
+
+		return { success: true, data: await toTaxonomyResponse(db, row) };
+	} catch {
+		return {
+			success: false,
+			error: { code: "TAXONOMY_UPDATE_ERROR", message: "Failed to update taxonomy" },
+		};
+	}
+}
+
+/**
+ * Delete a taxonomy: every locale's definition, every term under that name in
+ * every locale, and the term assignments those terms hold.
+ *
+ * There is no locale scope and no non-empty guard. Terms are keyed on `name`
+ * rather than on a definition row, so leaving one locale's definition behind
+ * would leave the taxonomy half-deleted — a definition with no terms, or terms
+ * no definition describes.
+ */
+export async function handleTaxonomyDelete(
+	db: Kysely<Database>,
+	name: string,
+): Promise<ApiResult<{ deleted: true }>> {
+	try {
+		const lookup = await requireTaxonomyDef(db, name);
+		if (!lookup.success) return lookup;
+
+		await withTransaction(db, async (trx) => {
+			// `content_taxonomies.taxonomy_id` holds a term's translation_group, so
+			// the assignments have to go before the terms they are matched against.
+			await trx
+				.deleteFrom("content_taxonomies")
+				.where("taxonomy_id", "in", (eb) =>
+					eb
+						.selectFrom("taxonomies")
+						.select(sql<string>`coalesce(translation_group, id)`.as("group"))
+						.where("name", "=", name),
+				)
+				.execute();
+			await trx.deleteFrom("taxonomies").where("name", "=", name).execute();
+			await trx.deleteFrom("_emdash_taxonomy_defs").where("name", "=", name).execute();
+		});
+
+		// Covers the term caches too — see `invalidateTaxonomyDefsCache`.
+		invalidateTaxonomyDefsCache();
+
+		return { success: true, data: { deleted: true } };
+	} catch (error) {
+		console.error("[taxonomies] delete failed:", error);
+		return {
+			success: false,
+			error: { code: "TAXONOMY_DELETE_ERROR", message: "Failed to delete taxonomy" },
 		};
 	}
 }
@@ -360,22 +642,43 @@ export async function handleTaxonomyDefTranslations(
 export async function handleTermList(
 	db: Kysely<Database>,
 	taxonomyName: string,
-	options: { locale?: string } = {},
+	options: { locale?: string; includeCounts?: boolean; resolveFallback?: boolean } = {},
 ): Promise<ApiResult<TermListResponse>> {
 	try {
+		if (options.resolveFallback && !options.locale) {
+			return {
+				success: false,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: "A locale is required when resolving taxonomy fallbacks",
+				},
+			};
+		}
 		// Definitions are per-locale but terms aren't bound to the def's locale —
-		// just ensure the taxonomy exists somewhere.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		// use the active definition for its collection scope.
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
-		const terms = await repo.findByName(taxonomyName, { locale: options.locale });
+		const terms =
+			options.resolveFallback && locale
+				? await repo.findByNameResolved(
+						taxonomyName,
+						locale,
+						getI18nConfig()?.defaultLocale ?? "en",
+					)
+				: await repo.findByName(taxonomyName, { locale });
 
-		// Batch count entries per term in a single query (replaces N+1 pattern).
+		// Counts match what visitors see on the public site: published (or
+		// scheduled-and-due) entries that aren't soft-deleted, scoped to the
+		// taxonomy's declared collections — one query for the whole list.
 		// content_taxonomies.taxonomy_id stores the translation_group, so we
 		// look up by group and map back to each term's id.
-		const groups = terms.map((t) => t.translationGroup ?? t.id);
-		const countsByGroup = await repo.countEntriesForTerms(groups);
+		const includeCounts = options.includeCounts ?? true;
+		const countsByGroup = includeCounts
+			? await fetchVisibleTermCounts(db, taxonomyName, defCollections(lookup.def), locale)
+			: undefined;
 
 		const termData: TermWithCount[] = terms.map((term) => ({
 			id: term.id,
@@ -385,18 +688,117 @@ export async function handleTermList(
 			parentId: term.parentId,
 			description: typeof term.data?.description === "string" ? term.data.description : undefined,
 			children: [],
-			count: countsByGroup.get(term.translationGroup ?? term.id) ?? 0,
+			...(countsByGroup && { count: countsByGroup.get(term.translationGroup ?? term.id) ?? 0 }),
 			locale: term.locale,
 			translationGroup: term.translationGroup,
 		}));
 
 		const isHierarchical = lookup.def.hierarchical === 1;
-		const result = isHierarchical ? buildTree(termData) : termData;
+		const result = isHierarchical
+			? buildTree(termData, options.resolveFallback && !!locale)
+			: termData;
 		return { success: true, data: { terms: result } };
-	} catch {
+	} catch (error) {
+		console.error("[taxonomies] term list failed:", error);
 		return {
 			success: false,
 			error: { code: "TERM_LIST_ERROR", message: "Failed to list terms" },
+		};
+	}
+}
+
+/**
+ * Set the manual order of one sibling group.
+ *
+ * `ids` names the terms to move, in the desired order; each is a row id or a
+ * translation_group and resolves to the latter, because a position belongs to a
+ * term rather than to one of its locales. Reordering never reparents — moving a
+ * term under a different parent is a term update.
+ *
+ * The group is `(taxonomy, parentId)` and has no locale: `parentId` is the
+ * parent's translation_group (a row id is accepted and resolved), and `null`
+ * selects the top level — which for a flat taxonomy is every term.
+ *
+ * `ids` may be a *subset* of the group, and the listed terms are permuted
+ * within the positions they already occupy. A locale only renders the terms
+ * translated into it, so a caller often cannot name every member; a member left
+ * out keeps its place, which is also what makes a stale list harmless.
+ */
+export async function handleTermReorder(
+	db: Kysely<Database>,
+	taxonomyName: string,
+	input: { parentId?: string | null; ids: string[] },
+): Promise<ApiResult<TermReorderResponse>> {
+	try {
+		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		if (!lookup.success) return lookup;
+
+		const repo = new TaxonomyRepository(db);
+
+		let parentId = input.parentId ?? null;
+		if (parentId !== null) {
+			// Children store the parent's translation_group, so a caller passing a
+			// row id still addresses the right group. A parent whose anchor row is
+			// gone keeps the value as given (see TaxonomyRepository.resolveParentRef).
+			const parent = await repo.findById(parentId);
+			if (parent) parentId = parent.translationGroup ?? parent.id;
+		}
+
+		// Every locale's rows: membership is locale-agnostic, and a term the
+		// caller can't see still holds its slot.
+		// The order carries into how ties are resolved, so it must be stable
+		// across calls; with locales interleaved a tie falls to whichever
+		// locale's label sorts first, not to the order the caller rendered.
+		const members = await repo.findByName(taxonomyName, { parentId });
+		const siblings: SiblingPosition[] = [];
+		const seen = new Set<string>();
+		const resolve = new Map<string, string>();
+		for (const term of members) {
+			const group = term.translationGroup ?? term.id;
+			if (!seen.has(group)) {
+				seen.add(group);
+				siblings.push({ group, position: term.sortOrder });
+			}
+			// Both spellings resolve to the group: a row id, and the group itself for
+			// a caller that already holds one — including when its anchor row is gone
+			// and no member's id matches it.
+			resolve.set(group, group);
+			resolve.set(term.id, group);
+		}
+
+		const groups: string[] = [];
+		for (const id of input.ids) {
+			const group = resolve.get(id);
+			if (!group) {
+				return {
+					success: false,
+					error: {
+						code: "REORDER_MISMATCH",
+						message: `Term "${id}" is not in the sibling group being reordered`,
+					},
+				};
+			}
+			if (groups.includes(group)) {
+				return {
+					success: false,
+					error: {
+						code: "REORDER_MISMATCH",
+						message: `Term "${id}" is listed more than once`,
+					},
+				};
+			}
+			groups.push(group);
+		}
+
+		await repo.reorder(groups, siblings);
+		invalidateTermCache();
+
+		return { success: true, data: { reordered: true } };
+	} catch (error) {
+		console.error("[taxonomies] term reorder failed:", error);
+		return {
+			success: false,
+			error: { code: "TERM_REORDER_ERROR", message: "Failed to reorder terms" },
 		};
 	}
 }
@@ -411,23 +813,19 @@ export async function handleTermList(
  *   - `parentId === null` -> caller intends to detach; no-op here.
  *   - parent must exist (FK exists -> term row not soft-deleted).
  *   - parent must live in the same taxonomy.
- *   - if `termId` is provided (update path), reject `parentId === termId`
- *     (self-parent) and walk up the parent chain to detect cycles.
+ *   - reject a parent in the term's own translation_group (self-parent),
+ *     including the create path: a translation inherits its source's group, so
+ *     `selfGroup` carries that prospective group when `termId` is absent.
+ *   - on update, walk up the parent chain to detect cycles.
  */
 async function validateParentTerm(
 	repo: TaxonomyRepository,
 	taxonomyName: string,
 	termId: string | undefined,
 	parentId: string | null | undefined,
+	selfGroup?: string | null,
 ): Promise<{ code: "VALIDATION_ERROR"; message: string } | null> {
 	if (parentId === undefined || parentId === null) return null;
-
-	if (termId !== undefined && parentId === termId) {
-		return {
-			code: "VALIDATION_ERROR",
-			message: "A term cannot be its own parent",
-		};
-	}
 
 	const parent = await repo.findById(parentId);
 	if (!parent) {
@@ -443,6 +841,22 @@ async function validateParentTerm(
 		};
 	}
 
+	// Parentage keys off translation_group (what `parent_id` persists), so the
+	// self-parent and cycle checks compare groups, not row ids — picking a
+	// sibling translation of the term as its parent is still self-parenting.
+	const parentGroup = parent.translationGroup ?? parent.id;
+	let termGroup: string | null = selfGroup ?? null;
+	if (termId !== undefined) {
+		const term = await repo.findById(termId);
+		termGroup = term ? (term.translationGroup ?? term.id) : termId;
+	}
+	if (termGroup !== null && parentGroup === termGroup) {
+		return {
+			code: "VALIDATION_ERROR",
+			message: "A term cannot be its own parent",
+		};
+	}
+
 	// Walk up the parent chain. Two checks fold into one walk:
 	//   - Cycle detection (only on update — a non-existent term-being-
 	//     created can't be its own ancestor): if the walk revisits termId
@@ -454,11 +868,13 @@ async function validateParentTerm(
 	// The depth-exceeded error fires only when we hit the limit AND there
 	// was still chain to walk — a legitimate chain of exactly MAX_DEPTH
 	// ancestors exits with `cursor === null` and is accepted.
+	// `parent_id` stores a translation_group, which always equals the anchor
+	// row's id, so findById(cursor) still resolves each ancestor.
 	const MAX_DEPTH = 100;
 	let cursor: string | null = parent.parentId;
 	let steps = 0;
 	while (cursor !== null && steps < MAX_DEPTH) {
-		if (termId !== undefined && cursor === termId) {
+		if (termGroup !== null && cursor === termGroup) {
 			return {
 				code: "VALIDATION_ERROR",
 				message: "Cycle detected: cannot make a descendant the parent",
@@ -486,7 +902,7 @@ export async function handleTermCreate(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	input: {
-		slug: string;
+		slug?: string;
 		label: string;
 		parentId?: string | null;
 		description?: string;
@@ -494,67 +910,117 @@ export async function handleTermCreate(
 		translationOf?: string;
 	},
 ): Promise<ApiResult<TermResponse>> {
+	let attemptedSlug = input.slug;
+	let effectiveLocale = input.locale ?? getI18nConfig()?.defaultLocale ?? "en";
 	try {
-		// Taxonomy definitions are per-locale, but terms can exist in any locale
-		// regardless of whether the def has been translated there. Look up the
-		// def across all locales — we only care that it *exists*.
-		const lookup = await requireTaxonomyDef(db, taxonomyName);
+		const locale = resolveConfiguredLocale(input.locale ?? getI18nConfig()?.defaultLocale ?? "en");
+		effectiveLocale = locale;
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
 		if (!lookup.success) return lookup;
 
 		const repo = new TaxonomyRepository(db);
 
 		// Coerce empty-string parentId to undefined (treat as "no parent").
-		let parentId =
+		const parentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+		const hierarchyError = validateHierarchicalParent(lookup.def, taxonomyName, parentId);
+		if (hierarchyError) return { success: false, error: hierarchyError };
 
 		// Conflict check is scoped to locale (per-locale slugs are unique).
-		const existing = await repo.findBySlug(taxonomyName, input.slug, input.locale);
+		const existing =
+			input.slug === undefined ? null : await repo.findBySlug(taxonomyName, input.slug, locale);
 		if (existing) {
 			return {
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: input.locale
-						? `Term '${input.slug}' already exists in '${taxonomyName}' (${input.locale})`
-						: `Term with slug '${input.slug}' already exists in taxonomy '${taxonomyName}'`,
+					message: `Term '${input.slug}' already exists in '${taxonomyName}' (${locale})`,
 				},
 			};
 		}
 
-		// If creating a translation whose parent is the translated sibling of
-		// the source's parent, try to resolve the parent in the same locale.
-		if (input.translationOf && parentId) {
+		// No locale re-pointing needed: `repo.create` persists the parent's
+		// translation_group in `parent_id`, so a child stays nested under the
+		// parent in every locale automatically — including parents translated
+		// after the child was created.
+
+		// A translation inherits its source's translation_group; pass that
+		// prospective group so validateParentTerm can reject a parent in the same
+		// group (cross-locale self-parent) even though the term doesn't exist yet.
+		let selfGroup: string | null = null;
+		if (input.translationOf) {
 			const source = await repo.findById(input.translationOf);
-			if (source?.parentId === parentId && input.locale) {
-				const sourceParent = await repo.findById(parentId);
-				if (sourceParent?.translationGroup) {
-					const translatedParent = await db
-						.selectFrom("taxonomies")
-						.select("id")
-						.where("translation_group", "=", sourceParent.translationGroup)
-						.where("locale", "=", input.locale)
-						.executeTakeFirst();
-					if (translatedParent) parentId = translatedParent.id;
-				}
+			if (!source) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Translation source '${input.translationOf}' not found`,
+					},
+				};
+			}
+			if (source.name !== taxonomyName) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Translation source '${input.translationOf}' belongs to taxonomy '${source.name}', not '${taxonomyName}'`,
+					},
+				};
+			}
+			selfGroup = source.translationGroup ?? source.id;
+			const translations = await repo.findTranslations(selfGroup);
+			if (translations.some((translation) => translation.locale === locale)) {
+				return {
+					success: false,
+					error: {
+						code: "CONFLICT",
+						message: `Term translation already exists for locale '${locale}'`,
+					},
+				};
 			}
 		}
 
 		// Validate parentId: must exist AND belong to the same taxonomy.
 		// (Cycle check is N/A on create — the term doesn't exist yet.)
-		const parentError = await validateParentTerm(repo, taxonomyName, undefined, parentId);
+		const parentError = await validateParentTerm(
+			repo,
+			taxonomyName,
+			undefined,
+			parentId,
+			selfGroup,
+		);
 		if (parentError) {
 			return { success: false, error: parentError };
 		}
 
-		const term = await repo.create({
-			name: taxonomyName,
-			slug: input.slug,
-			label: input.label,
-			parentId: parentId ?? undefined,
-			data: input.description ? { description: input.description } : undefined,
-			locale: input.locale,
-			translationOf: input.translationOf,
-		});
+		const create = (slug: string) =>
+			repo.create({
+				name: taxonomyName,
+				slug,
+				label: input.label,
+				parentId: parentId ?? undefined,
+				data: input.description ? { description: input.description } : undefined,
+				locale,
+				translationOf: input.translationOf,
+			});
+		let term: Awaited<ReturnType<typeof create>> | undefined;
+		let lastSlugConflict: unknown;
+		if (input.slug !== undefined) {
+			term = await create(input.slug);
+		} else {
+			for (let attempt = 0; attempt < MAX_GENERATED_TERM_SLUG_ATTEMPTS; attempt++) {
+				attemptedSlug = await repo.generateUniqueSlug(taxonomyName, input.label, locale);
+				try {
+					term = await create(attemptedSlug);
+					break;
+				} catch (error) {
+					if (!isTermSlugUniqueViolation(error)) throw error;
+					lastSlugConflict = error;
+				}
+			}
+		}
+		if (!term) throw lastSlugConflict ?? new Error("Failed to create taxonomy term");
 
 		invalidateTermCache();
 
@@ -574,7 +1040,25 @@ export async function handleTermCreate(
 				},
 			},
 		};
-	} catch {
+	} catch (error) {
+		if (isTermTranslationLocaleUniqueViolation(error)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Term translation already exists for locale '${effectiveLocale}'`,
+				},
+			};
+		}
+		if (isTermSlugUniqueViolation(error)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: `Term with slug '${attemptedSlug ?? "(generated)"}' already exists in taxonomy '${taxonomyName}'`,
+				},
+			};
+		}
 		return {
 			success: false,
 			error: { code: "TERM_CREATE_ERROR", message: "Failed to create term" },
@@ -593,7 +1077,8 @@ export async function handleTermGet(
 ): Promise<ApiResult<TermGetResponse>> {
 	try {
 		const repo = new TaxonomyRepository(db);
-		const term = await repo.findBySlug(taxonomyName, termSlug, options.locale);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const term = await repo.findBySlug(taxonomyName, termSlug, locale);
 
 		if (!term) {
 			return {
@@ -605,8 +1090,21 @@ export async function handleTermGet(
 			};
 		}
 
-		const count = await repo.countEntriesWithTerm(term.id);
-		const children = await repo.findChildren(term.id);
+		// Count matches public visibility (published or scheduled-and-due, not
+		// soft-deleted) scoped to the def's declared collections. The def lookup
+		// falls back for incomplete translations; a term with no def at all still
+		// resolves with count 0.
+		const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, locale);
+		const counts = await fetchVisibleTermCounts(
+			db,
+			taxonomyName,
+			lookup.success ? defCollections(lookup.def) : [],
+			locale ?? term.locale,
+		);
+		const count = counts.get(term.translationGroup ?? term.id) ?? 0;
+		// Children share this term's translation_group as their parent_id; scope
+		// to the term's own locale so the response stays within one locale's tree.
+		const children = await repo.findChildren(term.id, term.locale);
 
 		return {
 			success: true,
@@ -690,7 +1188,8 @@ export async function handleTermUpdate(
 ): Promise<ApiResult<TermResponse>> {
 	try {
 		const repo = new TaxonomyRepository(db);
-		const term = await repo.findBySlug(taxonomyName, termSlug, options.locale);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const term = await repo.findBySlug(taxonomyName, termSlug, locale);
 
 		if (!term) {
 			return {
@@ -707,10 +1206,16 @@ export async function handleTermUpdate(
 		const newSlug = input.slug === "" || input.slug === undefined ? undefined : input.slug;
 		const newParentId =
 			input.parentId === "" || input.parentId === undefined ? undefined : input.parentId;
+		if (newParentId !== undefined && newParentId !== null) {
+			const lookup = await requireTaxonomyDefWithFallback(db, taxonomyName, term.locale);
+			if (!lookup.success) return lookup;
+			const hierarchyError = validateHierarchicalParent(lookup.def, taxonomyName, newParentId);
+			if (hierarchyError) return { success: false, error: hierarchyError };
+		}
 
 		// Check if new slug conflicts (per-locale uniqueness).
 		if (newSlug !== undefined && newSlug !== termSlug) {
-			const existing = await repo.findBySlug(taxonomyName, newSlug, options.locale);
+			const existing = await repo.findBySlug(taxonomyName, newSlug, locale);
 			if (existing && existing.id !== term.id) {
 				return {
 					success: false,
@@ -779,7 +1284,8 @@ export async function handleTermDelete(
 ): Promise<ApiResult<{ deleted: true }>> {
 	try {
 		const repo = new TaxonomyRepository(db);
-		const term = await repo.findBySlug(taxonomyName, termSlug, options.locale);
+		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
+		const term = await repo.findBySlug(taxonomyName, termSlug, locale);
 
 		if (!term) {
 			return {
@@ -791,6 +1297,9 @@ export async function handleTermDelete(
 			};
 		}
 
+		// Block deletion if the term's group still parents any child in any
+		// locale — children store this group in parent_id, so removing the term
+		// would orphan them (or null their parent_id via the self-FK).
 		const children = await repo.findChildren(term.id);
 		if (children.length > 0) {
 			return {

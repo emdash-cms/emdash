@@ -15,6 +15,126 @@ describe("OpenAPI spec validation", () => {
 		expect(validated.info.title).toBe("EmDash CMS API");
 	});
 
+	it("documents media replacement and deduplication controls", async () => {
+		const dereferenced = await SwaggerParser.dereference(
+			structuredClone(generateOpenApiDocument()),
+		);
+		const paths = (dereferenced as { paths?: Record<string, Record<string, unknown>> }).paths ?? {};
+		const requestSchema = (
+			path: string,
+			method: string,
+			contentType: string,
+		): { properties?: Record<string, Record<string, unknown>>; required?: string[] } => {
+			const operation = paths[path]?.[method] as
+				| {
+						requestBody?: {
+							content?: Record<
+								string,
+								{
+									schema?: {
+										properties?: Record<string, Record<string, unknown>>;
+										required?: string[];
+									};
+								}
+							>;
+						};
+				  }
+				| undefined;
+			return operation?.requestBody?.content?.[contentType]?.schema ?? {};
+		};
+
+		const replacement = requestSchema(
+			"/_emdash/api/media/{id}/replace",
+			"put",
+			"multipart/form-data",
+		);
+		expect(replacement.required).toEqual(expect.arrayContaining(["file", "width", "height"]));
+		expect(replacement.properties?.file).toMatchObject({ type: "string", format: "binary" });
+
+		const signedUpload = requestSchema("/_emdash/api/media/upload-url", "post", "application/json");
+		expect(signedUpload.properties?.deduplicate).toMatchObject({ type: "boolean" });
+
+		const directUpload = requestSchema("/_emdash/api/media", "post", "multipart/form-data");
+		expect(directUpload.properties?.deduplicate).toMatchObject({
+			type: "string",
+			enum: ["true", "false"],
+		});
+	});
+
+	it("documents lifecycle inputs and the restored item response", async () => {
+		const dereferenced = await SwaggerParser.dereference(
+			structuredClone(generateOpenApiDocument()),
+		);
+		const paths = (dereferenced as { paths?: Record<string, Record<string, unknown>> }).paths ?? {};
+		const operation = (path: string, method: string) =>
+			paths[path]?.[method] as
+				| {
+						requestBody?: {
+							content?: Record<
+								string,
+								{
+									schema?: {
+										properties?: Record<string, Record<string, unknown>>;
+										required?: string[];
+									};
+								}
+							>;
+						};
+						responses?: Record<
+							string,
+							{
+								content?: Record<
+									string,
+									{
+										schema?: {
+											properties?: Record<string, Record<string, unknown>>;
+										};
+									}
+								>;
+							}
+						>;
+				  }
+				| undefined;
+		const requestSchema = (path: string) =>
+			operation(path, "post")?.requestBody?.content?.["application/json"]?.schema;
+
+		const publish = requestSchema("/_emdash/api/content/{collection}/{id}/publish");
+		expect(publish?.properties?._rev).toMatchObject({ type: "string" });
+		expect(publish?.properties?.overrideLock).toMatchObject({ type: "boolean" });
+		const publishedAt = publish?.properties?.publishedAt;
+		const publishedAtOptions = Array.isArray(publishedAt?.anyOf)
+			? (publishedAt.anyOf as Array<Record<string, unknown>>)
+			: [];
+		expect([publishedAt, ...publishedAtOptions].some((schema) => schema?.type === "string")).toBe(
+			true,
+		);
+		expect(publish?.required ?? []).not.toContain("_rev");
+
+		for (const path of [
+			"/_emdash/api/content/{collection}/{id}/unpublish",
+			"/_emdash/api/content/{collection}/{id}/discard-draft",
+		]) {
+			const schema = requestSchema(path);
+			expect(schema?.properties?._rev).toMatchObject({ type: "string" });
+			expect(schema?.properties?.overrideLock).toMatchObject({ type: "boolean" });
+			expect(schema?.required ?? []).not.toContain("_rev");
+		}
+
+		const restoreEnvelope = operation("/_emdash/api/content/{collection}/{id}/restore", "post")
+			?.responses?.["200"]?.content?.["application/json"]?.schema;
+		const restoreData = restoreEnvelope?.properties?.data as
+			| { properties?: Record<string, unknown>; required?: string[] }
+			| undefined;
+		expect(restoreData?.properties).toEqual(
+			expect.objectContaining({
+				restored: expect.any(Object),
+				item: expect.any(Object),
+				_rev: expect.any(Object),
+			}),
+		);
+		expect(restoreData?.required).toEqual(expect.arrayContaining(["restored", "item", "_rev"]));
+	});
+
 	it("resolves all $ref pointers without errors", async () => {
 		const doc = generateOpenApiDocument();
 
@@ -60,7 +180,7 @@ describe("OpenAPI spec validation", () => {
 		}
 	});
 
-	it("wraps all success responses in the { data } envelope", () => {
+	it("wraps all success responses in the { success, data } envelope", () => {
 		const doc = generateOpenApiDocument();
 		const paths = doc.paths ?? {};
 
@@ -85,8 +205,9 @@ describe("OpenAPI spec validation", () => {
 						`${method.toUpperCase()} ${path} ${statusCode} missing schema`,
 					).toBeDefined();
 
-					// The envelope must have a "data" property (either directly or via $ref that wraps it)
-					// Check for direct properties or allOf/oneOf patterns
+					// The envelope must have "success" and "data" properties (either
+					// directly or via $ref that wraps them). Check for direct
+					// properties or allOf/oneOf patterns.
 					const props = (schema as Record<string, unknown>)?.properties as
 						| Record<string, unknown>
 						| undefined;
@@ -95,6 +216,10 @@ describe("OpenAPI spec validation", () => {
 							props,
 							`${method.toUpperCase()} ${path} ${statusCode} envelope missing "data" property`,
 						).toHaveProperty("data");
+						expect(
+							props,
+							`${method.toUpperCase()} ${path} ${statusCode} envelope missing "success" property`,
+						).toHaveProperty("success");
 					}
 				}
 			}
@@ -186,8 +311,37 @@ describe("OpenAPI spec validation", () => {
 						schema,
 						`${method.toUpperCase()} ${path} ${statusCode} error missing schema`,
 					).toBeDefined();
+
+					// Error responses either $ref the shared ApiError component or
+					// inline its shape; both must carry the `success` discriminant.
+					const props = (schema as Record<string, unknown>)?.properties as
+						| Record<string, unknown>
+						| undefined;
+					const ref = (schema as Record<string, unknown>)?.$ref as string | undefined;
+					const usesApiError = typeof ref === "string" && ref.endsWith("/ApiError");
+					if (props) {
+						expect(
+							props,
+							`${method.toUpperCase()} ${path} ${statusCode} error envelope missing "success"`,
+						).toHaveProperty("success");
+					} else {
+						expect(
+							usesApiError,
+							`${method.toUpperCase()} ${path} ${statusCode} error is neither a $ref to ApiError nor inline`,
+						).toBe(true);
+					}
 				}
 			}
 		}
+	});
+
+	it("declares the success discriminant on the ApiError component", () => {
+		const doc = generateOpenApiDocument();
+		const apiError = (doc.components?.schemas ?? {})["ApiError"] as
+			| { properties?: Record<string, unknown> }
+			| undefined;
+		expect(apiError, "ApiError component missing").toBeDefined();
+		expect(apiError?.properties).toHaveProperty("success");
+		expect(apiError?.properties).toHaveProperty("error");
 	});
 });

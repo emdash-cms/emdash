@@ -17,7 +17,6 @@ import {
 } from "#api/index.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { updateFieldBody } from "#api/schemas.js";
-import type { UpdateFieldInput } from "#schema/types.js";
 
 export const prerender = false;
 
@@ -51,12 +50,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(body)) return body;
 
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- body is Zod-validated via parseBody(request, updateFieldBody) above
-	const result = await handleSchemaFieldUpdate(
-		emdash.db,
-		collectionSlug,
-		fieldSlug,
-		body as UpdateFieldInput,
-	);
+	const result = await handleSchemaFieldUpdate(emdash.db, collectionSlug, fieldSlug, body);
 	return unwrapResult(result);
 };
 

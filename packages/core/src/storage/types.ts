@@ -162,6 +162,8 @@ export interface Storage {
 		key: string;
 		body: Buffer | Uint8Array | ReadableStream<Uint8Array>;
 		contentType: string;
+		/** Optional HTTP cache policy stored with publicly served objects. */
+		cacheControl?: string;
 	}): Promise<UploadResult>;
 
 	/**
@@ -195,6 +197,12 @@ export interface Storage {
 	 * Get public URL for a file
 	 */
 	getPublicUrl(key: string): string;
+
+	/**
+	 * Get the origin the browser connects to for direct client uploads.
+	 * Used by the admin CSP when the storage descriptor has no static endpoint.
+	 */
+	getClientUploadOrigin?(): string;
 }
 
 /**

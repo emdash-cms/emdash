@@ -15,14 +15,12 @@
  *   await ctx.cleanup();
  */
 
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { promisify } from "node:util";
 
 import { EmDashClient } from "../../src/client/index.js";
-
-const execAsync = promisify(execFile);
+import { consumerEnvironment } from "../utils/consumer-environment.js";
 
 // Test regex patterns
 const SESSION_COOKIE_REGEX = /^([^;]+)/;
@@ -78,16 +76,16 @@ export interface TestServerContext {
 // ---------------------------------------------------------------------------
 
 /**
- * Astro requires Node.js >= 22.12.0. Call from a `beforeAll` to fail the
+ * EmDash requires Node.js >= 22.16.0. Call from a `beforeAll` to fail the
  * suite immediately when the environment is misconfigured rather than
  * silently skipping.
  */
 export function assertNodeVersion(): void {
 	const [major, minor] = process.versions.node.split(".").map(Number) as [number, number];
-	const ok = major! > 22 || (major === 22 && minor! >= 12);
+	const ok = major! > 22 || (major === 22 && minor! >= 16);
 	if (!ok) {
 		throw new Error(
-			`Integration tests require Node.js >= 22.12.0 (running ${process.versions.node}). ` +
+			`Integration tests require Node.js >= 22.16.0 (running ${process.versions.node}). ` +
 				`Update your Node version instead of skipping tests.`,
 		);
 	}
@@ -97,32 +95,15 @@ export function assertNodeVersion(): void {
 // Build guard
 // ---------------------------------------------------------------------------
 
-const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../..");
 const CLI_BINARY = resolve(import.meta.dirname, "../../dist/cli/index.mjs");
 
-let buildPromise: Promise<void> | null = null;
-
 /**
- * Ensure the workspace is built before starting integration tests.
- * Runs `pnpm build` once (cached across test suites via module-level promise).
- * Skips if the CLI binary already exists.
+ * Assert the integration global setup produced the CLI binary.
  */
-export function ensureBuilt(): Promise<void> {
-	if (!buildPromise) {
-		buildPromise = doBuild();
+export async function ensureBuilt(): Promise<void> {
+	if (!existsSync(CLI_BINARY)) {
+		throw new Error("CLI binary missing after integration global setup");
 	}
-	return buildPromise;
-}
-
-async function doBuild(): Promise<void> {
-	if (existsSync(CLI_BINARY)) return;
-
-	console.log("[integration] Built artifacts missing — running pnpm build...");
-	await execAsync("pnpm", ["build"], {
-		cwd: WORKSPACE_ROOT,
-		timeout: 120_000,
-	});
-	console.log("[integration] Build complete.");
 }
 
 // ---------------------------------------------------------------------------
@@ -182,6 +163,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	});
 	const dbPath = join(workDir, "test.db");
 	const uploadsDir = join(workDir, "uploads");
+	const viteCacheDir = join(workDir, ".vite-cache");
 	mkdirSync(uploadsDir, { recursive: true });
 
 	// Borrow the donor node_modules via symlink (resolution still hits real
@@ -192,8 +174,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	const astroBin = join(workDir, "node_modules", ".bin", "astro");
 	const server = spawn(astroBin, ["dev", "--port", String(port)], {
 		cwd: workDir,
-		env: {
-			...process.env,
+		env: consumerEnvironment({
 			// Force foreground mode: `astro dev` otherwise detects coding-agent
 			// environments and re-spawns itself as a detached background process,
 			// which our SIGTERM cleanup can't reach (leaking the port). With this
@@ -201,8 +182,9 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_TEST_UPLOADS: uploadsDir,
+			EMDASH_TEST_VITE_CACHE: viteCacheDir,
 			...options.env,
-		},
+		}),
 		stdio: "pipe",
 	});
 

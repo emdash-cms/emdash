@@ -1,0 +1,48 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.package.profileExtension",
+	"description": "EmDash delegated-release policy embedded inside a package profile record under its extensions field. EXPERIMENTAL: shape may change before stabilisation.",
+	"defs": {
+		"main": {
+			"type": "object",
+			"description": "Typed embedded object carrying the package repository anchor and optional delegated-release policy. Lives under the profile record's extensions map keyed by this NSID. The $type field is required when embedded; clients use it to dispatch to this schema.",
+			"required": ["repository"],
+			"properties": {
+				"repository": {
+					"type": "string",
+					"format": "uri",
+					"description": "Canonical HTTPS source repository URL. Lexicon validates URI syntax and length; consumers must require HTTPS and canonicalization.",
+					"maxLength": 1024
+				},
+				"releasePolicy": {
+					"type": "ref",
+					"ref": "#releasePolicy"
+				}
+			}
+		},
+		"releasePolicy": {
+			"type": "object",
+			"description": "Optional delegated-release policy. Absent fields normalize for consumers to requireProvenance false, confirmation escalation-only, and no approvers.",
+			"properties": {
+				"requireProvenance": {
+					"type": "boolean",
+					"description": "Whether releases require a verifiable provenance reference."
+				},
+				"confirmation": {
+					"type": "string",
+					"description": "When a release requires human confirmation. The generated TypeScript type exposes escalation-only and always; Lexicon runtime validators do not enforce knownValues, so consumers must reject other values.",
+					"knownValues": ["escalation-only", "always"]
+				},
+				"approvers": {
+					"type": "array",
+					"description": "Atproto DIDs authorized to approve releases. Lexicon validates DID syntax and the 32-item cap; consumers must reject duplicate DIDs.",
+					"maxLength": 32,
+					"items": {
+						"type": "string",
+						"format": "did"
+					}
+				}
+			}
+		}
+	}
+}

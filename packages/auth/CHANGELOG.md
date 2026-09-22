@@ -1,5 +1,69 @@
 # @emdash-cms/auth
 
+## 0.38.0
+
+No changes in this release.
+
+## 0.37.0
+
+### Minor Changes
+
+- [#2745](https://github.com/emdash-cms/emdash/pull/2745) [`b8873c7`](https://github.com/emdash-cms/emdash/commit/b8873c7bd1b1755010bcb46e4511eebccba2b48a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `PasskeyConfig.userVerification` so sites can require, prefer, or discourage passkey user verification. Existing callers keep the `preferred` behavior.
+
+  Adds typed, versioned challenge contexts for registration and authentication. Declare a codec with `defineChallengeContext()`, bind data with `bindChallengeContext()` when generating options, and pass the codec with an `AtomicChallengeStore` to `verifyAuthenticationResponse()` or `verifyRegistrationResponse()` to recover the typed value after verification.
+
+  Atomic challenge stores declare `readonly atomic: true`, so an unrelated `consume()` method on an existing challenge store cannot silently change its behavior. EmDash retains optional challenge context data in its database-backed challenge store.
+
+  Authentication rejects assertions whose signature counter drops from a nonzero value to zero because the counter change can indicate a cloned authenticator.
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
+## 0.36.0
+
+## 0.35.0
+
+## 0.34.0
+
+## 0.33.0
+
+## 0.32.0
+
+## 0.31.1
+
+## 0.31.0
+
+## 0.30.0
+
+### Minor Changes
+
+- [#1868](https://github.com/emdash-cms/emdash/pull/1868) [`4c57ee2`](https://github.com/emdash-cms/emdash/commit/4c57ee216f242ef163ae269ec6ff6abfba716e6f) Thanks [@afonsojramos](https://github.com/afonsojramos)! - Invited users can now accept their invite by signing in with Google or GitHub, instead of only creating a passkey.
+
+- [#2002](https://github.com/emdash-cms/emdash/pull/2002) [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c) Thanks [@jcheese1](https://github.com/jcheese1)! - Adds explicitly declared, administrator-enabled plugin MCP tools with per-route permissions, plugin-scoped token access, install and update consent, structured output schemas, and invocation auditing.
+
+### Patch Changes
+
+- [#1890](https://github.com/emdash-cms/emdash/pull/1890) [`82827d3`](https://github.com/emdash-cms/emdash/commit/82827d3f8ffdaa4fae688b89cdcc139aa6c25810) Thanks [@swissky](https://github.com/swissky)! - Adds a Backups page to admin settings: download a complete content backup (all content including drafts and trash, schema, taxonomies, menus, widgets, media metadata, and site settings — never user accounts or secrets) with one click, and optionally enable daily automatic backups to the site's storage bucket with configurable retention. A new `backups:manage` permission gates the feature to admins.
+
+## 0.29.0
+
+## 0.28.1
+
+## 0.28.0
+
+## 0.27.0
+
+## 0.26.0
+
+## 0.25.1
+
+## 0.25.0
+
+## 0.24.1
+
+## 0.24.0
+
 ## 0.23.0
 
 ## 0.22.0

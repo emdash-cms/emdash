@@ -47,7 +47,7 @@
 // eslint-disable-next-line @typescript-eslint/no-empty-named-blocks, eslint-plugin-import/no-empty-named-blocks, eslint-plugin-unicorn/require-module-specifiers, import/no-empty-named-blocks, unicorn/require-module-specifiers
 import type {} from "@atcute/atproto";
 import { Client, type FetchHandler, type FetchHandlerObject, ok } from "@atcute/client";
-import type { Nsid } from "@atcute/lexicons";
+import type { Blob, Nsid } from "@atcute/lexicons";
 import type { RegistryRecordCollection, RegistryRecords } from "@emdash-cms/registry-lexicons";
 
 import type { Did } from "../credentials/types.js";
@@ -140,6 +140,17 @@ export class PublishingClient {
 		return new PublishingClient(client, options.did, options.pds);
 	}
 
+	/** Upload artifact bytes to the publisher's PDS. */
+	async uploadBlob(bytes: Uint8Array, mimeType: string): Promise<Blob> {
+		const data = await ok(
+			this.#client.post("com.atproto.repo.uploadBlob", {
+				headers: { "content-type": mimeType },
+				input: bytes,
+			}),
+		);
+		return data.blob;
+	}
+
 	/**
 	 * Put a typed registry record into the publisher's repo. The record's TS
 	 * shape is derived from the collection NSID so callers can't put a
@@ -171,7 +182,7 @@ export class PublishingClient {
 		return this.#putRecord({
 			collection: input.collection,
 			rkey: input.rkey,
-			record: input.record as Record<string, unknown>,
+			record: input.record,
 			skipValidation: input.skipValidation ?? false,
 			...(input.swapRecord !== undefined ? { swapRecord: input.swapRecord } : {}),
 		});
@@ -244,16 +255,16 @@ export class PublishingClient {
 				case "create":
 					return {
 						$type: "com.atproto.repo.applyWrites#create" as const,
-						collection: op.collection as Nsid,
+						collection: op.collection,
 						rkey: op.rkey,
-						value: op.record as Record<string, unknown>,
+						value: op.record,
 					};
 				case "update":
 					return {
 						$type: "com.atproto.repo.applyWrites#update" as const,
-						collection: op.collection as Nsid,
+						collection: op.collection,
 						rkey: op.rkey,
-						value: op.record as Record<string, unknown>,
+						value: op.record,
 					};
 				case "delete":
 					return {

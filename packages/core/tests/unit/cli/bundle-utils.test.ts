@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 
 import {
 	extractManifest,
@@ -22,6 +23,7 @@ import {
 	findNodeBuiltinImports,
 	findBuildOutput,
 	findSourceExports,
+	toFileImportSpecifier,
 } from "../../../src/cli/commands/bundle-utils.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
@@ -40,6 +42,22 @@ function mockPlugin(overrides: Partial<ResolvedPlugin> = {}): ResolvedPlugin {
 }
 
 describe("extractManifest", () => {
+	it("serializes redirect write with its read implication", () => {
+		const manifest = extractManifest(mockPlugin({ capabilities: ["redirects:write"] }));
+		expect(manifest.capabilities).toEqual(["redirects:read", "redirects:write"]);
+		expect(manifest.declaredAccess).toEqual({
+			redirects: { read: {}, write: {} },
+		});
+	});
+
+	it("preserves legacy allowed hosts without changing capability authority", () => {
+		const manifest = extractManifest(
+			mockPlugin({ capabilities: ["content:read"], allowedHosts: ["api.example.com"] }),
+		);
+		expect(manifest.capabilities).toEqual(["content:read"]);
+		expect(manifest.allowedHosts).toEqual(["api.example.com"]);
+	});
+
 	it("converts hooks from handler objects to name array", () => {
 		const plugin = mockPlugin({
 			hooks: {
@@ -85,6 +103,83 @@ describe("extractManifest", () => {
 		expect(manifest.routes).toEqual(["sync", "webhook"]);
 	});
 
+	it("emits structured route entries for public and cacheControl metadata", () => {
+		const plugin = mockPlugin({
+			routes: {
+				sync: { handler: vi.fn() },
+				webhook: { handler: vi.fn(), public: true },
+				catalog: { handler: vi.fn(), public: true, cacheControl: "public, max-age=60" },
+			},
+		});
+
+		const manifest = extractManifest(plugin);
+		expect(manifest.routes).toEqual([
+			"sync",
+			{ name: "webhook", public: true },
+			{ name: "catalog", public: true, cacheControl: "public, max-age=60" },
+		]);
+	});
+
+	it("emits raw request and response route metadata", () => {
+		const plugin = mockPlugin({
+			routes: {
+				upload: {
+					handler: vi.fn(),
+					methods: ["POST"],
+					request: {
+						body: "bytes",
+						maxBytes: 4096,
+						headers: ["content-type", "x-upload-token"],
+					},
+					response: "raw",
+				},
+			},
+		});
+
+		const manifest = extractManifest(plugin);
+		expect(manifest.routes).toEqual([
+			{
+				name: "upload",
+				methods: ["POST"],
+				request: {
+					body: "bytes",
+					maxBytes: 4096,
+					headers: ["content-type", "x-upload-token"],
+				},
+				response: "raw",
+			},
+		]);
+	});
+
+	it.each([
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects MCP tools with an incompatible route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				mockPlugin({
+					routes: {
+						tool: {
+							handler: vi.fn(),
+							permission: "plugins:manage",
+							...routeOptions,
+						},
+					},
+					mcp: {
+						tools: {
+							tool: {
+								description: "Manage a resource.",
+								route: "tool",
+								input: z.object({}),
+							},
+						},
+					},
+				}),
+			),
+		).toThrow("POST-compatible JSON route");
+	});
+
 	it("strips admin.entry (host-only concern, not in bundles)", () => {
 		const plugin = mockPlugin({
 			admin: {
@@ -99,6 +194,22 @@ describe("extractManifest", () => {
 		expect((manifest.admin as any).entry).toBeUndefined();
 		expect(manifest.admin.settingsSchema).toBeDefined();
 		expect(manifest.admin.pages).toHaveLength(1);
+	});
+
+	it.each([
+		{ response: "raw" as const },
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				mockPlugin({
+					routes: { admin: { ...routeOptions, handler: vi.fn() } },
+					admin: { pages: [{ id: "overview", title: "Overview" }], widgets: [] },
+				}),
+			),
+		).toThrow("Block Kit admin route must accept POST JSON requests and return JSON");
 	});
 
 	it("result is JSON-serializable (no functions survive)", () => {
@@ -274,6 +385,16 @@ describe("findBuildOutput", () => {
 
 	it("returns undefined when no match", async () => {
 		expect(await findBuildOutput(tempDir, "index")).toBeUndefined();
+	});
+});
+
+describe("toFileImportSpecifier", () => {
+	it("returns a file URL for an absolute build artifact path", () => {
+		const artifactPath = join(tmpdir(), "emdash-plugin", "index.mjs");
+		const specifier = toFileImportSpecifier(artifactPath);
+
+		expect(new URL(specifier).protocol).toBe("file:");
+		expect(specifier).not.toBe(artifactPath);
 	});
 });
 

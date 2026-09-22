@@ -9,16 +9,21 @@ import { createWriteStream } from "node:fs";
 import { readdir, stat, access } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { pathToFileURL } from "node:url";
 
+import { extractManifestRoute, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
+import { z } from "zod";
 
-import { capabilitiesToDeclaredAccess } from "../../plugins/types.js";
+import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "../../plugins/types.js";
 import type {
 	PluginManifest,
 	ResolvedPlugin,
 	HookName,
 	ManifestHookEntry,
+	ManifestMcpTool,
+	ManifestRouteEntry,
 } from "../../plugins/types.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -33,6 +38,7 @@ export const MAX_SCREENSHOTS = 5;
 export const MAX_SCREENSHOT_WIDTH = 1920;
 export const MAX_SCREENSHOT_HEIGHT = 1080;
 export const ICON_SIZE = 256;
+const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 // ── Regex patterns (module-scope to avoid re-compilation) ────────────────────
 
@@ -105,6 +111,11 @@ export async function fileExists(path: string): Promise<boolean> {
 	}
 }
 
+/** Convert an absolute build artifact path into a portable ESM import specifier. */
+export function toFileImportSpecifier(path: string): string {
+	return pathToFileURL(path).href;
+}
+
 // ── Image dimension readers ──────────────────────────────────────────────────
 
 /**
@@ -130,6 +141,14 @@ export function readImageDimensions(buf: Uint8Array): [number, number] | null {
  * Strips functions (hooks, route handlers) and keeps only serializable metadata.
  */
 export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new Error("Block Kit admin route must accept POST JSON requests and return JSON");
+		}
+	}
+	const declaredAccess = capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts);
+	const enforcedAccess = declaredAccessToCapabilities(declaredAccess);
 	// Build hook entries preserving exclusive/priority/timeout metadata.
 	// Plain HookName strings are emitted for hooks with default settings;
 	// structured ManifestHookEntry objects are emitted when metadata differs.
@@ -149,20 +168,50 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 	}
 
+	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
+		([name, route]) => extractManifestRoute(name, route),
+	);
+	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
+		if (!MCP_TOOL_NAME_PATTERN.test(name)) throw new Error(`Invalid MCP tool name "${name}"`);
+		const route = plugin.routes[tool.route];
+		if (!route?.permission || route.public || route.response === "raw") {
+			throw new Error(`MCP tool "${name}" must reference a private route with a permission`);
+		}
+		if (!isJsonPostRouteContract(route)) {
+			throw new Error(`MCP tool "${name}" must reference a POST-compatible JSON route`);
+		}
+		return {
+			name,
+			description: tool.description,
+			route: tool.route,
+			permission: route.permission,
+			destructive: tool.destructive ?? false,
+			inputSchema: z.toJSONSchema(tool.input, { target: "draft-7" }),
+			...(tool.output
+				? {
+						outputSchema: z.toJSONSchema(tool.output, { target: "draft-7" }),
+					}
+				: {}),
+		};
+	});
+
 	return {
 		id: plugin.id,
 		version: plugin.version,
-		declaredAccess: capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts),
-		capabilities: plugin.capabilities,
+		declaredAccess,
+		capabilities: enforcedAccess.capabilities,
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,
-		routes: Object.keys(plugin.routes),
+		routes,
+		...(tools.length > 0 ? { mcp: { tools } } : {}),
 		admin: {
 			// Omit entry (it's a module specifier for the host, not relevant in bundles)
 			settingsSchema: plugin.admin.settingsSchema,
 			pages: plugin.admin.pages,
 			widgets: plugin.admin.widgets,
+			editorPanels: plugin.admin.editorPanels,
+			editorActions: plugin.admin.editorActions,
 		},
 	};
 }

@@ -201,7 +201,7 @@ export function UserDetail({
 												{t`Disabled`}
 											</span>
 										) : (
-											<span className="inline-flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+											<span className="inline-flex items-center gap-1 text-sm text-kumo-success">
 												<CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
 												{t`Active`}
 											</span>
@@ -332,7 +332,7 @@ export function UserDetail({
 										{isSendingRecovery ? t`Sending...` : t`Send Recovery Link`}
 									</Button>
 									{recoverySent && (
-										<p className="text-xs text-green-600 dark:text-green-400 text-center">
+										<p className="text-xs text-kumo-success text-center">
 											{t`Recovery link sent to ${user.email}`}
 										</p>
 									)}

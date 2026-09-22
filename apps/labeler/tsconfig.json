@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["@cloudflare/vitest-plugin/types"],
+		"verbatimModuleSyntax": true,
+		"noEmit": true
+	},
+	"include": ["src/**/*.ts", "test/**/*", "worker-configuration.d.ts"],
+	"exclude": ["src/admin/**/*", "test/ui/**/*"]
+}

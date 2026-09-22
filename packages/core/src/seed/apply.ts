@@ -13,28 +13,80 @@ import { ulid } from "ulidx";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
+import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
-import { getI18nConfig } from "../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
+import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
-import { setSiteSettings } from "../settings/index.js";
+import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.js";
+import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 import type {
 	SeedFile,
 	SeedApplyOptions,
 	SeedApplyResult,
+	SeedCollection,
 	SeedTaxonomyTerm,
 	SeedMenuItem,
 	SeedWidget,
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+async function applySiteSettings(
+	db: Kysely<Database>,
+	settings: Partial<SiteSettings>,
+	onConflict: Exclude<SeedApplyOptions["onConflict"], undefined>,
+	result: SeedApplyResult,
+): Promise<void> {
+	const entries = Object.entries(settings).filter(([, value]) => value !== undefined);
+	if (entries.length === 0) return;
+
+	if (onConflict === "update") {
+		await setSiteSettings(settings, db);
+		result.settings.applied += entries.length;
+		return;
+	}
+
+	const options = new OptionsRepository(db);
+	let applied = 0;
+	try {
+		for (const [key, value] of entries) {
+			const write = await options.compareAndSet(`site:${key}`, null, value);
+			if (!write.applied && onConflict === "error") {
+				throw new Error(`Conflict: site setting "site:${key}" already exists`);
+			}
+			if (write.applied) applied++;
+		}
+	} finally {
+		if (applied > 0) {
+			result.settings.applied += applied;
+			invalidateSiteSettingsCache();
+		}
+	}
+}
+
+/**
+ * Set a collection's `titleField`/`dateField`: a separate write run after the
+ * fields exist, so `updateCollection` can validate them. No-op when neither is set.
+ */
+async function applyDisplayDateFields(
+	registry: SchemaRegistry,
+	collection: SeedCollection,
+): Promise<void> {
+	if (collection.titleField === undefined && collection.dateField === undefined) return;
+	await registry.updateCollection(collection.slug, {
+		titleField: collection.titleField,
+		dateField: collection.dateField,
+	});
+}
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
 import { validateSeed } from "./validate.js";
@@ -114,6 +166,8 @@ export async function applySeed(
 	// Track seed content IDs for reference resolution (shared across content and menus)
 	const seedIdMap = new Map<string, string>(); // seed id -> real entry id
 	const seedBylineIdMap = new Map<string, string>(); // seed byline id -> real byline id
+	const staleMarkedContentCollections = new Set<string>();
+	const failedStaleContentCollections = new Set<string>();
 
 	// Fallback locale for rows that omit an explicit `locale`. Prefer the runtime
 	// config (runtime-driven seeds), then the seed's self-described `defaultLocale`
@@ -121,11 +175,37 @@ export async function applySeed(
 	// seed-carried default, a non-`en` single-locale project would be rewritten to
 	// `en` on apply (#1421).
 	const defaultLocale = getI18nConfig()?.defaultLocale ?? seed.defaultLocale ?? "en";
+	const markSeedContentCollectionStale = async (collectionSlug: string): Promise<void> => {
+		if (staleMarkedContentCollections.has(collectionSlug)) return;
+		const marked = await markContentMediaUsageCollectionStaleSafely(
+			db,
+			collectionSlug,
+			"CONTENT_USAGE_STALE",
+		);
+		if (marked) {
+			staleMarkedContentCollections.add(collectionSlug);
+			failedStaleContentCollections.delete(collectionSlug);
+		} else {
+			failedStaleContentCollections.add(collectionSlug);
+		}
+	};
+	const retryFailedSeedContentStaleMarks = async (): Promise<void> => {
+		for (const collectionSlug of failedStaleContentCollections) {
+			const marked = await markContentMediaUsageCollectionStaleSafely(
+				db,
+				collectionSlug,
+				"CONTENT_USAGE_STALE",
+			);
+			if (marked) {
+				staleMarkedContentCollections.add(collectionSlug);
+				failedStaleContentCollections.delete(collectionSlug);
+			}
+		}
+	};
 
 	// 1. Site settings
 	if (seed.settings) {
-		await setSiteSettings(seed.settings, db);
-		result.settings.applied = Object.keys(seed.settings).length;
+		await applySiteSettings(db, seed.settings, onConflict, result);
 	}
 
 	// 2-3. Collections and Fields
@@ -147,9 +227,15 @@ export async function applySeed(
 						labelSingular: collection.labelSingular,
 						description: collection.description,
 						icon: collection.icon,
+						admin: collection.admin,
 						supports: collection.supports || [],
 						urlPattern: collection.urlPattern,
+						routable: collection.routable,
+						hidden: collection.hidden,
+						sortOrder: collection.sortOrder,
+						group: collection.group,
 						commentsEnabled: collection.commentsEnabled,
+						editLocking: collection.editLocking,
 					});
 					result.collections.updated++;
 
@@ -159,9 +245,11 @@ export async function applySeed(
 						if (existingField) {
 							await registry.updateField(collection.slug, field.slug, {
 								label: field.label,
+								type: field.type,
 								required: field.required || false,
 								unique: field.unique || false,
 								searchable: field.searchable || false,
+								indexed: field.indexed || false,
 								defaultValue: field.defaultValue,
 								validation: field.validation,
 								widget: field.widget,
@@ -176,6 +264,7 @@ export async function applySeed(
 								required: field.required || false,
 								unique: field.unique || false,
 								searchable: field.searchable || false,
+								indexed: field.indexed || false,
 								defaultValue: field.defaultValue,
 								validation: field.validation,
 								widget: field.widget,
@@ -184,6 +273,9 @@ export async function applySeed(
 							result.fields.created++;
 						}
 					}
+
+					// Second write: display/date fields, now that fields exist.
+					await applyDisplayDateFields(registry, collection);
 					continue;
 				}
 
@@ -193,36 +285,45 @@ export async function applySeed(
 				continue;
 			}
 
-			// Create collection
-			await registry.createCollection({
-				slug: collection.slug,
-				label: collection.label,
-				labelSingular: collection.labelSingular,
-				description: collection.description,
-				icon: collection.icon,
-				supports: collection.supports || [],
-				source: "seed",
-				urlPattern: collection.urlPattern,
-				commentsEnabled: collection.commentsEnabled,
-			});
-			result.collections.created++;
+			const fields = collection.fields.map((field) => ({
+				slug: field.slug,
+				label: field.label,
+				type: field.type,
+				required: field.required || false,
+				unique: field.unique || false,
+				searchable: field.searchable || false,
+				indexed: field.indexed || false,
+				defaultValue: field.defaultValue,
+				validation: field.validation,
+				widget: field.widget,
+				options: field.options,
+			}));
 
-			// Create fields
-			for (const field of collection.fields) {
-				await registry.createField(collection.slug, {
-					slug: field.slug,
-					label: field.label,
-					type: field.type,
-					required: field.required || false,
-					unique: field.unique || false,
-					searchable: field.searchable || false,
-					defaultValue: field.defaultValue,
-					validation: field.validation,
-					widget: field.widget,
-					options: field.options,
-				});
-				result.fields.created++;
-			}
+			// Create a fresh seed schema in bulk to stay within D1's query budget.
+			await registry.createSeedCollection(
+				{
+					slug: collection.slug,
+					label: collection.label,
+					labelSingular: collection.labelSingular,
+					description: collection.description,
+					icon: collection.icon,
+					admin: collection.admin,
+					supports: collection.supports || [],
+					urlPattern: collection.urlPattern,
+					routable: collection.routable,
+					hidden: collection.hidden,
+					sortOrder: collection.sortOrder,
+					group: collection.group,
+					commentsEnabled: collection.commentsEnabled,
+					editLocking: collection.editLocking,
+				},
+				fields,
+			);
+			// titleField/dateField reference existing fields, so set them after
+			// the schema exists.
+			await applyDisplayDateFields(registry, collection);
+			result.collections.created++;
+			result.fields.created += fields.length;
 		}
 	}
 
@@ -233,7 +334,7 @@ export async function applySeed(
 		const termSeedIdMap = new Map<string, string>();
 
 		for (const taxonomy of seed.taxonomies) {
-			const defLocale = taxonomy.locale ?? defaultLocale;
+			const defLocale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
 
 			// (name, locale) is the UNIQUE key after migration 036.
 			const existingDef = await db
@@ -295,7 +396,7 @@ export async function applySeed(
 				defSeedIdMap.set(taxonomy.id, { id: defId, translationGroup: defTranslationGroup });
 
 			// Create terms (if provided)
-			if (taxonomy.terms && taxonomy.terms.length > 0) {
+			if (includeContent && taxonomy.terms && taxonomy.terms.length > 0) {
 				const termRepo = new TaxonomyRepository(db);
 
 				if (taxonomy.hierarchical) {
@@ -310,7 +411,7 @@ export async function applySeed(
 					);
 				} else {
 					for (const term of taxonomy.terms) {
-						const termLocale = term.locale ?? defLocale;
+						const termLocale = resolveConfiguredLocale(term.locale ?? defLocale);
 						const existing = await termRepo.findBySlug(taxonomy.name, term.slug, termLocale);
 						if (existing) {
 							if (onConflict === "error") {
@@ -345,10 +446,16 @@ export async function applySeed(
 				}
 			}
 		}
+
+		// Seeded/updated defs change which taxonomies exist — clear the
+		// isolate-wide defs + names caches so later reads in this isolate
+		// (e.g. an auto-seed triggered mid-request) reflect them immediately.
+		const { invalidateTaxonomyDefsCache } = await import("../taxonomies/index.js");
+		invalidateTaxonomyDefsCache();
 	}
 
 	// 6. Bylines
-	if (seed.bylines) {
+	if (includeContent && seed.bylines) {
 		const bylineRepo = new BylineRepository(db);
 		for (const byline of seed.bylines) {
 			const existing = await bylineRepo.findBySlug(byline.slug);
@@ -420,133 +527,201 @@ export async function applySeed(
 	// 7. Content (created before menus so refs can resolve)
 	if (includeContent && seed.content) {
 		const contentRepo = new ContentRepository(db);
+		const schemaRegistry = new SchemaRegistry(db);
 
-		// Create content entries
-		for (const [collectionSlug, entries] of Object.entries(seed.content)) {
-			for (const entry of entries) {
-				// Resolve the entry's locale up front so a non-`en` single-locale
-				// export (which omits `locale`) is filed under the project default
-				// rather than `en` (#1421).
-				const entryLocale = entry.locale ?? defaultLocale;
+		try {
+			// Create content entries
+			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
+				const collectionRoutable =
+					(await schemaRegistry.getCollection(collectionSlug))?.routable !== false;
+				for (const entry of entries) {
+					const entrySlug =
+						typeof entry.slug === "string" && entry.slug.trim().length > 0 ? entry.slug : null;
+					// Resolve the entry's locale up front so a non-`en` single-locale
+					// export (which omits `locale`) is filed under the project default
+					// rather than `en` (#1421).
+					const entryLocale = resolveConfiguredLocale(entry.locale ?? defaultLocale);
 
-				// Check if entry exists (by slug + locale for locale-aware lookup)
-				const existing = await contentRepo.findBySlug(collectionSlug, entry.slug, entryLocale);
+					// Slugful entries use the existing locale-aware key. Slugless seed
+					// entries persist their seed ID, which keeps re-application idempotent.
+					const existing = entrySlug
+						? await contentRepo.findBySlug(collectionSlug, entrySlug, entryLocale)
+						: await contentRepo.findById(collectionSlug, entry.id);
 
-				if (existing) {
-					if (onConflict === "error") {
-						throw new Error(
-							`Conflict: content "${entry.slug}" in "${collectionSlug}" already exists`,
-						);
+					if (existing) {
+						if (onConflict === "error") {
+							throw new Error(
+								`Conflict: content "${entrySlug ?? entry.id}" in "${collectionSlug}" already exists`,
+							);
+						}
+
+						if (onConflict === "update") {
+							// Resolve $ref and $media in data
+							const resolvedData = await resolveReferences(
+								entry.data,
+								seedIdMap,
+								mediaContext,
+								result,
+							);
+
+							// Update content + bylines + taxonomies atomically
+							const status = entry.status || "published";
+							let contentMutated = false;
+							try {
+								await withTransaction(db, async (trx) => {
+									const trxContentRepo = new ContentRepository(trx);
+									const trxBylineRepo = new BylineRepository(trx);
+									const trxRevisionRepo = new RevisionRepository(trx);
+
+									await trxContentRepo.update(collectionSlug, existing.id, {
+										status,
+										data: resolvedData,
+									});
+									contentMutated = true;
+
+									await applyContentBylines(
+										trxBylineRepo,
+										collectionSlug,
+										existing.id,
+										entry,
+										seedBylineIdMap,
+										true,
+									);
+									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+
+									// Seed is declarative — when status is "published", promote to a live
+									// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
+									// and `live_revision_id` is populated for downstream queries.
+									//
+									// Create a fresh revision from the updated data and stage it as the
+									// draft so `publish()` picks it up instead of re-syncing stale data
+									// from an existing live revision.
+									if (status === "published") {
+										const draft = await trxRevisionRepo.create({
+											collection: collectionSlug,
+											entryId: existing.id,
+											data: resolvedData,
+										});
+										try {
+											await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
+											await trxContentRepo.publish(
+												collectionSlug,
+												existing.id,
+												undefined,
+												false,
+												undefined,
+												true,
+												collectionRoutable,
+											);
+										} catch (error) {
+											try {
+												await trxRevisionRepo.deleteIfUnreferenced(
+													collectionSlug,
+													existing.id,
+													draft.id,
+												);
+											} catch (cleanupError) {
+												console.error(
+													`[seed] Failed to clean up unstaged revision ${draft.id}:`,
+													cleanupError,
+												);
+											}
+											throw error;
+										}
+									}
+								});
+							} catch (error) {
+								if (contentMutated) await markSeedContentCollectionStale(collectionSlug);
+								throw error;
+							}
+
+							seedIdMap.set(entry.id, existing.id);
+							result.content.updated++;
+							await markSeedContentCollectionStale(collectionSlug);
+							continue;
+						}
+
+						// skip
+						result.content.skipped++;
+						seedIdMap.set(entry.id, existing.id);
+						continue;
 					}
 
-					if (onConflict === "update") {
-						// Resolve $ref and $media in data
-						const resolvedData = await resolveReferences(
-							entry.data,
-							seedIdMap,
-							mediaContext,
-							result,
-						);
+					// Resolve $ref and $media in data
+					const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
 
-						// Update content + bylines + taxonomies atomically
-						const status = entry.status || "published";
-						await withTransaction(db, async (trx) => {
+					// Resolve translationOf: map from seed-local ID to real EmDash ID
+					let translationOf: string | undefined;
+					if (entry.translationOf) {
+						const sourceId = seedIdMap.get(entry.translationOf);
+						if (!sourceId) {
+							console.warn(
+								`content.${collectionSlug}: translationOf "${entry.translationOf}" not found (not yet created or missing). Skipping translation link.`,
+							);
+						} else {
+							translationOf = sourceId;
+						}
+					}
+
+					// Create entry + bylines + taxonomies atomically
+					const status = entry.status || "published";
+					let contentMutated = false;
+					let created: Awaited<ReturnType<ContentRepository["create"]>>;
+					try {
+						created = await withTransaction(db, async (trx) => {
 							const trxContentRepo = new ContentRepository(trx);
 							const trxBylineRepo = new BylineRepository(trx);
-							const trxRevisionRepo = new RevisionRepository(trx);
 
-							await trxContentRepo.update(collectionSlug, existing.id, {
+							const item = await trxContentRepo.create({
+								...(entrySlug ? {} : { id: entry.id }),
+								type: collectionSlug,
+								slug: entrySlug,
 								status,
 								data: resolvedData,
+								locale: entryLocale,
+								translationOf,
+								publishedAt: status === "published" ? new Date().toISOString() : null,
 							});
+							contentMutated = true;
 
 							await applyContentBylines(
 								trxBylineRepo,
 								collectionSlug,
-								existing.id,
+								item.id,
 								entry,
 								seedBylineIdMap,
-								true,
 							);
-							await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
 
 							// Seed is declarative — when status is "published", promote to a live
 							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
 							// and `live_revision_id` is populated for downstream queries.
-							//
-							// Create a fresh revision from the updated data and stage it as the
-							// draft so `publish()` picks it up instead of re-syncing stale data
-							// from an existing live revision.
 							if (status === "published") {
-								const draft = await trxRevisionRepo.create({
-									collection: collectionSlug,
-									entryId: existing.id,
-									data: resolvedData,
-								});
-								await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
-								await trxContentRepo.publish(collectionSlug, existing.id);
+								await trxContentRepo.publish(
+									collectionSlug,
+									item.id,
+									undefined,
+									false,
+									undefined,
+									true,
+									collectionRoutable,
+								);
 							}
+
+							return item;
 						});
-
-						seedIdMap.set(entry.id, existing.id);
-						result.content.updated++;
-						continue;
+					} catch (error) {
+						if (contentMutated) await markSeedContentCollectionStale(collectionSlug);
+						throw error;
 					}
 
-					// skip
-					result.content.skipped++;
-					seedIdMap.set(entry.id, existing.id);
-					continue;
+					seedIdMap.set(entry.id, created.id);
+					result.content.created++;
+					await markSeedContentCollectionStale(collectionSlug);
 				}
-
-				// Resolve $ref and $media in data
-				const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
-
-				// Resolve translationOf: map from seed-local ID to real EmDash ID
-				let translationOf: string | undefined;
-				if (entry.translationOf) {
-					const sourceId = seedIdMap.get(entry.translationOf);
-					if (!sourceId) {
-						console.warn(
-							`content.${collectionSlug}: translationOf "${entry.translationOf}" not found (not yet created or missing). Skipping translation link.`,
-						);
-					} else {
-						translationOf = sourceId;
-					}
-				}
-
-				// Create entry + bylines + taxonomies atomically
-				const status = entry.status || "published";
-				const created = await withTransaction(db, async (trx) => {
-					const trxContentRepo = new ContentRepository(trx);
-					const trxBylineRepo = new BylineRepository(trx);
-
-					const item = await trxContentRepo.create({
-						type: collectionSlug,
-						slug: entry.slug,
-						status,
-						data: resolvedData,
-						locale: entryLocale,
-						translationOf,
-						publishedAt: status === "published" ? new Date().toISOString() : null,
-					});
-
-					await applyContentBylines(trxBylineRepo, collectionSlug, item.id, entry, seedBylineIdMap);
-					await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
-
-					// Seed is declarative — when status is "published", promote to a live
-					// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
-					// and `live_revision_id` is populated for downstream queries.
-					if (status === "published") {
-						await trxContentRepo.publish(collectionSlug, item.id);
-					}
-
-					return item;
-				});
-
-				seedIdMap.set(entry.id, created.id);
-				result.content.created++;
 			}
+		} finally {
+			await retryFailedSeedContentStaleMarks();
 		}
 	}
 
@@ -558,7 +733,7 @@ export async function applySeed(
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 
 		for (const menu of seed.menus) {
-			const locale = menu.locale ?? defaultLocale;
+			const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
 			let lookup = db
 				.selectFrom("_emdash_menus")
 				.selectAll()
@@ -804,6 +979,8 @@ async function applyHierarchicalTerms(
 ): Promise<void> {
 	// "locale::slug" -> id, so the same slug can resolve per locale.
 	const slugToId = new Map<string, string>();
+	const resolveTermLocale = (term: SeedTaxonomyTerm) =>
+		resolveConfiguredLocale(term.locale ?? defLocale);
 
 	// Multiple passes — handles deep nesting and translationOf forward refs.
 	let remaining = [...terms];
@@ -813,7 +990,7 @@ async function applyHierarchicalTerms(
 		const processedThisPass: string[] = [];
 
 		for (const term of remaining) {
-			const termLocale = term.locale ?? defLocale;
+			const termLocale = resolveTermLocale(term);
 			const parentReady = !term.parent || slugToId.has(`${termLocale}::${term.parent}`);
 			const translationReady = !term.translationOf || termSeedIdMap.has(term.translationOf);
 
@@ -858,7 +1035,7 @@ async function applyHierarchicalTerms(
 		}
 
 		remaining = remaining.filter(
-			(t) => !processedThisPass.includes(t.slug + "::" + (t.locale ?? defLocale)),
+			(term) => !processedThisPass.includes(term.slug + "::" + resolveTermLocale(term)),
 		);
 		maxPasses--;
 	}
@@ -876,7 +1053,11 @@ async function applyContentBylines(
 	bylineRepo: BylineRepository,
 	collectionSlug: string,
 	contentId: string,
-	entry: { slug: string; bylines?: Array<{ byline: string; roleLabel?: string }> },
+	entry: {
+		id: string;
+		slug?: string | null;
+		bylines?: Array<{ byline: string; roleLabel?: string }>;
+	},
 	seedBylineIdMap: Map<string, string>,
 	isUpdate = false,
 ): Promise<void> {
@@ -901,7 +1082,7 @@ async function applyContentBylines(
 
 	if (credits.length !== entry.bylines.length) {
 		console.warn(
-			`content.${collectionSlug}.${entry.slug}: one or more byline refs could not be resolved`,
+			`content.${collectionSlug}.${entry.slug ?? entry.id}: one or more byline refs could not be resolved`,
 		);
 	}
 
@@ -924,13 +1105,10 @@ async function applyContentTaxonomies(
 	entry: { taxonomies?: Record<string, string[]> },
 	isUpdate: boolean,
 ): Promise<void> {
+	const termRepo = new TaxonomyRepository(db);
 	// In update mode, clear existing taxonomy assignments first
 	if (isUpdate) {
-		await db
-			.deleteFrom("content_taxonomies")
-			.where("collection", "=", collectionSlug)
-			.where("entry_id", "=", contentId)
-			.execute();
+		await termRepo.clearEntryTerms(collectionSlug, contentId);
 	}
 
 	if (!entry.taxonomies) {
@@ -944,8 +1122,6 @@ async function applyContentTaxonomies(
 	}
 
 	for (const [taxonomyName, termSlugs] of Object.entries(entry.taxonomies)) {
-		const termRepo = new TaxonomyRepository(db);
-
 		for (const termSlug of termSlugs) {
 			const term = await termRepo.findBySlug(taxonomyName, termSlug);
 			if (term) {
@@ -1281,9 +1457,9 @@ async function resolveMedia(
 		const ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(url) || ".bin";
 
 		// Generate filename and storage key
-		const id = ulid();
+		const storageId = ulid();
 		const finalFilename = filename || generateFilename(url, ext);
-		const storageKey = `${id}${ext}`;
+		const storageKey = `${storageId}${ext}`;
 
 		// Get the body as buffer
 		const arrayBuffer = await response.arrayBuffer();
@@ -1307,7 +1483,7 @@ async function resolveMedia(
 
 		// Create media record
 		const mediaRepo = new MediaRepository(ctx.db);
-		await mediaRepo.create({
+		const media = await mediaRepo.create({
 			filename: finalFilename,
 			mimeType: contentType,
 			size: body.length,
@@ -1322,7 +1498,7 @@ async function resolveMedia(
 		// Create the MediaValue - only store id, URL is built at runtime by EmDashMedia
 		const mediaValue: MediaValue = {
 			provider: "local",
-			id,
+			id: media.id,
 			alt: alt ?? undefined,
 			width,
 			height,

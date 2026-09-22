@@ -5,7 +5,10 @@ vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual
 import { decode, encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
+	__setObjectCacheBackendInitForTests,
 	cachedQuery,
+	getLastContentWriteAt,
+	invalidateCollectionCache,
 	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
@@ -15,6 +18,18 @@ import { runWithContext } from "../../src/request-context.js";
 /** Flush the microtask + macrotask queue so deferred `after()` writes land. */
 async function flush(): Promise<void> {
 	await new Promise((r) => setTimeout(r, 0));
+}
+
+function neverSettles<T>(): Promise<T> {
+	return new Promise(() => {});
+}
+
+function withTestDeadline<T>(promise: Promise<T>, ms = 200): Promise<T> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_resolve, reject) => {
+		timer = setTimeout(() => reject(new Error("test deadline exceeded")), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** A simple in-memory backend with call spies, isolated per test. */
@@ -317,6 +332,93 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(1);
 	});
 
+	it("reclaims an epoch read whose owner was cancelled and never settles", async () => {
+		// On workerd a cancelled request's continuations never run — including
+		// the epoch read's own timeout timer — so the shared in-flight promise
+		// neither settles nor gets replaced. Simulated here with a get that
+		// never settles and a timeout too long to fire during the test; the
+		// deadline check is driven by Date.now, not timers.
+		const store = new Map<string, string>();
+		let stallEpoch = true;
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (stallEpoch && key.includes(":epoch:")) return new Promise<string | null>(() => {});
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600, timeout: 5000 });
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// The cancelled owner: parks on the epoch read and is never awaited.
+		void cachedQuery({ namespace: "posts", key: "k", load }).catch(() => {});
+		await flush();
+
+		// Past the read deadline (timeout + grace) the owner is presumed dead:
+		// the next caller must start a fresh read instead of joining the dead
+		// promise — which, on a recovered backend, settles normally.
+		const realNow = Date.now();
+		vi.spyOn(Date, "now").mockReturnValue(realNow + 6001);
+		stallEpoch = false;
+
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({
+			n: 1,
+		});
+		expect(load).toHaveBeenCalledTimes(1);
+		vi.restoreAllMocks();
+	});
+
+	it("bounds a waiter on a foreign in-flight epoch read with its own timer", async () => {
+		// A waiter must never await another request's epoch-read promise bare:
+		// if the owner was cancelled the promise never settles. The waiter's
+		// race timer belongs to the waiter's own (live) request, so the query
+		// degrades to the last-known epoch instead of hanging.
+		const store = new Map<string, string>();
+		const backend: ObjectCacheBackend = {
+			get: (key) => {
+				if (key.includes(":epoch:")) return new Promise<string | null>(() => {}); // never settles
+				return Promise.resolve(store.get(key) ?? null);
+			},
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		};
+		__setObjectCacheBackendForTests(backend, {
+			revalidate: 0,
+			defaultTtl: 3600,
+			timeout: 20_000,
+		});
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+
+		// The cancelled owner parks on the epoch read.
+		void cachedQuery({ namespace: "posts", key: "k", load }).catch(() => {});
+		await flush();
+
+		// A waiter arriving late in the share window: its remaining bound is
+		// short, so its own timer fires and the query settles. (Unfixed, the
+		// waiter awaits the dead promise and hangs past the test timeout.)
+		const realNow = Date.now();
+		vi.spyOn(Date, "now").mockReturnValue(realNow + 20_900);
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({
+			n: 1,
+		});
+		vi.restoreAllMocks();
+	});
+
 	it("self-heals after a stalled read instead of poisoning the namespace", async () => {
 		// First the backend stalls (epoch + value reads hang); after the timeout
 		// the namespace must recover and serve from cache on a healthy backend.
@@ -351,5 +453,109 @@ describe("cachedQuery", () => {
 		await cachedQuery({ namespace: "posts", key: "k", load });
 		// The second post-recovery call is served from cache (load not re-run).
 		expect(load.mock.calls.length).toBe(calls);
+	});
+
+	it("reclaims a dead backend initialization after its deadline", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		vi.spyOn(Date, "now").mockReturnValue(10_000);
+		__setObjectCacheBackendInitForTests(neverSettles(), 8_979);
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			const load = vi.fn(() => Promise.resolve({ n: 1 }));
+			await expect(
+				withTestDeadline(cachedQuery({ namespace: "t", key: "k", load })),
+			).resolves.toEqual({ n: 1 });
+			expect(load).toHaveBeenCalledTimes(1);
+		} finally {
+			warnSpy.mockRestore();
+			vi.restoreAllMocks();
+		}
+	});
+
+	it("bounds a waiter on another request's backend initialization", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		vi.spyOn(Date, "now").mockReturnValue(10_000);
+		__setObjectCacheBackendInitForTests(neverSettles(), 8_990);
+
+		try {
+			const load = vi.fn(() => Promise.resolve({ n: 1 }));
+			await expect(
+				withTestDeadline(cachedQuery({ namespace: "t", key: "k", load })),
+			).resolves.toEqual({ n: 1 });
+			expect(load).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.restoreAllMocks();
+		}
+	});
+});
+
+describe("last content write stamp", () => {
+	beforeEach(() => {
+		__setObjectCacheBackendForTests(spyBackend(), { revalidate: 1000, defaultTtl: 3600 });
+	});
+	afterEach(() => {
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("stamps lastContentWriteAt when invalidating a content: namespace", async () => {
+		expect(await getLastContentWriteAt()).toBe(0);
+		const before = Date.now();
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		expect(local).toBeGreaterThanOrEqual(before);
+		await flush();
+	});
+
+	it("stamps via invalidateCollectionCache", async () => {
+		invalidateCollectionCache("posts");
+		expect(await getLastContentWriteAt()).toBeGreaterThan(0);
+	});
+
+	it("does not stamp on non-content namespaces", async () => {
+		invalidateObjectCache("settings");
+		invalidateObjectCache("menus");
+		invalidateObjectCache("bylines");
+		invalidateObjectCache("taxonomies");
+		invalidateObjectCache("schema");
+		invalidateObjectCache("comments");
+		expect(await getLastContentWriteAt()).toBe(0);
+	});
+
+	it("persists the stamp to the backend under a stable key", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		await flush();
+		const setKeys = vi.mocked(backend.set).mock.calls.map((c) => c[0]);
+		expect(setKeys).toContain("em:last-content-write-at");
+		expect(backend.store.get("em:last-content-write-at")).toBe(String(local));
+	});
+
+	it("caches a confirmed zero marker within the revalidate window", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 60_000, defaultTtl: 3600 });
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+	});
+
+	it("merges a fresher backend stamp on cold isolate read", async () => {
+		const backend = spyBackend();
+		backend.store.set("em:last-content-write-at", "1700000000000");
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const got = await getLastContentWriteAt();
+		expect(got).toBe(1_700_000_000_000);
+	});
+
+	it("does not let a stale backend read lower a fresher local stamp", async () => {
+		const backend = spyBackend();
+		backend.store.set("em:last-content-write-at", "100");
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		expect(local).toBeGreaterThan(100);
 	});
 });

@@ -1,0 +1,643 @@
+---
+import { getLiveCollection } from "astro:content";
+
+import PluginCard from "../components/PluginCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
+
+const result = await getLiveCollection("plugins", { limit: 100 });
+const entries = result.entries ?? [];
+const hasError =
+	Boolean(result.error) ||
+	Astro.url.searchParams.get("registry") === "unavailable";
+if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
+---
+
+<BaseLayout>
+	<section class="hero shell">
+		<div class="hero-copy">
+			<p class="eyebrow">The EmDash plugin registry</p>
+			<h1>Make EmDash<br /><span>your own.</span></h1>
+			<p class="lede">
+				Discover sandboxed, portable plugins that add new workflows,
+				integrations, and content tools to EmDash.
+			</p>
+		</div>
+
+		<div class="hero-art" aria-hidden="true">
+			<div class="orbit-field">
+				<div class="orbit-ring orbit-outer">
+					<div class="orbit-icon orbit-email">
+						<svg viewBox="0 0 24 24"
+							><path d="M4 7.5h16v10H4zM4.5 8l7.5 5 7.5-5"></path></svg
+						>
+					</div>
+					<div class="orbit-icon orbit-webhook">
+						<svg viewBox="0 0 24 24"
+							><circle cx="6" cy="12" r="2.5"></circle><circle
+								cx="18"
+								cy="6"
+								r="2.5"></circle><circle cx="18" cy="18" r="2.5"></circle><path
+								d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6"></path></svg
+						>
+					</div>
+				</div>
+				<div class="orbit-ring orbit-middle">
+					<div class="orbit-icon orbit-form">
+						<svg viewBox="0 0 24 24"
+							><path d="M7 5h12M7 12h12M7 19h12"></path><path
+								d="m3.5 5 1 1 1.8-2M3.5 12l1 1 1.8-2M3.5 19l1 1 1.8-2"
+							></path></svg
+						>
+					</div>
+					<div class="orbit-icon orbit-media">
+						<svg viewBox="0 0 24 24"
+							><rect x="4" y="5" width="16" height="14" rx="2"></rect><circle
+								cx="9"
+								cy="10"
+								r="1.5"></circle><path d="m5 17 4.5-4 3 2.5 2.5-2 4 3.5"
+							></path></svg
+						>
+					</div>
+				</div>
+				<div class="orbit-ring orbit-inner">
+					<div class="orbit-icon orbit-data">
+						<svg viewBox="0 0 24 24"
+							><ellipse cx="12" cy="6" rx="7" ry="3"></ellipse><path
+								d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"
+							></path></svg
+						>
+					</div>
+				</div>
+				<div class="orbit-core">
+					<img src="/favicon.svg" width="75" height="75" alt="" />
+				</div>
+			</div>
+		</div>
+
+		<form class="search" method="get" action="/search" role="search">
+			<svg viewBox="0 0 20 20" aria-hidden="true">
+				<circle cx="8.5" cy="8.5" r="5.25"></circle>
+				<path d="m12.4 12.4 4 4"></path>
+			</svg>
+			<label class="visually-hidden" for="plugin-search">Search plugins</label>
+			<input
+				id="plugin-search"
+				name="q"
+				type="search"
+				placeholder="Search plugins, authors, and capabilities…"
+				autocomplete="off"
+			/>
+			<button type="submit">Search</button>
+		</form>
+	</section>
+
+	<section class="catalog shell" aria-labelledby="catalog-title">
+		<div class="catalog-heading">
+			<div>
+				<p class="section-kicker">Explore the registry</p>
+				<h2 id="catalog-title">Recently updated</h2>
+			</div>
+		</div>
+
+		{
+			hasError ? (
+				<div class="empty-state">
+					<div class="empty-icon">↻</div>
+					<h3>The registry is taking a moment</h3>
+					<p>
+						Try again shortly. Published plugins remain available from inside
+						EmDash.
+					</p>
+					<a
+						class="button-secondary"
+						href={Astro.url.pathname + Astro.url.search}
+					>
+						Try again
+					</a>
+				</div>
+			) : entries.length === 0 ? (
+				<div class="empty-state">
+					<div class="empty-icon">⌕</div>
+					<h3>Plugins are on the way</h3>
+					<p>Published plugins will appear here after registry review.</p>
+				</div>
+			) : (
+				<div class="plugin-grid">
+					{entries.map((entry) => (
+						<PluginCard entry={entry.data} />
+					))}
+				</div>
+			)
+		}
+	</section>
+
+	<section class="build-callout shell">
+		<div>
+			<p class="section-kicker">Built for extension</p>
+			<h2>Have an idea for EmDash?</h2>
+			<p>
+				Plugins can add admin pages, content hooks, storage, API routes, and
+				custom Portable Text blocks.
+			</p>
+		</div>
+		<div class="callout-actions">
+			<a
+				class="button-primary"
+				href="https://docs.emdashcms.com/plugins/creating-plugins/choosing-a-format/"
+			>
+				Build a plugin
+			</a>
+			<a class="button-secondary" href="https://docs.emdashcms.com/plugins/overview/"
+				>Read the docs</a
+			>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.hero {
+		position: relative;
+		display: grid;
+		grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
+		align-items: center;
+		min-height: 34rem;
+		padding-top: 4.5rem;
+		padding-bottom: 5.25rem;
+	}
+
+	.hero-copy {
+		position: relative;
+		z-index: 2;
+	}
+
+	h1 {
+		max-width: 42rem;
+		margin: 0;
+		font-size: clamp(3.4rem, 7.2vw, 6.8rem);
+		font-weight: 700;
+		line-height: 0.92;
+		letter-spacing: -0.072em;
+	}
+
+	h1 span {
+		color: var(--accent);
+	}
+
+	.lede {
+		max-width: 34rem;
+		margin: 1.75rem 0 0;
+		color: var(--muted);
+		font-size: clamp(1rem, 1.5vw, 1.18rem);
+		line-height: 1.55;
+		letter-spacing: -0.012em;
+	}
+
+	.hero-art {
+		position: relative;
+		width: min(30rem, 40vw);
+		aspect-ratio: 1;
+		justify-self: end;
+	}
+
+	.hero-art::before {
+		position: absolute;
+		inset: 18%;
+		content: "";
+		background: radial-gradient(
+			circle,
+			color-mix(in srgb, var(--accent) 22%, #e8d9ff),
+			transparent 68%
+		);
+		filter: blur(28px);
+		opacity: 0.6;
+	}
+
+	.orbit-field {
+		position: absolute;
+		inset: 4%;
+		display: grid;
+		place-items: center;
+		perspective: 760px;
+		transform-style: preserve-3d;
+	}
+
+	.orbit-ring {
+		--orbit-tilt: 64deg;
+		--counter-tilt: -64deg;
+		--ecliptic-angle: -17deg;
+		--counter-ecliptic: 17deg;
+		position: absolute;
+		border: 1px solid color-mix(in srgb, var(--accent) 19%, var(--line));
+		border-radius: 50%;
+		transform-style: preserve-3d;
+		animation: orbit-3d 34s linear infinite;
+	}
+
+	.orbit-outer {
+		inset: 2%;
+	}
+
+	.orbit-middle {
+		--orbit-tilt: 68deg;
+		--counter-tilt: -68deg;
+		inset: 18%;
+		animation-duration: 27s;
+		animation-direction: reverse;
+	}
+
+	.orbit-inner {
+		--orbit-tilt: 72deg;
+		--counter-tilt: -72deg;
+		inset: 24%;
+		animation-duration: 20s;
+	}
+
+	.orbit-icon {
+		position: absolute;
+		display: grid;
+		place-items: center;
+		width: 3rem;
+		height: 3rem;
+		color: var(--muted);
+		background: color-mix(in srgb, var(--surface) 94%, transparent);
+		border: 1px solid var(--line);
+		border-radius: 0.9rem;
+		box-shadow:
+			0 2px 5px rgb(0 0 0 / 6%),
+			0 14px 34px rgb(0 0 0 / 9%);
+		transform-style: preserve-3d;
+		animation: orbit-counter-3d 34s linear infinite;
+		backdrop-filter: blur(12px);
+	}
+
+	.orbit-icon svg {
+		width: 1.35rem;
+		height: 1.35rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.45;
+	}
+
+	.orbit-email {
+		top: 50%;
+		left: 0;
+		translate: -50% -50%;
+		color: var(--accent);
+	}
+
+	.orbit-webhook {
+		top: 50%;
+		right: 0;
+		translate: 50% -50%;
+	}
+
+	.orbit-middle .orbit-icon {
+		animation-duration: 27s;
+		animation-direction: reverse;
+	}
+
+	.orbit-form {
+		top: 0;
+		left: 50%;
+		translate: -50% -50%;
+	}
+
+	.orbit-media {
+		bottom: 0;
+		left: 50%;
+		translate: -50% 50%;
+		color: var(--accent);
+	}
+
+	.orbit-inner .orbit-icon {
+		animation-duration: 20s;
+	}
+
+	.orbit-data {
+		top: 50%;
+		right: 0;
+		translate: 50% -50%;
+	}
+
+	.orbit-core {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: 5.9rem;
+		height: 5.9rem;
+		background: color-mix(in srgb, var(--surface) 94%, transparent);
+		border: 1px solid var(--line);
+		border-radius: 1.55rem;
+		box-shadow:
+			0 2px 6px rgb(0 0 0 / 6%),
+			0 25px 55px rgb(0 0 0 / 12%);
+		transform: rotate(-2deg);
+		backdrop-filter: blur(16px);
+	}
+
+	.orbit-core img {
+		width: 3.15rem;
+		height: 3.15rem;
+	}
+
+	@keyframes orbit-3d {
+		from {
+			transform: rotateZ(var(--ecliptic-angle)) rotateX(var(--orbit-tilt))
+				rotateZ(0turn);
+		}
+
+		to {
+			transform: rotateZ(var(--ecliptic-angle)) rotateX(var(--orbit-tilt))
+				rotateZ(1turn);
+		}
+	}
+
+	@keyframes orbit-counter-3d {
+		from {
+			transform: rotateZ(0turn) rotateX(var(--counter-tilt))
+				rotateZ(var(--counter-ecliptic));
+		}
+
+		to {
+			transform: rotateZ(-1turn) rotateX(var(--counter-tilt))
+				rotateZ(var(--counter-ecliptic));
+		}
+	}
+
+	.search {
+		position: absolute;
+		z-index: 3;
+		bottom: -1.85rem;
+		left: 50%;
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		align-items: center;
+		width: min(52rem, calc(100vw - 3rem));
+		min-height: 4rem;
+		padding: 0.48rem 0.5rem 0.48rem 1.25rem;
+		background: color-mix(in srgb, var(--surface) 96%, transparent);
+		border: 1px solid var(--line);
+		border-radius: 0.95rem;
+		box-shadow: 0 18px 50px rgb(0 0 0 / 10%);
+		transform: translateX(-50%);
+		backdrop-filter: blur(12px);
+	}
+
+	.search svg {
+		width: 1.18rem;
+		color: var(--subtle);
+	}
+
+	.search svg * {
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.5;
+	}
+
+	.search input {
+		min-width: 0;
+		padding: 0.65rem 0.8rem;
+		color: var(--ink);
+		background: transparent;
+		border: 0;
+		outline: 0;
+	}
+
+	.search input::placeholder {
+		color: var(--subtle);
+	}
+
+	.search button {
+		align-self: stretch;
+		padding: 0 1.2rem;
+		color: white;
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
+		background: var(--accent);
+		border: 0;
+		border-radius: 0.66rem;
+	}
+
+	.search:focus-within {
+		border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+		box-shadow:
+			0 18px 50px rgb(0 0 0 / 10%),
+			0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		clip-path: inset(50%);
+	}
+
+	.catalog {
+		padding-top: 8rem;
+	}
+
+	.catalog-heading {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 2rem;
+		margin-bottom: 2rem;
+	}
+
+	.section-kicker {
+		margin: 0 0 0.55rem;
+		color: var(--accent-ink);
+		font-size: 0.7rem;
+		font-weight: 650;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+	}
+
+	.catalog-heading h2,
+	.build-callout h2 {
+		margin: 0;
+		font-size: clamp(2rem, 4vw, 3.25rem);
+		line-height: 1.02;
+		letter-spacing: -0.055em;
+	}
+
+	.catalog-heading > a {
+		padding-bottom: 0.35rem;
+		color: var(--muted);
+		font-size: 0.8rem;
+		text-underline-offset: 0.2rem;
+	}
+
+	.plugin-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.9rem;
+	}
+
+	.empty-state {
+		display: flex;
+		min-height: 24rem;
+		padding: 3rem;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+		text-align: center;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.25rem;
+	}
+
+	.empty-icon {
+		display: grid;
+		place-items: center;
+		width: 3.5rem;
+		height: 3.5rem;
+		margin-bottom: 1.25rem;
+		color: var(--accent);
+		font-size: 1.35rem;
+		background: var(--accent-soft);
+		border-radius: 1rem;
+	}
+
+	.empty-state h3 {
+		margin: 0;
+		font-size: 1.35rem;
+		letter-spacing: -0.035em;
+	}
+
+	.empty-state p {
+		max-width: 28rem;
+		margin: 0.7rem 0 1.4rem;
+		color: var(--muted);
+		line-height: 1.55;
+	}
+
+	.build-callout {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 3rem;
+		margin-top: 8rem;
+		padding: 3.5rem;
+		background:
+			radial-gradient(
+				circle at 80% 0%,
+				color-mix(in srgb, var(--accent) 12%, transparent),
+				transparent 35%
+			),
+			var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.5rem;
+		box-shadow: var(--shadow-card);
+	}
+
+	.build-callout > div:first-child {
+		max-width: 37rem;
+	}
+
+	.build-callout p:not(.section-kicker) {
+		max-width: 35rem;
+		margin: 1rem 0 0;
+		color: var(--muted);
+		line-height: 1.6;
+	}
+
+	.callout-actions {
+		display: flex;
+		flex: none;
+		gap: 0.55rem;
+	}
+
+	@media (max-width: 900px) {
+		.hero {
+			grid-template-columns: 1fr 17rem;
+		}
+
+		.hero-art {
+			width: 100%;
+		}
+
+		.plugin-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.build-callout {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.orbit-ring {
+			transform: rotateZ(var(--ecliptic-angle)) rotateX(var(--orbit-tilt));
+			animation: none;
+		}
+
+		.orbit-icon {
+			transform: rotateX(var(--counter-tilt)) rotateZ(var(--counter-ecliptic));
+			animation: none;
+		}
+	}
+
+	@media (max-width: 680px) {
+		.hero {
+			display: block;
+			min-height: auto;
+			padding-top: 4rem;
+			padding-bottom: 7rem;
+		}
+
+		h1 {
+			font-size: clamp(3.5rem, 17vw, 5rem);
+		}
+
+		.hero-art {
+			width: min(20rem, 100%);
+			margin: 3rem auto 0;
+		}
+
+		.orbit-field {
+			inset: 8%;
+		}
+
+		.plugin-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.build-callout {
+			margin-top: 5rem;
+			padding: 2rem;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.search {
+			grid-template-columns: auto 1fr;
+			padding-right: 1rem;
+		}
+
+		.search button {
+			display: none;
+		}
+
+		.catalog-heading {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 0.65rem;
+		}
+
+		.callout-actions {
+			width: 100%;
+			align-items: stretch;
+			flex-direction: column;
+		}
+	}
+</style>

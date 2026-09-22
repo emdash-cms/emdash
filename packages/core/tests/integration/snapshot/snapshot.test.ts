@@ -79,7 +79,7 @@ describe("generateSnapshot", () => {
 		expect(snapshot.tables.ec_post).toHaveLength(2);
 	});
 
-	it("includes scheduled posts whose scheduled_at has passed (#917)", async () => {
+	it("excludes scheduled posts whose scheduled_at has passed", async () => {
 		const pastIso = new Date(Date.now() - 1000).toISOString();
 		await sql`
 			INSERT INTO ec_post (id, slug, status, title, content, scheduled_at, created_at, updated_at, version)
@@ -89,7 +89,7 @@ describe("generateSnapshot", () => {
 		const snapshot = await generateSnapshot(db);
 		const slugs = (snapshot.tables.ec_post ?? []).map((r) => r.slug);
 
-		expect(slugs).toContain("past-schedule");
+		expect(slugs).not.toContain("past-schedule");
 	});
 
 	it("excludes soft-deleted content", async () => {

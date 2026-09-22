@@ -21,6 +21,7 @@ import {
 } from "../../../src/api/handlers/menus.js";
 import { createMenuItemBody, updateMenuItemBody } from "../../../src/api/schemas/menus.js";
 import type { Database } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("menu schemas", () => {
@@ -100,7 +101,20 @@ describe("menu handlers — camelCase responses & customUrl persistence", () => 
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
+	});
+
+	it("stores menu locales with the configured casing", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+		const result = await handleMenuCreate(db, {
+			name: "primary",
+			label: "Primary",
+			locale: "zh-tw",
+		});
+
+		expect(result.success).toBe(true);
+		if (result.success) expect(result.data.locale).toBe("zh-TW");
 	});
 
 	it("handleMenuCreate returns a camelCase Menu", async () => {

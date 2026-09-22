@@ -171,8 +171,8 @@ export function BylineSchemaPage() {
 		return (
 			<div className="flex items-center justify-center min-h-[50vh]">
 				<div className="text-center">
-					<h1 className="text-2xl font-bold">{t`Access denied`}</h1>
-					<p className="mt-2 text-kumo-subtle">{t`You need admin permissions to manage byline schema.`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Access denied`}</h1>
+					<p className="mt-2 text-sm text-kumo-subtle">{t`You need admin permissions to manage byline schema.`}</p>
 				</div>
 			</div>
 		);
@@ -215,8 +215,8 @@ export function BylineSchemaPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">{t`Byline schema`}</h1>
-					<p className="text-kumo-subtle text-sm">
+					<h1 className="text-2xl font-semibold leading-tight">{t`Byline schema`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Define custom fields stored on every byline — job title, pronouns, social handles, and more.`}
 					</p>
 				</div>

@@ -1,0 +1,146 @@
+/*
+  tokens.css -- the design tokens for this template. These are the
+  defaults; to customize the site, override any variable in
+  src/styles/theme.css rather than editing this file. Declarations in
+  theme.css are unlayered, so they always beat these @layer base
+  defaults -- no specificity tricks needed.
+
+  Colors use light-dark(): the first value applies in light mode, the
+  second in dark mode. Overriding a color with a plain value changes
+  both modes at once; use light-dark(<light>, <dark>) in an override to
+  keep them distinct.
+
+  --font-body is defined by the font pipeline in astro.config.mjs, not
+  here. To swap the loaded webfont, edit the fonts entry there. To use a
+  system font, or a different face for headings only, override
+  --font-body / --font-heading in theme.css.
+*/
+
+@layer base {
+	:root {
+		color-scheme: light dark;
+
+		/* Colors */
+		--color-bg: light-dark(#ffffff, #0d0d0d);
+		--color-bg-subtle: light-dark(#fafafa, #141414);
+		--color-text: light-dark(#1a1a1a, #ededed);
+		--color-text-secondary: light-dark(#525252, #a0a0a0);
+		--color-muted: light-dark(#8b8b8b, #6b6b6b);
+		--color-border: light-dark(#e5e5e5, #2a2a2a);
+		--color-border-subtle: light-dark(#f0f0f0, #1f1f1f);
+		--color-surface: light-dark(#f7f7f7, #181818);
+		--color-brand: light-dark(#0066cc, #4d9fff);
+		--color-brand-hover: light-dark(#0052a3, #6eb0ff);
+		--color-on-brand: white;
+		--color-brand-ring: color-mix(in srgb, var(--color-brand) 25%, transparent);
+
+		/* EmDash search theming */
+		--emdash-search-bg: var(--color-bg);
+		--emdash-search-text: var(--color-text);
+		--emdash-search-muted: var(--color-muted);
+		--emdash-search-border: var(--color-border);
+		--emdash-search-hover: var(--color-surface);
+		--emdash-search-highlight: var(--color-text);
+
+		/* Typography */
+		--font-heading: var(--font-body);
+		--font-weight-heading: 600; /* h2-h6, card and list titles */
+		--font-weight-display: 700; /* h1 and large page titles */
+
+		/* Type scale */
+		--font-size-xs: 0.8125rem;
+		--font-size-sm: 0.875rem;
+		--font-size-base: 1rem;
+		--font-size-lg: 1.125rem;
+		--font-size-xl: 1.25rem;
+		--font-size-2xl: 1.5rem;
+		--font-size-3xl: 2rem;
+		--font-size-4xl: 2.5rem;
+		--font-size-5xl: 3.5rem;
+
+		/* Line heights */
+		--leading-tight: 1.15;
+		--leading-snug: 1.3;
+		--leading-normal: 1.5;
+		--leading-relaxed: 1.7;
+
+		/* Letter spacing */
+		--tracking-tight: -0.03em; /* h1 and large titles */
+		--tracking-snug: -0.02em; /* h2-h6, site/card titles */
+		--tracking-wide: 0.06em; /* meta labels, TOC/widget titles */
+		--tracking-wider: 0.08em; /* footer headings, section labels */
+
+		/* Spacing */
+		--spacing-1: 0.25rem;
+		--spacing-2: 0.5rem;
+		--spacing-3: 0.75rem;
+		--spacing-4: 1rem;
+		--spacing-5: 1.25rem;
+		--spacing-6: 1.5rem;
+		--spacing-8: 2rem;
+		--spacing-10: 2.5rem;
+		--spacing-12: 3rem;
+		--spacing-16: 4rem;
+		--spacing-20: 5rem;
+		--spacing-24: 6rem;
+
+		/* Legacy spacing aliases */
+		--spacing-xs: var(--spacing-1);
+		--spacing-sm: var(--spacing-2);
+		--spacing-md: var(--spacing-4);
+		--spacing-lg: var(--spacing-6);
+		--spacing-xl: var(--spacing-8);
+		--spacing-2xl: var(--spacing-12);
+		--spacing-3xl: var(--spacing-16);
+
+		/* Layout */
+		--content-width: 680px; /* article/page body column */
+		--wide-width: 1200px; /* max container (home, archives) */
+		--max-width: var(--content-width);
+		--gutter-width: 200px; /* right sidebar column (TOC) on article pages */
+		--meta-col-width: 180px; /* left meta column on article pages */
+		--nav-height: 64px; /* sticky header height */
+		--search-input-width: 180px; /* nav search box width */
+
+		/* Borders & radius */
+		--radius: 4px;
+		--radius-lg: 8px;
+
+		/* Transitions */
+		--transition-fast: 120ms ease;
+		--transition-base: 180ms ease;
+
+		/* Avatars */
+		--avatar-size-xs: 18px; /* card byline avatars */
+		--avatar-size-sm: 20px; /* post list byline avatars */
+		--avatar-size-md: 24px; /* featured post byline avatars */
+		--avatar-size-lg: 32px; /* single post byline avatars */
+
+		/* Shadows */
+		--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+		--shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+
+		/* Misc */
+		--tag-padding-y: 2px; /* vertical padding on tag pills */
+	}
+
+	/*
+	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
+	 * Chrome < 123). Must mirror the light values above.
+	 */
+	@supports not (color: light-dark(#000, #fff)) {
+		:root {
+			color-scheme: light;
+			--color-bg: #ffffff;
+			--color-bg-subtle: #fafafa;
+			--color-text: #1a1a1a;
+			--color-text-secondary: #525252;
+			--color-muted: #8b8b8b;
+			--color-border: #e5e5e5;
+			--color-border-subtle: #f0f0f0;
+			--color-surface: #f7f7f7;
+			--color-brand: #0066cc;
+			--color-brand-hover: #0052a3;
+		}
+	}
+}

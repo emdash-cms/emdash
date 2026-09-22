@@ -16,14 +16,16 @@
  */
 
 import { Role } from "@emdash-cms/auth";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	currentRev,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -111,6 +113,7 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 					collection: "post",
 					id: createdItem.item.id,
 					data: { title: "Updated" },
+					_rev: await currentRev(harness.client, "post", createdItem.item.id),
 				},
 			});
 			expect(updated.isError, extractText(updated)).toBeFalsy();
@@ -133,6 +136,7 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 					collection: "post",
 					id: createdItem.item.id,
 					data: { title: "Updated via draft" },
+					_rev: await currentRev(harness.client, "post", createdItem.item.id),
 				},
 			});
 
@@ -155,7 +159,12 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 			for (const title of ["v2", "v3", "v4"]) {
 				await harness.client.callTool({
 					name: "content_update",
-					arguments: { collection: "post", id, data: { title } },
+					arguments: {
+						collection: "post",
+						id,
+						data: { title },
+						_rev: await currentRev(harness.client, "post", id),
+					},
 				});
 			}
 
@@ -176,25 +185,34 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 			// Publish initial as live
 			await harness.client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id },
+				arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 			});
 
 			// Update creates a draft revision
-			await harness.client.callTool({
+			const updated = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Draft change" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Draft change" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
+			const draftRevisionId = extractJson<ItemEnvelope>(updated).item.draftRevisionId;
 
 			// Publish promotes draft to live
-			await harness.client.callTool({
+			const published = await harness.client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id },
+				arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 			});
+			const publishedItem = extractJson<ItemEnvelope>(published).item;
 
 			const got = await harness.client.callTool({
 				name: "content_get",
 				arguments: { collection: "post", id },
 			});
+			expect(publishedItem.liveRevisionId).toBe(draftRevisionId);
+			expect(publishedItem.draftRevisionId).toBeNull();
 			expect(readTitle(extractJson<ItemEnvelope>(got).item)).toBe("Draft change");
 		});
 
@@ -207,7 +225,12 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 
 			await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "T2" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "T2" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			const got = await harness.client.callTool({
@@ -240,11 +263,16 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 			// Publish, then update to create a draft on top of live
 			await harness.client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id },
+				arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 			});
 			await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Drafted" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Drafted" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			const compare = await harness.client.callTool({
@@ -280,15 +308,20 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 
 			await harness.client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id },
+				arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 			});
 			await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Draft title" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Draft title" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 			await harness.client.callTool({
 				name: "content_discard_draft",
-				arguments: { collection: "post", id },
+				arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 			});
 
 			const got = await harness.client.callTool({
@@ -302,6 +335,114 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 	// ----- regression guard: non-revision collection still works -----
 
 	describe("non-revision-supporting collection (regression guard)", () => {
+		it("first publish preserves column data and establishes a live revision marker", async () => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "page", data: { title: "Current title" } },
+			});
+			const id = extractJson<ItemEnvelope>(created).item.id;
+
+			const published = await harness.client.callTool({
+				name: "content_publish",
+				arguments: { collection: "page", id, _rev: await currentRev(harness.client, "page", id) },
+			});
+			expect(published.isError, extractText(published)).toBeFalsy();
+
+			const got = await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "page", id },
+			});
+			const item = extractJson<ItemEnvelope>(got).item;
+			expect(item.status).toBe("published");
+			expect(item.liveRevisionId).toBeTruthy();
+			expect(item.draftRevisionId).toBeNull();
+			expect(readTitle(item)).toBe("Current title");
+		});
+
+		it("first publish ignores an unexpected stale draft pointer", async () => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "page", data: { title: "Current title" } },
+			});
+			const id = extractJson<ItemEnvelope>(created).item.id;
+			const revisionRepo = new RevisionRepository(db);
+			const staleDraft = await revisionRepo.create({
+				collection: "page",
+				entryId: id,
+				data: { title: "Stale draft" },
+			});
+			await sql`
+				UPDATE ${sql.ref("ec_page")}
+				SET draft_revision_id = ${staleDraft.id}
+				WHERE id = ${id}
+			`.execute(db);
+
+			const published = await harness.client.callTool({
+				name: "content_publish",
+				arguments: { collection: "page", id, _rev: await currentRev(harness.client, "page", id) },
+			});
+			expect(published.isError, extractText(published)).toBeFalsy();
+
+			const item = extractJson<ItemEnvelope>(published).item;
+			expect(item.status).toBe("published");
+			expect(item.liveRevisionId).toBeTruthy();
+			expect(item.liveRevisionId).not.toBe(staleDraft.id);
+			expect(item.draftRevisionId).toBeNull();
+			expect(readTitle(item)).toBe("Current title");
+			const liveRevision = await revisionRepo.findById(item.liveRevisionId!);
+			expect(liveRevision?.data.title).toBe("Current title");
+		});
+
+		it("publishing preserves column data when live_revision_id is stale", async () => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "page", data: { title: "Stale title" } },
+			});
+			const id = extractJson<ItemEnvelope>(created).item.id;
+			const revisionRepo = new RevisionRepository(db);
+			const staleRevision = await revisionRepo.create({
+				collection: "page",
+				entryId: id,
+				data: { title: "Stale title" },
+			});
+			const staleDraft = await revisionRepo.create({
+				collection: "page",
+				entryId: id,
+				data: { title: "Stale draft" },
+			});
+			await sql`
+				UPDATE ${sql.ref("ec_page")}
+				SET live_revision_id = ${staleRevision.id},
+					draft_revision_id = ${staleDraft.id}
+				WHERE id = ${id}
+			`.execute(db);
+
+			await harness.client.callTool({
+				name: "content_update",
+				arguments: {
+					collection: "page",
+					id,
+					data: { title: "Fresh title" },
+					_rev: await currentRev(harness.client, "page", id),
+				},
+			});
+			const published = await harness.client.callTool({
+				name: "content_publish",
+				arguments: { collection: "page", id, _rev: await currentRev(harness.client, "page", id) },
+			});
+			expect(published.isError, extractText(published)).toBeFalsy();
+
+			const got = await harness.client.callTool({
+				name: "content_get",
+				arguments: { collection: "page", id },
+			});
+			const item = extractJson<ItemEnvelope>(got).item;
+			expect(item.status).toBe("published");
+			expect(item.liveRevisionId).toBe(staleRevision.id);
+			expect(item.draftRevisionId).toBeNull();
+			expect(readTitle(item)).toBe("Fresh title");
+		});
+
 		it("content_update on collection without revisions support reflects on read", async () => {
 			const created = await harness.client.callTool({
 				name: "content_create",
@@ -311,7 +452,12 @@ describe("MCP drafts — content_get and content_update round-trip (bug #2)", ()
 
 			await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "page", id, data: { title: "Page A Updated" } },
+				arguments: {
+					collection: "page",
+					id,
+					data: { title: "Page A Updated" },
+					_rev: await currentRev(harness.client, "page", id),
+				},
 			});
 
 			const got = await harness.client.callTool({
@@ -353,13 +499,18 @@ describe("MCP drafts — slug updates (bug #9)", () => {
 
 		await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, slug: "new-slug" },
+			arguments: {
+				collection: "post",
+				id,
+				slug: "new-slug",
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 
 		// After publish, slug change should be visible.
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		const got = await harness.client.callTool({
@@ -378,11 +529,16 @@ describe("MCP drafts — slug updates (bug #9)", () => {
 
 		await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, slug: "new" },
+			arguments: {
+				collection: "post",
+				id,
+				slug: "new",
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		const gotByNew = await harness.client.callTool({
@@ -431,7 +587,7 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 		const id = extractJson<ItemEnvelope>(created).item.id;
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		// Find the v1 revision id BEFORE updating to v2 — once we update
@@ -448,7 +604,12 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 		// Update to v2 (creates a draft revision; live remains v1).
 		await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { title: "v2" } },
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "v2" },
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 
 		// Sanity: before restore, get returns v2 (the draft) and liveData=v1.
@@ -521,16 +682,21 @@ describe("MCP drafts — revision_restore semantics (bug #17)", () => {
 		const id = extractJson<ItemEnvelope>(created).item.id;
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		// Update + publish v2 so there's no live draft.
 		await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { title: "v2" } },
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "v2" },
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		const revs = extractJson<{
@@ -622,13 +788,18 @@ describe("MCP drafts — liveData hydration (F13)", () => {
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		// Update writes a draft revision (data column stays at "published title").
 		await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, data: { title: "draft title" } },
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "draft title" },
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 
 		// Read back: data reflects the draft, liveData carries the published value.

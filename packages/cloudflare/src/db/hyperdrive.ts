@@ -29,6 +29,21 @@
  * its own event-scoped connection for the sweep. So no warm-isolate path reuses
  * the singleton's request-bound socket across events.
  *
+ * Optional split caching (`cachedBinding`)
+ * ----------------------------------------
+ * Hyperdrive's query cache is unsafe to leave on for the whole app because the
+ * admin, setup, and any read-after-write path can be served a stale pre-write
+ * result within the cache TTL. But anonymous reads of **public-site paths** —
+ * no session, no write, not under `/_emdash` — can tolerate a short staleness
+ * window, so when a `cachedBinding` (pointing at a cache-enabled Hyperdrive
+ * config over the same database) is configured, those requests route through
+ * it and everything else stays on the primary uncached binding: every
+ * authenticated request, every write, and every request under `/_emdash`
+ * (admin, setup, auth, internal APIs) — including anonymous GETs such as the
+ * post-setup status check, which must observe a write made moments earlier.
+ * Runtime migrations and the per-isolate singleton always use the primary binding.
+ * Omit `cachedBinding` and the adapter behaves exactly as before.
+ *
  * Known limitation — sandboxed plugins are D1-only. The sandbox plugin bridge
  * (a Durable Object) talks to a D1 binding directly, independent of the
  * configured adapter, so sandboxed plugins are not available on a Hyperdrive
@@ -46,7 +61,9 @@
  */
 
 import { env, waitUntil } from "cloudflare:workers";
+import { EmDashConfigurationError } from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
+import { FailFastPostgresDialect } from "emdash/database/pg-migration-lock";
 import { type Dialect, Kysely, PostgresDialect } from "kysely";
 // `pg` is provided by the consuming site (an optional peer of `emdash`); it is
 // kept external from this package's bundle.
@@ -59,7 +76,23 @@ import { Pool } from "pg";
 interface HyperdriveConfig {
 	binding: string;
 	max?: number;
+	/**
+	 * Optional binding for a cache-enabled Hyperdrive config over the same
+	 * database. When set, anonymous read requests route through it; all
+	 * authenticated requests and all writes stay on `binding`.
+	 */
+	cachedBinding?: string;
+	/**
+	 * After a content publish, prefer the primary uncached binding for this
+	 * many ms on anonymous public reads. Defaults to 60_000 when
+	 * `cachedBinding` is set (Hyperdrive's default `max_age`); 0 otherwise.
+	 * Set equal to your cached Hyperdrive config's `max_age`.
+	 */
+	preferUncachedAfterWriteMs?: number;
 }
+
+/** Hyperdrive default query-cache max_age when caching is enabled. */
+const DEFAULT_PREFER_UNCACHED_AFTER_WRITE_MS = 60_000;
 
 /**
  * Minimal shape of a Hyperdrive binding. Workers inject `connectionString`
@@ -104,8 +137,10 @@ export function createDialect(config: HyperdriveConfig): Dialect {
 	const binding = requireBinding(config);
 	// Cold-start migrations are sequential, so a single connection is enough,
 	// and keeping it to 1 leaves the bulk of Hyperdrive's connection budget for
-	// the per-request pools.
-	return new PostgresDialect({ pool: createPool(binding.connectionString, 1) });
+	// the per-request pools. Fail-fast migration locking: when another isolate
+	// is already migrating, throw instead of parking this connection on
+	// Kysely's blocking `pg_advisory_xact_lock` (#1744).
+	return new FailFastPostgresDialect({ pool: createPool(binding.connectionString, 1) });
 }
 
 /**
@@ -121,8 +156,13 @@ export interface RequestScopedDbOpts {
 	config: HyperdriveConfig;
 	isAuthenticated: boolean;
 	isWrite: boolean;
+	canUseCachedBinding?: boolean;
 	cookies: CookieJar;
 	url: URL;
+	/** ms-epoch of last content-namespace invalidation; from core object-cache. */
+	lastContentWriteAt?: number;
+	/** Wall-clock sample used for post-write binding selection. */
+	now?: number;
 }
 
 export interface RequestScopedDb {
@@ -154,7 +194,21 @@ export interface RequestScopedDb {
  * gets an equivalent connection.
  */
 export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedDb | null {
-	const binding = getBinding(opts.config);
+	const bindingName = selectBindingName(opts.config, {
+		isAuthenticated: opts.isAuthenticated,
+		isWrite: opts.isWrite,
+		canUseCachedBinding: opts.canUseCachedBinding,
+		url: opts.url,
+		lastContentWriteAt: opts.lastContentWriteAt,
+		now: opts.now ?? Date.now(),
+	});
+	let binding = getBinding(bindingName);
+	// If the cached binding was selected but isn't present at runtime (e.g.
+	// misconfigured wrangler), fall back to the primary binding rather than
+	// dropping to the singleton — the primary is the safe, always-correct choice.
+	if (!binding?.connectionString && bindingName !== opts.config.binding) {
+		binding = getBinding(opts.config.binding);
+	}
 	// No binding at runtime: fall back to the singleton path (which will throw
 	// a descriptive error if the binding is genuinely missing).
 	if (!binding?.connectionString) return null;
@@ -192,31 +246,107 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 	};
 }
 
-function getBinding(config: HyperdriveConfig): HyperdriveBinding | null {
+/**
+ * EmDash's admin base path. Requests under this prefix (the admin UI, the
+ * setup wizard, auth, and every internal `/_emdash/api/*` route) must never be
+ * served from the query cache — they include read-after-write-sensitive reads
+ * that are issued *anonymously* (e.g. the post-setup `GET /_emdash/api/setup/
+ * status` runs before any session exists). Only genuinely public site reads
+ * are safe to cache.
+ */
+const EMDASH_BASE_PATH = "/_emdash";
+
+function isEmDashInternalPath(url: URL): boolean {
+	return url.pathname === EMDASH_BASE_PATH || url.pathname.startsWith(`${EMDASH_BASE_PATH}/`);
+}
+
+/**
+ * Effective window (ms) to prefer the primary binding after a content write.
+ * Defaults to Hyperdrive's 60s `max_age` when `cachedBinding` is set.
+ */
+function preferUncachedDurationMs(config: HyperdriveConfig): number {
+	if (config.preferUncachedAfterWriteMs !== undefined) {
+		return config.preferUncachedAfterWriteMs;
+	}
+	return config.cachedBinding ? DEFAULT_PREFER_UNCACHED_AFTER_WRITE_MS : 0;
+}
+
+/**
+ * Decide which binding a given request should use.
+ *
+ * The cache-enabled binding (when configured) is used only for **anonymous
+ * reads of public-site paths** — the one class of request that tolerates a
+ * short staleness window. Everything else uses the primary uncached binding to
+ * preserve read-after-write consistency:
+ *
+ * - authenticated requests (editors/authors) → primary;
+ * - writes (`POST`/`PUT`/`DELETE`) → primary;
+ * - **any request under `/_emdash`** (admin, setup, auth, internal APIs),
+ *   even an anonymous GET → primary. The setup-status and login-state reads
+ *   are anonymous GETs that must see writes made moments earlier; routing them
+ *   to the cache would loop the setup wizard and show stale auth state.
+ * - anonymous public reads within `preferUncachedAfterWriteMs` of the last
+ *   content-namespace invalidation → primary, so a post-publish rebuild does
+ *   not reseed edge/object caches from Hyperdrive's still-stale query cache.
+ *
+ * Pure (no I/O) so the routing rule can be unit-tested directly.
+ */
+export function selectBindingName(
+	config: HyperdriveConfig,
+	opts: {
+		isAuthenticated: boolean;
+		isWrite: boolean;
+		canUseCachedBinding?: boolean;
+		url: URL;
+		lastContentWriteAt?: number;
+		now?: number;
+	},
+): string {
+	if (
+		config.cachedBinding &&
+		(opts.canUseCachedBinding ??
+			(!opts.isAuthenticated && !opts.isWrite && !isEmDashInternalPath(opts.url)))
+	) {
+		const duration = preferUncachedDurationMs(config);
+		const lastWrite = opts.lastContentWriteAt ?? 0;
+		const now = opts.now ?? Date.now();
+		if (duration > 0 && lastWrite > 0 && now - lastWrite < duration) {
+			return config.binding;
+		}
+		return config.cachedBinding;
+	}
+	return config.binding;
+}
+
+function getBinding(bindingName: string): HyperdriveBinding | null {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Worker binding accessed from untyped env object
-	const binding = (env as Record<string, unknown>)[config.binding] as HyperdriveBinding | undefined;
+	const binding = (env as Record<string, unknown>)[bindingName] as HyperdriveBinding | undefined;
 	return binding ?? null;
 }
 
 function requireBinding(config: HyperdriveConfig): HyperdriveBinding {
-	const binding = getBinding(config);
+	// Runtime migrations and the per-isolate singleton always use the primary binding —
+	// never the cache-enabled one.
+	const binding = getBinding(config.binding);
 	if (!binding) {
 		const example = JSON.stringify(
 			{ hyperdrive: [{ binding: config.binding, id: "<your-hyperdrive-id-here>" }] },
 			null,
 			2,
 		);
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`Hyperdrive binding "${config.binding}" not found in environment. ` +
 				`Check your wrangler.jsonc configuration:\n\n${example}\n\n` +
 				`Hyperdrive also requires compatibility_flags: ["nodejs_compat"] and ` +
 				`compatibility_date >= "2024-09-23".`,
+			"BINDING_NOT_FOUND",
 		);
 	}
 	if (!binding.connectionString) {
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`Hyperdrive binding "${config.binding}" is present but has no connectionString. ` +
 				`Ensure the binding points at a valid Hyperdrive configuration.`,
+			"CONFIGURATION_ERROR",
 		);
 	}
 	return binding;

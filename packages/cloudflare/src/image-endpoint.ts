@@ -16,10 +16,11 @@ import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
-	IMMUTABLE_IMAGE_CACHE,
 	matchInternalMediaKey,
+	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 	parseTransformParams,
+	resolveTransformQuality,
 	type ImageTransformFormat,
 } from "emdash/media/image-endpoint";
 
@@ -86,8 +87,14 @@ export const GET: APIRoute = async (ctx) => {
 		const transform: ImageTransform = {};
 		if (width) transform.width = width;
 		if (height) transform.height = height;
+		// Lossy formats get an explicit quality: the Images binding has no
+		// default of its own and encodes near-losslessly without one, producing
+		// renditions several times the size of the original. PNG is exempt —
+		// an explicit PNG quality switches the binding to lossy PNG8, which is
+		// not a safe default for a lossless format. An explicit `?q=` always wins.
 		const output: ImageOutputOptions = { format: outputMime };
-		if (quality) output.quality = quality;
+		const effectiveQuality = resolveTransformQuality(format, quality);
+		if (effectiveQuality !== undefined) output.quality = effectiveQuality;
 
 		const result = await images.input(source.body).transform(transform).output(output);
 		const response = result.response();
@@ -97,7 +104,7 @@ export const GET: APIRoute = async (ctx) => {
 			status: 200,
 			headers: {
 				"Content-Type": response.headers.get("Content-Type") ?? outputMime,
-				"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+				"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 				"X-Content-Type-Options": "nosniff",
 			},
 		});

@@ -1,21 +1,21 @@
 /**
- * Cloudflare Cache API route cache provider - RUNTIME ENTRY
+ * Legacy Cloudflare Cache API route cache provider — RUNTIME ENTRY
  *
- * Implements Astro's CacheProvider interface as a runtime provider using the
- * Workers Cache API for storage and the Cloudflare purge-by-tag REST API for
- * global invalidation.
+ * @deprecated Prefer native Workers Caching: wrangler `"cache": { "enabled": true }`
+ * + `cacheCloudflare()` from `@astrojs/cloudflare/cache`, purge via
+ * `cache.purge()` from `cloudflare:workers` (no zone credentials).
  *
- * This is a temporary solution until CacheW exists. Workers responses can't
- * go through the CDN cache, so we use cache.put()/cache.match() directly.
- * The standard `Cache-Tag` header (set by Astro's default setHeaders) is
- * preserved on cached responses so the purge-by-tag API works globally.
+ * This legacy provider implements Astro's CacheProvider with the Cache API
+ * (`put`/`match`) for storage and the zone purge-by-tag REST API for global
+ * invalidation (`CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN`). Kept for existing sites.
  *
  * We do NOT implement setHeaders() — Astro's defaultSetHeaders correctly
  * emits CDN-Cache-Control and Cache-Tag. Our onRequest() reads those
  * headers from the response that next() returns.
  *
  * Do NOT import this at config time. Use cloudflareCache() from
- * "@emdash-cms/cloudflare" or "@emdash-cms/cloudflare/cache/config" instead.
+ * "@emdash-cms/cloudflare" or "@emdash-cms/cloudflare/cache/config" instead
+ * (only if you intentionally need this legacy path).
  */
 
 import type { CacheProviderFactory } from "astro";

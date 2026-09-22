@@ -142,17 +142,17 @@ if (Astro.request.method === "POST") {
 	}
 
 	.contact-title {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-4xl);
-		font-weight: 500;
-		line-height: 1.1;
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
 		margin-bottom: var(--spacing-lg);
 	}
 
 	.contact-intro {
 		font-size: var(--font-size-lg);
 		color: var(--color-muted);
-		line-height: 1.6;
+		line-height: var(--leading-normal);
 	}
 
 	.contact-grid {
@@ -195,8 +195,8 @@ if (Astro.request.method === "POST") {
 	.form-field input:focus,
 	.form-field textarea:focus {
 		outline: none;
-		border-color: var(--color-accent);
-		box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+		border-color: var(--color-brand);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
 	}
 
 	.form-field input::placeholder,
@@ -226,8 +226,8 @@ if (Astro.request.method === "POST") {
 	}
 
 	.form-submit:hover {
-		background: var(--color-accent);
-		color: white;
+		background: var(--color-brand);
+		color: var(--color-on-brand);
 		transform: translateY(-1px);
 	}
 
@@ -237,19 +237,11 @@ if (Astro.request.method === "POST") {
 
 	.form-error {
 		padding: var(--spacing-md);
-		background: #fef2f2;
-		border: 1px solid #fecaca;
+		background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
 		border-radius: var(--radius);
-		color: #dc2626;
+		color: var(--color-danger);
 		font-size: var(--font-size-sm);
-	}
-
-	@media (prefers-color-scheme: dark) {
-		.form-error {
-			background: rgba(239, 68, 68, 0.1);
-			border-color: rgba(239, 68, 68, 0.3);
-			color: #f87171;
-		}
 	}
 
 	.form-success {
@@ -261,9 +253,9 @@ if (Astro.request.method === "POST") {
 	}
 
 	.form-success h2 {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-sm);
 	}
 
@@ -274,7 +266,7 @@ if (Astro.request.method === "POST") {
 
 	.form-reset {
 		font-size: var(--font-size-sm);
-		color: var(--color-accent);
+		color: var(--color-brand);
 		text-decoration: none;
 	}
 
@@ -293,9 +285,9 @@ if (Astro.request.method === "POST") {
 	}
 
 	.info-section h3 {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-lg);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-sm);
 	}
 

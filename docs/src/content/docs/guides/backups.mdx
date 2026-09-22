@@ -1,0 +1,147 @@
+---
+title: Backups and recovery
+description: Export selected site data, create restorable database and media backups, and recover D1 or SQLite deployments.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Use a JSON backup when you need an offline copy of selected content data. EmDash cannot import that file. A recovery plan needs a raw database backup or point-in-time recovery and a separate copy of media binaries.
+
+If the site stores encrypted plugin settings, keep the complete `EMDASH_ENCRYPTION_KEY` rotation list in a separate secret-manager backup. The key is never stored in the database, D1 Time Travel, a SQL dump, or a JSON export.
+
+## What's in a backup
+
+A JSON backup includes:
+
+- All content entries, including drafts, scheduled posts, and trashed items
+- Collection and field definitions that make up the content model
+- Taxonomy definitions, terms, and the terms assigned to each entry
+- Menus and menu items, sections, widget areas and widgets, SEO records, revision history, media
+  metadata, and database migration history
+- Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles,
+  and SEO defaults. These come from the `site:`, `emdash:site_`, and `emdash:locale` setting groups.
+
+It omits all other database tables, including:
+
+- User accounts, sessions, passkeys, OAuth data, API tokens, and other authentication data
+- Plugin storage and plugin settings, including plugin secrets
+- Comments and reactions, redirects and 404 logs, bylines, content relations and references, audit logs, rate limits, and scheduled-task state
+- Media folders, records of where media is used, incomplete or in-progress uploads, and the media
+  files themselves
+- Other site options, including the preview signing secret and backup schedule
+
+Backups are JSON files in the same snapshot format used by EmDash's preview system, versioned with the EmDash release that created them.
+
+<Aside type="caution">
+	EmDash does not implement restoring this JSON format. Do not rely on a JSON export as a recovery
+	point before a destructive operation. Use a raw database backup or point-in-time recovery instead.
+</Aside>
+
+## One-click download
+
+Under **Settings → Backups** in the admin, the **Download backup** button generates a fresh backup and downloads it as a JSON file. Requires the admin role.
+
+The download is for inspection or custom migration tooling. Before bulk imports, schema changes, or
+major upgrades, create a restorable database backup using one of the options below.
+
+## Automatic backups to storage
+
+If your site has a storage backend configured (R2 on Cloudflare, S3, or local storage), you can enable daily automatic backups:
+
+<Steps>
+
+1. Open **Settings → Backups** in the admin.
+
+2. Toggle **Daily automatic backups** on.
+
+3. Choose how many backups to keep (1–30). Older archives are pruned automatically.
+
+4. Save. Backups run as part of EmDash's scheduled maintenance — no extra cron setup needed.
+
+</Steps>
+
+Archives are stored under the `backups/` prefix in your bucket as `emdash-backup-<timestamp>-<random>.json`. The **Stored Backups** list in the admin lets you download or delete individual archives, and **Back up now** creates one on demand.
+
+<Aside type="caution">
+	Archives share the bucket with your media files. EmDash's media route refuses to serve anything
+	under `backups/`, and archive names carry a random suffix — but if you expose the bucket itself
+	through a public R2 domain or CDN, anything in it is reachable by URL. Prefer serving media
+	through EmDash (or scope your public domain to the media prefix).
+</Aside>
+
+Automatic backups piggyback on the scheduled maintenance tick (the same mechanism that powers
+scheduled publishing) — on Cloudflare this is the Worker's cron trigger, on Node the built-in
+scheduler. If your deployment has no cron trigger configured, use **Back up now** or the download
+button instead.
+
+## Back up and restore media objects
+
+R2 and S3-compatible buckets need an object-level backup in addition to the database. The following AWS CLI example copies every object, including EmDash's `backups/` archives, to a local backup directory. For AWS S3, omit `--endpoint-url`.
+
+```bash
+aws s3 sync s3://emdash-media ./emdash-media-backup \
+  --endpoint-url https://<account-id>.r2.cloudflarestorage.com
+```
+
+Use read-only bucket credentials for routine backup jobs. Store the backup outside the production account or failure domain, and record the database backup or Time Travel point created at the same time.
+
+Restore into an empty recovery bucket rather than overwriting production while it is serving requests:
+
+```bash
+aws s3 sync ./emdash-media-backup s3://emdash-media-recovery \
+  --endpoint-url https://<account-id>.r2.cloudflarestorage.com
+```
+
+Give the restore job write access only to the recovery bucket. Point a non-production deployment at that bucket, open several known media URLs, and upload and delete a disposable file. Switch the production binding or bucket configuration only after the restored database and media set pass their checks together.
+
+## Recover a D1 database with Time Travel
+
+Before a risky operation, ask Time Travel for the current bookmark and record it with the deployment or change record:
+
+```bash
+npx wrangler d1 time-travel info my-database
+```
+
+If recovery is required, stop writes to the site and inspect the available restore point before running the destructive restore command:
+
+```bash
+npx wrangler d1 time-travel restore my-database --timestamp=2026-07-08T13:00:00Z
+```
+
+Time Travel restores the entire database, including content, users, settings, plugin data, and migration records. It does not restore R2 media objects or `EMDASH_ENCRYPTION_KEY`. Before testing plugin integrations, restore every encryption key referenced by the recovered plugin settings. After the command completes, deploy the application version that matches the restored database, reopen traffic, and verify sign-in, content reads, schema changes, an encrypted plugin setting, and a write.
+
+See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for details.
+
+## Create an offsite D1 dump
+
+For a complete SQL dump of the raw database (including users and auth tables), use Wrangler:
+
+```bash
+npx wrangler d1 export my-database --remote --output=backup.sql
+```
+
+Keep the SQL file with the matching application version, the media backup created at the same time, and a separately stored copy of the `EMDASH_ENCRYPTION_KEY` rotation list. Test recovery by importing the dump into a newly provisioned empty D1 database, restoring the runtime keys, updating a non-production binding to that database, and verifying the site.
+
+<Aside type="danger">
+	Do not execute a full dump against the existing production database. The dump contains schema and row creation statements that can conflict with existing objects or leave a mixed state. For recovery, create an empty D1 database, import the dump there, verify it, then change the production binding in a controlled deployment.
+</Aside>
+
+Import into the empty recovery database with the following command:
+
+```bash
+npx wrangler d1 execute my-recovery-database --remote --file=backup.sql
+```
+
+## SQLite backup and recovery
+
+For an offline SQLite backup, stop every process that writes the database and copy the database file. For a consistent online backup, use SQLite's backup command:
+
+```bash
+sqlite3 emdash.db ".backup backup.db"
+```
+
+Back up the local upload directory or S3-compatible bucket and the `EMDASH_ENCRYPTION_KEY` rotation list separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore the runtime keys and any required media objects, and start the matching application version. Verify sign-in, public content, an encrypted plugin setting, an edit, and a media read before reopening traffic.
+
+## JSON exports cannot restore a site
+EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
+D1 SQL dump, or a copy of the SQLite database as described above.

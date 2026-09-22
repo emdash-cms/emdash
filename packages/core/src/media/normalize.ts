@@ -9,10 +9,21 @@
  * the provider's `get()` method.
  */
 
+import { normalizeFocalPoint } from "./focal-point.js";
 import type { MediaProvider, MediaProviderItem, MediaValue } from "./types.js";
 
 export const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
 const URL_PATTERN = /^https?:\/\//;
+
+export function normalizeLegacyExternalMediaValue(value: MediaValue): MediaValue {
+	if (value.provider !== "external-url") return value;
+	const src = value.src ?? value.previewUrl;
+	return {
+		...value,
+		provider: "external",
+		...(src === undefined ? {} : { src }),
+	};
+}
 
 /**
  * Normalize a media field value into a consistent MediaValue shape.
@@ -40,16 +51,17 @@ export async function normalizeMediaValue(
 	// Must have at least an id to be a valid media value
 	if (!("id" in value) && !("src" in value)) return null;
 
-	const provider = (typeof value.provider === "string" ? value.provider : undefined) || "local";
-	const id = typeof value.id === "string" ? value.id : "";
+	const parsed = normalizeLegacyExternalMediaValue(recordToMediaValue(value));
+	const provider = parsed.provider || "local";
+	const id = parsed.id;
 
 	// External URLs — return as-is, no server-side dimension detection
 	if (provider === "external") {
-		return recordToMediaValue(value);
+		return parsed;
 	}
 
 	// Build the base value from the input
-	const result: MediaValue = { ...recordToMediaValue(value), provider };
+	const result: MediaValue = { ...parsed, provider };
 
 	// For local media, strip `src` — it's derived at display time from storageKey
 	if (provider === "local") {
@@ -60,7 +72,14 @@ export async function normalizeMediaValue(
 	const needsDimensions = result.width == null || result.height == null;
 	const needsStorageKey = provider === "local" && !result.meta?.storageKey;
 	const needsFileInfo = !result.mimeType || !result.filename;
-	const needsLookup = needsDimensions || needsStorageKey || needsFileInfo;
+	// LQIP placeholders are immutable facts of the bytes: if an image record is
+	// missing them, the provider may have gained them since (e.g. content saved
+	// before LQIP backfill ran, or the row's blurhash was populated later). Pull
+	// them on every image lookup so the LQIP backfill in mergeProviderData runs.
+	const needsLqip =
+		(result.mimeType ?? "").startsWith("image/") &&
+		(result.blurhash == null || result.dominantColor == null);
+	const needsLookup = needsDimensions || needsStorageKey || needsFileInfo || needsLqip;
 
 	if (!needsLookup || !id) return result;
 
@@ -131,6 +150,7 @@ async function resolveInternalUrl(
 		return { provider: "external", id: "", src: url };
 	}
 
+	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
 	return {
 		provider: "local",
 		id: item.id,
@@ -138,6 +158,9 @@ async function resolveInternalUrl(
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		...focalPoint,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
 		alt: item.alt,
 		meta: item.meta,
 	};
@@ -160,6 +183,7 @@ async function resolveLocalId(
 
 	if (!item) return null;
 
+	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
 	return {
 		provider: "local",
 		id: item.id,
@@ -167,6 +191,9 @@ async function resolveLocalId(
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		...focalPoint,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
 		alt: item.alt,
 		meta: item.meta,
 	};
@@ -182,6 +209,12 @@ function mergeProviderData(existing: MediaValue, item: MediaProviderItem): Media
 	// Fill missing dimensions
 	if (result.width == null && item.width != null) result.width = item.width;
 	if (result.height == null && item.height != null) result.height = item.height;
+
+	// Fill missing LQIP placeholders (immutable facts of the bytes; caller wins)
+	if (result.blurhash == null && item.blurhash != null) result.blurhash = item.blurhash;
+	if (result.dominantColor == null && item.dominantColor != null) {
+		result.dominantColor = item.dominantColor;
+	}
 
 	// Fill missing file info
 	if (!result.filename && item.filename) result.filename = item.filename;
@@ -217,6 +250,13 @@ function recordToMediaValue(obj: Record<string, unknown>): MediaValue {
 	if (typeof obj.mimeType === "string") result.mimeType = obj.mimeType;
 	if (typeof obj.width === "number") result.width = obj.width;
 	if (typeof obj.height === "number") result.height = obj.height;
+	const focalPoint = normalizeFocalPoint(obj.focalX, obj.focalY);
+	if (focalPoint) {
+		result.focalX = focalPoint.focalX;
+		result.focalY = focalPoint.focalY;
+	}
+	if (typeof obj.blurhash === "string") result.blurhash = obj.blurhash;
+	if (typeof obj.dominantColor === "string") result.dominantColor = obj.dominantColor;
 	if (typeof obj.alt === "string") result.alt = obj.alt;
 	if (isRecord(obj.meta)) result.meta = obj.meta;
 	return result;

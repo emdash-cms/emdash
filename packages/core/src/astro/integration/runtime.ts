@@ -7,19 +7,30 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
+import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
+
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
+import type { RuntimeMigrationConfig } from "../../database/migrations/policy.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type {
 	FieldWidgetConfig,
+	PluginEditorAction,
+	PluginEditorPanel,
+	PluginMcpManifestConfig,
 	PortableTextBlockConfig,
 	ResolvedPlugin,
+	SettingField,
 } from "../../plugins/types.js";
-import type { ExperimentalConfig } from "../../registry/types.js";
+import type { ExperimentalConfig, RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
-export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
+export type {
+	ExperimentalConfig,
+	RegistryConfig,
+	RegistryConfigOption,
+} from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -103,6 +114,12 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginEditorAction[];
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/**
 	 * Portable Text block types this plugin contributes to the editor.
 	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed
@@ -131,6 +148,19 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	 * Sandboxed plugins can only access declared collections.
 	 */
 	storage?: Record<string, StorageCollectionDeclaration>;
+	/** Serialized MCP declarations emitted by the plugin build. */
+	mcp?: PluginMcpManifestConfig;
+	/**
+	 * Route declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ routes }) and drives route auth decisions; omitted routes
+	 * default to non-public.
+	 */
+	routes?: Array<ManifestRouteEntry | string>;
+	/**
+	 * Hook declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ hooks }).
+	 */
+	hooks?: Array<ManifestHookEntry | string>;
 }
 
 /**
@@ -161,6 +191,8 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	database?: DatabaseDescriptor;
+	/** Core database migration behavior at runtime. Defaults to `auto`. */
+	migrations?: RuntimeMigrationConfig;
 	/**
 	 * Storage configuration (for media)
 	 */
@@ -220,14 +252,11 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
-	 * import { auditLogPlugin } from "@emdash-cms/plugin-audit-log";
-	 * import { webhookNotifierPlugin } from "@emdash-cms/plugin-webhook-notifier";
+	 * import auditLog from "@emdash-cms/plugin-audit-log";
+	 * import webhookNotifier from "@emdash-cms/plugin-webhook-notifier";
 	 *
 	 * emdash({
-	 *   plugins: [
-	 *     auditLogPlugin(),
-	 *     webhookNotifierPlugin({ url: "https://example.com/webhook" }),
-	 *   ],
+	 *   plugins: [auditLog, webhookNotifier],
 	 * })
 	 * ```
 	 */
@@ -240,12 +269,13 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
 	 * import { untrustedPlugin } from "some-third-party-plugin";
 	 *
 	 * emdash({
 	 *   plugins: [trustedPlugin()],     // runs in host
 	 *   sandboxed: [untrustedPlugin()], // runs in isolate
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -256,8 +286,10 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -336,25 +368,40 @@ export interface EmDashConfig {
 	/**
 	 * Plugin marketplace URL
 	 *
-	 * When set, enables the marketplace features: browse, install, update,
-	 * and uninstall plugins from a remote marketplace.
+	 * Existing marketplace-installed plugins use this URL for updates.
+	 * Marketplace browsing and new installs are no longer shown in the admin.
 	 *
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
-	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
-	 *
-	 * When `registry` is also configured, the registry replaces the marketplace
-	 * for the admin UI's browse and install flows. Existing marketplace-installed
-	 * plugins continue to work; new installs and updates come from the registry.
+	 * Installing or updating plugins requires an available `sandboxRunner`.
+	 * Existing marketplace-installed plugins remain updateable and uninstallable.
+	 * New plugin discovery and installs use the registry.
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
 	 *   marketplace: "https://marketplace.emdashcms.com",
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
+	 *
+	 * @deprecated Keep this option only while the site has plugins installed from
+	 * the legacy marketplace. Remove it after those plugins are replaced or
+	 * uninstalled.
 	 */
 	marketplace?: string;
+
+	/**
+	 * Plugin registry discovery and installation.
+	 *
+	 * An enabled sandbox runner uses the hosted registry by default. Pass a
+	 * registry URL or configuration object to customize it, or `false` to
+	 * disable registry discovery while retaining the sandbox runner.
+	 *
+	 * @default "https://registry.emdashcms.com" when sandboxing is enabled
+	 */
+	registry?: RegistryConfigOption;
 
 	/**
 	 * Experimental features.
@@ -363,18 +410,6 @@ export interface EmDashConfig {
 	 * change between minor versions. Use only if you're comfortable
 	 * tracking the release notes and updating your config when an
 	 * experimental feature graduates or changes.
-	 *
-	 * @example
-	 * ```ts
-	 * emdash({
-	 *   experimental: {
-	 *     registry: {
-	 *       aggregatorUrl: "https://registry.emdashcms.com",
-	 *     },
-	 *   },
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
-	 * })
-	 * ```
 	 */
 	experimental?: ExperimentalConfig;
 
@@ -461,6 +496,21 @@ export interface EmDashConfig {
 	 * time without touching the Astro config.
 	 */
 	trustedProxyHeaders?: string[];
+
+	/**
+	 * User middleware that wraps the complete EmDash request pipeline.
+	 *
+	 * Before `next()` it runs before EmDash initializes its runtime or database,
+	 * so `locals.emdash`, the authenticated user, and request-scoped EmDash state
+	 * are unavailable. This allows cached responses and request gates to return
+	 * without paying initialization cost. When it calls `next()`, the resolved
+	 * response includes EmDash HTML injection and all other response mutations,
+	 * allowing the middleware to finalize caching and response headers safely.
+	 */
+	middleware?: {
+		/** Astro middleware module entrypoint. */
+		outer: string | URL;
+	};
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.
@@ -591,6 +641,30 @@ export interface EmDashConfig {
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
+
+	/**
+	 * Editor toolbar delivery on public pages.
+	 *
+	 * - `"server"` (default): the toolbar is injected server-side into every
+	 *   HTML response rendered for an authenticated editor. Simple and
+	 *   zero-config, but behind a shared cache (Cloudflare Cache Everything /
+	 *   Workers Cache, Fastly, Varnish, …) editors often receive the cached
+	 *   anonymous variant — without the toolbar — whenever an anonymous visitor
+	 *   primed the cache first, so the toolbar appears and disappears with
+	 *   cache state.
+	 * - `"client"`: public HTML is identical for everyone (nothing
+	 *   session-specific is injected server-side, so shared caches stay fully
+	 *   effective). A tiny bootstrap script shows an "Edit" pill for browsers
+	 *   that have logged into the admin (non-secret localStorage flag). Clicking
+	 *   it verifies the session and reloads the page with an `_edit` query
+	 *   param, which is always rendered fresh (never cached) with the full
+	 *   toolbar. Logged-out visitors opening an `_edit` URL are redirected to
+	 *   the canonical URL.
+	 * - `false`: never render the toolbar or bootstrap script.
+	 *
+	 * See the visual-editing docs for the cache-behavior details.
+	 */
+	toolbar?: "server" | "client" | false;
 
 	/**
 	 * Version of Astro the host project is building with. Populated by the

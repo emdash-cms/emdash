@@ -3,21 +3,33 @@ title: API Routes
 description: Expose REST endpoints from your sandboxed plugin for the admin UI and external integrations.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
 Plugins can expose API routes for their admin UI and external integrations. Routes are mounted under `/_emdash/api/plugins/<slug>/<route-name>` (the `<slug>` is the plugin's `slug` field from `emdash-plugin.jsonc` — exposed at runtime as `ctx.plugin.id`) and run inside the sandbox runtime with the same `PluginContext` that hooks receive.
 
-This page covers sandboxed plugins. The API surface for native plugins is the same; the only difference is the handler signature — see the note in [Native plugins](/plugins/creating-native-plugins/your-first-native-plugin/) for details.
+This page covers sandboxed plugins. Native plugins use the same route options, authentication, and URL layout, but their handlers receive one combined context object. See [Your first native plugin](/plugins/creating-native-plugins/your-first-native-plugin/) for that signature.
 
 ## Defining routes
 
-Declare routes in the default export of `src/plugin.ts`:
+Declare routes in the default export of `src/plugin.ts`. Add `zod` as a runtime dependency when a route validates input or is exposed as an MCP tool:
+
+```sh
+pnpm add zod
+```
+
+The following example validates a submissions request and queries plugin storage:
 
 ```typescript title="src/plugin.ts"
 import type { SandboxedPlugin } from "emdash/plugin";
-import { z } from "astro/zod";
+import { z } from "zod";
 
-export default {
+const submissionsInput = z.object({
+	formId: z.string().optional(),
+	limit: z.coerce.number().int().min(1).max(100).default(50),
+	cursor: z.string().optional(),
+});
+
+const plugin: SandboxedPlugin = {
 	routes: {
 		status: {
 			handler: async (_routeCtx, ctx) => {
@@ -26,13 +38,12 @@ export default {
 		},
 
 		submissions: {
-			input: z.object({
-				formId: z.string().optional(),
-				limit: z.number().default(50),
-				cursor: z.string().optional(),
-			}),
 			handler: async (routeCtx, ctx) => {
-				const { formId, limit, cursor } = routeCtx.input;
+				const parsed = submissionsInput.safeParse(routeCtx.input);
+				if (!parsed.success) {
+					return { ok: false, error: { code: "VALIDATION_ERROR" } };
+				}
+				const { formId, limit, cursor } = parsed.data;
 
 				const result = await ctx.storage.submissions.query({
 					where: formId ? { formId } : undefined,
@@ -41,17 +52,47 @@ export default {
 					cursor,
 				});
 
-				return result;
+				return { ok: true, ...result };
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
-`satisfies SandboxedPlugin` infers `routeCtx` and `ctx` — no parameter annotations needed. Sandboxed route handlers take **two arguments**: `(routeCtx, ctx)`.
+The `SandboxedPlugin` annotation infers the route and plugin context types, so the parameters need no annotations. Sandboxed route handlers take **two arguments**: `(routeCtx, ctx)`.
 
-- `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`.
-- `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.kv`, `ctx.content`, `ctx.http`, `ctx.log`, etc.
+- `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`. Its `input` remains `unknown`, so validate it before use.
+- `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.settings`, `ctx.kv`, `ctx.content`, `ctx.http`, and `ctx.log`.
+
+### Filtering indexed content fields
+
+Plugins with the `content:read` capability can filter custom fields that a collection marks as
+`indexed`. Filters run in the database and combine with `AND` semantics:
+
+```typescript
+const result = await ctx.content.list("items", {
+	where: {
+		fieldFilters: {
+			priority: { in: ["urgent", "high"] },
+			score: { gte: 80 },
+			resolved: false,
+		},
+	},
+});
+```
+
+Scalar values use exact matching. Use `null` for null matching, `{ in: [...] }` for a set of exact
+values, or `gt`, `gte`, `lt`, and `lte` for range comparisons. EmDash rejects filters for fields
+that are not indexed, values that do not match the field type, and more than 20 field filters per
+query. An `in` filter accepts at most 50 values, and all exact values, range bounds, and `in`
+members together have a 50-operand budget per query. Null matches do not consume that budget.
+
+<Aside type="caution">
+	Filtering is intentionally limited to indexed scalar fields. Prefix, substring, and arbitrary
+	JSON filtering require different index strategies and are not part of this API.
+</Aside>
 
 ## Route URLs
 
@@ -70,46 +111,183 @@ Routes mount at `/_emdash/api/plugins/<slug>/<route-name>`. Route names can incl
 
 ## Authentication and CSRF
 
-**Plugin routes are authenticated by default.** The dispatcher requires a session (or a token with the `admin` scope) before it'll call your handler:
+**Plugin routes are authenticated by default.** The dispatcher requires a session (or a token with the `admin` scope) before it'll call your handler. Private routes default to the `plugins:manage` permission for backwards compatibility. Set `permission` to a narrower EmDash RBAC permission when the operation belongs to an existing content, media, schema, or settings capability:
 
-- Read methods (`GET`, `HEAD`, `OPTIONS`) require the `plugins:read` permission.
-- Write methods (`POST`, `PUT`, `PATCH`, `DELETE`) require `plugins:manage`.
-- State-changing methods on private routes also require the `X-EmDash-Request: 1` CSRF header (the admin UI's `usePluginAPI()` hook sends it automatically; cookie-authed external callers need to set it themselves; token-authed requests are exempt).
+```typescript
+routes: {
+	create: {
+		permission: "content:create",
+		handler: async (routeCtx, ctx) => {
+			// Validate routeCtx.input, then create content through ctx.
+		},
+	},
+},
+```
 
-To opt a route out of auth and CSRF, mark it `public: true`:
+Private routes require their declared permission for every HTTP method. They also require the `X-EmDash-Request: 1` CSRF header for cookie-authenticated requests, including `GET` and `HEAD`, because a plugin route can run the same handler for any method. The admin UI sends the header automatically. Token-authenticated requests are exempt from the header but still need the `admin` token scope and the route permission.
+
+To opt a route out of authentication, mark it `public: true`:
 
 ```typescript
 routes: {
 	track: {
 		public: true,
-		input: z.object({ event: z.string() }),
 		handler: async (routeCtx, ctx) => {
-			ctx.log.info("Tracked", { event: routeCtx.input.event });
+			const parsed = z.object({ event: z.string() }).safeParse(routeCtx.input);
+			if (!parsed.success) return { ok: false, error: "INVALID_EVENT" };
+			ctx.log.info("Tracked", { event: parsed.data.event });
 			return { ok: true };
 		},
 	},
 },
 ```
 
+Public route exposure is part of the plugin's reviewed access. Installing a plugin with public
+routes requires consent. Adding a public route, or changing a private route to public, requires
+consent again when the plugin is updated.
+
 <Aside type="caution">
-	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
+	A public route skips authentication and token scope checks, but not protection against cross-origin
+	browser requests. For requests that can change data, EmDash accepts a matching site `Origin` or the
+	`X-EmDash-Request: 1` header; a different or malformed `Origin` returns 403. Webhooks and other
+	non-browser clients usually omit `Origin` and remain allowed, so anyone can call a public route.
+	Validate all input and verify the service's signature or token when available.
 </Aside>
 
-## Input validation
+### The authenticated caller
 
-`input` accepts a Zod schema. The dispatcher parses the request body (POST/PUT/PATCH) or query string (GET/DELETE), validates it, and passes the typed result to your handler as `routeCtx.input`. Invalid input returns a 400 before your handler runs.
+On private routes, `routeCtx.user` is the authenticated user making the request — resolved and authorized by EmDash before your handler runs, so you can trust it for per-user logic (per-user API keys, OAuth connections, plugin-managed preferences):
 
 ```typescript
 routes: {
-	create: {
-		input: z.object({
-			title: z.string().min(1).max(200),
-			email: z.string().email(),
-			priority: z.enum(["low", "medium", "high"]).default("medium"),
-			tags: z.array(z.string()).optional(),
-		}),
+	"connect/start": {
 		handler: async (routeCtx, ctx) => {
-			const { title, email, priority, tags } = routeCtx.input;
+			// Never read the acting user from the request body — any authenticated
+			// session could impersonate another user that way. Use routeCtx.user.
+			const caller = routeCtx.user;
+			if (!caller) throw new Error("No caller bound");
+			await ctx.kv.set(`user:${caller.id}:connection`, { startedAt: Date.now() });
+			return { userId: caller.id };
+		},
+	},
+},
+```
+
+`routeCtx.user` is `undefined` on public routes (they skip auth, so no caller is bound — even when the visitor happens to have an admin session) and for token-authed requests where the token isn't bound to a user (machine tokens). The shape matches the `UserInfo` returned by `ctx.users`: `{ id, email, name, role, createdAt }` — no sensitive fields.
+
+Note that caller identity is separate from the `users:read` capability: `routeCtx.user` tells you **who is calling** and is always available on private routes, while `ctx.users` is a user-directory **lookup** that requires the capability.
+
+## Exposing a route as an MCP tool
+
+Plugins may explicitly expose selected private routes through EmDash's MCP server. MCP exposure is never inferred from the route list:
+
+```typescript
+const createEventInput = z.object({
+	title: z.string().min(1),
+	startsAt: z.string().datetime(),
+});
+
+const plugin: SandboxedPlugin = {
+	routes: {
+		"events/create": {
+			permission: "content:create",
+			handler: async (routeCtx, ctx) => {
+				const parsed = createEventInput.safeParse(routeCtx.input);
+				if (!parsed.success) return { ok: false, error: "INVALID_EVENT" };
+				const input = parsed.data;
+				return { id: await createEvent(input, ctx) };
+			},
+		},
+	},
+	mcp: {
+		tools: {
+			createEvent: {
+				description: "Create a calendar event when the user asks to add one.",
+				route: "events/create",
+				input: createEventInput,
+				output: z.object({ id: z.string() }),
+				destructive: false,
+			},
+		},
+	},
+};
+
+export default plugin;
+```
+
+EmDash exposes this as `<pluginId>__createEvent`. The referenced route must be private and declare `permission`. Input schemas are required; output schemas are optional. Set `destructive: true` for tools that delete, overwrite, publish, charge, or otherwise perform a difficult-to-reverse action.
+
+An administrator must separately enable a plugin's MCP tools after reviewing their names, descriptions, routes, permissions, and destructive flags. Calling the tool then requires both the route permission and either the `mcp:tools` token scope or `mcp:tools:<pluginId>`.
+
+An MCP tool cannot reference a route with `response: "raw"`. MCP tools use the JSON route contract.
+
+## Request bodies
+
+Routes without a `request` declaration keep the original input behavior. EmDash parses JSON request
+bodies for `POST`, `PUT`, and `PATCH`, and query parameters for `GET`, `HEAD`, and `DELETE`. The
+parsed value reaches a sandboxed handler as `routeCtx.input: unknown`.
+
+Declare `request.body` when the route needs another body format or a specific byte limit. The
+available modes are `none`, `json`, `text`, `bytes`, and `form-data`. Request bodies are buffered.
+The default maximum is 1 MiB, and a route can raise `maxBytes` to at most 8 MiB.
+
+Use `pluginRoute()` to infer the input type from the declared body mode. The helper returns its
+argument unchanged at runtime:
+
+```typescript title="src/plugin.ts"
+import { pluginRoute, type SandboxedPlugin } from "emdash/plugin";
+
+const plugin: SandboxedPlugin = {
+	routes: {
+		import: pluginRoute({
+			methods: ["POST"],
+			request: {
+				body: "bytes",
+				maxBytes: 4 * 1024 * 1024,
+				headers: ["content-type", "x-import-signature"],
+			},
+			handler: async (routeCtx) => {
+				const bytes = routeCtx.input; // Uint8Array
+				const signature = routeCtx.request.headers["x-import-signature"];
+				return { accepted: bytes.byteLength, signature };
+			},
+		}),
+	},
+};
+
+export default plugin;
+```
+
+For `body: "none"`, `routeCtx.input` is the parsed query-string record. A `json` declaration keeps
+the input type as `unknown`, so validate it before use. A `text` declaration produces a string, and
+`bytes` produces a `Uint8Array`.
+
+`form-data` accepts `multipart/form-data` and `application/x-www-form-urlencoded`. It produces an
+ordered `entries` array. Text entries contain `{ name, kind: "text", value }`; file entries contain
+`{ name, kind: "file", filename, contentType, bytes }`. EmDash accepts at most 100 parts, 1 MiB per
+part, and filenames up to 255 UTF-8 bytes. Filenames cannot contain control characters or path
+separators. The total encoded request must also fit the route's body limit.
+
+Validate parsed values before reading fields or performing side effects. Use `safeParse` when
+invalid input is an expected caller error. This lets the route return a stable JSON result instead
+of turning invalid input into an internal exception:
+
+```typescript
+const createInput = z.object({
+	title: z.string().min(1).max(200),
+	email: z.string().email(),
+	priority: z.enum(["low", "medium", "high"]).default("medium"),
+	tags: z.array(z.string()).optional(),
+});
+
+routes: {
+	create: {
+		handler: async (routeCtx, ctx) => {
+			const parsed = createInput.safeParse(routeCtx.input);
+			if (!parsed.success) {
+				return { ok: false, error: { code: "VALIDATION_ERROR" } };
+			}
+			const { title, email, priority, tags } = parsed.data;
 
 			await ctx.storage.items.put(`item_${Date.now()}`, {
 				title,
@@ -119,15 +297,41 @@ routes: {
 				createdAt: new Date().toISOString(),
 			});
 
-			return { success: true };
+			return { ok: true };
 		},
 	},
 },
 ```
 
-## Return values
+### Query-string input (GET/HEAD/DELETE)
 
-Return any JSON-serialisable value. The dispatcher wraps it in EmDash's standard envelope (`{ success: true, data: <your value> }`) and serves it as `application/json`.
+Bodyless methods have no request body, so their input comes from the URL query string. Every value is a string. Repeated keys become arrays, so `?tag=a&tag=b` becomes `{ tag: ["a", "b"] }`; a single `?tag=a` remains `{ tag: "a" }`. Use `z.coerce` for numbers and other non-string values:
+
+```typescript
+const listInput = z.object({
+	status: z.enum(["open", "closed"]).optional(),
+	limit: z.coerce.number().int().min(1).max(100).default(20),
+	tag: z.union([z.string(), z.array(z.string())]).optional(),
+});
+
+routes: {
+	list: {
+		// GET /_emdash/api/plugins/<slug>/list?status=open&limit=20&tag=a&tag=b
+		handler: async (routeCtx, ctx) => {
+			const parsed = listInput.safeParse(routeCtx.input);
+			if (!parsed.success) return { ok: false, error: "INVALID_QUERY" };
+			const { status, limit, tag } = parsed.data;
+			// ...
+		},
+	},
+},
+```
+
+## JSON return values
+
+Routes use the JSON response contract unless they declare `response: "raw"`. Return any
+JSON-serialisable value. The dispatcher wraps it in EmDash's standard envelope
+(`{ success: true, data: <your value> }`) and serves it as `application/json`.
 
 ```typescript
 return { id: "abc", count: 42 };  // wrapped to { success: true, data: { id, count } }
@@ -136,43 +340,37 @@ return [1, 2, 3];                 // wrapped to { success: true, data: [1, 2, 3]
 
 ## Errors
 
-Throw to return an error response. Anything that isn't a known plugin error returns a generic message — internal exceptions are masked rather than leaking stack traces or database errors:
+Throw when a sandboxed route cannot complete. EmDash logs the exception and returns a `ROUTE_ERROR`. The thrown message may be included in that response, so never put credentials, personal data, internal paths, or stack traces in an exception message:
 
 ```typescript
-handler: async (routeCtx, ctx) => {
-	const item = await ctx.storage.items.get(routeCtx.input.id);
-	if (!item) {
-		throw new Error("Item not found");
+handler: async (_routeCtx, ctx) => {
+	try {
+		return await refreshRemoteIndex(ctx);
+	} catch {
+		ctx.log.error("Remote index refresh failed");
+		throw new Error("Remote index refresh failed");
 	}
-	return item;
 },
 ```
 
-For a specific status code, throw a `Response`:
+Sandboxed plugin code cannot select an arbitrary HTTP status by throwing a `Response`; a `Response` does not cross every sandbox runner's boundary as a structured error. EmDash assigns statuses to authentication, authorization, CSRF, and missing-route failures before the handler runs. Return a JSON result for expected validation and domain outcomes, and reserve exceptions for unexpected failures.
 
-```typescript
-handler: async (routeCtx, ctx) => {
-	const item = await ctx.storage.items.get(routeCtx.input.id);
-	if (!item) {
-		throw new Response(JSON.stringify({ error: "Not found" }), {
-			status: 404,
-			headers: { "Content-Type": "application/json" },
-		});
-	}
-	return item;
-},
-```
+An expected error returned as JSON still uses the route's successful HTTP response and appears inside EmDash's outer `{ success: true, data: ... }` envelope. Include a stable application-level code so clients can distinguish that outcome.
 
 ## HTTP methods
 
-Routes respond to all methods. Branch on `routeCtx.request.method` if you need per-method behaviour:
+The route name selects one handler. Declare `methods` to restrict which HTTP methods can invoke it.
+EmDash returns `405 Method Not Allowed` with an `Allow` header before calling the handler when the
+request method is not declared:
 
 ```typescript
 routes: {
 	item: {
-		input: z.object({ id: z.string() }),
+		methods: ["GET", "DELETE"],
 		handler: async (routeCtx, ctx) => {
-			const { id } = routeCtx.input;
+			const parsed = z.object({ id: z.string() }).safeParse(routeCtx.input);
+			if (!parsed.success) return { ok: false, error: "INVALID_ID" };
+			const { id } = parsed.data;
 
 			switch (routeCtx.request.method) {
 				case "GET":
@@ -180,102 +378,93 @@ routes: {
 				case "DELETE":
 					await ctx.storage.items.delete(id);
 					return { deleted: true };
-				default:
-					throw new Response("Method not allowed", { status: 405 });
 			}
 		},
 	},
 },
 ```
+
+Routes without `methods` remain method-agnostic for compatibility. Check
+`routeCtx.request.method` inside a legacy route before performing a mutation, or add `methods` to
+make the host enforce the restriction.
+
+## Raw responses
+
+Declare `response: "raw"` when a route must return unwrapped text or bytes with a custom status and
+safe response headers. Return `pluginResponse()` from `emdash/plugin`; a WHATWG `Response` does not
+cross the sandbox boundary:
+
+```typescript title="src/plugin.ts"
+import { pluginResponse, pluginRoute, type SandboxedPlugin } from "emdash/plugin";
+
+const plugin: SandboxedPlugin = {
+	routes: {
+		download: pluginRoute({
+			public: true,
+			methods: ["GET"],
+			request: { body: "none" },
+			response: "raw",
+			cacheControl: "public, max-age=60",
+			handler: async () =>
+				pluginResponse({
+					status: 200,
+					headers: {
+						"content-type": "text/csv; charset=utf-8",
+						"content-disposition": 'attachment; filename="report.csv"',
+					},
+					body: { kind: "text", value: "name,count\nPublished,12\n" },
+				}),
+		}),
+	},
+};
+
+export default plugin;
+```
+
+The response body is `{ kind: "text", value: string }` or
+`{ kind: "bytes", value: Uint8Array }` and is buffered up to 8 MiB. Raw responses may set
+`Accept-Ranges`, `Content-Disposition`, `Content-Encoding`, `Content-Language`, `Content-Range`,
+`Content-Type`, `ETag`, `Last-Modified`, `Location`, and `Retry-After`; the host removes every other
+plugin-supplied header. It adds
+`X-Content-Type-Options: nosniff`, a sandboxed document content security policy, and
+`Referrer-Policy: no-referrer`. It applies the route's `cacheControl` only to successful public
+`GET` and `HEAD` responses. Other responses use `private, no-store`.
+
+Raw routes cannot serve active same-origin content. EmDash rejects HTML, JavaScript and
+ECMAScript, XHTML, SVG, XML, CSS, WebAssembly, `multipart/related`, and
+`multipart/x-mixed-replace` media types. Use a native plugin or a separate origin when the response
+must run active browser content.
 
 ## Accessing the request
 
 `routeCtx.request` is a **`SandboxedRequest`**: a portable `{ url, method, headers }` record that behaves identically in-process and inside an isolate. `headers` is a `Record<string, string>` keyed by lowercased header name — index it by the lowercased name, or iterate with `Object.entries`. `url` is a string, so `new URL(request.url)` parses query params. `routeCtx.requestMeta` carries IP, user agent, and geo data normalised across platforms when available.
 
+For a route with a `request` declaration, only names in `request.headers` reach the handler. EmDash
+rejects declarations for credentials, cookies, Cloudflare Access headers, proxy authorization,
+`Set-Cookie`, and the `X-EmDash-Request` CSRF header. It strips those headers from every sandboxed
+request, including legacy routes.
+
 ```typescript
 handler: async (routeCtx, ctx) => {
 	const { request, requestMeta } = routeCtx;
 
-	const auth = request.headers["authorization"]; // lowercased key, no .get()
+	const signature = request.headers["x-import-signature"]; // lowercased key, no .get()
 	const url = new URL(request.url);
 	const page = url.searchParams.get("page");
 
 	ctx.log.info("Request", { meta: requestMeta });
 
-	if (request.method !== "POST") {
-		throw new Response("POST required", { status: 405 });
-	}
+	if (request.method !== "POST") return { error: "POST_REQUIRED" };
 },
 ```
 
 ## Common patterns
 
-### Settings via KV
+### Settings and paginated data
 
-Sandboxed plugins read and write settings through the KV store, conventionally under a `settings:` prefix. The auto-generated `settingsSchema` form is native-only — for sandboxed plugins, expose the read/write through routes and render the form in [Block Kit](/plugins/creating-plugins/block-kit/).
+Plugin settings use private routes, Block Kit forms, and `ctx.settings`. [Settings](/plugins/creating-plugins/settings/) provides the complete loading, validation, form, and encrypted-secret pattern.
 
-```typescript
-routes: {
-	settings: {
-		handler: async (_routeCtx, ctx) => {
-			const settings = await ctx.kv.list("settings:");
-			const result: Record<string, unknown> = {};
-			for (const entry of settings) {
-				result[entry.key.replace("settings:", "")] = entry.value;
-			}
-			return result;
-		},
-	},
-
-	"settings/save": {
-		input: z.object({
-			enabled: z.boolean().optional(),
-			apiKey: z.string().optional(),
-			maxItems: z.number().optional(),
-		}),
-		handler: async (routeCtx, ctx) => {
-			for (const [key, value] of Object.entries(routeCtx.input)) {
-				if (value !== undefined) {
-					await ctx.kv.set(`settings:${key}`, value);
-				}
-			}
-			return { success: true };
-		},
-	},
-},
-```
-
-### Paginated list
-
-Return cursor-based pagination from a storage query — the response shape matches what the rest of EmDash uses:
-
-```typescript
-routes: {
-	list: {
-		input: z.object({
-			limit: z.number().min(1).max(100).default(50),
-			cursor: z.string().optional(),
-			status: z.string().optional(),
-		}),
-		handler: async (routeCtx, ctx) => {
-			const { limit, cursor, status } = routeCtx.input;
-
-			const result = await ctx.storage.items.query({
-				where: status ? { status } : undefined,
-				orderBy: { createdAt: "desc" },
-				limit,
-				cursor,
-			});
-
-			return {
-				items: result.items.map((item) => ({ id: item.id, ...item.data })),
-				cursor: result.cursor,
-				hasMore: result.hasMore,
-			};
-		},
-	},
-},
-```
+Routes that list plugin data should return the cursor from `ctx.storage.<collection>.query()`. [Storage pagination](/plugins/creating-plugins/storage/#pagination) shows how to pass a cursor and drain multiple pages without exceeding the 100-item page maximum.
 
 ### External API proxy
 
@@ -284,15 +473,16 @@ Proxy a request to an external service through `ctx.http` (requires `network:req
 ```typescript
 routes: {
 	forecast: {
-		input: z.object({ city: z.string() }),
 		handler: async (routeCtx, ctx) => {
+			const parsed = z.object({ city: z.string().min(1) }).safeParse(routeCtx.input);
+			if (!parsed.success) return { ok: false, error: "INVALID_CITY" };
 			if (!ctx.http) throw new Error("Network capability not granted");
 
-			const apiKey = await ctx.kv.get<string>("settings:apiKey");
+			const apiKey = await ctx.settings.get<string>("apiKey");
 			if (!apiKey) throw new Error("API key not configured");
 
 			const response = await ctx.http.fetch(
-				`https://api.weather.example.com/forecast?city=${routeCtx.input.city}`,
+				`https://api.weather.example.com/forecast?city=${encodeURIComponent(parsed.data.city)}`,
 				{ headers: { "X-API-Key": apiKey } },
 			);
 
@@ -305,25 +495,49 @@ routes: {
 },
 ```
 
-## Calling routes from the admin UI
+`ctx.http.fetch()` returns a buffered WHATWG `Response` in both sandbox runners. Binary methods such as `arrayBuffer()` and `blob()` preserve bytes across Cloudflare Worker Loader and Node/workerd. Request and response bodies are each limited to 8 MiB of decoded data. Redirect targets are checked before every hop, and credential headers are removed when a redirect crosses origins.
 
-Use `usePluginAPI()` from the admin package — it adds the `X-EmDash-Request` CSRF header and the plugin id prefix automatically:
+## Calling routes from Block Kit
 
-```typescript
-import { usePluginAPI } from "@emdash-cms/admin";
+Sandboxed plugins do not ship React code to the admin. Declare an `admin` route and return Block Kit responses. EmDash sends `page_load`, `block_action`, and `form_submit` interactions to that private route with the correct URL and CSRF header. [Block Kit](/plugins/creating-plugins/block-kit/) shows the interaction contract and a complete route.
 
-function SettingsPage() {
-	const api = usePluginAPI();
+## Calling routes from queue and scheduled handlers
 
-	const handleSave = async (settings) => {
-		await api.post("settings/save", settings);
-	};
+Platform-event handlers (a Cloudflare Queue consumer, a custom `scheduled()` handler) have no HTTP request and therefore no `locals.emdash`. Use `withEmDashRuntime()` from `emdash/middleware` to get the runtime directly and invoke a plugin route without a request:
 
-	const loadSettings = async () => {
-		return api.get("settings");
-	};
-}
+```typescript title="src/worker.ts"
+import { withEmDashRuntime } from "emdash/middleware";
+
+export default {
+	// ... fetch/scheduled from @emdash-cms/cloudflare/worker
+
+	async queue(batch: MessageBatch) {
+		await withEmDashRuntime(async (runtime) => {
+			for (const message of batch.messages) {
+				const result = await runtime.handlePluginApiRoute(
+					"my-plugin",
+					"POST",
+					"/finishJob",
+					new Request("https://internal/", {
+						method: "POST",
+						body: JSON.stringify(message.body),
+					}),
+				);
+				if (result.success) message.ack();
+				else message.retry();
+			}
+		});
+	},
+};
 ```
+
+This resolves the same cached runtime that request handlers use, so plugin storage, hooks, and media access all behave exactly as they do during a request. On connection-backed database adapters (e.g. Postgres over Hyperdrive) the callback runs under an event-scoped connection that is committed and closed when it returns.
+
+<Aside type="caution">
+	`withEmDashRuntime()` is server-only and fully trusted — the callback gets the raw runtime with
+	no auth or CSRF checks, the same trust level as plugin cron. Validate any external input (queue
+	message bodies included) before passing it to a plugin route.
+</Aside>
 
 ## Calling routes externally
 
@@ -335,7 +549,7 @@ curl -X POST https://your-site.com/_emdash/api/plugins/forms/track \
   -d '{"event": "pageview"}'
 ```
 
-Private routes need session credentials or an API token with the `admin` scope:
+Private routes need session credentials plus `X-EmDash-Request: 1`, or an API token with the `admin` scope. The following server-to-server request uses a token:
 
 ```bash
 curl -X POST https://your-site.com/_emdash/api/plugins/forms/create \
@@ -345,6 +559,8 @@ curl -X POST https://your-site.com/_emdash/api/plugins/forms/create \
 ```
 
 ## Route context reference
+
+The following interfaces summarize the portable values available to a sandboxed route handler:
 
 ```typescript
 // What sandboxed route handlers receive as their two arguments
@@ -356,9 +572,18 @@ interface SandboxedRequest {
 }
 
 interface SandboxedRouteContext {
-	input: unknown; // narrow with the `input` Zod schema at the route level
+	input: unknown; // validate inside the handler before use
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	user?: UserInfo; // authenticated caller on private routes; undefined on public routes
+}
+
+interface UserInfo {
+	id: string;
+	email: string;
+	name: string | null;
+	role: number;
+	createdAt: string;
 }
 
 interface PluginContext {
@@ -370,7 +595,10 @@ interface PluginContext {
 	url(path: string): string;
 	cron?: CronAccess;
 	content?: ContentAccess;       // when content:read or content:write declared
-	media?: MediaAccess;           // when media:read or media:write declared
+	schema?: SchemaAccess;         // when schema:read declared
+	taxonomies?: TaxonomyAccess;   // when taxonomies:read declared
+	redirects?: RedirectAccess;    // when redirects:read or redirects:write declared
+	media?: MediaAccess;           // when any media capability is declared
 	http?: HttpAccess;             // when network:request declared
 	users?: UserAccess;            // when users:read declared
 	email?: EmailAccess;           // when email:send declared and provider configured

@@ -1,34 +1,57 @@
 This file provides guidance to agentic coding tools working in this repository.
 
-For human-facing contributor info (setup, repo layout, PR policy, changesets, i18n), see [CONTRIBUTING.md](CONTRIBUTING.md). This file focuses on the patterns and gotchas an agent needs to write correct code.
+For human-facing contributor info (setup, repo layout, PR policy, i18n), see [CONTRIBUTING.md](CONTRIBUTING.md). This file focuses on the patterns and gotchas an agent needs to write correct code.
 
-`CLAUDE.md` is a symlink to this file. `.opencode/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
+`CLAUDE.md` is a symlink to this file. `.agents/skills` and `.claude/skills` are symlinks to `skills/`. Don't try to sync between them.
+
+When writing, revising, or reviewing documentation, load the `writing-emdash-docs` skill. Use it for public docs, READMEs, contributor guidance, technical specifications, release notes and changesets, and skill instructions.
 
 # Rules
 
-**Backwards compatibility matters.** EmDash is published and in active use, pre-1.0. Prefer additive changes (new fields, new routes, new options with defaults). Breaking changes need an explicit decision, a package bump, and a changeset that calls the break out clearly. Database migrations are forward-only -- never write one that leaves existing content inaccessible. When in doubt, open a Discussion.
+**Backwards compatibility matters.** EmDash is published and in active use, pre-1.0. Prefer additive changes (new fields, new routes, new options with defaults). Breaking changes need an explicit decision, a package bump, and a changeset that calls the break out clearly. Database migrations are forward-only -- never write one that leaves existing content inaccessible. When the compatibility decision is unclear, propose a Discussion instead of choosing a breaking design.
 
-**TDD for bugs.** Failing test -> fix -> verify. A bug without a reproducing test is not fixed.
+**Regression evidence for bugs.** A fix must demonstrate that it changes the reported behavior. Add a regression test when it can protect meaningful behavior; otherwise report the reproduction and verification. See [Testing](#testing).
 
 **Localize everything user-facing.** All admin UI strings, aria labels, and toast messages go through Lingui. All admin layout uses RTL-safe logical Tailwind classes. See [Localization](#admin-ui-localization-lingui) and [RTL](#admin-ui-rtl-safe-tailwind).
 
-**Scope discipline.** No drive-by refactors, no bulk lint/type cleanups, no "while I'm here" edits in unrelated files. If you see a systemic issue, open a Discussion. See [CONTRIBUTING.md § Contribution Policy](CONTRIBUTING.md#contribution-policy).
+**Scope discipline.** No drive-by refactors, no bulk lint/type cleanups, no "while I'm here" edits in unrelated files. Report systemic issues separately instead of expanding the current change. See [CONTRIBUTING.md § Contribution Policy](CONTRIBUTING.md#contribution-policy).
+
+**Protect the logged-out hot path.** Any change that increases the query count of a logged-out route needs explicit justification -- and that includes cold-start or first-request-only queries, not just steady state. See [Performance](#performance-caching-and-query-patterns).
+
+**Comments are for code readers, not reviewers.** Write a comment only when the code can't be made clearer, or to give a non-obvious "why". Never justification, narrative, or issue/PR references. See [Comments](#comments).
 
 ## Workflow
 
-Run `pnpm lint:json | jq '.diagnostics | length'` before starting and confirm it's clean -- if it's failing after your edits, your changes caused it.
+Main is kept green. Do not run checks before editing merely to establish a baseline, and do not dismiss validation failures as pre-existing. Before committing code:
 
-During work:
+- Run `pnpm format`.
+- Run `pnpm build` from the repository root. Package-scoped builds are not sufficient because validation resolves declaration output from other workspace packages.
+- Run `pnpm lint:quick` and confirm `pnpm --silent lint:json | jq '.diagnostics | length'` returns zero.
+- Run the tests relevant to the changed behavior.
+- Run `pnpm typecheck` (packages) or `pnpm typecheck:demos` (Astro demos).
 
-- `pnpm lint:quick` after every edit (sub-second)
-- `pnpm typecheck` (packages) or `pnpm typecheck:demos` (Astro demos) after each round of edits
-- `pnpm format` regularly (oxfmt, tabs)
+If a check fails, make sure the root build is current and rerun it. Treat any remaining failure as introduced by the current work and fix it before committing.
 
-Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [CONTRIBUTING.md § Changesets](CONTRIBUTING.md#changesets).
+Before opening a PR: tests pass, lint clean, formatted, changeset added if a published package changed. See [.changeset/README.md](.changeset/README.md).
 
-A changeset is release notes a user reads while upgrading -- **not** a commit message, PR description, or summary of your diff. Do not paste your PR prose into it. Write for someone who will run the new version and wants to know what changed for them: lead with a present-tense verb (`Fixes`, `Adds`, `Updates`, `Removes`), describe the observable effect, and leave out internal mechanics (file names, refactors, how you implemented it). For a breaking change, include the migration step. One sentence is often enough.
+A changeset is user-facing documentation that lands verbatim in a package CHANGELOG. Review its usefulness to someone upgrading, not only its presence and frontmatter. Follow [.changeset/README.md](.changeset/README.md) for the canonical writing and review standard, including proportional detail and migration guidance for default or breaking changes.
 
 When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
+
+Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include screenshots of the rendered result; include before-and-after images when the change is not clear from the result alone. Keep the behavior described in text and give every image useful alt text.
+
+Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. For example:
+
+```bash
+gh issue create --body-file /tmp/emdash-issue.md \
+	--attach './interface-error.png#The settings screen showing the validation error'
+
+gh pr create --body-file /tmp/emdash-pr.md \
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
+```
+
+To place an image at a specific point in the body, add `![descriptive alt text](./after.png)` to the body file and pass `--attach ./after.png`; `gh` replaces the local path with the uploaded asset URL. An attachment that is not referenced in the body is appended. CLI `--attach` uploads require repository write access. See [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots).
 
 ## Architecture
 
@@ -146,9 +169,15 @@ Migrations live in `packages/core/src/database/migrations/`.
 - **Registration:** Migrations are statically imported in `runner.ts` and added to `StaticMigrationProvider`. Not auto-discovered (Workers bundler compatibility). When adding: create the file, add a static import in `runner.ts`, add it to `getMigrations()`.
 - **Multi-table migrations:** When altering all content tables, query `_emdash_collections` and loop. See `013_scheduled_publishing.ts`.
 
+Published migrations are immutable. Never edit or reorder one that has shipped; add the next monotonically increasing, zero-padded migration as a correction. Write `up` so it can restart after any completed statement, especially on D1 where a lost response can leave an ambiguous outcome.
+
+Preserve expand/deploy/contract compatibility: old application code must tolerate the expanded schema during a rolling deploy, and new code must tolerate incomplete backfills. When a migration changes existing `ec_*` tables, update `SchemaRegistry` so newly created tables receive the same shape. Use parameterized Kysely SQL, validated identifiers, bounded batches, portable dialect behavior, and the repository's index conventions.
+
+Test representative upgrades from existing data, retry after partial completion, test every supported dialect, and test with realistically large data shapes. Add a user-facing changeset for each affected published package.
+
 ## Indexes
 
-Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `scheduled_at` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
+Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `(deleted_at, scheduled_at)` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
 
 Naming: `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 
@@ -177,6 +206,8 @@ When adding content-table features, ask: per-locale (display fields) or per-tran
 
 EmDash runs on D1 with the Sessions API. Anonymous reads go to the nearest replica; writes and authenticated reads route to the primary. Every round-trip matters.
 
+**The logged-out hot path only ratchets down.** Anonymous page renders are what visitors actually hit; their query count is the product's performance envelope. Any change that adds a query to a logged-out route needs a _really_ good reason -- including queries that only run on cold start or first request. Before accepting a new round-trip, look for a way to piggyback on an existing query, batch, defer with `after()`, or cache.
+
 **Wrap query helpers in `requestCached`.** Per-request cache (`src/request-cache.ts`) dedupes identical calls within a render. If a helper takes stable args (slug, key, id) and may be called from multiple components, wrap it. The cache key must include every argument that changes the result. The promise is cached, so concurrent callers share the in-flight query.
 
 ```typescript
@@ -190,7 +221,7 @@ export function getSiteSetting(key: string) {
 
 **Module-scope singletons must live on `globalThis`.** Vite duplicates modules across SSR chunks; a plain `let cache = null` becomes two variables. Use a `Symbol.for` key on `globalThis`. See `packages/core/src/settings/index.ts` (versioned) and `packages/core/src/request-context.ts` / `request-cache.ts` (per-request).
 
-**Prefer the batch query to a "has any" probe.** Don't add a `SELECT id FROM foo LIMIT 1` to skip work on empty sites -- on live sites you pay the extra query every request for no gain. Handle missing tables with `isMissingTableError`.
+**Prefer the batch query to a "has any" probe.** Don't add a `SELECT id FROM foo LIMIT 1` to skip work on empty sites -- on live sites you pay the extra query every request for no gain. Handle missing tables with `isMissingTableError`. The exception is a probe folded into a query the request already runs (an uncorrelated scalar subquery in an existing select list): that adds zero round trips, so it's fine when an empty table lets the request skip follow-up queries entirely.
 
 **Defer bookkeeping with `after(fn)`.** Maintenance writes don't need to block TTFB. `after()` uses workerd's `waitUntil` when available, fire-and-forgets on Node. Wrap your function body in try/catch with a module-specific log prefix.
 
@@ -208,7 +239,7 @@ after(async () => {
 
 **One query beats two.** Use `LEFT JOIN` for parent+children. Batch with `WHERE id IN (...)`, chunked at `SQL_BATCH_SIZE` (from `utils/chunks.ts`) for D1's bind-parameter limit.
 
-**Query-count snapshots.** `pnpm query-counts` (see `scripts/query-counts.mjs`) records per-route query counts in `scripts/query-counts.snapshot.{sqlite,d1}.json`. CI auto-updates on PRs -- review the diff. Fewer is always right; more needs a conversation.
+**Query-count snapshots.** `pnpm query-counts` (see `scripts/query-counts.mjs`) records per-route query counts in `scripts/query-counts.snapshot.{sqlite,d1}.json`. CI auto-updates on PRs -- review the diff. Prefer fewer round trips; justify increases against the behavior they enable. An increase on a logged-out route is presumed wrong: the snapshot diff makes it visible, it does not make it acceptable.
 
 # Admin UI
 
@@ -216,7 +247,7 @@ The admin (`packages/admin`) is a React SPA mounted under `/_emdash/admin/*`.
 
 ## Kumo Components
 
-Built on [Kumo](https://github.com/cloudflare/kumo) (Cloudflare's design system). Never roll your own buttons, inputs, dialogs, etc. -- use Kumo. Get consistent styling, dark mode, accessibility, RTL for free.
+Built on [Kumo](https://github.com/cloudflare/kumo) (Cloudflare's design system). Never roll your own buttons, inputs, dialogs, etc. -- use Kumo so shared styling, dark-mode behavior, accessibility, and RTL support stay consistent.
 
 Look up docs from the CLI:
 
@@ -315,6 +346,25 @@ For directional icons (chevrons, arrows), flip them with `rtl:-scale-x-100` or u
 
 # Conventions
 
+## Comments
+
+Comments are evergreen and addressed to a future reader of the code -- not to whoever reviews the PR. Most comments agents write should not exist. A comment earns its place only when:
+
+- the code is unclear and genuinely can't be made clearer (first try making it clearer), or
+- there's a non-obvious reason for something the reader would otherwise get wrong (an ordering constraint, a footgun, an invariant).
+
+Comments are **not**:
+
+- PR descriptions or summaries of the change
+- messages to the reviewer
+- justification for a decision ("intentionally", "for safety", "we accept", "unlike X")
+- narrative about what you tried and rejected
+- restatements of what the code plainly does
+
+Never reference issues, PRs, or review threads in comments -- they're stale narrative the moment the change merges; that context belongs in the commit message and PR description. Never number comments.
+
+Tool directives are exempt from all of the above: `eslint-disable`, `oxlint-disable`, `@ts-expect-error`, `@ts-ignore`, `prettier-ignore`, `v8 ignore`, and similar are machine instructions, not prose, and the short reason attached to one (`// oxlint-disable-next-line no-await-in-loop -- sequential on purpose`) states why the rule doesn't apply at that site. Keep the reason; don't flag it as justification.
+
 ## Imports
 
 - **Internal imports** use `.js` extensions (ESM): `import { X } from "../foo.js"`.
@@ -327,7 +377,8 @@ For directional icons (chevrons, arrows), flip them with `rtl:-scale-x-100` or u
 
 - Use `import.meta.env.DEV` / `import.meta.env.PROD` (Vite/Astro standard). Never `process.env.NODE_ENV`.
 - Dev-only endpoints must check `import.meta.env.DEV` and return 403 otherwise -- it's a compile-time constant, unspoofable at runtime.
-- Secrets pattern: `import.meta.env.EMDASH_X || import.meta.env.X || ""`.
+- Public build-time config pattern: `import.meta.env.EMDASH_X || import.meta.env.X || ""`.
+- **Secrets read `process.env` only, never `import.meta.env`** -- Vite statically inlines `import.meta.env`, which bakes build-machine secrets into the bundle and shadows runtime values set on the deployment platform. See `packages/core/src/config/secrets.ts`.
 
 ## Cloudflare Env
 
@@ -341,10 +392,21 @@ In libraries used in a Worker but not themselves Workers, install `@cloudflare/w
 
 # Testing
 
-- **Framework:** vitest. Tests in `packages/core/tests/`.
-- **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `PG_CONNECTION_STRING` to opt in).
+- **Framework:** Vitest for package tests and Playwright for browser tests. Package tests usually live in that package's `tests/` or `test/` directory; core tests live in `packages/core/tests/`, and browser tests live in `e2e/tests/`.
+- **No mocks for the DB.** Node's built-in SQLite driver by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `EMDASH_TEST_PG` to a connection string for a role with `CREATEDB` to opt in).
 - **Utilities:** `tests/utils/test-db.ts` exposes `setupTestDatabase()`, `setupTestDatabaseWithCollections()`, `teardownTestDatabase()` for SQLite and `setupTestPostgresDatabase()` etc. for Postgres. Dialect-agnostic: `setupForDialect`, `setupForDialectWithCollections`, `teardownForDialect`, plus `describeEachDialect(name, fn)`. Use the dialect wrapper for query-builder code -- regressions tend to be dialect-specific.
-- **Structure:** `tests/unit/`, `tests/integration/`, `tests/e2e/` (Playwright). Test files mirror source structure. Each test gets a fresh DB.
+- **Core structure:** `packages/core/tests/unit/`, `packages/core/tests/integration/`, and `packages/core/tests/workerd/`. Test files mirror source structure. Each database test gets a fresh DB.
+
+For a bug fix, add an automated regression test when the failure is deterministic and the test can exercise a stable behavior boundary. Write it first when practical and confirm that it fails for the reported reason. If the only possible test would be brittle, disproportionate, environment-specific, or a restatement of the implementation, do not add it merely to satisfy a TDD rule; report the reproduction and verification instead. Inconvenient setup alone is not a reason to skip a useful test.
+
+**A test must be able to fail on a real regression.** If it can't, it's not a test -- delete it. The common offenders:
+
+- **Config-pin tests**: asserting a config literal, constant, or schema shape back at itself. It re-states the source file and fails only when someone makes an intentional change.
+- **Tautological tests**: asserting the implementation detail you just wrote straight back -- add a CSS class to a component, then test the component has that class; call a function with arguments, then assert it was called with those arguments. This re-states the diff, not the behavior. Test what the change does for the user (the element is hidden, the query is filtered), not that the code you wrote is the code you wrote.
+- **Mocking the unit under test**, or a mock that returns the very value the assertion checks. The test then verifies the mock, not the code.
+- **Tests that only exercise third-party code**: Kysely, Zod, and Lingui have their own test suites. Test your behavior, not theirs.
+
+**Never change a test just to make it pass.** Understand why it's failing first -- the test may be the only thing that's right. If you can't work out why, stop and say so.
 
 # Toolchain
 

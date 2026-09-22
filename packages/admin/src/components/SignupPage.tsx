@@ -11,14 +11,32 @@
  */
 
 import { Button, Input, Loader } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context";
 import { requestSignup, verifySignupToken, type SignupVerifyResult } from "../lib/api";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
-import { LogoLockup } from "./Logo.js";
+import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+
+export function VerificationSentMessage({ email }: { email: string }) {
+	return (
+		<Trans>
+			We've sent a verification link to{" "}
+			<span className="font-medium text-kumo-default">{email}</span>
+		</Trans>
+	);
+}
+
+export function SignupRoleMessage({ roleName }: { roleName: string }) {
+	return (
+		<Trans>
+			You'll be signing up as <span className="font-medium text-kumo-default">{roleName}</span>
+		</Trans>
+	);
+}
 
 // ============================================================================
 // Types
@@ -112,7 +130,7 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 		<div className="space-y-6 text-center">
 			<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto">
 				<svg
-					className="w-8 h-8 text-kumo-brand"
+					className="w-8 h-8 text-kumo-link"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -129,8 +147,7 @@ function CheckEmailStep({ email, onResend, isResending, resendCooldown }: CheckE
 			<div>
 				<h2 className="text-xl font-semibold">{t`Check your email`}</h2>
 				<p className="text-kumo-subtle mt-2">
-					{t`We've sent a verification link to`}{" "}
-					<span className="font-medium text-kumo-default">{email}</span>
+					<VerificationSentMessage email={email} />
 				</p>
 			</div>
 
@@ -172,13 +189,14 @@ function handleSignupSuccess() {
 function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 	const { t } = useLingui();
 	const [name, setName] = React.useState("");
+	const [passkeyComplete, setPasskeyComplete] = React.useState(false);
 
 	return (
 		<div className="space-y-6">
 			<div className="text-center">
-				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mx-auto mb-4">
+				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-success/10 mx-auto mb-4">
 					<svg
-						className="w-8 h-8 text-green-600"
+						className="w-8 h-8 text-kumo-success"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -188,37 +206,36 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 				</div>
 				<h2 className="text-xl font-semibold">{t`Email verified!`}</h2>
 				<p className="text-kumo-subtle mt-2">
-					{t`You'll be signing up as`}{" "}
-					<span className="font-medium text-kumo-default">{verifyResult.roleName}</span>
+					<SignupRoleMessage roleName={verifyResult.roleName} />
 				</p>
 			</div>
 
-			{/* Email display (read-only) */}
-			<Input label={t`Email`} value={verifyResult.email} disabled className="bg-kumo-tint" />
+			{!passkeyComplete && (
+				<>
+					<Input label={t`Email`} value={verifyResult.email} disabled className="bg-kumo-tint" />
 
-			{/* Name input (optional) */}
-			<Input
-				label={t`Your name (optional)`}
-				type="text"
-				value={name}
-				onChange={(e) => setName(e.target.value)}
-				placeholder={t`Jane Doe`}
-				autoComplete="name"
-			/>
+					<Input
+						label={t`Your name (optional)`}
+						type="text"
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+						placeholder={t`Jane Doe`}
+						autoComplete="name"
+					/>
+				</>
+			)}
 
 			{/* Passkey registration */}
 			<div className="pt-4 border-t">
-				<h3 className="text-sm font-medium mb-3">{t`Create your passkey`}</h3>
-				<p className="text-sm text-kumo-subtle mb-4">
-					{t`Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key.`}
-				</p>
-
 				<PasskeyRegistration
 					optionsEndpoint="/_emdash/api/setup/admin"
 					verifyEndpoint="/_emdash/api/auth/signup/complete"
 					onSuccess={handleSignupSuccess}
-					buttonText={t`Create Account`}
 					additionalData={{ token, name: name || undefined }}
+					showEducation
+					showSuccessStep
+					successButtonText={t`Open the dashboard`}
+					onSuccessReady={() => setPasskeyComplete(true)}
 				/>
 			</div>
 		</div>
@@ -289,6 +306,7 @@ function ErrorStep({ message, code, onRetry }: ErrorStepProps) {
 // ============================================================================
 
 export function SignupPage() {
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const [step, setStep] = React.useState<SignupStep>("email");
 	const [email, setEmail] = React.useState("");
 	const [error, setError] = React.useState<string | undefined>();
@@ -394,7 +412,7 @@ export function SignupPage() {
 			<div className="w-full max-w-md">
 				{/* Header */}
 				<div className="text-center mb-8">
-					<LogoLockup className="h-10 mx-auto mb-2" />
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{step === "email" && t`Create an account`}
 						{step === "check-email" && t`Check your email`}
@@ -435,7 +453,7 @@ export function SignupPage() {
 				{step === "email" && (
 					<p className="text-center mt-6 text-sm text-kumo-subtle">
 						{t`Already have an account?`}{" "}
-						<Link to="/login" className="text-kumo-brand hover:underline font-medium">
+						<Link to="/login" className="text-kumo-link hover:underline font-medium">
 							{t`Sign in`}
 						</Link>
 					</p>

@@ -8,6 +8,19 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { ContentFieldFilters } from "../content-list-query.js";
+import type {
+	PluginEditorExtensionDispatch,
+	ResolvedPluginEditorExtension,
+} from "../emdash-runtime.js";
+import type {
+	PluginContentCacheInvalidator,
+	RouteCallerInput,
+	RouteMeta,
+} from "../plugins/routes.js";
+import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
+import type { ManifestRegistryConfigurationError } from "../registry/config.js";
+
 // Re-export core types
 export type {
 	ContentItem,
@@ -29,6 +42,23 @@ export interface ManifestCollection {
 	supports: string[];
 	hasSeo: boolean;
 	urlPattern?: string;
+	/** Whether published entries require a slug. Defaults to true. */
+	routable?: boolean;
+	titleField?: string;
+	dateField?: string;
+	/**
+	 * Omit the auto-generated sidebar entry and dashboard quick action in the
+	 * admin. The collection is still listed in the manifest so its routes,
+	 * editor, and API keep working.
+	 */
+	hidden?: boolean;
+	/**
+	 * Sidebar folder. Collections sharing a group render under one collapsible
+	 * entry labelled with the group.
+	 */
+	group?: string;
+	/** Valid custom field slugs to render in the admin content list. */
+	listColumns?: string[];
 	fields: Record<
 		string,
 		{
@@ -77,6 +107,8 @@ export interface ManifestPlugin {
 		title?: string;
 		size?: string;
 	}>;
+	editorPanels?: import("../plugins/types.js").PluginEditorPanel[];
+	editorActions?: import("../plugins/types.js").PluginEditorAction[];
 	fieldWidgets?: Array<{
 		name: string;
 		label: string;
@@ -114,6 +146,8 @@ export interface EmDashManifest {
 	 * registry plugin's `env:astro` requirement against the running host.
 	 */
 	astroVersion?: string;
+	/** IANA timezone used by datetime-local controls in the admin. */
+	timezone?: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
 	/**
@@ -137,23 +171,28 @@ export interface EmDashManifest {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	contentLocale?: {
+		defaultLocale: string;
+		implicit: boolean;
+	};
 	/**
 	 * Taxonomy definitions for the admin sidebar.
 	 */
 	taxonomies: Array<{
+		id: string;
 		name: string;
 		label: string;
 		labelSingular?: string;
 		hierarchical: boolean;
 		collections: string[];
+		locale: string;
+		translationGroup: string;
 	}>;
 	/**
 	 * Whether the plugin marketplace is configured.
-	 * When true, the admin UI can show marketplace browse/install features.
-	 *
-	 * When `registry` is also present, the registry replaces the marketplace
-	 * for the admin UI's browse and install flows. Existing marketplace-installed
-	 * plugins continue to work; new installs and updates use the registry.
+	 * When true, the admin shows migration guidance and keeps legacy installed
+	 * plugins updateable and uninstallable. It does not expose marketplace
+	 * browse or install flows.
 	 */
 	marketplace?: boolean;
 	/**
@@ -187,6 +226,8 @@ export interface EmDashManifest {
 			minimumReleaseAgeExclude?: string[];
 		};
 	};
+	/** Safe field-level diagnostic when the registry configuration cannot be normalized. */
+	registryConfigurationError?: ManifestRegistryConfigurationError;
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
@@ -208,6 +249,7 @@ export interface EmDashManifest {
 export interface HandlerResponse<T = unknown> {
 	success: boolean;
 	data?: T;
+	liveContentChanged?: boolean;
 	error?: {
 		code: string;
 		message: string;
@@ -223,6 +265,15 @@ export interface HandlerResponse<T = unknown> {
  * handleContentGet, handleRevisionGet) use narrower types.
  */
 export interface EmDashHandlers {
+	// Comment administration
+	handleCommentModerate?: (
+		id: string,
+		status: "pending" | "approved" | "spam" | "trash",
+		moderator: { id: string; name: string | null },
+		expectedStatus?: "pending" | "approved" | "spam" | "trash",
+		request?: Request,
+	) => Promise<unknown>;
+
 	// Content handlers
 	handleContentList: (
 		collection: string,
@@ -238,6 +289,10 @@ export interface EmDashHandlers {
 			dateField?: "createdAt" | "updatedAt" | "publishedAt";
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
+			fieldFilters?: ContentFieldFilters;
 		},
 	) => Promise<HandlerResponse>;
 
@@ -262,14 +317,16 @@ export interface EmDashHandlers {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
 			locale?: string;
 			translationOf?: string;
+			taxonomies?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
+			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
 
@@ -278,7 +335,7 @@ export interface EmDashHandlers {
 		id: string,
 		body: {
 			data?: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -290,8 +347,10 @@ export interface EmDashHandlers {
 				canonical?: string | null;
 				noIndex?: boolean;
 			};
+			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
+			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
 
@@ -300,14 +359,17 @@ export interface EmDashHandlers {
 	// Trash handlers
 	handleContentListTrashed: (
 		collection: string,
-		params?: { cursor?: string; limit?: number },
+		params?: { cursor?: string; limit?: number; locale?: string },
 	) => Promise<HandlerResponse>;
 
 	handleContentRestore: (collection: string, id: string) => Promise<HandlerResponse>;
 
 	handleContentPermanentDelete: (collection: string, id: string) => Promise<HandlerResponse>;
 
-	handleContentCountTrashed: (collection: string) => Promise<HandlerResponse>;
+	handleContentCountTrashed: (
+		collection: string,
+		params?: { locale?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
 
@@ -321,22 +383,43 @@ export interface EmDashHandlers {
 	handleContentPublish: (
 		collection: string,
 		id: string,
-		options?: { publishedAt?: string; requireScheduledDue?: boolean },
+		options?: {
+			publishedAt?: string;
+			requireScheduledDue?: boolean;
+			expectedScheduledAt?: string;
+			_rev?: string;
+			currentTime?: Date;
+			actor?: ActorInfo;
+			origin?: ContentActionOrigin;
+		},
 	) => Promise<HandlerResponse>;
 
-	handleContentUnpublish: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentUnpublish: (
+		collection: string,
+		id: string,
+		options?: { _rev?: string; actor?: ActorInfo; origin?: ContentActionOrigin },
+	) => Promise<HandlerResponse>;
 
 	handleContentSchedule: (
 		collection: string,
 		id: string,
 		scheduledAt: string,
+		options?: { _rev?: string; actor?: ActorInfo; origin?: ContentActionOrigin },
 	) => Promise<HandlerResponse>;
 
-	handleContentUnschedule: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentUnschedule: (
+		collection: string,
+		id: string,
+		options?: { _rev?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
 
-	handleContentDiscardDraft: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentDiscardDraft: (
+		collection: string,
+		id: string,
+		options?: { _rev?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentCompare: (collection: string, id: string) => Promise<HandlerResponse>;
 
@@ -345,11 +428,23 @@ export interface EmDashHandlers {
 	// Media handlers
 	handleMediaList: (params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		folderId?: string | null;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
+
+	handleMediaUpload: (input: {
+		filename: string;
+		base64?: string;
+		url?: string;
+		contentType?: string;
+		alt?: string;
+		authorId?: string;
+		maxUploadSize?: number;
+	}) => Promise<HandlerResponse>;
 
 	handleMediaCreate: (input: {
 		filename: string;
@@ -362,11 +457,26 @@ export interface EmDashHandlers {
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
+		folderId?: string | null;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaUpdate: (
 		id: string,
-		input: { alt?: string; caption?: string; width?: number; height?: number },
+		input: {
+			alt?: string;
+			caption?: string;
+			width?: number;
+			height?: number;
+			folderId?: string | null;
+			focalX?: number | null;
+			focalY?: number | null;
+		},
+	) => Promise<HandlerResponse>;
+
+	handleMediaReplaceMetadata?: (
+		id: string,
+		expectedStorageKey: string,
+		input: { size: number; width: number; height: number; contentHash: string },
 	) => Promise<HandlerResponse>;
 
 	handleMediaDelete: (id: string) => Promise<HandlerResponse>;
@@ -392,13 +502,23 @@ export interface EmDashHandlers {
 
 	handleRevisionRestore: (revisionId: string, callerUserId: string) => Promise<HandlerResponse>;
 
-	// Plugin API route handler
+	// Plugin API route handler. `user` is the authenticated caller for
+	// private routes, exposed to plugin handlers as `ctx.user`.
 	handlePluginApiRoute: (
 		pluginId: string,
 		method: string,
 		path: string,
 		request: Request,
+		user?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+		editorDispatch?: PluginEditorExtensionDispatch,
 	) => Promise<HandlerResponse>;
+	getPluginEditorExtension: (
+		pluginId: string,
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+	) => ResolvedPluginEditorExtension | null;
 
 	// Public-only plugin API route handler for SSR page components.
 	handlePublicPluginApiRoute: (
@@ -408,8 +528,54 @@ export interface EmDashHandlers {
 		request: Request,
 	) => Promise<HandlerResponse>;
 
-	// Plugin route metadata (for auth decisions before dispatch)
-	getPluginRouteMeta: (pluginId: string, path: string) => { public: boolean } | null;
+	// Plugin route metadata (for auth/caching decisions before dispatch)
+	getPluginRouteMeta: (pluginId: string, path: string) => RouteMeta | null;
+	getEnabledPluginMcpTools: () => Promise<
+		Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: import("zod").ZodType;
+			outputSchema?: import("zod").ZodType;
+		}>
+	>;
+	getPluginMcpTools: (pluginId?: string) => Promise<
+		Array<{
+			pluginId: string;
+			name: string;
+			description: string;
+			route: string;
+			permission: string;
+			destructive: boolean;
+			inputSchema: import("zod").ZodType;
+			outputSchema?: import("zod").ZodType;
+		}>
+	>;
+	serializePluginMcpConsent: (
+		tools: Awaited<ReturnType<EmDashHandlers["getPluginMcpTools"]>>,
+		pluginId: string,
+	) => string;
+	handlePluginMcpTool: (
+		pluginId: string,
+		toolName: string,
+		route: string,
+		input: unknown,
+		actorId: string,
+		request: Request,
+		caller?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	) => Promise<HandlerResponse>;
+	handlePluginMcpDenied: (
+		pluginId: string,
+		toolName: string,
+		route: string,
+		actorId: string,
+		request: Request,
+		reason: string,
+	) => Promise<void>;
 
 	// Media provider handlers
 	getMediaProvider: (providerId: string) => import("../media/types.js").MediaProvider | undefined;
@@ -433,6 +599,10 @@ export interface EmDashHandlers {
 
 	// Configured plugins (for plugin management)
 	configuredPlugins: import("../plugins/types.js").ResolvedPlugin[];
+
+	// Statically-sandboxed plugin entries (registered via `sandboxed: []`),
+	// surfaced through the admin plugin management API alongside configured plugins.
+	sandboxedPluginEntries: import("../emdash-runtime.js").SandboxedPluginEntry[];
 
 	// Configuration (for checking database type, auth mode, etc.)
 	config: import("./integration/runtime.js").EmDashConfig;

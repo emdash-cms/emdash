@@ -51,6 +51,12 @@ playwright-report/
 test-results/
 playwright/.cache/
 
+# Visual regression baselines are platform-specific. CI (Linux) is the source
+# of truth and commits `-linux.png` via the visual-apply workflow; locally
+# generated macOS/Windows baselines must never be committed (they won't match).
+e2e/tests/*-snapshots/*-darwin.png
+e2e/tests/*-snapshots/*-win32.png
+
 # Debug screenshots
 debug-*.png
 

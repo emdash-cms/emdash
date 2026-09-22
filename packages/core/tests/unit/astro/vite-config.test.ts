@@ -1,7 +1,10 @@
-import { basename } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, isAbsolute, join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createViteConfig } from "../../../src/astro/integration/vite-config.js";
 
@@ -104,23 +107,49 @@ describe("createViteConfig use-sync-external-store shim aliasing", () => {
 		);
 	}
 
+	function getAliasReplacement(config: ReturnType<typeof createViteConfig>, find: string) {
+		const alias = getAlias(config, find);
+		if (!alias || typeof alias !== "object" || !("replacement" in alias)) {
+			throw new Error(`Missing alias for ${find}`);
+		}
+		if (typeof alias.replacement !== "string") {
+			throw new Error(`Alias replacement for ${find} is not a string`);
+		}
+		return alias.replacement;
+	}
+
 	// Regression: with pnpm + React 18+, @tiptap/react pulls in
 	// `use-sync-external-store/shim` (CJS). Vite can't pre-bundle from the
 	// virtual store, so browsers get raw CJS and InlinePortableTextEditor
-	// fails to hydrate. The aliases redirect the shim to the main package,
-	// which delegates to React's built-in hook on React >=18.
+	// fails to hydrate. The aliases redirect the shim to ESM files that use
+	// React's built-in hook without loading the warning-only package main
+	// entry on React 18+.
 	for (const adapter of ["@astrojs/node", "@astrojs/cloudflare"] as const) {
-		it(`redirects use-sync-external-store/shim to the main package on ${adapter}`, () => {
+		it(`redirects use-sync-external-store/shim to React-backed ESM shim files on ${adapter}`, () => {
 			const config = buildConfig(adapter);
 
-			const indexAlias = getAlias(config, "use-sync-external-store/shim/index.js");
-			const shimAlias = getAlias(config, "use-sync-external-store/shim");
+			const withSelectorPath = getAliasReplacement(
+				config,
+				"use-sync-external-store/shim/with-selector.js",
+			);
+			const withSelectorBarePath = getAliasReplacement(
+				config,
+				"use-sync-external-store/shim/with-selector",
+			);
+			const indexPath = getAliasReplacement(config, "use-sync-external-store/shim/index.js");
+			const shimPath = getAliasReplacement(config, "use-sync-external-store/shim");
 
-			expect(indexAlias).toMatchObject({ replacement: "use-sync-external-store" });
-			expect(shimAlias).toMatchObject({ replacement: "use-sync-external-store" });
+			expect(isAbsolute(withSelectorPath)).toBe(true);
+			expect(existsSync(withSelectorPath)).toBe(true);
+			expect(withSelectorBarePath).toBe(withSelectorPath);
+			expect(basename(withSelectorPath)).toBe("use-sync-external-store-with-selector.js");
+			expect(isAbsolute(indexPath)).toBe(true);
+			expect(existsSync(indexPath)).toBe(true);
+			expect(shimPath).toBe(indexPath);
+			expect(basename(indexPath)).toBe("use-sync-external-store.js");
 		});
 
-		it(`lists the more-specific shim alias before the directory alias on ${adapter}`, () => {
+		it(`lists the more-specific shim aliases before the directory alias on ${adapter}`, () => {
 			const config = buildConfig(adapter);
 			const aliases = Array.isArray(config.resolve?.alias) ? config.resolve.alias : [];
 
@@ -130,11 +159,104 @@ describe("createViteConfig use-sync-external-store shim aliasing", () => {
 						typeof alias === "object" && alias !== null && "find" in alias && alias.find === find,
 				);
 
+			const withSelectorIdx = findIndex("use-sync-external-store/shim/with-selector.js");
+			const withSelectorBareIdx = findIndex("use-sync-external-store/shim/with-selector");
 			const indexIdx = findIndex("use-sync-external-store/shim/index.js");
 			const shimIdx = findIndex("use-sync-external-store/shim");
 
+			expect(withSelectorIdx).toBeGreaterThanOrEqual(0);
+			expect(withSelectorBareIdx).toBeGreaterThan(withSelectorIdx);
 			expect(indexIdx).toBeGreaterThanOrEqual(0);
+			expect(shimIdx).toBeGreaterThan(withSelectorBareIdx);
 			expect(shimIdx).toBeGreaterThan(indexIdx);
 		});
 	}
+});
+
+describe("createViteConfig inline Portable Text hydration deps", () => {
+	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
+	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
+
+	function buildConfig(root: URL) {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root,
+					adapter: { name: "@astrojs/node" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	it("pre-bundles lowlight and highlight.js in source-mode dev", () => {
+		const config = buildConfig(monorepoDemoRoot);
+		const include = config.optimizeDeps?.include ?? [];
+
+		expect(include).toContain("lowlight");
+		expect(include).toContain("highlight.js");
+		expect(include).toContain("highlight.js/lib/core");
+	});
+
+	it("pre-bundles lowlight and highlight.js in external dist-mode dev", () => {
+		const config = buildConfig(externalProjectRoot);
+		const include = config.optimizeDeps?.include ?? [];
+
+		expect(include).toContain("lowlight");
+		expect(include).toContain("highlight.js");
+		expect(include).toContain("highlight.js/lib/core");
+	});
+});
+
+describe("createViteConfig Astro logger optimization", () => {
+	const astroSevenRoot = new URL("../../../../../demos/cloudflare/", import.meta.url);
+	let projectWithoutConsoleLoggerRoot: URL;
+	let projectWithoutConsoleLoggerDir: string;
+
+	beforeAll(() => {
+		projectWithoutConsoleLoggerDir = mkdtempSync(join(tmpdir(), "emdash-astro-no-logger-"));
+		const astroDir = join(projectWithoutConsoleLoggerDir, "node_modules", "astro");
+		mkdirSync(astroDir, { recursive: true });
+		writeFileSync(join(projectWithoutConsoleLoggerDir, "package.json"), '{"private":true}');
+		writeFileSync(
+			join(astroDir, "package.json"),
+			'{"name":"astro","version":"6.0.0","exports":{".":"./index.js"}}',
+		);
+		writeFileSync(join(astroDir, "index.js"), "export {};\n");
+		projectWithoutConsoleLoggerRoot = pathToFileURL(`${projectWithoutConsoleLoggerDir}/`);
+	});
+
+	afterAll(() => {
+		rmSync(projectWithoutConsoleLoggerDir, { recursive: true, force: true });
+	});
+
+	function buildConfig(root: URL) {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root,
+					adapter: { name: "@astrojs/cloudflare" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	it("pre-bundles the public logger export for Astro 7", () => {
+		const config = buildConfig(astroSevenRoot);
+
+		expect(config.ssr?.optimizeDeps?.include).toContain("astro/logger/console");
+	});
+
+	it("does not require the logger when the project does not export it", () => {
+		const config = buildConfig(projectWithoutConsoleLoggerRoot);
+
+		expect(config.ssr?.optimizeDeps?.include).not.toContain("astro/logger/console");
+	});
 });

@@ -10,7 +10,13 @@
  * authoring shape.
  */
 
-import { normalizeCapabilities } from "./types.js";
+import {
+	isJsonPostRouteContract,
+	PLUGIN_CAPABILITIES,
+	type PluginRouteBodyMode,
+} from "@emdash-cms/plugin-types";
+
+import { normalizePluginCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -18,14 +24,11 @@ import type {
 	ResolvedPluginHooks,
 	ResolvedHook,
 	HookConfig,
-	PluginCapability,
+	PluginRouteDefinition,
 	PluginStorageConfig,
 } from "./types.js";
 
-// Plugin ID validation patterns
-const SIMPLE_ID = /^[a-z0-9-]+$/;
-const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
-const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
+const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 /**
  * Define a native EmDash plugin.
@@ -88,12 +91,32 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 	return defineNativePlugin(definition);
 }
 
+export function definePluginRoute<TMode extends PluginRouteBodyMode>(
+	route: PluginRouteDefinition<TMode>,
+): PluginRouteDefinition<TMode> {
+	return route;
+}
+
 /**
  * Internal: define a native-format plugin with full validation and normalization.
  */
 function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
 ): ResolvedPlugin<TStorage> {
+	// Declared function-local (not module scope) on purpose. Under
+	// `ssr.noExternal` the worker entry can instantiate native plugins during a
+	// circular module init, reaching this function before module-scope consts
+	// initialize -> "Cannot access 'SIMPLE_ID' before initialization" -> every
+	// route 500s on Cloudflare Workers. Call-time consts evaluate after the
+	// literals are parsed, so the temporal dead zone cannot occur regardless of
+	// bundle ordering.
+	// oxlint-disable-next-line e18e/prefer-static-regex -- avoids circular-init TDZ
+	const SIMPLE_ID = /^[a-z0-9-]+$/;
+	// oxlint-disable-next-line e18e/prefer-static-regex -- avoids circular-init TDZ
+	const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
+	// oxlint-disable-next-line e18e/prefer-static-regex -- avoids circular-init TDZ
+	const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
+
 	const {
 		id,
 		version,
@@ -101,6 +124,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		allowedHosts = [],
 		hooks = {},
 		routes = {},
+		mcp = { tools: {} },
 		admin = {},
 	} = definition;
 
@@ -123,63 +147,65 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		throw new Error(`Invalid plugin version "${version}". Must be semver format (e.g., "1.0.0").`);
 	}
 
+	for (const [name, tool] of Object.entries(mcp.tools)) {
+		if (!MCP_TOOL_NAME_PATTERN.test(name)) {
+			throw new Error(`Invalid MCP tool name "${name}" in plugin "${id}".`);
+		}
+		const route = routes[tool.route];
+		if (!route) throw new Error(`MCP tool "${name}" references unknown route "${tool.route}".`);
+		if (route.public) throw new Error(`MCP tool "${name}" cannot reference a public route.`);
+		if (route.response === "raw") {
+			throw new Error(`MCP tool "${name}" cannot reference a raw response route.`);
+		}
+		if (!isJsonPostRouteContract(route)) {
+			throw new Error(`MCP tool "${name}" must reference a POST-compatible JSON route.`);
+		}
+		if (!route.permission) {
+			throw new Error(`MCP route "${tool.route}" must declare a permission.`);
+		}
+	}
+
+	for (const [kind, extensions] of [
+		["editor panel", admin.editorPanels],
+		["editor action", admin.editorActions],
+	] as const) {
+		for (const extension of extensions ?? []) {
+			const route = routes[extension.route];
+			if (!route) {
+				throw new Error(
+					`Plugin ${kind} "${extension.id}" references unknown route "${extension.route}".`,
+				);
+			}
+			if (route.public) {
+				throw new Error(`Plugin ${kind} "${extension.id}" must reference a private route.`);
+			}
+			if (!isJsonPostRouteContract(route)) {
+				throw new Error(
+					`Plugin ${kind} "${extension.id}" must reference a route that accepts POST JSON requests and returns JSON.`,
+				);
+			}
+		}
+	}
+
+	if ((admin.pages?.length ?? 0) > 0 || (admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new Error("Block Kit admin route must accept POST JSON requests and return JSON.");
+		}
+	}
+
 	// Validate capabilities. Both current names and deprecated aliases are
 	// accepted; aliases are silently rewritten to current names below so the
 	// runtime only ever sees the canonical form. Authors are warned at
 	// bundle/validate and hard-failed at publish.
-	const validCapabilities = new Set<string>([
-		// Current names
-		"network:request",
-		"network:request:unrestricted",
-		"content:read",
-		"content:write",
-		"media:read",
-		"media:write",
-		"users:read",
-		"email:send",
-		"hooks.email-transport:register",
-		"hooks.email-events:register",
-		"hooks.page-fragments:register",
-		// Deprecated aliases
-		"network:fetch",
-		"network:fetch:any",
-		"read:content",
-		"write:content",
-		"read:media",
-		"write:media",
-		"read:users",
-		"email:provide",
-		"email:intercept",
-		"page:inject",
-	]);
+	const validCapabilities = new Set<string>(PLUGIN_CAPABILITIES);
 	for (const cap of capabilities) {
 		if (!validCapabilities.has(cap)) {
 			throw new Error(`Invalid capability "${cap}" in plugin "${id}".`);
 		}
 	}
 
-	// Silent normalization: rewrite deprecated names to current names. Done
-	// before the implication pass so implications work on canonical names.
-	// `as PluginCapability[]` is safe because `normalizeCapabilities` only
-	// returns strings from the validated input plus current names from the
-	// rename map, all of which are in the union.
-	const canonical = normalizeCapabilities(capabilities) as PluginCapability[];
-
-	// Capability implications: broader capabilities imply narrower ones.
-	// Operates on canonical names only.
-	const normalizedCapabilities: PluginCapability[] = [...canonical];
-	if (canonical.includes("content:write") && !canonical.includes("content:read")) {
-		normalizedCapabilities.push("content:read");
-	}
-	if (canonical.includes("media:write") && !canonical.includes("media:read")) {
-		normalizedCapabilities.push("media:read");
-	}
-	if (
-		canonical.includes("network:request:unrestricted") &&
-		!canonical.includes("network:request")
-	) {
-		normalizedCapabilities.push("network:request");
-	}
+	const normalizedCapabilities = normalizePluginCapabilities(capabilities);
 
 	// Normalize hooks
 	const resolvedHooks = resolveHooks(hooks, id);
@@ -192,6 +218,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		storage,
 		hooks: resolvedHooks,
 		routes,
+		mcp,
 		admin,
 	};
 }

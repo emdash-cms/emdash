@@ -6,6 +6,8 @@
  * alongside the built-in local media library.
  */
 
+import { normalizeFocalPoint } from "./focal-point.js";
+
 /**
  * Serializable media provider configuration descriptor
  * Returned by provider config functions (e.g., unsplash(), mux())
@@ -85,6 +87,13 @@ export interface MediaProviderItem {
 	/** Dimensions (for images/video) */
 	width?: number;
 	height?: number;
+	/** Default focal point for cover-cropped displays */
+	focalX?: number;
+	focalY?: number;
+	/** LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	/** Accessibility text */
 	alt?: string;
 	/** Preview URL for admin UI thumbnail */
@@ -126,6 +135,10 @@ export interface ImageEmbed {
 	sizes?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash placeholder for rendering before the image loads */
+	blurhash?: string;
+	/** LQIP dominant-color placeholder, as a CSS color */
+	dominantColor?: string;
 	alt?: string;
 	/** Base URL without transforms, for responsive image generation */
 	cdnBaseUrl?: string;
@@ -256,6 +269,13 @@ export interface MediaValue {
 	mimeType?: string;
 	width?: number;
 	height?: number;
+	/** Default focal point copied when the media item is selected */
+	focalX?: number;
+	focalY?: number;
+	/** Cached LQIP blurhash placeholder (images only) */
+	blurhash?: string;
+	/** Cached LQIP dominant-color placeholder, as a CSS color (images only) */
+	dominantColor?: string;
 	alt?: string;
 
 	/** Provider-specific data needed for embedding */
@@ -266,6 +286,7 @@ export interface MediaValue {
  * Convert a MediaProviderItem to a MediaValue for storage
  */
 export function mediaItemToValue(providerId: string, item: MediaProviderItem): MediaValue {
+	const focalPoint = normalizeFocalPoint(item.focalX, item.focalY);
 	return {
 		provider: providerId,
 		id: item.id,
@@ -273,6 +294,9 @@ export function mediaItemToValue(providerId: string, item: MediaProviderItem): M
 		mimeType: item.mimeType,
 		width: item.width,
 		height: item.height,
+		...focalPoint,
+		blurhash: item.blurhash,
+		dominantColor: item.dominantColor,
 		alt: item.alt,
 		meta: item.meta,
 	};

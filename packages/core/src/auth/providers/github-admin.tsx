@@ -15,13 +15,12 @@ function GitHubIcon({ className }: { className?: string }) {
 	);
 }
 
-export function LoginButton() {
+export function LoginButton({ inviteToken }: { inviteToken?: string } = {}) {
+	const href = inviteToken
+		? `/_emdash/api/auth/oauth/github?invite=${encodeURIComponent(inviteToken)}`
+		: "/_emdash/api/auth/oauth/github";
 	return (
-		<LinkButton
-			href="/_emdash/api/auth/oauth/github"
-			variant="outline"
-			className="w-full justify-center"
-		>
+		<LinkButton href={href} variant="outline" className="w-full justify-center">
 			<GitHubIcon className="h-5 w-5" />
 			<span>GitHub</span>
 		</LinkButton>

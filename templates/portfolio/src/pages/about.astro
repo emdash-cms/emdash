@@ -66,15 +66,15 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 	}
 
 	.about-title {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-4xl);
-		font-weight: 500;
-		line-height: 1.1;
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
 	}
 
 	.about-content {
 		font-size: var(--font-size-base);
-		line-height: 1.7;
+		line-height: var(--leading-relaxed);
 	}
 
 	.about-content :global(p) {
@@ -82,17 +82,17 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 	}
 
 	.about-content :global(h2) {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-2xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-top: 2.5em;
 		margin-bottom: 0.75em;
 	}
 
 	.about-content :global(h3) {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-top: 2em;
 		margin-bottom: 0.5em;
 	}
@@ -108,9 +108,9 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 	}
 
 	.sidebar-section h3 {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-lg);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-md);
 	}
 
@@ -137,7 +137,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 	}
 
 	.sidebar-section a:hover {
-		color: var(--color-accent);
+		color: var(--color-brand);
 	}
 
 	@media (max-width: 768px) {

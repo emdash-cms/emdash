@@ -107,6 +107,7 @@ describe("MCP discovery auth middleware", () => {
 			'Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"',
 		);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" },
 		});
 	});
@@ -151,6 +152,7 @@ describe("MCP discovery auth middleware", () => {
 			'Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"',
 		);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "INVALID_TOKEN", message: "Invalid or expired token" },
 		});
 	});
@@ -169,6 +171,7 @@ describe("MCP discovery auth middleware", () => {
 		expect(response.status).toBe(401);
 		expect(session.get).not.toHaveBeenCalled();
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "NOT_AUTHENTICATED", message: "Not authenticated" },
 		});
 	});
@@ -182,6 +185,7 @@ describe("MCP discovery auth middleware", () => {
 		expect(next).not.toHaveBeenCalled();
 		expect(response.status).toBe(403);
 		await expect(response.json()).resolves.toEqual({
+			success: false,
 			error: { code: "CSRF_REJECTED", message: "Missing required header" },
 		});
 	});

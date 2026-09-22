@@ -21,6 +21,39 @@ describe("RedirectRepository", () => {
 	// --- CRUD ---------------------------------------------------------------
 
 	describe("create", () => {
+		it("fences an expired writer before it can commit", async () => {
+			let markAcquired: (() => void) | undefined;
+			const acquired = new Promise<void>((resolve) => {
+				markAcquired = resolve;
+			});
+			let releaseStale: (() => void) | undefined;
+			const staleCanContinue = new Promise<void>((resolve) => {
+				releaseStale = resolve;
+			});
+			const staleWrite = repo.withWriteLock(async (fence) => {
+				markAcquired?.();
+				await staleCanContinue;
+				return repo.create({ source: "/a", destination: "/b" }, fence);
+			});
+			await acquired;
+			await db
+				.updateTable("_emdash_redirect_write_lock")
+				.set({ expires_at: 0 })
+				.where("id", "=", 1)
+				.execute();
+			await repo.withWriteLock((fence) =>
+				repo.create({ source: "/current", destination: "/target" }, fence),
+			);
+			const staleRejected = expect(staleWrite).rejects.toThrow("redirect write lease expired");
+			releaseStale?.();
+
+			await staleRejected;
+			await expect(repo.findBySource("/a")).resolves.toBeNull();
+			await expect(repo.findBySource("/current")).resolves.toMatchObject({
+				destination: "/target",
+			});
+		});
+
 		it("creates a redirect with defaults", async () => {
 			const redirect = await repo.create({
 				source: "/old",
@@ -365,6 +398,13 @@ describe("RedirectRepository", () => {
 			const again = await repo.findById(redirect.id);
 			expect(again!.hits).toBe(2);
 		});
+
+		it("does not change the configuration revision", async () => {
+			const redirect = await repo.create({ source: "/a", destination: "/b" });
+			const before = await repo.findConfigRevision(redirect.id);
+			await repo.recordHit(redirect.id);
+			expect(await repo.findConfigRevision(redirect.id)).toBe(before);
+		});
 	});
 
 	// --- Auto-redirects -----------------------------------------------------
@@ -386,6 +426,51 @@ describe("RedirectRepository", () => {
 			expect(redirect.type).toBe(301);
 		});
 
+		it("resolves date tokens from the publish date (#1526)", async () => {
+			const redirect = await repo.createAutoRedirect(
+				"posts",
+				"old-title",
+				"new-title",
+				"id1",
+				"/{year}/{month}/{day}/{slug}.html",
+				"2023-05-08T12:00:00.000Z",
+				"2023-05-08T12:00:00.000Z",
+			);
+
+			expect(redirect!.source).toBe("/2023/05/08/old-title.html");
+			expect(redirect!.destination).toBe("/2023/05/08/new-title.html");
+		});
+
+		it("builds the source from the old publish date and the destination from the new one", async () => {
+			const redirect = await repo.createAutoRedirect(
+				"posts",
+				"old-title",
+				"new-title",
+				"id1",
+				"/{year}/{month}/{day}/{slug}",
+				"2023-05-08T12:00:00.000Z",
+				"2024-01-02T12:00:00.000Z",
+			);
+
+			expect(redirect!.source).toBe("/2023/05/08/old-title");
+			expect(redirect!.destination).toBe("/2024/01/02/new-title");
+		});
+
+		it("keeps date tokens literal without a publish date", async () => {
+			const redirect = await repo.createAutoRedirect(
+				"posts",
+				"old-title",
+				"new-title",
+				"id1",
+				"/{year}/{slug}",
+				null,
+				null,
+			);
+
+			expect(redirect!.source).toBe("/{year}/old-title");
+			expect(redirect!.destination).toBe("/{year}/new-title");
+		});
+
 		it("uses fallback URL when no url pattern", async () => {
 			const redirect = await repo.createAutoRedirect("posts", "old-slug", "new-slug", "id1", null);
 
@@ -397,16 +482,34 @@ describe("RedirectRepository", () => {
 			// First rename: A -> B
 			await repo.createAutoRedirect("posts", "title-a", "title-b", "id1", "/blog/{slug}");
 
+			const before = await repo.findBySource("/blog/title-a");
+			const beforeRevision = await repo.findConfigRevision(before!.id);
+
 			// Second rename: B -> C (should update A's destination to C)
 			await repo.createAutoRedirect("posts", "title-b", "title-c", "id1", "/blog/{slug}");
 
 			// Check that the A -> B redirect now points to C
 			const aRedirect = await repo.findBySource("/blog/title-a");
 			expect(aRedirect!.destination).toBe("/blog/title-c");
+			expect(await repo.findConfigRevision(aRedirect!.id)).not.toBe(beforeRevision);
 
 			// And B -> C also exists
 			const bRedirect = await repo.findBySource("/blog/title-b");
 			expect(bRedirect!.destination).toBe("/blog/title-c");
+		});
+
+		it("removes redirects from the new URL before collapsing chains", async () => {
+			await repo.create({ source: "/blog/b", destination: "/promo" });
+			await repo.create({ source: "/promo", destination: "/blog/a" });
+
+			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
+
+			expect(await repo.findBySource("/blog/b")).toBeNull();
+			expect(await repo.findBySource("/promo")).toMatchObject({ destination: "/blog/b" });
+			expect(await repo.findBySource("/blog/a")).toMatchObject({
+				destination: "/blog/b",
+				auto: true,
+			});
 		});
 
 		it("updates existing redirect from same source instead of duplicating", async () => {
@@ -424,6 +527,48 @@ describe("RedirectRepository", () => {
 			const fromA = all.items.filter((r) => r.source === "/blog/a");
 			expect(fromA).toHaveLength(1);
 			expect(fromA[0]!.destination).toBe("/blog/c");
+		});
+
+		it("does not create a loop when a slug rename is reverted (#1986)", async () => {
+			// Rename A -> B, then revert B -> A
+			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
+			await repo.createAutoRedirect("posts", "b", "a", "id1", "/blog/{slug}");
+
+			// The restored slug A must not be shadowed by any redirect
+			expect(await repo.findBySource("/blog/a")).toBeNull();
+
+			// The old slug B still redirects to A
+			const fromB = await repo.findBySource("/blog/b");
+			expect(fromB!.destination).toBe("/blog/a");
+
+			// No redirect anywhere is a self-redirect
+			const all = await repo.findMany({});
+			for (const r of all.items) {
+				expect(r.source).not.toBe(r.destination);
+			}
+		});
+
+		it("does not create a loop when reverting after a rename chain", async () => {
+			// A -> B -> C, then revert C -> A
+			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
+			await repo.createAutoRedirect("posts", "b", "c", "id1", "/blog/{slug}");
+			await repo.createAutoRedirect("posts", "c", "a", "id1", "/blog/{slug}");
+
+			expect(await repo.findBySource("/blog/a")).toBeNull();
+
+			const fromB = await repo.findBySource("/blog/b");
+			expect(fromB!.destination).toBe("/blog/a");
+
+			const fromC = await repo.findBySource("/blog/c");
+			expect(fromC!.destination).toBe("/blog/a");
+		});
+
+		it("is a no-op when old and new slug resolve to the same URL", async () => {
+			const redirect = await repo.createAutoRedirect("posts", "a", "a", "id1", "/blog/{slug}");
+
+			expect(redirect).toBeNull();
+			const all = await repo.findMany({});
+			expect(all.items).toHaveLength(0);
 		});
 	});
 

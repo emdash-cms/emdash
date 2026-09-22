@@ -3,6 +3,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { SeoRepository } from "../../src/database/repositories/seo.js";
 import { emdashLoader } from "../../src/loader.js";
+import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { runWithContext } from "../../src/request-context.js";
 import {
 	describeEachDialect,
@@ -14,10 +15,12 @@ import {
 /**
  * Regression test for #1270: SEO fields (noindex toggle, canonical URL) set in
  * the admin had no effect on rendered pages because the content loader never
- * surfaced the `_emdash_seo` row. The loader now LEFT JOINs that table and
- * attaches the result to `entry.data.seo`, which `getSeoMeta()` reads.
+ * surfaced the `_emdash_seo` row. The loader now folds that row into the
+ * single-entry query as an aggregated JSON column and attaches the expanded
+ * result to `entry.data.seo`, which `getSeoMeta()` reads.
  *
- * Run on both dialects — the LEFT JOIN SQL is dialect-sensitive.
+ * Run on both dialects, since the JSON aggregation SQL is dialect-sensitive
+ * (`json_object` on SQLite, `json_build_object` on Postgres).
  */
 describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 	let ctx: DialectTestContext;
@@ -133,5 +136,35 @@ describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 		// The SEO panel value lands on the nested object, distinct from the field.
 		expect((data.seo as Record<string, unknown>).title).toBe("panel value");
 		expect((data.seo as Record<string, unknown>).noIndex).toBe(true);
+	});
+
+	it("primes the request-scoped SEO panel cache keyed by the content-row id", async () => {
+		const post = await createPublishedPost("Primed Post");
+		await seoRepo.upsert("post", post.id, {
+			title: "Panel Title",
+			canonical: "/elsewhere",
+		});
+
+		// Load and peek within ONE request context — exactly the shape of a
+		// page render, where the template's getEmDashEntry() call and the
+		// <EmDashHead> overlay share the request.
+		const loader = emdashLoader();
+		await runWithContext({ db: ctx.db }, async () => {
+			await loader.loadEntry!({ filter: { type: "post", id: post.slug! } });
+
+			const panel = await peekSeoPanel("post", post.id);
+			expect(panel).toMatchObject({ title: "Panel Title", canonical: "/elsewhere" });
+		});
+	});
+
+	it("primes nothing when the entry has no SEO row", async () => {
+		const post = await createPublishedPost("Unprimed Post");
+
+		const loader = emdashLoader();
+		await runWithContext({ db: ctx.db }, async () => {
+			await loader.loadEntry!({ filter: { type: "post", id: post.slug! } });
+
+			expect(await peekSeoPanel("post", post.id)).toBeNull();
+		});
 	});
 });

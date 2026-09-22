@@ -1,5 +1,140 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.46
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.38.0
+
+## 0.1.45
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.37.0
+
+## 0.1.44
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.36.0
+
+## 0.1.43
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.35.0
+
+## 0.1.42
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.34.0
+
+## 0.1.41
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.33.0
+
+## 0.1.40
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.32.0
+
+## 0.1.39
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.31.1
+
+## 0.1.38
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.31.0
+
+## 0.1.37
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.30.0
+
+## 0.1.36
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.29.0
+
+## 0.1.35
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.28.1
+
+## 0.1.34
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.28.0
+
+## 0.1.33
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.27.0
+
+## 0.1.32
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.26.0
+
+## 0.1.31
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.1
+
+## 0.1.30
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.25.0
+
+## 0.1.29
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.1
+
+## 0.1.28
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.24.0
+
 ## 0.1.27
 
 ### Patch Changes

@@ -93,10 +93,10 @@ const secondaryCta =
 
 	.hero-headline {
 		font-size: var(--font-size-5xl);
-		font-weight: 800;
-		line-height: 1.1;
-		letter-spacing: -0.03em;
-		background: linear-gradient(135deg, var(--color-text) 0%, var(--color-muted) 100%);
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
+		letter-spacing: var(--tracking-tight);
+		background: var(--gradient-headline);
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
 		background-clip: text;
@@ -104,7 +104,7 @@ const secondaryCta =
 
 	.hero-subheadline {
 		font-size: var(--font-size-xl);
-		line-height: 1.6;
+		line-height: var(--leading-normal);
 		color: var(--color-muted);
 	}
 
@@ -129,7 +129,7 @@ const secondaryCta =
 		content: "";
 		position: absolute;
 		inset: -10px;
-		background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-accent-light) 100%);
+		background: var(--gradient-brand-soft);
 		border-radius: var(--radius-lg);
 		z-index: -1;
 		opacity: 0.3;

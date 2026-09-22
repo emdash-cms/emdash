@@ -12,7 +12,6 @@ import { requireDb, unwrapResult } from "#api/error.js";
 import { handleSchemaFieldList, handleSchemaFieldCreate } from "#api/index.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { createFieldBody } from "#api/schemas.js";
-import type { CreateFieldInput } from "#schema/types.js";
 
 export const prerender = false;
 
@@ -43,6 +42,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, createFieldBody);
 	if (isParseError(body)) return body;
 
-	const result = await handleSchemaFieldCreate(emdash.db, collectionSlug, body as CreateFieldInput);
+	const result = await handleSchemaFieldCreate(emdash.db, collectionSlug, body);
 	return unwrapResult(result, 201);
 };

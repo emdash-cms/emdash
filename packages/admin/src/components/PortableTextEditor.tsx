@@ -11,7 +11,17 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Select, Switch } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Popover,
+	Select,
+	Switch,
+	Tooltip,
+	TooltipProvider,
+} from "@cloudflare/kumo";
+import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
 	KeyboardSensor,
@@ -30,24 +40,30 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
-import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { msg, plural } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	TextB,
 	TextItalic,
 	TextUnderline,
 	TextStrikethrough,
+	TextSubscript,
+	TextSuperscript,
 	Code,
 	TextHOne,
 	TextHTwo,
 	TextHThree,
+	TextHFour,
+	TextHFive,
+	TextHSix,
 	List,
 	ListNumbers,
 	Quotes,
 	Link as LinkIcon,
 	Image as ImageIcon,
+	Images,
 	ArrowUUpLeft,
 	ArrowUUpRight,
 	TextAlignLeft,
@@ -59,52 +75,100 @@ import {
 	BracketsAngle,
 	CodeBlock,
 	Stack,
-	Eye,
 	Table as TableIcon,
 	Plus,
 	Trash,
-	Rows,
-	Columns,
+	RowsPlusBottom,
+	ColumnsPlusRight,
 	DotsSixVertical,
 	CaretDown,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { Extension, type Range } from "@tiptap/core";
+import { Extension, Mark, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
-import { Table } from "@tiptap/extension-table";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableRow } from "@tiptap/extension-table-row";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { AllSelection, TextSelection } from "@tiptap/pm/state";
+import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
-import Suggestion from "@tiptap/suggestion";
+import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId } from "../lib/media-utils.js";
+import {
+	UnsupportedPortableTextMarksError,
+	assertPortableTextMarksSupported,
+	assertProseMirrorMarksSupported,
+	findUnsupportedPortableTextMarks,
+} from "../lib/portable-text-marks.js";
 import { cn } from "../lib/utils";
+import {
+	TABLE_CELL_MIN_WIDTH,
+	UnsafePortableTextTableError,
+	portableTextTableToProseMirror,
+	proseMirrorTableToPortableText,
+	type PortableTextTableProseMirrorNode,
+} from "../portable-text-table.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
+import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
+import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
+import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
+import { LinkDestinationInput } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
+import { EmDashOrderedList } from "./editor/ordered-list";
 import {
 	type PluginBlockDef,
 	PluginBlockExtension,
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { runTableAction } from "./editor/TableActions.js";
+import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
+import { createTableClipboard } from "./editor/TableClipboard.js";
+import {
+	TableMoreMenu,
+	TableSelectionAnnouncer,
+	TableSizePicker,
+	TableToolbarControl,
+	insertTable as insertEditorTable,
+	useTableControls,
+} from "./editor/TableControls.js";
+import {
+	EmDashTable,
+	EmDashTableCell,
+	EmDashTableHeader,
+	EmDashTableRow,
+	TableIdentity,
+	selectionIsContainedInTableCells,
+	selectionTouchesTable,
+} from "./editor/TableExtensions.js";
+import { createTableResize } from "./editor/TableResize.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { SectionPickerModal } from "./SectionPickerModal";
+
+const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
+const TABLE_BUBBLE_MENU_KEY = "emdashTableBubbleMenu";
+
+type BubbleMenuCollisionOptions = () => {
+	rootBoundary: { x: number; y: number; width: number; height: number };
+	padding: number;
+};
 
 // Import converters from inline module since we can't import from emdash package
 // These will be duplicated here until we set up proper package exports
@@ -128,6 +192,8 @@ interface PortableTextTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -136,11 +202,15 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
 	height?: number;
+	/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
+	blurhash?: string;
+	/** LQIP dominant color — first-class field (legacy snapshots store it in `asset.meta`). */
+	dominantColor?: string;
 	displayWidth?: number;
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
@@ -171,9 +241,347 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+/**
+ * Normalize an untrusted gallery `images` value into well-formed entries.
+ * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
+ * like the converters themselves — see note above).
+ */
+function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[] {
+	if (!Array.isArray(value)) return [];
+	const images: GalleryImage[] = [];
+	for (const entry of value as unknown[]) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const record = entry as Record<string, unknown>;
+		const asset = record.asset;
+		if (typeof asset !== "object" || asset === null) continue;
+		const assetRecord = asset as Record<string, unknown>;
+		const image: GalleryImage = {
+			_type: "image",
+			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
+			asset: {
+				_type: "reference",
+				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
+				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
+				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
+			},
+		};
+		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
+		if (typeof record.width === "number") image.width = record.width;
+		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
+		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
+		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
+		images.push(image);
+	}
+	return images;
+}
+
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
 const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v ? v : undefined);
+
+const PORTABLE_TEXT_BLOCK_ATTR = "emdashPortableTextBlock";
+const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
+const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function attrsWithPortableTextKey(
+	attrs: Record<string, unknown> | undefined,
+	key: string,
+): Record<string, unknown> {
+	return { ...attrs, [PORTABLE_TEXT_KEY_ATTR]: key };
+}
+
+function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
+	return attrStr(attrs?.[PORTABLE_TEXT_KEY_ATTR]);
+}
+
+function portableTextSpanKeyFromMarks(marks: unknown[] | undefined): string | undefined {
+	for (const mark of marks ?? []) {
+		if (!isRecord(mark) || mark.type !== PORTABLE_TEXT_SPAN_MARK || !isRecord(mark.attrs)) continue;
+		const key = attrStr(mark.attrs.key);
+		if (key) return key;
+	}
+	return undefined;
+}
+
+function portableTextMarkDefsFromMarks(marks: unknown[] | undefined): PortableTextMarkDef[] {
+	const identity = (marks ?? []).find(
+		(mark) => isRecord(mark) && mark.type === PORTABLE_TEXT_SPAN_MARK && isRecord(mark.attrs),
+	);
+	if (!isRecord(identity) || !isRecord(identity.attrs) || !Array.isArray(identity.attrs.markDefs)) {
+		return [];
+	}
+	return identity.attrs.markDefs.filter(
+		(markDef): markDef is PortableTextMarkDef =>
+			isRecord(markDef) && typeof markDef._type === "string" && typeof markDef._key === "string",
+	);
+}
+
+function portableTextBlockFromAttrs(
+	attrs: Record<string, unknown> | undefined,
+): PortableTextBlock | undefined {
+	const block = attrs?.[PORTABLE_TEXT_BLOCK_ATTR];
+	if (!isRecord(block) || typeof block._type !== "string" || typeof block._key !== "string") {
+		return undefined;
+	}
+	return block as PortableTextBlock;
+}
+
+function customBlockData(block: PortableTextBlock): Record<string, unknown> {
+	const {
+		_type: _blockType,
+		_key: _blockKey,
+		id: _id,
+		url: _url,
+		...rest
+	} = block as Record<string, unknown>;
+	return Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
+}
+
+function customBlockIdentity(block: PortableTextBlock): string {
+	const record = block as Record<string, unknown>;
+	return attrStr(record.id) ?? attrStr(record.url) ?? "";
+}
+
+function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | undefined {
+	if (Object.hasOwn(block, "id")) return "id";
+	if (Object.hasOwn(block, "url")) return "url";
+	return undefined;
+}
+
+function equalJsonValues(left: unknown, right: unknown): boolean {
+	if (Object.is(left, right)) return true;
+	if (Array.isArray(left) || Array.isArray(right)) {
+		return (
+			Array.isArray(left) &&
+			Array.isArray(right) &&
+			left.length === right.length &&
+			left.every((value, index) => equalJsonValues(value, right[index]))
+		);
+	}
+	if (!isRecord(left) || !isRecord(right)) return false;
+	const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
+	const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
+	return (
+		leftKeys.length === rightKeys.length &&
+		leftKeys.every((key) => Object.hasOwn(right, key) && equalJsonValues(left[key], right[key]))
+	);
+}
+
+const PortableTextIdentityExtension = Extension.create({
+	name: "emdashPortableTextIdentity",
+
+	addGlobalAttributes() {
+		const hiddenAttribute = { default: null, rendered: false };
+		return [
+			{
+				types: [
+					"paragraph",
+					"heading",
+					"blockquote",
+					"codeBlock",
+					"htmlBlock",
+					"image",
+					"horizontalRule",
+					"gallery",
+					"table",
+					"tableRow",
+					"tableCell",
+					"tableHeader",
+					"pluginBlock",
+				],
+				attributes: { [PORTABLE_TEXT_KEY_ATTR]: hiddenAttribute },
+			},
+			{
+				types: ["pluginBlock"],
+				attributes: { [PORTABLE_TEXT_BLOCK_ATTR]: hiddenAttribute },
+			},
+		];
+	},
+});
+
+// ProseMirror text nodes cannot carry schema attributes, so a non-rendered mark
+// keeps each Portable Text span's key and referenced mark definitions attached.
+const PortableTextSpanIdentity = Mark.create({
+	name: PORTABLE_TEXT_SPAN_MARK,
+	inclusive: false,
+	spanning: false,
+
+	addAttributes() {
+		return {
+			key: { default: null, rendered: false },
+			markDefs: { default: [], rendered: false },
+		};
+	},
+
+	parseHTML() {
+		return [];
+	},
+
+	renderHTML() {
+		return ["span", 0];
+	},
+});
+
+const MAX_ORDERED_LIST_START = 2_147_483_647;
+
+type OrderedListMetadata = { listId: string; listStart: number };
+type PortableTextProseMirrorNode = {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: PortableTextProseMirrorNode[];
+	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+	text?: string;
+};
+
+function normalizeListId(value: unknown): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const normalized = value.trim();
+	return normalized.length > 0 && normalized.length <= 128 ? normalized : undefined;
+}
+
+function normalizeListStart(value: unknown): number | undefined {
+	return typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= 1 &&
+		value <= MAX_ORDERED_LIST_START
+		? value
+		: undefined;
+}
+
+function deriveLegacyListId(seed: string): string {
+	const readable = `legacy:${seed}`;
+	if (readable.length <= 128) return readable;
+	let hash = 2_166_136_261;
+	for (let i = 0; i < seed.length; i++) {
+		hash ^= seed.charCodeAt(i);
+		hash = Math.imul(hash, 16_777_619);
+	}
+	return `legacy:${seed.slice(0, 96)}:${(hash >>> 0).toString(36)}:${seed.length.toString(36)}`;
+}
+
+function readOrderedListMetadata(
+	attrs: Record<string, unknown> | undefined,
+	fallbackId: string,
+): OrderedListMetadata {
+	return {
+		listId: normalizeListId(attrs?.listId) ?? deriveLegacyListId(fallbackId),
+		listStart: normalizeListStart(attrs?.listStart) ?? normalizeListStart(attrs?.start) ?? 1,
+	};
+}
+
+function clonePortableTextProseMirrorNode(
+	node: PortableTextProseMirrorNode,
+): PortableTextProseMirrorNode {
+	return {
+		...node,
+		attrs: node.attrs ? { ...node.attrs } : undefined,
+		content: node.content?.map(clonePortableTextProseMirrorNode),
+		marks: node.marks?.map((mark) => ({
+			...mark,
+			attrs: mark.attrs ? { ...mark.attrs } : undefined,
+		})),
+	};
+}
+
+function normalizeOrderedListJson(doc: { type: "doc"; content: PortableTextProseMirrorNode[] }): {
+	type: "doc";
+	content: PortableTextProseMirrorNode[];
+} {
+	type Descriptor = {
+		node: PortableTextProseMirrorNode;
+		path: string;
+		depth: number;
+		context: string;
+	};
+	const normalized = {
+		...doc,
+		content: doc.content.map(clonePortableTextProseMirrorNode),
+	};
+	const lists: Descriptor[] = [];
+	const visit = (
+		node: PortableTextProseMirrorNode,
+		path: string,
+		depth: number,
+		context: string,
+	) => {
+		if (node.type === "orderedList") lists.push({ node, path, depth, context });
+		for (const [index, child] of (node.content ?? []).entries()) {
+			const childPath = `${path}:${index}`;
+			visit(
+				child,
+				childPath,
+				depth + 1,
+				child.type === "listItem" ? `listItem:${childPath}` : context,
+			);
+		}
+	};
+	for (const [index, node] of normalized.content.entries()) {
+		visit(node, `root:${index}`, 0, "root");
+	}
+
+	const canonicalBySourceScope = new Map<string, string>();
+	const assignedIds = new Set<string>();
+	const descriptors = lists.map((list) => {
+		const sourceId =
+			normalizeListId(list.node.attrs?.listId) ??
+			deriveLegacyListId(`pm-json:${list.path}:${list.depth}:${list.context}`);
+		const scope = JSON.stringify([list.depth, list.context]);
+		const sourceScope = JSON.stringify([sourceId, scope]);
+		let listId = canonicalBySourceScope.get(sourceScope);
+		if (!listId) {
+			if (!assignedIds.has(sourceId)) {
+				listId = sourceId;
+			} else {
+				let attempt = 0;
+				do {
+					const suffix = `:${attempt.toString(36)}`;
+					const base = deriveLegacyListId(`repair:${sourceId}:${scope}`);
+					listId = `${base.slice(0, 128 - suffix.length)}${suffix}`;
+					attempt++;
+				} while (assignedIds.has(listId));
+			}
+			canonicalBySourceScope.set(sourceScope, listId);
+			assignedIds.add(listId);
+		}
+		return {
+			...list,
+			listId,
+			scopeKey: JSON.stringify([listId, list.depth, list.context]),
+		};
+	});
+
+	const bases = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = normalizeListStart(list.node.attrs?.listStart);
+		if (listStart !== undefined && !bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, listStart);
+		}
+	}
+	for (const list of descriptors) {
+		if (!bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, normalizeListStart(list.node.attrs?.start) ?? 1);
+		}
+	}
+
+	const counts = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = bases.get(list.scopeKey)!;
+		const count = counts.get(list.scopeKey) ?? 0;
+		const start = normalizeListStart(listStart + count) ?? 1;
+		const directItemCount =
+			list.node.content?.filter((node) => node.type === "listItem").length ?? 0;
+		counts.set(list.scopeKey, count + directItemCount);
+		list.node.attrs = { ...list.node.attrs, listId: list.listId, listStart, start };
+	}
+	return normalized;
+}
 
 // ProseMirror to Portable Text converter
 function prosemirrorToPortableText(doc: {
@@ -189,30 +597,51 @@ function prosemirrorToPortableText(doc: {
 	if (!doc || doc.type !== "doc" || !doc.content) {
 		return [];
 	}
+	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
+	const usedBlockKeys = new Set<string>();
 
-	for (const node of doc.content) {
-		const converted = convertPMNode(node);
-		if (converted) {
-			if (Array.isArray(converted)) {
-				blocks.push(...converted);
-			} else {
-				blocks.push(converted);
+	for (let i = 0; i < doc.content.length; i++) {
+		const node = doc.content[i]!;
+		if (i === doc.content.length - 1 && isUnkeyedEmptyParagraph(node)) continue;
+		const converted = convertPMNode(node, `root:${i}`);
+		for (const block of converted ? (Array.isArray(converted) ? converted : [converted]) : []) {
+			let key = block._key;
+			if (usedBlockKeys.has(key)) {
+				do key = generateKey();
+				while (usedBlockKeys.has(key));
 			}
+			usedBlockKeys.add(key);
+			blocks.push(key === block._key ? block : { ...block, _key: key });
 		}
 	}
 
 	return blocks;
 }
 
-function convertPMNode(node: {
+function isUnkeyedEmptyParagraph(node: {
 	type: string;
 	attrs?: Record<string, unknown>;
 	content?: unknown[];
-	marks?: unknown[];
-	text?: string;
-}): PortableTextBlock | PortableTextBlock[] | null {
+}): boolean {
+	return (
+		node.type === "paragraph" &&
+		(node.content?.length ?? 0) === 0 &&
+		portableTextKeyFromAttrs(node.attrs) === undefined
+	);
+}
+
+function convertPMNode(
+	node: {
+		type: string;
+		attrs?: Record<string, unknown>;
+		content?: unknown[];
+		marks?: unknown[];
+		text?: string;
+	},
+	path: string,
+): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInlineContent(node.content || []);
@@ -221,10 +650,10 @@ function convertPMNode(node: {
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "normal",
 				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(markDefs.length > 0 ? { markDefs } : {}),
 				...(textAlign ? { textAlign } : {}),
 			};
 		}
@@ -242,7 +671,7 @@ function convertPMNode(node: {
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -251,15 +680,16 @@ function convertPMNode(node: {
 		}
 
 		case "bulletList":
-			return convertList(node.content || [], "bullet");
+			return convertList(node.content || [], "bullet", 1, node.attrs, path);
 
 		case "orderedList":
-			return convertList(node.content || [], "number");
+			return convertList(node.content || [], "number", 1, node.attrs, path);
 
 		case "blockquote": {
 			const blocks: PortableTextTextBlock[] = [];
 			const blockquoteContent = (node.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of blockquoteContent) {
@@ -268,7 +698,10 @@ function convertPMNode(node: {
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: generateKey(),
+							_key:
+								portableTextKeyFromAttrs(child.attrs) ??
+								portableTextKeyFromAttrs(node.attrs) ??
+								generateKey(),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -288,7 +721,7 @@ function convertPMNode(node: {
 			const rawLanguage = node.attrs?.language;
 			return {
 				_type: "code",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				code,
 				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
 			};
@@ -298,7 +731,7 @@ function convertPMNode(node: {
 			const rawHtml = node.attrs?.html;
 			return {
 				_type: "htmlBlock",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				html: typeof rawHtml === "string" ? rawHtml : "",
 			};
 		}
@@ -306,9 +739,16 @@ function convertPMNode(node: {
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
+			const blurhash = attrStr(attrs.blurhash);
+			const dominantColor = attrStr(attrs.dominantColor);
+			// Persist LQIP as first-class block fields, matching the image-field
+			// path (MediaValue.blurhash/dominantColor) so read sites and normalize
+			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
+			// only provider-specific data (we don't reconstruct it here, so any
+			// non-LQIP meta keys are never silently dropped on editor round-trip).
 			return {
 				_type: "image",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				asset: {
 					_ref: attrStr(attrs.mediaId) ?? "",
 					url: attrStr(attrs.src) ?? "",
@@ -318,6 +758,8 @@ function convertPMNode(node: {
 				caption: attrStr(attrs.caption) ?? attrStr(attrs.title),
 				width: attrNum(attrs.width),
 				height: attrNum(attrs.height),
+				...(blurhash ? { blurhash } : {}),
+				...(dominantColor ? { dominantColor } : {}),
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
 				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
@@ -327,80 +769,71 @@ function convertPMNode(node: {
 		case "horizontalRule":
 			return {
 				_type: "break",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "lineBreak",
 			};
 
-		case "table": {
-			const tableKey = generateKey();
-			const tableContent = (node.content || []) as Array<{
-				type: string;
-				content?: Array<{
-					type: string;
-					content?: unknown[];
-				}>;
-			}>;
-
-			const rows = tableContent
-				.filter((row) => row.type === "tableRow")
-				.map((row, rowIndex) => {
-					const cells = (row.content || []).map((cell, cellIndex) => {
-						const isHeader = cell.type === "tableHeader";
-						const cellContent = (cell.content || []) as Array<{
-							type: string;
-							content?: unknown[];
-						}>;
-
-						const contentSpans: PortableTextSpan[] = [];
-						const cellMarkDefs: PortableTextMarkDef[] = [];
-						for (const paragraph of cellContent) {
-							if (paragraph.type === "paragraph") {
-								const { children, markDefs } = convertInlineContent(paragraph.content || []);
-								contentSpans.push(...children);
-								cellMarkDefs.push(...markDefs);
-							}
-						}
-
-						if (contentSpans.length === 0) {
-							contentSpans.push({
-								_type: "span",
-								_key: generateKey(),
-								text: "",
-							});
-						}
-
-						return {
-							_type: "tableCell" as const,
-							_key: `${tableKey}_r${rowIndex}_c${cellIndex}`,
-							content: contentSpans,
-							isHeader,
-							markDefs: cellMarkDefs.length > 0 ? cellMarkDefs : undefined,
-						};
-					});
-
-					return {
-						_type: "tableRow" as const,
-						_key: `${tableKey}_r${rowIndex}`,
-						cells,
-					};
-				});
-
+		case "gallery": {
+			const columns = node.attrs?.columns;
 			return {
-				_type: "table",
-				_key: tableKey,
-				rows,
-				hasHeaderRow: rows[0]?.cells.some((cell) => cell.isHeader) ?? false,
+				_type: "gallery",
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				images: sanitizeGalleryImages(node.attrs?.images, true),
+				...(typeof columns === "number" ? { columns } : {}),
 			};
 		}
 
+		case "table": {
+			const result = proseMirrorTableToPortableText(node, {
+				path,
+				createKey: generateKey,
+				inlineToSpans: (content) => {
+					const { children, markDefs } = convertInlineContent(content, true);
+					return {
+						content: children,
+						markDefs: markDefs.length > 0 ? markDefs : undefined,
+					};
+				},
+			});
+			if (!result.ok) {
+				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+			}
+			return result.table;
+		}
+
 		case "pluginBlock": {
-			const { blockType, id: pluginId, data } = node.attrs ?? {};
-			return {
-				...(data && typeof data === "object" ? data : {}),
-				_type: typeof blockType === "string" ? blockType : "embed",
-				_key: generateKey(),
-				id: typeof pluginId === "string" ? pluginId : "",
+			const attrs = node.attrs ?? {};
+			const blockType = typeof attrs.blockType === "string" ? attrs.blockType : "embed";
+			const pluginId = typeof attrs.id === "string" ? attrs.id : "";
+			const data = isRecord(attrs.data) ? attrs.data : {};
+			const originalBlock = portableTextBlockFromAttrs(attrs);
+
+			if (
+				originalBlock &&
+				originalBlock._type === blockType &&
+				customBlockIdentity(originalBlock) === pluginId &&
+				equalJsonValues(customBlockData(originalBlock), data)
+			) {
+				return { ...originalBlock };
+			}
+
+			const result: Record<string, unknown> = {
+				...(originalBlock
+					? Object.fromEntries(
+							Object.entries(originalBlock).filter(
+								([key]) => key.startsWith("_") && key !== "_type" && key !== "_key",
+							),
+						)
+					: {}),
+				...data,
+				_type: blockType,
+				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
 			};
+			const identityField = originalBlock
+				? (customBlockIdentityField(originalBlock) ?? (pluginId ? "id" : undefined))
+				: "id";
+			if (identityField) result[identityField] = pluginId;
+			return result as PortableTextBlock;
 		}
 
 		default:
@@ -412,34 +845,57 @@ function convertList(
 	items: unknown[],
 	listItem: "bullet" | "number",
 	level = 1,
+	attrs?: Record<string, unknown>,
+	path = `list:${level}`,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
 
-	for (const item of typedItems) {
+	for (let itemIndex = 0; itemIndex < typedItems.length; itemIndex++) {
+		const item = typedItems[itemIndex]!;
 		if (item.type === "listItem") {
 			const listItemContent = (item.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
-			for (const child of listItemContent) {
+			for (let childIndex = 0; childIndex < listItemContent.length; childIndex++) {
+				const child = listItemContent[childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: generateKey(),
+							_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
 							style: "normal",
 							listItem,
 							level,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
 				} else if (child.type === "bulletList") {
-					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"bullet",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				} else if (child.type === "orderedList") {
-					blocks.push(...convertList(child.content || [], "number", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"number",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -448,13 +904,28 @@ function convertList(
 	return blocks;
 }
 
-function convertInlineContent(nodes: unknown[]): {
+function convertInlineContent(
+	nodes: unknown[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
 	const markDefMap = new Map<string, string>();
+	const usedSpanKeys = new Set<string>();
+	const claimSpanKey = (preferred?: string) => {
+		if (preferred && !usedSpanKeys.has(preferred)) {
+			usedSpanKeys.add(preferred);
+			return preferred;
+		}
+		let key: string;
+		do key = generateKey();
+		while (usedSpanKeys.has(key));
+		usedSpanKeys.add(key);
+		return key;
+	};
 
 	const typedNodes = nodes as Array<{
 		type: string;
@@ -464,28 +935,41 @@ function convertInlineContent(nodes: unknown[]): {
 	for (const node of typedNodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
+			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
 
 			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap);
+				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
 				if (markType) {
 					marks.push(markType);
 				}
 			}
 
+			const preferredKey = portableTextSpanKeyFromMarks(node.marks);
+			const normalizedMarks = marks.length > 0 ? marks : undefined;
+			const previous = children.at(-1);
+			if (
+				preferredKey &&
+				previous?._key === preferredKey &&
+				equalJsonValues(previous.marks, normalizedMarks)
+			) {
+				previous.text += node.text;
+				continue;
+			}
+
 			children.push({
 				_type: "span",
-				_key: generateKey(),
+				_key: claimSpanKey(preferredKey),
 				text: node.text,
-				marks: marks.length > 0 ? marks : undefined,
+				marks: normalizedMarks,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const last = children.at(-1);
 				if (last) last.text += "\n";
 			} else {
 				children.push({
 					_type: "span",
-					_key: generateKey(),
+					_key: claimSpanKey(portableTextSpanKeyFromMarks(node.marks)),
 					text: "\n",
 				});
 			}
@@ -495,7 +979,7 @@ function convertInlineContent(nodes: unknown[]): {
 	if (children.length === 0) {
 		children.push({
 			_type: "span",
-			_key: generateKey(),
+			_key: claimSpanKey(),
 			text: "",
 		});
 	}
@@ -507,6 +991,7 @@ function convertMark(
 	mark: { type: string; attrs?: Record<string, unknown> },
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
+	originalMarkDefs: PortableTextMarkDef[],
 ): string | null {
 	switch (mark.type) {
 		case "bold":
@@ -520,26 +1005,42 @@ function convertMark(
 		case "strike":
 		case "strikethrough":
 			return "strike-through";
+		case "subscript":
+			return "subscript";
+		case "superscript":
+			return "superscript";
 		case "code":
 			return "code";
+		case PORTABLE_TEXT_SPAN_MARK:
+			return null;
 		case "link": {
 			const rawHref = mark.attrs?.href;
 			const href = typeof rawHref === "string" ? rawHref : "";
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			const blank = mark.attrs?.target === "_blank";
+			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
+			const mapKey = originalMarkDef
+				? `key:${originalMarkDef._key}`
+				: `value:${JSON.stringify([href, blank])}`;
+			if (markDefMap.has(mapKey)) {
+				return markDefMap.get(mapKey)!;
 			}
-			const key = generateKey();
+			const key = originalMarkDef?._key || generateKey();
 			markDefs.push({
+				...originalMarkDef,
 				_type: "link",
 				_key: key,
 				href,
-				blank: mark.attrs?.target === "_blank",
+				...(originalMarkDef
+					? blank || Object.hasOwn(originalMarkDef, "blank")
+						? { blank }
+						: {}
+					: { blank }),
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(mapKey, key);
 			return key;
 		}
 		default:
-			return mark.type;
+			throw new UnsupportedPortableTextMarksError([mark.type]);
 	}
 }
 
@@ -567,6 +1068,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			content: [{ type: "paragraph" }],
 		};
 	}
+	assertPortableTextMarksSupported(blocks);
 
 	const content: unknown[] = [];
 	let i = 0;
@@ -577,6 +1079,8 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		if (isTextBlock(block) && block.listItem) {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 
 			// A list "run" is a level=1 anchor block plus everything that nests
 			// under it (level > 1) or repeats it at the same root level/type.
@@ -585,7 +1089,13 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				const current = blocks[i]!;
 				if (!isTextBlock(current) || !current.listItem) break;
 				const level = current.level || 1;
-				if (level > 1 || current.listItem === listType) {
+				const currentId =
+					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
+				const sameRootIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -593,9 +1103,9 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				}
 			}
 
-			content.push(convertPTList(listBlocks, listType));
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
-			const converted = convertPTBlock(block);
+			const converted = convertPTBlock(block, `root:${i}`);
 			if (converted) {
 				content.push(converted);
 			}
@@ -603,13 +1113,41 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		}
 	}
 
-	return {
+	return normalizeOrderedListJson({
 		type: "doc",
-		content: content.length > 0 ? content : [{ type: "paragraph" }],
+		content: (content.length > 0
+			? content
+			: [{ type: "paragraph" }]) as PortableTextProseMirrorNode[],
+	});
+}
+
+function getListMetadata(
+	item: PortableTextTextBlock,
+	fallbackSeed: string,
+): { listId: string; listStart?: number } {
+	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	const listStart = normalizeListStart(item.listStart);
+	return {
+		listId,
+		...(listStart === undefined ? {} : { listStart }),
 	};
 }
 
-function convertPTBlock(block: PortableTextBlock): unknown {
+function belongsToNestedGroup(
+	item: PortableTextTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
+}
+
+function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -626,13 +1164,17 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					const level = parseInt(style.substring(1), 10);
 					return {
 						type: "heading",
-						attrs: { level, ...(textAlign ? { textAlign } : {}) },
+						attrs: attrsWithPortableTextKey(
+							{ level, ...(textAlign ? { textAlign } : {}) },
+							block._key,
+						),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 				}
 				case "blockquote":
 					return {
 						type: "blockquote",
+						attrs: attrsWithPortableTextKey(undefined, block._key),
 						content: [
 							{
 								type: "paragraph",
@@ -643,7 +1185,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				default:
 					return {
 						type: "paragraph",
-						attrs: textAlign ? { textAlign } : undefined,
+						attrs: attrsWithPortableTextKey(textAlign ? { textAlign } : undefined, block._key),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 			}
@@ -652,138 +1194,127 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "image": {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
+			const meta = imageBlock.asset.meta;
+			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
+			// snapshots persisted before LQIP was promoted out of the provider meta bag.
+			const blurhash =
+				typeof imageBlock.blurhash === "string"
+					? imageBlock.blurhash
+					: typeof meta?.blurhash === "string"
+						? meta.blurhash
+						: null;
+			const dominantColor =
+				typeof imageBlock.dominantColor === "string"
+					? imageBlock.dominantColor
+					: typeof meta?.dominantColor === "string"
+						? meta.dominantColor
+						: null;
 			return {
 				type: "image",
-				attrs: {
-					src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
-					alt: imageBlock.alt || "",
-					title: imageBlock.caption || "",
-					caption: imageBlock.caption || "",
-					mediaId: imageBlock.asset._ref,
-					width: imageBlock.width,
-					height: imageBlock.height,
-					displayWidth: imageBlock.displayWidth,
-					displayHeight: imageBlock.displayHeight,
-					alignment: imageBlock.alignment,
-				},
+				attrs: attrsWithPortableTextKey(
+					{
+						src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
+						alt: imageBlock.alt || "",
+						title: imageBlock.caption || "",
+						caption: imageBlock.caption || "",
+						mediaId: imageBlock.asset._ref,
+						provider: canonicalMediaProviderId(imageBlock.asset.provider),
+						width: imageBlock.width,
+						height: imageBlock.height,
+						blurhash,
+						dominantColor,
+						displayWidth: imageBlock.displayWidth,
+						displayHeight: imageBlock.displayHeight,
+						alignment: imageBlock.alignment,
+					},
+					block._key,
+				),
 			};
 		}
 
 		case "code": {
 			if (!isCodeBlock(block)) return null;
 			const codeBlock = block;
+			const language =
+				typeof codeBlock.language === "string" && codeBlock.language.length > 0
+					? codeBlock.language
+					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language: codeBlock.language || null },
+				attrs: attrsWithPortableTextKey({ language }, block._key),
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
 
 		case "break":
-			return { type: "horizontalRule" };
+			return {
+				type: "horizontalRule",
+				attrs: attrsWithPortableTextKey(undefined, block._key),
+			};
+
+		case "gallery": {
+			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
+			if (!Array.isArray(galleryBlock.images)) {
+				return convertCustomBlock(block);
+			}
+			return {
+				type: "gallery",
+				attrs: attrsWithPortableTextKey(
+					{
+						images: sanitizeGalleryImages(galleryBlock.images),
+						columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
+					},
+					galleryBlock._key,
+				),
+			};
+		}
 
 		case "htmlBlock": {
 			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
 			return {
 				type: "htmlBlock",
-				attrs: { html: htmlBlock.html || "" },
+				attrs: attrsWithPortableTextKey({ html: htmlBlock.html || "" }, htmlBlock._key),
 			};
 		}
 
 		case "table": {
-			const tableBlock = block as {
-				_type: "table";
-				_key: string;
-				rows?: Array<{
-					_type: "tableRow";
-					_key: string;
-					cells: Array<{
-						_type: "tableCell";
-						_key: string;
-						content: PortableTextSpan[];
-						isHeader?: boolean;
-						markDefs?: PortableTextMarkDef[];
-					}>;
-				}>;
-				hasHeaderRow?: boolean;
-				markDefs?: PortableTextMarkDef[];
-			};
-
-			const tableMarkDefs = tableBlock.markDefs || [];
-			const tableMarkDefsMap = new Map(tableMarkDefs.map((md) => [md._key, md]));
-
-			const rows = (tableBlock.rows || []).map((row, rowIndex) => {
-				const cells = row.cells.map((cell) => {
-					const cellType =
-						cell.isHeader || (tableBlock.hasHeaderRow && rowIndex === 0)
-							? "tableHeader"
-							: "tableCell";
-
-					const cellMarkDefs = cell.markDefs || [];
-					const markDefsMap = new Map([
-						...tableMarkDefsMap,
-						...cellMarkDefs.map((md) => [md._key, md] as const),
-					]);
-
-					const pmContent = convertPTSpans(cell.content, [...markDefsMap.values()]);
-
-					return {
-						type: cellType,
-						content: [
-							{
-								type: "paragraph",
-								content: pmContent.length > 0 ? pmContent : undefined,
-							},
-						],
-					};
-				});
-
-				return {
-					type: "tableRow",
-					content: cells,
-				};
+			const result = portableTextTableToProseMirror(block, {
+				path,
+				createKey: generateKey,
+				spansToInline: (content, markDefs) =>
+					convertPTSpans(content, markDefs) as PortableTextTableProseMirrorNode[],
 			});
-
-			return {
-				type: "table",
-				content: rows,
-			};
+			if (!result.ok) {
+				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+			}
+			return result.node;
 		}
 
 		default: {
-			// Treat unknown block types as plugin blocks (embeds)
-			// These have an id field (or url for backwards compat) for the embed source,
-			// OR Block Kit field data stored as top-level keys (e.g., formId for forms plugin)
-			const { _type, _key, id, url, ...rest } = block as Record<string, unknown>;
-			// Filter out _-prefixed keys to prevent accumulation across edit cycles
-			const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !k.startsWith("_")));
-			const hasFieldData = Object.keys(data).length > 0;
-			if (id || url || hasFieldData) {
-				return {
-					type: "pluginBlock",
-					attrs: {
-						blockType: _type,
-						id: id || url || "",
-						data,
-					},
-				};
-			}
-			// Truly unknown blocks with no data at all
-			return {
-				type: "paragraph",
-				content: [
-					{
-						type: "text",
-						text: `[Unknown block type: ${block._type}]`,
-						marks: [{ type: "code" }],
-					},
-				],
-			};
+			return convertCustomBlock(block);
 		}
 	}
 }
 
-function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
+function convertCustomBlock(block: PortableTextBlock): unknown {
+	const record = block as Record<string, unknown>;
+	return {
+		type: "pluginBlock",
+		attrs: {
+			blockType: block._type,
+			id: attrStr(record.id) ?? attrStr(record.url) ?? "",
+			data: customBlockData(block),
+			[PORTABLE_TEXT_KEY_ATTR]: block._key,
+			[PORTABLE_TEXT_BLOCK_ATTR]: block,
+		},
+	};
+}
+
+function convertPTList(
+	items: PortableTextTextBlock[],
+	listType: "bullet" | "number",
+	context: string,
+): unknown {
 	// Group items into root-level items (level === 1) and their nested
 	// descendants (level > 1). For each root item, all subsequent items with
 	// level > 1 belong to its nested subtree — recurse on them with level
@@ -802,17 +1333,24 @@ function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "num
 				nestedItems.push(items[i]!);
 				i++;
 			}
-			rootItems.push(convertPTListItem(item, nestedItems, listType));
+			rootItems.push(
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
 		} else {
 			// Orphan nested item with no preceding level=1 anchor — treat as root
 			// so we don't drop content.
-			rootItems.push(convertPTListItem(item, [], listType));
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
 			i++;
 		}
 	}
 
+	const firstItem = items[0]!;
+	const metadata =
+		listType === "number" ? getListMetadata(firstItem, `${context}:${firstItem._key}`) : undefined;
+
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
 		content: rootItems,
 	};
 }
@@ -821,12 +1359,14 @@ function convertPTListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
+	context: string,
 ): unknown {
 	const content: unknown[] = [];
 
 	const pmContent = convertPTSpans(item.children, item.markDefs || []);
 	content.push({
 		type: "paragraph",
+		attrs: attrsWithPortableTextKey(undefined, item._key),
 		content: pmContent.length > 0 ? pmContent : undefined,
 	});
 
@@ -835,11 +1375,9 @@ function convertPTListItem(
 		// item's nested subtree. A new sub-list only starts when we hit
 		// another block at that root level with a different `listItem` type;
 		// deeper blocks (level > minLevel) belong to the current group as
-		// descendants regardless of their own `listItem`. The previous
-		// grouping broke on any type change at any depth, so a deep mixed
-		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
-		// emit C(L3) as a sibling list under A(L1) instead of nesting it
-		// under B(L2), then degrade C to L2 on round-trip.
+		// descendants regardless of their own `listItem`. A deep mixed tree
+		// like `bullet L1 → number L2 → bullet L3 → number L2` stays nested
+		// under B(L2) and preserves its original level on round-trip.
 		let minLevel = Infinity;
 		for (const ni of nestedItems) {
 			const level = ni.level || 2;
@@ -849,6 +1387,8 @@ function convertPTListItem(
 		let j = 0;
 		while (j < nestedItems.length) {
 			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[j]!.listId) : undefined;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
@@ -856,8 +1396,7 @@ function convertPTListItem(
 				j++;
 			} while (
 				j < nestedItems.length &&
-				((nestedItems[j]!.level || 2) > minLevel ||
-					(nestedItems[j]!.listItem || parentListType) === anchorType)
+				belongsToNestedGroup(nestedItems[j]!, minLevel, parentListType, anchorType, anchorId)
 			);
 
 			if (nestedGroup.length > 0) {
@@ -865,7 +1404,9 @@ function convertPTListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertPTList(adjustedGroup, anchorType));
+				content.push(
+					convertPTList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
+				);
 			}
 		}
 	}
@@ -882,6 +1423,7 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 
 	for (const span of spans) {
 		if (span._type !== "span") continue;
+		const referencedMarkDefs = markDefs.filter((markDef) => span.marks?.includes(markDef._key));
 
 		const parts = span.text.split("\n");
 
@@ -889,19 +1431,31 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 			const text = parts[i]!;
 
 			if (text.length > 0) {
-				const marks = convertPTMarks(span.marks || [], markDefsMap);
+				const marks = [
+					...convertPTMarks(span.marks || [], markDefsMap),
+					{
+						type: PORTABLE_TEXT_SPAN_MARK,
+						attrs: { key: span._key, markDefs: referencedMarkDefs },
+					},
+				];
 				const node: { type: string; text: string; marks?: unknown[] } = {
 					type: "text",
 					text,
 				};
-				if (marks.length > 0) {
-					node.marks = marks;
-				}
+				node.marks = marks;
 				nodes.push(node);
 			}
 
 			if (i < parts.length - 1) {
-				nodes.push({ type: "hardBreak" });
+				nodes.push({
+					type: "hardBreak",
+					marks: [
+						{
+							type: PORTABLE_TEXT_SPAN_MARK,
+							attrs: { key: span._key, markDefs: referencedMarkDefs },
+						},
+					],
+				});
 			}
 		}
 	}
@@ -926,6 +1480,12 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 			case "strike-through":
 				pmMarks.push({ type: "strike" });
 				break;
+			case "subscript":
+				pmMarks.push({ type: "subscript" });
+				break;
+			case "superscript":
+				pmMarks.push({ type: "superscript" });
+				break;
 			case "code":
 				pmMarks.push({ type: "code" });
 				break;
@@ -939,6 +1499,10 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 							target: markDef.blank ? "_blank" : null,
 						},
 					});
+				} else {
+					throw new UnsupportedPortableTextMarksError([
+						typeof markDef?._type === "string" ? markDef._type : mark,
+					]);
 				}
 				break;
 			}
@@ -962,6 +1526,9 @@ interface SlashCommandItem {
 	description: MessageDescriptor | string;
 	icon: Icon | React.ComponentType<{ className?: string }>;
 	command: (props: { editor: Editor; range: Range }) => void;
+	/** Delay document insertion until a modal-backed command returns a selection. */
+	deferInsertion?: boolean;
+	opensTablePicker?: boolean;
 	aliases?: string[];
 	/**
 	 * Display category. Built-in commands use `msg`-tagged descriptors;
@@ -969,6 +1536,12 @@ interface SlashCommandItem {
 	 * and are passed through verbatim when rendered.
 	 */
 	category?: MessageDescriptor | string;
+}
+
+function insertHtmlBlock(editor: Editor, range?: Range) {
+	const chain = editor.chain().focus();
+	if (range) chain.deleteRange(range);
+	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
 }
 
 /**
@@ -1003,6 +1576,36 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["h3"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+		},
+	},
+	{
+		id: "heading4",
+		title: msg`Heading 4`,
+		description: msg`Smaller section heading`,
+		icon: TextHFour,
+		aliases: ["h4"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 4 }).run();
+		},
+	},
+	{
+		id: "heading5",
+		title: msg`Heading 5`,
+		description: msg`Minor section heading`,
+		icon: TextHFive,
+		aliases: ["h5"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 5 }).run();
+		},
+	},
+	{
+		id: "heading6",
+		title: msg`Heading 6`,
+		description: msg`Smallest section heading`,
+		icon: TextHSix,
+		aliases: ["h6"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 6 }).run();
 		},
 	},
 	{
@@ -1051,14 +1654,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert raw HTML`,
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-				.run();
-		},
+		command: ({ editor, range }) => insertHtmlBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -1076,14 +1672,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert a table`,
 		icon: TableIcon,
 		aliases: ["grid", "spreadsheet"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-				.run();
-		},
+		opensTablePicker: true,
+		command: () => undefined,
 	},
 ];
 
@@ -1092,10 +1682,14 @@ const defaultSlashCommands: SlashCommandItem[] = [
  */
 interface SlashMenuState {
 	isOpen: boolean;
+	mode: "commands" | "table-size";
 	items: SlashCommandItem[];
 	selectedIndex: number;
 	clientRect: (() => DOMRect | null) | null;
 	range: Range | null;
+	trigger: "slash" | "gutter";
+	gutterBlockPos: number | null;
+	dismissedSlashFrom: number | null;
 }
 
 /**
@@ -1107,9 +1701,24 @@ function createSlashCommandsExtension(options: {
 	getState: () => SlashMenuState;
 }) {
 	const { filterCommands, onStateChange, getState } = options;
+	const execute = (item: SlashCommandItem, editor: Editor, range: Range) => {
+		if (item.opensTablePicker) {
+			onStateChange((state) => ({ ...state, isOpen: true, mode: "table-size", range }));
+			return;
+		}
+		item.command({ editor, range });
+	};
 
 	return Extension.create({
 		name: "slashCommands",
+		onTransaction() {
+			const state = getState();
+			if (state.dismissedSlashFrom === null) return;
+			const to = Math.min(state.dismissedSlashFrom + 1, this.editor.state.doc.content.size);
+			if (this.editor.state.doc.textBetween(state.dismissedSlashFrom, to) !== "/") {
+				onStateChange((prev) => ({ ...prev, dismissedSlashFrom: null }));
+			}
+		},
 
 		addProseMirrorPlugins() {
 			return [
@@ -1119,18 +1728,24 @@ function createSlashCommandsExtension(options: {
 					startOfLine: true,
 					command: ({ editor, range, props }) => {
 						const item = props as SlashCommandItem;
-						item.command({ editor, range });
+						execute(item, editor, range);
 					},
 					items: ({ query }) => filterCommands(query),
+					allow: ({ range }) =>
+						!this.editor.isActive("table") && getState().dismissedSlashFrom !== range.from,
 					render: () => {
 						return {
 							onStart: (props) => {
 								onStateChange({
 									isOpen: true,
+									mode: "commands",
 									items: props.items,
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
 									range: props.range,
+									trigger: "slash",
+									gutterBlockPos: null,
+									dismissedSlashFrom: null,
 								});
 							},
 							onUpdate: (props) => {
@@ -1140,12 +1755,20 @@ function createSlashCommandsExtension(options: {
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
 									range: props.range,
+									trigger: "slash",
+									gutterBlockPos: null,
+									dismissedSlashFrom: null,
 								}));
 							},
 							onKeyDown: (props) => {
-								if (props.event.key === "Escape") {
-									onStateChange((prev) => ({ ...prev, isOpen: false }));
-									return true;
+								if (props.event.key === "Escape" || props.event.key === "Tab") {
+									onStateChange((prev) => ({
+										...prev,
+										isOpen: false,
+										dismissedSlashFrom: props.range.from,
+									}));
+									exitSuggestion(props.view);
+									return props.event.key === "Escape";
 								}
 
 								if (props.event.key === "ArrowUp") {
@@ -1169,8 +1792,10 @@ function createSlashCommandsExtension(options: {
 									if (state.items.length > 0 && state.range) {
 										const item = state.items[state.selectedIndex];
 										if (item) {
-											item.command({ editor: this.editor, range: state.range });
-											onStateChange((prev) => ({ ...prev, isOpen: false }));
+											execute(item, this.editor, state.range);
+											if (!item.opensTablePicker) {
+												onStateChange((prev) => ({ ...prev, isOpen: false }));
+											}
 											return true;
 										}
 									}
@@ -1190,39 +1815,31 @@ function createSlashCommandsExtension(options: {
 	});
 }
 
-/**
- * Slash command menu component using Floating UI
- */
+/** Slash command menu anchored to the TipTap caret. */
 function SlashCommandMenu({
 	state,
 	onCommand,
-	onClose: _onClose,
+	onClose,
+	onTableInsert,
+	onTableCancel,
 	setSelectedIndex,
 }: {
 	state: SlashMenuState;
 	onCommand: (item: SlashCommandItem) => void;
 	onClose: () => void;
+	onTableInsert: (rows: number, columns: number, withHeaderRow: boolean) => void;
+	onTableCancel: () => void;
 	setSelectedIndex: (index: number) => void;
 }) {
 	const { t } = useLingui();
 	const containerRef = React.useRef<HTMLDivElement>(null);
-
-	const { refs, floatingStyles } = useFloating({
-		open: state.isOpen,
-		placement: "bottom-start",
-		middleware: [offset(8), flip(), shift({ padding: 8 })],
-		whileElementsMounted: autoUpdate,
-	});
-
-	// Sync virtual reference from TipTap's clientRect
-	React.useEffect(() => {
-		if (state.clientRect) {
-			const clientRectFn = state.clientRect;
-			refs.setReference({
-				getBoundingClientRect: () => clientRectFn() ?? new DOMRect(),
-			});
-		}
-	}, [state.clientRect, refs]);
+	const popupRef = React.useRef<HTMLDivElement>(null);
+	const virtualAnchor = React.useMemo(
+		() => ({
+			getBoundingClientRect: () => state.clientRect?.() ?? new DOMRect(),
+		}),
+		[state.clientRect],
+	);
 
 	// Scroll selected item into view
 	React.useEffect(() => {
@@ -1252,58 +1869,126 @@ function SlashCommandMenu({
 		}
 	}, [state.isOpen]);
 
-	if (!state.isOpen) return null;
+	React.useEffect(() => {
+		if (!state.isOpen) return;
 
-	return createPortal(
-		<div
-			ref={(node) => {
-				containerRef.current = node;
-				refs.setFloating(node);
-			}}
-			style={floatingStyles}
-			className="z-[100] rounded-lg border bg-kumo-overlay p-1 shadow-lg min-w-[220px] max-h-[300px] overflow-y-auto"
-			onPointerMove={() => {
-				hasMouseMovedRef.current = true;
+		const handlePointerDown = (event: PointerEvent) => {
+			const target = event.target as Node | null;
+			if (target && popupRef.current?.contains(target)) return;
+			onClose();
+		};
+
+		document.addEventListener("pointerdown", handlePointerDown, true);
+		return () => document.removeEventListener("pointerdown", handlePointerDown, true);
+	}, [onClose, state.isOpen]);
+
+	const selectedItem = state.items[state.selectedIndex];
+	const selectedItemTitle = selectedItem
+		? typeof selectedItem.title === "string"
+			? selectedItem.title
+			: t(selectedItem.title)
+		: "";
+
+	return (
+		<PopoverPrimitive.Root
+			open={state.isOpen}
+			modal={false}
+			onOpenChange={(open) => {
+				if (!open && state.isOpen) onClose();
 			}}
 		>
-			{state.items.length === 0 ? (
-				<p className="text-sm text-kumo-subtle px-3 py-2">{t`No results`}</p>
-			) : (
-				state.items.map((item, index) => (
-					<button
-						key={item.id}
-						type="button"
-						data-index={index}
+			<PopoverPrimitive.Portal>
+				{/* TipTap owns focus, so Base UI's portal guards must stay out of the Tab order. */}
+				<PopoverPrimitive.Positioner
+					anchor={virtualAnchor}
+					side="bottom"
+					align="start"
+					sideOffset={8}
+					positionMethod="fixed"
+					collisionPadding={8}
+					collisionAvoidance={{ side: "flip", align: "shift", fallbackAxisSide: "none" }}
+					className="slash-command-menu-positioner z-[100]"
+				>
+					<PopoverPrimitive.Popup
+						ref={popupRef}
+						initialFocus={false}
+						finalFocus={false}
+						aria-label={t`Insert block`}
+						data-slash-command-menu
 						className={cn(
-							"flex items-center gap-3 w-full px-3 py-2 text-sm rounded text-start",
-							index === state.selectedIndex
-								? "bg-kumo-tint text-kumo-default"
-								: "hover:bg-kumo-tint/50",
+							"min-w-[220px] overflow-hidden rounded-lg bg-kumo-base text-sm text-kumo-default",
+							"shadow-lg shadow-kumo-tip-shadow outline outline-kumo-fill",
+							"origin-(--transform-origin) transition-[transform,scale,opacity] duration-150 ease-out",
+							"data-starting-style:scale-90 data-starting-style:opacity-0",
+							"data-ending-style:scale-90 data-ending-style:opacity-0 data-instant:duration-0",
+							"motion-reduce:transition-none",
 						)}
-						onClick={() => onCommand(item)}
-						onMouseEnter={() => {
-							// Only react if the user has actually moved the
-							// mouse since the menu opened -- not when items
-							// appear under a stationary pointer.
-							if (hasMouseMovedRef.current) {
-								setSelectedIndex(index);
-							}
+						onPointerMove={() => {
+							hasMouseMovedRef.current = true;
 						}}
 					>
-						<item.icon className="h-4 w-4 text-kumo-subtle flex-shrink-0" />
-						<div className="flex flex-col">
-							<span className="font-medium">
-								{typeof item.title === "string" ? item.title : t(item.title)}
-							</span>
-							<span className="text-xs text-kumo-subtle">
-								{typeof item.description === "string" ? item.description : t(item.description)}
-							</span>
-						</div>
-					</button>
-				))
-			)}
-		</div>,
-		document.body,
+						{state.mode === "table-size" ? (
+							<TableSizePicker onInsert={onTableInsert} onCancel={onTableCancel} />
+						) : (
+							<>
+								{selectedItem && (
+									<span className="sr-only" role="status">
+										{t`Selected ${selectedItemTitle}`}
+									</span>
+								)}
+								<div
+									ref={containerRef}
+									data-slash-menu-scroll-viewport
+									className="max-h-[300px] overflow-y-auto overscroll-contain scroll-py-1 p-1"
+								>
+									{state.items.length === 0 ? (
+										<p className="px-3 py-2 text-sm text-kumo-subtle">{t`No results`}</p>
+									) : (
+										state.items.map((item, index) => (
+											<button
+												key={item.id}
+												type="button"
+												tabIndex={-1}
+												data-index={index}
+												aria-current={index === state.selectedIndex ? "true" : undefined}
+												className={cn(
+													"flex w-full items-center gap-3 rounded px-3 py-2 text-start text-sm",
+													index === state.selectedIndex
+														? "bg-kumo-interact text-kumo-default"
+														: "hover:bg-kumo-interact",
+												)}
+												onPointerDown={(event) => event.preventDefault()}
+												onClick={() => onCommand(item)}
+												onMouseEnter={() => {
+													// Only react if the user has actually moved the
+													// mouse since the menu opened -- not when items
+													// appear under a stationary pointer.
+													if (hasMouseMovedRef.current) {
+														setSelectedIndex(index);
+													}
+												}}
+											>
+												<item.icon className="h-4 w-4 flex-shrink-0 text-kumo-subtle" />
+												<div className="flex flex-col">
+													<span className="font-medium">
+														{typeof item.title === "string" ? item.title : t(item.title)}
+													</span>
+													<span className="text-xs text-kumo-subtle">
+														{typeof item.description === "string"
+															? item.description
+															: t(item.description)}
+													</span>
+												</div>
+											</button>
+										))
+									)}
+								</div>
+							</>
+						)}
+					</PopoverPrimitive.Popup>
+				</PopoverPrimitive.Positioner>
+			</PopoverPrimitive.Portal>
+		</PopoverPrimitive.Root>
 	);
 }
 
@@ -1366,6 +2051,7 @@ function PluginBlockModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		e.stopPropagation();
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
@@ -1389,16 +2075,7 @@ function PluginBlockModal({
 		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
-	// Size the dialog based on field complexity. The default `sm` is right for
-	// simple URL embeds (one field) but cramps Block Kit forms with several
-	// fields or a repeater, which need room for inline sub-field inputs.
-	const dialogSize = (() => {
-		if (!hasFields) return "sm";
-		const fields = block?.fields ?? [];
-		if (fields.some((f) => f.type === "repeater")) return "xl";
-		if (fields.length > 3) return "lg";
-		return "base";
-	})();
+	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
@@ -1944,19 +2621,55 @@ export {
 // Editor Footer with Writing Metrics
 // =============================================================================
 
+// Reading speed used for the footer metrics. CJK characters get a separate,
+// higher rate because they are denser than space-delimited words. These mirror
+// the published reading-time util (templates/blog/src/utils/reading-time.ts,
+// covered by packages/core/tests/unit/templates/blog-reading-time.test.ts) so
+// the editor footer and the rendered site report the same numbers.
+const WORDS_PER_MINUTE = 200;
+const CJK_CHARACTERS_PER_MINUTE = 500;
+const WHITESPACE_REGEX = /\s+/;
+
+// CJK scripts do not separate words with spaces, so a split()-based count treats
+// a whole paragraph as a single word. Count those characters individually.
+const CJK_CHARACTER_REGEX =
+	/\p{Script=Han}|\p{Script=Hangul}|\p{Script=Hiragana}|\p{Script=Katakana}/gu;
+
+function countCjkCharacters(text: string): number {
+	return text.match(CJK_CHARACTER_REGEX)?.length ?? 0;
+}
+
+function countNonCjkWords(text: string): number {
+	return text.replace(CJK_CHARACTER_REGEX, " ").split(WHITESPACE_REGEX).filter(Boolean).length;
+}
+
 /**
- * Calculate reading time in minutes based on word count
- * Uses a standard reading speed of 200 words per minute
+ * Word count for the editor footer. CJK characters are counted individually
+ * because they are not delimited by spaces; other scripts are counted by word.
+ * Used as the `wordCounter` for the CharacterCount extension, whose default
+ * (`text.split(' ')`) reports a spaceless CJK paragraph as a single word.
  */
-export function calculateReadingTime(words: number): number {
-	return Math.ceil(words / 200);
+export function countWords(text: string): number {
+	return countNonCjkWords(text) + countCjkCharacters(text);
+}
+
+/**
+ * Calculate reading time in minutes for the given text. Word-based scripts are
+ * read at WORDS_PER_MINUTE and CJK characters at CJK_CHARACTERS_PER_MINUTE.
+ * Returns 0 for an empty document.
+ */
+export function calculateReadingTime(text: string): number {
+	return Math.ceil(
+		countNonCjkWords(text) / WORDS_PER_MINUTE +
+			countCjkCharacters(text) / CJK_CHARACTERS_PER_MINUTE,
+	);
 }
 
 /**
  * Editor footer showing writing metrics (word count, character count, reading time)
  */
 function EditorFooter({ editor }: { editor: Editor }) {
-	const { words, characters } = useEditorState({
+	const { words, characters, text } = useEditorState({
 		editor,
 		selector: (ctx) => {
 			const storage: { words: () => number; characters: () => number } =
@@ -1964,24 +2677,25 @@ function EditorFooter({ editor }: { editor: Editor }) {
 			return {
 				words: storage.words(),
 				characters: storage.characters(),
+				text: ctx.editor.getText(),
 			};
 		},
 	});
 
-	const readingTime = calculateReadingTime(words);
+	// Subscribes to locale changes so the plural messages below re-render.
+	useLinguiContext();
+	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
-			<span>
-				{words} {words === 1 ? "word" : "words"}
-			</span>
-			<span>
-				{characters} {characters === 1 ? "character" : "characters"}
-			</span>
-			<span>{readingTime} min read</span>
+			<span>{plural(words, { one: "# word", other: "# words" })}</span>
+			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
+			<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
 		</div>
 	);
 }
+
+export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
@@ -2029,39 +2743,85 @@ export interface PortableTextEditorProps {
 export function PortableTextEditor({
 	value,
 	onChange,
-	placeholder = "Start writing...",
+	placeholder,
 	className,
 	editable = true,
 	"aria-labelledby": ariaLabelledby,
 	pluginBlocks = [],
 	focusMode: controlledFocusMode,
-	onFocusModeChange,
 	onEditorReady,
 	minimal = false,
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const placeholderRef = React.useRef(placeholder ?? t`Start writing, or type '/' for commands`);
+	placeholderRef.current = placeholder ?? t`Start writing, or type '/' for commands`;
+	const toolbarRef = React.useRef<HTMLDivElement>(null);
+	const floatingRootRef = React.useRef<HTMLDivElement>(null);
+	const appendBubbleMenu = React.useCallback(() => floatingRootRef.current!, []);
+	const getBubbleMenuCollisionOptions = React.useCallback(() => {
+		const viewport = window.visualViewport;
+		const viewportTop = viewport?.offsetTop ?? 0;
+		const viewportLeft = viewport?.offsetLeft ?? 0;
+		const viewportWidth = viewport?.width ?? window.innerWidth;
+		const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+		const toolbarBottom = toolbarRef.current?.getBoundingClientRect().bottom ?? viewportTop;
+		const safeTop = Math.min(viewportBottom, Math.max(viewportTop, toolbarBottom));
+
+		return {
+			rootBoundary: {
+				x: viewportLeft,
+				y: safeTop,
+				width: viewportWidth,
+				height: Math.max(0, viewportBottom - safeTop),
+			},
+			padding: 8,
+		};
+	}, []);
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
+	const lastPortableTextValueRef = React.useRef(value || []);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
 
-	// Focus mode state - support both controlled and uncontrolled modes
-	const [internalFocusMode, setInternalFocusMode] = React.useState<FocusMode>("normal");
-	const focusMode = controlledFocusMode ?? internalFocusMode;
-	const setFocusMode = (mode: FocusMode) => {
-		if (onFocusModeChange) {
-			onFocusModeChange(mode);
-		} else {
-			setInternalFocusMode(mode);
-		}
-	};
+	const focusMode = controlledFocusMode ?? "normal";
 
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+
+	// Multi-select media picker state (for gallery insertion)
+	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
+	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
+	const [conversionTableError, setConversionTableError] =
+		React.useState<UnsafePortableTextTableError | null>(null);
+	const [sectionInsertErrorMarks, setSectionInsertErrorMarks] = React.useState<string[]>([]);
+	const [sectionInsertTableError, setSectionInsertTableError] = React.useState(false);
+	const tablePasteErrorIdRef = React.useRef(0);
+	const [tablePasteError, setTablePasteError] = React.useState<{
+		id: number;
+		reason: TablePasteRejection;
+	} | null>(null);
+	const [tableAnnouncement, setTableAnnouncement] = React.useState<{
+		id: number;
+		text: string;
+	} | null>(null);
+	const announceTable = React.useCallback((text: string) => {
+		setTableAnnouncement((current) => ({ id: (current?.id ?? 0) + 1, text }));
+	}, []);
+	const rejectTablePaste = React.useCallback((reason: TablePasteRejection) => {
+		tablePasteErrorIdRef.current++;
+		setTablePasteError({ id: tablePasteErrorIdRef.current, reason });
+	}, []);
+	const extensionAnnouncementRef = React.useRef<(rows?: number, columns?: number) => void>(
+		() => {},
+	);
+	extensionAnnouncementRef.current = (rows, columns) =>
+		announceTable(
+			rows === undefined ? t`Column width resized` : t`${rows} × ${columns} table pasted`,
+		);
 
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
@@ -2073,14 +2833,23 @@ export function PortableTextEditor({
 
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
+	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const openToolbarImagePicker = React.useCallback(() => {
+		pendingBlockInsertPosRef.current = null;
+		setMediaPickerOpen(true);
+	}, []);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
 		isOpen: false,
+		mode: "commands",
 		items: [],
 		selectedIndex: 0,
 		clientRect: null,
 		range: null,
+		trigger: "slash",
+		gutterBlockPos: null,
+		dismissedSlashFrom: null,
 	});
 
 	// Ref to access current state synchronously in keyboard handlers.
@@ -2106,10 +2875,7 @@ export function PortableTextEditor({
 	const slashMenuStateRef = React.useRef(slashMenuState);
 	const setSlashMenuState: React.Dispatch<React.SetStateAction<SlashMenuState>> = React.useCallback(
 		(action) => {
-			const next =
-				typeof action === "function"
-					? (action as (prev: SlashMenuState) => SlashMenuState)(slashMenuStateRef.current)
-					: action;
+			const next = typeof action === "function" ? action(slashMenuStateRef.current) : action;
 			slashMenuStateRef.current = next;
 			setSlashMenuStateRaw(next);
 		},
@@ -2128,9 +2894,25 @@ export function PortableTextEditor({
 			icon: ImageIcon,
 			aliases: ["img", "photo", "picture", "url"],
 			category: msg`Media`,
+			deferInsertion: true,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
+			},
+		});
+
+		// Add gallery command
+		cmds.push({
+			id: "gallery",
+			title: msg`Gallery`,
+			description: msg`Insert an image gallery`,
+			icon: Images,
+			aliases: ["gal", "photos", "grid"],
+			category: msg`Media`,
+			deferInsertion: true,
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).run();
+				setGalleryPickerOpen(true);
 			},
 		});
 
@@ -2142,6 +2924,7 @@ export function PortableTextEditor({
 			icon: Stack,
 			aliases: ["pattern", "block", "template"],
 			category: msg`Content`,
+			deferInsertion: true,
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setSectionPickerOpen(true);
@@ -2158,6 +2941,7 @@ export function PortableTextEditor({
 				icon: resolveIcon(block.icon),
 				aliases: [block.type],
 				category: block.category ?? msg`Embeds`,
+				deferInsertion: true,
 				command: ({ editor, range }) => {
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
@@ -2193,10 +2977,30 @@ export function PortableTextEditor({
 	};
 
 	// Convert initial value to ProseMirror format
-	const initialContent = React.useMemo(
-		() => portableTextToProsemirror(value || []),
-		[], // Only compute once on mount
+	const initialUnsupportedMarks = React.useMemo(
+		() => findUnsupportedPortableTextMarks(value || []),
+		[],
 	);
+	const unsupportedMarks = React.useMemo(
+		() => [...new Set([...initialUnsupportedMarks, ...conversionErrorMarks])].toSorted(),
+		[conversionErrorMarks, initialUnsupportedMarks],
+	);
+	const initialConversion = React.useMemo(() => {
+		const emptyDocument = { type: "doc" as const, content: [{ type: "paragraph" }] };
+		if (initialUnsupportedMarks.length > 0) {
+			return { content: emptyDocument, tableError: null };
+		}
+		try {
+			return { content: portableTextToProsemirror(value || []), tableError: null };
+		} catch (error) {
+			if (error instanceof UnsafePortableTextTableError) {
+				return { content: emptyDocument, tableError: error };
+			}
+			throw error;
+		}
+	}, []); // Only compute once on mount
+	const initialContent = initialConversion.content;
+	const tableConversionError = initialConversion.tableError ?? conversionTableError;
 
 	// Memoize the entire extensions array so TipTap never diffs/replaces
 	// plugins on re-render. The loop was: extension array changes → useEditor
@@ -2205,9 +3009,11 @@ export function PortableTextEditor({
 	// All mutable state (filterCommands, onChange) is accessed via refs.
 	const extensions = React.useMemo(
 		() => [
+			PortableTextIdentityExtension,
+			PortableTextSpanIdentity,
 			StarterKit.configure({
 				heading: {
-					levels: [1, 2, 3],
+					levels: [1, 2, 3, 4, 5, 6],
 				},
 				dropcursor: {
 					color: "#3b82f6",
@@ -2215,35 +3021,47 @@ export function PortableTextEditor({
 				},
 				// Replaced with CodeBlockExtension below (adds language picker node view).
 				codeBlock: false,
+				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
+				code: false,
+				orderedList: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
 					enableClickSelection: true,
 					HTMLAttributes: {
-						class: "text-kumo-brand underline",
+						class: "text-kumo-link underline",
 					},
 				},
 				underline: {},
 			}),
+			EmDashOrderedList,
+			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			GalleryExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
-			Table.configure({
-				resizable: true,
+			Subscript,
+			Superscript,
+			EmDashTable.configure({
+				allowTableNodeSelection: true,
+				cellMinWidth: TABLE_CELL_MIN_WIDTH,
+				resizable: false,
 			}),
-			TableRow,
-			TableHeader,
-			TableCell,
+			createTableResize(() => extensionAnnouncementRef.current()),
+			EmDashTableRow,
+			EmDashTableHeader,
+			EmDashTableCell,
+			TableIdentity,
+			TableSafetyShortcuts,
+			createTableCellSafety(rejectTablePaste),
+			createTableClipboard(rejectTablePaste, (rows, columns) =>
+				extensionAnnouncementRef.current(rows, columns),
+			),
 			Placeholder.configure({
 				includeChildren: true,
-				placeholder: ({ node }) => {
-					if (node.type.name === "paragraph") {
-						return placeholder;
-					}
-					return placeholder;
-				},
+				placeholder: () => placeholderRef.current,
 			}),
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
@@ -2253,7 +3071,7 @@ export function PortableTextEditor({
 				onStateChange: setSlashMenuState,
 				getState: () => slashMenuStateRef.current,
 			}),
-			CharacterCount,
+			CharacterCount.configure({ wordCounter: countWords }),
 			Focus.configure({
 				className: "has-focus",
 				mode: "all",
@@ -2270,7 +3088,7 @@ export function PortableTextEditor({
 		() => ({
 			attributes: {
 				class:
-					"prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[200px] p-4",
+					"prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
@@ -2280,7 +3098,7 @@ export function PortableTextEditor({
 	const editor = useEditor({
 		extensions,
 		content: initialContent as Parameters<typeof useEditor>[0]["content"],
-		editable,
+		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => {
@@ -2289,24 +3107,240 @@ export function PortableTextEditor({
 				const doc = updatedEditor.getJSON();
 				// TipTap's getJSON() returns JSONContent which is structurally compatible
 				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
-				const portableText = prosemirrorToPortableText(pmDoc);
-				cb(portableText);
+				try {
+					const portableText = prosemirrorToPortableText(pmDoc);
+					if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
+					lastPortableTextValueRef.current = portableText;
+					cb(portableText);
+				} catch (error) {
+					if (error instanceof UnsupportedPortableTextMarksError) {
+						setConversionErrorMarks(error.marks);
+						return;
+					}
+					if (error instanceof UnsafePortableTextTableError) {
+						setConversionTableError(error);
+						return;
+					}
+					throw error;
+				}
 			}
 		},
 	});
+
+	const openBlockInsertMenuAt = React.useCallback(
+		(insertPos: number) => {
+			if (!editor) return;
+			const state = slashMenuStateRef.current;
+			const activeSlashFrom = state.trigger === "slash" && state.isOpen ? state.range?.from : null;
+			if (activeSlashFrom != null) {
+				setSlashMenuState((prev) => ({ ...prev, dismissedSlashFrom: activeSlashFrom }));
+			}
+			exitSuggestion(editor.view);
+			editor.commands.focus();
+
+			setSlashMenuState((prev) => ({
+				isOpen: true,
+				mode: "commands",
+				items: filterCommandsRef.current(""),
+				selectedIndex: 0,
+				clientRect: () => {
+					if (editor.isDestroyed) return null;
+					const coords = editor.view.coordsAtPos(insertPos);
+					const DOMRectCtor = editor.view.dom.ownerDocument.defaultView?.DOMRect;
+					if (!DOMRectCtor) return null;
+					return new DOMRectCtor(
+						coords.left,
+						coords.top,
+						coords.right - coords.left,
+						coords.bottom - coords.top,
+					);
+				},
+				range: { from: insertPos, to: insertPos },
+				trigger: "gutter",
+				gutterBlockPos: insertPos,
+				dismissedSlashFrom: prev.dismissedSlashFrom,
+			}));
+		},
+		[editor, setSlashMenuState],
+	);
+
+	const closeSlashMenu = React.useCallback(() => {
+		const state = slashMenuStateRef.current;
+		setSlashMenuState((prev) => ({
+			...prev,
+			isOpen: false,
+			mode: "commands",
+			gutterBlockPos: null,
+			dismissedSlashFrom:
+				state.trigger === "slash" ? (state.range?.from ?? null) : prev.dismissedSlashFrom,
+		}));
+		if (editor && state.trigger === "slash") {
+			exitSuggestion(editor.view);
+		}
+	}, [editor, setSlashMenuState]);
+
+	const executeSlashCommand = React.useCallback(
+		(item: SlashCommandItem, state: SlashMenuState) => {
+			if (!editor || !state.range) return;
+			if (item.opensTablePicker) {
+				setSlashMenuState((current) => ({ ...current, mode: "table-size", isOpen: true }));
+				return;
+			}
+
+			let range = state.range;
+			if (state.trigger === "gutter") {
+				const insertPos = state.gutterBlockPos;
+				if (insertPos === null) return;
+
+				if (item.deferInsertion) {
+					pendingBlockInsertPosRef.current = insertPos;
+					const selectionPos = editor.state.selection.from;
+					range = { from: selectionPos, to: selectionPos };
+				} else {
+					const selectionPos = insertPos + 1;
+					const inserted = editor
+						.chain()
+						.focus()
+						.insertContentAt(insertPos, { type: "paragraph" })
+						.setTextSelection(selectionPos)
+						.run();
+					if (!inserted) return;
+					range = { from: selectionPos, to: selectionPos };
+				}
+			}
+
+			item.command({ editor, range });
+			setSlashMenuState((prev) => ({
+				...prev,
+				isOpen: false,
+				mode: "commands",
+				gutterBlockPos: null,
+			}));
+		},
+		[editor, setSlashMenuState],
+	);
+
+	React.useEffect(() => {
+		if (!editor || !slashMenuState.isOpen || slashMenuState.trigger !== "gutter") return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			const state = slashMenuStateRef.current;
+			if (!state.isOpen || state.trigger !== "gutter") return;
+
+			if (event.key === "Tab") {
+				closeSlashMenu();
+				return;
+			}
+
+			if (event.key === "Escape") {
+				event.preventDefault();
+				closeSlashMenu();
+				return;
+			}
+
+			if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+				if (state.items.length === 0) return;
+				event.preventDefault();
+				const delta = event.key === "ArrowUp" ? -1 : 1;
+				setSlashMenuState((prev) => ({
+					...prev,
+					selectedIndex: (prev.selectedIndex + delta + prev.items.length) % prev.items.length,
+				}));
+				return;
+			}
+
+			if (event.key === "Enter") {
+				const item = state.items[state.selectedIndex];
+				if (!item || !state.range) return;
+				event.preventDefault();
+				executeSlashCommand(item, state);
+				return;
+			}
+
+			if (
+				event.key.length === 1 &&
+				!event.ctrlKey &&
+				!event.metaKey &&
+				!event.altKey &&
+				!event.isComposing &&
+				state.gutterBlockPos !== null
+			) {
+				event.preventDefault();
+				const selectionPos = state.gutterBlockPos + event.key.length + 1;
+				editor
+					.chain()
+					.focus()
+					.insertContentAt(state.gutterBlockPos, {
+						type: "paragraph",
+						content: [{ type: "text", text: event.key }],
+					})
+					.setTextSelection(selectionPos)
+					.run();
+				setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+				return;
+			}
+
+			if (event.key === "Backspace" || event.key === "Delete") {
+				event.preventDefault();
+				closeSlashMenu();
+			}
+		};
+
+		const editorElement = editor.view.dom;
+		editorElement.addEventListener("keydown", handleKeyDown, true);
+		return () => editorElement.removeEventListener("keydown", handleKeyDown, true);
+	}, [
+		closeSlashMenu,
+		editor,
+		executeSlashCommand,
+		setSlashMenuState,
+		slashMenuState.isOpen,
+		slashMenuState.trigger,
+	]);
+
+	const handleTouchInsertBlock = React.useCallback(() => {
+		if (!editor) return;
+		const { $from } = editor.state.selection;
+		const topLevelPos = $from.depth > 0 ? $from.before(1) : $from.pos;
+		const topLevelNode = editor.state.doc.nodeAt(topLevelPos);
+		openBlockInsertMenuAt(
+			topLevelNode ? topLevelPos + topLevelNode.nodeSize : editor.state.doc.content.size,
+		);
+	}, [editor, openBlockInsertMenuAt]);
 
 	// Notify when editor is ready, and on unmount so consumers can clear the
 	// reference before TipTap destroys the instance (e.g. when keying by item.id
 	// to switch translations).
 	React.useEffect(() => {
-		if (editor && onEditorReady) {
+		if (editor && onEditorReady && unsupportedMarks.length === 0 && tableConversionError === null) {
 			onEditorReady(editor);
 			return () => {
 				onEditorReady(null);
 			};
 		}
 		return undefined;
-	}, [editor, onEditorReady]);
+	}, [editor, onEditorReady, tableConversionError, unsupportedMarks.length]);
+
+	React.useEffect(() => {
+		const viewport = window.visualViewport;
+		if (!editor || !viewport) return;
+
+		const updateBubbleMenuPositions = () => {
+			if (editor.isDestroyed) return;
+			editor.view.dispatch(
+				editor.state.tr
+					.setMeta(INLINE_BUBBLE_MENU_KEY, "updatePosition")
+					.setMeta(TABLE_BUBBLE_MENU_KEY, "updatePosition"),
+			);
+		};
+
+		viewport.addEventListener("resize", updateBubbleMenuPositions);
+		viewport.addEventListener("scroll", updateBubbleMenuPositions);
+		return () => {
+			viewport.removeEventListener("resize", updateBubbleMenuPositions);
+			viewport.removeEventListener("scroll", updateBubbleMenuPositions);
+		};
+	}, [editor]);
 
 	// Register plugin blocks into editor storage so the node view can look up metadata
 	React.useEffect(() => {
@@ -2349,17 +3383,24 @@ export function PortableTextEditor({
 
 	React.useEffect(() => {
 		if (!editor) return;
-		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
-		if (!storage) return;
-		storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
-			onBlockSidebarOpenRef.current?.(panel);
-		};
-		storage.onCloseBlockSidebar = () => {
-			onBlockSidebarCloseRef.current?.();
-		};
+		const editorStorage = editor.storage as unknown as Record<string, Record<string, unknown>>;
+		// Both node types share the same sidebar plumbing
+		const storages = [editorStorage.image, editorStorage.gallery].filter(
+			(storage): storage is Record<string, unknown> => storage !== undefined,
+		);
+		for (const storage of storages) {
+			storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
+				onBlockSidebarOpenRef.current?.(panel);
+			};
+			storage.onCloseBlockSidebar = () => {
+				onBlockSidebarCloseRef.current?.();
+			};
+		}
 		return () => {
-			storage.onOpenBlockSidebar = null;
-			storage.onCloseBlockSidebar = null;
+			for (const storage of storages) {
+				storage.onOpenBlockSidebar = null;
+				storage.onCloseBlockSidebar = null;
+			}
 		};
 	}, [editor]);
 
@@ -2369,20 +3410,45 @@ export function PortableTextEditor({
 			if (editor) {
 				// For external providers, src is only used for admin preview
 				// The frontend Image component uses provider + mediaId to generate proper URLs
-				editor
-					.chain()
-					.focus()
-					.setImage({
-						src: item.url,
-						alt: item.alt || item.filename,
-						mediaId: item.id,
-						provider: item.provider || "local",
-						width: item.width,
-						height: item.height,
-					})
-					.run();
+				const attrs = {
+					src: item.url,
+					alt: item.alt || item.filename,
+					mediaId: item.id,
+					provider: canonicalMediaProviderId(item.provider),
+					width: item.width,
+					height: item.height,
+					blurhash: item.blurhash,
+					dominantColor: item.dominantColor,
+				};
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.setImage(attrs).run();
+				} else {
+					chain.insertContentAt(insertPos, { type: "image", attrs }).run();
+				}
 			}
+			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	// Handle gallery insertion from the multi-select media picker
+	const handleGallerySelect = React.useCallback(
+		(items: MediaItem[]) => {
+			if (editor && items.length > 0) {
+				const attrs = { images: items.map(mediaItemToGalleryImage), columns: 3 };
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.setGallery(attrs).run();
+				} else {
+					chain.insertContentAt(insertPos, { type: "gallery", attrs }).run();
+				}
+			}
+			pendingBlockInsertPosRef.current = null;
+			setGalleryPickerOpen(false);
 		},
 		[editor],
 	);
@@ -2417,20 +3483,24 @@ export function PortableTextEditor({
 					.run();
 			} else {
 				// Inserting a new block
-				editor
-					.chain()
-					.focus()
-					.insertContent({
-						type: "pluginBlock",
-						attrs: {
-							blockType: pluginBlockModal.type,
-							id: typeof id === "string" ? id : "",
-							data,
-						},
-					})
-					.run();
+				const content = {
+					type: "pluginBlock",
+					attrs: {
+						blockType: pluginBlockModal.type,
+						id: typeof id === "string" ? id : "",
+						data,
+					},
+				};
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.insertContent(content).run();
+				} else {
+					chain.insertContentAt(insertPos, content).run();
+				}
 			}
 
+			pendingBlockInsertPosRef.current = null;
 			setPluginBlockModal(null);
 			setPluginBlockInitialValues(undefined);
 			editingBlockPosRef.current = null;
@@ -2441,13 +3511,63 @@ export function PortableTextEditor({
 	// Handle slash menu command execution
 	const handleSlashCommand = React.useCallback(
 		(item: SlashCommandItem) => {
-			if (editor && slashMenuState.range) {
-				item.command({ editor, range: slashMenuState.range });
-				setSlashMenuState((prev) => ({ ...prev, isOpen: false }));
-			}
+			const state = slashMenuStateRef.current;
+			executeSlashCommand(item, state);
 		},
-		[editor, slashMenuState.range],
+		[executeSlashCommand],
 	);
+	React.useEffect(() => {
+		if (editable || !editor || slashMenuStateRef.current.mode !== "table-size") return;
+		exitSuggestion(editor.view);
+		queueMicrotask(() =>
+			setSlashMenuState((current) => ({
+				...current,
+				isOpen: false,
+				mode: "commands",
+				gutterBlockPos: null,
+			})),
+		);
+	}, [editable, editor, setSlashMenuState]);
+	const handleSlashTableInsert = React.useCallback(
+		(rows: number, columns: number, withHeaderRow: boolean) => {
+			if (!editor?.isEditable) return;
+			const state = slashMenuStateRef.current;
+			const inserted = insertEditorTable(
+				editor,
+				rows,
+				columns,
+				withHeaderRow,
+				state.trigger === "slash" ? (state.range ?? undefined) : undefined,
+				state.trigger === "gutter" ? (state.gutterBlockPos ?? undefined) : undefined,
+			);
+			if (!inserted) return;
+			if (state.trigger === "slash") exitSuggestion(editor.view);
+			setSlashMenuState((current) => ({
+				...current,
+				isOpen: false,
+				mode: "commands",
+				gutterBlockPos: null,
+				dismissedSlashFrom: null,
+			}));
+			announceTable(t`Table inserted`);
+		},
+		[announceTable, editor, setSlashMenuState, t],
+	);
+	const handleSlashTableCancel = React.useCallback(() => {
+		const state = slashMenuStateRef.current;
+		setSlashMenuState((current) => ({
+			...current,
+			isOpen: false,
+			mode: "commands",
+			gutterBlockPos: null,
+			dismissedSlashFrom:
+				state.trigger === "slash" ? (state.range?.from ?? null) : current.dismissedSlashFrom,
+		}));
+		if (editor) {
+			if (state.trigger === "slash") exitSuggestion(editor.view);
+			editor.view.focus();
+		}
+	}, [editor, setSlashMenuState]);
 
 	// Handle section selection - insert section content at cursor
 	const handleSectionSelect = React.useCallback(
@@ -2458,13 +3578,76 @@ export function PortableTextEditor({
 			const ptContent = Array.isArray(section.content)
 				? (section.content as PortableTextBlock[])
 				: [];
-			const { content: prosemirrorContent } = portableTextToProsemirror(ptContent);
+			let prosemirrorContent: unknown[];
+			try {
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+			} catch (error) {
+				if (error instanceof UnsupportedPortableTextMarksError) {
+					setSectionInsertErrorMarks(error.marks);
+					setSectionInsertTableError(false);
+					return;
+				}
+				if (error instanceof UnsafePortableTextTableError) {
+					setSectionInsertErrorMarks([]);
+					setSectionInsertTableError(true);
+					return;
+				}
+				throw error;
+			}
+			setSectionInsertErrorMarks([]);
+			setSectionInsertTableError(false);
 
-			// Insert the content at current cursor position
-			editor.chain().focus().insertContent(prosemirrorContent).run();
+			const insertPos = pendingBlockInsertPosRef.current;
+			const chain = editor.chain().focus();
+			if (insertPos === null) {
+				chain.insertContent(prosemirrorContent).run();
+			} else {
+				chain.insertContentAt(insertPos, prosemirrorContent).run();
+			}
+			pendingBlockInsertPosRef.current = null;
 		},
 		[editor],
 	);
+
+	if (tableConversionError) {
+		return (
+			<div
+				role="alert"
+				className={cn(
+					className,
+					"rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start",
+				)}
+				aria-labelledby={ariaLabelledby}
+			>
+				<p className="font-medium text-kumo-error">{t`This table cannot be edited safely`}</p>
+				<p className="mt-1 text-sm text-kumo-subtle">
+					{t`This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content.`}
+				</p>
+			</div>
+		);
+	}
+
+	if (unsupportedMarks.length > 0) {
+		const markList = unsupportedMarks.join(", ");
+		return (
+			<div
+				role="alert"
+				className={cn(
+					className,
+					"rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start",
+				)}
+				aria-labelledby={ariaLabelledby}
+			>
+				<p className="font-medium text-kumo-error">{t`This content cannot be edited safely`}</p>
+				<p className="mt-1 text-sm text-kumo-subtle">
+					<Trans>
+						This field contains unsupported Portable Text marks: <code dir="auto">{markList}</code>.
+						Remove them through the API before editing or saving this content.
+					</Trans>
+				</p>
+			</div>
+		);
+	}
 
 	if (!editor) {
 		return (
@@ -2474,64 +3657,179 @@ export function PortableTextEditor({
 		);
 	}
 
+	const tablePasteErrorMessage =
+		tablePasteError?.reason === "too-large"
+			? t`This paste is too large. Paste fewer cells or less text at a time.`
+			: tablePasteError?.reason === "invalid-tsv"
+				? t`This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again.`
+				: tablePasteError?.reason === "table-must-be-top-level"
+					? t`Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again.`
+					: tablePasteError?.reason === "invalid-table"
+						? t`This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again.`
+						: t`Table cells accept text, links, and formatting only.`;
+
 	return (
-		<div
-			className={cn(
-				"border rounded-lg overflow-clip",
-				minimal && "border-0 rounded-none -mx-4",
-				focusMode === "spotlight" && "spotlight-mode",
-				className,
-			)}
-			aria-labelledby={ariaLabelledby}
-		>
-			{!minimal && (
-				<EditorToolbar editor={editor} focusMode={focusMode} onFocusModeChange={setFocusMode} />
-			)}
-			<EditorBubbleMenu editor={editor} />
-			<TableBubbleMenu editor={editor} />
-			<div className="relative overflow-visible">
-				<EditorContent editor={editor} />
-				{editable && <DragHandleWrapper editor={editor} />}
+		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+			<div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+				{tableAnnouncement && <span key={tableAnnouncement.id}>{tableAnnouncement.text}</span>}
 			</div>
-			{!minimal && <EditorFooter editor={editor} />}
-
-			{/* Slash command menu */}
-			<SlashCommandMenu
-				state={slashMenuState}
-				onCommand={handleSlashCommand}
-				onClose={() => setSlashMenuState((prev) => ({ ...prev, isOpen: false }))}
-				setSelectedIndex={(index) =>
-					setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
-				}
+			{tablePasteError && (
+				<div
+					key={tablePasteError.id}
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<p className="text-sm font-medium text-kumo-error">{tablePasteErrorMessage}</p>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => setTablePasteError(null)}
+						aria-label={t`Dismiss table paste error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
+			{(sectionInsertErrorMarks.length > 0 || sectionInsertTableError) && (
+				<div
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<div className="min-w-0">
+						<p className="font-medium text-kumo-error">{t`Could not insert section`}</p>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							{sectionInsertTableError ? (
+								t`This section contains table content that the editor cannot preserve. Update the section before inserting it.`
+							) : (
+								<Trans>
+									This section contains unsupported Portable Text marks:{" "}
+									<code dir="auto">{sectionInsertErrorMarks.join(", ")}</code>. Update the section
+									before inserting it.
+								</Trans>
+							)}
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => {
+							setSectionInsertErrorMarks([]);
+							setSectionInsertTableError(false);
+						}}
+						aria-label={t`Dismiss section error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
+			<EditorBubbleMenu
+				editor={editor}
+				appendTo={appendBubbleMenu}
+				getCollisionOptions={getBubbleMenuCollisionOptions}
 			/>
+			{!minimal && (
+				<TableBubbleMenu
+					editor={editor}
+					editable={editable}
+					appendTo={appendBubbleMenu}
+					getCollisionOptions={getBubbleMenuCollisionOptions}
+					onRun={announceTable}
+				/>
+			)}
+			<TableSelectionAnnouncer editor={editor} onChange={announceTable} />
+			<div
+				className={cn(
+					"border rounded-lg overflow-clip",
+					!minimal && "bg-kumo-base",
+					minimal && "border-0 rounded-none",
+					focusMode === "spotlight" && "spotlight-mode",
+					className,
+				)}
+				aria-labelledby={ariaLabelledby}
+				data-emdash-editor-surface
+			>
+				{!minimal && (
+					<EditorToolbar
+						toolbarRef={toolbarRef}
+						editor={editor}
+						editable={editable}
+						onInsertBlock={handleTouchInsertBlock}
+						onInsertImage={openToolbarImagePicker}
+						onTableAction={announceTable}
+					/>
+				)}
+				<div className="relative overflow-visible">
+					<EditorContent editor={editor} />
+					{editable && <DragHandleWrapper editor={editor} onInsertBlock={openBlockInsertMenuAt} />}
+				</div>
+				{!minimal && <EditorFooter editor={editor} />}
 
-			{/* Media picker for image insertion */}
-			<MediaPickerModal
-				open={mediaPickerOpen}
-				onOpenChange={setMediaPickerOpen}
-				onSelect={handleImageSelect}
-				mimeTypeFilter="image/"
-				title={t`Select Image`}
-			/>
+				{/* Slash command menu */}
+				{editable && (
+					<SlashCommandMenu
+						state={slashMenuState}
+						onCommand={handleSlashCommand}
+						onClose={closeSlashMenu}
+						onTableInsert={handleSlashTableInsert}
+						onTableCancel={handleSlashTableCancel}
+						setSelectedIndex={(index) =>
+							setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
+						}
+					/>
+				)}
 
-			{/* Plugin block insertion/editing modal */}
-			<PluginBlockModal
-				block={pluginBlockModal}
-				initialValues={pluginBlockInitialValues}
-				onClose={() => {
-					setPluginBlockModal(null);
-					setPluginBlockInitialValues(undefined);
-					editingBlockPosRef.current = null;
-				}}
-				onInsert={handlePluginBlockInsert}
-			/>
+				{/* Media picker for image insertion */}
+				<MediaPickerModal
+					open={mediaPickerOpen}
+					onOpenChange={(open) => {
+						setMediaPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleImageSelect}
+					mimeTypeFilter="image/"
+					title={t`Select image`}
+					confirmLabel={t`Insert image`}
+				/>
 
-			{/* Section picker modal */}
-			<SectionPickerModal
-				open={sectionPickerOpen}
-				onOpenChange={setSectionPickerOpen}
-				onSelect={handleSectionSelect}
-			/>
+				{/* Multi-select media picker for gallery insertion */}
+				<MediaPickerModal
+					open={galleryPickerOpen}
+					onOpenChange={(open) => {
+						setGalleryPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					multiple
+					onSelect={() => {}}
+					onSelectMany={handleGallerySelect}
+					mimeTypeFilter="image/"
+					title={t`Select gallery images`}
+				/>
+
+				{/* Plugin block insertion/editing modal */}
+				<PluginBlockModal
+					block={pluginBlockModal}
+					initialValues={pluginBlockInitialValues}
+					onClose={() => {
+						pendingBlockInsertPosRef.current = null;
+						setPluginBlockModal(null);
+						setPluginBlockInitialValues(undefined);
+						editingBlockPosRef.current = null;
+					}}
+					onInsert={handlePluginBlockInsert}
+				/>
+
+				{/* Section picker modal */}
+				<SectionPickerModal
+					open={sectionPickerOpen}
+					onOpenChange={(open) => {
+						setSectionPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					onSelect={handleSectionSelect}
+				/>
+			</div>
 		</div>
 	);
 }
@@ -2540,21 +3838,43 @@ export function PortableTextEditor({
  * Bubble Menu - appears when text is selected
  * Shows inline formatting options and link editing
  */
-function EditorBubbleMenu({ editor }: { editor: Editor }) {
+function EditorBubbleMenu({
+	editor,
+	appendTo,
+	getCollisionOptions,
+}: {
+	editor: Editor;
+	appendTo: () => HTMLElement;
+	getCollisionOptions: BubbleMenuCollisionOptions;
+}) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const inputRef = React.useRef<HTMLInputElement>(null);
 	const { t } = useLingui();
-
+	const activeMarks = useEditorState({
+		editor,
+		selector: ({ editor: activeEditor }) => ({
+			bold: activeEditor.isActive("bold"),
+			italic: activeEditor.isActive("italic"),
+			underline: activeEditor.isActive("underline"),
+			strike: activeEditor.isActive("strike"),
+			subscript: activeEditor.isActive("subscript"),
+			superscript: activeEditor.isActive("superscript"),
+			code: activeEditor.isActive("code"),
+			link: activeEditor.isActive("link"),
+		}),
+	});
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
 			const existingUrl = editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
-			// Focus input after state update
-			setTimeout(() => inputRef.current?.focus(), 0);
 		}
 	}, [showLinkInput, editor]);
+
+	const closeLinkInput = () => {
+		setShowLinkInput(false);
+		setLinkUrl("");
+	};
 
 	const handleSetLink = () => {
 		if (linkUrl.trim() === "") {
@@ -2562,48 +3882,63 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
 		}
-		setShowLinkInput(false);
-		setLinkUrl("");
+		closeLinkInput();
+	};
+
+	const applyLinkHref = (href: string) => {
+		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		closeLinkInput();
 	};
 
 	const handleRemoveLink = () => {
 		editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		setShowLinkInput(false);
-		setLinkUrl("");
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkInput(false);
-			setLinkUrl("");
-			editor.commands.focus();
-		}
+		closeLinkInput();
 	};
 
 	return (
 		<BubbleMenu
 			editor={editor}
+			pluginKey={INLINE_BUBBLE_MENU_KEY}
+			appendTo={appendTo}
 			options={{
+				strategy: "absolute",
 				placement: "top",
 				offset: 8,
-				flip: true,
-				shift: true,
+				flip: getCollisionOptions,
+				shift: getCollisionOptions,
+				size: () => ({
+					...getCollisionOptions(),
+					apply: ({ availableWidth, elements }) => {
+						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
+					},
+				}),
 			}}
+			shouldShow={({ editor: activeEditor, element, state, view }) => {
+				const { selection } = state;
+				return (
+					activeEditor.isEditable &&
+					(selection instanceof TextSelection || selection instanceof AllSelection) &&
+					!selection.empty &&
+					(view.hasFocus() || element.contains(document.activeElement))
+				);
+			}}
+			data-emdash-inline-bubble-menu
 			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
 		>
 			{showLinkInput ? (
-				<div className="flex items-center gap-1">
-					<Input
-						ref={inputRef}
-						type="url"
-						placeholder="https://..."
+				<div className="flex items-start gap-1">
+					<LinkDestinationInput
+						className="w-72"
 						value={linkUrl}
-						onChange={(e) => setLinkUrl(e.target.value)}
-						onKeyDown={handleKeyDown}
-						className="h-8 w-48 text-sm"
+						onValueChange={setLinkUrl}
+						onSubmit={handleSetLink}
+						onPick={applyLinkHref}
+						onEscape={() => {
+							closeLinkInput();
+							editor.commands.focus();
+						}}
 					/>
 					<Button
 						type="button"
@@ -2616,7 +3951,7 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{editor.isActive("link") && (
+					{activeMarks.link && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -2634,35 +3969,49 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 				<>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleBold().run()}
-						active={editor.isActive("bold")}
+						active={activeMarks.bold}
 						title={t`Bold`}
 					>
 						<TextB className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleItalic().run()}
-						active={editor.isActive("italic")}
+						active={activeMarks.italic}
 						title={t`Italic`}
 					>
 						<TextItalic className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						active={editor.isActive("underline")}
+						active={activeMarks.underline}
 						title={t`Underline`}
 					>
 						<TextUnderline className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
 						onClick={() => editor.chain().focus().toggleStrike().run()}
-						active={editor.isActive("strike")}
+						active={activeMarks.strike}
 						title={t`Strikethrough`}
 					>
 						<TextStrikethrough className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSubscript().run()}
+						active={activeMarks.subscript}
+						title={t`Subscript`}
+					>
+						<TextSubscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSuperscript().run()}
+						active={activeMarks.superscript}
+						title={t`Superscript`}
+					>
+						<TextSuperscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
-						active={editor.isActive("code")}
+						active={activeMarks.code}
 						title={t`Code`}
 					>
 						<Code className="h-4 w-4" />
@@ -2670,8 +4019,8 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
 					<div className="w-px h-6 bg-kumo-line mx-1" />
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={editor.isActive("link")}
-						title={editor.isActive("link") ? t`Edit link` : t`Add link`}
+						active={activeMarks.link}
+						title={activeMarks.link ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -2685,79 +4034,85 @@ function EditorBubbleMenu({ editor }: { editor: Editor }) {
  * Table Bubble Menu - appears when cursor is in a table.
  * Shows table editing options: add/remove rows/columns, toggle header, delete table.
  */
-function TableBubbleMenu({ editor }: { editor: Editor }) {
+function TableBubbleMenu({
+	editor,
+	editable,
+	appendTo,
+	getCollisionOptions,
+	onRun,
+}: {
+	editor: Editor;
+	editable: boolean;
+	appendTo: () => HTMLElement;
+	getCollisionOptions: BubbleMenuCollisionOptions;
+	onRun: (label: string) => void;
+}) {
 	const { t } = useLingui();
-
-	if (!editor.isActive("table")) {
-		return null;
-	}
+	const controls = useTableControls(editor);
+	const run = (id: "add-row-after" | "add-column-after", label: string) => {
+		if (runTableAction(editor, id)) onRun(label);
+	};
 
 	return (
 		<BubbleMenu
 			editor={editor}
+			pluginKey={TABLE_BUBBLE_MENU_KEY}
+			appendTo={appendTo}
 			options={{
+				strategy: "absolute",
 				placement: "top",
 				offset: 8,
+				flip: getCollisionOptions,
+				shift: getCollisionOptions,
+				size: () => ({
+					...getCollisionOptions(),
+					apply: ({ availableWidth, elements }) => {
+						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
+					},
+				}),
 			}}
-			shouldShow={({ editor: activeEditor }) => activeEditor.isActive("table")}
-			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+			shouldShow={({ editor: activeEditor, element, state, view }) => {
+				const activeElement = document.activeElement;
+				const triggerId = element.querySelector('[aria-expanded="true"]')?.id;
+				const hasMenuFocus = Boolean(
+					triggerId &&
+					activeElement?.closest('[role="menu"]')?.getAttribute("aria-labelledby") === triggerId,
+				);
+				const hasEditorFocus = view.hasFocus() || element.contains(activeElement) || hasMenuFocus;
+				return (
+					activeEditor.isEditable &&
+					hasEditorFocus &&
+					activeEditor.isActive("table") &&
+					(state.selection.empty || state.selection instanceof CellSelection)
+				);
+			}}
+			data-emdash-table-bubble-menu
+			role="group"
+			aria-label={t`Table controls`}
+			className="z-[100] flex items-center gap-0.5 rounded-lg bg-kumo-base p-1 shadow-lg ring ring-kumo-line"
 		>
+			{controls && (controls.rows > 1 || controls.columns > 1) && (
+				<span className="px-2 text-xs text-kumo-subtle">
+					{t`${plural(controls.rows, { one: "# row", other: "# rows" })} × ${plural(controls.columns, { one: "# column", other: "# columns" })} selected`}
+				</span>
+			)}
 			<BubbleButton
-				onClick={() => editor.chain().focus().addColumnBefore().run()}
-				title={t`Add column before`}
+				onClick={() => run("add-row-after", t`Row added below`)}
+				disabled={!controls?.can["add-row-after"]}
+				title={t`Add row below`}
 			>
-				<Columns className="h-4 w-4" />
-				<Plus className="absolute -left-0.5 h-2 w-2" />
+				<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
 			</BubbleButton>
 			<BubbleButton
-				onClick={() => editor.chain().focus().addColumnAfter().run()}
+				onClick={() => run("add-column-after", t`Column added after`)}
+				disabled={!controls?.can["add-column-after"]}
 				title={t`Add column after`}
 			>
-				<Columns className="h-4 w-4" />
-				<Plus className="absolute -right-0.5 h-2 w-2" />
+				<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
 			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteColumn().run()}
-				title={t`Delete column`}
-			>
-				<Columns className="h-4 w-4 text-kumo-danger" />
-			</BubbleButton>
-
-			<div className="mx-1 h-6 w-px bg-kumo-line" />
-
-			<BubbleButton
-				onClick={() => editor.chain().focus().addRowBefore().run()}
-				title={t`Add row before`}
-			>
-				<Rows className="h-4 w-4" />
-				<Plus className="absolute -top-0.5 h-2 w-2" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().addRowAfter().run()}
-				title={t`Add row after`}
-			>
-				<Rows className="h-4 w-4" />
-				<Plus className="absolute -bottom-0.5 h-2 w-2" />
-			</BubbleButton>
-			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title={t`Delete row`}>
-				<Rows className="h-4 w-4 text-kumo-danger" />
-			</BubbleButton>
-
-			<div className="mx-1 h-6 w-px bg-kumo-line" />
-
-			<BubbleButton
-				onClick={() => editor.chain().focus().toggleHeaderRow().run()}
-				active={editor.isActive("tableHeader")}
-				title={t`Toggle header row`}
-			>
-				<TableIcon className="h-4 w-4" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteTable().run()}
-				title={t`Delete table`}
-			>
-				<Trash className="h-4 w-4 text-kumo-danger" />
-			</BubbleButton>
+			<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
 		</BubbleMenu>
 	);
 }
@@ -2765,11 +4120,13 @@ function TableBubbleMenu({ editor }: { editor: Editor }) {
 function BubbleButton({
 	onClick,
 	active,
+	disabled,
 	title,
 	children,
 }: {
 	onClick: () => void;
 	active?: boolean;
+	disabled?: boolean;
 	title: string;
 	children: React.ReactNode;
 }) {
@@ -2778,15 +4135,174 @@ function BubbleButton({
 			type="button"
 			variant="ghost"
 			shape="square"
-			className={cn("h-8 w-8", active && "bg-kumo-tint text-kumo-default")}
+			className={cn(
+				"h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11",
+				active && "bg-kumo-tint text-kumo-default",
+			)}
 			onClick={onClick}
+			disabled={disabled}
 			title={title}
 			aria-label={title}
+			aria-pressed={active === undefined ? undefined : active}
 		>
 			{children}
 		</Button>
 	);
 }
+
+type TextAlignment = "left" | "center" | "right" | "justify";
+type AlignmentButtonState = boolean | "mixed";
+
+function getSelectedTableCells(editor: Editor): ProseMirrorNode[] {
+	const { selection } = editor.state;
+	const cells: ProseMirrorNode[] = [];
+	if (selection instanceof CellSelection) {
+		selection.forEachCell((cell) => cells.push(cell));
+		return cells;
+	}
+	for (let depth = selection.$from.depth; depth > 0; depth--) {
+		const node = selection.$from.node(depth);
+		if (node.type.name === "tableCell" || node.type.name === "tableHeader") {
+			cells.push(node);
+			break;
+		}
+	}
+	return cells;
+}
+
+function getSelectionTextAlignments(editor: Editor): {
+	alignments: Set<TextAlignment>;
+	isCellSelection: boolean;
+	isTableAlignmentUnavailable: boolean;
+} {
+	const tableCells = getSelectedTableCells(editor);
+	if (selectionTouchesTable(editor.state) && !selectionIsContainedInTableCells(editor.state)) {
+		return {
+			alignments: new Set(),
+			isCellSelection: false,
+			isTableAlignmentUnavailable: true,
+		};
+	}
+	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
+	const defaultAlignment: TextAlignment =
+		ownerWindow?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+	const alignments = new Set<TextAlignment>();
+	if (tableCells.length > 0) {
+		for (const cell of tableCells) {
+			const textAlign = cell.attrs.textAlign;
+			alignments.add(
+				textAlign === "left" ||
+					textAlign === "center" ||
+					textAlign === "right" ||
+					textAlign === "justify"
+					? textAlign
+					: defaultAlignment,
+			);
+		}
+		return {
+			alignments,
+			isCellSelection: editor.state.selection instanceof CellSelection,
+			isTableAlignmentUnavailable: false,
+		};
+	}
+
+	const collectAlignment = (node: ProseMirrorNode) => {
+		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
+		const textAlign = node.attrs.textAlign;
+		alignments.add(
+			textAlign === "left" ||
+				textAlign === "center" ||
+				textAlign === "right" ||
+				textAlign === "justify"
+				? textAlign
+				: defaultAlignment,
+		);
+	};
+
+	for (const { $from, $to } of editor.state.selection.ranges) {
+		if ($from.pos === $to.pos) {
+			for (let depth = $from.depth; depth >= 0; depth -= 1) {
+				const node = $from.node(depth);
+				if (node.type.name === "paragraph" || node.type.name === "heading") {
+					collectAlignment(node);
+					break;
+				}
+			}
+			continue;
+		}
+
+		editor.state.doc.nodesBetween($from.pos, $to.pos, (node) => {
+			collectAlignment(node);
+			return node.type.name !== "paragraph" && node.type.name !== "heading";
+		});
+	}
+
+	return { alignments, isCellSelection: false, isTableAlignmentUnavailable: false };
+}
+
+function alignmentButtonState(
+	alignments: Set<TextAlignment>,
+	isCellSelection: boolean,
+	alignment: TextAlignment,
+): AlignmentButtonState {
+	if (alignments.size === 1) return alignments.has(alignment);
+	return isCellSelection && alignments.has(alignment) ? "mixed" : false;
+}
+
+function setSelectionTextAlignment(editor: Editor, alignment: TextAlignment): boolean {
+	if (selectionTouchesTable(editor.state) && !selectionIsContainedInTableCells(editor.state)) {
+		return false;
+	}
+	if (!(editor.state.selection instanceof CellSelection)) {
+		const chain = editor.chain().focus();
+		return editor.isActive("table")
+			? chain.setCellAttribute("textAlign", alignment).run()
+			: chain.setTextAlign(alignment).run();
+	}
+
+	editor.commands.focus();
+	const selection = editor.state.selection;
+	if (!(selection instanceof CellSelection)) return false;
+	const transaction = editor.state.tr;
+	selection.forEachCell((_cell, position) => {
+		const cell = transaction.doc.nodeAt(position);
+		if (cell && cell.attrs.textAlign !== alignment) {
+			transaction.setNodeMarkup(position, undefined, { ...cell.attrs, textAlign: alignment });
+		}
+	});
+	if (!transaction.docChanged) return false;
+	editor.view.dispatch(transaction);
+	return true;
+}
+
+const TableSafetyShortcuts = Extension.create({
+	name: "tableSafetyShortcuts",
+	priority: 1_200,
+	addKeyboardShortcuts() {
+		const blockUnsafeStructure = () => selectionTouchesTable(this.editor.state);
+		const setTableAlignment = (alignment: TextAlignment) => {
+			if (!selectionTouchesTable(this.editor.state)) return false;
+			setSelectionTextAlignment(this.editor, alignment);
+			return true;
+		};
+		return {
+			"Mod-Alt-1": blockUnsafeStructure,
+			"Mod-Alt-2": blockUnsafeStructure,
+			"Mod-Alt-3": blockUnsafeStructure,
+			"Mod-Alt-4": blockUnsafeStructure,
+			"Mod-Alt-5": blockUnsafeStructure,
+			"Mod-Alt-6": blockUnsafeStructure,
+			"Mod-Shift-7": blockUnsafeStructure,
+			"Mod-Shift-8": blockUnsafeStructure,
+			"Mod-Shift-b": blockUnsafeStructure,
+			"Mod-Alt-c": blockUnsafeStructure,
+			"Mod-Shift-l": () => setTableAlignment("left"),
+			"Mod-Shift-e": () => setTableAlignment("center"),
+			"Mod-Shift-r": () => setTableAlignment("right"),
+			"Mod-Shift-j": () => setTableAlignment("justify"),
+		};
+	},
+});
 
 /**
  * Editor Toolbar
@@ -2795,44 +4311,54 @@ function BubbleButton({
  * Arrow keys move focus between buttons, Home/End jump to first/last.
  */
 function EditorToolbar({
+	toolbarRef,
 	editor,
-	focusMode,
-	onFocusModeChange,
+	editable,
+	onInsertBlock,
+	onInsertImage,
+	onTableAction,
 }: {
+	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
-	focusMode: FocusMode;
-	onFocusModeChange: (mode: FocusMode) => void;
+	editable: boolean;
+	onInsertBlock: () => void;
+	onInsertImage: () => void;
+	onTableAction: (label: string) => void;
 }) {
 	const { t } = useLingui();
-	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const toolbarRef = React.useRef<HTMLDivElement>(null);
-	const linkInputRef = React.useRef<HTMLInputElement>(null);
 
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
-		selector: (ctx) => ({
-			isBold: ctx.editor.isActive("bold"),
-			isItalic: ctx.editor.isActive("italic"),
-			isUnderline: ctx.editor.isActive("underline"),
-			isStrike: ctx.editor.isActive("strike"),
-			isCode: ctx.editor.isActive("code"),
-			isHeading1: ctx.editor.isActive("heading", { level: 1 }),
-			isHeading2: ctx.editor.isActive("heading", { level: 2 }),
-			isHeading3: ctx.editor.isActive("heading", { level: 3 }),
-			isBulletList: ctx.editor.isActive("bulletList"),
-			isOrderedList: ctx.editor.isActive("orderedList"),
-			isBlockquote: ctx.editor.isActive("blockquote"),
-			isCodeBlock: ctx.editor.isActive("codeBlock"),
-			isAlignLeft: ctx.editor.isActive({ textAlign: "left" }),
-			isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
-			isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
-			isLink: ctx.editor.isActive("link"),
-			canUndo: ctx.editor.can().undo(),
-			canRedo: ctx.editor.can().redo(),
-		}),
+		selector: (ctx) => {
+			const { alignments, isCellSelection, isTableAlignmentUnavailable } =
+				getSelectionTextAlignments(ctx.editor);
+			const isOrderedList = ctx.editor.isActive("orderedList");
+			const touchesTable = selectionTouchesTable(ctx.editor.state);
+			return {
+				isInTable: touchesTable,
+				isBold: ctx.editor.isActive("bold"),
+				isItalic: ctx.editor.isActive("italic"),
+				isUnderline: ctx.editor.isActive("underline"),
+				isStrike: ctx.editor.isActive("strike"),
+				isCode: ctx.editor.isActive("code"),
+				isBulletList: ctx.editor.isActive("bulletList"),
+				isOrderedList,
+				canContinueOrderedList: isOrderedList && ctx.editor.can().continueOrderedList(),
+				canRestartOrderedList: isOrderedList && ctx.editor.can().restartOrderedList(),
+				isBlockquote: ctx.editor.isActive("blockquote"),
+				isCodeBlock: ctx.editor.isActive("codeBlock"),
+				alignLeftState: alignmentButtonState(alignments, isCellSelection, "left"),
+				alignCenterState: alignmentButtonState(alignments, isCellSelection, "center"),
+				alignRightState: alignmentButtonState(alignments, isCellSelection, "right"),
+				isTableAlignmentUnavailable,
+				isLink: ctx.editor.isActive("link"),
+				canUndo: ctx.editor.can().undo(),
+				canRedo: ctx.editor.can().redo(),
+			};
+		},
 	});
 
 	// Populate link URL when opening popover
@@ -2840,9 +4366,14 @@ function EditorToolbar({
 		if (showLinkPopover) {
 			const existingUrl = editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
-			setTimeout(() => linkInputRef.current?.focus(), 0);
 		}
 	}, [showLinkPopover, editor]);
+
+	const applyLinkHref = (href: string) => {
+		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		setShowLinkPopover(false);
+		setLinkUrl("");
+	};
 
 	const handleSetLink = () => {
 		if (linkUrl.trim() === "") {
@@ -2860,33 +4391,11 @@ function EditorToolbar({
 		setLinkUrl("");
 	};
 
-	const handleLinkKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkPopover(false);
-			setLinkUrl("");
-			editor.commands.focus();
-		}
+	const closeLinkPopover = () => {
+		setShowLinkPopover(false);
+		setLinkUrl("");
+		editor.commands.focus();
 	};
-
-	const handleImageSelect = React.useCallback(
-		(item: MediaItem) => {
-			editor
-				.chain()
-				.focus()
-				.setImage({
-					src: item.url,
-					alt: item.alt || item.filename,
-					mediaId: item.id,
-					width: item.width,
-					height: item.height,
-				})
-				.run();
-		},
-		[editor],
-	);
 
 	// Keyboard navigation for toolbar (WAI-ARIA toolbar pattern)
 	const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -2897,18 +4406,23 @@ function EditorToolbar({
 			...toolbar.querySelectorAll<HTMLButtonElement>(
 				'button:not([disabled]), [role="button"]:not([disabled])',
 			),
-		];
+		].filter((button) => button.getClientRects().length > 0);
 		const currentIndex = buttons.findIndex((btn) => btn === document.activeElement);
 		if (currentIndex === -1) return;
+		const isRtl = getComputedStyle(toolbar).direction === "rtl";
 
 		let nextIndex: number | null = null;
 
 		switch (e.key) {
 			case "ArrowRight":
+				nextIndex = (currentIndex + (isRtl ? -1 : 1) + buttons.length) % buttons.length;
+				break;
+			case "ArrowLeft":
+				nextIndex = (currentIndex + (isRtl ? 1 : -1) + buttons.length) % buttons.length;
+				break;
 			case "ArrowDown":
 				nextIndex = (currentIndex + 1) % buttons.length;
 				break;
-			case "ArrowLeft":
 			case "ArrowUp":
 				nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
 				break;
@@ -2928,16 +4442,35 @@ function EditorToolbar({
 		}
 	}, []);
 
-	return (
+	const toolbar = (
 		<div
 			ref={toolbarRef}
 			role="toolbar"
 			aria-label={t`Text formatting`}
-			className="sticky -top-6 z-10 border-b bg-kumo-tint p-1 flex flex-wrap gap-0.5"
+			className="sticky -top-6 z-10 flex flex-nowrap gap-0.5 overflow-x-auto border-b bg-kumo-tint p-1"
+			style={{ justifyContent: "safe center" }}
 			onKeyDown={handleKeyDown}
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
+				<Tooltip
+					content={t`Insert block after current block`}
+					side="bottom"
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							className="hidden h-8 w-8 flex-none hover:bg-kumo-interact/50 pointer-coarse:flex"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onInsertBlock}
+							aria-label={t`Insert block after current block`}
+							data-touch-block-insert
+						>
+							<Plus className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					}
+				/>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -2979,27 +4512,7 @@ function EditorToolbar({
 
 			{/* Headings */}
 			<ToolbarGroup>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-					active={editorState.isHeading1}
-					title={t`Heading 1`}
-				>
-					<TextHOne className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-					active={editorState.isHeading2}
-					title={t`Heading 2`}
-				>
-					<TextHTwo className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-					active={editorState.isHeading3}
-					title={t`Heading 3`}
-				>
-					<TextHThree className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
+				<HeadingDropdownMenu editor={editor} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
@@ -3009,6 +4522,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBulletList().run()}
 					active={editorState.isBulletList}
+					disabled={editorState.isInTable}
 					title={t`Bullet List`}
 				>
 					<List className="h-4 w-4" aria-hidden="true" />
@@ -3016,13 +4530,33 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleOrderedList().run()}
 					active={editorState.isOrderedList}
+					disabled={editorState.isInTable}
 					title={t`Numbered List`}
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				{editorState.isOrderedList && (
+					<>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().continueOrderedList().run()}
+							disabled={!editorState.canContinueOrderedList}
+							title={t`Continue numbering`}
+						>
+							<ArrowUUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().restartOrderedList().run()}
+							disabled={!editorState.canRestartOrderedList}
+							title={t`Restart numbering`}
+						>
+							<ArrowUUpLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+					</>
+				)}
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}
+					disabled={editorState.isInTable}
 					title={t`Quote`}
 				>
 					<Quotes className="h-4 w-4" aria-hidden="true" />
@@ -3030,19 +4564,30 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
 					active={editorState.isCodeBlock}
+					disabled={editorState.isInTable}
 					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() =>
-						editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-					}
-					active={editor.isActive("table")}
-					title={t`Insert Table`}
+					onClick={onInsertImage}
+					disabled={editorState.isInTable}
+					title={t`Insert Image`}
 				>
-					<TableIcon className="h-4 w-4" aria-hidden="true" />
+					<ImageIcon className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				<ToolbarButton
+					onClick={() => insertHtmlBlock(editor)}
+					disabled={editorState.isInTable}
+					title={t`Insert HTML`}
+				>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+			</ToolbarGroup>
+
+			<ToolbarSeparator />
+			<ToolbarGroup>
+				<TableToolbarControl editor={editor} editable={editable} onRun={onTableAction} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
@@ -3050,22 +4595,25 @@ function EditorToolbar({
 			{/* Text alignment */}
 			<ToolbarGroup>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().setTextAlign("left").run()}
-					active={editorState.isAlignLeft}
+					onClick={() => setSelectionTextAlignment(editor, "left")}
+					active={editorState.alignLeftState}
+					disabled={editorState.isTableAlignmentUnavailable}
 					title={t`Align Left`}
 				>
 					<TextAlignLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().setTextAlign("center").run()}
-					active={editorState.isAlignCenter}
+					onClick={() => setSelectionTextAlignment(editor, "center")}
+					active={editorState.alignCenterState}
+					disabled={editorState.isTableAlignmentUnavailable}
 					title={t`Align Center`}
 				>
 					<TextAlignCenter className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().setTextAlign("right").run()}
-					active={editorState.isAlignRight}
+					onClick={() => setSelectionTextAlignment(editor, "right")}
+					active={editorState.alignRightState}
+					disabled={editorState.isTableAlignmentUnavailable}
 					title={t`Align Right`}
 				>
 					<TextAlignRight className="h-4 w-4" aria-hidden="true" />
@@ -3074,87 +4622,83 @@ function EditorToolbar({
 
 			<ToolbarSeparator />
 
-			{/* Insert */}
+			{/* Link */}
 			<ToolbarGroup>
-				{/* Link with popover */}
-				<div className="relative">
-					<ToolbarButton
-						onClick={() => setShowLinkPopover(!showLinkPopover)}
-						active={editorState.isLink}
-						title={t`Insert Link`}
-					>
-						<LinkIcon className="h-4 w-4" aria-hidden="true" />
-					</ToolbarButton>
-					{showLinkPopover && (
-						<div className="absolute top-full start-0 mt-1 z-50 rounded-md border bg-kumo-overlay p-3 shadow-lg">
-							<div className="flex flex-col gap-2">
-								<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
-								<div className="flex items-center gap-1">
-									<Input
-										ref={linkInputRef}
-										type="url"
-										placeholder="https://..."
-										value={linkUrl}
-										onChange={(e) => setLinkUrl(e.target.value)}
-										onKeyDown={handleLinkKeyDown}
-										className="h-8 w-52 text-sm"
-									/>
-								</div>
-								<div className="flex justify-between">
+				<Popover
+					open={showLinkPopover}
+					onOpenChange={(open) => {
+						setShowLinkPopover(open);
+						if (!open) setLinkUrl("");
+					}}
+				>
+					<Tooltip
+						content={t`Insert Link`}
+						side="bottom"
+						render={
+							<Popover.Trigger
+								render={
 									<Button
 										type="button"
 										variant="ghost"
-										size="sm"
-										onClick={() => {
-											setShowLinkPopover(false);
-											setLinkUrl("");
-										}}
-									>
-										{t`Cancel`}
-									</Button>
-									<div className="flex gap-1">
-										{editorState.isLink && (
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												className="text-kumo-danger"
-												onClick={handleRemoveLink}
-												icon={<LinkBreak />}
-											>
-												{t`Remove`}
-											</Button>
+										shape="square"
+										className={cn(
+											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
 										)}
-										<Button type="button" variant="primary" size="sm" onClick={handleSetLink}>
-											{t`Apply`}
+										onMouseDown={(event) => event.preventDefault()}
+										aria-label={t`Insert Link`}
+										aria-pressed={editorState.isLink}
+									>
+										<LinkIcon className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								}
+							/>
+						}
+					/>
+					<Popover.Content side="bottom" align="start" className="w-auto p-3">
+						<div className="flex flex-col gap-2">
+							<label className="text-xs font-medium text-kumo-subtle">{t`Link`}</label>
+							<LinkDestinationInput
+								className="w-80"
+								value={linkUrl}
+								onValueChange={setLinkUrl}
+								onSubmit={handleSetLink}
+								onPick={applyLinkHref}
+								onEscape={closeLinkPopover}
+							/>
+							<div className="flex justify-between">
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={() => {
+										setShowLinkPopover(false);
+										setLinkUrl("");
+									}}
+								>
+									{t`Cancel`}
+								</Button>
+								<div className="flex gap-1">
+									{editorState.isLink && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="text-kumo-danger"
+											onClick={handleRemoveLink}
+											icon={<LinkBreak />}
+										>
+											{t`Remove`}
 										</Button>
-									</div>
+									)}
+									<Button type="button" variant="primary" size="sm" onClick={handleSetLink}>
+										{t`Apply`}
+									</Button>
 								</div>
 							</div>
 						</div>
-					)}
-				</div>
-				<ToolbarButton onClick={() => setMediaPickerOpen(true)} title={t`Insert Image`}>
-					<ImageIcon className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() =>
-						editor
-							.chain()
-							.focus()
-							.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-							.run()
-					}
-					title={t`Insert HTML`}
-				>
-					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().setHorizontalRule().run()}
-					title={t`Insert Horizontal Rule`}
-				>
-					<Minus className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
+					</Popover.Content>
+				</Popover>
 			</ToolbarGroup>
 
 			<ToolbarSeparator aria-hidden="true" />
@@ -3176,43 +4720,23 @@ function EditorToolbar({
 					<ArrowUUpRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
-
-			<ToolbarSeparator aria-hidden="true" />
-
-			{/* Focus mode */}
-			<ToolbarGroup>
-				<ToolbarButton
-					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
-					active={focusMode === "spotlight"}
-					title={focusMode === "spotlight" ? t`Exit Spotlight Mode` : t`Spotlight Mode`}
-				>
-					<Eye className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-			</ToolbarGroup>
-
-			{/* Media Picker Modal */}
-			<MediaPickerModal
-				open={mediaPickerOpen}
-				onOpenChange={setMediaPickerOpen}
-				onSelect={handleImageSelect}
-				mimeTypeFilter="image/"
-				title={t`Select Image`}
-			/>
 		</div>
 	);
+
+	return <TooltipProvider>{toolbar}</TooltipProvider>;
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
-	return <div className="flex gap-0.5">{children}</div>;
+	return <div className="flex flex-none gap-0.5">{children}</div>;
 }
 
 function ToolbarSeparator() {
-	return <div className="w-px bg-kumo-line mx-1" />;
+	return <div className="w-px bg-kumo-line mx-1 flex-none" />;
 }
 
 interface ToolbarButtonProps {
 	onClick?: () => void;
-	active?: boolean;
+	active?: AlignmentButtonState;
 	disabled?: boolean;
 	title: string; // Required for accessibility
 	children: React.ReactNode;
@@ -3220,20 +4744,30 @@ interface ToolbarButtonProps {
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn("h-8 w-8", active && "bg-kumo-tint text-kumo-default")}
-			onMouseDown={(e) => e.preventDefault()}
-			onClick={onClick}
-			disabled={disabled}
-			aria-label={title}
-			aria-pressed={active}
-			tabIndex={0}
-		>
-			{children}
-		</Button>
+		<Tooltip
+			content={title}
+			side="bottom"
+			render={
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className={cn(
+						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+						active === true && "bg-kumo-interact/50 text-kumo-default",
+						active === "mixed" && "bg-kumo-tint text-kumo-default ring-1 ring-inset ring-kumo-line",
+					)}
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={onClick}
+					disabled={disabled}
+					aria-label={title}
+					aria-pressed={active}
+					tabIndex={0}
+				>
+					{children}
+				</Button>
+			}
+		/>
 	);
 }
 

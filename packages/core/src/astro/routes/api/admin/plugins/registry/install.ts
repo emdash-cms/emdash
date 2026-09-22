@@ -19,8 +19,10 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleRegistryInstall } from "#api/index.js";
+import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseBody } from "#api/parse.js";
 
+import { getRegistryConfigInput } from "../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../version.js";
 
 export const prerender = false;
@@ -57,6 +59,10 @@ const installBodySchema = z.object({
 	 * dialog and the install POST.
 	 */
 	acknowledgedDeclaredAccess: z.unknown().optional(),
+	acknowledgedMcpTools: z.unknown().optional(),
+	acknowledgedPublicRoutes: z.unknown().optional(),
+	acknowledgedProfileCid: z.string().min(1).max(256).optional(),
+	acknowledgedReleaseCid: z.string().min(1).max(256).optional(),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -69,6 +75,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		const denied = requirePerm(user, "plugins:manage");
 		if (denied) return denied;
+
+		const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
+		if (activationFence) return activationFence;
 
 		const body = await parseBody(request, installBodySchema);
 		if (isParseError(body)) return body;
@@ -87,12 +96,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			emdash.config.experimental?.registry,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
 			{
 				did: body.did,
 				slug: body.slug,
 				version: body.version,
 				acknowledgedDeclaredAccess: body.acknowledgedDeclaredAccess,
+				acknowledgedMcpTools: body.acknowledgedMcpTools,
+				acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
+				acknowledgedProfileCid: body.acknowledgedProfileCid,
+				acknowledgedReleaseCid: body.acknowledgedReleaseCid,
 			},
 			{
 				configuredPluginIds: reservedPluginIds,
@@ -104,6 +117,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Sync runtime so the new plugin becomes active without a worker restart.
 		await emdash.syncRegistryPlugins();
+		await emdash.runPluginInstallLifecycle(result.data.pluginId);
 
 		return unwrapResult(result, 201);
 	} catch (error) {

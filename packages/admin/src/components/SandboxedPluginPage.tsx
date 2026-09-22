@@ -9,9 +9,10 @@ import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
+import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
 
 interface SandboxedPluginPageProps {
 	pluginId: string;
@@ -24,44 +25,68 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [toast, setToast] = useState<BlockResponse["toast"] | null>(null);
+	const requestGeneration = useRef(0);
+	const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Send an interaction to the plugin admin route
 	const sendInteraction = useCallback(
-		async (interaction: BlockInteraction) => {
+		async (interaction: BlockInteraction, showLoading = false) => {
+			const generation = ++requestGeneration.current;
+			if (toastTimer.current) clearTimeout(toastTimer.current);
+			toastTimer.current = null;
+			setToast(null);
+			if (showLoading) {
+				setLoading(true);
+				setError(null);
+			}
 			try {
+				const requestInteraction =
+					interaction.type === "page_load" ? interaction : { ...interaction, page };
 				const response = await apiFetch(`${API_BASE}/plugins/${pluginId}/admin`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(interaction),
+					body: JSON.stringify(requestInteraction),
 				});
+				if (generation !== requestGeneration.current) return;
 
 				if (!response.ok) {
 					const text = await response.text();
+					if (generation !== requestGeneration.current) return;
 					setError(t`Plugin responded with ${response.status}: ${text}`);
 					return;
 				}
 
 				const body = (await response.json()) as { data: BlockResponse };
+				if (generation !== requestGeneration.current) return;
 				const data = body.data;
 				setBlocks(data.blocks);
 				setError(null);
 
 				if (data.toast) {
 					setToast(data.toast);
-					setTimeout(setToast, 4000, null);
+					toastTimer.current = setTimeout(() => {
+						if (generation === requestGeneration.current) setToast(null);
+						toastTimer.current = null;
+					}, 4000);
 				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
+				if (generation === requestGeneration.current) {
+					setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
+				}
+			} finally {
+				if (showLoading && generation === requestGeneration.current) setLoading(false);
 			}
 		},
-		[pluginId],
+		[page, pluginId, t],
 	);
 
 	// Initial page load
 	useEffect(() => {
-		setLoading(true);
-		setError(null);
-		void sendInteraction({ type: "page_load", page }).finally(() => setLoading(false));
+		void sendInteraction({ type: "page_load", page }, true);
+		return () => {
+			requestGeneration.current++;
+			if (toastTimer.current) clearTimeout(toastTimer.current);
+		};
 	}, [sendInteraction, page]);
 
 	// Handle block actions
@@ -101,17 +126,21 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				<div
 					className={`fixed end-4 top-4 z-50 rounded-lg border px-4 py-3 text-sm shadow-lg ${
 						toast.type === "success"
-							? "border-green-200 bg-green-50 text-green-800"
+							? "border-kumo-success/50 bg-kumo-success-tint text-kumo-success"
 							: toast.type === "error"
-								? "border-red-200 bg-red-50 text-red-800"
-								: "border-blue-200 bg-blue-50 text-blue-800"
+								? "border-kumo-danger/50 bg-kumo-danger/10 text-kumo-danger"
+								: "border-kumo-info/50 bg-kumo-info-tint text-kumo-info"
 					}`}
 				>
 					{toast.message}
 				</div>
 			)}
 
-			<BlockRenderer blocks={blocks} onAction={handleAction} />
+			<BlockRenderer
+				blocks={blocks}
+				onAction={handleAction}
+				resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+			/>
 		</div>
 	);
 }

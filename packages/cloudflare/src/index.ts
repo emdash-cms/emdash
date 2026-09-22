@@ -39,9 +39,12 @@ import type {
 	ObjectCacheDescriptor,
 	StorageDescriptor,
 } from "emdash";
+import { unstable_readConfig } from "wrangler";
 
 import type { DurableObjectsConfig } from "./db/do-sql-types.js";
 import type { PreviewDOConfig } from "./db/do-types.js";
+
+const ENVIRONMENT_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
  * D1 configuration
@@ -66,6 +69,15 @@ export interface D1Config {
 	 *
 	 * Read replication must also be enabled on the D1 database itself
 	 * (via dashboard or REST API).
+	 *
+	 * **Warning:** incompatible with the `global_fetch_strictly_public`
+	 * compatibility flag. With that flag set, the internal request the D1
+	 * Sessions API makes to route queries to replicas is silently blocked
+	 * and every SSR request hangs until the Worker is killed — with no
+	 * error logged (`outcome: "canceled"`, empty `exceptions`). The hang
+	 * may only start once replicas finish provisioning, so it can pass an
+	 * initial post-deploy check. Remove the flag or keep sessions
+	 * disabled. See https://github.com/emdash-cms/emdash/issues/1273.
 	 */
 	session?: "disabled" | "auto" | "primary-first";
 
@@ -110,10 +122,67 @@ export interface D1Config {
  */
 export interface HyperdriveConfig {
 	/**
-	 * Name of the Hyperdrive binding in wrangler config.
+	 * Name of the Hyperdrive binding in wrangler config. This is the primary,
+	 * **caching-disabled** binding — every authenticated request and every write
+	 * uses it, so read-after-write consistency holds.
 	 * @default "HYPERDRIVE"
 	 */
 	binding?: string;
+
+	/**
+	 * Optional name of a second Hyperdrive binding pointing at a
+	 * **caching-enabled** configuration over the *same* database.
+	 *
+	 * When set, anonymous reads of **public-site paths** (no session, GET/HEAD,
+	 * not under `/_emdash`) route through this cache-enabled binding for lower
+	 * latency and reduced database load. Everything else stays on `binding`
+	 * (uncached) to preserve read-after-write consistency: every authenticated
+	 * request, every write, and every request under `/_emdash` (admin, setup,
+	 * auth, internal APIs) — including anonymous GETs like the post-setup status
+	 * check, which must observe a write made moments earlier. Runtime migrations
+	 * and the cold-start singleton always use `binding`.
+	 *
+	 * After a content publish, EmDash prefers the primary uncached binding for
+	 * anonymous public reads for a short window (see
+	 * {@link preferUncachedAfterWriteMs}) so edge/object caches are not reseeded
+	 * from Hyperdrive's still-stale query results. Outside that window,
+	 * anonymous public reads use this cache-enabled binding.
+	 *
+	 * Bind both configs in wrangler:
+	 * ```jsonc
+	 * {
+	 *   "hyperdrive": [
+	 *     { "binding": "HYPERDRIVE", "id": "<caching-disabled-id>" },
+	 *     { "binding": "HYPERDRIVE_CACHED", "id": "<caching-enabled-id>" }
+	 *   ]
+	 * }
+	 * ```
+	 */
+	cachedBinding?: string;
+
+	/**
+	 * How long (ms) after a content write anonymous public reads should use the
+	 * primary uncached `binding` instead of `cachedBinding`. Set this equal to
+	 * your cached Hyperdrive configuration's `max_age` so the prefer-uncached
+	 * window covers the query-cache TTL. Cross-isolate coordination uses the
+	 * configured distributed Object Cache backend; without one, the timestamp
+	 * is known only inside the Worker isolate that handled the write.
+	 *
+	 * Only applies when `cachedBinding` is set. Default: `60_000` (Hyperdrive's
+	 * default `max_age`) when `cachedBinding` is set; ignored otherwise.
+	 */
+	preferUncachedAfterWriteMs?: number;
+
+	/**
+	 * Environment variable containing a PostgreSQL connection string that the
+	 * deployment migration command can use to reach the database origin
+	 * directly. This value is read only by `emdash migrate`; Worker requests
+	 * continue to use the Hyperdrive binding.
+	 *
+	 * @default `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_<BINDING>`
+	 * (`$` in the binding is represented as `_`.)
+	 */
+	migrationConnectionStringEnv?: string;
 
 	/**
 	 * Maximum size of the in-Worker node-postgres connection pool.
@@ -204,7 +273,8 @@ export interface AccessConfig {
  * Cloudflare D1 database adapter
  *
  * For Cloudflare Workers with D1 binding.
- * Migrations run automatically at setup time - no need for manual SQL files.
+ * Runtime migrations run automatically by default; deployment-managed
+ * migrations can be applied from the build manifest before deploy.
  *
  * Uses a custom introspector that works around D1's restriction on
  * cross-joins with pragma_table_info().
@@ -219,7 +289,13 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		entrypoint: "@emdash-cms/cloudflare/db/d1",
 		config,
 		type: "sqlite",
+		migrations: {
+			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			manifestConfig: { binding: config.binding },
+		},
 		supportsRequestScope: true,
+		supportsCoalescing: true,
+		supportsCollectionDeletionGuard: true,
 	};
 }
 
@@ -254,6 +330,22 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * # or, at create time: wrangler hyperdrive create ... --caching-disabled
  * ```
  *
+ * **Optional: serve anonymous reads from cache.** If a short public-read
+ * staleness window is acceptable, pass a second `cachedBinding` pointing at a
+ * caching-enabled Hyperdrive config over the same database. Anonymous public
+ * reads then route through the cache-enabled binding while authenticated
+ * requests and writes stay on the uncached `binding`. For a short window after
+ * each content publish (default 60s; set `preferUncachedAfterWriteMs` to match
+ * your Hyperdrive `max_age`), anonymous public reads also use the primary so a
+ * rebuild cannot reseed edge caches from stale Hyperdrive results:
+ * ```ts
+ * database: hyperdrive({
+ *   binding: "HYPERDRIVE",
+ *   cachedBinding: "HYPERDRIVE_CACHED",
+ *   // preferUncachedAfterWriteMs: 60_000, // default when cachedBinding is set
+ * })
+ * ```
+ *
  * For best latency, pair this with a Smart Placement hint so the Worker runs in
  * the Cloudflare data center closest to your database's region — the request
  * path makes multiple round trips, so co-locating the Worker with the origin
@@ -279,13 +371,35 @@ export function d1(config: D1Config): DatabaseDescriptor {
  * ```
  */
 export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
+	const binding = config.binding ?? "HYPERDRIVE";
+	const connectionStringEnv =
+		config.migrationConnectionStringEnv ??
+		`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_${binding.replaceAll("$", "_")}`;
+	if (!ENVIRONMENT_VARIABLE_PATTERN.test(connectionStringEnv)) {
+		throw new Error("migrationConnectionStringEnv must be a valid environment variable name.");
+	}
 	return {
 		entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
-		config: { binding: config.binding ?? "HYPERDRIVE", max: config.max },
+		config: {
+			binding,
+			max: config.max,
+			...(config.cachedBinding !== undefined ? { cachedBinding: config.cachedBinding } : {}),
+			...(config.preferUncachedAfterWriteMs !== undefined
+				? { preferUncachedAfterWriteMs: config.preferUncachedAfterWriteMs }
+				: {}),
+		},
 		type: "postgres",
+		migrations: {
+			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			manifestConfig: { binding, connectionStringEnv },
+		},
 		// Each request gets a fresh pg connection that is closed afterwards —
 		// connections cannot be reused across Worker requests.
 		supportsRequestScope: true,
+		...(config.cachedBinding &&
+		(config.preferUncachedAfterWriteMs === undefined || config.preferUncachedAfterWriteMs > 0)
+			? { needsLastContentWriteAt: true }
+			: {}),
 	};
 }
 
@@ -314,6 +428,8 @@ export function durableObjects(config: DurableObjectsConfig): DatabaseDescriptor
 		config,
 		type: "sqlite",
 		supportsRequestScope: true,
+		supportsCoalescing: true,
+		supportsCollectionDeletionGuard: true,
 	};
 }
 
@@ -414,15 +530,31 @@ export function access(config: AccessConfig): AuthDescriptor {
 /**
  * Cloudflare Worker Loader sandbox adapter
  *
- * Returns the module path for the Cloudflare sandbox runner.
- * Use this in the `sandboxRunner` config option.
+ * Returns the module path for the Cloudflare sandbox runner when the project's
+ * Wrangler config includes the `LOADER` Worker Loader binding. Without that
+ * paid-plan binding, sandboxed plugins are disabled at build time.
  *
  * @example
  * ```ts
  * sandboxRunner: sandbox()
  * ```
  */
-export function sandbox(): string {
+export function sandbox(): string | undefined {
+	const environment = process.env.CLOUDFLARE_ENV;
+	const config = unstable_readConfig(environment ? { env: environment } : {}, {
+		hideWarnings: true,
+	});
+	const hasWorkerLoader = config.worker_loaders?.some(
+		(loader: { binding?: string }) => loader.binding === "LOADER",
+	);
+
+	if (!hasWorkerLoader) {
+		console.warn(
+			"[emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.",
+		);
+		return undefined;
+	}
+
 	return "@emdash-cms/cloudflare/sandbox";
 }
 
@@ -491,5 +623,7 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 export { cloudflareImages, type CloudflareImagesConfig } from "./media/images.js";
 export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js";
 
-// Re-export cache provider config helper (config-time)
+// Legacy Cache API + zone REST purge provider (config-time). Prefer
+// cacheCloudflare() from @astrojs/cloudflare/cache with wrangler
+// "cache": { "enabled": true } for native Workers Caching.
 export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";

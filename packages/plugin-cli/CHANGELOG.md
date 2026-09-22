@@ -1,5 +1,129 @@
 # @emdash-cms/registry-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- [#3081](https://github.com/emdash-cms/emdash/pull/3081) [`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds repository-level automated plugin releases. `emdash-plugin release setup` writes one shared `.github/workflows/emdash-release.yml` at the Git repository root, including when setup runs from a nested package. The workflow resolves `<slug>@<version>` tags to a unique plugin manifest, rejects version mismatches before attestation, and requests its first repository connection through GitHub OpenID Connect without an Actions secret.
+  
+  Prepare later packages with `emdash-plugin profile setup --dir <package-directory>`. Their first release reuses approved repository workflow scopes when the signed package profile names the same repository. Tag and manual-run scopes accumulate after publisher confirmation instead of replacing each other. Existing package approvals remain package-scoped until the publisher explicitly confirms a repository connection; existing generated workflows and the legacy optional connection-invitation input remain supported.
+
+- [#3081](https://github.com/emdash-cms/emdash/pull/3081) [`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates `emdash-plugin init` to produce a validated, package-manager-aware plugin project. Interactive setup shows the resolved publisher, author, security contact, repository, target, and package manager before writing. Non-interactive setup requires explicit ownership flags unless `--use-detected` opts into the active publisher session and local Git metadata.
+  
+  Generated projects pin the plugin CLI version, use bounded EmDash dependencies, include validation and publishing scripts, and add `AGENTS.md` with a local `creating-plugins` skill. `.agents/skills` and `.claude/skills` link to the same canonical skill directory, while `.claude/CLAUDE.md` links to `AGENTS.md`. pnpm projects include the reviewed `esbuild` install policy and use an explicit `SandboxedPlugin` annotation so declaration output remains portable. The scaffolder validates the complete manifest and parent paths before writing and stages new projects atomically.
+
+- [#3084](https://github.com/emdash-cms/emdash/pull/3084) [`b581ff8`](https://github.com/emdash-cms/emdash/commit/b581ff80af9d9ad73b11374b194da59ccf71d43d) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a workerd-backed Vitest host for sandboxed plugin tests and includes it in projects created by `emdash-plugin init`. `emdashPluginTest()` builds the plugin and configures D1, Worker Loader, and the production `PluginBridge`; `createPluginTestHost()` invokes hooks and routes through the production sandbox boundary and provides helpers for content fixtures, plugin storage, and KV assertions.
+
+- [#3093](https://github.com/emdash-cms/emdash/pull/3093) [`ea2ccd5`](https://github.com/emdash-cms/emdash/commit/ea2ccd548f7aba9883bc1c9d0cf3c6f642c10a62) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds Changesets-aware automated plugin releases. `emdash-plugin release setup` detects a root `.changeset/config.json` and offers to follow Changesets releases, `<slug>@<version>` tags, or manual runs. Use `--trigger auto|changesets|tags|manual` in non-interactive setup.
+  
+  The Changesets variant accepts the official Changesets Action published-package JSON through a reusable workflow. It supports mixed monorepos where npm package names differ from EmDash plugin IDs, ignores ordinary npm packages, verifies every reported plugin version, and publishes matching plugins as a matrix. Private EmDash-only packages produce a setup warning unless Changesets versions and tags them.
+
+### Patch Changes
+
+- Updated dependencies [[`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de), [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a), [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec)]:
+  - @emdash-cms/registry-client@0.6.0
+  - @emdash-cms/registry-lexicons@0.5.0
+
+## 0.10.0
+
+### Minor Changes
+
+- [#2892](https://github.com/emdash-cms/emdash/pull/2892) [`66aeecd`](https://github.com/emdash-cms/emdash/commit/66aeecd1feded23c2ee607b799500c390a04eb92) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds interactive package-profile setup for delegated plugin releases. `emdash-plugin release setup` now creates a missing profile or adds delegated-release settings to an existing valid profile before writing the GitHub Actions workflow. Run `emdash-plugin profile setup` to prepare only the profile.
+
+  Interactive setup asks for the GitHub repository when it is absent from `emdash-plugin.jsonc`, lets you choose when releases require approval, and confirms the profile write. Non-interactive callers must pass `--yes` when a profile change is required.
+
+  The release service returns `PACKAGE_PROFILE_REQUIRED` before accepting artifact uploads when the signed profile is missing, lacks delegated-release settings, or names a different GitHub repository. Existing release intents also terminate with an actionable reason if their authoritative profile becomes invalid.
+
+- [#2747](https://github.com/emdash-cms/emdash/pull/2747) [`3b124f2`](https://github.com/emdash-cms/emdash/commit/3b124f23126fead8884884b9f3d53e3be5d41bd3) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds typed clients for the experimental delegated release service. `ReleaseServiceClient` submits, polls, and cancels GitHub OpenID Connect release intents; manages publisher workload policies and retained delegation; and lets publishers check whether profile-listed approvers have an active passkey and inspect publisher-scoped audit events through a publisher session. `ReleaseServiceOperatorClient` exposes the Cloudflare Access status and sanitized audit, sharded publisher and approver inventory, pause, suspension, revocation, cancellation, reconciliation, resumable encryption-key rotation, Workflow-backed fleet verification, audited key retirement, encrypted R2 archive, and fail-safe publisher restore and abort operations.
+
+  `ReleaseServiceClient` can request, poll, list, and confirm GitHub workflow connections. The first permanent release run records GitHub's signed repository, workflow, ref, and environment as a pending request and returns a browser approval URL. The publisher must confirm those details before the service creates a workload policy. Tag-based connections can cover the current tag or all version tags while keeping the repository and workflow path exact.
+
+  Both clients validate response envelopes and return stable `ReleaseServiceError` codes with retry metadata. Mutation helpers require idempotency keys, and workload polling requests a fresh token from the configured provider for each call.
+
+  The plugin CLI adds `emdash-plugin release dry-run`, `release submit`, `release status`, and `release cancel` for GitHub Actions jobs. The first `release submit` requests browser approval for the permanent workflow and waits for confirmation before creating an intent. Dry-run verifies existing workload admission without creating a connection request, intent, consuming rate budget, or reserving a version. The commands request audience-bound OIDC tokens from the runner, support JSON output, and use the GitHub run identity as the default idempotency key where a mutation occurs.
+
+  Delegated submissions use a URL-source release record: each package or listing-image artifact supplies a checksum-bound HTTPS URL and no blob. The service stages and uploads those bytes through the publisher's delegation, then creates a blob-only release record. Submit and dry-run reject mixed or blob-backed source inputs before requesting GitHub OIDC.
+
+  Interactive `release delegate`, `revoke`, `workload`, `enrol`, `approve`, and `reject` commands print validated browser handoffs. Publisher application sessions, OAuth credentials, and passkey assertions remain at the release-service origin instead of entering the terminal process.
+
+- [#2749](https://github.com/emdash-cms/emdash/pull/2749) [`920e1f3`](https://github.com/emdash-cms/emdash/commit/920e1f3fe6a7c7bf725c85e26f81e588e1201243) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `emdash-plugin release setup` to create the permanent GitHub Actions workflow for delegated plugin releases. The generated workflow builds and attests the plugin, waits for first-run browser authorization, and uploads its exact bundle and provenance through GitHub OIDC before publishing.
+
+  `ReleaseServiceClient.uploadReleaseArtifact()` supports custom workflows that need to stage checksum-bound bundle, image, or provenance bytes. Existing URL-source `release submit` workflows remain supported.
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
+- [#2743](https://github.com/emdash-cms/emdash/pull/2743) [`d99a0e8`](https://github.com/emdash-cms/emdash/commit/d99a0e835628edca896e304700746707e1bf56e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes saved OAuth sessions failing to refresh or revoke after the original loopback callback server closes. New logins retain the loopback client registration needed to recreate the same OAuth client.
+
+  Sessions created before this fix do not contain that registration metadata and cannot be resumed. Sign in again after upgrading.
+
+- [#2894](https://github.com/emdash-cms/emdash/pull/2894) [`3b106f6`](https://github.com/emdash-cms/emdash/commit/3b106f6f87e24a665ecd9007e4001905700b1554) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates `emdash-plugin release setup` to generate workflows that use the hosted release service at `https://releases.emdashcms.com`.
+
+- [#2848](https://github.com/emdash-cms/emdash/pull/2848) [`e0e60ba`](https://github.com/emdash-cms/emdash/commit/e0e60ba17b93d2022411afb8a3187c08e5142c18) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds publisher-created workflow connection invitations to delegated releases. First-time or unmatched GitHub workflows must use a package-bound, single-use invitation before they can request publisher approval; connected workflows continue without one.
+
+  Create the invitation in the publisher dashboard or with `createWorkflowConnectionInvitation()`, then save its value as the repository's `EMDASH_CONNECTION_INVITATION` GitHub Actions secret. The generated release workflow passes this secret to the release Action automatically. Custom workflows can pass `invitationToken` to `requestWorkflowConnection()`, and publishers can reject pending requests with `rejectWorkflowConnection()`.
+
+- Updated dependencies [[`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636), [`66aeecd`](https://github.com/emdash-cms/emdash/commit/66aeecd1feded23c2ee607b799500c390a04eb92), [`52fffdc`](https://github.com/emdash-cms/emdash/commit/52fffdc3556396f48a5320a0213da1a03337f642), [`3b124f2`](https://github.com/emdash-cms/emdash/commit/3b124f23126fead8884884b9f3d53e3be5d41bd3), [`920e1f3`](https://github.com/emdash-cms/emdash/commit/920e1f3fe6a7c7bf725c85e26f81e588e1201243), [`e0e60ba`](https://github.com/emdash-cms/emdash/commit/e0e60ba17b93d2022411afb8a3187c08e5142c18), [`c7b6fdf`](https://github.com/emdash-cms/emdash/commit/c7b6fdfd1f5dd9a168f5d0f6bfa9b7b9ff343145)]:
+  - @emdash-cms/plugin-types@0.3.1
+  - @emdash-cms/registry-client@0.5.0
+
+## 0.9.0
+
+### Minor Changes
+
+- [#2765](https://github.com/emdash-cms/emdash/pull/2765) [`9d92b55`](https://github.com/emdash-cms/emdash/commit/9d92b55b0c6b1e8d0506ea11887f18738989c414) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates plugin publishing to host package bundles, icons, banners, and screenshots as blobs on the publisher's Personal Data Server by default. Run `emdash-plugin publish` from the plugin directory; the CLI builds the bundle, checks the stored OAuth grant, uploads the artifacts, and writes CID-bound checksums into the release record.
+
+  Existing scripts can keep externally hosted package bundles with `emdash-plugin publish --url <https-url>`. The CLI still downloads that URL to validate and hash the served bytes. Listing images are uploaded as publisher blobs on both paths.
+
+  The experimental aggregator release envelope replaces `mirrors` with typed `artifactCaches`. The field is optional during rolling upgrades, and updated clients treat an omitted field as an empty cache list. A record-scoped cache descriptor supplies its service endpoint; clients derive `/r/{did}/{collection}/{rkey}/{recordCid}/{blobCid}` so cache admission is bound to the exact release revision.
+
+  Install and update verify raw cache, PDS, and external fallback bytes against the signed checksum and blob metadata. The authenticated image proxy may serve a transformed record-scoped cache rendition; if that cache is unavailable, it falls back to checksum-verified PDS or external bytes. Listing images remain capped at 1 MiB.
+
+  Sites must upgrade EmDash before installing a release whose package artifact is available only as a PDS blob. Older EmDash versions require an external package URL.
+
+  #### What should I do?
+
+  Remove `--artifact-base-url` from publish scripts and stop pre-uploading listing images. The CLI rejects the removed option with migration guidance. Replace any experimental `releaseView.mirrors` access with `releaseView.artifactCaches ?? []`. If an existing granular login reports `MISSING_BLOB_SCOPE`, run `emdash-plugin logout` and log in again to grant `blob:application/gzip` and `blob:image/*`.
+
+### Patch Changes
+
+- Updated dependencies [[`9d92b55`](https://github.com/emdash-cms/emdash/commit/9d92b55b0c6b1e8d0506ea11887f18738989c414), [`6178888`](https://github.com/emdash-cms/emdash/commit/61788888bf5933e2a9ac310a931f1c241fa63878), [`e3ad082`](https://github.com/emdash-cms/emdash/commit/e3ad0823121704c508cd104783a59fccd3f6a44e)]:
+  - @emdash-cms/registry-client@0.4.0
+  - @emdash-cms/registry-lexicons@0.4.0
+
+## 0.8.1
+
+### Patch Changes
+
+- [#2504](https://github.com/emdash-cms/emdash/pull/2504) [`cd4268d`](https://github.com/emdash-cms/emdash/commit/cd4268d1d114e827124810a09fe4edc27aa5f784) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes image processing hangs caused by malformed ICNS, HEIF, and JXL headers in media and plugin artifacts.
+
+## 0.8.0
+
+### Minor Changes
+
+- [#2002](https://github.com/emdash-cms/emdash/pull/2002) [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c) Thanks [@jcheese1](https://github.com/jcheese1)! - Adds explicitly declared, administrator-enabled plugin MCP tools with per-route permissions, plugin-scoped token access, install and update consent, structured output schemas, and invocation auditing.
+
+### Patch Changes
+
+- Updated dependencies [[`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28), [`e52dea9`](https://github.com/emdash-cms/emdash/commit/e52dea9b72b043d62348f8d01eefade2ce66484c), [`3f8b778`](https://github.com/emdash-cms/emdash/commit/3f8b77822bf8e89b065884c53c7e8b7676788c48), [`07c9f21`](https://github.com/emdash-cms/emdash/commit/07c9f210db300803f49ecf2b8a18fe173e459a28)]:
+  - @emdash-cms/registry-lexicons@0.3.0
+  - @emdash-cms/plugin-types@0.3.0
+  - @emdash-cms/registry-client@0.3.4
+
+## 0.7.0
+
+### Minor Changes
+
+- [#1719](https://github.com/emdash-cms/emdash/pull/1719) [`7c5de08`](https://github.com/emdash-cms/emdash/commit/7c5de08f6370ea88500b7ec425d58b2c82443260) Thanks [@swissky](https://github.com/swissky)! - Adds a `taxonomies:read` plugin capability with read-only taxonomy access: plugins that declare it get `ctx.taxonomies` to list taxonomy definitions (`getAll()`), fetch the terms of a taxonomy (`getTerms()`), and read the terms assigned to a content entry (`getEntryTerms()`) — in-process and in both sandbox runners.
+
+### Patch Changes
+
+- Updated dependencies [[`7c5de08`](https://github.com/emdash-cms/emdash/commit/7c5de08f6370ea88500b7ec425d58b2c82443260)]:
+  - @emdash-cms/plugin-types@0.2.0
+  - @emdash-cms/registry-lexicons@0.2.0
+  - @emdash-cms/registry-client@0.3.3
+
 ## 0.6.0
 
 ### Minor Changes

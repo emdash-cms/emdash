@@ -1,11 +1,9 @@
 /**
- * `emdash/plugin` — types for authoring sandboxed plugins.
+ * `emdash/plugin` — types and lightweight helpers for authoring sandboxed plugins.
  *
- * This is a **type-only** subpath. The package.json export map only
- * declares a `types` condition, so the bundler erases `import type`
- * statements against this entry and the build never tries to resolve a
- * JavaScript module. That's how a sandboxed plugin can import these
- * types without dragging the `emdash` runtime into its bundle.
+ * Type-only imports erase normally. The value exports are small identity and
+ * response-builder helpers that the plugin CLI bundles into the sandbox
+ * artifact without pulling in the EmDash runtime.
  *
  * Recommended authoring pattern:
  *
@@ -38,7 +36,21 @@
  * per-hook return contracts so misuse fails at compile time.
  */
 
+import type { Permission } from "@emdash-cms/auth";
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import type {
+	PluginFormData,
+	PluginRouteBodyMode,
+	PluginRouteMethod,
+	PluginRouteQuery,
+	PluginRouteRequest,
+	PluginRouteResponseMode,
+} from "@emdash-cms/plugin-types";
+import type { ZodType } from "zod";
+
+import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
+import type {
+	ActorInfo,
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
 	CommentAfterModerateEvent,
@@ -49,13 +61,22 @@ import type {
 	CommentModerateHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
+	ContentAfterRestoreHandler,
 	ContentAfterSaveHandler,
+	ContentAfterScheduleHandler,
 	ContentAfterUnpublishHandler,
+	ContentAfterUnscheduleHandler,
+	ContentBeforePublishHandler,
+	ContentBeforeScheduleHandler,
+	ContentBeforeUnpublishHandler,
 	ContentBeforeDeleteHandler,
 	ContentBeforeSaveHandler,
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	CronHandler,
 	EmailAfterSendEvent,
@@ -67,6 +88,9 @@ import type {
 	LifecycleEvent,
 	LifecycleHandler,
 	MediaAfterUploadEvent,
+	MediaBytes,
+	MediaItem,
+	MediaMetadataPatch,
 	MediaAfterUploadHandler,
 	MediaBeforeUploadHandler,
 	MediaUploadEvent,
@@ -77,7 +101,10 @@ import type {
 	PluginContext,
 	UninstallEvent,
 	UninstallHandler,
+	UserInfo,
 } from "./plugins/types.js";
+
+export type { PluginUiContext } from "@emdash-cms/blocks/server";
 
 /**
  * Map from hook name to its handler signature. Adding or changing a
@@ -95,8 +122,14 @@ export interface HookHandlers {
 	"content:afterSave": ContentAfterSaveHandler;
 	"content:beforeDelete": ContentBeforeDeleteHandler;
 	"content:afterDelete": ContentAfterDeleteHandler;
+	"content:beforePublish": ContentBeforePublishHandler;
+	"content:beforeSchedule": ContentBeforeScheduleHandler;
+	"content:beforeUnpublish": ContentBeforeUnpublishHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
+	"content:afterRestore": ContentAfterRestoreHandler;
+	"content:afterSchedule": ContentAfterScheduleHandler;
+	"content:afterUnschedule": ContentAfterUnscheduleHandler;
 	"media:beforeUpload": MediaBeforeUploadHandler;
 	"media:afterUpload": MediaAfterUploadHandler;
 	cron: CronHandler;
@@ -154,6 +187,51 @@ export interface SandboxedRequest {
 	headers: Record<string, string>;
 }
 
+export type {
+	PluginFormData,
+	PluginFormDataFileEntry,
+	PluginFormDataTextEntry,
+	PluginRouteQuery,
+} from "@emdash-cms/plugin-types";
+
+export type PluginRouteInput<TMode extends PluginRouteBodyMode> = TMode extends "none"
+	? PluginRouteQuery
+	: TMode extends "text"
+		? string
+		: TMode extends "bytes"
+			? Uint8Array
+			: TMode extends "form-data"
+				? PluginFormData
+				: unknown;
+
+export type PluginResponseBody =
+	| { kind: "text"; value: string }
+	| { kind: "bytes"; value: Uint8Array };
+
+export interface PluginResponseInit {
+	status?: number;
+	headers?: HeadersInit;
+	body?: PluginResponseBody | null;
+}
+
+export interface PluginResponse {
+	readonly __emdashPluginResponse: true;
+	readonly status: number;
+	readonly headers: Array<[string, string]>;
+	readonly body: PluginResponseBody | null;
+}
+
+export function pluginResponse(init: PluginResponseInit = {}): PluginResponse {
+	const headers: Array<[string, string]> = [];
+	new Headers(init.headers).forEach((value, name) => headers.push([name, value]));
+	return {
+		__emdashPluginResponse: true,
+		status: init.status ?? 200,
+		headers,
+		body: init.body ?? null,
+	};
+}
+
 /**
  * Context passed to a route handler. Routes get an extra `routeCtx`
  * argument with the call-site input + the originating request, in
@@ -166,6 +244,15 @@ export interface SandboxedRouteContext {
 	input: unknown;
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
+	/**
+	 * Authenticated caller, if the route is private. Resolved and
+	 * authorized by the host before dispatch — trust it over any user id
+	 * in the request body. `undefined` for public routes and for machine
+	 * tokens with no bound user.
+	 */
+	user?: UserInfo;
 }
 
 /**
@@ -177,10 +264,32 @@ export interface SandboxedRouteContext {
  * Return type is `unknown` because routes serialise their return value
  * to JSON for the caller; authors define their own response shape.
  */
-export type RouteHandler = (
-	routeCtx: SandboxedRouteContext,
-	ctx: PluginContext,
-) => Promise<unknown>;
+export type RouteHandler<TInput = unknown> = {
+	bivarianceHack(
+		routeCtx: Omit<SandboxedRouteContext, "input"> & { input: TInput },
+		ctx: PluginContext,
+	): Promise<unknown>;
+}["bivarianceHack"];
+
+interface RouteConfigBase {
+	public?: boolean;
+	cacheControl?: string;
+	input?: unknown;
+	permission?: Permission;
+	methods?: PluginRouteMethod[];
+	response?: PluginRouteResponseMode;
+}
+
+export type PluginRouteConfig<TMode extends PluginRouteBodyMode> = RouteConfigBase & {
+	request: PluginRouteRequest & { body: TMode };
+	handler: RouteHandler<PluginRouteInput<TMode>>;
+};
+
+export function pluginRoute<TMode extends PluginRouteBodyMode>(
+	config: PluginRouteConfig<TMode>,
+): PluginRouteConfig<TMode> {
+	return config;
+}
 
 /**
  * Route entry — either a bare handler or the config form with
@@ -188,11 +297,18 @@ export type RouteHandler = (
  */
 export type RouteEntry =
 	| RouteHandler
-	| {
+	| (RouteConfigBase & {
 			handler: RouteHandler;
-			public?: boolean;
-			input?: unknown;
-	  };
+			request?: PluginRouteRequest;
+	  });
+
+export interface SandboxedMcpTool {
+	description: string;
+	route: string;
+	input: ZodType;
+	output?: ZodType;
+	destructive?: boolean;
+}
 
 /**
  * The shape of a sandboxed plugin's default export.
@@ -205,10 +321,28 @@ export type RouteEntry =
  */
 export interface SandboxedPlugin {
 	hooks?: {
-		[K in keyof HookHandlers]?: HookEntry<K>;
+		[K in keyof HookHandlers]?: K extends "content:beforeSave"
+			? SandboxedContentBeforeSaveHandler | SandboxedContentBeforeSaveConfig
+			: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
+	mcp?: { tools: Record<string, SandboxedMcpTool> };
 }
+
+export type SandboxedContentBeforeSaveHandler = (
+	event: ContentHookEvent,
+	ctx: PluginContext,
+) => Promise<Record<string, unknown> | SandboxHookErrorEnvelope | void>;
+
+export interface SandboxedContentBeforeSaveConfig extends Omit<
+	HookConfig<"content:beforeSave">,
+	"handler"
+> {
+	handler: SandboxedContentBeforeSaveHandler;
+}
+
+export type { SandboxHookErrorEnvelope };
+export type { NumericDelta, UpdateIfArgs, UpdateIfResult } from "./plugins/types.js";
 
 /**
  * Re-export of event types so plugin authors can reference them
@@ -219,6 +353,7 @@ export interface SandboxedPlugin {
  * portable `.d.mts`.
  */
 export type {
+	ActorInfo,
 	CommentAfterCreateEvent,
 	CommentAfterModerateEvent,
 	CommentBeforeCreateEvent,
@@ -226,15 +361,43 @@ export type {
 	ContentDeleteEvent,
 	ContentHookEvent,
 	ContentPublishStateChangeEvent,
+	ContentRestoreStateChangeEvent,
+	ContentScheduleStateChangeEvent,
+	ContentStateChangeEvent,
 	CronEvent,
 	EmailAfterSendEvent,
 	EmailBeforeSendEvent,
 	EmailDeliverEvent,
 	LifecycleEvent,
 	MediaAfterUploadEvent,
+	MediaBytes,
+	MediaItem,
+	MediaMetadataPatch,
 	MediaUploadEvent,
 	PageFragmentEvent,
 	PageMetadataEvent,
 	PluginContext,
 	UninstallEvent,
 };
+
+export type {
+	PaginatedResult,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
+	SettingsAccess,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
+} from "./plugins/types.js";
+export type {
+	ContentActionOrigin,
+	ContentPolicyDecision,
+	ContentPolicyEvent,
+	ContentSchedulePolicyEvent,
+} from "./plugins/types.js";

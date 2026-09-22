@@ -15,7 +15,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleBylineCreate, handleBylineTranslations } from "#api/handlers/bylines.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { bylineTranslationCreateBody } from "#api/schemas.js";
@@ -65,10 +65,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const repo = new BylineRepository(emdash.db);
 		const source = await repo.findById(id);
 		if (!source) {
-			return new Response(
-				JSON.stringify({ error: { code: "NOT_FOUND", message: "Byline not found" } }),
-				{ status: 404, headers: { "Content-Type": "application/json" } },
-			);
+			return apiError("NOT_FOUND", "Byline not found", 404);
 		}
 
 		const result = await handleBylineCreate(emdash.db, {

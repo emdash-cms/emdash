@@ -5,15 +5,11 @@
  * Renders image blocks from WordPress imports and EmDash media.
  * Uses the provider's getSrc function for responsive srcset generation.
  */
-import { getImage } from "astro:assets";
+import { Image as AstroImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
-import {
-	buildResponsiveImage,
-	toAbsoluteMediaUrl,
-	RESPONSIVE_BREAKPOINTS,
-} from "../media/responsive.js";
+import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 
 export interface Props {
@@ -25,7 +21,8 @@ export interface Props {
 			url?: string;
 			/** Provider ID for external media (e.g., "cloudflare-images") */
 			provider?: string;
-			/** Provider metadata (blurhash, dominantColor, etc.) */
+			/** Provider metadata. LQIP is read from first-class fields below;
+			 *  `meta` only remains as a fallback for legacy snapshots. */
 			meta?: Record<string, unknown>;
 		};
 		alt?: string;
@@ -34,6 +31,10 @@ export interface Props {
 		width?: number;
 		/** Original image height */
 		height?: number;
+		/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
+		blurhash?: string;
+		/** LQIP dominant color — first-class field (legacy snapshots store it in `asset.meta`). */
+		dominantColor?: string;
 		/** Display width for this instance (overrides original) */
 		displayWidth?: number;
 		/** Display height for this instance (overrides original) */
@@ -41,6 +42,8 @@ export interface Props {
 		/** Alignment for this image instance (e.g. from a WordPress import) */
 		alignment?: "left" | "center" | "right" | "wide" | "full";
 	};
+	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
+	placeholder?: boolean;
 }
 
 /**
@@ -59,7 +62,7 @@ function generateSrcset(
 		.join(", ");
 }
 
-const { node } = Astro.props;
+const { node, placeholder = true } = Astro.props;
 
 if (!node?.asset) {
 	return null;
@@ -92,6 +95,7 @@ if (displayWidth && displayHeight) {
 let src = "";
 let srcset: string | undefined;
 let sizes: string | undefined;
+let astroImageSrc = "";
 const providerId = asset.provider;
 
 if (providerId && providerId !== "local") {
@@ -138,50 +142,57 @@ if (!src) {
 		url: asset.url,
 		id: asset._ref,
 	});
-	// Generate a responsive srcset via Astro's image service for local/R2 media.
-	// Falls back to the plain URL when optimization isn't possible.
-	const optimized = await buildResponsiveImage(getImage, {
-		src: toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config)),
-		width: renderWidth,
-		height: renderHeight,
-	});
-	if (optimized) {
-		src = optimized.src;
-		srcset = optimized.srcset;
-		sizes = optimized.sizes;
+	if (renderWidth && renderHeight) {
+		astroImageSrc = toAbsoluteMediaUrl(src, getPublicOrigin(Astro.url, Astro.locals.emdash?.config));
 	}
 }
 
-// Build placeholder background style
-const blurhash = asset.meta?.blurhash as string | undefined;
-const dominantColor = asset.meta?.dominantColor as string | undefined;
+// Build placeholder background style. Prefer first-class LQIP fields; fall
+// back to `asset.meta` for legacy snapshots persisted before LQIP was promoted.
+const blurhash = (node.blurhash ?? (asset.meta?.blurhash as string | undefined)) as
+	| string
+	| undefined;
+const dominantColor = (node.dominantColor ?? (asset.meta?.dominantColor as string | undefined)) as
+	| string
+	| undefined;
 
 let placeholderStyle = "";
-if (blurhash) {
+if (placeholder && blurhash) {
 	const { blurhashToImageCssString } = await import("@unpic/placeholder");
 	placeholderStyle = blurhashToImageCssString(blurhash);
-} else if (dominantColor) {
+} else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }
 
-const baseStyle = aspectRatio
-	? `aspect-ratio: ${aspectRatio}; max-width: 100%; height: auto;`
-	: "max-width: 100%; height: auto;";
-const imgStyle = placeholderStyle ? `${baseStyle} ${placeholderStyle}` : baseStyle;
 ---
 
 <figure class:list={["emdash-image", alignment && `emdash-image--align-${alignment}`]}>
-	<img
-		src={src}
-		srcset={srcset}
-		sizes={sizes}
-		alt={alt}
-		width={renderWidth}
-		height={renderHeight}
-		loading="lazy"
-		decoding="async"
-		style={imgStyle}
-	/>
+	{
+		astroImageSrc ? (
+			<AstroImage
+				src={astroImageSrc}
+				alt={alt}
+				width={renderWidth}
+				height={renderHeight}
+				layout="constrained"
+				loading="lazy"
+				decoding="async"
+				style={placeholderStyle || undefined}
+			/>
+		) : (
+			<img
+				src={src}
+				srcset={srcset}
+				sizes={sizes}
+				alt={alt}
+				width={renderWidth}
+				height={renderHeight}
+				loading="lazy"
+				decoding="async"
+				style={placeholderStyle || undefined}
+			/>
+		)
+	}
 	{caption && <figcaption>{caption}</figcaption>}
 </figure>
 

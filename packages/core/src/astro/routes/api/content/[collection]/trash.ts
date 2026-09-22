@@ -17,12 +17,11 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 
-	const denied = requirePerm(user, "content:read_drafts");
-	if (denied) return denied;
-
 	if (!emdash?.handleContentListTrashed) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	const denied = requirePerm(user, "content:read_drafts");
+	if (denied) return denied;
 
 	const query = parseQuery(url, contentTrashQuery);
 	if (isParseError(query)) return query;

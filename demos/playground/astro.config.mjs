@@ -16,7 +16,11 @@ export default defineConfig({
 		emdash({
 			// Playground uses a DO-backed database, not D1
 			database: playgroundDatabase({ binding: "PLAYGROUND_DB" }),
-			// No storage -- media uploads are blocked in playground mode
+			storage: {
+				entrypoint: "@emdash-cms/cloudflare/db/playground",
+				config: {},
+			},
+			mcp: false,
 			// Playground mode: injects playground middleware before runtime init,
 			// skips setup/auth (handled by playground middleware)
 			playground: {

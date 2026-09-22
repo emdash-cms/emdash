@@ -24,6 +24,7 @@
  *   schema only has to validate one shape per entry.
  */
 
+import { routeOptionsSchema } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 /** A function reference; the probe doesn't introspect signatures. */
@@ -86,10 +87,12 @@ const HookEntryConfigSchema = z.looseObject({
 
 export const HookEntrySchema = z.preprocess(normaliseEntry, HookEntryConfigSchema);
 
-const RouteEntryConfigSchema = z.looseObject({
-	handler: FunctionSchema,
-	public: z.boolean().optional(),
-});
+const RouteEntryConfigSchema = routeOptionsSchema
+	.extend({
+		handler: FunctionSchema,
+		input: z.unknown().optional(),
+	})
+	.loose();
 
 export const RouteEntrySchema = z.preprocess(normaliseEntry, RouteEntryConfigSchema);
 
@@ -122,6 +125,20 @@ function coerceOptionalRecord(value: unknown): unknown {
 export const ProbedDefaultSchema = z.looseObject({
 	hooks: z.preprocess(coerceOptionalRecord, z.record(z.string(), HookEntrySchema)).optional(),
 	routes: z.preprocess(coerceOptionalRecord, z.record(z.string(), RouteEntrySchema)).optional(),
+	mcp: z
+		.object({
+			tools: z.record(
+				z.string(),
+				z.object({
+					description: z.string().min(1),
+					route: z.string().min(1),
+					input: z.unknown(),
+					output: z.unknown().optional(),
+					destructive: z.boolean().optional(),
+				}),
+			),
+		})
+		.optional(),
 });
 
 export type ProbedDefault = z.infer<typeof ProbedDefaultSchema>;

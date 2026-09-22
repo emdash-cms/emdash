@@ -15,8 +15,10 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError } from "#api/error.js";
+import { apiError, apiSuccess } from "#api/error.js";
 import { handleMarketplaceUpdateCheck, handleRegistryUpdateCheck } from "#api/index.js";
+
+import { getRegistryConfigInput } from "../../../../../registry/config.js";
 
 export const prerender = false;
 
@@ -39,7 +41,10 @@ export const GET: APIRoute = async ({ locals }) => {
 			console.warn("[plugins/updates] marketplace check threw:", err);
 			return null;
 		}),
-		handleRegistryUpdateCheck(emdash.db, emdash.config.experimental?.registry).catch((err) => {
+		handleRegistryUpdateCheck(
+			emdash.db,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
+		).catch((err) => {
 			console.warn("[plugins/updates] registry check threw:", err);
 			return null;
 		}),
@@ -59,7 +64,5 @@ export const GET: APIRoute = async ({ locals }) => {
 	if (marketplace?.success) items.push(...marketplace.data.items);
 	if (registry?.success) items.push(...registry.data.items);
 
-	// Match the rest of the admin API envelope (`{ data: ... }`) so the
-	// admin client's `parseApiResponse` unwraps `body.data`.
-	return Response.json({ data: { items } });
+	return apiSuccess({ items });
 };

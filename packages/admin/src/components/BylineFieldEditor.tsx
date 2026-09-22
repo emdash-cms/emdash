@@ -259,7 +259,7 @@ export function BylineFieldEditor({
 						<Select
 							label={t`Type`}
 							value={state.type}
-							onValueChange={(v) => setField("type", (v ?? "string") as BylineFieldType)}
+							onValueChange={(v) => setField("type", v ?? "string")}
 							items={Object.fromEntries(TYPE_OPTIONS.map(({ value, label }) => [value, t(label)]))}
 							disabled={isEdit}
 						/>
@@ -271,7 +271,7 @@ export function BylineFieldEditor({
 					</div>
 
 					{/* Toggles */}
-					<div className="flex flex-wrap items-center gap-6">
+					<div className="flex flex-wrap items-start gap-6">
 						{/* TODO: enforce `required` on the write path — currently
 						 * descriptive only, see `BylineRepository.coerceFieldValue`. */}
 						<Switch

@@ -150,6 +150,42 @@ describe("portableTextToMarkdown", () => {
 		expect(portableTextToMarkdown(blocks)).toBe("1. First\n1. Second\n");
 	});
 
+	it("does not synthesize continuity metadata across a lossy Markdown boundary", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "first",
+				listStart: 1,
+				children: [{ _type: "span", text: "One" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 2,
+				listId: "nested",
+				listStart: 1,
+				children: [{ _type: "span", text: "Nested" }],
+			},
+			{
+				_type: "block",
+				listItem: "number",
+				level: 1,
+				listId: "second",
+				listStart: 1,
+				children: [{ _type: "span", text: "Other" }],
+			},
+		];
+		const imported = markdownToPortableText(portableTextToMarkdown(blocks));
+
+		expect(imported.map((block) => [block.listId, block.listStart])).toEqual([
+			[undefined, undefined],
+			[undefined, undefined],
+			[undefined, undefined],
+		]);
+	});
+
 	it("converts code blocks", () => {
 		const blocks: PortableTextBlock[] = [
 			{ _type: "code", _key: "c1", language: "typescript", code: "const x = 1;\nconsole.log(x);" },

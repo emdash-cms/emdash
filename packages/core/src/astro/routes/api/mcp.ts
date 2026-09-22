@@ -19,7 +19,7 @@ import { createMcpServer } from "#mcp/server.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
 
 	if (!emdash) {
@@ -30,7 +30,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		return apiError("UNAUTHORIZED", "Authentication required", 401);
 	}
 
-	const server = createMcpServer();
+	const pluginTools = await emdash.getEnabledPluginMcpTools();
+	const server = createMcpServer(pluginTools, request);
 
 	try {
 		const transport = new WebStandardStreamableHTTPServerTransport({
@@ -47,9 +48,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				scopes: [],
 				extra: {
 					emdash,
+					user,
 					userId: user.id,
 					userRole: user.role,
 					tokenScopes: locals.tokenScopes,
+					cache,
 				},
 			},
 		});

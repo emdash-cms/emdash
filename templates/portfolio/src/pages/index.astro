@@ -67,15 +67,15 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 	.hero-title {
 		font-size: var(--font-size-4xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-display);
 		margin-bottom: var(--spacing-md);
-		letter-spacing: -0.02em;
+		letter-spacing: var(--tracking-tight);
 	}
 
 	.hero-tagline {
 		font-size: var(--font-size-xl);
 		color: var(--color-muted);
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-style: italic;
 	}
 
@@ -96,7 +96,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 	.section-title {
 		font-size: var(--font-size-lg);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 	}
 
 	.section-link {

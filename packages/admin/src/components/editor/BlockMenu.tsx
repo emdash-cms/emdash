@@ -7,11 +7,10 @@
  * - Duplicate
  * - Delete
  *
- * Uses Floating UI for positioning relative to the selected block.
+ * Uses Kumo's menu primitive, anchored to the selected block's drag handle.
  */
 
-import { Button } from "@cloudflare/kumo";
-import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
+import { Button, DropdownMenu } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -21,6 +20,9 @@ import {
 	TextHOne,
 	TextHTwo,
 	TextHThree,
+	TextHFour,
+	TextHFive,
+	TextHSix,
 	Quotes,
 	Code,
 	List,
@@ -32,10 +34,9 @@ import {
 import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
-import { useStableCallback } from "../../lib/hooks";
 import { cn } from "../../lib/utils";
+import { getLocaleDir } from "../../locales/config.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
 
 /**
@@ -82,6 +83,30 @@ const blockTransforms: BlockTransform[] = [
 		},
 	},
 	{
+		id: "heading4",
+		label: msg`Heading 4`,
+		icon: TextHFour,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 4 }).run();
+		},
+	},
+	{
+		id: "heading5",
+		label: msg`Heading 5`,
+		icon: TextHFive,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 5 }).run();
+		},
+	},
+	{
+		id: "heading6",
+		label: msg`Heading 6`,
+		icon: TextHSix,
+		transform: (editor) => {
+			editor.chain().focus().setNode("heading", { level: 6 }).run();
+		},
+	},
+	{
 		id: "blockquote",
 		label: msg`Quote`,
 		icon: Quotes,
@@ -115,6 +140,8 @@ const blockTransforms: BlockTransform[] = [
 	},
 ];
 
+const POPOVER_TRANSITION_MS = 150;
+
 interface BlockMenuProps {
 	editor: Editor;
 	/** The DOM element of the selected block (for positioning) */
@@ -123,84 +150,43 @@ interface BlockMenuProps {
 	isOpen: boolean;
 	/** Callback to close the menu */
 	onClose: () => void;
+	/** Callback after the menu's exit transition completes */
+	onCloseComplete?: () => void;
 }
 
 /**
  * Block Menu - floating menu for block-level actions
  */
-export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuProps) {
-	const { t } = useLingui();
+export function BlockMenu({
+	editor,
+	anchorElement,
+	isOpen,
+	onClose,
+	onCloseComplete,
+}: BlockMenuProps) {
+	const { i18n, t } = useLingui();
 	const [showTransforms, setShowTransforms] = React.useState(false);
-	const menuRef = React.useRef<HTMLDivElement>(null);
-	const stableOnClose = useStableCallback(onClose);
+	const anchorRef = React.useRef<HTMLElement | null>(anchorElement);
+	const menuActionsRef = React.useRef<{ unmount: () => void; close: () => void } | null>(null);
+	const direction = getLocaleDir(i18n.locale);
 
-	const { refs, floatingStyles } = useFloating({
-		open: isOpen,
-		placement: "left-start",
-		middleware: [offset({ mainAxis: 8, crossAxis: 0 }), flip(), shift({ padding: 8 })],
-		whileElementsMounted: autoUpdate,
-	});
+	React.useLayoutEffect(() => {
+		if (anchorElement) anchorRef.current = anchorElement;
+	}, [anchorElement]);
 
-	// Sync the anchor element
 	React.useEffect(() => {
-		if (anchorElement) {
-			refs.setReference(anchorElement);
-		}
-	}, [anchorElement, refs]);
+		if (isOpen) return;
 
-	// Close on escape
-	React.useEffect(() => {
-		if (!isOpen) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				e.preventDefault();
-				if (showTransforms) {
-					setShowTransforms(false);
-				} else {
-					stableOnClose();
-				}
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown);
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [isOpen, stableOnClose, showTransforms]);
-
-	// Close on click outside
-	React.useEffect(() => {
-		if (!isOpen) return;
-
-		const handleClickOutside = (e: MouseEvent) => {
-			const target = e.target;
-			// Don't close if clicking on the drag handle or menu itself
-			if (target instanceof Node && menuRef.current?.contains(target)) return;
-			if (target instanceof Element && target.closest("[data-block-handle]")) return;
-
-			stableOnClose();
-		};
-
-		// Delay to avoid immediate close from the click that opened it
-		const timer = setTimeout(() => {
-			document.addEventListener("mousedown", handleClickOutside);
-		}, 0);
-
-		return () => {
-			clearTimeout(timer);
-			document.removeEventListener("mousedown", handleClickOutside);
-		};
-	}, [isOpen, stableOnClose]);
-
-	// Reset submenu state when menu closes
-	React.useEffect(() => {
-		if (!isOpen) {
-			setShowTransforms(false);
-		}
+		setShowTransforms(false);
+		const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+			? 0
+			: POPOVER_TRANSITION_MS;
+		const timer = window.setTimeout(() => menuActionsRef.current?.unmount(), delay);
+		return () => window.clearTimeout(timer);
 	}, [isOpen]);
 
 	const handleDuplicate = () => {
 		if (!(editor.state.selection instanceof NodeSelection)) {
-			onClose();
 			return;
 		}
 
@@ -215,95 +201,126 @@ export function BlockMenu({ editor, anchorElement, isOpen, onClose }: BlockMenuP
 				return true;
 			})
 			.run();
-
-		onClose();
 	};
 
 	const handleDelete = () => {
 		if (!(editor.state.selection instanceof NodeSelection)) {
-			onClose();
 			return;
 		}
 
 		editor.chain().focus().deleteSelection().run();
-		onClose();
 	};
 
 	const handleTransform = (transform: BlockTransform) => {
 		transform.transform(editor);
-		onClose();
 	};
 
-	if (!isOpen) return null;
-
-	return createPortal(
-		<div
-			ref={(node) => {
-				menuRef.current = node;
-				refs.setFloating(node);
+	return (
+		<DropdownMenu
+			actionsRef={menuActionsRef}
+			open={isOpen}
+			modal={false}
+			onOpenChangeComplete={(open) => {
+				if (!open) onCloseComplete?.();
 			}}
-			style={floatingStyles}
-			className="z-[100] rounded-lg border bg-kumo-overlay shadow-lg min-w-[180px] overflow-hidden"
+			onOpenChange={(open, eventDetails) => {
+				if (open) return;
+				if (eventDetails.reason === "trigger-hover") {
+					eventDetails.cancel();
+					return;
+				}
+				if (showTransforms && eventDetails.reason === "escape-key") {
+					eventDetails.cancel();
+					setShowTransforms(false);
+					return;
+				}
+				eventDetails.preventUnmountOnClose();
+				onClose();
+			}}
 		>
-			{showTransforms ? (
-				// Transform submenu
-				<div className="py-1">
-					<button
-						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-						onClick={() => setShowTransforms(false)}
-					>
-						<CaretPrev className="h-4 w-4" />
-						<span>{t`Back`}</span>
-					</button>
-					<div className="h-px bg-kumo-line my-1" />
-					{blockTransforms.map((transform) => (
-						<button
-							key={transform.id}
-							type="button"
-							className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-							onClick={() => handleTransform(transform)}
+			<DropdownMenu.Content
+				anchor={anchorRef}
+				side={direction === "rtl" ? "right" : "left"}
+				align="start"
+				collisionPadding={8}
+				className={cn(
+					"z-[100] min-w-[180px] max-h-[min(300px,var(--available-height))] overflow-y-auto overscroll-contain scroll-py-1",
+					"bg-kumo-base text-sm shadow-kumo-tip-shadow ring-kumo-fill",
+					"origin-(--transform-origin) transition-[transform,scale,opacity] duration-150",
+					"data-starting-style:scale-90 data-starting-style:opacity-0",
+					"data-ending-style:scale-90 data-ending-style:opacity-0",
+					"data-[state=open]:animate-none data-[state=closed]:animate-none motion-reduce:transition-none",
+				)}
+			>
+				{showTransforms ? (
+					<>
+						<DropdownMenu.Item
+							closeOnClick={false}
+							data-emdash-block-menu-item
+							icon={
+								<CaretPrev className="me-2 h-4 w-4 flex-none text-kumo-subtle" aria-hidden="true" />
+							}
+							className="text-sm"
+							onClick={() => setShowTransforms(false)}
 						>
-							<transform.icon className="h-4 w-4 text-kumo-subtle" />
-							<span>{t(transform.label)}</span>
-						</button>
-					))}
-				</div>
-			) : (
-				// Main menu
-				<div className="py-1">
-					<button
-						type="button"
-						className="flex items-center justify-between w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-						onClick={() => setShowTransforms(true)}
-					>
-						<span className="flex items-center gap-2">
-							<Paragraph className="h-4 w-4 text-kumo-subtle" />
-							<span>{t`Turn into`}</span>
-						</span>
-						<CaretNext className="h-4 w-4 text-kumo-subtle" />
-					</button>
-					<button
-						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start"
-						onClick={handleDuplicate}
-					>
-						<Copy className="h-4 w-4 text-kumo-subtle" />
-						<span>{t`Duplicate`}</span>
-					</button>
-					<div className="h-px bg-kumo-line my-1" />
-					<button
-						type="button"
-						className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-kumo-tint text-start text-kumo-danger"
-						onClick={handleDelete}
-					>
-						<Trash className="h-4 w-4" />
-						<span>{t`Delete`}</span>
-					</button>
-				</div>
-			)}
-		</div>,
-		document.body,
+							{t`Back`}
+						</DropdownMenu.Item>
+						<DropdownMenu.Separator />
+						{blockTransforms.map((transform) => (
+							<DropdownMenu.Item
+								key={transform.id}
+								data-emdash-block-menu-item
+								icon={
+									<transform.icon
+										className="me-2 h-4 w-4 flex-none text-kumo-subtle"
+										aria-hidden="true"
+									/>
+								}
+								className="text-sm"
+								onClick={() => handleTransform(transform)}
+							>
+								{t(transform.label)}
+							</DropdownMenu.Item>
+						))}
+					</>
+				) : (
+					<>
+						<DropdownMenu.Item
+							closeOnClick={false}
+							data-emdash-block-menu-item
+							icon={
+								<Paragraph className="me-2 h-4 w-4 flex-none text-kumo-subtle" aria-hidden="true" />
+							}
+							className="text-sm"
+							onClick={() => setShowTransforms(true)}
+						>
+							{t`Turn into`}
+							<CaretNext
+								className="ms-auto h-4 w-4 flex-none text-kumo-subtle"
+								aria-hidden="true"
+							/>
+						</DropdownMenu.Item>
+						<DropdownMenu.Item
+							data-emdash-block-menu-item
+							icon={<Copy className="me-2 h-4 w-4 flex-none text-kumo-subtle" aria-hidden="true" />}
+							className="text-sm"
+							onClick={handleDuplicate}
+						>
+							{t`Duplicate`}
+						</DropdownMenu.Item>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							variant="danger"
+							icon={<Trash className="me-2 h-4 w-4 flex-none" aria-hidden="true" />}
+							className="text-sm"
+							onClick={handleDelete}
+						>
+							{t`Delete`}
+						</DropdownMenu.Item>
+					</>
+				)}
+			</DropdownMenu.Content>
+		</DropdownMenu>
 	);
 }
 

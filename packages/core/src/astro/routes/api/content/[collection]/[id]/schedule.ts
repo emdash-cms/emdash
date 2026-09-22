@@ -9,6 +9,7 @@ import type { APIRoute } from "astro";
 
 import { requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentScheduleBody } from "#api/schemas.js";
 
@@ -61,7 +62,25 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 	const denied = requireOwnerPerm(user, authorId, "content:publish_own", "content:publish_any");
 	if (denied) return denied;
 
-	const result = await emdash.handleContentSchedule(collection, resolvedId ?? id, body.scheduledAt);
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId ?? id, user!.id, {
+		override: body.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
+
+	const result = await emdash.handleContentSchedule(
+		collection,
+		resolvedId ?? id,
+		body.scheduledAt,
+		{
+			_rev: body._rev,
+			actor: { id: user!.id, role: user!.role },
+			origin: { source: "api" },
+		},
+	);
 
 	if (!result.success) return unwrapResult(result);
 
@@ -94,6 +113,16 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	const { authorId, resolvedId } = extractOwnership(existing.data);
 	const denied = requireOwnerPerm(user, authorId, "content:publish_own", "content:publish_any");
 	if (denied) return denied;
+
+	// DELETE carries no body, so the lock opt-out rides on the query string.
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId ?? id, user!.id, {
+		override: url.searchParams.get("overrideLock") === "true",
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
 
 	const result = await emdash.handleContentUnschedule(collection, resolvedId ?? id);
 

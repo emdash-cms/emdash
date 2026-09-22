@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isMissingTableError } from "../../../src/utils/db-errors.js";
+import { isMissingColumnError, isMissingTableError } from "../../../src/utils/db-errors.js";
 
 describe("isMissingTableError", () => {
 	it("detects SQLite / D1 phrasing", () => {
@@ -42,5 +42,41 @@ describe("isMissingTableError", () => {
 		expect(isMissingTableError(undefined)).toBe(false);
 		expect(isMissingTableError(42)).toBe(false);
 		expect(isMissingTableError({})).toBe(false);
+	});
+});
+
+describe("isMissingColumnError", () => {
+	it("detects SQLite / D1 phrasing", () => {
+		expect(isMissingColumnError(new Error('no such column: "deleted_at"'))).toBe(true);
+		expect(isMissingColumnError(new Error("SQLITE_ERROR: no such column: deleted_at"))).toBe(true);
+	});
+
+	it("detects PostgreSQL phrasing", () => {
+		expect(isMissingColumnError(new Error('column "deleted_at" does not exist'))).toBe(true);
+	});
+
+	it("is case-insensitive", () => {
+		expect(isMissingColumnError(new Error('COLUMN "deleted_at" DOES NOT EXIST'))).toBe(true);
+	});
+
+	it("rejects unrelated errors", () => {
+		expect(isMissingColumnError(new Error("no such table: ec_posts"))).toBe(false);
+		expect(isMissingColumnError(new Error("permission denied"))).toBe(false);
+		expect(isMissingColumnError(new Error("does not exist"))).toBe(false);
+		expect(isMissingColumnError(new Error('relation "ec_columns" does not exist'))).toBe(false);
+	});
+
+	it("handles non-Error inputs safely", () => {
+		expect(isMissingColumnError("no such column: x")).toBe(true);
+		expect(isMissingColumnError(null)).toBe(false);
+		expect(isMissingColumnError(undefined)).toBe(false);
+		expect(isMissingColumnError(42)).toBe(false);
+	});
+
+	it("scopes to a named column when given", () => {
+		expect(isMissingColumnError(new Error('no such column: "deleted_at"'), "deleted_at")).toBe(
+			true,
+		);
+		expect(isMissingColumnError(new Error("no such column: name"), "deleted_at")).toBe(false);
 	});
 });

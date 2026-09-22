@@ -17,6 +17,7 @@
 		"src/components/**",
 		"src/preview/**",
 		"src/ui.ts",
+		"src/ui-comments.ts",
 		"src/auth/providers/*-admin.tsx"
 	]
 }

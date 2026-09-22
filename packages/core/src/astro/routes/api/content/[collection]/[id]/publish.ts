@@ -3,7 +3,7 @@
  *
  * POST /_emdash/api/content/{collection}/{id}/publish
  *
- * Optional JSON body: { publishedAt?: string }
+ * Optional JSON body: { publishedAt?: string, _rev?: string, overrideLock?: boolean }
  *   publishedAt — ISO 8601 datetime to backdate the publish (e.g. when
  *   migrating content). Writing publishedAt requires content:publish_any.
  *   Without it, the existing published_at is preserved on re-publish and
@@ -11,16 +11,20 @@
  */
 
 import { hasPermission } from "@emdash-cms/auth";
-import type { APIRoute } from "astro";
+import type { APIContext, APIRoute } from "astro";
 
 import { requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { contentPublishBody } from "#api/schemas.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals, url, cache }) => {
+export async function publishContent(
+	{ params, request, locals, url, cache }: APIContext,
+	originSource: "api" | "visual-editor",
+): Promise<Response> {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -76,8 +80,20 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: body?.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
+
 	const result = await emdash.handleContentPublish(collection, resolvedId, {
 		publishedAt,
+		_rev: body?._rev,
+		actor: { id: user!.id, role: user!.role },
+		origin: { source: originSource },
 	});
 
 	if (!result.success) return unwrapResult(result);
@@ -85,4 +101,6 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 	if (cache?.enabled) await cache.invalidate({ tags: [collection, resolvedId] });
 
 	return unwrapResult(result);
-};
+}
+
+export const POST: APIRoute = (context) => publishContent(context, "api");

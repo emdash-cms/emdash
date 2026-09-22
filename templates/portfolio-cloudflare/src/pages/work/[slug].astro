@@ -156,7 +156,7 @@ function getImageSrc(img: unknown): string | undefined {
 		color: var(--color-muted);
 		margin-bottom: var(--spacing-sm);
 		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		letter-spacing: var(--tracking-wide);
 	}
 
 	.meta-separator {
@@ -164,24 +164,24 @@ function getImageSrc(img: unknown): string | undefined {
 	}
 
 	.project-title {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-4xl);
-		font-weight: 500;
-		line-height: 1.1;
+		font-weight: var(--font-weight-display);
+		line-height: var(--leading-tight);
 		margin-bottom: var(--spacing-lg);
 	}
 
 	.project-summary {
 		font-size: var(--font-size-lg);
 		color: var(--color-muted);
-		line-height: 1.6;
+		line-height: var(--leading-normal);
 		margin-bottom: var(--spacing-lg);
 	}
 
 	.project-link {
 		display: inline-block;
 		font-size: var(--font-size-sm);
-		color: var(--color-accent);
+		color: var(--color-brand);
 		text-decoration: none;
 		transition: color var(--transition-fast);
 	}
@@ -202,7 +202,7 @@ function getImageSrc(img: unknown): string | undefined {
 
 	.project-content {
 		font-size: var(--font-size-base);
-		line-height: 1.7;
+		line-height: var(--leading-relaxed);
 	}
 
 	.project-content :global(p) {
@@ -210,17 +210,17 @@ function getImageSrc(img: unknown): string | undefined {
 	}
 
 	.project-content :global(h2) {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-2xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-top: 2.5em;
 		margin-bottom: 0.75em;
 	}
 
 	.project-content :global(h3) {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-top: 2em;
 		margin-bottom: 0.5em;
 	}
@@ -228,9 +228,9 @@ function getImageSrc(img: unknown): string | undefined {
 	.project-content :global(blockquote) {
 		margin: 2em 0;
 		padding-left: var(--spacing-xl);
-		border-left: 2px solid var(--color-accent);
+		border-left: 2px solid var(--color-brand);
 		color: var(--color-muted);
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-style: italic;
 		font-size: var(--font-size-lg);
 	}
@@ -276,9 +276,9 @@ function getImageSrc(img: unknown): string | undefined {
 	}
 
 	.more-title {
-		font-family: var(--font-serif);
+		font-family: var(--font-heading);
 		font-size: var(--font-size-2xl);
-		font-weight: 500;
+		font-weight: var(--font-weight-heading);
 		margin-bottom: var(--spacing-2xl);
 	}
 

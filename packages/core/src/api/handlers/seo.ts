@@ -19,6 +19,13 @@ export interface SitemapContentEntry {
 	/** ISO date of last modification */
 	updatedAt: string;
 	/**
+	 * ISO publish date, or null when never published. Used to resolve
+	 * date tokens (`{year}`/`{month}`/`{day}`) in the collection's
+	 * `url_pattern` — the published date keeps permalinks stable across
+	 * later edits (unlike `updatedAt`).
+	 */
+	publishedAt: string | null;
+	/**
 	 * Locale of this row (e.g. `"en"`, `"fr"`). Always present — rows in
 	 * pre-i18n databases are backfilled to the configured `defaultLocale`.
 	 */
@@ -56,11 +63,39 @@ export interface SitemapDataResponse {
 /** Maximum entries per sitemap (per spec) */
 const SITEMAP_MAX_ENTRIES = 50_000;
 
+/** Matches a trailing timezone designator (`Z` or `±HH`, `±HHMM`, `±HH:MM`). */
+const TZ_SUFFIX_RE = /([zZ]|[+-]\d{2}(:?\d{2})?)$/;
+
+/**
+ * Normalize a stored timestamp to W3C Datetime (ISO 8601) for sitemaps.
+ *
+ * `updated_at` is not guaranteed to be ISO: the column default is
+ * `datetime('now')` on SQLite and `CURRENT_TIMESTAMP` on Postgres, both of
+ * which store a space-separated `YYYY-MM-DD HH:MM:SS` string (and imported
+ * content can carry other shapes). The sitemap `<lastmod>` field requires
+ * W3C Datetime, and Google Search Console rejects the space-separated form
+ * as "Invalid date". Normalize defensively, assuming UTC when no offset is
+ * present (matches SQLite's `datetime('now')`). Valid date strings are
+ * normalized to UTC ISO 8601; unparseable values are returned as-is.
+ */
+function toW3CDate(value: string): string {
+	if (!value) return value;
+	let normalized = value.trim();
+	if (normalized.includes(" ") && !normalized.includes("T")) {
+		normalized = normalized.replace(" ", "T");
+	}
+	if (!TZ_SUFFIX_RE.test(normalized)) {
+		normalized += "Z";
+	}
+	const parsed = Date.parse(normalized);
+	return Number.isNaN(parsed) ? value : new Date(parsed).toISOString();
+}
+
 /**
  * Collect all published, indexable content across SEO-enabled collections
  * for sitemap generation, grouped by collection.
  *
- * Only includes content from collections with `has_seo = 1`.
+ * Only includes content from routable collections with `has_seo = 1`.
  * Excludes content with `seo_no_index = 1` in the `_emdash_seo` table.
  *
  * Returns raw data grouped per collection. The caller (route) is
@@ -77,7 +112,8 @@ export async function handleSitemapData(
 		let query = db
 			.selectFrom("_emdash_collections")
 			.select(["slug", "url_pattern"])
-			.where("has_seo", "=", 1);
+			.where("has_seo", "=", 1)
+			.where("routable", "=", 1);
 
 		if (collectionSlug) {
 			query = query.where("slug", "=", collectionSlug);
@@ -110,17 +146,20 @@ export async function handleSitemapData(
 					slug: string | null;
 					id: string;
 					updated_at: string;
+					published_at: string | null;
 					locale: string;
 					translation_group: string | null;
 					seo_image: string | null;
 				}>`
-					SELECT c.slug, c.id, c.updated_at, c.locale, c.translation_group, s.seo_image
+					SELECT c.slug, c.id, c.updated_at, c.published_at, c.locale, c.translation_group, s.seo_image
 					FROM ${sql.ref(tableName)} c
 					LEFT JOIN _emdash_seo s
 						ON s.collection = ${col.slug}
 						AND s.content_id = c.id
 					WHERE c.status = 'published'
 					AND c.deleted_at IS NULL
+					AND c.slug IS NOT NULL
+					AND TRIM(c.slug) <> ''
 					AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
 					ORDER BY c.updated_at DESC
 					LIMIT ${SITEMAP_MAX_ENTRIES}
@@ -133,7 +172,8 @@ export async function handleSitemapData(
 					entries.push({
 						id: row.id,
 						slug: row.slug,
-						updatedAt: row.updated_at,
+						updatedAt: toW3CDate(row.updated_at),
+						publishedAt: row.published_at ?? null,
 						locale: row.locale,
 						translationGroup: row.translation_group,
 						image: row.seo_image ?? null,
@@ -144,7 +184,7 @@ export async function handleSitemapData(
 					collection: col.slug,
 					urlPattern: col.url_pattern,
 					// Rows are ordered by updated_at DESC, so first row is the latest
-					lastmod: rows.rows[0].updated_at,
+					lastmod: toW3CDate(rows.rows[0].updated_at),
 					entries,
 				});
 			} catch (err) {

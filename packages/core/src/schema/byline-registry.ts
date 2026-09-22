@@ -627,7 +627,7 @@ export class BylineSchemaRegistry {
 		// payload silently. Today's `BylineFieldValidation` is `{ options? }`
 		// only, so this branch is a pass-through; left explicit for clarity.
 		const { options: _drop, ...rest } = validation;
-		return Object.keys(rest).length === 0 ? null : (rest as BylineFieldValidation);
+		return Object.keys(rest).length === 0 ? null : rest;
 	}
 }
 

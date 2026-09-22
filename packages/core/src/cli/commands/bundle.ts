@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat, mkdir, writeFile, rm, copyFile, symlink, readdir } from "node:fs/promises";
 import { resolve, join, extname, basename } from "node:path";
 
+import { extractRouteOptions } from "@emdash-cms/plugin-types";
 import { defineCommand } from "citty";
 import consola from "consola";
 
@@ -37,6 +38,7 @@ import {
 	MAX_SCREENSHOT_HEIGHT,
 	readImageDimensions,
 	resolveSourceEntry,
+	toFileImportSpecifier,
 	totalBundleBytes,
 	validateBundleSize,
 } from "./bundle-utils.js";
@@ -202,7 +204,10 @@ export const bundleCommand = defineCommand({
 			}
 
 			// Dynamic import of the built plugin
-			const pluginModule = (await import(mainOutputPath)) as Record<string, unknown>;
+			const pluginModule = (await import(toFileImportSpecifier(mainOutputPath))) as Record<
+				string,
+				unknown
+			>;
 
 			// Extract manifest from the imported module.
 			// Supports three patterns:
@@ -269,7 +274,9 @@ export const bundleCommand = defineCommand({
 								const backendBaseName = basename(backendEntry).replace(TS_EXT_RE, "");
 								const backendProbePath = await findBuildOutput(backendProbeDir, backendBaseName);
 								if (backendProbePath) {
-									const backendModule = (await import(backendProbePath)) as Record<string, unknown>;
+									const backendModule = (await import(
+										toFileImportSpecifier(backendProbePath)
+									)) as Record<string, unknown>;
 									const standardDef = (backendModule.default ?? {}) as Record<string, unknown>;
 									const hooks = standardDef.hooks as Record<string, unknown> | undefined;
 									const routes = standardDef.routes as Record<string, unknown> | undefined;
@@ -296,10 +303,13 @@ export const bundleCommand = defineCommand({
 									}
 									if (routes) {
 										for (const [name, route] of Object.entries(routes)) {
-											const routeObj = route as Record<string, unknown>;
+											const routeObj =
+												typeof route === "object" && route !== null
+													? (route as Record<string, unknown>)
+													: {};
 											(resolvedPlugin.routes as Record<string, unknown>)[name] = {
-												handler: routeObj.handler,
-												public: routeObj.public,
+												handler: typeof route === "function" ? route : routeObj.handler,
+												...extractRouteOptions(route),
 											};
 										}
 									}
@@ -307,8 +317,8 @@ export const bundleCommand = defineCommand({
 							}
 							break;
 						}
-					} catch {
-						// Not a descriptor factory, skip
+					} catch (error) {
+						if (resolvedPlugin) throw error;
 					}
 				}
 			}

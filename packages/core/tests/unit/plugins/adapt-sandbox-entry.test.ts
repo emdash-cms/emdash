@@ -340,6 +340,7 @@ describe("adaptSandboxEntry", () => {
 				input: { foo: "bar" },
 				request: new Request("http://localhost/test"),
 				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				ui: { surface: "admin-page", locale: "ar", direction: "rtl" },
 				plugin: { id: "test-plugin", version: "1.0.0" },
 				kv: {} as any,
 				storage: {} as any,
@@ -356,6 +357,7 @@ describe("adaptSandboxEntry", () => {
 			expect(routeCtx.input).toEqual({ foo: "bar" });
 			expect(routeCtx.request).toBeDefined();
 			expect(routeCtx.requestMeta).toBeDefined();
+			expect(routeCtx.ui).toEqual({ surface: "admin-page", locale: "ar", direction: "rtl" });
 			// pluginCtx should be the stripped PluginContext (without route-specific fields)
 			expect(pluginCtx.plugin.id).toBe("test-plugin");
 			expect(pluginCtx.kv).toBeDefined();
@@ -364,6 +366,156 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx).not.toHaveProperty("input");
 			expect(pluginCtx).not.toHaveProperty("request");
 			expect(pluginCtx).not.toHaveProperty("requestMeta");
+			expect(pluginCtx).not.toHaveProperty("ui");
+		});
+
+		it("calls standard-format (definePlugin) handlers with the public single-arg RouteContext (#2079)", async () => {
+			const singleArgHandler = vi.fn().mockResolvedValue({ ok: true });
+
+			// A definePlugin(...) default export carries `id` — the format
+			// signal. Its route handlers are authored against the public
+			// single-arg RouteContext contract.
+			const def = {
+				id: "standard-plugin",
+				version: "1.0.0",
+				routes: {
+					ping: {
+						handler: singleArgHandler,
+					},
+				},
+			};
+			const descriptor = createDescriptor({ id: "standard-plugin" });
+
+			// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- deliberately passing a definePlugin-shaped definition through the sandbox adapter, as the trusted plugins:[] path does
+			const result = adaptSandboxEntry(def as unknown as SandboxedPlugin, descriptor);
+
+			const request = new Request("http://localhost/ping");
+			const mockCtx = {
+				input: { foo: "bar" },
+				request,
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "standard-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: { things: { query: vi.fn() } } as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (p: string) => p,
+			};
+
+			await result.routes.ping.handler(mockCtx as any);
+
+			// The handler must receive the FULL RouteContext as its only
+			// argument — including capability surfaces like storage — with
+			// the real WHATWG Request, not the flattened sandbox shape.
+			expect(singleArgHandler).toHaveBeenCalledTimes(1);
+			expect(singleArgHandler.mock.calls[0]).toHaveLength(1);
+			const [ctx] = singleArgHandler.mock.calls[0];
+			expect(ctx).toBe(mockCtx);
+			expect(ctx.storage.things).toBeDefined();
+			expect(ctx.request).toBe(request);
+		});
+
+		it("keeps the two-arg flattened convention for sandbox-format definitions (no id)", async () => {
+			const twoArgHandler = vi.fn().mockResolvedValue({ ok: true });
+
+			const def: SandboxedPlugin = {
+				routes: { ping: { handler: twoArgHandler } },
+			};
+
+			const result = adaptSandboxEntry(def, createDescriptor());
+
+			const mockCtx = {
+				input: {},
+				request: new Request("http://localhost/ping", { headers: { "x-demo": "1" } }),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (p: string) => p,
+			};
+
+			await result.routes.ping.handler(mockCtx as any);
+
+			const [routeCtx, pluginCtx] = twoArgHandler.mock.calls[0];
+			// Sandbox contract: flattened plain-object request, not a Request.
+			expect(routeCtx.request.headers["x-demo"]).toBe("1");
+			expect(routeCtx.request).not.toBeInstanceOf(Request);
+			expect(pluginCtx.storage).toBeDefined();
+		});
+
+		it("applies declared sandbox header restrictions in-process", async () => {
+			const handler = vi.fn().mockResolvedValue({ ok: true });
+			const def: SandboxedPlugin = {
+				routes: {
+					webhook: {
+						request: { body: "bytes", headers: ["x-signature"] },
+						handler,
+					},
+				},
+			};
+			const result = adaptSandboxEntry(def, createDescriptor());
+			await result.routes.webhook.handler({
+				input: new Uint8Array(),
+				request: new Request("http://localhost/webhook", {
+					headers: {
+						authorization: "Bearer secret",
+						"cf-access-authenticated-user-email": "person@example.com",
+						cookie: "session=secret",
+						"x-hidden": "secret",
+						"x-signature": "sha256=test",
+					},
+				}),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (path: string) => path,
+			} as any);
+
+			expect(handler.mock.calls[0]?.[0].request.headers).toEqual({
+				"x-signature": "sha256=test",
+			});
+		});
+
+		it("passes the authenticated caller into routeCtx.user, not pluginCtx", async () => {
+			const standardHandler = vi.fn().mockResolvedValue({ ok: true });
+
+			const def: SandboxedPlugin = {
+				routes: {
+					whoami: { handler: standardHandler },
+				},
+			};
+			const result = adaptSandboxEntry(def, createDescriptor());
+
+			const caller = {
+				id: "u1",
+				email: "a@b.c",
+				name: "A",
+				role: 2,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
+			const mockCtx = {
+				input: {},
+				request: new Request("http://localhost/test"),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				user: caller,
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (p: string) => p,
+			};
+
+			await result.routes.whoami.handler(mockCtx as any);
+
+			const [routeCtx, pluginCtx] = standardHandler.mock.calls[0];
+			expect(routeCtx.user).toEqual(caller);
+			expect(pluginCtx).not.toHaveProperty("user");
 		});
 
 		it("preserves public flag on routes", () => {
@@ -380,6 +532,23 @@ describe("adaptSandboxEntry", () => {
 			const result = adaptSandboxEntry(def, descriptor);
 
 			expect(result.routes.webhook.public).toBe(true);
+		});
+
+		it("preserves cacheControl on routes", () => {
+			const def: SandboxedPlugin = {
+				routes: {
+					catalog: {
+						handler: vi.fn(),
+						public: true,
+						cacheControl: "public, max-age=60",
+					},
+				},
+			};
+			const descriptor = createDescriptor();
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.routes.catalog.cacheControl).toBe("public, max-age=60");
 		});
 
 		it("adapts multiple routes", () => {
@@ -409,6 +578,16 @@ describe("adaptSandboxEntry", () => {
 			expect(result.capabilities).toContain("content:read");
 		});
 
+		it("normalizes content:revisions:read to include content:read", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({ capabilities: ["content:revisions:read"] });
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.capabilities).toContain("content:revisions:read");
+			expect(result.capabilities).toContain("content:read");
+		});
+
 		it("normalizes media:write to include media:read", () => {
 			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({ capabilities: ["media:write"] });
@@ -417,6 +596,14 @@ describe("adaptSandboxEntry", () => {
 
 			expect(result.capabilities).toContain("media:write");
 			expect(result.capabilities).toContain("media:read");
+		});
+
+		it("normalizes comments:moderate to include comments:read", () => {
+			const result = adaptSandboxEntry(
+				{},
+				createDescriptor({ capabilities: ["comments:moderate"] }),
+			);
+			expect(result.capabilities).toEqual(["comments:moderate", "comments:read"]);
 		});
 
 		it("normalizes network:request:unrestricted to include network:request", () => {
@@ -439,6 +626,14 @@ describe("adaptSandboxEntry", () => {
 
 			const readCount = result.capabilities.filter((c) => c === "content:read").length;
 			expect(readCount).toBe(1);
+		});
+
+		it.each([
+			["taxonomies:write", "taxonomies:read"],
+			["redirects:write", "redirects:read"],
+		] as const)("implies %s -> %s", (declared, implied) => {
+			const result = adaptSandboxEntry({}, createDescriptor({ capabilities: [declared] }));
+			expect(result.capabilities).toEqual(expect.arrayContaining([declared, implied]));
 		});
 
 		it("throws on invalid capability", () => {

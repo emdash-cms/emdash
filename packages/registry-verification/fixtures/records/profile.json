@@ -1,0 +1,15 @@
+{
+	"$type": "com.emdashcms.experimental.package.profile",
+	"id": "at://did:plc:publisher/com.emdashcms.experimental.package.profile/gallery",
+	"type": "emdash-plugin",
+	"name": "Gallery",
+	"license": "MIT",
+	"authors": [{ "name": "Example Publisher" }],
+	"security": [{ "email": "security@example.com" }],
+	"extensions": {
+		"com.emdashcms.experimental.package.profileExtension": {
+			"$type": "com.emdashcms.experimental.package.profileExtension",
+			"repository": "https://github.com/example/gallery"
+		}
+	}
+}

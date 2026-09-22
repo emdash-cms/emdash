@@ -1,3 +1,10 @@
+export const MAX_CONTENT_HASH_BYTES = 8 * 1024 * 1024;
+
+function formatContentHash(hash: Uint8Array): string {
+	const hashHex = Array.from(hash, (byte) => byte.toString(16).padStart(2, "0")).join("");
+	return `sha1:${hashHex}`;
+}
+
 /**
  * SHA-256 hash of a string, truncated to 16 hex chars (64 bits).
  * For cache invalidation / ETags — not for security.
@@ -25,12 +32,16 @@ export async function computeContentHash(content: Uint8Array | ArrayBuffer): Pro
 	let buf: ArrayBuffer;
 	if (content instanceof ArrayBuffer) {
 		buf = content;
+	} else if (
+		content.buffer instanceof ArrayBuffer &&
+		content.byteOffset === 0 &&
+		content.byteLength === content.buffer.byteLength
+	) {
+		buf = content.buffer;
 	} else {
 		buf = new ArrayBuffer(content.byteLength);
 		new Uint8Array(buf).set(content);
 	}
 	const hashBuffer = await crypto.subtle.digest("SHA-1", buf);
-	const hashArray = new Uint8Array(hashBuffer);
-	const hashHex = Array.from(hashArray, (b) => b.toString(16).padStart(2, "0")).join("");
-	return `sha1:${hashHex}`;
+	return formatContentHash(new Uint8Array(hashBuffer));
 }

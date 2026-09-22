@@ -40,6 +40,7 @@ import { join, resolve } from "node:path";
 import type { PluginManifest, ResolvedPlugin } from "../bundle/types.js";
 import { extractManifest } from "../bundle/utils.js";
 import type { NormalisedManifest } from "../manifest/translate.js";
+import { formatPackageReleaseIdentifier } from "../package-identifier.js";
 import {
 	buildRuntime,
 	probeAndAssemble,
@@ -76,6 +77,8 @@ export interface BuildOptions {
 	 * Defaults to `<dir>/dist`.
 	 */
 	outDir?: string;
+	/** Publisher handle or DID used for human-readable progress output. */
+	displayPublisher?: string;
 	/** Optional progress reporter. */
 	logger?: BuildLogger;
 }
@@ -193,6 +196,7 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 			({ descriptor, descriptorTypes } = await writeDescriptor({
 				outDir,
 				manifest: sources.manifest,
+				wireManifest,
 				packageName: sources.packageName,
 			}));
 			log.success?.("Wrote index.mjs");
@@ -200,7 +204,9 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 			log.info?.("No package.json — skipping dist/index.mjs (registry-only plugin)");
 		}
 
-		log.success?.(`Plugin built: ${sources.manifest.slug}@${sources.manifest.version}`);
+		log.success?.(
+			`Plugin built: ${formatPackageReleaseIdentifier(options.displayPublisher ?? sources.manifest.publisher, sources.manifest.slug, sources.manifest.version)}`,
+		);
 
 		return {
 			manifest: sources.manifest,
@@ -242,6 +248,7 @@ async function runPipelineStep<T>(fn: () => Promise<T>): Promise<T> {
 interface WriteDescriptorContext {
 	outDir: string;
 	manifest: NormalisedManifest;
+	wireManifest: PluginManifest;
 	packageName: string;
 }
 
@@ -264,18 +271,29 @@ interface DescriptorFiles {
  * `./dist/plugin.mjs` — the runtime bytes the integration loads.
  */
 async function writeDescriptor(ctx: WriteDescriptorContext): Promise<DescriptorFiles> {
-	const { outDir, manifest, packageName } = ctx;
+	const { outDir, manifest, wireManifest, packageName } = ctx;
 
 	const descriptorObject = {
 		id: manifest.slug,
 		version: manifest.version,
 		format: "standard" as const,
 		entrypoint: `${packageName}/sandbox`,
-		capabilities: manifest.capabilities,
-		allowedHosts: manifest.allowedHosts,
+		capabilities: wireManifest.capabilities,
+		allowedHosts: wireManifest.allowedHosts,
 		storage: manifest.storage,
+		hooks: wireManifest.hooks,
+		routes: wireManifest.routes,
+		...(wireManifest.mcp ? { mcp: wireManifest.mcp } : {}),
 		...(manifest.admin.pages.length > 0 ? { adminPages: manifest.admin.pages } : {}),
 		...(manifest.admin.widgets.length > 0 ? { adminWidgets: manifest.admin.widgets } : {}),
+		...(wireManifest.admin.settingsSchema
+			? { settingsSchema: wireManifest.admin.settingsSchema }
+			: {}),
+		...(wireManifest.admin.fieldWidgets ? { fieldWidgets: wireManifest.admin.fieldWidgets } : {}),
+		...(wireManifest.admin.editorPanels ? { editorPanels: wireManifest.admin.editorPanels } : {}),
+		...(wireManifest.admin.editorActions
+			? { editorActions: wireManifest.admin.editorActions }
+			: {}),
 	};
 
 	// Pretty-print so the generated file is human-readable when debugging.

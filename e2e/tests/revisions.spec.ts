@@ -162,15 +162,19 @@ test.describe("Revisions", () => {
 		const response = await autosavePut;
 		expect(response.status()).toBe(200);
 
-		// Wait for autosave indicator
-		await expect(page.getByRole("status", { name: "Autosave status" })).toContainText("Saved", {
+		// Wait for SaveButton live region to settle on "Saved" after autosave
+		await expect(page.getByRole("status").filter({ hasText: "Saved" }).first()).toBeVisible({
 			timeout: 5000,
 		});
 
 		// Now publish to create a new live revision
-		const publishButton = page.getByRole("button", { name: "Publish" });
+		const publishButton = page.getByRole("button", { name: "Publish changes" });
 		if (await publishButton.isVisible({ timeout: 3000 }).catch(() => false)) {
 			await publishButton.click();
+			await page
+				.getByRole("dialog", { name: "Publish changes?" })
+				.getByRole("button", { name: "Publish changes", exact: true })
+				.click();
 			await admin.waitForLoading();
 		}
 
@@ -218,8 +222,8 @@ test.describe("Revisions", () => {
 			timeout: 10000,
 		});
 
-		// There should be multiple revision items (rounded-md border entries)
-		const revisionItems = page.locator(".rounded-md.border.p-3");
+		// There should be multiple revision items (rounded-lg border entries)
+		const revisionItems = page.locator(".rounded-lg.border.p-3");
 		const count = await revisionItems.count();
 		expect(count).toBeGreaterThanOrEqual(2);
 
@@ -283,7 +287,7 @@ test.describe("Revisions", () => {
 			.catch(() => {});
 
 		// Wait for revision items to render
-		const revisionItems = page.locator(".rounded-md.border.p-3");
+		const revisionItems = page.locator(".rounded-lg.border.p-3");
 		await expect(revisionItems.first()).toBeVisible({ timeout: 10000 });
 
 		// Find the restore button on the older revision (not the "Current" one).
@@ -297,7 +301,7 @@ test.describe("Revisions", () => {
 		await restoreButton.click();
 
 		// ConfirmDialog should appear
-		const confirmDialog = page.getByRole("dialog", { name: "Restore Revision" });
+		const confirmDialog = page.getByRole("dialog", { name: /Restore Revision/ });
 		await expect(confirmDialog).toBeVisible({ timeout: 5000 });
 
 		// Confirm the restore

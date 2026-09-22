@@ -135,7 +135,7 @@ function isSearchEnabled(searchConfig: string | null): boolean {
 			typeof parsed === "object" &&
 			parsed !== null &&
 			"enabled" in parsed &&
-			(parsed as { enabled: unknown }).enabled === true
+			parsed.enabled === true
 		);
 	} catch {
 		return false;

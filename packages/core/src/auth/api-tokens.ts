@@ -19,6 +19,7 @@ export {
 	hashPrefixedToken as hashApiToken,
 	VALID_SCOPES,
 	validateScopes,
+	isValidScope,
 	hasScope,
 	computeS256Challenge,
 	type ApiTokenScope,

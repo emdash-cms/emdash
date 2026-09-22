@@ -24,6 +24,7 @@ function editorRequestContext(pathname = "/blog") {
 		url: new URL(`https://example.com${pathname}`),
 		cookies: { get: vi.fn(() => undefined), set: vi.fn() },
 		locals: { user: { id: "u1", role: 30 } },
+		cache: { set: vi.fn() },
 	} as unknown as Parameters<typeof onRequest>[0];
 }
 

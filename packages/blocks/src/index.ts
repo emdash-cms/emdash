@@ -5,7 +5,12 @@ export { cn, formatRelativeTime } from "./utils.js";
 
 // Builders and validation
 export { blocks, elements } from "./builders.js";
-export { validateBlocks } from "./validation.js";
+export {
+	BLOCK_RESPONSE_LIMITS,
+	isSafePluginPagePath,
+	normalizePluginPagePath,
+	validateBlocks,
+} from "./validation.js";
 
 // Re-export all types
 export type {
@@ -13,6 +18,11 @@ export type {
 	ConfirmDialog,
 	// Elements
 	ButtonElement,
+	LinkElement,
+	LinkTarget,
+	LinkTargetResolver,
+	NavigationElement,
+	ActionElement,
 	TextInputElement,
 	NumberInputElement,
 	SelectElement,
@@ -62,6 +72,10 @@ export type {
 	FormSubmit,
 	PageLoad,
 	BlockInteraction,
+	ContentEditorPanelInteraction,
+	ContentEditorActionInvocation,
+	PluginUiContext,
+	ContentEditorActionResponse,
 	// Response
 	BlockResponse,
 } from "./types.js";

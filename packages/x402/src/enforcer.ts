@@ -59,7 +59,7 @@ async function getResourceServer(config: X402Config): Promise<x402ResourceServer
 		try {
 			const evmMod = await import("@x402/evm/exact/server");
 			const evmScheme = new evmMod.ExactEvmScheme();
-			server.register("eip155:*" as `${string}:${string}`, evmScheme);
+			server.register("eip155:*", evmScheme);
 		} catch {
 			// @x402/evm not installed -- skip EVM support
 		}
@@ -70,7 +70,7 @@ async function getResourceServer(config: X402Config): Promise<x402ResourceServer
 		try {
 			const svmMod = await import("@x402/svm/exact/server");
 			const svmScheme = new svmMod.ExactSvmScheme();
-			server.register("solana:*" as `${string}:${string}`, svmScheme);
+			server.register("solana:*", svmScheme);
 		} catch {
 			// @x402/svm not installed -- skip Solana support
 		}

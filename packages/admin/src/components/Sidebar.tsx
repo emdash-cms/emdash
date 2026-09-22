@@ -1,38 +1,7 @@
-import { Sidebar as KumoSidebar, Tooltip, useSidebar } from "@cloudflare/kumo";
+import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
+import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import {
-	SquaresFour,
-	FileText,
-	Image,
-	ChatCircle,
-	Gear,
-	PuzzlePiece,
-	Storefront,
-	Palette,
-	Upload,
-	Database,
-	List,
-	GridFour,
-	Users,
-	Stack,
-	ArrowsLeftRight,
-	ChartBar,
-	ChartLine,
-	ClockCounterClockwise,
-	Medal,
-	Trophy,
-	Crop,
-	BookOpen,
-	Plug,
-	Code,
-	CalendarBlank,
-	Bell,
-	Folder,
-	Star,
-	Tag,
-	LinkSimple,
-	MagnifyingGlass,
-} from "@phosphor-icons/react";
+import { Gear, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -40,11 +9,29 @@ import * as React from "react";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
-import { cn } from "../lib/utils";
+import {
+	groupNavItems,
+	taxonomyGroup,
+	type GroupableNavItem,
+	type NavEntry,
+	type NavFolder,
+} from "../lib/sidebar-groups.js";
+import {
+	resolveTaxonomyDefinitions,
+	type LocalizedTaxonomyDefinition,
+} from "../lib/taxonomy-definitions.js";
+import {
+	ADMIN_NAV_ICONS,
+	getCollectionNavIcon,
+	getTaxonomyNavIcon,
+	resolveNavIcon,
+	toPhosphorIconName,
+} from "./admin-navigation-icons.js";
 import { BrandIcon } from "./Logo.js";
 
 // Re-export for Shell.tsx and Header.tsx
 export { KumoSidebar as Sidebar, useSidebar };
+export { resolveNavIcon, toPhosphorIconName };
 
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
@@ -66,6 +53,7 @@ const ROLE_EDITOR = 40;
 export const BYLINE_SCHEMA_NAV_ITEM = {
 	to: "/byline-schema" as const,
 	minRole: ROLE_ADMIN,
+	icon: ADMIN_NAV_ICONS.bylineSchema,
 } as const;
 
 /**
@@ -81,9 +69,24 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+/**
+ * Manifest collections that get an auto-generated sidebar entry and dashboard
+ * quick action, in manifest order. Pure function — exported so tests can pin
+ * the `hidden` contract without rendering the sidebar.
+ *
+ * A hidden collection is still shipped in the manifest and stays fully
+ * routable at `/content/:collection`, so a plugin that owns the collection end
+ * to end can steer editors to its own admin UI.
+ */
+export function visibleCollectionEntries<T extends { hidden?: boolean }>(
+	collections: Record<string, T>,
+): Array<[string, T]> {
+	return Object.entries(collections).filter(([, config]) => !config.hidden);
+}
+
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, { label: string; hidden?: boolean; group?: string }>;
 		plugins: Record<
 			string,
 			{
@@ -100,12 +103,17 @@ export interface SidebarNavProps {
 			}
 		>;
 		taxonomies: Array<{
+			id?: string;
 			name: string;
 			label: string;
+			collections?: string[];
+			locale?: string;
+			translationGroup?: string | null;
 		}>;
+		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		commit?: string;
-		marketplace?: string;
+		marketplace?: boolean;
 		registry?: {
 			aggregatorUrl: string;
 		};
@@ -117,203 +125,255 @@ export interface SidebarNavProps {
 	};
 }
 
-interface NavItem {
+/** Locale-normalized taxonomy rows used by the global Manage navigation. */
+export function getSidebarTaxonomies<T extends LocalizedTaxonomyDefinition>(
+	taxonomies: readonly T[],
+	activeLocale?: string,
+	defaultLocale?: string,
+): T[] {
+	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale);
+}
+
+export interface NavItem extends GroupableNavItem {
 	to: string;
 	label: string;
 	icon: React.ElementType;
 	params?: Record<string, string>;
+	search?: Record<string, string>;
 	/** Minimum role level required to see this item */
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
 	badge?: number;
 }
 
-/**
- * Static map of common plugin admin-page icon names to Phosphor components.
- *
- * Plugins declare `adminPages: [{ path, label, icon }]`, where `icon` is a
- * lower/kebab name. This table covers the names used across the EmDash
- * docs/templates (including lucide-style names like `settings`/`chart` that
- * don't match Phosphor's own naming) plus common nav glyphs. These are
- * statically imported, so the everyday case resolves *synchronously* and the
- * handful of components ship in the main bundle — the full Phosphor set is
- * never pulled in for them. Any name not listed here is resolved lazily
- * (see `resolveNavIcon`), so there is no hard ceiling.
- */
-const NAV_ICON_MAP: Record<string, React.ElementType> = {
-	// Documented in the plugin docs & "creating-plugins" skill
-	settings: Gear,
-	gear: Gear,
-	chart: ChartBar,
-	"chart-line": ChartLine,
-	dashboard: SquaresFour,
-	history: ClockCounterClockwise,
-	image: Image,
-	// Used by template / first-party plugins
-	award: Medal,
-	trophy: Trophy,
-	grid: GridFour,
-	crop: Crop,
-	// Common admin-nav glyphs
-	book: BookOpen,
-	plug: Plug,
-	code: Code,
-	file: FileText,
-	document: FileText,
-	users: Users,
-	database: Database,
-	list: List,
-	calendar: CalendarBlank,
-	bell: Bell,
-	folder: Folder,
-	star: Star,
-	tag: Tag,
-	link: LinkSimple,
-	search: MagnifyingGlass,
-	palette: Palette,
-	upload: Upload,
-};
+/** Folder member order: collections, then their taxonomies. */
+const GROUP_RANK = { collection: 0, taxonomy: 1 } as const;
 
-/** Word separators in icon names: kebab, snake, or whitespace. */
-const ICON_NAME_SEPARATOR = /[-_\s]+/;
+const FOLDER_STATE_STORAGE_KEY = "emdash-sidebar-folders";
 
-/**
- * Convert a kebab/snake/space icon name to Phosphor's PascalCase component
- * name (`chart-bar` → `ChartBar`). Exported for unit testing the pure mapping.
- */
-export function toPhosphorIconName(name: string): string {
-	return name
-		.split(ICON_NAME_SEPARATOR)
-		.filter(Boolean)
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join("");
+type FolderState = Record<string, boolean>;
+
+/** Parse stored folder choices, dropping anything that is not a label → boolean map. */
+export function parseFolderState(raw: string | null): FolderState {
+	try {
+		const parsed: unknown = JSON.parse(raw ?? "{}");
+		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+		const state: FolderState = {};
+		for (const [key, value] of Object.entries(parsed)) {
+			if (typeof value === "boolean") state[key] = value;
+		}
+		return state;
+	} catch {
+		return {};
+	}
+}
+
+function readFolderState(): FolderState {
+	if (typeof window === "undefined") return {};
+	try {
+		return parseFolderState(window.localStorage.getItem(FOLDER_STATE_STORAGE_KEY));
+	} catch {
+		return {};
+	}
+}
+
+function writeFolderState(state: FolderState): void {
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.setItem(FOLDER_STATE_STORAGE_KEY, JSON.stringify(state));
+	} catch {}
 }
 
 /**
- * Cache of lazily-loaded icon components, keyed by Phosphor component name.
- * `React.lazy` must return a stable identity across renders (a fresh lazy
- * component on every render would remount and re-suspend), so memoize here.
+ * Open/closed choices the user made per folder label, remembered across
+ * visits. A folder without a stored choice opens while it contains the
+ * active item.
  */
-const lazyIconCache = new Map<string, React.ElementType>();
-
-/**
- * Resolve a plugin page's `icon` name to a component.
- *
- * Resolution order:
- *   1. No icon → `PuzzlePiece` (the common icon-less page never suspends).
- *   2. A name in `NAV_ICON_MAP` → its statically-imported component (sync,
- *      already in the main bundle — no extra chunk for everyday icons).
- *   3. Anything else → the matching `@phosphor-icons/react` component, loaded
- *      lazily from a code-split chunk the first time it's used. This gives
- *      access to the entire Phosphor set without pulling it into the main
- *      bundle, and only loads when a plugin uses an icon outside the map.
- *      Names that don't exist in Phosphor fall back to `PuzzlePiece`.
- *
- * Case 3 returns a `React.lazy` component, so call sites must render the
- * result inside a `<React.Suspense>` boundary (see `NavMenuLink`). Exported
- * so a unit test can assert resolution without mounting the portal-heavy
- * Kumo Sidebar.
- */
-export function resolveNavIcon(name?: string): React.ElementType {
-	if (!name) {
-		return PuzzlePiece;
-	}
-	const mapped = NAV_ICON_MAP[name];
-	if (mapped) {
-		return mapped;
-	}
-	const componentName = toPhosphorIconName(name);
-	let icon = lazyIconCache.get(componentName);
-	if (!icon) {
-		icon = React.lazy(async () => {
-			const mod = (await import("@phosphor-icons/react")) as Record<string, unknown>;
-			const Icon = mod[componentName] as React.ComponentType<{ className?: string }> | undefined;
-			return { default: Icon ?? PuzzlePiece };
+export function useFolderState() {
+	const [state, setState] = React.useState<FolderState>(readFolderState);
+	const setOpen = React.useCallback((label: string, open: boolean) => {
+		setState((prev) => {
+			const next = { ...prev, [label]: open };
+			writeFolderState(next);
+			return next;
 		});
-		lazyIconCache.set(componentName, icon);
-	}
-	return icon;
+	}, []);
+	return { state, setOpen };
 }
 
 /**
- * Navigation item rendered as a TanStack Router <Link> inside kumo's
- * Sidebar.MenuItem. Styled to match kumo MenuButton appearance.
- * This approach guarantees client-side navigation works correctly.
+ * Navigation item rendered with Kumo's native Sidebar.MenuButton. Kumo's
+ * LinkProvider maps the href to TanStack Router for client-side navigation.
  */
 function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const { state } = useSidebar();
 	const Icon = item.icon;
-	const iconClassName = cn(
-		"emdash-nav-icon size-[18px] shrink-0 transition-colors duration-200",
-		isActive ? "text-white" : "text-white/60 group-hover/menu-button:text-white/90",
-	);
+	function IconComponent({ className }: { className?: string }) {
+		return <NavIcon icon={Icon} className={className} isActive={isActive} />;
+	}
 
-	const link = (
-		<Link
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- TanStack Router requires literal route types
-			to={item.to as "/"}
-			params={item.params}
-			aria-current={isActive ? "page" : undefined}
-			data-active={isActive || undefined}
-			data-sidebar="menu-button"
-			className={cn(
-				"emdash-nav-link group/menu-button flex w-full min-w-0 items-center gap-2.5 rounded-md no-underline outline-none cursor-pointer",
-				"min-h-[36px] px-3 py-1.5 text-[13px]",
-				"transition-all duration-200 ease-out",
-				isActive ? "bg-kumo-brand text-white" : "text-white/70 hover:text-white hover:bg-white/8",
-				"focus-visible:ring-2 focus-visible:ring-kumo-brand/50",
-			)}
+	return (
+		<KumoSidebar.MenuButton
+			href={resolveItemPath(item)}
+			active={isActive}
+			tooltip={state === "collapsed" ? item.label : undefined}
+			icon={IconComponent}
 		>
-			<React.Suspense fallback={<PuzzlePiece className={iconClassName} aria-hidden="true" />}>
-				<Icon className={iconClassName} aria-hidden="true" />
-			</React.Suspense>
-			<span className="emdash-nav-label flex flex-1 items-center min-w-0 text-start overflow-hidden">
-				{item.label}
-				{item.badge != null && item.badge > 0 && (
-					<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>
-				)}
-			</span>
-		</Link>
+			{item.label}
+			{item.badge != null && item.badge > 0 && (
+				<KumoSidebar.MenuBadge>{item.badge}</KumoSidebar.MenuBadge>
+			)}
+		</KumoSidebar.MenuButton>
 	);
+}
+
+/**
+ * Collapsible folder of nav items. In the icon-only sidebar the folder links
+ * straight to its active member (or the first one), since sub-menus have no
+ * room to expand. The collapsible is fully controlled: only a click on the
+ * folder button changes the stored choice, so Kumo's focus-driven expansion
+ * is not recorded as a preference.
+ */
+export function NavFolderMenu({
+	folder,
+	currentPath,
+	open,
+	onToggle,
+}: {
+	folder: NavFolder<NavItem>;
+	currentPath: string;
+	open: boolean;
+	onToggle: () => void;
+}) {
+	const { state } = useSidebar();
+	const Icon = ADMIN_NAV_ICONS.folder;
+	const members = folder.items.map((item) => {
+		const path = resolveItemPath(item);
+		return { item, path, active: isItemActive(path, currentPath) };
+	});
+	const target = members.find((member) => member.active) ?? members[0];
+	if (!target) return null;
+	const containsActive = target.active;
+
+	if (state === "collapsed") {
+		return (
+			<NavMenuLink
+				item={{ ...target.item, label: folder.label, icon: Icon }}
+				isActive={containsActive}
+			/>
+		);
+	}
+
+	function IconComponent({ className }: { className?: string }) {
+		return <NavIcon icon={Icon} className={className} isActive={containsActive} />;
+	}
 
 	return (
 		<KumoSidebar.MenuItem>
-			{state === "collapsed" ? (
-				<Tooltip content={item.label} side="right" asChild>
-					{link}
-				</Tooltip>
-			) : (
-				link
-			)}
+			<KumoSidebar.Collapsible open={open}>
+				<KumoSidebar.CollapsibleTrigger
+					render={
+						<KumoSidebar.MenuButton
+							icon={IconComponent}
+							active={containsActive && !open}
+							onClick={onToggle}
+						>
+							{folder.label}
+							<KumoSidebar.MenuChevron />
+						</KumoSidebar.MenuButton>
+					}
+				/>
+				<KumoSidebar.CollapsibleContent>
+					<KumoSidebar.MenuSub>
+						{members.map(({ item, path, active }) => (
+							<KumoSidebar.MenuSubButton key={path} href={path} active={active}>
+								{item.label}
+							</KumoSidebar.MenuSubButton>
+						))}
+					</KumoSidebar.MenuSub>
+				</KumoSidebar.CollapsibleContent>
+			</KumoSidebar.Collapsible>
 		</KumoSidebar.MenuItem>
 	);
 }
 
+export function NavIcon({
+	icon: Icon,
+	className,
+	isActive,
+}: {
+	icon: React.ElementType;
+	className?: string;
+	isActive: boolean;
+}) {
+	const weight = isActive ? "fill" : "regular";
+
+	return (
+		<React.Suspense
+			fallback={
+				<ADMIN_NAV_ICONS.plugins className={className} weight={weight} aria-hidden="true" />
+			}
+		>
+			<Icon className={className} weight={weight} aria-hidden="true" />
+		</React.Suspense>
+	);
+}
+
+/**
+ * Resolve the display label for a plugin admin page (sidebar + command
+ * palette). Declared labels are run through the shared Lingui instance:
+ * plugins that load their own catalog — with the English label as msgid —
+ * get localized nav items. The catalog is shared with the admin, so common
+ * labels like "Settings" pick up the admin's own translations even without
+ * a plugin catalog (deliberate: a localized admin shouldn't show stray
+ * English nav items). Labels with no catalog entry anywhere fall back to
+ * the literal string. Pages without a label prettify the plugin id
+ * ("my-shop" → "My Shop").
+ */
+export function resolvePluginPageLabel(
+	label: string | undefined,
+	pluginId: string,
+	translate: (id: string) => string,
+): string {
+	if (label) return translate(label);
+	return pluginId
+		.split("-")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
-function resolveItemPath(item: NavItem): string {
+export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
 	if (item.params) {
 		for (const [key, value] of Object.entries(item.params)) {
 			path = path.replace(`$${key}`, value);
 		}
 	}
+	if (item.search && Object.keys(item.search).length > 0) {
+		path += `?${new URLSearchParams(item.search).toString()}`;
+	}
 	return path;
 }
 
 /** Checks if a nav item is active based on the current router path. */
-function isItemActive(itemPath: string, currentPath: string): boolean {
-	return itemPath === "/"
+export function isItemActive(itemPath: string, currentPath: string): boolean {
+	const queryIndex = itemPath.indexOf("?");
+	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	return path === "/"
 		? currentPath === "/"
-		: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+		: currentPath === path || currentPath.startsWith(`${path}/`);
 }
 
 /**
  * Admin sidebar navigation using kumo's Sidebar compound component.
  */
 export function SidebarNav({ manifest }: SidebarNavProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
+	const routeLocale =
+		new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined;
 	const pluginAdmins = usePluginAdmins();
 
 	const { data: user } = useCurrentUser();
@@ -330,72 +390,98 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	// --- Build nav item groups ---
 
-	const contentItems: NavItem[] = [{ to: "/", label: t`Dashboard`, icon: SquaresFour }];
-	for (const [name, config] of Object.entries(manifest.collections)) {
+	const contentItems: NavItem[] = [
+		{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard },
+	];
+	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,
-			icon: FileText,
+			icon: getCollectionNavIcon(name),
+			group: config.group,
+			groupRank: GROUP_RANK.collection,
 			params: { collection: name },
 		});
 	}
-	contentItems.push({ to: "/media", label: t`Media`, icon: Image });
+	contentItems.push({ to: "/media", label: t`Media`, icon: ADMIN_NAV_ICONS.media });
+
+	const collectionGroups = new Map(
+		visibleCollectionEntries(manifest.collections).map(([name, config]) => [name, config.group]),
+	);
 
 	const manageItems: NavItem[] = [
 		{
 			to: "/comments",
 			label: t`Comments`,
-			icon: ChatCircle,
+			icon: ADMIN_NAV_ICONS.comments,
 			minRole: ROLE_EDITOR,
 			badge: commentCounts?.pending,
 		},
-		{ to: "/menus", label: t`Menus`, icon: List, minRole: ROLE_EDITOR },
-		{ to: "/redirects", label: t`Redirects`, icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
-		{ to: "/widgets", label: t`Widgets`, icon: GridFour, minRole: ROLE_EDITOR },
-		{ to: "/sections", label: t`Sections`, icon: Stack, minRole: ROLE_EDITOR },
-		...manifest.taxonomies.map((tax) => ({
-			to: "/taxonomies/$taxonomy" as const,
-			label: tax.label,
-			icon: FileText,
-			params: { taxonomy: tax.name },
-			minRole: ROLE_EDITOR,
-		})),
-		{ to: "/bylines", label: t`Bylines`, icon: FileText, minRole: ROLE_EDITOR },
+		{ to: "/menus", label: t`Menus`, icon: ADMIN_NAV_ICONS.menus, minRole: ROLE_EDITOR },
+		{
+			to: "/redirects",
+			label: t`Redirects`,
+			icon: ADMIN_NAV_ICONS.redirects,
+			minRole: ROLE_ADMIN,
+		},
+		{ to: "/widgets", label: t`Widgets`, icon: ADMIN_NAV_ICONS.widgets, minRole: ROLE_EDITOR },
+		{ to: "/sections", label: t`Sections`, icon: ADMIN_NAV_ICONS.sections, minRole: ROLE_EDITOR },
+		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
 	];
+	for (const tax of getSidebarTaxonomies(
+		manifest.taxonomies,
+		routeLocale,
+		manifest.i18n?.defaultLocale,
+	)) {
+		const item: NavItem = {
+			to: "/taxonomies/$taxonomy",
+			label: tax.label,
+			icon: getTaxonomyNavIcon(tax.name),
+			params: { taxonomy: tax.name },
+			search: routeLocale ? { locale: routeLocale } : undefined,
+			minRole: ROLE_EDITOR,
+		};
+		const group = taxonomyGroup(tax.collections ?? [], collectionGroups);
+		if (group) {
+			contentItems.push({ ...item, group, groupRank: GROUP_RANK.taxonomy });
+		} else {
+			manageItems.splice(manageItems.length - 1, 0, item);
+		}
+	}
 
 	const adminItems: NavItem[] = [
-		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
+		{
+			to: "/content-types",
+			label: t`Content Types`,
+			icon: ADMIN_NAV_ICONS.contentTypes,
+			minRole: ROLE_ADMIN,
+		},
+		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema` },
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
-		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
+		{
+			to: "/plugins-manager",
+			label: t`Plugins`,
+			icon: ADMIN_NAV_ICONS.plugins,
+			minRole: ROLE_ADMIN,
+		},
 	];
 
 	if (manifest.registry) {
 		adminItems.push({
-			to: "/plugins/marketplace",
+			to: "/plugins/registry",
 			label: t`Registry`,
 			icon: Storefront,
-			minRole: ROLE_ADMIN,
-		});
-	} else if (manifest.marketplace) {
-		adminItems.push({
-			to: "/plugins/marketplace",
-			label: t`Marketplace`,
-			icon: Storefront,
-			minRole: ROLE_ADMIN,
-		});
-	}
-
-	if (manifest.marketplace) {
-		adminItems.push({
-			to: "/themes/marketplace",
-			label: t`Themes`,
-			icon: Palette,
 			minRole: ROLE_ADMIN,
 		});
 	}
 
 	adminItems.push(
-		{ to: "/import/wordpress", label: t`Import`, icon: Upload, minRole: ROLE_ADMIN },
+		{
+			to: "/import/wordpress",
+			label: t`Import`,
+			icon: ADMIN_NAV_ICONS.import,
+			minRole: ROLE_ADMIN,
+		},
 		{ to: "/settings", label: t`Settings`, icon: Gear, minRole: ROLE_ADMIN },
 	);
 
@@ -407,14 +493,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
+				if (!isSafePluginPagePath(page.path)) continue;
+				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
 				pluginItems.push({
-					to: `/plugins/${pluginId}${page.path}`,
+					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,
 					label,
 					icon: resolveNavIcon(page.icon),
 				});
@@ -422,10 +504,14 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		}
 	}
 
-	const visibleContent = filterNavItemsByRole(contentItems, userRole);
+	const visibleContent = groupNavItems(
+		filterNavItemsByRole(contentItems, userRole).filter((i) => i.to !== "/"),
+	);
 	const visibleManage = filterNavItemsByRole(manageItems, userRole);
 	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
 	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
+
+	const folders = useFolderState();
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
@@ -435,191 +521,112 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		});
 	}
 
+	function renderNavEntries(entries: NavEntry<NavItem>[]) {
+		return entries.map((entry, index) => {
+			if (entry.kind === "item") {
+				const itemPath = resolveItemPath(entry.item);
+				return (
+					<NavMenuLink
+						key={`${entry.item.to}-${index}`}
+						item={entry.item}
+						isActive={isItemActive(itemPath, currentPath)}
+					/>
+				);
+			}
+			const open =
+				folders.state[entry.label] ??
+				entry.items.some((item) => isItemActive(resolveItemPath(item), currentPath));
+			return (
+				<NavFolderMenu
+					key={`folder-${entry.label}`}
+					folder={entry}
+					currentPath={currentPath}
+					open={open}
+					onToggle={() => folders.setOpen(entry.label, !open)}
+				/>
+			);
+		});
+	}
+
 	return (
-		<>
-			{/* Injected styles — Tailwind 4 strips [data-sidebar] attribute selectors from CSS files.
-			    All sidebar-specific overrides go here to avoid conflicting with kumo's inline styles. */}
-			<style
-				dangerouslySetInnerHTML={{
-					__html: `
-			/* Classic dark chrome — override kumo tokens within the sidebar */
-			.emdash-sidebar {
-				--color-kumo-base: #1d2327;
-				/* Kumo 2.4 paints the surface via bg-(--sidebar-bg) on an inner
-				   container, resolved from the wrapper's light --color-kumo-base. */
-				--sidebar-bg: #1d2327;
-				--color-kumo-tint: rgba(255,255,255,0.1);
-				--color-kumo-line: rgba(255,255,255,0.08);
-				--color-kumo-brand: #2271b1;
-				--text-color-kumo-default: #fff;
-				--text-color-kumo-subtle: rgba(255,255,255,0.7);
-				--text-color-kumo-strong: #fff;
-				background-color: #1d2327 !important;
-				color: #fff !important;
-				border-color: rgba(255,255,255,0.08) !important;
-			}
-			/* Group labels — uppercase muted style */
-			.emdash-sidebar [data-sidebar="group-label"] {
-				color: rgba(255,255,255,0.45) !important;
-				font-size: 11px !important;
-				text-transform: uppercase;
-				letter-spacing: 0.06em;
-				font-weight: 600;
-				padding-left: 0.75rem;
-				padding-right: 0.75rem;
-			}
-			.emdash-sidebar [data-sidebar="group-label"] svg {
-				color: rgba(255,255,255,0.3);
-			}
-			.emdash-sidebar [data-sidebar="group-label"]:hover svg {
-				color: rgba(255,255,255,0.6);
-			}
-			/* Separators */
-			.emdash-sidebar [data-sidebar="separator"] {
-				border-color: rgba(255,255,255,0.06) !important;
-				margin: 0.5rem 0.75rem;
-			}
-			/* Header/footer borders */
-			.emdash-sidebar [data-sidebar="header"] {
-				border-bottom: 1px solid rgba(255,255,255,0.08);
-			}
-			.emdash-sidebar [data-sidebar="footer"] {
-				border-top: 1px solid rgba(255,255,255,0.08);
-			}
-
-			/* Collapsed separators — thin centered line */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="separator"] {
-				margin: 0.375rem 0.625rem;
-			}
-			/* Collapsed: tighten group spacing */
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="group"] {
-				gap: 0.125rem;
-			}
-			.emdash-sidebar[data-state="collapsed"] [data-sidebar="menu"] {
-				gap: 0.125rem;
-			}
-
-			/* Collapsed: nav links — center icon, hide text */
-			.emdash-sidebar[data-state="collapsed"] .emdash-nav-link {
-				justify-content: center;
-				padding: 0.5rem 0;
-				gap: 0;
-				min-height: 36px;
-			}
-			.emdash-sidebar[data-state="collapsed"] .emdash-nav-label {
-				display: none !important;
-			}
-			/* Collapsed: brand link */
-			.emdash-sidebar[data-state="collapsed"] .emdash-brand-link {
-				justify-content: center;
-				padding-left: 0;
-				padding-right: 0;
-			}
-			.emdash-sidebar[data-state="collapsed"] .emdash-brand-text {
-				display: none !important;
-			}
-
-			/* Mobile drawer slide animation from left (LTR) */
-			[data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
-			[data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
-				transform: translateX(-100%);
-			}
-
-			/* Mobile drawer slide animation from right (RTL) */
-			[dir="rtl"] [data-starting-style]:has(> .emdash-sidebar[data-mobile="true"]),
-			[dir="rtl"] [data-ending-style]:has(> .emdash-sidebar[data-mobile="true"]) {
-				transform: translateX(100%);
-				--tw-translate-x: 100%;
-			}
-
-			/* RTL: Position drawer on right side */
-			[dir="rtl"] :has(> .emdash-sidebar[data-mobile="true"]) {
-				left: auto;
-				right: 0;
-			}
-		`,
-				}}
-			/>
-			<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
-				<KumoSidebar.Header>
-					<Link
-						to="/"
-						className="emdash-brand-link flex w-full min-w-0 items-center gap-2 px-3 py-1"
-					>
-						<BrandIcon
-							logoUrl={manifest.admin?.logo}
-							siteName={manifest.admin?.siteName}
-							className="size-5 shrink-0"
-							aria-hidden="true"
-						/>
-						<span className="emdash-brand-text font-semibold truncate">
-							{manifest.admin?.siteName || "EmDash"}
+		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
+			<KumoSidebar.Header className="px-[11px] transition-[padding] duration-(--sidebar-animation-duration) motion-reduce:transition-none group-not-data-[state=collapsed]/sidebar:px-3.5">
+				<Link
+					to="/"
+					className="flex w-[calc(var(--sidebar-width)-1.75rem)] shrink-0 items-center gap-2 overflow-hidden py-1 ps-2.5 group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
+				>
+					<BrandIcon
+						logoUrl={manifest.admin?.logo}
+						siteName={manifest.admin?.siteName}
+						className="size-5 shrink-0"
+						aria-hidden="true"
+					/>
+					<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
+						<span className="min-w-0 overflow-hidden">
+							<span className="block w-[calc(var(--sidebar-width)-4.5rem)] truncate font-semibold">
+								{manifest.admin?.siteName || "EmDash"}
+							</span>
 						</span>
-					</Link>
-				</KumoSidebar.Header>
+					</span>
+				</Link>
+			</KumoSidebar.Header>
 
-				<KumoSidebar.Content>
-					{/* Dashboard — standalone */}
+			<KumoSidebar.Content>
+				{/* Dashboard — standalone */}
+				<KumoSidebar.Group className="mt-2 md:mt-1.5">
+					<KumoSidebar.Menu>
+						<NavMenuLink
+							item={{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard }}
+							isActive={isItemActive("/", currentPath)}
+						/>
+					</KumoSidebar.Menu>
+				</KumoSidebar.Group>
+
+				{/* Content — collections + media */}
+				{visibleContent.length > 1 && (
 					<KumoSidebar.Group>
-						<KumoSidebar.Menu>
-							<NavMenuLink
-								item={{ to: "/", label: t`Dashboard`, icon: SquaresFour }}
-								isActive={isItemActive("/", currentPath)}
-							/>
-						</KumoSidebar.Menu>
+						<KumoSidebar.GroupLabel>{t`Content`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavEntries(visibleContent)}</KumoSidebar.Menu>
 					</KumoSidebar.Group>
+				)}
 
-					<KumoSidebar.Separator />
+				{/* Manage — comments, menus, taxonomies, etc. */}
+				{visibleManage.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Manage`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
 
-					{/* Content — collections + media */}
-					{visibleContent.length > 1 && (
-						<KumoSidebar.Group>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Content`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.Menu>
-								{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
-							</KumoSidebar.Menu>
-						</KumoSidebar.Group>
-					)}
+				{/* Admin — content types, users, plugins, import */}
+				{visibleAdmin.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Admin`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
 
-					<KumoSidebar.Separator />
+				{/* Plugin pages */}
+				{visiblePlugins.length > 0 && (
+					<KumoSidebar.Group>
+						<KumoSidebar.GroupLabel>{t`Plugins`}</KumoSidebar.GroupLabel>
+						<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
+					</KumoSidebar.Group>
+				)}
+			</KumoSidebar.Content>
 
-					{/* Manage — comments, menus, taxonomies, etc. */}
-					{visibleManage.length > 0 && (
-						<KumoSidebar.Group>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Manage`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.Menu>{renderNavItems(visibleManage)}</KumoSidebar.Menu>
-						</KumoSidebar.Group>
-					)}
-
-					<KumoSidebar.Separator />
-
-					{/* Admin — content types, users, plugins, import */}
-					{visibleAdmin.length > 0 && (
-						<KumoSidebar.Group>
-							<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Admin`}</KumoSidebar.GroupLabel>
-							<KumoSidebar.Menu>{renderNavItems(visibleAdmin)}</KumoSidebar.Menu>
-						</KumoSidebar.Group>
-					)}
-
-					{/* Plugin pages */}
-					{visiblePlugins.length > 0 && (
-						<>
-							<KumoSidebar.Separator />
-							<KumoSidebar.Group>
-								<KumoSidebar.GroupLabel className="[&>span]:text-start [&_svg]:rtl:-scale-x-100 [&_svg]:rtl:-scale-y-100">{t`Plugins`}</KumoSidebar.GroupLabel>
-								<KumoSidebar.Menu>{renderNavItems(visiblePlugins)}</KumoSidebar.Menu>
-							</KumoSidebar.Group>
-						</>
-					)}
-				</KumoSidebar.Content>
-
-				<KumoSidebar.Footer>
-					<p className="emdash-nav-label px-3 py-2 text-[11px] text-white/30">
+			<KumoSidebar.Footer className="gap-0">
+				<KumoSidebar.Trigger className="rtl:rotate-180" />
+				<div className="min-w-0 flex-1 overflow-hidden">
+					<p
+						data-testid="admin-version"
+						className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle"
+					>
 						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
 						{manifest.commit && ` (${manifest.commit})`}
 					</p>
-				</KumoSidebar.Footer>
-			</KumoSidebar>
-		</>
+				</div>
+			</KumoSidebar.Footer>
+		</KumoSidebar>
 	);
 }

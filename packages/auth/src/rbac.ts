@@ -86,6 +86,9 @@ export const Permissions = {
 	// Import
 	"import:execute": Role.ADMIN,
 
+	// Backups (full content export — admin-only, same tier as settings:manage)
+	"backups:manage": Role.ADMIN,
+
 	// Search
 	"search:read": Role.SUBSCRIBER,
 	"search:manage": Role.ADMIN,
@@ -185,7 +188,7 @@ export class PermissionError extends Error {
  * (RBAC roles and API token scopes). When issuing a token, the granted
  * scopes must be intersected with the scopes allowed by the user's role.
  */
-const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
+const SCOPE_MIN_ROLE: Record<Exclude<ApiTokenScope, `mcp:tools:${string}`>, RoleLevel> = {
 	"content:read": Role.SUBSCRIBER,
 	"content:write": Role.CONTRIBUTOR,
 	"media:read": Role.SUBSCRIBER,
@@ -196,6 +199,7 @@ const SCOPE_MIN_ROLE: Record<ApiTokenScope, RoleLevel> = {
 	"menus:manage": Role.EDITOR,
 	"settings:read": Role.EDITOR,
 	"settings:manage": Role.ADMIN,
+	"mcp:tools": Role.ADMIN,
 	admin: Role.ADMIN,
 };
 
@@ -223,5 +227,7 @@ export function scopesForRole(role: RoleLevel): ApiTokenScope[] {
  */
 export function clampScopes(requested: string[], role: RoleLevel): string[] {
 	const allowed = new Set<string>(scopesForRole(role));
-	return requested.filter((s) => allowed.has(s));
+	return requested.filter(
+		(scope) => allowed.has(scope) || (scope.startsWith("mcp:tools:") && role >= Role.SUBSCRIBER),
+	);
 }

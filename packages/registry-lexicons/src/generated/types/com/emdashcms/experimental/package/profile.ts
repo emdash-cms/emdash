@@ -84,6 +84,10 @@ const _mainSchema = /*#__PURE__*/ v.record(
 			]),
 		),
 		/**
+		 * Opaque extension container keyed by NSID. The base profile Lexicon does not validate entries; consumers dispatch known entries to their embedded extension schemas. EmDash delegated-release policy uses com.emdashcms.experimental.package.profileExtension here.
+		 */
+		extensions: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.unknown()),
+		/**
 		 * Canonical AT URI of this profile record. Derived from the record's location at publish time; not authored by the publisher. Aggregators MUST reject records whose id does not match the AT URI they were fetched from. Mirrors FAIR's id-must-match-the-resolved-identifier rule.
 		 */
 		id: /*#__PURE__*/ v.resourceUriString(),

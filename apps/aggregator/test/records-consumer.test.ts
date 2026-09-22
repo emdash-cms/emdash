@@ -26,7 +26,7 @@ import { P256PrivateKeyExportable } from "@atcute/crypto";
 import type { DidDocument } from "@atcute/identity";
 import type { Did } from "@atcute/lexicons/syntax";
 import { NSID } from "@emdash-cms/registry-lexicons";
-import { applyD1Migrations, env } from "cloudflare:test";
+import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -67,9 +67,14 @@ beforeAll(async () => {
 
 beforeEach(async () => {
 	for (const table of [
+		"public_releases",
+		"public_packages",
 		"release_duplicate_attempts",
 		"releases",
+		"package_release_history",
 		"packages",
+		"package_profile_heads",
+		"package_profile_revisions",
 		"publisher_verifications",
 		"publishers",
 		"known_publishers",
@@ -104,6 +109,9 @@ function jobFor(
 }
 
 const NOW = new Date("2026-05-09T12:00:00.000Z");
+const LEGACY_DID = "did:plc:n4mihg5idgr5ne4jigcmbh4k";
+const LEGACY_SLUG = "ai-search";
+const LEGACY_CID = "bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a";
 
 // ─── Writer: package.profile ────────────────────────────────────────────────
 
@@ -116,6 +124,12 @@ describe("ingestPackageProfile", () => {
 		license: "MIT",
 		authors: [{ name: "Tester" }],
 		security: [{ email: "x@y.test" }],
+		extensions: {
+			[NSID.packageProfileExtension]: {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/demo",
+			},
+		},
 	};
 
 	it("inserts a row on first call", async () => {
@@ -126,6 +140,141 @@ describe("ingestPackageProfile", () => {
 			.bind(DID_A)
 			.first<{ did: string; slug: string; license: string }>();
 		expect(row).toMatchObject({ did: DID_A, slug: "demo", license: "MIT" });
+	});
+
+	it("stages a profile that cannot pass install verification as unavailable", async () => {
+		const { extensions: _extensions, ...missingExtension } = validRecord;
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(missingExtension),
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(
+			`SELECT emdash_extension, installability_status, installability_error
+			 FROM packages WHERE did = ? AND slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				emdash_extension: string | null;
+				installability_status: string;
+				installability_error: string | null;
+			}>();
+		expect(row?.emdash_extension).toBeNull();
+		expect(row?.installability_status).toBe("invalid");
+		expect(row?.installability_error).toBe("PROFILE_EXTENSION_MISSING");
+	});
+
+	it("accepts only the exact legacy profile CID without an extension", async () => {
+		const record = {
+			...validRecord,
+			id: `at://${LEGACY_DID}/${NSID.packageProfile}/${LEGACY_SLUG}`,
+			slug: LEGACY_SLUG,
+		};
+		delete (record as { extensions?: unknown }).extensions;
+		const job = jobFor(LEGACY_DID, NSID.packageProfile, LEGACY_SLUG, {
+			operation: "update",
+		});
+
+		await ingestPackageProfile(testEnv.DB, job, { ...fakeVerified(record), cid: LEGACY_CID }, NOW);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(LEGACY_DID, LEGACY_SLUG)
+				.first(),
+		).toEqual({
+			emdash_extension: null,
+			installability_status: "valid",
+			installability_error: null,
+		});
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: `${LEGACY_CID}-changed` },
+			new Date(NOW.getTime() + 1_000),
+		);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(LEGACY_DID, LEGACY_SLUG)
+				.first(),
+		).toEqual({
+			installability_status: "invalid",
+			installability_error: "PROFILE_EXTENSION_MISSING",
+		});
+	});
+
+	it("records a stable reason for a malformed install-verification extension", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified({
+				...validRecord,
+				extensions: {
+					[NSID.packageProfileExtension]: {
+						$type: NSID.packageProfileExtension,
+						repository: "http://github.com/example/demo",
+					},
+				},
+			}),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT emdash_extension, installability_status, installability_error
+			 FROM package_profile_revisions WHERE did = ? AND slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				emdash_extension: string | null;
+				installability_status: string;
+				installability_error: string | null;
+			}>();
+		expect(row).toEqual({
+			emdash_extension: null,
+			installability_status: "invalid",
+			installability_error: "PROFILE_EXTENSION_INVALID",
+		});
+	});
+
+	it("restores visibility when an invalid publisher republishes a valid profile", async () => {
+		const { extensions: _extensions, ...missingExtension } = validRecord;
+		const job = jobFor(DID_A, NSID.packageProfile, "demo", { operation: "update" });
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(missingExtension), cid: "bafy-invalid-profile" },
+			NOW,
+		);
+		const unavailable = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(unavailable.status).toBe(404);
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(validRecord), cid: "bafy-corrected-profile" },
+			new Date(NOW.getTime() + 1_000),
+		);
+
+		const restored = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(restored.status).toBe(200);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "demo")
+				.first(),
+		).toEqual({ installability_status: "valid", installability_error: null });
 	});
 
 	it("upserts on second call with edited record", async () => {
@@ -163,6 +312,73 @@ describe("ingestPackageProfile", () => {
 			.first<{ indexed_at: string; verified_at: string }>();
 		expect(row?.indexed_at).toBe(firstSeen.toISOString());
 		expect(row?.verified_at).toBe(reIngested.toISOString());
+	});
+
+	it("marks a live profile creation as complete release history", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validRecord),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete, first_observed_source
+			 FROM package_release_history WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number; first_observed_source: string }>();
+		expect(row).toEqual({
+			release_history_complete: 1,
+			first_observed_source: "jetstream",
+		});
+	});
+
+	it.each([
+		["backfill", { source: "backfill" as const }],
+		["an older producer", {}],
+		["a live profile update", { source: "jetstream" as const, operation: "update" as const }],
+	])("keeps %s history incomplete", async (_name, source) => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", source),
+			fakeVerified(validRecord),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(row?.release_history_complete).toBe(0);
+	});
+
+	it("never upgrades incomplete history after a later live profile event", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "backfill" }),
+			fakeVerified(validRecord),
+			NOW,
+		);
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validRecord),
+			new Date("2026-05-10T12:00:00.000Z"),
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT release_history_complete, first_observed_source
+			 FROM package_release_history WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number; first_observed_source: string }>();
+		expect(row).toEqual({
+			release_history_complete: 0,
+			first_observed_source: "backfill",
+		});
 	});
 
 	it("rejects when rkey ≠ record.slug", async () => {
@@ -238,6 +454,33 @@ describe("ingestPackageRelease", () => {
 		expect(row?.version).toBe("1.10.0");
 		// 1.10.0 must sort after 1.9.0 — the whole point of version_sort.
 		expect(row?.version_sort.startsWith("0000000001.0000000010.")).toBe(true);
+	});
+
+	it("marks history incomplete when a release is first encountered by backfill", async () => {
+		await testEnv.DB.prepare("DELETE FROM package_release_history").run();
+		await testEnv.DB.prepare("DELETE FROM packages").run();
+		await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
+		await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified(validProfile),
+			NOW,
+		);
+		await ingestPackageRelease(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0", { source: "backfill" }),
+			fakeVerified(makeRelease("1.0.0")),
+			NOW,
+		);
+
+		const history = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(history?.release_history_complete).toBe(0);
 	});
 
 	it("rejects when rkey ≠ '<package>:<version>'", async () => {
@@ -427,16 +670,32 @@ describe("applyDelete", () => {
 		);
 	});
 
-	it("hard-deletes a package.profile", async () => {
+	it("removes package eligibility while retaining verified history", async () => {
 		await applyDelete(
 			testEnv.DB,
 			jobFor(DID_A, NSID.packageProfile, "demo", { operation: "delete" }),
 			NOW,
 		);
-		const row = await testEnv.DB.prepare(`SELECT did FROM packages WHERE did = ?`)
-			.bind(DID_A)
-			.first();
-		expect(row).toBeNull();
+		const row = await testEnv.DB.prepare(
+			`SELECT h.deleted_at,
+			        (SELECT COUNT(*) FROM package_profile_revisions r
+			         WHERE r.did = h.did AND r.slug = h.slug) AS revision_count,
+			        (SELECT tombstoned_at FROM releases
+			         WHERE did = h.did AND package = h.slug LIMIT 1) AS release_tombstoned_at
+			 FROM package_profile_heads h
+			 WHERE h.did = ? AND h.slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				deleted_at: string | null;
+				revision_count: number;
+				release_tombstoned_at: string | null;
+			}>();
+		expect(row).toMatchObject({
+			deleted_at: NOW.toISOString(),
+			revision_count: 1,
+			release_tombstoned_at: NOW.toISOString(),
+		});
 	});
 
 	it("soft-deletes a release (sets tombstoned_at)", async () => {
@@ -608,6 +867,44 @@ describe("processMessage dispatcher", () => {
 		expect(msg.retried).toBe(1);
 		expect(msg.acked).toBe(0);
 		expect(await deadLetterCount()).toBe(0);
+	});
+
+	it("makes release history incomplete when a release is dead-lettered", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo", { source: "jetstream" }),
+			fakeVerified({
+				$type: NSID.packageProfile,
+				id: `at://${DID_A}/${NSID.packageProfile}/demo`,
+				slug: "demo",
+				type: "emdash-plugin",
+				license: "MIT",
+				authors: [{ name: "Tester" }],
+				security: [{ email: "x@y.test" }],
+			}),
+			NOW,
+		);
+		const { deps, cache } = buildDeps({
+			fetch: () => Promise.resolve(new Response("", { status: 404 })),
+		});
+		cache.seed(DID_A);
+		const msg = new FakeMessage();
+
+		await processMessage(
+			jobFor(DID_A, NSID.packageRelease, "demo:1.0.0", { source: "jetstream" }),
+			msg,
+			deps,
+		);
+
+		expect(msg.acked).toBe(1);
+		expect(await deadLetterCount()).toBe(1);
+		const history = await testEnv.DB.prepare(
+			`SELECT release_history_complete FROM package_release_history
+			 WHERE did = ? AND package = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{ release_history_complete: number }>();
+		expect(history?.release_history_complete).toBe(0);
 	});
 
 	it("retries on a network error", async () => {

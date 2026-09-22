@@ -33,4 +33,11 @@ export interface OAuthState {
 	redirectUri: string;
 	codeVerifier?: string; // For PKCE
 	nonce?: string;
+	/**
+	 * When present, this OAuth flow is accepting an invite. The callback
+	 * completes the invite (creating the user with the invited role and linking
+	 * the OAuth account) instead of falling back to the self-signup policy, but
+	 * only when the provider-verified email matches the invited address.
+	 */
+	inviteToken?: string;
 }

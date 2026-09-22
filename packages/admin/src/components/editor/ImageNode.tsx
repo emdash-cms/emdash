@@ -12,13 +12,16 @@
 import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
+import { fetchMediaItem } from "../../lib/api/media.js";
+import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
-import type { ImageAttributes } from "./ImageDetailPanel";
+import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
 
 // Extend the Commands interface to include setImage
 declare module "@tiptap/react" {
@@ -34,6 +37,10 @@ declare module "@tiptap/react" {
 				provider?: string;
 				width?: number;
 				height?: number;
+				/** LQIP blurhash placeholder */
+				blurhash?: string;
+				/** LQIP dominant-color placeholder */
+				dominantColor?: string;
 				displayWidth?: number;
 				displayHeight?: number;
 				alignment?: "left" | "center" | "right" | "wide" | "full";
@@ -43,13 +50,34 @@ declare module "@tiptap/react" {
 }
 
 // React component for the image node view
-function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
+function ImageNodeView({
+	node,
+	updateAttributes,
+	selected,
+	deleteNode,
+	editor,
+	getPos,
+}: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
 	const [altText, setAltText] = React.useState(node.attrs.alt || "");
+	const mediaId =
+		typeof node.attrs.mediaId === "string" &&
+		node.attrs.mediaId &&
+		canonicalMediaProviderId(node.attrs.provider) === "local"
+			? node.attrs.mediaId
+			: null;
+	const { data: currentMedia } = useQuery({
+		queryKey: ["media", mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(mediaId!, { signal }),
+		enabled: mediaId !== null,
+	});
+	const storedSrc = typeof node.attrs.src === "string" ? node.attrs.src : "";
+	const displaySrc = getMediaPreviewUrl(currentMedia?.url || storedSrc, currentMedia?.contentHash);
 
 	/** Whether this node currently has its sidebar panel open */
 	const sidebarOpenRef = React.useRef(false);
+	const nodeKeyRef = React.useRef({});
 
 	const handleSaveAlt = () => {
 		updateAttributes({ alt: altText });
@@ -71,14 +99,26 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		setAltText(node.attrs.alt || "");
 	}, [node.attrs.alt]);
 
-	const getImageAttrs = (): ImageAttributes => ({
+	const handlePointerDown = (event: React.PointerEvent) => {
+		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+		const position = getPos();
+		if (typeof position === "number") {
+			editor.commands.setNodeSelection(position);
+		}
+	};
+
+	const getImageAttrs = (): ImagePanelAttributes => ({
+		nodeKey: nodeKeyRef.current,
 		src: node.attrs.src,
 		alt: node.attrs.alt,
 		title: node.attrs.title,
 		caption: node.attrs.caption,
 		mediaId: node.attrs.mediaId,
+		provider: node.attrs.provider,
 		width: node.attrs.width,
 		height: node.attrs.height,
+		blurhash: node.attrs.blurhash,
+		dominantColor: node.attrs.dominantColor,
 		displayWidth: node.attrs.displayWidth,
 		displayHeight: node.attrs.displayHeight,
 		alignment: node.attrs.alignment,
@@ -89,7 +129,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		const onOpen = storage?.onOpenBlockSidebar as
 			| ((panel: {
 					type: "image";
-					attrs: ImageAttributes;
+					attrs: ImagePanelAttributes;
 					onUpdate: (attrs: Partial<ImageAttributes>) => void;
 					onReplace: (attrs: ImageAttributes) => void;
 					onDelete: () => void;
@@ -146,40 +186,53 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 	// Mirror the published <Image> layout so the editor is WYSIWYG: left/right
 	// float (text wraps), center/wide/full size the block.
 	const alignmentStyle: React.CSSProperties =
-		alignment === "left"
-			? { float: "left", width: "fit-content", maxWidth: "50%", marginInlineEnd: "1.5rem" }
-			: alignment === "right"
-				? { float: "right", width: "fit-content", maxWidth: "50%", marginInlineStart: "1.5rem" }
-				: alignment === "center"
-					? { width: "fit-content", marginInline: "auto" }
-					: alignment === "wide" || alignment === "full"
-						? { width: "100%" }
-						: {};
+		alignment === "center" ? { width: "fit-content", marginInline: "auto" } : {};
+	const { width, height, displayWidth, displayHeight } = node.attrs as ImageAttributes;
+	const aspectRatio = width && height ? width / height : undefined;
+	let renderWidth = width;
+	let renderHeight = height;
+	if (displayWidth && displayHeight) {
+		renderWidth = displayWidth;
+		renderHeight = displayHeight;
+	} else if (displayWidth && aspectRatio) {
+		renderWidth = displayWidth;
+		renderHeight = Math.round(displayWidth / aspectRatio);
+	} else if (displayHeight && aspectRatio) {
+		renderWidth = Math.round(displayHeight * aspectRatio);
+		renderHeight = displayHeight;
+	}
 
 	return (
 		<NodeViewWrapper
 			style={alignmentStyle}
+			onPointerDown={handlePointerDown}
 			className={cn(
-				"relative my-4 group",
+				"relative my-4 max-w-full",
+				(alignment === "left" || alignment === "right") &&
+					"w-full min-[641px]:w-fit min-[641px]:max-w-1/2",
+				alignment === "left" && "min-[641px]:[float:left] min-[641px]:me-6",
+				alignment === "right" && "min-[641px]:[float:right] min-[641px]:ms-6",
 				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
 			)}
 		>
-			<figure className="relative">
+			<figure className="relative my-0!">
 				<img
-					src={node.attrs.src}
+					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className="rounded-lg max-w-full mx-auto"
+					className="rounded-lg max-w-full h-auto object-cover"
+					width={renderWidth}
+					height={renderHeight}
 					style={{
-						width: node.attrs.displayWidth ? `${node.attrs.displayWidth}px` : undefined,
-						height: node.attrs.displayHeight ? `${node.attrs.displayHeight}px` : undefined,
+						aspectRatio:
+							renderWidth && renderHeight ? `${renderWidth} / ${renderHeight}` : undefined,
 					}}
 					draggable={false}
 				/>
 
 				{/* Selection overlay with actions */}
 				{selected && (
-					<div className="absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className="absolute top-2 end-2 flex gap-1">
 						<Button
 							type="button"
 							variant="secondary"
@@ -264,10 +317,10 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 					</div>
 				)}
 
-				{/* Caption display (shows caption if set, falls back to alt) */}
-				{!isEditingAlt && (node.attrs.caption || node.attrs.alt) && (
+				{/* Caption only — must mirror the published renderer (Image.astro) */}
+				{!isEditingAlt && node.attrs.caption && (
 					<figcaption className="text-center text-sm text-kumo-subtle mt-2">
-						{node.attrs.caption || node.attrs.alt}
+						{node.attrs.caption}
 					</figcaption>
 				)}
 			</figure>
@@ -293,7 +346,7 @@ export const ImageExtension = Node.create({
 			onOpenBlockSidebar: null as
 				| ((panel: {
 						type: "image";
-						attrs: import("./ImageDetailPanel").ImageAttributes;
+						attrs: import("./ImageDetailPanel").ImagePanelAttributes;
 						onUpdate: (attrs: Partial<import("./ImageDetailPanel").ImageAttributes>) => void;
 						onReplace: (attrs: import("./ImageDetailPanel").ImageAttributes) => void;
 						onDelete: () => void;
@@ -342,6 +395,12 @@ export const ImageExtension = Node.create({
 			height: {
 				default: null,
 			},
+			blurhash: {
+				default: null,
+			},
+			dominantColor: {
+				default: null,
+			},
 			displayWidth: {
 				default: null,
 			},
@@ -382,6 +441,8 @@ export const ImageExtension = Node.create({
 					provider?: string;
 					width?: number;
 					height?: number;
+					blurhash?: string;
+					dominantColor?: string;
 					displayWidth?: number;
 					displayHeight?: number;
 					alignment?: "left" | "center" | "right" | "wide" | "full";

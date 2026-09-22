@@ -10,14 +10,17 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, unwrapResult } from "#api/error.js";
 import { handleMarketplaceUpdate } from "#api/index.js";
+import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { pluginPublicRouteAcknowledgementSchema } from "#plugins/routes.js";
 
 export const prerender = false;
 
 const updateBodySchema = z.object({
 	version: z.string().min(1).optional(),
 	confirmCapabilityChanges: z.boolean().optional(),
-	confirmRouteVisibilityChanges: z.boolean().optional(),
+	acknowledgedPublicRoutes: pluginPublicRouteAcknowledgementSchema.optional(),
+	confirmMcpTools: z.boolean().optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -30,6 +33,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	const denied = requirePerm(user, "plugins:manage");
 	if (denied) return denied;
+
+	const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
+	if (activationFence) return activationFence;
 
 	if (!id) {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);
@@ -47,7 +53,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		{
 			version: body.version,
 			confirmCapabilityChanges: body.confirmCapabilityChanges,
-			confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
+			acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
+			confirmMcpTools: body.confirmMcpTools,
 			sandboxBypassed: emdash.isSandboxBypassed(),
 		},
 	);
@@ -55,6 +62,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	if (!result.success) return unwrapResult(result);
 
 	await emdash.syncMarketplacePlugins();
+	await emdash.runPluginActivateLifecycle(id);
 
 	return unwrapResult(result);
 };

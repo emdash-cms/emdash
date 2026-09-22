@@ -81,7 +81,16 @@ export function validateSubmission(
 }
 
 function validateFieldType(field: FormField, value: unknown): string | null {
-	if (typeof value !== "string" && field.type !== "checkbox" && field.type !== "number") {
+	const stringList =
+		field.type === "checkbox-group" &&
+		Array.isArray(value) &&
+		value.every((v) => typeof v === "string");
+	if (
+		typeof value !== "string" &&
+		!stringList &&
+		field.type !== "checkbox" &&
+		field.type !== "number"
+	) {
 		return `${field.label} has an invalid value`;
 	}
 
@@ -184,10 +193,8 @@ function evaluateCondition(
 	data: Record<string, unknown>,
 ): boolean {
 	const fieldValue = data[condition.field];
-	const strValue =
-		fieldValue === undefined || fieldValue === null
-			? ""
-			: String(fieldValue as string | number | boolean);
+	// eslint-disable-next-line typescript/no-base-to-string -- form field value is a scalar at runtime
+	const strValue = fieldValue === undefined || fieldValue === null ? "" : String(fieldValue);
 	const isFilled = strValue !== "";
 
 	switch (condition.op) {

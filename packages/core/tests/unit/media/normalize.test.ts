@@ -46,6 +46,48 @@ describe("normalizeMediaValue", () => {
 		});
 	});
 
+	it.each([
+		{
+			name: "prefers src when both URLs exist",
+			value: {
+				src: "https://media.example/source.jpg",
+				previewUrl: "https://media.example/preview.jpg",
+			},
+			expectedSrc: "https://media.example/source.jpg",
+		},
+		{
+			name: "promotes previewUrl when src is missing",
+			value: { previewUrl: "https://media.example/preview.jpg" },
+			expectedSrc: "https://media.example/preview.jpg",
+		},
+		{
+			name: "does not invent a missing URL",
+			value: {},
+			expectedSrc: undefined,
+		},
+	])("canonicalizes legacy external URL media and $name", async ({ value, expectedSrc }) => {
+		const providerLookup = vi.fn();
+		const result = await normalizeMediaValue(
+			{
+				id: "",
+				provider: "external-url",
+				filename: "legacy.jpg",
+				mimeType: "image/jpeg",
+				...value,
+			},
+			providerLookup,
+		);
+
+		expect(result).toMatchObject({
+			id: "",
+			provider: "external",
+			filename: "legacy.jpg",
+			mimeType: "image/jpeg",
+		});
+		expect(result?.src).toBe(expectedSrc);
+		expect(providerLookup).not.toHaveBeenCalled();
+	});
+
 	it("converts bare local media ID to full local MediaValue when provider resolves it", async () => {
 		const providerItem: MediaProviderItem = {
 			id: "01KRZKN0BK219P9HBMPYYGYRHY",
@@ -246,7 +288,7 @@ describe("normalizeMediaValue", () => {
 		});
 	});
 
-	it("does not call provider when dimensions already present", async () => {
+	it("still calls the provider to backfill LQIP for images even when dimensions are present", async () => {
 		const cfImages = mockProvider(null);
 
 		const value = {
@@ -263,8 +305,46 @@ describe("normalizeMediaValue", () => {
 
 		const result = await normalizeMediaValue(value, getProvider({ "cloudflare-images": cfImages }));
 
-		expect(cfImages.get).not.toHaveBeenCalled();
+		// blurhash/dominantColor are missing → provider is consulted to backfill
+		// them (e.g. records saved before LQIP, or rows that gained a blurhash
+		// later). Provider.get returns null here, so the value is unchanged.
+		expect(cfImages.get).toHaveBeenCalledWith("cf-abc123");
 		expect(result).toEqual(value);
+	});
+
+	it("backfills blurhash and dominantColor from the provider when only LQIP is missing", async () => {
+		const providerItem: MediaProviderItem = {
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+			dominantColor: "#112233",
+			meta: { storageKey: "01ABC.jpg" },
+		};
+		const local = mockProvider(providerItem);
+
+		// Fully populated article row except for LQIP — gain from finding #3:
+		// the provider is now consulted so the blurhash backfill runs.
+		const result = await normalizeMediaValue(
+			{
+				provider: "local",
+				id: "01ABC",
+				width: 1200,
+				height: 800,
+				filename: "photo.jpg",
+				mimeType: "image/jpeg",
+				meta: { storageKey: "01ABC.jpg" },
+			},
+			getProvider({ local }),
+		);
+
+		expect(local.get).toHaveBeenCalledWith("01ABC");
+		expect(result).toMatchObject({
+			blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+			dominantColor: "#112233",
+		});
 	});
 
 	it("preserves caller alt over provider alt", async () => {
@@ -426,6 +506,89 @@ describe("normalizeMediaValue", () => {
 
 		expect(result!.provider).toBe("local");
 		expect(local.get).toHaveBeenCalledWith("01ABC");
+	});
+
+	it("copies blurhash and dominantColor from local provider to top-level", async () => {
+		const providerItem: MediaProviderItem = {
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+			dominantColor: "#aabbcc",
+			meta: { storageKey: "01ABC.jpg" },
+		};
+		const local = mockProvider(providerItem);
+
+		// Missing filename/mimeType triggers the provider lookup.
+		const result = await normalizeMediaValue(
+			{
+				provider: "local",
+				id: "01ABC",
+				width: 1200,
+				height: 800,
+				meta: { storageKey: "01ABC.jpg" },
+			},
+			getProvider({ local }),
+		);
+
+		expect(result).toMatchObject({
+			provider: "local",
+			id: "01ABC",
+			blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+			dominantColor: "#aabbcc",
+		});
+	});
+
+	it("copies blurhash and dominantColor when resolving a bare local media ID", async () => {
+		const providerItem: MediaProviderItem = {
+			id: "01ABC",
+			filename: "photo.png",
+			mimeType: "image/png",
+			width: 1024,
+			height: 768,
+			blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+			dominantColor: "#112233",
+			meta: { storageKey: "01ABC.png" },
+		};
+		const local = mockProvider(providerItem);
+
+		const result = await normalizeMediaValue("01ABC", getProvider({ local }));
+
+		expect(result).toMatchObject({
+			provider: "local",
+			id: "01ABC",
+			blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+			dominantColor: "#112233",
+		});
+	});
+
+	it("preserves caller-supplied blurhash over provider value", async () => {
+		const providerItem: MediaProviderItem = {
+			id: "01ABC",
+			filename: "photo.jpg",
+			mimeType: "image/jpeg",
+			width: 1200,
+			height: 800,
+			blurhash: "PROVIDER_HASH",
+			dominantColor: "#000000",
+			meta: { storageKey: "01ABC.jpg" },
+		};
+		const local = mockProvider(providerItem);
+
+		const result = await normalizeMediaValue(
+			{
+				provider: "local",
+				id: "01ABC",
+				blurhash: "CALLER_HASH",
+				dominantColor: "#ffffff",
+			},
+			getProvider({ local }),
+		);
+
+		expect(result!.blurhash).toBe("CALLER_HASH");
+		expect(result!.dominantColor).toBe("#ffffff");
 	});
 
 	it("handles provider.get throwing gracefully", async () => {

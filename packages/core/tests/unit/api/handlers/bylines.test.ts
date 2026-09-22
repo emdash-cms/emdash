@@ -251,6 +251,21 @@ describe("byline handlers", () => {
 			}
 		});
 
+		it("stores configured locales with their canonical casing", async () => {
+			setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+			try {
+				const result = await handleBylineCreate(db, {
+					slug: "jane",
+					displayName: "Jane",
+					locale: "zh-tw",
+				});
+				expect(result.success).toBe(true);
+				if (result.success) expect(result.data.locale).toBe("zh-TW");
+			} finally {
+				setI18nConfig(null);
+			}
+		});
+
 		it("skips locale validation when no i18n config is set", async () => {
 			setI18nConfig(null);
 			const result = await handleBylineCreate(db, {

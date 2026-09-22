@@ -1,8 +1,18 @@
-import type { Kysely } from "kysely";
+import type {
+	Kysely,
+	KyselyPlugin,
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
+import { sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
@@ -10,6 +20,19 @@ import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+
+class QueryCountingPlugin implements KyselyPlugin {
+	count = 0;
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.count += 1;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
 
 describe("applySeed", () => {
 	let db: Kysely<Database>;
@@ -44,7 +67,7 @@ describe("applySeed", () => {
 			const seed: SeedFile = {
 				version: "1",
 				settings: {
-					siteTitle: "Test Site",
+					title: "Test Site",
 					tagline: "A test site",
 				},
 			};
@@ -53,18 +76,121 @@ describe("applySeed", () => {
 
 			expect(result.settings.applied).toBe(2);
 
-			// Verify settings were saved
+			// Verify settings were saved under the real site:* keys
 			const row = await db
 				.selectFrom("options")
 				.selectAll()
-				.where("name", "=", "site:siteTitle")
+				.where("name", "=", "site:title")
 				.executeTakeFirst();
 
 			expect(row?.value).toBe('"Test Site"');
 		});
+
+		it("should skip existing settings and create missing ones in skip mode", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.settings.applied).toBe(1);
+			expect(await options.get("site:title")).toBe("Admin Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should apply each setting independently when a later key conflicts", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					tagline: "A seeded tagline",
+					title: "Seed Title",
+				},
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.settings.applied).toBe(1);
+			expect(await options.get("site:title")).toBe("Admin Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should overwrite settings in update mode", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			const result = await applySeed(db, seed, { onConflict: "update" });
+
+			expect(result.settings.applied).toBe(2);
+			expect(await options.get("site:title")).toBe("Seed Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should throw in error mode when a seeded setting already exists", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
+				'Conflict: site setting "site:title" already exists',
+			);
+		});
 	});
 
 	describe("collections", () => {
+		it("creates wide collection schemas within the D1 query budget", async () => {
+			const counter = new QueryCountingPlugin();
+			const fields = Array.from({ length: 74 }, (_, index) => ({
+				slug: `field_${index}`,
+				label: `Field ${index}`,
+				type: "string" as const,
+			}));
+			const seed: SeedFile = {
+				version: "1",
+				collections: [{ slug: "site_info", label: "Site Info", fields }],
+			};
+
+			const result = await applySeed(db.withPlugin(counter), seed);
+
+			expect(result.collections.created).toBe(1);
+			expect(result.fields.created).toBe(74);
+			expect(counter.count).toBeLessThan(50);
+
+			const collection = await new SchemaRegistry(db).getCollection("site_info");
+			expect(collection).not.toBeNull();
+			const storedFields = await new SchemaRegistry(db).listFields(collection!.id);
+			expect(storedFields).toHaveLength(74);
+
+			const tableInfo = await sql<{
+				name: string;
+			}>`PRAGMA table_info(${sql.ref("ec_site_info")})`.execute(db);
+			expect(tableInfo.rows.map((column) => column.name)).toContain("field_73");
+		});
+
 		it("should create collections and fields", async () => {
 			const seed: SeedFile = {
 				version: "1",
@@ -74,7 +200,13 @@ describe("applySeed", () => {
 						label: "Posts",
 						labelSingular: "Post",
 						fields: [
-							{ slug: "title", label: "Title", type: "string", required: true },
+							{
+								slug: "title",
+								label: "Title",
+								type: "string",
+								required: true,
+								defaultValue: "Untitled",
+							},
 							{ slug: "content", label: "Content", type: "portableText" },
 						],
 					},
@@ -91,6 +223,113 @@ describe("applySeed", () => {
 			const collection = await registry.getCollection("posts");
 			expect(collection).not.toBeNull();
 			expect(collection?.label).toBe("Posts");
+
+			await sql`
+				INSERT INTO ${sql.ref("ec_posts")} (${sql.ref("id")})
+				VALUES (${"post-1"})
+			`.execute(db);
+			const row = await sql<{
+				title: string;
+			}>`
+				SELECT ${sql.ref("title")} AS title
+				FROM ${sql.ref("ec_posts")}
+				WHERE ${sql.ref("id")} = ${"post-1"}
+			`.execute(db);
+			expect(row.rows[0]?.title).toBe("Untitled");
+		});
+
+		it("applies the hidden flag from the seed", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "contact_submissions",
+						label: "Contact Submissions",
+						hidden: true,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+			expect((await registry.getCollection("posts"))?.hidden).toBe(false);
+		});
+
+		it("updates the hidden flag when re-applying with onConflict update", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, hidden: true }] },
+				{
+					onConflict: "update",
+				},
+			);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+		});
+
+		it("applies and updates collection routability", async () => {
+			const collection = {
+				slug: "contact_submissions",
+				label: "Contact Submissions",
+				routable: false,
+				fields: [{ slug: "title", label: "Title", type: "string" as const }],
+			};
+			await applySeed(db, { version: "1", collections: [collection] });
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(false);
+
+			await applySeed(
+				db,
+				{ version: "1", collections: [{ ...collection, routable: true }] },
+				{ onConflict: "update" },
+			);
+			expect((await registry.getCollection("contact_submissions"))?.routable).toBe(true);
+		});
+
+		it("applies sortOrder from the seed and orders the list by it", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "education",
+						label: "Education",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "projects",
+						label: "Projects",
+						sortOrder: 0,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const registry = new SchemaRegistry(db);
+			expect((await registry.getCollection("projects"))?.sortOrder).toBe(0);
+			expect((await registry.getCollection("education"))?.sortOrder).toBeUndefined();
+			expect((await registry.listCollections()).map((c) => c.slug)).toEqual([
+				"projects",
+				"education",
+			]);
 		});
 
 		it("should skip existing collections", async () => {
@@ -170,7 +409,31 @@ describe("applySeed", () => {
 			expect(row?.translation_group).toBe(row?.id);
 		});
 
-		it("should create flat taxonomy terms", async () => {
+		it("should not create terms by default", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						name: "tags",
+						label: "Tags",
+						hierarchical: false,
+						collections: ["posts"],
+						terms: [{ slug: "javascript", label: "JavaScript" }],
+					},
+				],
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.taxonomies.created).toBe(1);
+			expect(result.taxonomies.terms).toBe(0);
+
+			const termRepo = new TaxonomyRepository(db);
+			const term = await termRepo.findBySlug("tags", "javascript");
+			expect(term).toBeFalsy();
+		});
+
+		it("should create flat taxonomy terms when includeContent is true", async () => {
 			const seed: SeedFile = {
 				version: "1",
 				taxonomies: [
@@ -188,7 +451,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			expect(result.taxonomies.created).toBe(1);
 			expect(result.taxonomies.terms).toBe(3);
@@ -213,7 +476,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			expect(result.taxonomies.terms).toBe(4);
 
@@ -261,7 +524,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			// Definition already exists, so not created
 			expect(result.taxonomies.created).toBe(0);
@@ -673,6 +936,21 @@ describe("applySeed", () => {
 			expect(entry?.primaryBylineId).toBe(credits[0]?.byline.id);
 		});
 
+		it("should not create bylines by default", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				bylines: [{ id: "editorial", slug: "editorial", displayName: "Editorial" }],
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.bylines.created).toBe(0);
+
+			const bylineRepo = new BylineRepository(db);
+			const byline = await bylineRepo.findBySlug("editorial");
+			expect(byline).toBeFalsy();
+		});
+
 		it("should seed a byline avatar as a media row and link it", async () => {
 			const seed: SeedFile = {
 				version: "1",
@@ -691,7 +969,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			const result = await applySeed(db, seed);
+			const result = await applySeed(db, seed, { includeContent: true });
 
 			expect(result.bylines.created).toBe(1);
 			// The avatar created a backing media row.
@@ -716,10 +994,14 @@ describe("applySeed", () => {
 			const bylineRepo = new BylineRepository(db);
 
 			// First seed: no avatar.
-			await applySeed(db, {
-				version: "1",
-				bylines: [{ id: "grace", slug: "grace-hopper", displayName: "Grace Hopper" }],
-			});
+			await applySeed(
+				db,
+				{
+					version: "1",
+					bylines: [{ id: "grace", slug: "grace-hopper", displayName: "Grace Hopper" }],
+				},
+				{ includeContent: true },
+			);
 			const before = await bylineRepo.findBySlug("grace-hopper");
 			expect(before?.avatarMediaId).toBeNull();
 
@@ -737,7 +1019,7 @@ describe("applySeed", () => {
 						},
 					],
 				},
-				{ onConflict: "update" },
+				{ onConflict: "update", includeContent: true },
 			);
 
 			expect(result.bylines.updated).toBe(1);
@@ -760,7 +1042,7 @@ describe("applySeed", () => {
 						},
 					],
 				},
-				{ onConflict: "update" },
+				{ onConflict: "update", includeContent: true },
 			);
 			expect(rerun.media.created).toBe(0);
 			const mediaRows = await db
@@ -856,6 +1138,47 @@ describe("applySeed", () => {
 			const contentRepo = new ContentRepository(db);
 			const entry = await contentRepo.findBySlug("posts", "hello");
 			expect(entry?.data.title).toBe("Hello World");
+		});
+
+		it("idempotently publishes slugless content for a non-routable collection", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "blocks",
+						label: "Blocks",
+						routable: false,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+				content: {
+					blocks: [{ id: "hero", status: "published", data: { title: "Hero" } }],
+				},
+			};
+
+			const first = await applySeed(db, seed, { includeContent: true });
+			expect(first.content.created).toBe(1);
+			const contentRepo = new ContentRepository(db);
+			const created = await contentRepo.findById("blocks", "hero");
+			expect(created).toMatchObject({ id: "hero", slug: null, status: "published" });
+			expect(created?.liveRevisionId).not.toBeNull();
+
+			const second = await applySeed(db, seed, { includeContent: true });
+			expect(second.content).toEqual({ created: 0, skipped: 1, updated: 0 });
+			expect((await contentRepo.findMany("blocks", {})).items).toHaveLength(1);
+
+			const updatedSeed: SeedFile = {
+				...seed,
+				content: {
+					blocks: [{ id: "hero", status: "published", data: { title: "Updated Hero" } }],
+				},
+			};
+			const updated = await applySeed(db, updatedSeed, {
+				includeContent: true,
+				onConflict: "update",
+			});
+			expect(updated.content.updated).toBe(1);
+			expect((await contentRepo.findById("blocks", "hero"))?.data.title).toBe("Updated Hero");
 		});
 
 		it("should skip existing content entries", async () => {
@@ -1400,7 +1723,7 @@ describe("applySeed", () => {
 				],
 			};
 
-			await applySeed(db, seed);
+			await applySeed(db, seed, { includeContent: true });
 
 			const terms = await db
 				.selectFrom("taxonomies")

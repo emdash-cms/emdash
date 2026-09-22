@@ -3,100 +3,118 @@ title: Deploy to Cloudflare
 description: Deploy EmDash to Cloudflare Workers with D1 and R2.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-Cloudflare Workers provides a fast, globally distributed runtime for EmDash. This guide covers deploying with D1 for the database and R2 for media storage.
+This guide deploys an EmDash site to Cloudflare Workers with D1 for its database and R2 for media. Start with an EmDash Cloudflare template or apply the same configuration to an existing Astro site.
 
 ## Prerequisites
 
 - A Cloudflare account
-- Wrangler CLI installed (`npm install -g wrangler`)
-- Authenticated with Cloudflare (`wrangler login`)
+- The project dependencies installed
+- Wrangler authenticated with Cloudflare (`pnpm wrangler login`)
 
-## Configure Bindings
+## Configure bindings
 
-Create `wrangler.jsonc` in your project root with D1 and R2 bindings. Wrangler provisions both resources on the first deploy if they don't already exist.
+The Cloudflare templates include the complete Worker entry point and named D1 and R2 bindings. On the first deploy, Wrangler creates either resource if its configured name does not already exist. Keep the names in `wrangler.jsonc`; Wrangler reconnects later deploys to the same resources.
+
+The template uses the following bindings:
 
 ```jsonc title="wrangler.jsonc"
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "my-emdash-site",
-	"compatibility_date": "2025-01-15",
+	"main": "./src/worker.ts",
+	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
 
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "emdash-db",
+			"database_name": "my-emdash-site",
 		},
 	],
 
 	"r2_buckets": [
 		{
 			"binding": "MEDIA",
-			"bucket_name": "emdash-media",
+			"bucket_name": "my-emdash-media",
 		},
 	],
+	"worker_loaders": [{ "binding": "LOADER" }],
+	"triggers": { "crons": ["* * * * *"] },
 }
 ```
 
+The `DB`, `MEDIA`, and `LOADER` names must match the EmDash adapters. The Cron Trigger runs scheduled publishing, plugin tasks, backups, and maintenance. See [Plugin sandbox](/deployment/plugin-sandbox/#cloudflare-workers) if the site uses sandboxed plugins.
+
 ## Configure EmDash
 
-Update your Astro configuration to use D1 and R2:
+The following Astro configuration uses the D1 and R2 bindings.
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
 import cloudflare from "@astrojs/cloudflare";
+import react from "@astrojs/react";
 import emdash from "emdash/astro";
-import { d1, r2 } from "@emdash-cms/cloudflare";
+import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 
 export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
 	integrations: [
+		react(), // Required — the admin UI is a React app
 		emdash({
 			database: d1({ binding: "DB" }),
 			storage: r2({ binding: "MEDIA" }),
+			sandboxRunner: sandbox(),
 		}),
 	],
 });
 ```
 
-## First Boot
+If the site does not use marketplace, registry, or `sandboxed` plugins, omit `sandboxRunner` and the `LOADER` binding.
 
-Database migrations run automatically on the first request after deployment, and on every subsequent boot if there's anything new to apply.
+## Add the Worker entry point
+
+The Worker entry point connects Astro to the Cron Trigger and exports the plugin bridge:
+
+```ts title="src/worker.ts"
+import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+
+export { PluginBridge };
+
+export default {
+	...handler,
+	scheduled: createScheduledHandler(),
+} satisfies ExportedHandler;
+```
+
+The `PluginBridge` export is harmless when no sandboxed plugin is installed. Keep it if the same project may enable plugins later.
+
+To run general maintenance on a schedule other than every minute, pass the same Cron expression to `createScheduledHandler({ generalCron: "..." })` and to `triggers.crons`. If they differ, the handler logs and ignores the unexpected trigger.
+
+## Build and deploy
+
+Build and deploy the site once to let Wrangler provision the named D1 database and R2 bucket. Wrangler uses the local login created by `pnpm wrangler login`.
+
+```bash
+pnpm build
+pnpm wrangler deploy
+```
+
+With the default `auto` migration mode, EmDash applies pending core migrations when the deployed Worker receives its first request. Use [Manage core database migrations](/deployment/core-migrations/) when a deployment pipeline must apply migrations before new code receives traffic or when you need to inspect, check, or recover a migration.
 
 If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
-## Deploy
+To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
-Deploy to Cloudflare Workers:
+## Place the Worker near D1
 
-```bash
-wrangler deploy
-```
+Cloudflare runs a Worker near the visitor by default. EmDash server-rendered requests make several D1 round trips, so use [Targeted Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) to run the Worker near the D1 primary and make those requests faster.
 
-Your site is now live at `https://my-emdash-site.<your-subdomain>.workers.dev`.
+Wrangler accepts `placement.mode: "targeted"` with exactly one selector: `region`, `host`, or `hostname`. Select the value that targets the D1 primary location, and add the resulting `placement` object to `wrangler.jsonc`. Do not enable D1 read replicas with Targeted Placement. Keep EmDash's `session` setting at its default, `"disabled"`, so reads and writes use the nearby primary.
 
-## Read Replicas
-
-For globally distributed sites, enable D1 read replication to route read queries to nearby replicas instead of always hitting the primary database. This significantly reduces latency for visitors far from the primary region.
-
-```js title="astro.config.mjs"
-emdash({
-	database: d1({
-		binding: "DB",
-		session: "auto",
-	}),
-	storage: r2({ binding: "MEDIA" }),
-}),
-```
-
-You also need to enable read replication on the D1 database itself in the Cloudflare dashboard or via the REST API.
-
-See [Database Options — Read Replicas](/deployment/database/#read-replicas) for session modes and how bookmark-based consistency works.
-
-## Object Cache
+## Object cache
 
 To reduce read load on D1, cache content and configuration query results in Cloudflare KV. Reads are served from KV instead of querying the database on every request:
 
@@ -112,122 +130,267 @@ emdash({
 
 See [Object Cache](/deployment/object-cache/) for KV setup, options, and invalidation behavior.
 
-## Custom Domain
+## Workers Cache
 
-Add a custom domain in the Cloudflare dashboard:
+Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) puts an edge cache **in front of** your Worker: matching requests are served without running your Worker at all.
 
-1. Go to **Workers & Pages** > your worker
-2. Click **Custom Domains** > **Add Custom Domain**
-3. Enter your domain and follow the DNS setup instructions
+### Enable it
 
-## Public R2 Access
+<Steps>
 
-To serve media directly from R2 (recommended for performance):
+1. Use Astro's Cloudflare cache provider so route rules and `Astro.cache` set cache headers and invalidation uses `cache.purge()`.
 
-1. In the Cloudflare dashboard, go to **R2** > your bucket
-2. Click **Settings** > **Public access**
-3. Enable public access and note the public URL
-4. Update your storage config:
+   ```js title="astro.config.mjs"
+   import { cacheCloudflare } from "@astrojs/cloudflare/cache";
+
+   export default defineConfig({
+    adapter: cloudflare(),
+    cache: {
+      provider: cacheCloudflare(),
+    },
+    routeRules: {
+      "/": { maxAge: 300, swr: 86400 },
+      // Other public routes can use different cache lifetimes.
+    },
+   });
+   ```
+
+	The `@astrojs/cloudflare` adapter detects `cacheCloudflare()` and enables Workers Cache in the generated deployment configuration.
+
+2. Purge cached responses from Worker code with the platform API. This call does not need Cloudflare REST credentials.
+
+   ```ts
+   import { cache } from "cloudflare:workers";
+
+   await cache.purge({ purgeEverything: true });
+   // Or purge selected tags:
+   await cache.purge({ tags: ["posts"] });
+   ```
+
+</Steps>
+
+EmDash admin and API responses already send `Cache-Control: private, no-store` and are never stored. Public pages control their own caching through `Cache-Control` / `routeRules` / `Astro.cache`.
+
+Two things to know before enabling it:
+
+1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
+2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
+
+### Not the same as `cloudflareCache()` from `@emdash-cms/cloudflare`
+
+| | **Preferred: Workers Caching** | **Legacy: `cloudflareCache()`** |
+| --- | --- | --- |
+| Config | `"cache": { "enabled": true }` + `cacheCloudflare()` from `@astrojs/cloudflare/cache` | `cache: { provider: cloudflareCache() }` from `@emdash-cms/cloudflare` |
+| Storage | Platform Workers Caching | Cache API (`caches.open` / `put` / `match`) |
+| Purge | `cache.purge()` from `cloudflare:workers` | Zone REST `POST /zones/{id}/purge_cache` |
+| Secrets | None for purge | `CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN` |
+
+Use the preferred path for new sites. Keep `cloudflareCache()` only if you already depend on its Cache API behavior.
+
+Also do not confuse either of those with **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV — a separate layer under the Worker.
+
+## Custom domains
+
+The first deployment receives a `workers.dev` URL. The custom domain must already be an active domain managed by Cloudflare in the same account as the Worker. After the Worker responds successfully at its `workers.dev` URL, add the production domain as a Wrangler route:
+
+```jsonc title="wrangler.jsonc"
+{
+	"routes": [{ "pattern": "www.example.com", "custom_domain": true }],
+}
+```
+
+Deploy again and verify both addresses. Keeping the `workers.dev` address available while testing DNS helps distinguish a routing problem from an application problem.
+
+## Public R2 access
+
+By default, media is served through EmDash's authenticated media route. If the bucket has a public custom domain, set that origin as `publicUrl` so generated media URLs use it:
 
 ```js title="astro.config.mjs"
 storage: r2({
-  binding: "MEDIA",
-  publicUrl: "https://pub-xxx.r2.dev"
+	binding: "MEDIA",
+	publicUrl: "https://media.example.com",
 }),
 ```
 
-<Aside type="tip">
-	For production, connect a custom domain to your R2 bucket for better URLs and caching control.
-</Aside>
+Public bucket access applies to every reachable object, not only media. Automatic JSON backups use the `backups/` prefix in the same storage backend, so do not expose that prefix through the public domain. [Choose media storage](/deployment/storage/#public-access) explains the safe boundary.
 
-## Cloudflare Access Authentication
+## Image transformation
 
-If your organization uses Cloudflare Access, you can use it as the authentication provider instead of passkeys, giving single sign-on through your existing identity provider. The following configuration enables it:
+EmDash resizes and re-encodes R2 media inside the Worker, through Cloudflare's `IMAGES` binding. The `Image` component from `emdash/ui` and images in rich text both render through the image endpoint EmDash installs under the Cloudflare adapter. For media on the internal `/_emdash/api/media/file/…` route, that endpoint reads the source bytes straight from the R2 binding, without an HTTP fetch. Those transforms keep working behind Cloudflare Access and with `global_fetch_strictly_public`. Media served from a bucket URL — see [Public R2 Access](#public-r2-access) — takes the adapter's own transform endpoint instead, which fetches the file over HTTP before transforming it.
 
-```js title="astro.config.mjs"
-emdash({
-  database: d1({ binding: "DB" }),
-  storage: r2({ binding: "MEDIA" }),
-  auth: access({
-    teamDomain: "myteam.cloudflareaccess.com",
-    audience: "your-app-audience-tag",
-    roleMapping: {
-      "Admins": 50,
-      "Editors": 40,
-    },
-  }),
-}),
+You do not have to declare the binding. `@astrojs/cloudflare` adds it to the Worker config it generates during `astro build`, the same way it adds `cache` for Workers Caching. It does so whenever the runtime image service is `cloudflare-binding`: `imageService` unset, the string itself, or `{ runtime: "cloudflare-binding" }`. Every other value — `"passthrough"`, `"compile"`, `"cloudflare"`, `"custom"` — leaves the binding out. Listing it in your own `wrangler.jsonc` keeps the intent obvious:
+
+```jsonc title="wrangler.jsonc"
+{
+	"images": {
+		"binding": "IMAGES",
+	},
+}
 ```
 
-See the [Authentication guide](/guides/authentication#cloudflare-access) for full configuration options.
-
-## Environment Variables
-
-### Recommended: encryption key
-
-`EMDASH_ENCRYPTION_KEY` is the key for encrypting plugin secrets at
-rest (webhook tokens, Turnstile keys, etc.). The key is validated on
-startup; plugin secret encryption uses it once enabled. Set it on
-every deployment so secrets are protected without a later config
-change.
-
-The key is provided by you and never stored in the database; only
-encrypted ciphertext is. Losing it means losing every secret encrypted
-with it.
-
-Generate a key and store it as a Worker secret with the following commands:
-
-```bash
-npx emdash secrets generate
-wrangler secret put EMDASH_ENCRYPTION_KEY
-```
+To see what a deploy actually gets, read the generated config rather than `wrangler.jsonc`. A build writes `.wrangler/deploy/config.json`, which points `wrangler deploy` at the merged file (`dist/server/wrangler.json` by default). Look for an `images` entry there.
 
 <Aside type="caution">
-Never commit the encryption key to your repository, and back it up
-somewhere durable (a password manager, KMS, or your team's secret
-store). The plain text value lives only in your environment.
+	What a missing binding looks like depends on the media URL. On the internal route the endpoint
+	serves the original file unchanged: pages still render and nothing is logged, but every image is
+	the full-size original rather than a variant scaled to the space it occupies. From a bucket URL
+	the request fails with a 500 instead, because the adapter's transform endpoint calls the binding
+	without a fallback. `imageService: "passthrough"` is the deliberate way out — EmDash then leaves
+	the adapter's passthrough endpoint in place rather than wrapping it.
 </Aside>
 
-### Optional: stable-value overrides
+Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. If a site has 500 source images and requests one thumbnail size and one hero size for every image, those two parameter sets count as 1,000 transformed images for that month. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error and the image request fails.
 
-EmDash auto-generates the preview HMAC secret and commenter-IP hash
-salt and persists them in the database on first use. The env vars
-below are overrides for cases where you need to pin the value
-yourself — for example, when a preview Worker in a separate process
-needs to share the secret with your main site.
+## Cloudflare Access authentication
 
-| Variable | Purpose |
-| -------- | ------- |
-| `EMDASH_PREVIEW_SECRET` | Override for the auto-generated preview HMAC secret. |
-| `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
-| `EMDASH_AUTH_SECRET` | Optional. If set, it is used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
+Cloudflare Access can replace passkey authentication with the identity provider attached to an Access application. The audience value is a secret runtime setting; keep it out of `astro.config.mjs` by naming its environment variable:
 
-Access environment variables in your configuration using `import.meta.env` or the Cloudflare `env` binding.
+```js title="astro.config.mjs"
+import { access } from "@emdash-cms/cloudflare";
 
-## Preview Deployments
-
-Deploy a preview branch:
-
-```bash
-wrangler deploy --env preview
+emdash({
+	auth: access({
+		teamDomain: "myteam.cloudflareaccess.com",
+		audienceEnvVar: "CF_ACCESS_AUDIENCE",
+		roleMapping: {
+			Admins: 50,
+			Editors: 40,
+		},
+	}),
+}),
 ```
 
-Add an environment section to `wrangler.jsonc`:
+Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The [authentication guide](/guides/authentication/#cloudflare-access) explains user provisioning, default roles, and role synchronization.
 
-```jsonc
+## Email
+
+Production Workers have no default email delivery service. Magic-link sign-in, team invitations, and comment notifications return **Email is not configured** until an email plugin is active.
+
+The Cloudflare email plugin uses a `send_email` binding. First [onboard and verify the sender domain](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/) with Cloudflare Email Sending. Cloudflare rejects messages whose From address is not an accepted sender.
+
+Add the binding and register the provider:
+
+```jsonc title="wrangler.jsonc"
+{
+	"send_email": [{ "name": "EMAIL" }],
+}
+```
+
+```js title="astro.config.mjs"
+import { cloudflareEmail } from "@emdash-cms/cloudflare/plugins";
+
+emdash({
+	plugins: [
+		cloudflareEmail({
+			from: { email: "cms@mails.example.com", name: "My Site CMS" },
+			replyTo: "hello@example.com",
+		}),
+	],
+}),
+```
+
+After deployment, activate the plugin under **Extensions** and select it under **Settings → Email**. Sending fails until the sender is accepted and the binding exists.
+
+The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address.
+
+## Cloudflare AI Search
+
+The AI Search plugin needs both a native plugin registration and an `ai_search_namespaces` binding. After deploying them, open **Cloudflare AI Search** in the admin, choose the collections, and run **Sync All Content**. The initial sync indexes content published before the plugin was enabled; hooks keep later changes synchronized.
+
+```js title="astro.config.mjs"
+import { aiSearch } from "@emdash-cms/cloudflare/plugins";
+
+emdash({
+	plugins: [aiSearch()],
+}),
+```
+
+```jsonc title="wrangler.jsonc"
+{
+	"ai_search_namespaces": [{ "binding": "AI_SEARCH", "namespace": "default" }],
+}
+```
+
+Expose the search route from the site:
+
+```ts title="src/pages/api/ai-search/search.ts"
+export { POST, prerender } from "@emdash-cms/cloudflare/plugins/ai-search";
+```
+
+Add the search interface to a layout. The trigger slot accepts a button that matches the site's design:
+
+```astro title="src/layouts/Base.astro"
+---
+import AISearchSnippet from "@emdash-cms/cloudflare/plugins/ai-search/astro";
+---
+
+<AISearchSnippet apiUrl="/api/ai-search" placeholder="Search content">
+	<button slot="trigger" type="button">Search</button>
+</AISearchSnippet>
+```
+
+## Worker secrets
+
+Store secret values with `pnpm wrangler secret put <NAME>`. Do not put them in `wrangler.jsonc` or read them from build-time `import.meta.env` values.
+
+`EMDASH_ENCRYPTION_KEY` encrypts plugin settings declared as secrets. Set it before saving a plugin secret, and preserve it separately from D1 backups. During rotation, provide the new key first and retain older keys after commas until every plugin secret has been saved again. [Secrets and key management](/deployment/secrets/#the-encryption-key) describes rotation and recovery.
+
+The plugin bridge reads this Worker secret binding directly. The generated admin settings route reads it through `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env` before saving encrypted settings.
+
+EmDash reads its secrets from `process.env` at runtime. Worker code reads bindings from `env`, imported from `cloudflare:workers`. Never read secrets through `import.meta.env`: Vite replaces those values at build time and can write them into the server bundle.
+
+The preview HMAC secret and commenter-IP salt are generated and stored in the database unless you provide runtime overrides. [Secrets and key management](/deployment/secrets/) lists the exact variables, storage locations, and rotation effects.
+
+## Preview deployments
+
+Named Wrangler environments do not inherit bindings. Create separate preview resources and write them to the `preview` environment before building:
+
+```bash
+pnpm wrangler d1 create my-emdash-site-preview \
+  --binding DB --env preview --update-config
+pnpm wrangler r2 bucket create my-emdash-media-preview \
+  --binding MEDIA --env preview --update-config
+```
+
+The preview environment must repeat every binding the preview Worker uses. The core D1, R2, and sandbox bindings have this shape after Wrangler writes the resource identifiers:
+
+```jsonc title="wrangler.jsonc"
 {
 	"env": {
 		"preview": {
 			"d1_databases": [
 				{
 					"binding": "DB",
-					"database_name": "emdash-db-preview",
+					"database_name": "my-emdash-site-preview",
+					"database_id": "00000000-0000-0000-0000-000000000000",
 				},
 			],
+			"r2_buckets": [
+				{
+					"binding": "MEDIA",
+					"bucket_name": "my-emdash-media-preview",
+				},
+			],
+			"worker_loaders": [{ "binding": "LOADER" }],
 		},
 	},
 }
 ```
+
+Use the preview UUID written by Wrangler. Repeat optional KV, AI Search, email, and other bindings when the preview uses those features. Add preview-only secrets with `pnpm wrangler secret put <NAME> --env preview`.
+
+Build and deploy the preview environment. Its first request applies pending core migrations through the default `auto` mode.
+
+```bash
+pnpm build
+pnpm wrangler deploy --env preview
+```
+
+Verify the preview URL, admin sign-in, media upload, and any optional binding before sharing it. Never point a preview binding at a production database or bucket.
+
+## Verify the deployment
+
+After deployment, request one public page, sign in to `/_emdash/admin`, upload and retrieve a test media file, and confirm the scheduled handler appears in `pnpm wrangler tail`.
 
 ## Troubleshooting
 

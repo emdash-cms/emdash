@@ -17,7 +17,6 @@ import {
 } from "#api/index.js";
 import { parseBody, parseQuery, isParseError } from "#api/parse.js";
 import { collectionGetQuery, updateCollectionBody } from "#api/schemas.js";
-import type { UpdateCollectionInput } from "#schema/types.js";
 
 export const prerender = false;
 
@@ -53,12 +52,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseBody(request, updateCollectionBody);
 	if (isParseError(body)) return body;
 
-	const result = await handleSchemaCollectionUpdate(
-		emdash.db,
-		slug,
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- parseBody validates via Zod
-		body as UpdateCollectionInput,
-	);
+	const result = await handleSchemaCollectionUpdate(emdash.db, slug, body);
 	emdash.invalidateUrlPatternCache();
 	return unwrapResult(result);
 };

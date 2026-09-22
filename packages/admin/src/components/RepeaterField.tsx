@@ -5,7 +5,7 @@
  * Items can be added, removed, and reordered via drag-and-drop.
  */
 
-import { Button, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
+import { Button, Combobox, Input, InputArea, Switch } from "@cloudflare/kumo";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
@@ -42,6 +42,7 @@ export interface RepeaterFieldProps {
 	subFields: RepeaterSubFieldDef[];
 	minItems?: number;
 	maxItems?: number;
+	timezone?: string;
 }
 
 type RepeaterItem = Record<string, unknown> & { _key: string };
@@ -65,6 +66,7 @@ export function RepeaterField({
 	subFields,
 	minItems = 0,
 	maxItems,
+	timezone = "UTC",
 }: RepeaterFieldProps) {
 	const { t } = useLingui();
 	const rawItems = Array.isArray(value) ? value : [];
@@ -194,6 +196,7 @@ export function RepeaterField({
 									onChange={(fieldSlug, fieldValue) =>
 										handleItemChange(item._key, fieldSlug, fieldValue)
 									}
+									timezone={timezone}
 								/>
 							))}
 						</div>
@@ -212,6 +215,7 @@ interface SortableRepeaterItemProps {
 	onToggleCollapse: () => void;
 	onRemove?: () => void;
 	onChange: (fieldSlug: string, value: unknown) => void;
+	timezone: string;
 }
 
 function SortableRepeaterItem({
@@ -222,6 +226,7 @@ function SortableRepeaterItem({
 	onToggleCollapse,
 	onRemove,
 	onChange,
+	timezone,
 }: SortableRepeaterItemProps) {
 	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -288,6 +293,7 @@ function SortableRepeaterItem({
 							subField={sf}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
+							timezone={timezone}
 						/>
 					))}
 				</div>
@@ -300,9 +306,10 @@ interface SubFieldInputProps {
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	timezone: string;
 }
 
-function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
+function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
@@ -351,8 +358,14 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				<Input
 					label={subField.label}
 					type="datetime-local"
-					value={toDatetimeLocalInputValue(value)}
-					onChange={(e) => onChange(fromDatetimeLocalInputValue(e.target.value))}
+					value={toDatetimeLocalInputValue(value, timezone)}
+					onChange={(e) => {
+						try {
+							onChange(fromDatetimeLocalInputValue(e.target.value, timezone));
+						} catch {
+							onChange(e.target.value);
+						}
+					}}
 					required={subField.required}
 				/>
 			);
@@ -366,18 +379,33 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 					required={subField.required}
 				/>
 			);
-		case "select":
+		case "select": {
+			// Searchable combobox so long option lists (e.g. taxonomy-derived
+			// options) stay usable inside repeater rows, rather than a plain
+			// scrolling select.
+			const options = Array.isArray(subField.options) ? subField.options : [];
 			return (
-				<Select
+				<Combobox
 					label={subField.label}
-					value={typeof value === "string" ? value : ""}
-					onValueChange={(v) => onChange(v ?? "")}
-					items={{
-						"": t`Select...`,
-						...Object.fromEntries((subField.options ?? []).map((opt) => [opt, opt])),
-					}}
-				/>
+					value={typeof value === "string" && value ? value : null}
+					onValueChange={(v) => onChange(typeof v === "string" ? v : "")}
+					items={options}
+					required={subField.required}
+				>
+					<Combobox.TriggerInput placeholder={t`Select...`} />
+					<Combobox.Content>
+						<Combobox.Empty>{t`No results`}</Combobox.Empty>
+						<Combobox.List>
+							{(opt: string) => (
+								<Combobox.Item key={opt} value={opt}>
+									{opt}
+								</Combobox.Item>
+							)}
+						</Combobox.List>
+					</Combobox.Content>
+				</Combobox>
 			);
+		}
 		case "image":
 			return (
 				<ImageFieldRenderer

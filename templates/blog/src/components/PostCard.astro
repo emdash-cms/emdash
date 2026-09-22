@@ -173,7 +173,7 @@ const formattedDate = date
 
 	.card-title {
 		font-size: var(--font-size-xl);
-		font-weight: 600;
+		font-weight: var(--font-weight-heading);
 		line-height: var(--leading-snug);
 		letter-spacing: var(--tracking-snug);
 		margin-bottom: var(--spacing-2);
@@ -181,7 +181,7 @@ const formattedDate = date
 	}
 
 	.card-link:hover .card-title {
-		color: var(--color-accent);
+		color: var(--color-brand);
 	}
 
 	.card-excerpt {
@@ -256,7 +256,7 @@ const formattedDate = date
 	}
 
 	.byline-more:focus-visible {
-		outline: 2px solid var(--color-accent);
+		outline: 2px solid var(--color-brand);
 	}
 
 	.byline-more[data-tooltip]:hover::after,

@@ -1,8 +1,8 @@
 import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { RevisionHistory } from "../../src/components/RevisionHistory";
 import type { Revision, RevisionListResponse } from "../../src/lib/api";
@@ -74,6 +74,17 @@ describe("RevisionHistory", () => {
 		// The expanded content should not be visible
 		const noRevisionsText = screen.getByText("No revisions yet");
 		await expect.element(noRevisionsText).not.toBeInTheDocument();
+	});
+
+	it("reserves a separate trailing area for an external header control", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />
+			</QueryWrapper>,
+		);
+
+		const trigger = screen.getByRole("button", { name: REVISIONS_BUTTON_REGEX }).element();
+		expect(trigger.style.width).toBe("calc(100% - 1.5rem)");
 	});
 
 	// ---- Query only fires when expanded ----

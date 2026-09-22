@@ -86,7 +86,9 @@ describe("i18n (Integration)", () => {
 
 			const indexNames = result.rows.map((r) => r.name);
 			expect(indexNames).toContain("idx_ec_post_locale");
-			expect(indexNames).toContain("idx_ec_post_translation_group");
+			expect(indexNames).toContain("idx_ec_post_tg_locale");
+			expect(indexNames).toContain("idx_ec_post_del_tg_locale");
+			expect(indexNames).toContain("uidx_ec_post_active_tg_locale");
 		});
 	});
 
@@ -187,6 +189,53 @@ describe("i18n (Integration)", () => {
 					}),
 				),
 			).rejects.toThrow();
+		});
+
+		// ── duplicate ─────────────────────────────────────────────────
+
+		it("duplicate() preserves the source item's locale", async () => {
+			const original = await repo.create(
+				createPostFixture({ slug: "hola-mundo", locale: "es", data: { title: "Hola Mundo" } }),
+			);
+
+			const copy = await repo.duplicate("post", original.id);
+
+			expect(copy.locale).toBe("es");
+		});
+
+		it("duplicate() assigns a fresh translation group", async () => {
+			const enPost = await repo.create(createPostFixture({ slug: "hello", locale: "en" }));
+			const esPost = await repo.create(
+				createPostFixture({
+					slug: "hola",
+					locale: "es",
+					translationOf: enPost.id,
+					data: { title: "Hola" },
+				}),
+			);
+
+			const copy = await repo.duplicate("post", esPost.id);
+
+			expect(copy.translationGroup).toBe(copy.id);
+			expect(copy.translationGroup).not.toBe(esPost.translationGroup);
+		});
+
+		it("duplicate() does not collide with the generated slug in another locale", async () => {
+			await repo.create(
+				createPostFixture({
+					slug: "hola-mundo-copy",
+					locale: "en",
+					data: { title: "Unrelated EN Post" },
+				}),
+			);
+			const original = await repo.create(
+				createPostFixture({ slug: "hola-mundo", locale: "es", data: { title: "Hola Mundo" } }),
+			);
+
+			const copy = await repo.duplicate("post", original.id);
+
+			expect(copy.locale).toBe("es");
+			expect(copy.slug).toBe("hola-mundo-copy");
 		});
 
 		// ── findBySlug ────────────────────────────────────────────────
@@ -829,7 +878,7 @@ describe("i18n (Integration)", () => {
 
 			// Restore
 			const restored = await repo.restore("post", post.id);
-			expect(restored).toBe(true);
+			expect(restored).toEqual(expect.objectContaining({ id: post.id, locale: "en" }));
 
 			const found = await repo.findById("post", post.id);
 			expect(found).not.toBeNull();

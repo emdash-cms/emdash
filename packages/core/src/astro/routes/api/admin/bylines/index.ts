@@ -8,7 +8,7 @@ import { bylineCreateBody, bylinesListQuery } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
-import { getI18nConfig } from "../../../../../i18n/config.js";
+import { getI18nConfig, resolveConfiguredLocale } from "../../../../../i18n/config.js";
 
 export const prerender = false;
 
@@ -25,13 +25,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const query = parseQuery(url, bylinesListQuery);
 	if (isParseError(query)) return query;
 
+	const locale = query.locale ? resolveConfiguredLocale(query.locale) : undefined;
 	const i18n = getI18nConfig();
-	if (query.locale && i18n && !i18n.locales.includes(query.locale)) {
-		return apiError(
-			"VALIDATION_ERROR",
-			`Locale "${query.locale}" is not configured for this site`,
-			400,
-		);
+	if (locale && i18n && !i18n.locales.includes(locale)) {
+		return apiError("VALIDATION_ERROR", `Locale "${locale}" is not configured for this site`, 400);
 	}
 
 	try {
@@ -40,7 +37,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 			search: query.search,
 			isGuest: query.isGuest,
 			userId: query.userId,
-			locale: query.locale,
+			locale,
 			cursor: query.cursor,
 			limit: query.limit,
 		});

@@ -40,10 +40,17 @@ function encodeRev(item: StoredItem): string {
 	return btoa(`${item.version}:${item.updatedAt}`);
 }
 
-/** Wraps body in `{ data: body }` to match the standard API response envelope. */
+/**
+ * Mirrors the API response envelope: `{ success: true, data }` on 2xx and
+ * `{ success: false, error }` on 4xx/5xx.
+ */
 function jsonRes(body: unknown, status = 200): Response {
-	// Error responses (4xx/5xx) are NOT wrapped in { data }
-	const payload = status >= 400 ? body : { data: body };
+	// Error callers already pass `{ error: ... }`; add the discriminant so the
+	// fixture matches what `apiError()` actually sends.
+	const payload =
+		status >= 400
+			? { success: false, ...(typeof body === "object" && body !== null ? body : {}) }
+			: { success: true, data: body };
 	return new Response(JSON.stringify(payload), {
 		status,
 		headers: { "Content-Type": "application/json" },

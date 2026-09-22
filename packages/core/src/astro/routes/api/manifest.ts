@@ -4,13 +4,14 @@
  * GET /_emdash/api/manifest
  *
  * Returns the admin manifest with collection definitions and plugin info.
- * The manifest is generated from the user's live.config.ts at runtime.
+ * The manifest is generated from live database schema plus runtime plugin state.
  */
 
 import type { APIRoute } from "astro";
 
-import { handleError } from "#api/error.js";
+import { apiSuccess, handleError } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { OptionsRepository } from "#db/repositories/options.js";
 
 import { COMMIT, VERSION } from "../../../version.js";
 import type { EmDashManifest } from "../../types.js";
@@ -39,7 +40,33 @@ export const GET: APIRoute = async ({ locals }) => {
 		// doesn't assign it to globalThis, so getStoredConfig() always returned
 		// null and the React SPA never received custom logo/siteName/favicon.
 		// See issue #835.
-		const adminBranding = emdash?.config?.admin;
+		let adminBranding = emdash?.config?.admin;
+		let siteTimezone = "UTC";
+
+		// Read the site timezone alongside the title fallback so datetime controls
+		// and branding share one options query. When no build-time `admin.siteName`
+		// is configured, brand the admin with
+		// the site's own title so multi-site operators can tell backends apart
+		// (WordPress-style: wp-admin always shows the site name). Precedence:
+		// explicit `admin.siteName` → Site Title (Settings → General) → the title
+		// captured by the setup wizard → the bundled "EmDash" default in the SPA.
+		if (emdash?.db) {
+			try {
+				const options = new OptionsRepository(emdash.db);
+				const titles = await options.getMany<string>([
+					"site:title",
+					"emdash:site_title",
+					"site:timezone",
+				]);
+				const siteTitle = titles.get("site:title") || titles.get("emdash:site_title");
+				siteTimezone = titles.get("site:timezone") || "UTC";
+				if (!adminBranding?.siteName && siteTitle) {
+					adminBranding = { ...adminBranding, siteName: siteTitle };
+				}
+			} catch {
+				// options table may not exist yet (pre-setup) — keep the default.
+			}
+		}
 
 		// Check if self-signup is enabled (any allowed domain with enabled = 1)
 		// Only relevant for passkey auth — external auth providers handle their own signup
@@ -59,6 +86,7 @@ export const GET: APIRoute = async ({ locals }) => {
 		const manifest: EmDashManifest = emdashManifest
 			? {
 					...emdashManifest,
+					timezone: siteTimezone,
 					authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 					signupEnabled,
 					admin: adminBranding,
@@ -69,20 +97,14 @@ export const GET: APIRoute = async ({ locals }) => {
 					hash: "default",
 					collections: {},
 					plugins: {},
+					timezone: siteTimezone,
 					taxonomies: [],
 					authMode: "passkey",
 					signupEnabled,
 					admin: adminBranding,
 				};
 
-		return Response.json(
-			{ data: manifest },
-			{
-				headers: {
-					"Cache-Control": "private, no-store",
-				},
-			},
-		);
+		return apiSuccess(manifest);
 	} catch (error) {
 		return handleError(error, "Failed to build manifest", "MANIFEST_BUILD_ERROR");
 	}
