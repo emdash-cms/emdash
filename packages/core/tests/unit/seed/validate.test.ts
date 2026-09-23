@@ -733,12 +733,57 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain('redirects[1].source: duplicate redirect source "/old"');
 		});
 
+		it("should reject destinations a browser would resolve off-site", () => {
+			const result = validateSeed({
+				version: "1",
+				redirects: [
+					{ source: "/a", destination: "/\\evil.example" },
+					{ source: "/b", destination: "/\t/evil.example" },
+				],
+			});
+			expect(result.valid).toBe(false);
+			for (const i of [0, 1]) {
+				expect(result.errors).toContain(
+					`redirects[${i}].destination: must be a path starting with / (no protocol-relative URLs, path traversal, or newlines)`,
+				);
+			}
+		});
+
+		it("should reject malformed source patterns", () => {
+			const result = validateSeed({
+				version: "1",
+				redirects: [
+					{ source: "/[a][b][c][d][e][f]", destination: "/new" },
+					{ source: "/docs/[...rest]/edit", destination: "/new" },
+				],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"redirects[0].source: invalid pattern: Each segment can contain at most one placeholder",
+			);
+			expect(result.errors).toContain(
+				"redirects[1].source: invalid pattern: Catch-all [...param] must be in the last segment",
+			);
+		});
+
+		it("should reject destination placeholders the source does not capture", () => {
+			const result = validateSeed({
+				version: "1",
+				redirects: [{ source: "/old/[slug]", destination: "/new/[id]" }],
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"redirects[0].destination: Destination references [id] which is not captured in the source pattern",
+			);
+		});
+
 		it("should accept valid redirects", () => {
 			const result = validateSeed({
 				version: "1",
 				redirects: [
 					{ source: "/old", destination: "/new" },
 					{ source: "/temp", destination: "/next", type: 302, enabled: false },
+					{ source: "/blog/[year]/[...path]", destination: "/posts/[year]/[...path]" },
 				],
 			});
 			expect(result.valid).toBe(true);
