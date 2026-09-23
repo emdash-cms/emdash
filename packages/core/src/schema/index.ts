@@ -1,4 +1,24 @@
 export { SchemaRegistry, SchemaError } from "./registry.js";
+export { BlockTypeRegistry } from "./block-type-registry.js";
+export {
+	canonicalBlockFields,
+	compareBlockFields,
+	fingerprintBlockFields,
+	validateBlockFields,
+} from "./block-type-contract.js";
+export { BLOCK_FIELD_TYPES } from "./block-types.js";
+export type {
+	BlockFieldDefinition,
+	BlockFieldOptions,
+	BlockFieldType,
+	BlockType,
+	BlockTypeCompatibility,
+	BlockTypeDifference,
+	BlockTypeSource,
+	BlockTypeVersion,
+	CreateBlockTypeInput,
+	UpdateBlockTypeInput,
+} from "./block-types.js";
 export type {
 	FieldType,
 	ColumnType,
