@@ -26,7 +26,7 @@ import type {
 	Redirect,
 	UpdateRedirectInput,
 } from "../lib/api/redirects.js";
-import { cn } from "../lib/utils.js";
+import { cn, formatDate } from "../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
@@ -211,7 +211,7 @@ function NotFoundPanel({
 	onCreateRedirect: (path: string) => void;
 	onMarkGone: (path: string) => void;
 }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	if (items.length === 0) {
 		return (
@@ -237,7 +237,11 @@ function NotFoundPanel({
 					<div className="w-32 text-kumo-subtle text-xs">
 						{(() => {
 							const d = new Date(item.lastSeen);
-							return Number.isNaN(d.getTime()) ? item.lastSeen : d.toLocaleDateString();
+							return Number.isNaN(d.getTime()) ? (
+								item.lastSeen
+							) : (
+								<bdi>{formatDate(d, i18n.locale)}</bdi>
+							);
 						})()}
 					</div>
 					<div className="w-20 flex items-center justify-end gap-3">

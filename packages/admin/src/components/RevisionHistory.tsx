@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchRevisions, restoreRevision, type ContentItem, type Revision } from "../lib/api";
-import { cn, formatRelativeTime, parseTimestamp } from "../lib/utils";
+import { cn, formatDate, formatRelativeTime, isolate } from "../lib/utils.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 // =============================================================================
@@ -78,8 +78,8 @@ interface RevisionHistoryProps {
 /**
  * Format a date as a full timestamp
  */
-function formatFullDate(dateString: string): string {
-	return parseTimestamp(dateString).toLocaleString(undefined, {
+function formatFullDate(dateString: string, locale: string): string {
+	return formatDate(dateString, locale, {
 		weekday: "short",
 		year: "numeric",
 		month: "short",
@@ -99,7 +99,7 @@ export function RevisionHistory({
 	onRestored,
 	reserveHeaderEnd = false,
 }: RevisionHistoryProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const [isExpanded, setIsExpanded] = React.useState(false);
 	const [selectedRevision, setSelectedRevision] = React.useState<Revision | null>(null);
 	const [restoreTarget, setRestoreTarget] = React.useState<Revision | null>(null);
@@ -232,7 +232,7 @@ export function RevisionHistory({
 				title={t`Restore Revision?`}
 				description={
 					restoreTarget
-						? t`Restore this version from ${formatFullDate(restoreTarget.createdAt)}? This will update the current content to this revision's data.`
+						? t`Restore this version from ${isolate(formatFullDate(restoreTarget.createdAt, i18n.locale))}? This will update the current content to this revision's data.`
 						: ""
 				}
 				confirmLabel={t`Restore`}
@@ -268,7 +268,7 @@ function RevisionItem({
 	onRestore,
 	onSelect,
 }: RevisionItemProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	return (
 		<div
 			className={`rounded-lg border p-3 transition-colors ${
@@ -278,11 +278,13 @@ function RevisionItem({
 			<div className="flex items-start justify-between gap-2">
 				<button type="button" onClick={onSelect} className="flex-1 text-start">
 					<div className="flex items-center gap-2">
-						<span className="text-sm font-medium">{formatRelativeTime(revision.createdAt)}</span>
+						<span className="text-sm font-medium">
+							<bdi>{formatRelativeTime(revision.createdAt, i18n.locale)}</bdi>
+						</span>
 						{isLatest && <Badge variant="outline">{t`Current`}</Badge>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-0.5">
-						{formatFullDate(revision.createdAt)}
+						<bdi>{formatFullDate(revision.createdAt, i18n.locale)}</bdi>
 					</div>
 				</button>
 

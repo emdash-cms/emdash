@@ -10,7 +10,7 @@ import { useCurrentUser } from "../lib/api/current-user.js";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
 import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
-import { cn, formatRelativeTime } from "../lib/utils";
+import { cn, formatRelativeTime } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons";
 import {
 	ContentStatusIcon,
@@ -447,7 +447,7 @@ function CountBadge({
 // --- Recent activity ---
 
 function RecentActivity({ items, loading }: { items: RecentItem[]; loading: boolean }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	return (
 		<LayerCard className="h-full">
@@ -481,7 +481,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 									data-testid="activity-time"
 									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
 								>
-									{formatRelativeTime(item.updatedAt)}
+									<bdi>{formatRelativeTime(item.updatedAt, i18n.locale)}</bdi>
 								</span>
 							</Link>
 						))}

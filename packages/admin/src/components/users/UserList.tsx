@@ -4,7 +4,7 @@ import { UserPlus, Prohibit, CheckCircle } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { UserListItem } from "../../lib/api";
-import { cn } from "../../lib/utils";
+import { cn, formatDate } from "../../lib/utils.js";
 import { TableToolbar, TableToolbarSearch } from "../TableToolbar.js";
 import { RoleBadge } from "./RoleBadge";
 import { useRolesConfig } from "./useRolesConfig.js";
@@ -174,8 +174,8 @@ interface UserListRowProps {
 
 function UserListRow({ user, onSelect }: UserListRowProps) {
 	const displayName = user.name || user.email;
-	const { t } = useLingui();
-	const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t`Never`;
+	const { t, i18n } = useLingui();
+	const lastLogin = user.lastLogin ? formatDate(user.lastLogin, i18n.locale) : t`Never`;
 
 	return (
 		<tr className="hover:bg-kumo-tint/25 cursor-pointer" onClick={onSelect}>
@@ -211,7 +211,9 @@ function UserListRow({ user, onSelect }: UserListRowProps) {
 					</span>
 				)}
 			</td>
-			<td className="px-4 py-3 text-sm text-kumo-subtle">{lastLogin}</td>
+			<td className="px-4 py-3 text-sm text-kumo-subtle">
+				<bdi>{lastLogin}</bdi>
+			</td>
 			<td className="px-4 py-3">
 				<span className={cn("text-sm", user.credentialCount === 0 && "text-kumo-subtle")}>
 					{user.credentialCount}
