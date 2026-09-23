@@ -24,7 +24,8 @@ export type FieldType =
 	| "reference"
 	| "json"
 	| "slug"
-	| "repeater";
+	| "repeater"
+	| "blocks";
 
 /**
  * Array of all field types for validation
@@ -46,6 +47,7 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ] as const;
 
 /** Scalar field types that can be backed by a content-list query index. */
@@ -90,7 +92,10 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 	slug: "TEXT",
 	url: "TEXT",
 	repeater: "JSON",
+	blocks: "JSON",
 };
+
+export const MAX_BLOCKS_ITEMS = 100;
 
 /**
  * Features a collection can support
@@ -159,6 +164,8 @@ export interface FieldValidation {
 	minItems?: number; // For repeater fields
 	maxItems?: number; // For repeater fields
 	allowedMimeTypes?: string[];
+	allowedTypes?: string[]; // For blocks fields
+	retiredTypes?: string[]; // Server-owned retained types for blocks fields
 }
 
 /**

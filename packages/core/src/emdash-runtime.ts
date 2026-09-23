@@ -233,6 +233,9 @@ import {
 	handleRevisionGet,
 	handleRevisionRestore,
 	SchemaRegistry,
+	SchemaError,
+	normalizeBlocksData,
+	resolveBlockTypes,
 	type Database,
 	type Storage,
 } from "./index.js";
@@ -276,7 +279,15 @@ import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
 
-const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision", "actor"]);
+const DRAFT_ONLY_UPDATE_KEYS = new Set([
+	"data",
+	"slug",
+	"locale",
+	"skipRevision",
+	"actor",
+	"migrateBlocks",
+	"replaceBlocks",
+]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 
@@ -3279,6 +3290,8 @@ export class EmDashRuntime {
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
 			actor?: ActorInfo;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 		},
 		options: { skipSaveHooks?: boolean; excludeAfterSavePluginId?: string } = {},
 	) {
@@ -3359,9 +3372,35 @@ export class EmDashRuntime {
 				}
 			}
 		}
+		const collectionInfo = await this.schemaRegistry
+			.getCollectionWithFields(collection)
+			.catch(() => null);
+		if (collectionInfo) {
+			try {
+				processedData = await normalizeBlocksData(
+					this.db,
+					collectionInfo,
+					processedData,
+					translationSource?.data,
+					{
+						migrateBlocks: body.migrateBlocks,
+						replaceBlocks: body.replaceBlocks,
+					},
+					false,
+				);
+			} catch (error) {
+				if (error instanceof SchemaError) {
+					return {
+						success: false as const,
+						error: { code: error.code, message: error.message, details: error.details },
+					};
+				}
+				throw error;
+			}
+		}
 
 		// Normalize media fields (fill dimensions, storageKey, etc.)
-		processedData = await this.normalizeMediaFields(collection, processedData);
+		processedData = await this.normalizeMediaFields(collection, processedData, collectionInfo);
 
 		// Validate against the collection schema. Hook output is validated
 		// rather than `body.data` so plugins that mutate field values can't
@@ -3378,8 +3417,14 @@ export class EmDashRuntime {
 		}
 
 		// Create the content
+		const {
+			actor: _discardedActor,
+			migrateBlocks: _discardedMigrateBlocks,
+			replaceBlocks: _discardedReplaceBlocks,
+			...contentBody
+		} = body;
 		const result = await handleContentCreate(this.db, collection, {
-			...body,
+			...contentBody,
 			data: processedData,
 			locale,
 			authorId: body.authorId,
@@ -3430,6 +3475,8 @@ export class EmDashRuntime {
 			 * passed to content hooks; never changes entry ownership.
 			 */
 			actor?: ActorInfo;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 		},
 	) {
 		const actor = body.actor ? { ...body.actor } : undefined;
@@ -3457,7 +3504,14 @@ export class EmDashRuntime {
 				};
 			}
 		}
-		const { _rev: _discardedRev, actor: _discardedActor, ...bodyWithoutRev } = body;
+		const {
+			_rev: _discardedRev,
+			actor: _discardedActor,
+			migrateBlocks,
+			replaceBlocks,
+			...bodyWithoutRev
+		} = body;
+		const blockWriteOptions = { migrateBlocks, replaceBlocks };
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
@@ -3468,6 +3522,7 @@ export class EmDashRuntime {
 
 		// Run beforeSave hooks if data is provided
 		let processedData = bodyWithoutRev.data;
+		let resolvedBlockTypes: Awaited<ReturnType<typeof resolveBlockTypes>> | undefined;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
 				try {
@@ -3497,18 +3552,46 @@ export class EmDashRuntime {
 					knownFieldSlugs,
 				);
 			}
+			if (
+				collectionInfo?.fields.some(
+					(field) => field.type === "blocks" && Object.hasOwn(processedData!, field.slug),
+				)
+			) {
+				resolvedBlockTypes = await resolveBlockTypes(this.db);
+			}
 
-			// Validate field-level shape BEFORE the draft-revision write so
-			// invalid updates can't silently land in revision history.
-			const { validateContentData } = await import("./api/handlers/validation.js");
-			const validation = await validateContentData(this.db, collection, processedData, {
-				partial: true,
-			});
-			if (!validation.ok) {
-				return {
-					success: false as const,
-					error: validation.error,
-				};
+			if (!collectionInfo?.supports?.includes("revisions")) {
+				if (collectionInfo) {
+					try {
+						processedData = await normalizeBlocksData(
+							this.db,
+							collectionInfo,
+							processedData,
+							resolvedItem?.data,
+							blockWriteOptions,
+							true,
+							resolvedBlockTypes,
+						);
+					} catch (error) {
+						if (error instanceof SchemaError) {
+							return {
+								success: false as const,
+								error: { code: error.code, message: error.message, details: error.details },
+							};
+						}
+						throw error;
+					}
+				}
+				const { validateContentData } = await import("./api/handlers/validation.js");
+				const validation = await validateContentData(this.db, collection, processedData, {
+					partial: true,
+				});
+				if (!validation.ok) {
+					return {
+						success: false as const,
+						error: validation.error,
+					};
+				}
 			}
 		}
 
@@ -3531,13 +3614,40 @@ export class EmDashRuntime {
 					} else {
 						baseData = existing.data;
 					}
+					let attemptData = processedData;
+					try {
+						attemptData = await normalizeBlocksData(
+							this.db,
+							collectionInfo,
+							processedData,
+							baseData,
+							blockWriteOptions,
+							true,
+							resolvedBlockTypes,
+						);
+					} catch (error) {
+						if (error instanceof SchemaError) {
+							return {
+								success: false as const,
+								error: { code: error.code, message: error.message, details: error.details },
+							};
+						}
+						throw error;
+					}
+					const { validateContentData } = await import("./api/handlers/validation.js");
+					const validation = await validateContentData(this.db, collection, attemptData, {
+						partial: true,
+					});
+					if (!validation.ok) {
+						return { success: false as const, error: validation.error };
+					}
 
 					// Written without the keys the collection has no field for, so an entry
 					// carrying a deleted field's value sheds it on its next save instead of
 					// carrying it through every revision that follows.
 					const mergedData = collectionInfo?.fields
-						? keepKnownFields({ ...baseData, ...processedData }, knownFieldSlugs)
-						: { ...baseData, ...processedData };
+						? keepKnownFields({ ...baseData, ...attemptData }, knownFieldSlugs)
+						: { ...baseData, ...attemptData };
 					if (bodyWithoutRev.slug !== undefined) {
 						mergedData._slug = bodyWithoutRev.slug;
 					}
@@ -3585,6 +3695,7 @@ export class EmDashRuntime {
 					}
 
 					draftStorageChanged = true;
+					processedData = attemptData;
 
 					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
 						try {

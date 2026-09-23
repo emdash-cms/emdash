@@ -51,6 +51,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	reference: "reference",
 	json: "json",
 	repeater: "repeater",
+	blocks: "blocks",
 };
 
 // Collection definition shape for manifest generation

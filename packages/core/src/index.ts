@@ -465,6 +465,8 @@ export {
 	SchemaRegistry,
 	SchemaError,
 	BlockTypeRegistry,
+	normalizeBlocksData,
+	resolveBlockTypes,
 	getCollectionInfo,
 } from "./schema/index.js";
 export type {
@@ -492,6 +494,9 @@ export type {
 	BlockTypeVersion,
 	CreateBlockTypeInput,
 	UpdateBlockTypeInput,
+	BlockWriteOptions,
+	ResolvedBlockTypes,
+	StoredBlockValue,
 } from "./schema/index.js";
 export {
 	FIELD_TYPE_TO_COLUMN,

@@ -7,6 +7,8 @@ export {
 	validateBlockFields,
 } from "./block-type-contract.js";
 export { BLOCK_FIELD_TYPES } from "./block-types.js";
+export { normalizeBlocksData, resolveBlockTypes } from "./block-values.js";
+export type { BlockWriteOptions, ResolvedBlockTypes, StoredBlockValue } from "./block-values.js";
 export type {
 	BlockFieldDefinition,
 	BlockFieldOptions,

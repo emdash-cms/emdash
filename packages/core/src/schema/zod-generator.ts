@@ -1,6 +1,7 @@
 import { z, type ZodType } from "zod";
 
 import { hashString } from "../utils/hash.js";
+import type { BlockFieldDefinition } from "./block-types.js";
 import type { CollectionWithFields, Field, FieldType, RepeaterSubField } from "./types.js";
 
 /** Pattern to split on underscores, hyphens, and spaces for PascalCase conversion */
@@ -27,7 +28,9 @@ export function generateZodSchema(
 /**
  * Generate Zod schema for a single field
  */
-export function generateFieldSchema(field: Field): ZodType {
+type RuntimeFieldDefinition = Pick<Field, "type" | "validation" | "required" | "defaultValue">;
+
+export function generateFieldSchema(field: RuntimeFieldDefinition): ZodType {
 	let schema = getBaseSchema(field.type, field);
 
 	// Apply validation rules
@@ -53,6 +56,15 @@ export function generateFieldSchema(field: Field): ZodType {
 	}
 
 	return schema;
+}
+
+export function generateBlockFieldSchema(field: BlockFieldDefinition): ZodType {
+	return generateFieldSchema({
+		type: field.type,
+		validation: field.validation,
+		required: field.required ?? false,
+		defaultValue: field.defaultValue,
+	});
 }
 
 /**
@@ -108,6 +120,9 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 
 		case "repeater":
 			return z.array(generateRepeaterRowSchema(field.validation?.subFields ?? []));
+
+		case "blocks":
+			return z.array(z.unknown());
 
 		case "portableText":
 			// Portable Text is an array of blocks. We require `_type` because
@@ -205,7 +220,10 @@ function generateRepeaterRowSchema(
 /**
  * Apply validation rules to a schema
  */
-function applyValidation(schema: ZodType, field: Field): ZodType {
+function applyValidation(
+	schema: ZodType,
+	field: Pick<RuntimeFieldDefinition, "type" | "validation">,
+): ZodType {
 	const validation = field.validation;
 	if (!validation) return schema;
 
@@ -236,7 +254,7 @@ function applyValidation(schema: ZodType, field: Field): ZodType {
 		return numSchema;
 	}
 
-	if (field.type === "repeater" && schema instanceof z.ZodArray) {
+	if ((field.type === "repeater" || field.type === "blocks") && schema instanceof z.ZodArray) {
 		let arraySchema = schema;
 		if (validation.minItems !== undefined) {
 			arraySchema = arraySchema.min(validation.minItems);

@@ -40,6 +40,7 @@ import {
 	type CollectionSupport,
 	type ColumnType,
 	type Field,
+	type FieldValidation,
 	type UnsupportedFieldType,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
@@ -52,6 +53,7 @@ import {
 	isIndexableFieldType,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
+	MAX_BLOCKS_ITEMS,
 } from "./types.js";
 
 // Regex patterns for schema registry
@@ -559,6 +561,7 @@ export class SchemaRegistry {
 		}
 
 		const fieldSlugs = new Set<string>();
+		const normalizedFields: CreateFieldInput[] = [];
 		for (const field of fields) {
 			this.validateSlug(field.slug, "field");
 			assertIndexableField(field.type, field.indexed, field.slug);
@@ -572,11 +575,29 @@ export class SchemaRegistry {
 				);
 			}
 			fieldSlugs.add(field.slug);
+			normalizedFields.push(
+				field.type === "blocks"
+					? {
+							...field,
+							// oxlint-disable-next-line no-await-in-loop -- every block definition must resolve before seed mutation starts
+							validation: await this.normalizeBlocksFieldValidation(
+								input.slug,
+								field,
+								undefined,
+								this.db,
+								false,
+							),
+						}
+					: { ...field },
+			);
 		}
 
 		const supports = input.supports ?? ["drafts", "revisions"];
 		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
-		const creationFingerprint = await buildSeedCollectionCaptureFingerprint(input, fields);
+		const creationFingerprint = await buildSeedCollectionCaptureFingerprint(
+			input,
+			normalizedFields,
+		);
 		const existing = await this.getCollection(input.slug);
 		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
 			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
@@ -594,7 +615,7 @@ export class SchemaRegistry {
 
 		const proposedCollectionId = existing?.id ?? ulid();
 		let maxSortOrder = -1;
-		const fieldRows: Insertable<FieldTable>[] = fields.map((field) => {
+		const fieldRows: Insertable<FieldTable>[] = normalizedFields.map((field) => {
 			const sortOrder = field.sortOrder ?? maxSortOrder + 1;
 			maxSortOrder = Math.max(maxSortOrder, sortOrder);
 
@@ -652,7 +673,7 @@ export class SchemaRegistry {
 				}));
 
 				if (capture.captureRequired) {
-					await this.createContentTable(input.slug, trx, fields, {
+					await this.createContentTable(input.slug, trx, normalizedFields, {
 						ifNotExists: capture.resuming,
 					});
 					await installPreparedMediaUsageCollectionCapture(trx, {
@@ -670,7 +691,7 @@ export class SchemaRegistry {
 				} else {
 					await trx.insertInto("_emdash_collections").values(collectionValues).execute();
 					schemaMutated = true;
-					await this.createContentTable(input.slug, trx, fields);
+					await this.createContentTable(input.slug, trx, normalizedFields);
 				}
 
 				for (const fieldBatch of chunks(rows, SEED_FIELD_INSERT_BATCH_SIZE)) {
@@ -684,7 +705,11 @@ export class SchemaRegistry {
 				}
 				let indexedRows: readonly { id: string; slug: string; indexed?: number }[] = rows;
 				if (capture.resuming) {
-					indexedRows = await this.assertSeedFieldDefinitions(capture.collectionId, fields, trx);
+					indexedRows = await this.assertSeedFieldDefinitions(
+						capture.collectionId,
+						normalizedFields,
+						trx,
+					);
 				}
 				for (const field of indexedRows) {
 					if (field.indexed === 1) {
@@ -967,6 +992,10 @@ export class SchemaRegistry {
 		}
 
 		const id = ulid();
+		const validation =
+			input.type === "blocks"
+				? await this.normalizeBlocksFieldValidation(collectionSlug, input, undefined, this.db)
+				: input.validation;
 		const columnType = FIELD_TYPE_TO_COLUMN[input.type];
 		assertIndexableField(input.type, input.indexed, input.slug);
 
@@ -1000,7 +1029,7 @@ export class SchemaRegistry {
 						unique: input.unique ? 1 : 0,
 						default_value:
 							input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : null,
-						validation: input.validation ? JSON.stringify(input.validation) : null,
+						validation: validation ? JSON.stringify(validation) : null,
 						widget: input.widget ?? null,
 						options: input.options ? JSON.stringify(input.options) : null,
 						sort_order: sortOrder,
@@ -1115,6 +1144,20 @@ export class SchemaRegistry {
 				}
 				const updates: Updateable<FieldTable> = {};
 				let nextType = field.type;
+				const nextValidation =
+					field.type === "blocks"
+						? await this.normalizeBlocksFieldValidation(
+								collectionSlug,
+								{
+									...input,
+									slug: field.slug,
+									label: input.label ?? field.label,
+									type: field.type,
+								},
+								field,
+								trx,
+							)
+						: input.validation;
 
 				if (input.type !== undefined && input.type !== field.type) {
 					const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
@@ -1181,8 +1224,8 @@ export class SchemaRegistry {
 				if (input.defaultValue !== undefined) {
 					updates.default_value = JSON.stringify(input.defaultValue);
 				}
-				if (input.validation !== undefined) {
-					updates.validation = input.validation ? JSON.stringify(input.validation) : null;
+				if (input.validation !== undefined || field.type === "blocks") {
+					updates.validation = nextValidation ? JSON.stringify(nextValidation) : null;
 				}
 				if (input.widget !== undefined) updates.widget = input.widget;
 				if (input.options !== undefined) updates.options = JSON.stringify(input.options);
@@ -1504,6 +1547,7 @@ export class SchemaRegistry {
 			const columnName = this.getColumnName(field.slug);
 			const columnType = COLUMN_TYPE_TO_DATA_TYPE[FIELD_TYPE_TO_COLUMN[field.type]];
 			table = table.addColumn(columnName, columnType, (column) => {
+				if (field.type === "blocks") return column.notNull().defaultTo("[]");
 				if (!field.required) return column;
 
 				const defaultValue =
@@ -1688,7 +1732,12 @@ export class SchemaRegistry {
 
 		// Build ALTER TABLE statement
 		// Note: SQLite requires DEFAULT for NOT NULL columns in ALTER TABLE
-		if (options?.required && options?.defaultValue !== undefined) {
+		if (fieldType === "blocks") {
+			await sql`
+				ALTER TABLE ${sql.ref(tableName)}
+				ADD COLUMN ${sql.ref(columnName)} ${sql.raw(columnType)} NOT NULL DEFAULT '[]'
+			`.execute(conn);
+		} else if (options?.required && options?.defaultValue !== undefined) {
 			const defaultVal = this.formatDefaultValue(options.defaultValue, fieldType);
 			await sql`
 				ALTER TABLE ${sql.ref(tableName)}
@@ -1733,18 +1782,185 @@ export class SchemaRegistry {
 	/**
 	 * Check if a collection has any content
 	 */
-	private async collectionHasContent(slug: string): Promise<boolean> {
+	private async collectionHasContent(
+		slug: string,
+		db: Kysely<Database> = this.db,
+	): Promise<boolean> {
 		const tableName = this.getTableName(slug);
 		try {
 			const result = await sql<{ count: number }>`
 				SELECT COUNT(*) as count FROM ${sql.ref(tableName)}
 				WHERE deleted_at IS NULL
-			`.execute(this.db);
+			`.execute(db);
 			return (result.rows[0]?.count ?? 0) > 0;
 		} catch {
 			// Table might not exist
 			return false;
 		}
+	}
+
+	private async normalizeBlocksFieldValidation(
+		collectionSlug: string,
+		input: CreateFieldInput,
+		existing: Field | undefined,
+		db: Kysely<Database>,
+		checkContent = true,
+	): Promise<FieldValidation> {
+		if (input.required) {
+			throw new SchemaError("Blocks fields cannot be required", "VALIDATION_ERROR", {
+				path: "required",
+			});
+		}
+		if (input.unique) {
+			throw new SchemaError("Blocks fields cannot be unique", "VALIDATION_ERROR", {
+				path: "unique",
+			});
+		}
+		if (input.indexed) {
+			throw new SchemaError("Blocks fields cannot be indexed", "FIELD_NOT_INDEXABLE", {
+				path: "indexed",
+			});
+		}
+		if (input.searchable) {
+			throw new SchemaError("Blocks fields cannot be searchable", "VALIDATION_ERROR", {
+				path: "searchable",
+			});
+		}
+		if (input.widget !== undefined) {
+			throw new SchemaError("Blocks fields cannot use custom widgets", "VALIDATION_ERROR", {
+				path: "widget",
+			});
+		}
+		if (input.options !== undefined) {
+			throw new SchemaError("Blocks fields do not accept widget options", "VALIDATION_ERROR", {
+				path: "options",
+			});
+		}
+		if (
+			input.defaultValue !== undefined &&
+			(!Array.isArray(input.defaultValue) || input.defaultValue.length > 0)
+		) {
+			throw new SchemaError("Blocks field defaults must be an empty array", "VALIDATION_ERROR", {
+				path: "defaultValue",
+			});
+		}
+
+		const requested = input.validation ?? existing?.validation ?? {};
+		const allowedTypes = requested.allowedTypes ?? [];
+		if (!Array.isArray(allowedTypes) || allowedTypes.some((slug) => typeof slug !== "string")) {
+			throw new SchemaError(
+				"allowedTypes must be an array of block type slugs",
+				"VALIDATION_ERROR",
+				{
+					path: "validation.allowedTypes",
+				},
+			);
+		}
+		if (new Set(allowedTypes).size !== allowedTypes.length) {
+			throw new SchemaError("allowedTypes must not contain duplicates", "VALIDATION_ERROR", {
+				path: "validation.allowedTypes",
+			});
+		}
+
+		const previousAllowed = existing?.validation?.allowedTypes ?? [];
+		const previousRetired = existing?.validation?.retiredTypes ?? [];
+		const requestedRetired = existing ? previousRetired : (requested.retiredTypes ?? []);
+		if (
+			!Array.isArray(requestedRetired) ||
+			requestedRetired.some((slug) => typeof slug !== "string")
+		) {
+			throw new SchemaError(
+				"retiredTypes must be an array of block type slugs",
+				"VALIDATION_ERROR",
+				{
+					path: "validation.retiredTypes",
+				},
+			);
+		}
+		const retiredTypes = [
+			...new Set([
+				...requestedRetired,
+				...previousAllowed.filter((slug) => !allowedTypes.includes(slug)),
+			]),
+		].filter((slug) => !allowedTypes.includes(slug));
+
+		const minItems = requested.minItems ?? 0;
+		const maxItems = requested.maxItems ?? MAX_BLOCKS_ITEMS;
+		if (!Number.isInteger(minItems) || minItems < 0) {
+			throw new SchemaError("minItems must be a non-negative integer", "VALIDATION_ERROR", {
+				path: "validation.minItems",
+			});
+		}
+		if (!Number.isInteger(maxItems) || maxItems < 1 || maxItems > MAX_BLOCKS_ITEMS) {
+			throw new SchemaError(
+				`maxItems must be an integer between 1 and ${MAX_BLOCKS_ITEMS}`,
+				"VALIDATION_ERROR",
+				{ path: "validation.maxItems" },
+			);
+		}
+		if (minItems > maxItems) {
+			throw new SchemaError("minItems cannot exceed maxItems", "VALIDATION_ERROR", {
+				path: "validation.minItems",
+			});
+		}
+		const previousMin = existing?.validation?.minItems ?? 0;
+		if (
+			checkContent &&
+			minItems > previousMin &&
+			minItems > 0 &&
+			(await this.collectionHasContent(collectionSlug, db))
+		) {
+			throw new SchemaError(
+				"Raising minItems on a populated collection requires a content migration",
+				"FIELD_UPDATE_REQUIRES_MIGRATION",
+				{ path: "validation.minItems" },
+			);
+		}
+
+		const referenced = [...new Set([...allowedTypes, ...retiredTypes])];
+		if (referenced.length > 0) {
+			const types = await db
+				.selectFrom("_emdash_block_types")
+				.select(["id", "slug", "current_version"])
+				.where("slug", "in", referenced)
+				.execute();
+			const bySlug = new Map(types.map((type) => [type.slug, type]));
+			for (const slug of referenced) {
+				if (!bySlug.has(slug)) {
+					throw new SchemaError(`Block type "${slug}" not found`, "BLOCK_TYPE_NOT_FOUND", {
+						slug,
+					});
+				}
+			}
+			const allowedRows = allowedTypes.map((slug) => bySlug.get(slug)!);
+			if (allowedRows.length > 0) {
+				const activeVersions = await db
+					.selectFrom("_emdash_block_type_versions")
+					.select(["block_type_id", "version"])
+					.where(
+						"block_type_id",
+						"in",
+						allowedRows.map((type) => type.id),
+					)
+					.execute();
+				for (const type of allowedRows) {
+					if (
+						!activeVersions.some(
+							(version) =>
+								version.block_type_id === type.id && version.version === type.current_version,
+						)
+					) {
+						throw new SchemaError(
+							`Block type "${type.slug}" has no active version ${type.current_version}`,
+							"BLOCK_TYPE_VERSION_CONFLICT",
+							{ slug: type.slug, version: type.current_version },
+						);
+					}
+				}
+			}
+		}
+
+		return { allowedTypes, retiredTypes, minItems, maxItems };
 	}
 
 	/**
@@ -1844,6 +2060,7 @@ export class SchemaRegistry {
 	 * Get empty default for a field type
 	 */
 	private getEmptyDefault(fieldType: FieldType): string {
+		if (fieldType === "blocks") return "'[]'";
 		const columnType = FIELD_TYPE_TO_COLUMN[fieldType];
 
 		switch (columnType) {
