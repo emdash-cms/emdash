@@ -145,6 +145,30 @@ describe("redirect patterns", () => {
 			expect(compiled.regex.test("/blog.old/test")).toBe(true);
 			expect(compiled.regex.test("/blogXold/test")).toBe(false);
 		});
+
+		it("names captures in source order when a [param] precedes a [...rest]", () => {
+			const compiled = compilePattern("/[category]/[...rest]");
+			expect(matchPattern(compiled, "/tech/2024/post")).toEqual({
+				category: "tech",
+				rest: "2024/post",
+			});
+		});
+
+		it("matches parentheses and alternation in literal parts literally", () => {
+			const compiled = compilePattern("/[x]/(a|b)");
+			expect(compiled.paramNames).toEqual(["x"]);
+			expect(compiled.regex.test("/y/(a|b)")).toBe(true);
+			expect(compiled.regex.test("/y/a")).toBe(false);
+		});
+
+		it("matches a validated pattern with repeated literal groups in bounded time", () => {
+			const source = `/[x]/${"(a|aa)".repeat(28)}`;
+			expect(validatePattern(source)).toBeNull();
+			const compiled = compilePattern(source);
+			const started = performance.now();
+			expect(compiled.regex.test(`/x/${"a".repeat(40)}b`)).toBe(false);
+			expect(performance.now() - started).toBeLessThan(250);
+		});
 	});
 
 	describe("matchPattern", () => {

@@ -36,11 +36,11 @@ const OPEN_BRACKET = /\[/g;
 /** Count close brackets */
 const CLOSE_BRACKET = /\]/g;
 
-/** Split on capture groups in compiled regex string */
-const CAPTURE_GROUP_SPLIT = /(\([^)]+\))/;
+/** A [param] or [...splat] placeholder, capturing the splat marker and the name */
+const PLACEHOLDER_TOKEN = /\[(\.\.\.)?(\w+)\]/g;
 
 /** Escape regex-special characters in literal parts */
-const REGEX_SPECIAL_CHARS = /[.*+?^${}|\\]/g;
+const REGEX_SPECIAL_CHARS = /[.*+?^${}()|[\]\\]/g;
 
 export interface CompiledPattern {
 	regex: RegExp;
@@ -145,37 +145,25 @@ export function validateDestinationParams(source: string, destination: string): 
  */
 export function compilePattern(source: string): CompiledPattern {
 	const paramNames: string[] = [];
-
-	// Replace [...splat] first (before [param]) since [...x] contains [x]
-	let regexStr = source.replace(SPLAT_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "(.+)";
-	});
-
-	// Then replace [param]
-	regexStr = regexStr.replace(PARAM_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "([^/]+)";
-	});
-
-	// Escape any regex-special characters in the literal parts
-	// We need to be careful: the replacement groups are already valid regex
-	// Split on capture groups, escape literals, rejoin
-	const parts = regexStr.split(CAPTURE_GROUP_SPLIT);
-	const escaped = parts
-		.map((part, i) => {
-			// Odd indices are the capture groups -- leave them alone
-			if (i % 2 === 1) return part;
-			// Even indices are literal text -- escape special regex chars
-			return part.replace(REGEX_SPECIAL_CHARS, "\\$&");
-		})
-		.join("");
+	let regexStr = "";
+	let literalStart = 0;
+	for (const match of source.matchAll(PLACEHOLDER_TOKEN)) {
+		regexStr += escapeLiteral(source.slice(literalStart, match.index));
+		paramNames.push(match[2]);
+		regexStr += match[1] ? "(.+)" : "([^/]+)";
+		literalStart = match.index + match[0].length;
+	}
+	regexStr += escapeLiteral(source.slice(literalStart));
 
 	return {
-		regex: new RegExp(`^${escaped}$`),
+		regex: new RegExp(`^${regexStr}$`),
 		paramNames,
 		source,
 	};
+}
+
+function escapeLiteral(literal: string): string {
+	return literal.replace(REGEX_SPECIAL_CHARS, "\\$&");
 }
 
 /**
