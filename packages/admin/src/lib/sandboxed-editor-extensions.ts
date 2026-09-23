@@ -2,12 +2,23 @@ import type { ConfirmDialog } from "@emdash-cms/blocks";
 
 import type { AdminManifest } from "./api/client.js";
 
+export interface EditorDraftFieldSelectorDeclaration {
+	fields?: string[];
+	translatable?: true;
+}
+
+export interface EditorDraftAccessDeclaration {
+	read?: EditorDraftFieldSelectorDeclaration;
+	patch?: EditorDraftFieldSelectorDeclaration;
+}
+
 export interface SandboxedEditorPanelDeclaration {
 	id: string;
 	title: string;
 	route: string;
 	collections?: string[];
 	order?: number;
+	draft?: EditorDraftAccessDeclaration;
 }
 
 export interface SandboxedEditorActionDeclaration {
@@ -18,6 +29,22 @@ export interface SandboxedEditorActionDeclaration {
 	collections?: string[];
 	style?: "default" | "danger";
 	confirm?: ConfirmDialog;
+	draft?: EditorDraftAccessDeclaration;
+}
+
+export function selectEditorDraftFields(
+	selector: EditorDraftFieldSelectorDeclaration | undefined,
+	fields: Record<string, { translatable?: boolean; unsupportedType?: unknown }>,
+): string[] {
+	const selected = new Set(selector?.fields ?? []);
+	if (selector?.translatable) {
+		for (const [slug, field] of Object.entries(fields)) {
+			if (field.translatable && !field.unsupportedType) selected.add(slug);
+		}
+	}
+	return [...selected]
+		.filter((slug) => fields[slug] && !fields[slug]?.unsupportedType)
+		.slice(0, 32);
 }
 
 export interface ResolvedSandboxedEditorPanel {

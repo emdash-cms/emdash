@@ -776,7 +776,6 @@ export function registryVerificationErrorMessage(error: unknown): string | null 
 	}
 	const verificationCode = error.details?.["verificationCode"];
 	if (
-		verificationCode === "PROFILE_EXTENSION_MISSING" ||
 		verificationCode === "PROFILE_EXTENSION_INVALID" ||
 		verificationCode === "PROFILE_REPOSITORY_INVALID" ||
 		verificationCode === "PROFILE_POLICY_INVALID"

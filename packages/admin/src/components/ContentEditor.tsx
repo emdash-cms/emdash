@@ -41,7 +41,11 @@ import { getEntryTitle } from "../lib/entryTitle.js";
 import { getFieldLabel } from "../lib/field-label.js";
 import { formatFileSize, getFileIcon, localMediaFileUrl } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
-import { resolveSandboxedEditorActions } from "../lib/sandboxed-editor-extensions.js";
+import {
+	resolveSandboxedEditorActions,
+	selectEditorDraftFields,
+	type EditorDraftAccessDeclaration,
+} from "../lib/sandboxed-editor-extensions.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
@@ -56,12 +60,17 @@ import {
 	ScheduleActions,
 	SettingsActionBar,
 } from "./ContentSettingsPanel.js";
+import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SandboxedContentEditorActions } from "./SandboxedContentEditorActions.js";
+import type {
+	BrowserEditorDraftRequest,
+	EditorDraftResponse,
+} from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -83,6 +92,40 @@ function serializeEditorState(input: {
 		slug: input.slug,
 		bylines: input.bylines,
 	});
+}
+
+const SERVER_FIELD_TYPE_TO_EDITOR_KIND: Record<string, string> = {
+	string: "string",
+	slug: "string",
+	url: "url",
+	text: "richText",
+	number: "number",
+	integer: "number",
+	boolean: "boolean",
+	datetime: "datetime",
+	select: "select",
+	multiSelect: "multiSelect",
+	portableText: "portableText",
+	image: "image",
+	file: "file",
+	reference: "reference",
+	json: "json",
+	repeater: "repeater",
+};
+
+function editorFieldMatchesReceipt(
+	field: FieldDescriptor | undefined,
+	definition: import("@emdash-cms/blocks").EditorDraftFieldDefinition | undefined,
+): boolean {
+	return Boolean(
+		field &&
+		definition &&
+		!field.unsupportedType &&
+		field.kind === SERVER_FIELD_TYPE_TO_EDITOR_KIND[definition.type] &&
+		Boolean(field.required) === definition.required &&
+		Boolean(field.translatable) === definition.translatable &&
+		JSON.stringify(field.validation ?? {}) === JSON.stringify(definition.validation ?? {}),
+	);
 }
 
 function resolveEditorBylines(item?: ContentItem | null): {
@@ -117,6 +160,7 @@ export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
+	translatable?: boolean;
 	/**
 	 * For `select` / `multiSelect`: the list of enum choices.
 	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
@@ -348,6 +392,20 @@ export function ContentEditor({
 		return () => mq.removeEventListener("change", onChange);
 	}, []);
 	const [formData, setFormData] = React.useState<Record<string, unknown>>(item?.data || {});
+	const editorGenerationRef = React.useRef(0);
+	const editorIdentity = `${collection}:${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
+	const [editorDraftError, setEditorDraftError] = React.useState<string | null>(null);
+	const [hasAppliedEditorDraftPatch, setHasAppliedEditorDraftPatch] = React.useState(false);
+	const [pendingEditorDraftPatch, setPendingEditorDraftPatch] = React.useState<{
+		access: EditorDraftAccessDeclaration;
+		response: EditorDraftResponse;
+	} | null>(null);
+	React.useEffect(() => {
+		editorGenerationRef.current++;
+		setEditorDraftError(null);
+		setPendingEditorDraftPatch(null);
+		setHasAppliedEditorDraftPatch(false);
+	}, [editorIdentity]);
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
@@ -437,6 +495,7 @@ export function ContentEditor({
 		pendingAutosaveStateRef.current = null;
 		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
+		setHasAppliedEditorDraftPatch(false);
 	}
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
@@ -449,6 +508,8 @@ export function ContentEditor({
 	const autosaveCompletionTokenRef = React.useRef(autosaveCompletionToken ?? 0);
 	React.useEffect(() => {
 		if (item) {
+			editorGenerationRef.current++;
+			setHasAppliedEditorDraftPatch(false);
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
 			const previousAutosaveToken = autosaveCompletionTokenRef.current;
 			const autosaveJustCompleted =
@@ -509,6 +570,7 @@ export function ContentEditor({
 
 	const handleBylinesChange = React.useCallback(
 		(next: BylineCreditInput[]) => {
+			editorGenerationRef.current++;
 			setBylinesTouched(true);
 			if (isNew) {
 				onBylinesChange?.(next);
@@ -530,7 +592,7 @@ export function ContentEditor({
 			}),
 		[formData, slug, activeBylines],
 	);
-	const isDirty = isNew || currentData !== lastSavedData;
+	const isDirty = isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData;
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	// Read at call time, not captured: a control that has not re-rendered since the
@@ -550,6 +612,98 @@ export function ContentEditor({
 	formDataRef.current = formData;
 	const slugRef = React.useRef(slug);
 	slugRef.current = slug;
+	const editorContextRef = React.useRef({
+		collection,
+		entryId: item?.id ?? null,
+		locale: item?.locale ?? entryLocale ?? null,
+		baseRevision: item?._rev ?? null,
+	});
+	editorContextRef.current = {
+		collection,
+		entryId: item?.id ?? null,
+		locale: item?.locale ?? entryLocale ?? null,
+		baseRevision: item?._rev ?? null,
+	};
+
+	const captureEditorDraft = React.useCallback(
+		(access: EditorDraftAccessDeclaration): BrowserEditorDraftRequest | null => {
+			const context = editorContextRef.current;
+			if (!context.entryId || !context.baseRevision) return null;
+			const selected = selectEditorDraftFields(access.read, fields);
+			const values: Record<string, unknown> = {};
+			for (const field of selected) values[field] = formDataRef.current[field];
+			return {
+				collection: context.collection,
+				entryId: context.entryId,
+				locale: context.locale,
+				baseRevision: context.baseRevision,
+				generation: editorGenerationRef.current,
+				invocationId: crypto.randomUUID(),
+				fields: values,
+			};
+		},
+		[fields],
+	);
+
+	const editorDraftResponseIsCurrent = React.useCallback(
+		(access: EditorDraftAccessDeclaration, response: EditorDraftResponse): boolean => {
+			const context = editorContextRef.current;
+			const receipt = response.editorInvocation;
+			if (
+				!receipt ||
+				receipt.entryId !== context.entryId ||
+				receipt.locale !== context.locale ||
+				receipt.baseRevision !== context.baseRevision ||
+				receipt.generation !== editorGenerationRef.current
+			) {
+				return false;
+			}
+			if (!response.patch) return true;
+			const allowed = new Set(selectEditorDraftFields(access.patch, fields));
+			const definitions = new Map(receipt.fieldDefinitions.map((field) => [field.slug, field]));
+			return response.patch.operations.every(
+				(operation) =>
+					allowed.has(operation.field) &&
+					editorFieldMatchesReceipt(fields[operation.field], definitions.get(operation.field)),
+			);
+		},
+		[fields],
+	);
+
+	const handleEditorDraftResponse = React.useCallback(
+		(access: EditorDraftAccessDeclaration, response: EditorDraftResponse) => {
+			if (!response.patch) return;
+			if (!editorDraftResponseIsCurrent(access, response)) {
+				setEditorDraftError(
+					t`The plugin result is stale because the editor changed while it was working.`,
+				);
+				return;
+			}
+			setEditorDraftError(null);
+			setPendingEditorDraftPatch({ access, response });
+		},
+		[editorDraftResponseIsCurrent, t],
+	);
+
+	const applyEditorDraftPatch = React.useCallback(() => {
+		if (!pendingEditorDraftPatch) return;
+		const { access, response } = pendingEditorDraftPatch;
+		if (!response.patch || !editorDraftResponseIsCurrent(access, response)) {
+			setPendingEditorDraftPatch(null);
+			setEditorDraftError(
+				t`The plugin result is stale because the editor changed while it was working.`,
+			);
+			return;
+		}
+		const next = { ...formDataRef.current };
+		for (const operation of response.patch.operations) {
+			next[operation.field] = operation.op === "clear" ? null : operation.value;
+		}
+		editorGenerationRef.current++;
+		setFormData(next);
+		setHasAppliedEditorDraftPatch(true);
+		setPendingEditorDraftPatch(null);
+	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t]);
 
 	React.useEffect(() => {
 		if (!autosaveCompletionToken || !pendingAutosaveStateRef.current) {
@@ -558,6 +712,8 @@ export function ContentEditor({
 
 		setLastSavedData(pendingAutosaveStateRef.current);
 		pendingAutosaveStateRef.current = null;
+		editorGenerationRef.current++;
+		setHasAppliedEditorDraftPatch(false);
 	}, [autosaveCompletionToken]);
 
 	React.useEffect(() => {
@@ -861,6 +1017,7 @@ export function ContentEditor({
 
 	const handleFieldChange = React.useCallback(
 		(name: string, value: unknown) => {
+			editorGenerationRef.current++;
 			setFormData((prev) => ({ ...prev, [name]: value }));
 			if (name === "title" && !slugTouched && typeof value === "string" && value) {
 				setSlug(slugify(value));
@@ -870,6 +1027,7 @@ export function ContentEditor({
 	);
 
 	const handleSlugChange = React.useCallback((value: string) => {
+		editorGenerationRef.current++;
 		setSlug(value);
 		setSlugTouched(true);
 	}, []);
@@ -1065,8 +1223,11 @@ export function ContentEditor({
 												entryId={item.id}
 												locale={item.locale ?? entryLocale}
 												isMobile={isBelowLg}
-												disabled={isDirty || isSaving || Boolean(isAutosaving)}
+												disabled={Boolean(isSaving || isAutosaving)}
+												hasUnsavedChanges={isDirty}
 												onEntryRefresh={onEntryRefresh}
+												captureDraft={captureEditorDraft}
+												onDraftResponse={handleEditorDraftResponse}
 											/>
 										</fieldset>
 									) : null}
@@ -1164,6 +1325,14 @@ export function ContentEditor({
 						className={cn(isDistractionFree ? "mx-auto max-w-3xl" : "mx-auto max-w-3xl space-y-6")}
 					>
 						{notice}
+						{editorDraftError ? (
+							<Banner
+								variant="error"
+								role="alert"
+								title={t`Plugin changes were not applied`}
+								description={editorDraftError}
+							/>
+						) : null}
 						<fieldset disabled={readOnly} className="contents">
 							{unsupportedFields.length > 0 && (
 								<Banner
@@ -1191,7 +1360,13 @@ export function ContentEditor({
 									}
 								/>
 							)}
-							<div className="space-y-6">
+							<div
+								className={cn(
+									"space-y-6",
+									!isDistractionFree &&
+										"[&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base",
+								)}
+							>
 								{Object.entries(fields).map(([name, field]) => {
 									// Key by item id so all field editors remount cleanly when the
 									// underlying content item changes (e.g. switching translations).
@@ -1319,6 +1494,9 @@ export function ContentEditor({
 								blockSidebarPanel={blockSidebarPanel}
 								onBlockSidebarClose={handleBlockSidebarClose}
 								onBlockSidebarDelete={handleBlockSidebarDelete}
+								captureEditorDraft={captureEditorDraft}
+								onEditorDraftResponse={handleEditorDraftResponse}
+								onEntryRefresh={onEntryRefresh}
 							/>
 						</div>
 					</fieldset>
@@ -1340,6 +1518,15 @@ export function ContentEditor({
 				onOpenChange={setScheduleDialogOpen}
 				onSchedule={onSchedule ? handleSchedule : undefined}
 			/>
+			{pendingEditorDraftPatch?.response.patch ? (
+				<EditorDraftPatchPreview
+					operations={pendingEditorDraftPatch.response.patch.operations}
+					fields={fields}
+					currentValues={formDataRef.current}
+					onApply={applyEditorDraftPatch}
+					onClose={() => setPendingEditorDraftPatch(null)}
+				/>
+			) : null}
 		</form>
 	);
 }
@@ -1609,7 +1796,7 @@ function FieldRenderer({
 		return (
 			<div className="grid gap-2">
 				<p className="text-base font-medium">{label}</p>
-				<p className="text-kumo-subtle text-sm">
+				<p className="text-xs leading-4 text-kumo-subtle">
 					{t`This field cannot be edited by this version of EmDash.`}
 				</p>
 			</div>
@@ -2125,7 +2312,7 @@ function UrlFieldEditor({
 				required={required}
 				placeholder={placeholder}
 			/>
-			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+			{error && <p className="mt-1 text-xs leading-4 text-kumo-danger">{error}</p>}
 		</div>
 	);
 }
@@ -2188,9 +2375,9 @@ function JsonFieldEditor({
 				rows={8}
 				placeholder="{}"
 				required={required}
-				className="font-mono text-sm"
+				className="font-mono text-base"
 			/>
-			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+			{error && <p className="mt-1 text-xs leading-4 text-kumo-danger">{error}</p>}
 		</div>
 	);
 }
@@ -2307,12 +2494,12 @@ function FileFieldRenderer({
 								href={normalized.displayUrl}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="text-sm font-medium truncate block hover:underline"
+								className="block truncate text-base font-medium hover:underline"
 							>
 								{normalized.filename}
 							</a>
 						) : (
-							<p className="text-sm font-medium truncate">{normalized.filename}</p>
+							<p className="truncate text-base font-medium">{normalized.filename}</p>
 						)}
 						{(hasMime || hasSize) && (
 							<p className="text-xs text-kumo-subtle">
@@ -2364,7 +2551,7 @@ function FileFieldRenderer({
 				confirmLabel={normalized ? t`Replace` : undefined}
 			/>
 			{required && !normalized && (
-				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
+				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);

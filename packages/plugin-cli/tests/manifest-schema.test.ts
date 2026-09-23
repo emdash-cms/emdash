@@ -50,7 +50,13 @@ describe("AdminSchema", () => {
 	it("accepts bounded saved-entry panels and confirmed actions", () => {
 		const admin = {
 			editorPanels: [
-				{ id: "health", title: "Health", route: "entry/health", collections: ["posts"] },
+				{
+					id: "health",
+					title: "Health",
+					route: "entry/health",
+					collections: ["posts"],
+					draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+				},
 			],
 			editorActions: [
 				{
@@ -64,6 +70,48 @@ describe("AdminSchema", () => {
 			],
 		};
 		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+
+	it("requires explicit collections and a bounded selector for draft access", () => {
+		expect(
+			AdminSchema.safeParse({
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						collections: ["posts"],
+						draft: {},
+					},
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			AdminSchema.safeParse({
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						draft: { read: { translatable: true } },
+					},
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			AdminSchema.safeParse({
+				editorActions: [
+					{
+						id: "translate",
+						label: "Translate",
+						route: "translate",
+						placement: "toolbar",
+						collections: ["posts"],
+						draft: { patch: {} },
+					},
+				],
+			}).success,
+		).toBe(false);
 	});
 
 	it.each([

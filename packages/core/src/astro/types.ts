@@ -20,6 +20,7 @@ import type {
 } from "../plugins/routes.js";
 import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
+import type { CollectionWithFields } from "../schema/types.js";
 
 // Re-export core types
 export type {
@@ -65,6 +66,7 @@ export interface ManifestCollection {
 			kind: string;
 			label?: string;
 			required?: boolean;
+			translatable?: boolean;
 			widget?: string;
 			/**
 			 * Field options. Two shapes:
@@ -519,6 +521,7 @@ export interface EmDashHandlers {
 		extensionId: string,
 		collection: string,
 	) => ResolvedPluginEditorExtension | null;
+	getPluginEditorDraftSchema: (collection: string) => Promise<CollectionWithFields | null>;
 
 	// Public-only plugin API route handler for SSR page components.
 	handlePublicPluginApiRoute: (
@@ -629,6 +632,12 @@ export interface EmDashHandlers {
 
 	// Sync registry plugin states (after install/update/uninstall)
 	syncRegistryPlugins: () => Promise<void>;
+	// Run install and activation hooks after the runtime loads a new plugin.
+	runPluginInstallLifecycle: (pluginId: string) => Promise<void>;
+	runPluginActivateLifecycle: (pluginId: string) => Promise<void>;
+	runPluginUninstallLifecycle: (pluginId: string, deleteData: boolean) => Promise<void>;
+	// Read settings metadata for runtime-installed plugins.
+	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;

@@ -184,10 +184,11 @@ emdash-plugin profile setup
 | --- | --- | --- |
 | `--dir <path>` | Current directory | Plugin source directory. |
 | `--repository <url>` | Manifest `repo`, then Git `origin` | Canonical public GitHub repository URL. Interactive setup pre-fills a detected GitHub remote or asks when none is available. |
+| `--provenance <mode>` | `required` | Use `required` for provenance-backed releases or `optional` to permit local releases without provenance. Interactive setup asks. |
 | `--confirmation <mode>` | `escalation-only` | Use `escalation-only` for permission increases or `always` for every release. |
 | `--yes`, `-y` | `false` | Accept the default policy without prompting. Required when a non-interactive run would change the profile. |
 
-The command uses the active CLI login to write the profile. It refuses to replace a different signed repository. Run `emdash-plugin switch <did>` when the active account does not match the manifest publisher. After publishing the profile, run `emdash-plugin release setup` to create the provenance-backed GitHub Actions workflow.
+The command uses the active CLI login to write the profile. It refuses to replace a different signed repository. Rerun it with `--provenance required|optional` to change the signed provenance policy while preserving the repository, approvers, and package metadata. Run `emdash-plugin switch <did>` when the active account does not match the manifest publisher. For provenance-backed releases, run `emdash-plugin release setup` after publishing the profile.
 
 ## `release setup`
 

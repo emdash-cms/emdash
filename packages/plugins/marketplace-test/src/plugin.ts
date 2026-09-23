@@ -562,6 +562,46 @@ const plugin: SandboxedPlugin = {
 				) {
 					return { blocks: [{ type: "unknown" }] };
 				}
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
+					route.input.action_id === "translate" &&
+					"draft" in route.input &&
+					typeof route.input.draft === "object" &&
+					route.input.draft !== null &&
+					"fields" in route.input.draft &&
+					typeof route.input.draft.fields === "object" &&
+					route.input.draft.fields !== null
+				) {
+					const draftFields = route.input.draft.fields;
+					const title =
+						"title" in draftFields && typeof draftFields.title === "string"
+							? draftFields.title
+							: "";
+					const excerpt =
+						"excerpt" in draftFields && typeof draftFields.excerpt === "string"
+							? draftFields.excerpt
+							: "";
+					return {
+						blocks: [],
+						patch: {
+							type: "editor-draft-patch" as const,
+							operations: [
+								{
+									op: "set" as const,
+									field: "title",
+									value: `${title} translated`,
+								},
+								{
+									op: "set" as const,
+									field: "excerpt",
+									value: `${excerpt} translated`,
+								},
+							],
+						},
+					};
+				}
 				return {
 					blocks: [
 						{
