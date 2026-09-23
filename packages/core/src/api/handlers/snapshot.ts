@@ -266,6 +266,8 @@ export interface GenerateSnapshotOptions {
 	 * `emdash:passkey_pending:`) — the output may be user-downloadable.
 	 */
 	optionPrefixes?: string[];
+	/** Exact options-table keys to include in addition to `optionPrefixes`. */
+	optionKeys?: string[];
 }
 
 /**
@@ -281,6 +283,7 @@ export async function generateSnapshot(
 	const includeDrafts = options?.includeDrafts ?? false;
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
+	const optionKeys = new Set(options?.optionKeys);
 
 	const contentTables = await listTablesLike(db, "ec_%");
 
@@ -340,7 +343,7 @@ export async function generateSnapshot(
 				`.execute(db)
 			).rows.filter((row) => {
 				const name = typeof row.name === "string" ? row.name : "";
-				return optionPrefixes.some((prefix) => name.startsWith(prefix));
+				return optionKeys.has(name) || optionPrefixes.some((prefix) => name.startsWith(prefix));
 			});
 		} else {
 			rows = (

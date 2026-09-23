@@ -4,12 +4,12 @@ import { ApiResponseError } from "../../src/lib/api/client";
 import { registryVerificationErrorMessage } from "../../src/lib/api/registry";
 
 describe("registry verification errors", () => {
-	it("turns a missing signed profile extension into publisher guidance", () => {
+	it("turns an invalid signed profile extension into publisher guidance", () => {
 		const error = new ApiResponseError(
 			400,
 			"RECORD_VERIFICATION_FAILED",
-			"The signed repository extension is absent.",
-			{ verificationCode: "PROFILE_EXTENSION_MISSING" },
+			"The signed repository extension is malformed.",
+			{ verificationCode: "PROFILE_EXTENSION_INVALID" },
 		);
 
 		expect(registryVerificationErrorMessage(error)).toBe(

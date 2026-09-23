@@ -18,7 +18,7 @@ Publish directly from the CLI, or use the [automated release service](/plugins/c
 
 ## Prerequisites
 
-- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), a security contact (`security` or `securityContacts`), and a canonical HTTPS source repository in `repo`. When `repo` is omitted, manual publishing uses the Git `origin` or `package.json#repository`. Run `emdash-plugin validate` to confirm.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), and a security contact (`security` or `securityContacts`). Run `emdash-plugin validate` to confirm.
 - A `version` (in `package.json`, or the manifest for registry-only plugins).
 - An [Atmosphere account](#your-atmosphere-account) to publish under.
 
@@ -68,7 +68,7 @@ emdash-plugin publish
 
 `publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your personal data server (PDS), uploads any declared listing images, and writes the release record.
 
-The command signs the source repository into the package profile so sites can verify the release before installation. It refuses to publish when no canonical HTTPS repository can be detected. If `profile setup` configured the package to require provenance, publish through the generated GitHub Actions workflow instead.
+When a canonical HTTPS repository is available, the command adds it to the package profile with optional provenance. Profiles without repository metadata also permit releases without provenance. If `profile setup` configured the package to require provenance, publish through the generated GitHub Actions workflow instead.
 
 ## Bundle
 

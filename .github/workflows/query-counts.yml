@@ -3,13 +3,21 @@ name: Query Counts
 on:
   pull_request:
     branches: [main]
+  merge_group:
 
 # Runs with the default read-only token; this workflow never pushes or
 # comments. The companion "Query Counts — Apply" workflow (triggered by
 # workflow_run) handles that with elevated permissions, safely isolated
-# from PR-authored code.
+# from PR-authored code. Keep the workflow unfiltered at the event level so
+# the required Measure check is reported for every PR; the first step skips
+# the expensive build and measurement when the changed paths cannot affect it.
 permissions:
   contents: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   measure:
@@ -17,28 +25,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Detect relevant changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        with:
+          filters: |
+            relevant:
+              - 'packages/core/**'
+              - 'packages/auth/**'
+              - 'packages/blocks/**'
+              - 'packages/cloudflare/**'
+              - 'fixtures/perf-site/**'
+              - 'templates/starter-cloudflare/**'
+              - 'scripts/query-counts*'
+              - 'scripts/check-worker-startup.mjs'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig*.json'
+              - '.github/workflows/query-counts.yml'
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
+        run: pnpm build
 
       - name: Regenerate snapshots
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         run: |
           node scripts/query-counts.mjs --target sqlite --update
           node scripts/query-counts.mjs --target d1 --update
 
       - name: Check Worker startup closure
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         run: |
           pnpm --dir templates/starter-cloudflare build
           pnpm startup:check
 
       - name: Detect snapshot drift
+        if: github.event_name != 'pull_request' || steps.changes.outputs.relevant == 'true'
         id: drift
         run: |
           mkdir -p query-counts-out
@@ -64,10 +101,16 @@ jobs:
           fi
 
       - name: Upload snapshot artifact
-        if: steps.drift.outputs.changed == 'true'
+        if: github.event_name == 'pull_request' && steps.drift.outputs.changed == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: query-counts-snapshots
           path: query-counts-out/
           retention-days: 7
           if-no-files-found: error
+
+      - name: Require committed snapshots in the merge queue
+        if: github.event_name == 'merge_group' && steps.drift.outputs.changed == 'true'
+        run: |
+          echo "::error::Query-count snapshots are stale on the merge candidate"
+          exit 1

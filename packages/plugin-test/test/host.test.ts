@@ -1437,10 +1437,13 @@ describe("runtime plugin test host", () => {
 		await runtimeHost.fixtures.collection({
 			slug: "posts",
 			label: "Posts",
-			fields: [{ slug: "title", label: "Title", type: "string" }],
+			fields: [
+				{ slug: "title", label: "Title", type: "string" },
+				{ slug: "excerpt", label: "Excerpt", type: "text" },
+			],
 		});
 		const entry = await runtimeHost.fixtures.content("posts", {
-			data: { title: "Saved entry" },
+			data: { title: "Saved entry", excerpt: "Saved excerpt" },
 			locale: "en",
 		});
 
@@ -1474,6 +1477,62 @@ describe("runtime plugin test host", () => {
 			fields: expect.arrayContaining([{ label: "Version", value: "2" }]),
 		});
 
+		const draft = await runtimeHost.admin.captureEditorDraft(
+			"posts",
+			entry.id,
+			{ title: "Unsaved title", excerpt: "Unsaved excerpt" },
+			{ contentLocale: "en", generation: 9, invocationId: "plugin_test_translate" },
+		);
+		const proposal = await runtimeHost.admin.actEditorPanel(
+			"entry-context",
+			"posts",
+			entry.id,
+			"translate",
+			{ contentLocale: "en", draft },
+		);
+		expect(proposal.patch).toEqual({
+			type: "editor-draft-patch",
+			operations: [
+				{ op: "set", field: "title", value: "Unsaved title translated" },
+				{ op: "set", field: "excerpt", value: "Unsaved excerpt translated" },
+			],
+		});
+		const patched = await runtimeHost.admin.applyEditorDraftPatch(
+			"panel",
+			"entry-context",
+			draft,
+			proposal,
+			{
+				entryId: draft.entryId,
+				locale: draft.locale,
+				generation: draft.generation,
+				invocationId: draft.invocationId,
+			},
+			draft.fields,
+		);
+		expect(patched).toEqual({
+			title: "Unsaved title translated",
+			excerpt: "Unsaved excerpt translated",
+		});
+		await expect(runtimeHost.inspect.content.get("posts", entry.id)).resolves.toMatchObject({
+			data: { title: "Saved entry", excerpt: "Saved excerpt" },
+		});
+		await expect(
+			runtimeHost.admin.applyEditorDraftPatch(
+				"panel",
+				"entry-context",
+				draft,
+				proposal,
+				{
+					entryId: draft.entryId,
+					locale: draft.locale,
+					generation: draft.generation + 1,
+					invocationId: draft.invocationId,
+				},
+				draft.fields,
+			),
+		).rejects.toThrow("EDITOR_DRAFT_STALE");
+
 		await expect(
 			runtimeHost.admin.invokeEditorAction("refresh-entry", "posts", entry.id, {
 				locale: "ar",
@@ -1486,8 +1545,20 @@ describe("runtime plugin test host", () => {
 		await expect(
 			runtimeHost.admin.actEditorPanel("entry-context", "posts", entry.id, "invalid"),
 		).rejects.toThrow("INVALID_BLOCK_RESPONSE");
+		await runtimeHost.fixtures.collection({
+			slug: "plugin_test_invalid",
+			label: "Plugin test invalid responses",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const invalidEntry = await runtimeHost.fixtures.content("plugin_test_invalid", {
+			data: { title: "Invalid response target" },
+		});
 		await expect(
-			runtimeHost.admin.invokeEditorAction("invalid-action", "posts", entry.id),
+			runtimeHost.admin.invokeEditorAction(
+				"invalid-action",
+				"plugin_test_invalid",
+				invalidEntry.id,
+			),
 		).rejects.toThrow("INVALID_EDITOR_ACTION_RESPONSE");
 	});
 

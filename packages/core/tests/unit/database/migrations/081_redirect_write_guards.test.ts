@@ -93,4 +93,61 @@ describe("081_redirect_write_guards migration", () => {
 			`.execute(db),
 		).resolves.toBeDefined();
 	});
+
+	it("creates triggers the D1 HTTP API can apply", async () => {
+		// The D1 HTTP API used by `emdash migrate` ends a CREATE TRIGGER at the
+		// first `END;`, so an inner `CASE ... END;` fails with "incomplete input".
+		const statements: string[] = [];
+		const sqlite = new BetterSqlite3(":memory:");
+		sqlite.exec(
+			"CREATE TABLE _emdash_redirects (" +
+				"id TEXT PRIMARY KEY, source TEXT NOT NULL, destination TEXT NOT NULL DEFAULT '', " +
+				"type INTEGER NOT NULL DEFAULT 301, is_pattern INTEGER NOT NULL DEFAULT 0, " +
+				"enabled INTEGER NOT NULL DEFAULT 1, group_name TEXT)",
+		);
+		db = new Kysely<unknown>({
+			dialect: new SqliteDialect({ database: sqlite }),
+			log: (event) => {
+				statements.push(event.query.sql);
+			},
+		});
+
+		await up(db);
+
+		const triggers = statements.filter((statement) => /^\s*CREATE TRIGGER/i.test(statement));
+		expect(triggers).toHaveLength(7);
+		expect(triggers.filter((statement) => /\bEND\s*;/i.test(statement))).toEqual([]);
+	});
+
+	it("rejects redirect loops written directly to the table", async () => {
+		const sqlite = new BetterSqlite3(":memory:");
+		sqlite.exec(
+			"CREATE TABLE _emdash_redirects (" +
+				"id TEXT PRIMARY KEY, source TEXT NOT NULL, destination TEXT NOT NULL DEFAULT '', " +
+				"type INTEGER NOT NULL DEFAULT 301, is_pattern INTEGER NOT NULL DEFAULT 0, " +
+				"enabled INTEGER NOT NULL DEFAULT 1, group_name TEXT);" +
+				"INSERT INTO _emdash_redirects (id, source, destination) " +
+				"VALUES ('a', '/a', '/b'), ('b', '/b', '/c')",
+		);
+		db = new Kysely<unknown>({ dialect: new SqliteDialect({ database: sqlite }) });
+
+		await up(db);
+
+		await expect(
+			sql`INSERT INTO _emdash_redirects (id, source, destination) VALUES ('c', '/c', '/a')`.execute(
+				db,
+			),
+		).rejects.toThrow("redirect loop");
+		await expect(
+			sql`UPDATE _emdash_redirects SET destination = '/a' WHERE id = 'b'`.execute(db),
+		).rejects.toThrow("redirect loop");
+		await expect(
+			sql`INSERT INTO _emdash_redirects (id, source, destination) VALUES ('d', '/d', '/a')`.execute(
+				db,
+			),
+		).resolves.toBeDefined();
+		await expect(
+			sql`UPDATE _emdash_redirects SET destination = '/e' WHERE id = 'b'`.execute(db),
+		).resolves.toBeDefined();
+	});
 });

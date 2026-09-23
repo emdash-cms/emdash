@@ -349,11 +349,13 @@ export type ResolvedPluginEditorExtension =
 			kind: "panel";
 			extension: PluginEditorPanel;
 			policy: BlockValidationPolicy;
+			capabilities: readonly PluginCapability[];
 	  }
 	| {
 			kind: "action";
 			extension: PluginEditorAction;
 			policy: BlockValidationPolicy;
+			capabilities: readonly PluginCapability[];
 	  };
 
 export interface PluginEditorExtensionDispatch {
@@ -4995,6 +4997,7 @@ export class EmDashRuntime {
 			}
 		}
 
+		const normalizedCapabilities = normalizePluginCapabilities(capabilities);
 		const policy = {
 			pluginPagePaths: pages,
 			allowedImageHosts: allowedBrowserImageHosts(capabilities, allowedHosts),
@@ -5009,7 +5012,7 @@ export class EmDashRuntime {
 			) {
 				return null;
 			}
-			return { kind, extension, policy };
+			return { kind, extension, policy, capabilities: normalizedCapabilities };
 		}
 		const matches = actions?.filter((action) => action.id === extensionId) ?? [];
 		const extension = matches[0];
@@ -5021,7 +5024,11 @@ export class EmDashRuntime {
 		) {
 			return null;
 		}
-		return { kind, extension, policy };
+		return { kind, extension, policy, capabilities: normalizedCapabilities };
+	}
+
+	async getPluginEditorDraftSchema(collection: string) {
+		return this.schemaRegistry.getCollectionWithFields(collection);
 	}
 
 	private validatePluginEditorExtensionResponse(

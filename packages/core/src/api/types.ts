@@ -74,6 +74,7 @@ export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
+	translatable?: boolean;
 	/**
 	 * For `select` / `multiSelect`: the list of enum choices.
 	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.

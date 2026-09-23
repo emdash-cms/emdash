@@ -16,12 +16,14 @@ import { formatPackageIdentifier } from "../package-identifier.js";
 import {
 	canonicalGitHubRepository,
 	PackageProfileSetupError,
+	readPackageProfilePolicy,
 	setupPackageProfile,
 } from "../profile/setup.js";
 
 export interface RunProfileSetupOptions {
 	dir: string;
 	repository?: string;
+	provenance?: string;
 	confirmation?: string;
 	yes?: boolean;
 	nextSteps?: boolean;
@@ -34,7 +36,7 @@ function cancelled(value: unknown): asserts value is Exclude<typeof value, symbo
 
 interface RepositoryPromptOptions {
 	message: string;
-	defaultValue?: string;
+	initialValue?: string;
 	placeholder: string;
 	validate(value: string | undefined): string | undefined;
 }
@@ -66,7 +68,7 @@ export async function resolveProfileRepository(
 		message: detected
 			? "GitHub repository URL (press enter to use the detected origin)"
 			: "GitHub repository URL",
-		...(detected === undefined ? {} : { defaultValue: detected }),
+		...(detected === undefined ? {} : { initialValue: detected }),
 		placeholder: detected ?? "https://github.com/example/gallery",
 		validate: (value) =>
 			canonicalGitHubRepository(value ?? "") ? undefined : "Enter an HTTPS GitHub repository URL.",
@@ -75,10 +77,57 @@ export async function resolveProfileRepository(
 	return String(answer);
 }
 
+export async function resolveProfileProvenance(
+	configured: string | undefined,
+	interactive: boolean,
+	current: boolean | undefined,
+	prompt: (options: {
+		message: string;
+		initialValue: "required" | "optional";
+		options: Array<{
+			value: "required" | "optional";
+			label: string;
+			hint: string;
+		}>;
+	}) => Promise<unknown> = (input) => clack.select(input),
+): Promise<boolean> {
+	if (configured === "required") return true;
+	if (configured === "optional") return false;
+	if (configured !== undefined) {
+		throw new PackageProfileSetupError(
+			"INVALID_INPUT",
+			"--provenance must be `required` or `optional`.",
+		);
+	}
+	if (!interactive) return current ?? true;
+	const answer = await prompt({
+		message: "Should releases require verifiable build provenance?",
+		initialValue: current === false ? "optional" : "required",
+		options: [
+			{
+				value: "required",
+				label: "Require provenance",
+				hint: "recommended for automated releases",
+			},
+			{
+				value: "optional",
+				label: "Allow releases without provenance",
+				hint: "supports local publishing",
+			},
+		],
+	});
+	cancelled(answer);
+	if (answer !== "required" && answer !== "optional") {
+		throw new PackageProfileSetupError("INVALID_INPUT", "Provenance policy selection is invalid.");
+	}
+	return answer === "required";
+}
+
 export function printProfileSetupResult(
 	result: { status: "created" | "ready" | "updated"; profileUri: string },
 	identifier: string,
 	confirmation: "always" | "escalation-only",
+	requireProvenance: boolean,
 	showNextSteps: boolean,
 ): void {
 	if (result.status === "ready") {
@@ -93,13 +142,19 @@ export function printProfileSetupResult(
 	}
 	consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
 	if (!showNextSteps) return;
-	consola.info("Next, configure the provenance-backed release workflow:");
-	consola.info(`  ${pc.cyan("emdash-plugin release setup")}`);
+	if (requireProvenance) {
+		consola.info("Next, configure the provenance-backed release workflow:");
+		consola.info(`  ${pc.cyan("emdash-plugin release setup")}`);
+	} else {
+		consola.info("Next, publish a release:");
+		consola.info(`  ${pc.cyan("emdash-plugin publish")}`);
+	}
 }
 
 async function confirmationValue(
 	configured: string | undefined,
 	interactive: boolean,
+	current: "always" | "escalation-only" | undefined,
 ): Promise<"always" | "escalation-only"> {
 	if (configured === "always" || configured === "escalation-only") return configured;
 	if (configured !== undefined) {
@@ -108,10 +163,10 @@ async function confirmationValue(
 			"--confirmation must be `always` or `escalation-only`.",
 		);
 	}
-	if (!interactive) return "escalation-only";
+	if (!interactive) return current ?? "escalation-only";
 	const answer = await clack.select({
 		message: "When should a release require your approval?",
-		initialValue: "escalation-only",
+		initialValue: current ?? "escalation-only",
 		options: [
 			{
 				value: "escalation-only",
@@ -167,27 +222,44 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 		interactive,
 		pluginDir: sources.pluginDir,
 	});
-	const confirmation = await confirmationValue(options.confirmation, interactive);
-	const loaded = await import("../manifest/load.js").then(({ loadManifest }) =>
-		loadManifest(sources.manifestPath),
-	);
-	sources.manifest.sections = await resolveSections(loaded.manifest.sections, dirname(loaded.path));
 	const oauthSession = await resumeSession(publisherDid);
 	const publisher = PublishingClient.fromHandler({
 		handler: oauthSession,
 		did: storedSession.did,
 		pds: storedSession.pds,
 	});
+	const currentPolicy = await readPackageProfilePolicy(publisher, sources.manifest.slug);
+	const requireProvenance = await resolveProfileProvenance(
+		options.provenance,
+		interactive,
+		currentPolicy?.requireProvenance,
+	);
+	const confirmation = await confirmationValue(
+		options.confirmation,
+		interactive,
+		currentPolicy?.confirmation,
+	);
+	const loaded = await import("../manifest/load.js").then(({ loadManifest }) =>
+		loadManifest(sources.manifestPath),
+	);
+	sources.manifest.sections = await resolveSections(loaded.manifest.sections, dirname(loaded.path));
 	const input = {
 		publisher,
 		slug: sources.manifest.slug,
 		profile: manifestToProfileInput(sources.manifest),
 		repository,
+		requireProvenance,
 		confirmation,
 	};
 	const proposed = await setupPackageProfile(input);
 	if (proposed.status === "ready") {
-		printProfileSetupResult(proposed, identifier, confirmation, options.nextSteps !== false);
+		printProfileSetupResult(
+			proposed,
+			identifier,
+			confirmation,
+			requireProvenance,
+			options.nextSteps !== false,
+		);
 		return;
 	}
 	if (!interactive && options.yes !== true) {
@@ -199,7 +271,7 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 	if (interactive) {
 		const action = proposed.status === "created" ? "Create" : "Update";
 		const answer = await clack.confirm({
-			message: `${action} the ${identifier} package profile and allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases?`,
+			message: `${action} the ${identifier} package profile, allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases, and ${requireProvenance ? "require" : "not require"} provenance?`,
 			initialValue: true,
 		});
 		cancelled(answer);
@@ -211,7 +283,13 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 		}
 	}
 	const result = await setupPackageProfile({ ...input, apply: true });
-	printProfileSetupResult(result, identifier, confirmation, options.nextSteps !== false);
+	printProfileSetupResult(
+		result,
+		identifier,
+		confirmation,
+		requireProvenance,
+		options.nextSteps !== false,
+	);
 }
 
 export async function runProfileSetup(options: RunProfileSetupOptions): Promise<void> {
@@ -236,7 +314,11 @@ export const profileSetupCommand = defineCommand({
 		},
 		repository: {
 			type: "string",
-			description: "Canonical HTTPS GitHub repository URL (defaults to manifest repo)",
+			description: "Canonical HTTPS GitHub repository URL (defaults to manifest or Git origin)",
+		},
+		provenance: {
+			type: "string",
+			description: "Provenance policy: required or optional",
 		},
 		confirmation: {
 			type: "string",

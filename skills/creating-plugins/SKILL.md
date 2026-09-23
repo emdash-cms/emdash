@@ -50,6 +50,8 @@ Declare every host API in `emdash-plugin.jsonc`. Adding authority, exposing a ro
 | Capability                       | Grants                                                                     |
 | -------------------------------- | -------------------------------------------------------------------------- |
 | `schema:read`                    | Public collection and field definitions                                    |
+| `admin.editor-draft:read`        | Selected unsaved field values after an explicit editor interaction         |
+| `admin.editor-draft:patch`       | Host-validated unsaved field changes proposed for editor review            |
 | `content:read`                   | Content identity, translations, and published public URLs                  |
 | `content:revisions:read`         | Retained revision data; implies content read                               |
 | `content:write`                  | Create, update, delete, and translation creation; implies read             |
@@ -100,7 +102,7 @@ Sandboxed hooks enter the same priority, dependency, timeout, error-policy, enab
 
 Sandboxed pages and widgets return validated Block Kit. Structured links use host-resolved targets; `routeCtx.ui` carries host-attested locale, direction, and surface. External images require matching network authority.
 
-Saved-entry panels and actions point to private routes. They receive host-reloaded saved identity and version, never field values or unsaved editor state. Read saved content through capability-gated `ctx.content`.
+Saved-entry panels and actions point to private routes. Ordinary panel load receives only host-reloaded saved identity and version. Add `admin.editor-draft:read` or `admin.editor-draft:patch` plus extension-level collection and field selectors when an explicit interaction must receive selected unsaved fields or propose an atomic whole-field patch. Patch does not imply read. The host previews accepted patches, marks the form dirty, and never saves them automatically. Read saved content through capability-gated `ctx.content`.
 
 Declarative field widgets currently compose supported Block Kit elements into a JSON value. Custom Portable Text blocks and Astro render components remain native-only. Read [Admin UI](./references/admin-ui.md), [Block Kit](./references/block-kit.md), and [Portable Text blocks](./references/portable-text-blocks.md).
 
