@@ -445,9 +445,10 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		expect(ids).toEqual([fx.frTagId]);
 	});
 
-	it("POST makes published term edits visible through the edge cache", async () => {
+	it("POST refreshes published translations and taxonomy facets", async () => {
 		const fx = await seedLocalizedTags(ctx.db);
 		const content = new ContentRepository(ctx.db);
+		await content.publish("post", fx.enContentId);
 		await content.publish("post", fx.frContentId);
 		const invalidate = vi.fn().mockResolvedValue(undefined);
 		const context = buildPostContext(
@@ -463,7 +464,47 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 			await new TaxonomyRepository(ctx.db).getTermsForEntry("post", fx.frContentId, "tags", "fr"),
 		).toEqual([]);
 		expect(invalidate).toHaveBeenCalledOnce();
-		expect(invalidate).toHaveBeenCalledWith({ tags: ["post", fx.frContentId] });
+		expect(invalidate).toHaveBeenCalledWith({
+			tags: expect.arrayContaining([
+				"post",
+				fx.enContentId,
+				fx.frContentId,
+				"emdash:taxonomy:tags",
+			]),
+		});
+	});
+
+	it("batches cache purges for large translation groups", async () => {
+		const fx = await seedLocalizedTags(ctx.db);
+		const content = new ContentRepository(ctx.db);
+		const additionalIds: string[] = [];
+		for (let index = 0; index < 97; index++) {
+			const entry = await content.create({
+				type: "post",
+				slug: `extra-${index}`,
+				locale: `en-${String(index + 1).padStart(3, "0")}`,
+				translationOf: fx.enContentId,
+				data: { title: `Translation ${index}` },
+			});
+			additionalIds.push(entry.id);
+		}
+		const invalidate = vi.fn(async ({ tags }: { tags: string[] }) => {
+			if (tags.length > 100) throw new Error("Too many purge tags");
+		});
+		const context = buildPostContext(
+			ctx.db,
+			{ collection: "post", id: fx.frContentId, taxonomy: "tags" },
+			[],
+		);
+		Object.assign(context, { cache: { enabled: true, invalidate } });
+
+		const response = await postTerms(context);
+		expect(response.status).toBe(200);
+		expect(invalidate).toHaveBeenCalledTimes(2);
+		const purgedTags = invalidate.mock.calls.flatMap(([{ tags }]) => tags);
+		expect(new Set(purgedTags)).toEqual(
+			new Set(["post", fx.enContentId, fx.frContentId, ...additionalIds, "emdash:taxonomy:tags"]),
+		);
 	});
 
 	it("falls back to the configured default-locale term and exposes its actual locale", async () => {

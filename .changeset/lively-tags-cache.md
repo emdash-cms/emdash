@@ -3,4 +3,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Fixes tag and category edits on published content remaining stale in cached pages. Assignments still save immediately, and the editor confirms when the change is live.
+Fixes cached published pages remaining stale when tag or category assignments change. Assignments still save immediately, and the editor clarifies that term changes do not wait for **Publish changes**.

@@ -1162,7 +1162,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							collection={collection}
 							entryId={item.id}
 							entryLocale={activeEntryLocale}
-							isLive={isLive}
 							defaultLocale={i18n?.defaultLocale}
 							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
 						/>
