@@ -526,7 +526,7 @@ export function ContentList({
 									<Button
 										size="sm"
 										variant="secondary"
-										disabled={bulkBusy}
+										disabled={bulkBusy || selectedCount > 50}
 										onClick={() => {
 											setBulkTagSelection(
 												Array.from(selectedIds, (id) => {
@@ -544,6 +544,11 @@ export function ContentList({
 									>
 										{t`Add tag`}
 									</Button>
+								)}
+								{bulkTagEnabled && selectedCount > 50 && (
+									<span role="status" className="text-sm text-kumo-danger">
+										{t`Select up to 50 posts to add a tag.`}
+									</span>
 								)}
 								{onBulkDelete && (
 									<Dialog.Root disablePointerDismissal>
@@ -606,6 +611,7 @@ export function ContentList({
 					<BulkTagDialog
 						open={bulkTagOpen}
 						selected={bulkTagSelection ?? undefined}
+						activeLocale={activeLocale}
 						defaultLocale={i18n?.defaultLocale}
 						onClose={() => setBulkTagOpen(false)}
 						onClosed={() => setBulkTagSelection(null)}

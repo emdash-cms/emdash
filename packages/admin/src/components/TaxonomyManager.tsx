@@ -1154,6 +1154,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 			/>
 			<BulkTagDialog
 				open={bulkTagOpen}
+				activeLocale={activeLocale}
 				defaultLocale={i18n?.defaultLocale}
 				onClose={() => setBulkTagOpen(false)}
 			/>

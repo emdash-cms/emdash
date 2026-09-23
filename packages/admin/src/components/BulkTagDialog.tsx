@@ -80,6 +80,7 @@ export function BulkTagDialog({
 	onClose,
 	onClosed,
 	selected,
+	activeLocale,
 	defaultLocale,
 	onApplied,
 }: {
@@ -87,13 +88,20 @@ export function BulkTagDialog({
 	onClose: () => void;
 	onClosed?: () => void;
 	selected?: SelectedBulkTagPost[];
+	activeLocale?: string;
 	defaultLocale?: string;
 	onApplied?: (results: BulkTagResult[]) => void;
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
-	const termLocale = defaultLocale ?? "en";
-	const { data: terms = [], isLoading } = useQuery({
+	const termLocale = activeLocale ?? defaultLocale ?? "en";
+	const {
+		data: terms = [],
+		isLoading,
+		isError: termsFailed,
+		isFetching: termsFetching,
+		refetch: refetchTerms,
+	} = useQuery({
 		enabled: open,
 		queryKey: [
 			"taxonomy-terms",
@@ -144,7 +152,7 @@ export function BulkTagDialog({
 		setBusy(true);
 		setError(null);
 		try {
-			const term = await createTerm("tag", { label: newLabel.trim(), locale: defaultLocale });
+			const term = await createTerm("tag", { label: newLabel.trim(), locale: termLocale });
 			await queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", "tag"] });
 			setTermId(term.id);
 			setCreating(false);
@@ -273,7 +281,7 @@ export function BulkTagDialog({
 										<Button
 											type="button"
 											variant="primary"
-											disabled={busy || !newLabel.trim()}
+											disabled={busy || termsFailed || !newLabel.trim()}
 											onClick={() => void create()}
 										>
 											{t`Create tag`}
@@ -290,7 +298,7 @@ export function BulkTagDialog({
 												label={t`Tag`}
 												placeholder={t`Choose a tag`}
 												value={termId}
-												disabled={busy}
+												disabled={busy || isLoading || termsFailed}
 												onValueChange={(value) => {
 													setTermId(value ?? "");
 													setCacheRefreshFailed(false);
@@ -307,7 +315,7 @@ export function BulkTagDialog({
 										<Button
 											type="button"
 											variant="outline"
-											disabled={busy}
+											disabled={busy || isLoading || termsFailed}
 											onClick={() => setCreating(true)}
 										>
 											{t`Create new tag`}
@@ -315,6 +323,19 @@ export function BulkTagDialog({
 									</div>
 								)}
 								{isLoading && <p className="text-sm text-kumo-subtle">{t`Loading tags…`}</p>}
+								{termsFailed && (
+									<div className="flex flex-wrap items-center gap-2">
+										<DialogError message={t`Could not load tags.`} />
+										<Button
+											type="button"
+											variant="outline"
+											disabled={termsFetching}
+											onClick={() => void refetchTerms()}
+										>
+											{t`Retry loading tags`}
+										</Button>
+									</div>
+								)}
 							</div>
 							{selected ? (
 								<div className="space-y-2">
@@ -510,7 +531,7 @@ export function BulkTagDialog({
 							<Button
 								type="button"
 								variant="primary"
-								disabled={busy}
+								disabled={busy || isLoading || termsFailed}
 								onClick={() => void preview()}
 							>
 								{busy ? t`Reviewing…` : t`Review posts`}

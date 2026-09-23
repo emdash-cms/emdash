@@ -14,7 +14,9 @@ const entry = { collection: "posts", id: "post-1", title: "Internship experience
 const requests: Array<{ termId: string; apply: boolean; items: unknown[]; refreshOnly?: boolean }> =
 	[];
 const termRequests: string[] = [];
+const createdTermLocales: Array<string | undefined> = [];
 let failNextApply = false;
+let failTermFetch = false;
 let failCacheRefresh = false;
 let skipOnCacheRetry = false;
 let unmatchedSecondOnApply = false;
@@ -38,7 +40,9 @@ describe("bulk tag dialog", () => {
 	beforeEach(() => {
 		requests.length = 0;
 		termRequests.length = 0;
+		createdTermLocales.length = 0;
 		failNextApply = false;
+		failTermFetch = false;
 		failCacheRefresh = false;
 		skipOnCacheRetry = false;
 		unmatchedSecondOnApply = false;
@@ -48,6 +52,7 @@ describe("bulk tag dialog", () => {
 			vi.fn(async (input: string, init?: RequestInit) => {
 				if (input.endsWith("/terms") && init?.method === "POST") {
 					createdTag = true;
+					createdTermLocales.push(JSON.parse(init.body as string).locale);
 					return response({
 						term: {
 							id: "tag-2",
@@ -62,6 +67,12 @@ describe("bulk tag dialog", () => {
 				}
 				if (input.includes("/terms?")) {
 					termRequests.push(input);
+					if (failTermFetch) {
+						return Response.json(
+							{ success: false, error: { code: "UNAVAILABLE", message: "Unavailable" } },
+							{ status: 503 },
+						);
+					}
 					const locale = new URL(input, window.location.origin).searchParams.get("locale");
 					return response({
 						terms: [
@@ -221,7 +232,7 @@ describe("bulk tag dialog", () => {
 						type: "posts",
 						slug: "example",
 						status: "published",
-						locale: "en",
+						locale: "fr",
 						translationGroup: null,
 						data: { title: "Internship experience" },
 						authorId: "editor",
@@ -234,6 +245,8 @@ describe("bulk tag dialog", () => {
 					},
 				]}
 				bulkTagEnabled
+				activeLocale="fr"
+				i18n={{ defaultLocale: "en", locales: ["en", "fr"] }}
 			/>,
 		);
 		await screen.getByRole("checkbox", { name: "Select Internship experience" }).click();
@@ -242,14 +255,14 @@ describe("bulk tag dialog", () => {
 			.element(screen.getByRole("dialog").getByText("Internship experience", { exact: true }))
 			.toBeInTheDocument();
 		await expect
-			.element(screen.getByRole("dialog").getByText("en", { exact: true }))
+			.element(screen.getByRole("dialog").getByText("fr", { exact: true }))
 			.toBeInTheDocument();
 		expect(requests).toHaveLength(0);
 		await page.getByRole("combobox", { name: "Tag" }).click();
-		await page.getByRole("option", { name: "Internship Experience" }).click();
+		await page.getByRole("option", { name: "Expérience de stage" }).click();
 		await page.getByRole("button", { name: "Review posts" }).click();
 		expect(requests[0]).toEqual({
-			termId: "tag-1",
+			termId: "tag-1-fr",
 			apply: false,
 			items: [{ collection: "posts", id: "post-1" }],
 		});
@@ -313,6 +326,35 @@ describe("bulk tag dialog", () => {
 		expect(params.get("locale")).toBe("fr");
 		expect(params.get("resolveFallback")).toBe("true");
 		expect(params.get("includeCounts")).toBe("false");
+	});
+
+	it("uses the active content language rather than the site default for tags", async () => {
+		await render(
+			<BulkTagDialog open activeLocale="fr" defaultLocale="en" onClose={() => undefined} />,
+		);
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await expect
+			.element(page.getByRole("option", { name: "Expérience de stage" }))
+			.toBeInTheDocument();
+		await page.getByRole("option", { name: "Expérience de stage" }).click();
+		await page.getByRole("button", { name: "Create new tag" }).click();
+		await page.getByRole("textbox", { name: "New tag name" }).fill("Nouvelle étiquette");
+		await page.getByRole("button", { name: "Create tag" }).click();
+		expect(new URL(termRequests[0]!, window.location.origin).searchParams.get("locale")).toBe("fr");
+		expect(createdTermLocales).toEqual(["fr"]);
+	});
+
+	it("shows tag loading failures and retries instead of offering to create a duplicate", async () => {
+		failTermFetch = true;
+		await render(<BulkTagDialog open onClose={() => undefined} />);
+		await expect.element(page.getByRole("alert")).toHaveTextContent("Could not load tags.");
+		await expect.element(page.getByRole("button", { name: "Create new tag" })).toBeDisabled();
+		failTermFetch = false;
+		await page.getByRole("button", { name: "Retry loading tags" }).click();
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await expect
+			.element(page.getByRole("option", { name: "Internship Experience" }))
+			.toBeInTheDocument();
 	});
 
 	it("shows committed results with a cache warning and allows refreshing without retagging", async () => {
