@@ -43,6 +43,7 @@ export interface BlockTypeVersion {
 	fields: BlockFieldDefinition[];
 	fingerprint: string;
 	active: boolean;
+	unsupportedTypes?: Array<{ type: string; path: string }>;
 	createdAt: string;
 	updatedAt: string;
 }

@@ -27,6 +27,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
@@ -86,6 +87,7 @@ import {
 	updateMedia,
 	uploadMedia,
 	fetchCollections,
+	fetchBlockTypes,
 	fetchCollection,
 	createCollection,
 	updateCollection,
@@ -2509,6 +2511,14 @@ function ContentTypesListPage() {
 		queryKey: ["schema", "orphans"],
 		queryFn: fetchOrphanedTables,
 	});
+	const {
+		data: blockTypes,
+		isLoading: blockTypesLoading,
+		error: blockTypesError,
+	} = useQuery({
+		queryKey: ["schema", "block-types"],
+		queryFn: fetchBlockTypes,
+	});
 
 	const deleteMutation = useMutation({
 		mutationFn: (slug: string) => deleteCollection(slug, true),
@@ -2537,20 +2547,23 @@ function ContentTypesListPage() {
 		},
 	});
 
-	const error = collectionsError || orphansError;
+	const error = collectionsError || orphansError || blockTypesError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
 
 	return (
-		<ContentTypeList
-			collections={collections ?? []}
-			orphanedTables={orphanedTables}
-			isLoading={collectionsLoading || orphansLoading}
-			onDelete={(slug) => deleteMutation.mutate(slug)}
-			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
-			onReorder={(slugs) => reorderMutation.mutate(slugs)}
-		/>
+		<div className="space-y-6">
+			<ContentTypeList
+				collections={collections ?? []}
+				orphanedTables={orphanedTables}
+				isLoading={collectionsLoading || orphansLoading}
+				onDelete={(slug) => deleteMutation.mutate(slug)}
+				onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+				onReorder={(slugs) => reorderMutation.mutate(slugs)}
+			/>
+			<BlockTypeList blockTypes={blockTypes ?? []} isLoading={blockTypesLoading} />
+		</div>
 	);
 }
 
