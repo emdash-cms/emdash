@@ -433,6 +433,8 @@ describe("CAPABILITY_LABELS", () => {
 			"comments:read",
 			"comments:moderate",
 			"schema:read",
+			"admin.editor-draft:read",
+			"admin.editor-draft:patch",
 			"hooks.content-policy:register",
 			"taxonomies:read",
 			"taxonomies:write",

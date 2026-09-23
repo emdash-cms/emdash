@@ -787,6 +787,10 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/admin", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
 
+	// Backups are a full-site content export and must precede the generic
+	// settings rules, which would otherwise let a settings:read token through.
+	["/_emdash/api/settings/backups", "*", "admin"],
+
 	// Settings — use granular scopes so tokens with settings:read or
 	// settings:manage are not rejected at the middleware level.
 	["/_emdash/api/settings", "GET", "settings:read"],

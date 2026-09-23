@@ -242,12 +242,17 @@ test.describe("Schedule content", () => {
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
 		const publishingSummary = settingsPanel.getByRole("group", { name: "Publishing summary" });
 		const scheduleButton = settingsPanel.getByRole("button", { name: "Schedule" });
-		const summaryBox = await publishingSummary.boundingBox();
-		const scheduleBox = await scheduleButton.boundingBox();
-		expect(summaryBox).not.toBeNull();
-		expect(scheduleBox).not.toBeNull();
-		expect(Math.abs(summaryBox!.x - scheduleBox!.x)).toBeLessThanOrEqual(1);
-		expect(Math.abs(summaryBox!.width - scheduleBox!.width)).toBeLessThanOrEqual(1);
+		await expect(publishingSummary).toBeVisible();
+		await expect(scheduleButton).toBeVisible();
+		for (const element of [publishingSummary, scheduleButton]) {
+			const box = await element.boundingBox();
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+		}
+		expect(
+			await settingsPanel.evaluate((element) => element.scrollWidth <= element.clientWidth),
+		).toBe(true);
 		await scheduleButton.click();
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		const dialogBox = await dialog.boundingBox();

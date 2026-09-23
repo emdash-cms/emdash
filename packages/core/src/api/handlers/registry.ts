@@ -1181,10 +1181,6 @@ export async function handleRegistryUninstall(
 			dataDeleted = true;
 		}
 
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version, "registry");
-		}
-
 		try {
 			await removeAllPluginIndexes(db, pluginId);
 		} catch {
@@ -1192,6 +1188,10 @@ export async function handleRegistryUninstall(
 		}
 
 		await stateRepo.delete(pluginId);
+
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version, "registry");
+		}
 
 		return { success: true, data: { pluginId, dataDeleted } };
 	} catch (err) {

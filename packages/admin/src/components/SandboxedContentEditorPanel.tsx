@@ -5,6 +5,8 @@ import type {
 	BlockInteraction,
 	BlockResponse,
 	ContentEditorPanelInteraction,
+	EditorDraftInvocationReceipt,
+	EditorDraftPatchEffect,
 } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
@@ -12,6 +14,22 @@ import * as React from "react";
 import { apiFetch } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
 import { editorExtensionUrl } from "../lib/sandboxed-editor-extensions.js";
+import type { EditorDraftAccessDeclaration } from "../lib/sandboxed-editor-extensions.js";
+
+export interface BrowserEditorDraftRequest {
+	collection: string;
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	generation: number;
+	invocationId: string;
+	fields: Record<string, unknown>;
+}
+
+export interface EditorDraftResponse {
+	patch?: EditorDraftPatchEffect;
+	editorInvocation?: EditorDraftInvocationReceipt;
+}
 
 interface SandboxedContentEditorPanelProps {
 	pluginId: string;
@@ -21,6 +39,10 @@ interface SandboxedContentEditorPanelProps {
 	entryId: string;
 	locale?: string | null;
 	versionToken?: string;
+	draftAccess?: EditorDraftAccessDeclaration;
+	captureDraft?: (access: EditorDraftAccessDeclaration) => BrowserEditorDraftRequest | null;
+	onDraftResponse?: (access: EditorDraftAccessDeclaration, response: EditorDraftResponse) => void;
+	onEntryRefresh?: () => void | Promise<void>;
 }
 
 export function SandboxedContentEditorPanel({
@@ -31,6 +53,10 @@ export function SandboxedContentEditorPanel({
 	entryId,
 	locale,
 	versionToken,
+	draftAccess,
+	captureDraft,
+	onDraftResponse,
+	onEntryRefresh,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
 	const toastManager = Toast.useToastManager();
@@ -46,6 +72,22 @@ export function SandboxedContentEditorPanel({
 	const identityRef = React.useRef(requestIdentity);
 	identityRef.current = requestIdentity;
 	const previousVersion = React.useRef({ panelIdentity, versionToken });
+	const applyNavigation = React.useCallback(
+		(response: BlockResponse) => {
+			if (!response.navigate) return;
+			const href = resolvePluginLinkTarget(pluginId, response.navigate);
+			if (!href) return;
+			if (response.navigate.kind === "external") {
+				const protocol = new URL(href).protocol;
+				if (protocol === "http:" || protocol === "https:") {
+					window.open(href, "_blank", "noopener,noreferrer");
+					return;
+				}
+			}
+			window.location.assign(href);
+		},
+		[pluginId],
+	);
 
 	React.useEffect(() => {
 		setOpen(false);
@@ -71,25 +113,33 @@ export function SandboxedContentEditorPanel({
 			setLoading(true);
 			setError(false);
 			try {
+				const draft =
+					interaction.type === "panel_load" || !draftAccess ? null : captureDraft?.(draftAccess);
+				const requestInteraction = draft ? { ...interaction, draft } : interaction;
 				const response = await apiFetch(
 					editorExtensionUrl(collection, entryId, pluginId, "panel", panelId, locale),
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(interaction),
+						body: JSON.stringify(requestInteraction),
 						signal: controller.signal,
 					},
 				);
 				if (interactionIdentity !== identityRef.current || requestGeneration !== generation.current)
 					return;
 				if (!response.ok) throw new Error("Plugin panel request failed");
-				const body = (await response.json()) as { data: BlockResponse };
+				const body = (await response.json()) as { data: BlockResponse & EditorDraftResponse };
 				if (interactionIdentity !== identityRef.current || requestGeneration !== generation.current)
 					return;
 				setBlocks(body.data.blocks);
 				setLoaded(true);
 				if (body.data.toast) {
 					toastManager.add({ title: body.data.toast.message, type: body.data.toast.type });
+				}
+				if (body.data.refresh) await onEntryRefresh?.();
+				applyNavigation(body.data);
+				if (draftAccess && (body.data.patch || body.data.editorInvocation)) {
+					onDraftResponse?.(draftAccess, body.data);
 				}
 			} catch {
 				if (
@@ -109,7 +159,20 @@ export function SandboxedContentEditorPanel({
 				}
 			}
 		},
-		[collection, entryId, locale, panelId, pluginId, requestIdentity, toastManager],
+		[
+			applyNavigation,
+			captureDraft,
+			collection,
+			draftAccess,
+			entryId,
+			locale,
+			onDraftResponse,
+			onEntryRefresh,
+			panelId,
+			pluginId,
+			requestIdentity,
+			toastManager,
+		],
 	);
 
 	React.useEffect(() => {

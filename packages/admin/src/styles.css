@@ -52,20 +52,6 @@
 	--text-color-kumo-strong: #50575e;
 	--text-color-kumo-subtle: #646970;
 	--text-color-kumo-inactive: #a7aaad;
-
-	/* Semantic colors */
-	--color-kumo-info: #72aee6;
-	--color-kumo-info-tint: #e7f4fe;
-	--color-kumo-success: #00a32a;
-	--color-kumo-success-tint: #edfaef;
-	--color-kumo-warning: #dba617;
-	--color-kumo-warning-tint: #fcf9e8;
-	--color-kumo-danger: #d63638;
-	--color-kumo-danger-tint: #fcf0f1;
-	--text-color-kumo-success: #00a32a;
-	--text-color-kumo-danger: #d63638;
-	--text-color-kumo-warning: #dba617;
-	--text-color-kumo-info: #72aee6;
 }
 
 /**

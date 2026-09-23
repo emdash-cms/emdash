@@ -60,7 +60,9 @@ pnpm exec emdash-plugin validate
    - **When plugin permissions increase** is the default. A release waits for approval when its declared access expands relative to the latest release.
    - **For every release** requires approval for every version.
 
-   The signed-in Atmosphere account becomes the initial approver. The profile also binds the package to the canonical GitHub repository URL and requires verifiable provenance.
+   Setup also asks whether releases require verifiable provenance. **Require provenance** is the default for automated releases. Choose **Allow releases without provenance** only when the same profile must also accept releases published directly from a trusted local environment.
+
+   The signed-in Atmosphere account becomes the initial approver. The profile binds the package to the canonical GitHub repository URL and records the selected provenance policy.
 
    Run only the profile step when a workflow file already exists:
 
@@ -70,7 +72,7 @@ pnpm exec emdash-plugin validate
 
    After publishing the package profile, this command shows the manual and GitHub Actions release commands.
 
-   In a non-interactive terminal, pass `--yes` to accept the default approval policy. Pass `--repository <https-url>` when neither the manifest nor Git remote supplies the repository, and `--confirmation always` to require approval for every release.
+   In a non-interactive terminal, pass `--yes` to accept the default policies. Pass `--repository <https-url>` when neither the manifest nor Git remote supplies the repository, `--provenance optional` to permit releases without provenance, and `--confirmation always` to require approval for every release.
 
 3. Review and commit the generated workflow.
 
