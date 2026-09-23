@@ -44,6 +44,7 @@ import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
 import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
+import { MagicLinkConfirmPage } from "./components/MagicLinkConfirmPage";
 import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
@@ -250,6 +251,18 @@ function LoginPageWrapper() {
 	const searchParams = new URLSearchParams(window.location.search);
 	const redirect = sanitizeRedirectUrl(searchParams.get("redirect") || "/_emdash/admin");
 	return <LoginPage redirectUrl={redirect} />;
+}
+
+const magicLinkConfirmRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/login/magic-link",
+	component: MagicLinkConfirmPageWrapper,
+});
+
+function MagicLinkConfirmPageWrapper() {
+	const searchParams = new URLSearchParams(window.location.search);
+	const redirect = sanitizeRedirectUrl(searchParams.get("redirect") || "/_emdash/admin");
+	return <MagicLinkConfirmPage token={searchParams.get("token")} redirectUrl={redirect} />;
 }
 
 // Signup route (standalone, no Shell)
@@ -2800,6 +2813,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
+	magicLinkConfirmRoute,
 	signupRoute,
 	inviteAcceptRoute,
 	deviceRoute,
