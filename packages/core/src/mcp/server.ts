@@ -2863,7 +2863,9 @@ export function createMcpServer(
 				translationOf: z
 					.string()
 					.optional()
-					.describe("Term id to join as a translation (same translation_group)"),
+					.describe(
+						"Term id to join as a translation (same translation_group). The new term takes that term's parent and position; a different parentId moves the term in every locale",
+					),
 			}),
 		},
 		async (args, extra) => {
