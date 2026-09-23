@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Snapshot } from "../../../src/api/handlers/snapshot.js";
 import { generateSnapshot } from "../../../src/api/handlers/snapshot.js";
 import type { Database } from "../../../src/database/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { setupTestDatabaseWithCollections } from "../../utils/test-db.js";
 
 describe("generateSnapshot", () => {
@@ -129,8 +130,23 @@ describe("generateSnapshot", () => {
 		// These system tables should have schema entries
 		expect(snapshot.schema).toHaveProperty("_emdash_collections");
 		expect(snapshot.schema).toHaveProperty("_emdash_fields");
+		expect(snapshot.schema).toHaveProperty("_emdash_block_types");
+		expect(snapshot.schema).toHaveProperty("_emdash_block_type_versions");
 		expect(snapshot.schema).toHaveProperty("_emdash_migrations");
 		expect(snapshot.schema).toHaveProperty("options");
+	});
+
+	it("includes block type definitions and retained versions", async () => {
+		await new BlockTypeRegistry(db).createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "heading", label: "Heading", type: "string" }],
+		});
+
+		const snapshot = await generateSnapshot(db);
+
+		expect(snapshot.tables._emdash_block_types).toHaveLength(1);
+		expect(snapshot.tables._emdash_block_type_versions).toHaveLength(1);
 	});
 
 	it("includes column type info in schema", async () => {

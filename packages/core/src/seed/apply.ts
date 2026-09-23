@@ -23,6 +23,8 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { BlockTypeRegistry } from "../schema/block-type-registry.js";
+import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.js";
@@ -133,6 +135,7 @@ export async function applySeed(
 
 	// Result counters
 	const result: SeedApplyResult = {
+		blockTypes: { created: 0, skipped: 0, updated: 0 },
 		collections: { created: 0, skipped: 0, updated: 0 },
 		fields: { created: 0, skipped: 0, updated: 0 },
 		taxonomies: { created: 0, terms: 0 },
@@ -206,6 +209,17 @@ export async function applySeed(
 	// 1. Site settings
 	if (seed.settings) {
 		await applySiteSettings(db, seed.settings, onConflict, result);
+	}
+
+	if (seed.blockTypes) {
+		const registry = new BlockTypeRegistry(db);
+		for (const blockType of seed.blockTypes) {
+			const existing = await registry.getBlockType(blockType.slug);
+			await registry.applySeedBlockType(blockType, onConflict);
+			if (!existing) result.blockTypes.created++;
+			else if (onConflict === "update") result.blockTypes.updated++;
+			else result.blockTypes.skipped++;
+		}
 	}
 
 	// 2-3. Collections and Fields
@@ -532,8 +546,11 @@ export async function applySeed(
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
-				const collectionRoutable =
-					(await schemaRegistry.getCollection(collectionSlug))?.routable !== false;
+				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
+				const collectionRoutable = collectionInfo?.routable !== false;
+				const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
+					? await resolveBlockTypes(db)
+					: undefined;
 				for (const entry of entries) {
 					const entrySlug =
 						typeof entry.slug === "string" && entry.slug.trim().length > 0 ? entry.slug : null;
@@ -557,12 +574,23 @@ export async function applySeed(
 
 						if (onConflict === "update") {
 							// Resolve $ref and $media in data
-							const resolvedData = await resolveReferences(
+							let resolvedData = await resolveReferences(
 								entry.data,
 								seedIdMap,
 								mediaContext,
 								result,
 							);
+							if (collectionInfo) {
+								resolvedData = await normalizeBlocksData(
+									db,
+									collectionInfo,
+									resolvedData,
+									existing.data,
+									{ restoreBlocks: true },
+									false,
+									resolvedBlockTypes,
+								);
+							}
 
 							// Update content + bylines + taxonomies atomically
 							const status = entry.status || "published";
@@ -648,7 +676,18 @@ export async function applySeed(
 					}
 
 					// Resolve $ref and $media in data
-					const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					let resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					if (collectionInfo) {
+						resolvedData = await normalizeBlocksData(
+							db,
+							collectionInfo,
+							resolvedData,
+							{},
+							{ restoreBlocks: true },
+							false,
+							resolvedBlockTypes,
+						);
+					}
 
 					// Resolve translationOf: map from seed-local ID to real EmDash ID
 					let translationOf: string | undefined;

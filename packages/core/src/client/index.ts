@@ -20,6 +20,11 @@
 import mime from "mime/lite";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type {
+	BlockType,
+	CreateBlockTypeInput,
+	UpdateBlockTypeInput,
+} from "../schema/block-types.js";
 import type { FieldSchema } from "./portable-text.js";
 import { convertDataForRead, convertDataForWrite } from "./portable-text.js";
 import type { Interceptor } from "./transport.js";
@@ -126,6 +131,8 @@ export interface Field {
 	widget?: string;
 	options?: unknown;
 	sortOrder?: number;
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
 }
 
 /** Aggregate trust state for media usage reads */
@@ -525,10 +532,50 @@ export class EmDashClient {
 		if (col.fields) {
 			this.fieldSchemaCache.set(
 				slug,
-				col.fields.map((f) => ({ slug: f.slug, type: f.type })),
+				col.fields.map((f) => ({ slug: f.slug, type: f.type, blockTypes: f.blockTypes })),
 			);
 		}
 		return col;
+	}
+
+	async blockTypes(): Promise<BlockType[]> {
+		const data = await this.request<{ items: BlockType[] }>("GET", "/schema/block-types");
+		return data.items;
+	}
+
+	async blockType(slug: string): Promise<BlockType> {
+		const data = await this.request<{ item: BlockType }>(
+			"GET",
+			`/schema/block-types/${encodeURIComponent(slug)}`,
+		);
+		return data.item;
+	}
+
+	async createBlockType(input: CreateBlockTypeInput): Promise<BlockType> {
+		const data = await this.request<{ item: BlockType }>("POST", "/schema/block-types", input);
+		return data.item;
+	}
+
+	async updateBlockType(slug: string, input: UpdateBlockTypeInput): Promise<BlockType> {
+		const data = await this.request<{ item: BlockType }>(
+			"PUT",
+			`/schema/block-types/${encodeURIComponent(slug)}`,
+			input,
+		);
+		return data.item;
+	}
+
+	async activateBlockTypeVersion(
+		slug: string,
+		version: number,
+		expectedFingerprint: string,
+	): Promise<BlockType> {
+		const data = await this.request<{ item: BlockType }>(
+			"POST",
+			`/schema/block-types/${encodeURIComponent(slug)}/versions/${version}/activate`,
+			{ expectedFingerprint },
+		);
+		return data.item;
 	}
 
 	/** Create a collection */
@@ -705,6 +752,8 @@ export class EmDashClient {
 			status?: string;
 			locale?: string;
 			translationOf?: string;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 		},
 	): Promise<ContentItem> {
 		// Convert markdown strings to PT for portableText fields
@@ -733,6 +782,8 @@ export class EmDashClient {
 			status?: string;
 			_rev?: string;
 			locale?: string;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			/** Write even though another editor holds this entry's edit lock. */
 			overrideLock?: boolean;
 		},
@@ -748,6 +799,8 @@ export class EmDashClient {
 			data,
 			slug: input.slug,
 			status: input.status,
+			migrateBlocks: input.migrateBlocks,
+			replaceBlocks: input.replaceBlocks,
 			...(input._rev ? { _rev: input._rev } : {}),
 			...(input.overrideLock ? { overrideLock: true } : {}),
 		};
@@ -1236,7 +1289,7 @@ export class EmDashClient {
 
 		try {
 			const col = await this.collection(collection);
-			cached = col.fields.map((f) => ({ slug: f.slug, type: f.type }));
+			cached = col.fields.map((f) => ({ slug: f.slug, type: f.type, blockTypes: f.blockTypes }));
 			this.fieldSchemaCache.set(collection, cached);
 			return cached;
 		} catch {

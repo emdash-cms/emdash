@@ -129,6 +129,11 @@ import {
 	orphanRegisterBody,
 	updateCollectionBody,
 	updateFieldBody,
+	activateBlockTypeVersionBody,
+	blockTypeListResponseSchema,
+	blockTypeResponseSchema,
+	createBlockTypeBody,
+	updateBlockTypeBody,
 } from "../schemas/schema.js";
 import {
 	searchEnableBody,
@@ -1374,6 +1379,87 @@ function buildMediaPaths(maxUploadSize: number) {
 // ---------------------------------------------------------------------------
 
 const schemaPaths = {
+	"/_emdash/api/schema/block-types": {
+		get: {
+			operationId: "listBlockTypes",
+			summary: "List block types",
+			tags: ["Schema"],
+			responses: {
+				"200": {
+					description: "Block type list",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeListResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+		post: {
+			operationId: "createBlockType",
+			summary: "Create a block type",
+			tags: ["Schema"],
+			requestBody: { content: { [JSON_CONTENT]: { schema: createBlockTypeBody } } },
+			responses: {
+				"201": {
+					description: "Created block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/block-types/{slug}": {
+		get: {
+			operationId: "getBlockType",
+			summary: "Get a block type",
+			tags: ["Schema"],
+			requestParams: { path: z.object({ slug: z.string() }) },
+			responses: {
+				"200": {
+					description: "Block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		put: {
+			operationId: "updateBlockType",
+			summary: "Update a block type",
+			tags: ["Schema"],
+			requestParams: { path: z.object({ slug: z.string() }) },
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateBlockTypeBody } } },
+			responses: {
+				"200": {
+					description: "Updated block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/block-types/{slug}/versions/{version}/activate": {
+		post: {
+			operationId: "activateBlockTypeVersion",
+			summary: "Activate a block type version",
+			tags: ["Schema"],
+			requestParams: {
+				path: z.object({ slug: z.string(), version: z.coerce.number().int().positive() }),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: activateBlockTypeVersionBody } },
+			},
+			responses: {
+				"200": {
+					description: "Activated block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
 	"/_emdash/api/schema/collections": {
 		get: {
 			operationId: "listCollections",
