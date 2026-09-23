@@ -110,11 +110,10 @@ function parseStoredFields(raw: string): ParsedStoredFields {
 				"BLOCK_TYPE_VERSION_CONFLICT",
 			);
 		}
-		const type: BlockFieldType =
-			BLOCK_FIELD_TYPE_SET.has(rawType)
-				? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- membership in the complete runtime type set narrows this database string
-					(rawType as BlockFieldType)
-				: "string";
+		const type: BlockFieldType = BLOCK_FIELD_TYPE_SET.has(rawType)
+			? // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- membership in the complete runtime type set narrows this database string
+				(rawType as BlockFieldType)
+			: "string";
 		if (!BLOCK_FIELD_TYPE_SET.has(rawType)) {
 			unsupportedTypes.push({ type: rawType, path: `fields[${index}].type` });
 		}
