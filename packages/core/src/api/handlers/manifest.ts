@@ -42,6 +42,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	number: "number",
 	integer: "number",
 	boolean: "boolean",
+	date: "date",
 	datetime: "datetime",
 	select: "select",
 	multiSelect: "multiSelect",
@@ -224,6 +225,9 @@ function extractFieldType(name: string, schema: unknown): FieldDescriptor {
 	}
 	if (schema.isReference) {
 		return { kind: "reference", label: formatLabel(name) };
+	}
+	if (schema.isDateOnly) {
+		return { kind: "date", label: formatLabel(name) };
 	}
 
 	// Handle standard Zod types

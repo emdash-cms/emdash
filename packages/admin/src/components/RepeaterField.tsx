@@ -369,6 +369,16 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 					required={subField.required}
 				/>
 			);
+		case "date":
+			return (
+				<Input
+					label={subField.label}
+					type="date"
+					value={typeof value === "string" ? value.slice(0, 10) : ""}
+					onChange={(e) => onChange(e.target.value)}
+					required={subField.required}
+				/>
+			);
 		case "select": {
 			// Searchable combobox so long option lists (e.g. taxonomy-derived
 			// options) stay usable inside repeater rows, rather than a plain

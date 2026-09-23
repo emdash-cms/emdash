@@ -1924,7 +1924,7 @@ export function createMcpServer(
 			description:
 				"Get detailed info about a collection including all field definitions. " +
 				"Fields describe the data model: name, type (string, text, number, " +
-				"boolean, datetime, portableText, image, reference, json, select, " +
+				"boolean, date, datetime, portableText, image, reference, json, select, " +
 				"multiSelect, slug), constraints, and validation rules. Use this to " +
 				"understand what data content_create and content_update expect.",
 			inputSchema: z.object({
@@ -2082,7 +2082,7 @@ export function createMcpServer(
 			description:
 				"Add a new field to a collection's schema. This adds a column to the " +
 				"database table. Field types: string (short text), text (long text), " +
-				"number (decimal), integer, boolean, datetime, select (single choice), " +
+				"number (decimal), integer, boolean, date, datetime, select (single choice), " +
 				"multiSelect (multiple), portableText (rich text), image, file, " +
 				"reference (link to another collection), json, slug (URL-safe id). " +
 				"For select/multiSelect, provide choices in validation.options array.",
@@ -2100,6 +2100,7 @@ export function createMcpServer(
 						"number",
 						"integer",
 						"boolean",
+						"date",
 						"datetime",
 						"select",
 						"multiSelect",

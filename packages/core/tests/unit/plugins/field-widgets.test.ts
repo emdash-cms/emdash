@@ -104,7 +104,7 @@ describe("pluginManifestSchema — fieldWidgets", () => {
 					{
 						name: "hex",
 						label: "Hex Input",
-						fieldTypes: ["string", "json"],
+						fieldTypes: ["string", "json", "date"],
 					},
 				],
 			}),
