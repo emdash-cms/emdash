@@ -392,3 +392,62 @@ export type { DomainBlocker, PortableDomainInspection, ScaffoldItem } from "./do
 export { inspectPortableDomain } from "./domain.js";
 
 export { getOrCreateSiteId, SITE_ID_OPTION } from "./site-id.js";
+
+export type {
+	CollectionImporter,
+	ImportCollectionOptions,
+	ImportCollectionResult,
+} from "./schema-importer.js";
+
+export type {
+	AdvanceExportInput,
+	AdvanceExportOutcome,
+	AdvanceExportResult,
+	CreateExportInput,
+	ExportOptions,
+	ExportPackageValidator,
+	ExportPackageValidatorInput,
+	ExportPackageValidatorResult,
+} from "./export/exporter.js";
+export {
+	advanceExport,
+	createExport,
+	ExportPackageReader,
+	exportOptionsSchema,
+	openExportPackage,
+} from "./export/exporter.js";
+
+export type {
+	KindReader,
+	ReadAdjustment,
+	ReaderOptions,
+	ReadPage,
+	ReadRow,
+} from "./export/readers.js";
+export { createReader } from "./export/readers.js";
+
+export type {
+	VerificationMismatch,
+	VerifyImportStepInput,
+	VerifyImportStepResult,
+} from "./export/verify.js";
+export { verifyImportStep } from "./export/verify.js";
+
+export type {
+	AnalysisTargetContext,
+	AnalyzeImportStepInput,
+	AnalyzeImportStepResult,
+	FinalizePlanInput,
+	ValidateStagedPackageInput,
+	ValidationOptions,
+	ValidationStepResult,
+	ValidationTarget,
+} from "./analyze/index.js";
+export {
+	analysisTargetContext,
+	analyzeImportStep,
+	finalizePlan,
+	loadImportPlan,
+	validateStagedPackage,
+	validateStagedPackageStep,
+} from "./analyze/index.js";
