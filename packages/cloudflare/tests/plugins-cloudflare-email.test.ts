@@ -129,6 +129,26 @@ describe("createCloudflareEmailDeliver()", () => {
 		expect(send).toHaveBeenCalledWith(expect.objectContaining({ html: "<p>Click here</p>" }));
 	});
 
+	it("passes cc through and prefers the message's replyTo over the configured one", async () => {
+		const { env, send } = fakeEnv();
+		const deliver = createCloudflareEmailDeliver(
+			{ from: "cms@mails.example.com", replyTo: "hello@example.com" },
+			async () => env,
+		);
+
+		await deliver(
+			{
+				message: { ...message, cc: ["team@example.com"], replyTo: "visitor@example.com" },
+				source: "forms",
+			},
+			fakeCtx(),
+		);
+
+		expect(send).toHaveBeenCalledWith(
+			expect.objectContaining({ cc: ["team@example.com"], replyTo: "visitor@example.com" }),
+		);
+	});
+
 	it("resolves the binding by its configured name", async () => {
 		const send = vi.fn(async () => ({ messageId: "msg-2" }));
 		const deliver = createCloudflareEmailDeliver(

@@ -531,7 +531,14 @@ hooks: {
 
 ```ts
 interface EmailBeforeSendEvent {
-	message: { to: string; subject: string; text: string; html?: string };
+	message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	};
 	source: string;
 }
 ```
@@ -562,12 +569,21 @@ hooks: {
 
 ```ts
 interface EmailDeliverEvent {
-	message: { to: string; subject: string; text: string; html?: string };
+	message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	};
 	source: string;
 }
 ```
 
 The hook has no return value. `source` is `"system"` for EmDash authentication messages and the plugin ID for messages sent by a plugin.
+
+Plugins can set `cc` (additional recipients) and `replyTo` on a message. Providers should deliver both when they are present; a provider that drops `cc` silently leaves those recipients without the message.
 
 ### `email:afterSend`
 

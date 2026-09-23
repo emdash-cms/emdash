@@ -941,7 +941,14 @@ async function dispatch(
 // value is typed via flow analysis rather than via a `as T` assertion. This
 // keeps the @typescript-eslint/no-unsafe-type-assertion rule clean.
 
-type EmailMessage = { to: string; subject: string; text: string; html?: string };
+type EmailMessage = {
+	to: string;
+	cc?: string[];
+	replyTo?: string;
+	subject: string;
+	text: string;
+	html?: string;
+};
 type LogLevel = "debug" | "info" | "warn" | "error";
 type UpdateManyItem = { id: string; data: Record<string, unknown> };
 type StorageItem = { id: string; data: unknown };

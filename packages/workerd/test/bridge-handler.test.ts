@@ -1138,6 +1138,29 @@ describe("Bridge Handler Conformance", () => {
 			});
 			expect(result.error).toContain("Missing capability: email:send");
 		});
+
+		it("forwards cc and replyTo to the email pipeline", async () => {
+			const send = vi.fn(async () => {});
+			const handler = createBridgeHandler({
+				pluginId: "forms",
+				version: "1.0.0",
+				capabilities: ["email:send"],
+				allowedHosts: [],
+				storageCollections: [],
+				db,
+				emailSend: () => send,
+			});
+			const message = {
+				to: "a@b.com",
+				cc: ["team@b.com"],
+				replyTo: "visitor@b.com",
+				subject: "hi",
+				text: "hello",
+			};
+			const result = await call(handler, "email/send", { message });
+			expect(result.error).toBeUndefined();
+			expect(send).toHaveBeenCalledWith(message, "forms");
+		});
 	});
 
 	// ── Storage (document store) ──────────────────────────────────────────
