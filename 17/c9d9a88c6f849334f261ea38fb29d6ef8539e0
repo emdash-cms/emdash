@@ -1,0 +1,37 @@
+.changeset/lively-tags-cache.md
+  s_0c2371b7147544::t_9d4894ac31c1c4 6
+packages/admin/src/components/TaxonomySidebar.tsx
+  s_0c2371b7147544::t_29b78888ca2014 680
+packages/admin/tests/components/TaxonomySidebar.test.tsx
+  s_0c2371b7147544::t_49339eb75e5884 291,293,298-300
+packages/core/src/astro/routes/api/content/[collection]/[id]/terms/[taxonomy].ts
+  s_0c2371b7147544::t_d57e179c36a81c 14,21,27-28,185-195
+packages/core/src/database/repositories/content.ts
+  s_0c2371b7147544::t_a6670189f82259 2110-2119
+packages/core/tests/integration/taxonomies/taxonomy-locale-terms.test.ts
+  s_3ee8bea3bc67f8::t_3a1bd12af7be0c 448,451,467-507
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "17c9d9a88c6f849334f261ea38fb29d6ef8539e0",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_3ee8bea3bc67f8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf38-e9e9-70f2-87e2-e09a1a6ae493",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
