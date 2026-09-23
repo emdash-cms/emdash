@@ -65,6 +65,7 @@ interface TaxonomyDef {
 interface TaxonomySidebarProps {
 	collection: string;
 	entryId?: string;
+	isLive?: boolean;
 	canManageTaxonomies: boolean;
 	/** Locale of the entry being edited. Scopes term reads/writes so only the
 	 * matching translation variants are shown — see issue #1218. */
@@ -627,6 +628,7 @@ function TaxonomySection({
 	collection,
 	entryId,
 	entryLocale,
+	isLive,
 	canManageTaxonomies,
 	onChange,
 }: {
@@ -634,6 +636,7 @@ function TaxonomySection({
 	collection: string;
 	entryId?: string;
 	entryLocale?: string;
+	isLive?: boolean;
 	canManageTaxonomies: boolean;
 	onChange?: (termIds: string[]) => void;
 }) {
@@ -675,7 +678,10 @@ function TaxonomySection({
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 			});
-			toastManager.add({ title: t`${taxonomy.label} updated` });
+			toastManager.add({
+				title: t`${taxonomy.label} updated`,
+				...(isLive ? { description: t`This change is live now.` } : {}),
+			});
 		},
 		onError: (error) => {
 			toastManager.add({
@@ -876,6 +882,7 @@ export function TaxonomySidebar({
 	collection,
 	entryId,
 	entryLocale,
+	isLive,
 	defaultLocale,
 	canManageTaxonomies,
 	onChange,
@@ -901,6 +908,7 @@ export function TaxonomySidebar({
 						collection={collection}
 						entryId={entryId}
 						entryLocale={entryLocale}
+						isLive={isLive}
 						canManageTaxonomies={canManageTaxonomies}
 						onChange={(termIds) => onChange?.(taxonomy.name, termIds)}
 					/>

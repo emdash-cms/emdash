@@ -97,7 +97,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 /**
  * Set terms for an entry (replaces existing)
  */
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
@@ -178,6 +178,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// Term assignments changed — invalidate the hasAnyTermAssignments cache
 		// so hydration on subsequent reads issues a fresh query.
 		invalidateTermCache();
+		if (cache?.enabled) await cache.invalidate({ tags: [collection, canonicalId] });
 
 		// Get the updated terms using the canonical ID, scoped to the entry locale
 		const assignments = await repo.getTermAssignmentsForEntry(

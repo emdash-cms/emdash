@@ -14,7 +14,7 @@ import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { handleContentGet } from "../../../src/api/handlers/content.js";
 import {
@@ -443,6 +443,27 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		expect(body.error).toBeUndefined();
 		const ids = (body.data?.terms ?? []).map((t) => t.id);
 		expect(ids).toEqual([fx.frTagId]);
+	});
+
+	it("POST makes published term edits visible through the edge cache", async () => {
+		const fx = await seedLocalizedTags(ctx.db);
+		const content = new ContentRepository(ctx.db);
+		await content.publish("post", fx.frContentId);
+		const invalidate = vi.fn().mockResolvedValue(undefined);
+		const context = buildPostContext(
+			ctx.db,
+			{ collection: "post", id: fx.frContentSlug, taxonomy: "tags" },
+			[],
+		);
+		Object.assign(context, { cache: { enabled: true, invalidate } });
+
+		const response = await postTerms(context);
+		expect(response.status).toBe(200);
+		expect(
+			await new TaxonomyRepository(ctx.db).getTermsForEntry("post", fx.frContentId, "tags", "fr"),
+		).toEqual([]);
+		expect(invalidate).toHaveBeenCalledOnce();
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["post", fx.frContentId] });
 	});
 
 	it("falls back to the configured default-locale term and exposes its actual locale", async () => {
