@@ -1,0 +1,47 @@
+packages/admin/src/components/BulkTagDialog.tsx
+  s_9ffc9362d35cad::t_2f3f368378fa1b 42,44-51,62,87,103,105,113-115,119-127,129-145,147-149,152,171,176,192,210,221,226,270-274,284-314,319-323
+packages/admin/src/lib/api/taxonomies.ts
+  s_0c2371b7147544::t_7a9192e0a9bdc8 93-97,111-112,116,118,184,186-193
+packages/admin/tests/components/BulkTagDialog.test.tsx
+  s_9ffc9362d35cad::t_cf20835fb201cf 14-16,18-20,40,42-44,63-65,69,71,73,92,97,102-123,146-150,204-220,235-294
+packages/core/src/api/handlers/bulk-tag.ts
+  s_9ffc9362d35cad::t_f4130df7bb6372 21-26,53,57,62,64,67,85,88,96,121-124,126-194,197-204,206-236,238-247,266-267,271,273,277-283,292-299,301
+packages/core/src/api/schemas/taxonomies.ts
+  s_3ee8bea3bc67f8::t_25ee4a1b315e30 72
+packages/core/src/database/repositories/content.ts
+  s_3ee8bea3bc67f8::t_b65ac24ef0696c 578-615,2158-2178
+packages/core/tests/integration/taxonomies/bulk-tag.test.ts
+  s_9ffc9362d35cad::t_8e0fe0b7273c2e 2,36,117-271,382-411
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "66d6eb7b71402bfc608098182212a93a38708678",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_3ee8bea3bc67f8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf38-e9e9-70f2-87e2-e09a1a6ae493",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_9ffc9362d35cad": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f2fd84ac4ffemutn94ZSUmzK4P",
+        "model": "claude-opus-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
