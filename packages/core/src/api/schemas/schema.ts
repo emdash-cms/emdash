@@ -78,10 +78,10 @@ const repeaterSubFieldSchema = z.object({
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {
 	try {
 		compileUrlPattern(pattern);
-	} catch {
+	} catch (error) {
 		ctx.addIssue({
 			code: "custom",
-			message: "Invalid URL pattern",
+			message: error instanceof Error ? error.message : "Invalid URL pattern",
 		});
 	}
 });

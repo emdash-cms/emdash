@@ -592,6 +592,19 @@ describe("ContentTypeEditor", () => {
 		await expect.element(saveButton).toBeDisabled();
 	});
 
+	it("blocks saving a pattern with two placeholders in one path segment", async () => {
+		const collection = makeCollection();
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		await screen.getByLabelText("URL Pattern").fill("/blog/{year}{slug}");
+
+		await expect
+			.element(screen.getByText("Each placeholder needs its own path segment", { exact: false }))
+			.toBeInTheDocument();
+		const saveButton = screen.getByRole("button", { name: "Save", exact: true }).last();
+		await expect.element(saveButton).toBeDisabled();
+	});
+
 	it("enables save button when pattern includes {slug}", async () => {
 		const collection = makeCollection();
 		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);

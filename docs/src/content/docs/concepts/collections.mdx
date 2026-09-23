@@ -36,7 +36,9 @@ characters. EmDash also rejects reserved names used by its own routes and entry 
 Collection settings control how editors and public pages use the entries:
 
 - **Routable** requires a public slug before an entry can be published. A URL pattern can combine
-  the entry slug or ID with its publication date to produce the public path.
+  the entry slug or ID with its publication date to produce the public path. Each placeholder
+  needs its own path segment: `/{year}/{month}/{slug}.html` is valid, but `/{year}{month}/{slug}`
+  and `/{slug}-{id}` are rejected.
 - **Drafts** lets editors save work before publishing it.
 - **Revisions** keeps snapshots of content history.
 - **Preview** provides signed preview URLs for unpublished content.

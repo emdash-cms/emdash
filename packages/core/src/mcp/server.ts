@@ -160,7 +160,7 @@ const schemaUpdateCollectionToolSchema = z.object({
 		"Complete feature list to enable; omit to preserve the current list",
 	),
 	urlPattern: updateCollectionBody.shape.urlPattern.describe(
-		"New public URL pattern; pass null to clear it",
+		"New public URL pattern such as /blog/{slug}, with at most one placeholder per path segment; pass null to clear it",
 	),
 	routable: updateCollectionBody.shape.routable.describe(
 		"Whether entries require a slug before they can be published",

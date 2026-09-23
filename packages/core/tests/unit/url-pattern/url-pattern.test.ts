@@ -3,6 +3,7 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { createCollectionBody, updateCollectionBody } from "../../../src/api/schemas/schema.js";
 import type { Database } from "../../../src/database/types.js";
 import { getMenuWithDb } from "../../../src/menus/index.js";
 import { runWithContext } from "../../../src/request-context.js";
@@ -188,6 +189,149 @@ describe("urlPattern", () => {
 				{ slug: "pages", urlPattern: "/{slug}" },
 				{ slug: "posts", urlPattern: "/blog/{slug}" },
 			]);
+		});
+	});
+
+	describe("ambiguous placeholders", () => {
+		const ambiguousPatterns = ["/{a}{b}{c}{d}{e}x", "/blog/{year}{slug}", "/{slug}-{id}"];
+		const acceptedPatterns = [
+			"/{slug}",
+			"/blog/{slug}",
+			"/posts/{slug}.html",
+			"/{year}/{month}/{day}/{slug}.html",
+			"/p-{id}/{slug}",
+		];
+
+		it("resolves a path against a stored ambiguous pattern without backtracking", async () => {
+			const { invalidateUrlPatternCache, resolveEmDashPath } =
+				await import("../../../src/query.js");
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: "/{a}{b}{c}{d}{e}x" })
+				.where("slug", "=", "posts")
+				.execute();
+			invalidateUrlPatternCache();
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+			const start = performance.now();
+			const result = await runWithContext({ editMode: false, db }, () =>
+				resolveEmDashPath(`/${"a".repeat(200)}`),
+			);
+			const elapsed = performance.now() - start;
+
+			expect(result).toBeNull();
+			expect(elapsed).toBeLessThan(1000);
+			warn.mockRestore();
+		});
+
+		it("skips a stored invalid pattern, warns once, and still routes other collections", async () => {
+			const { invalidateUrlPatternCache, resolveEmDashPath } =
+				await import("../../../src/query.js");
+			await registry.createCollection({ slug: "legacy", label: "Legacy" });
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: "/{year}{slug}" })
+				.where("slug", "=", "legacy")
+				.execute();
+			await registry.createCollection({
+				slug: "posts",
+				label: "Posts",
+				urlPattern: "/blog/{slug}",
+			});
+			await sql`
+				INSERT INTO ec_posts (id, slug, status) VALUES (${ulid()}, ${"hello"}, ${"published"})
+			`.execute(db);
+			invalidateUrlPatternCache();
+			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+			const first = await runWithContext({ editMode: false, db }, () =>
+				resolveEmDashPath("/blog/hello"),
+			);
+			const second = await runWithContext({ editMode: false, db }, () =>
+				resolveEmDashPath("/blog/hello"),
+			);
+
+			expect(first?.collection).toBe("posts");
+			expect(second?.collection).toBe("posts");
+			const legacyWarnings = warn.mock.calls.filter((call) => String(call[0]).includes("legacy"));
+			expect(legacyWarnings).toHaveLength(1);
+			warn.mockRestore();
+		});
+
+		it.each(ambiguousPatterns)("rejects %s when compiling", (pattern) => {
+			expect(() => compileUrlPattern(pattern)).toThrow(/one placeholder per path segment/);
+		});
+
+		it.each(acceptedPatterns)("accepts %s when compiling", (pattern) => {
+			expect(() => compileUrlPattern(pattern)).not.toThrow();
+		});
+
+		it.each(ambiguousPatterns)("rejects %s in the create and update request bodies", (pattern) => {
+			const created = createCollectionBody.safeParse({
+				slug: "posts",
+				label: "Posts",
+				urlPattern: pattern,
+			});
+			const updated = updateCollectionBody.safeParse({ urlPattern: pattern });
+
+			expect(created.success).toBe(false);
+			expect(created.error?.issues[0]?.message).toMatch(/one placeholder per path segment/);
+			expect(updated.success).toBe(false);
+		});
+
+		it.each(ambiguousPatterns)("rejects %s in the schema registry", async (pattern) => {
+			await expect(
+				registry.createCollection({ slug: "posts", label: "Posts", urlPattern: pattern }),
+			).rejects.toMatchObject({ code: "INVALID_URL_PATTERN" });
+
+			await registry.createCollection({ slug: "pages", label: "Pages", urlPattern: "/{slug}" });
+			await expect(
+				registry.updateCollection("pages", { urlPattern: pattern }),
+			).rejects.toMatchObject({ code: "INVALID_URL_PATTERN" });
+			expect((await registry.getCollection("pages"))?.urlPattern).toBe("/{slug}");
+		});
+
+		it("rejects a seed with an ambiguous pattern before writing anything", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "pages",
+						label: "Pages",
+						urlPattern: "/{slug}",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "posts",
+						label: "Posts",
+						urlPattern: "/{year}{slug}",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await expect(applySeed(db, seed)).rejects.toThrow(
+				/collections\[1\]\.urlPattern: URL patterns allow only one placeholder per path segment/,
+			);
+			expect(await registry.getCollection("pages")).toBeNull();
+		});
+
+		it("keeps an unchanged stored pattern when other collection settings are updated", async () => {
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await db
+				.updateTable("_emdash_collections")
+				.set({ url_pattern: "/{slug}-{id}" })
+				.where("slug", "=", "posts")
+				.execute();
+
+			const updated = await registry.updateCollection("posts", {
+				label: "Articles",
+				urlPattern: "/{slug}-{id}",
+			});
+
+			expect(updated.label).toBe("Articles");
+			expect(updated.urlPattern).toBe("/{slug}-{id}");
 		});
 	});
 
