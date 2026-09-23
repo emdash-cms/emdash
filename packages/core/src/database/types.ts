@@ -425,7 +425,7 @@ export interface CollectionTable {
 	label_singular: string | null;
 	description: string | null;
 	icon: string | null;
-	admin_config: Generated<string | null>; // JSON: { listColumns?: string[] }
+	admin_config: Generated<string | null>; // JSON: { listColumns?: string[]; quickCreate?: boolean }
 	supports: string | null; // JSON array
 	source: string | null;
 	search_config: string | null; // JSON: SearchConfig

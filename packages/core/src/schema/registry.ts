@@ -177,6 +177,7 @@ function parseCollectionAdmin(raw: string | null | undefined): CollectionAdminCo
 		listColumns: Array.isArray(listColumns)
 			? listColumns.filter((value): value is string => typeof value === "string")
 			: undefined,
+		quickCreate: typeof parsed.quickCreate === "boolean" ? parsed.quickCreate : undefined,
 	};
 }
 

@@ -57,6 +57,8 @@ export interface SchemaCollection {
 
 export interface CollectionAdminConfig {
 	listColumns?: string[];
+	/** Show a "new entry" quick action on the dashboard. Defaults to true. */
+	quickCreate?: boolean;
 }
 
 export interface SchemaField {

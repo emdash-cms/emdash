@@ -153,6 +153,8 @@ export interface AdminManifest {
 			hidden?: boolean;
 			/** Sidebar folder shared with other collections of the same group */
 			group?: string;
+			/** `false` omits the dashboard's "new entry" quick action */
+			quickCreate?: boolean;
 			listColumns?: string[];
 			fields: Record<
 				string,

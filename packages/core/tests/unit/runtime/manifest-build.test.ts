@@ -168,6 +168,21 @@ describe("generateManifest()", () => {
 		expect(manifest.collections.team).not.toHaveProperty("group");
 	});
 
+	it("publishes the dashboard quick-action opt-out only when set", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "sync_runs",
+			label: "Sync runs",
+			admin: { quickCreate: false },
+		});
+		await registry.createCollection({ slug: "team", label: "Team", admin: { listColumns: [] } });
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.sync_runs?.quickCreate).toBe(false);
+		expect(manifest.collections.team).not.toHaveProperty("quickCreate");
+	});
+
 	it("keeps config collection fields when the database has the same slug", async () => {
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({

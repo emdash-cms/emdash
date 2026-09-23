@@ -58,6 +58,8 @@ export interface ManifestCollection {
 	 * entry labelled with the group.
 	 */
 	group?: string;
+	/** `false` omits the dashboard's "new entry" quick action. */
+	quickCreate?: boolean;
 	/** Valid custom field slugs to render in the admin content list. */
 	listColumns?: string[];
 	fields: Record<

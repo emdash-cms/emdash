@@ -30,10 +30,12 @@ const collectionAdminInputConfig = z.object({
 			`At most ${MAX_COLLECTION_LIST_COLUMNS} list columns are allowed`,
 		)
 		.optional(),
+	quickCreate: z.boolean().optional(),
 });
 
 const collectionAdminResponseConfig = z.object({
 	listColumns: collectionListColumns.optional(),
+	quickCreate: z.boolean().optional(),
 });
 
 const fieldTypeValues = z.enum([

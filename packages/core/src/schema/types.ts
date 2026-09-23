@@ -187,6 +187,8 @@ export const MAX_COLLECTION_GROUP_LENGTH = 100;
 export interface CollectionAdminConfig {
 	/** Custom field slugs to show in the content list. */
 	listColumns?: string[];
+	/** Show a "new entry" quick action on the dashboard. Defaults to true. */
+	quickCreate?: boolean;
 }
 
 /**

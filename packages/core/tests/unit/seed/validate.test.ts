@@ -327,6 +327,23 @@ describe("validateSeed", () => {
 				"collections[0].admin.listColumns: must contain at most 4 items",
 			);
 		});
+
+		it("should reject a non-boolean quick-action setting", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						admin: { quickCreate: "no" },
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("collections[0].admin.quickCreate: must be a boolean");
+		});
 	});
 
 	describe("taxonomy validation", () => {
