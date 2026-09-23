@@ -361,4 +361,52 @@ describe("settings_update", () => {
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
 	});
+
+	it("rejects seo.robotsTxt when the host has overridden the injected route", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: {
+				config: { publicRouteOverrides: { robotsTxt: true } },
+			},
+		});
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt: "User-agent: *\nDisallow: /nowhere" } },
+		});
+		expect(result.isError).toBe(true);
+		const meta = (result as { _meta?: { code?: string } })._meta;
+		expect(meta?.code).toBe("ROBOTS_TXT_OVERRIDDEN");
+
+		// The value must not be persisted, or a later robots.txt request
+		// would continue to ignore it silently.
+		const getResult = await harness.client.callTool({
+			name: "settings_get",
+			arguments: {},
+		});
+		expect(getResult.isError, extractText(getResult)).toBeFalsy();
+		const data = extractJson<SiteSettingsResponse>(getResult);
+		expect(data.seo?.robotsTxt).toBeUndefined();
+	});
+
+	it("allows seo.robotsTxt when the injected route is not overridden", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: {
+				config: { publicRouteOverrides: { robotsTxt: false } },
+			},
+		});
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt: "User-agent: *\nAllow: /" } },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<SiteSettingsResponse>(result);
+		expect(data.seo?.robotsTxt).toBe("User-agent: *\nAllow: /");
+	});
 });

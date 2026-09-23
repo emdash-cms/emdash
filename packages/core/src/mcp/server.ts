@@ -103,7 +103,10 @@ const settingsSeoSchema = z.object({
 		.string()
 		.max(5000)
 		.optional()
-		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+		.describe(
+			"Custom robots.txt body. Ignored when a user-defined src/pages/robots.txt.* route " +
+				"overrides the injected /robots.txt route.",
+		),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -3401,6 +3404,13 @@ export function createMcpServer(
 			requireScope(extra, "settings:manage");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
+			if (args.seo?.robotsTxt !== undefined && ec.config.publicRouteOverrides?.robotsTxt) {
+				return respondError(
+					"ROBOTS_TXT_OVERRIDDEN",
+					"seo.robotsTxt cannot be set because src/pages/robots.txt overrides the injected " +
+						"/robots.txt route. Manage robots.txt in that file instead.",
+				);
+			}
 			try {
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
 				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [

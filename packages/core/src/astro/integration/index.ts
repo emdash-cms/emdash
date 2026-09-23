@@ -34,6 +34,7 @@ import { local } from "../storage/adapters.js";
 import { createDebouncedTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
+	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 	injectBuiltinAuthRoutes,
 	injectAuthProviderRoutes,
@@ -501,6 +502,22 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
 				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
 				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
+
+				// Capture which public root routes the host has overridden in
+				// src/pages/, so runtime tools can tell when a setting has no live
+				// consumer. The integration already uses these predicates to
+				// suppress injected routes; exposing them closes the gap between
+				// build-time route injection and runtime validation.
+				if (astroConfig.srcDir) {
+					serializableConfig.publicRouteOverrides = {
+						robotsTxt: hasUserDefinedPublicRoute(astroConfig.srcDir, "robots.txt"),
+						sitemap: hasUserDefinedPublicRoute(astroConfig.srcDir, "sitemap.xml"),
+						sitemapCollection: hasUserDefinedPublicRoute(
+							astroConfig.srcDir,
+							"sitemap-[collection].xml",
+						),
+					};
+				}
 
 				// Disable Astro's built-in checkOrigin -- EmDash's own CSRF
 				// layer (checkPublicCsrf in api/csrf.ts) handles origin

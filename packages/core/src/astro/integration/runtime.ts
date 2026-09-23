@@ -673,6 +673,22 @@ export interface EmDashConfig {
 	 * `env:astro` requirement can be evaluated against the real host version.
 	 */
 	astroVersion?: string;
+
+	/**
+	 * Which public root routes are overridden by user-defined files in
+	 * `src/pages/`. Only consumers that do not exist at runtime can be detected
+	 * here (the integration checks the filesystem at build time). This lets
+	 * tools like the MCP settings endpoint warn or refuse writes whose only
+	 * consumer has been suppressed.
+	 */
+	publicRouteOverrides?: {
+		/** True when `src/pages/robots.txt.*` overrides the injected `/robots.txt`. */
+		robotsTxt?: boolean;
+		/** True when `src/pages/sitemap.xml.*` overrides the injected `/sitemap.xml`. */
+		sitemap?: boolean;
+		/** True when `src/pages/sitemap-[collection].xml.*` overrides the injected sitemap collection route. */
+		sitemapCollection?: boolean;
+	};
 }
 
 const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");

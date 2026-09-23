@@ -26,6 +26,12 @@ declare module "virtual:emdash/config" {
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
+		/** Public routes overridden by user-defined files in `src/pages/`. */
+		publicRouteOverrides?: {
+			robotsTxt?: boolean;
+			sitemap?: boolean;
+			sitemapCollection?: boolean;
+		};
 	}
 
 	const config: VirtualConfig;
