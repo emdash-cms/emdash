@@ -521,6 +521,14 @@ The work-list operations expose failed or delayed entry indexing without returni
 
 The repair operation accepts either `{ "scope": "collection", "collection": "articles" }` or `{ "scope": "all" }`. An all-collection repair runs synchronously and sequentially, so it can take a long time on a large site. A `200` response can still report `partial`, `failed`, or `stale`; inspect `data.status`, the per-collection status, and the source counts before treating the repair as complete.
 
+## Site transfer
+
+The transfer operations under `/_emdash/api/admin/transfer/` export a site as a site package and import one into an empty site. The [site transfer guide](/guides/site-transfer/) describes the export, upload, analysis, execution, and receipt workflow.
+
+Session users need the `transfer:export` or `transfer:import` permission, which only administrators hold. Bearer tokens need `admin` or the `transfer:export`, `transfer:analyze`, or `transfer:execute` scope named by each operation. The approval operations accept signed-in sessions only. They decide requests made by the MCP `site_export_start` and `site_import_start` tools; the REST export and execute operations do not take an approval.
+
+While an import is executing, and after it fails or is cancelled until it is abandoned, most other write operations return `503 TRANSFER_IMPORT_IN_PROGRESS`. The guide lists the [operations that stay available](/guides/site-transfer/#writes-are-blocked-during-an-import).
+
 ## Pagination
 
 List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some media operations also support numbered pages, and some specialized lists use different limits, so generated clients should follow each operation's schema.
