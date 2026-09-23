@@ -17,6 +17,10 @@ import { BylineRepository } from "../../database/repositories/byline.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
+import {
+	parseTaxonomyCollections,
+	selectTaxonomyDefs,
+} from "../../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
@@ -388,14 +392,12 @@ async function exportTaxonomies(
 ): Promise<SeedTaxonomy[]> {
 	// Mirrors the content export pattern: one entry per (name, locale), stable
 	// seed-local id, translations linked via `translationOf` to the anchor's id.
-	const defs = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.selectAll()
+	const defs = await selectTaxonomyDefs(db)
 		// Chained, not `orderBy(["name", "locale"])`: kysely deprecated the array
 		// form and announces it with `console.log`, which lands in the seed
 		// document this command writes to stdout.
-		.orderBy("name")
-		.orderBy("locale")
+		.orderBy("d.name")
+		.orderBy("d.locale")
 		.execute();
 
 	const result: SeedTaxonomy[] = [];
@@ -455,8 +457,6 @@ async function exportTaxonomies(
 			name: def.name,
 			label: def.label,
 			labelSingular: def.label_singular || undefined,
-			hierarchical: def.hierarchical === 1,
-			collections: def.collections ? JSON.parse(def.collections) : [],
 		};
 
 		if (i18nEnabled && def.locale) {
@@ -466,6 +466,12 @@ async function exportTaxonomies(
 				if (anchor) taxonomy.translationOf = anchor;
 				else defGroupToSeedId.set(def.translation_group, defSeedId);
 			}
+		}
+
+		// The structure is the taxonomy's, so only the entry translations point at carries it.
+		if (!taxonomy.translationOf) {
+			taxonomy.hierarchical = def.hierarchical === 1;
+			taxonomy.collections = parseTaxonomyCollections(def.collections);
 		}
 
 		if (seedTerms.length > 0) taxonomy.terms = seedTerms;

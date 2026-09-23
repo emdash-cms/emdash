@@ -1962,7 +1962,7 @@ const taxonomyPaths = {
 			operationId: "updateTaxonomy",
 			summary: "Update a taxonomy definition",
 			description:
-				"Writes the single definition `name` + `locale` resolves to. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
+				"Writes `label` and `labelSingular` to the single definition `name` + `locale` resolves to. `hierarchical` and `collections` belong to the taxonomy and change for every locale. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),

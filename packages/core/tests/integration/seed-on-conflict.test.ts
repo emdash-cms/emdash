@@ -8,6 +8,7 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { findTaxonomyStructure } from "../../src/database/repositories/taxonomy-def.js";
 import type { Database } from "../../src/database/types.js";
 import { applySeed } from "../../src/seed/apply.js";
 import type { SeedFile } from "../../src/seed/types.js";
@@ -210,6 +211,19 @@ describe("applySeed onConflict modes", () => {
 				{ name: "tag", label: "Topics", label_singular: "Topic" },
 			]);
 			expect(result.taxonomies.skipped).toBe(0);
+		});
+
+		it("applies the seed's structure to a built-in taxonomy nobody has changed", async () => {
+			const seed = createTestSeed({
+				taxonomies: [
+					{ name: "tag", label: "Topics", hierarchical: true, collections: ["posts", "pages"] },
+				],
+			});
+
+			await applySeed(db, seed);
+
+			const structure = await findTaxonomyStructure(db, "tag");
+			expect(structure).toMatchObject({ hierarchical: true, collections: ["posts", "pages"] });
 		});
 
 		it("skips a built-in taxonomy the site has changed", async () => {

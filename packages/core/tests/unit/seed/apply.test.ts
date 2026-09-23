@@ -14,6 +14,7 @@ import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
+import { selectTaxonomyDefs } from "../../../src/database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -1584,6 +1585,91 @@ describe("applySeed", () => {
 
 			expect(rows).toHaveLength(2);
 			expect(rows[0]?.translation_group).toBe(rows[1]?.translation_group);
+		});
+
+		it("takes a taxonomy translation's structure from the taxonomy", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						id: "tax:topics:es",
+						name: "topics",
+						label: "Temas",
+						locale: "es",
+						translationOf: "tax:topics:en",
+					},
+					{
+						id: "tax:topics:fr",
+						name: "topics",
+						label: "Sujets",
+						hierarchical: false,
+						collections: [],
+						locale: "fr",
+						translationOf: "tax:topics:en",
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const rows = await selectTaxonomyDefs(db)
+				.where("d.name", "=", "topics")
+				.orderBy("d.locale", "asc")
+				.execute();
+			expect(
+				rows.map(({ locale, hierarchical, collections }) => ({
+					locale,
+					hierarchical,
+					collections,
+				})),
+			).toEqual(
+				["en", "es", "fr"].map((locale) => ({
+					locale,
+					hierarchical: 1,
+					collections: JSON.stringify(["posts"]),
+				})),
+			);
+		});
+
+		it("takes a taxonomy's structure from its source entry when translations come first", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						name: "topics",
+						label: "Sujets",
+						hierarchical: false,
+						collections: [],
+						locale: "fr",
+						translationOf: "tax:topics:en",
+					},
+					{ name: "topics", label: "Temas", locale: "es", translationOf: "tax:topics:en" },
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const rows = await selectTaxonomyDefs(db).where("d.name", "=", "topics").execute();
+			expect(rows).toHaveLength(3);
+			for (const row of rows) {
+				expect(row).toMatchObject({ hierarchical: 1, collections: JSON.stringify(["posts"]) });
+			}
 		});
 
 		it("imports menu item translations sharing one translation_group", async () => {

@@ -2753,12 +2753,13 @@ export function createMcpServer(
 		{
 			title: "Create Taxonomy Definition",
 			description:
-				"Create a new taxonomy definition. Definitions are per-locale; pass " +
-				"`locale` when the same taxonomy name exists in multiple translations. " +
-				"`collections` names which content types the taxonomy applies to. " +
-				"If `translationOf` is set, the new definition joins the source's " +
-				"translation group and inherits `hierarchical` and `collections` from " +
-				"the source when those fields are omitted.",
+				"Create a taxonomy definition in one locale. `label` and `labelSingular` " +
+				"belong to that locale; `hierarchical` and `collections` belong to the " +
+				"taxonomy and are the same in every locale. `collections` names which " +
+				"content types the taxonomy applies to. A definition for a name that " +
+				"already exists in another locale joins that taxonomy and takes its " +
+				"`hierarchical` and `collections`; passing different values is an error " +
+				"(change them with taxonomy_update).",
 			inputSchema: z.object({
 				name: createTaxonomyDefBody.shape.name.describe(
 					"Taxonomy name (lowercase letters, numbers, underscores)",
@@ -2768,10 +2769,10 @@ export function createMcpServer(
 					"Singular form of the display name",
 				),
 				hierarchical: createTaxonomyDefBody.shape.hierarchical.describe(
-					"Whether the taxonomy supports parent/child terms (defaults to false, or inherited from translationOf)",
+					"Whether the taxonomy supports parent/child terms, in every locale (defaults to false; must match when the taxonomy exists in another locale)",
 				),
 				collections: createTaxonomyDefBody.shape.collections.describe(
-					"Collection slugs this taxonomy applies to (defaults to [], or inherited from translationOf)",
+					"Collection slugs this taxonomy applies to, in every locale (defaults to []; must match when the taxonomy exists in another locale)",
 				),
 				locale: z.string().optional().describe("Locale for this definition (e.g. 'fr-fr')"),
 				translationOf: z
@@ -2811,9 +2812,10 @@ export function createMcpServer(
 			title: "Update Taxonomy Definition",
 			description:
 				"Update an existing taxonomy definition. The taxonomy `name` cannot be " +
-				"changed. Pass `locale` to update a specific translation; otherwise the " +
-				"lowest matching locale is updated. Any field may be omitted to leave it " +
-				"unchanged.",
+				"changed. Pass `locale` to update a specific translation's `label` and " +
+				"`labelSingular`; otherwise the lowest matching locale is updated. " +
+				"`hierarchical` and `collections` change for every locale. Any field " +
+				"may be omitted to leave it unchanged.",
 			inputSchema: z.object({
 				name: z.string().describe("Taxonomy name to update"),
 				label: updateTaxonomyDefBody.shape.label.describe("New display name"),
@@ -2821,10 +2823,10 @@ export function createMcpServer(
 					"New singular display name; pass null to clear",
 				),
 				hierarchical: updateTaxonomyDefBody.shape.hierarchical.describe(
-					"Whether the taxonomy supports parent/child terms",
+					"Whether the taxonomy supports parent/child terms, in every locale",
 				),
 				collections: updateTaxonomyDefBody.shape.collections.describe(
-					"Collection slugs this taxonomy applies to",
+					"Collection slugs this taxonomy applies to, in every locale",
 				),
 				locale: z.string().optional().describe("Locale of the definition to update"),
 			}),

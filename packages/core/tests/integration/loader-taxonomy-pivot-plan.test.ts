@@ -48,7 +48,7 @@ beforeEach(async () => {
 	// Deliberately no ANALYZE: matches D1, which never maintains sqlite_stat1.
 	await runMigrations(db);
 	await db
-		.updateTable("_emdash_taxonomy_defs")
+		.updateTable("_emdash_taxonomy_def_groups")
 		.set({ collections: JSON.stringify(["post"]) })
 		.where("name", "in", ["category", "tag"])
 		.execute();

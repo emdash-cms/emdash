@@ -17,6 +17,10 @@ import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
+import {
+	findTaxonomyStructure,
+	saveTaxonomyStructure,
+} from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
@@ -36,6 +40,7 @@ import type {
 	SeedApplyOptions,
 	SeedApplyResult,
 	SeedCollection,
+	SeedTaxonomy,
 	SeedTaxonomyTerm,
 	SeedMenuItem,
 	SeedWidget,
@@ -374,9 +379,11 @@ export async function applySeed(
 
 	// 4-5. Taxonomies
 	if (seed.taxonomies) {
-		// seed-local id -> resolved info, used to wire `translationOf` refs.
-		const defSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		const termSeedIdMap = new Map<string, string>();
+		const taxonomiesBySeedId = new Map<string, SeedTaxonomy>();
+		for (const taxonomy of seed.taxonomies) {
+			if (taxonomy.id) taxonomiesBySeedId.set(taxonomy.id, taxonomy);
+		}
 
 		for (const taxonomy of seed.taxonomies) {
 			const defLocale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
@@ -384,46 +391,49 @@ export async function applySeed(
 			// (name, locale) is the UNIQUE key after migration 036.
 			const existingDef = await db
 				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
+				.select(["id", "label", "label_singular", "hierarchical", "collections"])
 				.where("name", "=", taxonomy.name)
 				.where("locale", "=", defLocale)
 				.executeTakeFirst();
+			const unclaimed = existingDef !== undefined && isUntouchedBuiltInTaxonomyDef(existingDef);
+			if (existingDef && onConflict === "error" && !unclaimed) {
+				throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
+			}
+			const replacesDef = onConflict === "update" || unclaimed;
 
-			let defId: string;
-			let defTranslationGroup: string;
+			// The structure belongs to the taxonomy, not the locale: a translation of
+			// an entry with the same name takes that entry's `hierarchical` and
+			// `collections`, even when it comes first, and an existing taxonomy's are
+			// rewritten only by a source entry that replaces its definition.
+			const source = taxonomy.translationOf
+				? taxonomiesBySeedId.get(taxonomy.translationOf)
+				: undefined;
+			const declared = source?.name === taxonomy.name ? source : taxonomy;
+			const existingStructure = await findTaxonomyStructure(db, taxonomy.name);
+			const writesStructure = !existingStructure || (replacesDef && !taxonomy.translationOf);
+			const structure =
+				existingStructure && !writesStructure
+					? existingStructure
+					: {
+							hierarchical: declared.hierarchical ?? existingStructure?.hierarchical ?? false,
+							collections: declared.collections ?? existingStructure?.collections ?? [],
+						};
+			const defId = existingDef?.id ?? ulid();
+			const translationGroup = writesStructure
+				? await saveTaxonomyStructure(db, taxonomy.name, existingStructure?.id ?? defId, structure)
+				: existingStructure.id;
 
 			if (existingDef) {
-				defId = existingDef.id;
-				defTranslationGroup = existingDef.translation_group ?? existingDef.id;
-				const unclaimed = isUntouchedBuiltInTaxonomyDef(existingDef);
-				if (onConflict === "error" && !unclaimed) {
-					throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
-				}
-				if (onConflict === "skip" && !unclaimed) {
-					result.taxonomies.skipped++;
-				} else {
+				if (replacesDef) {
 					await db
 						.updateTable("_emdash_taxonomy_defs")
-						.set({
-							label: taxonomy.label,
-							label_singular: taxonomy.labelSingular ?? null,
-							hierarchical: taxonomy.hierarchical ? 1 : 0,
-							collections: JSON.stringify(taxonomy.collections),
-						})
+						.set({ label: taxonomy.label, label_singular: taxonomy.labelSingular ?? null })
 						.where("id", "=", existingDef.id)
 						.execute();
+				} else {
+					result.taxonomies.skipped++;
 				}
 			} else {
-				defId = ulid();
-				defTranslationGroup = defId;
-				if (taxonomy.translationOf) {
-					const source = defSeedIdMap.get(taxonomy.translationOf);
-					if (source) defTranslationGroup = source.translationGroup;
-					else
-						console.warn(
-							`taxonomy "${taxonomy.name}" (${defLocale}): translationOf "${taxonomy.translationOf}" not found yet; minting a fresh group.`,
-						);
-				}
 				await db
 					.insertInto("_emdash_taxonomy_defs")
 					.values({
@@ -431,23 +441,20 @@ export async function applySeed(
 						name: taxonomy.name,
 						label: taxonomy.label,
 						label_singular: taxonomy.labelSingular ?? null,
-						hierarchical: taxonomy.hierarchical ? 1 : 0,
-						collections: JSON.stringify(taxonomy.collections),
+						hierarchical: structure.hierarchical ? 1 : 0,
+						collections: JSON.stringify(structure.collections),
 						locale: defLocale,
-						translation_group: defTranslationGroup,
+						translation_group: translationGroup,
 					})
 					.execute();
 				result.taxonomies.created++;
 			}
 
-			if (taxonomy.id)
-				defSeedIdMap.set(taxonomy.id, { id: defId, translationGroup: defTranslationGroup });
-
 			// Create terms (if provided)
 			if (includeContent && taxonomy.terms && taxonomy.terms.length > 0) {
 				const termRepo = new TaxonomyRepository(db);
 
-				if (taxonomy.hierarchical) {
+				if (structure.hierarchical) {
 					await applyHierarchicalTerms(
 						termRepo,
 						taxonomy.name,

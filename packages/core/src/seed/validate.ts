@@ -262,6 +262,10 @@ export function validateSeed(data: unknown): ValidationResult {
 			errors.push("taxonomies must be an array");
 		} else {
 			const taxonomyNames = new Set<string>();
+			const taxonomiesById = new Map<string, { name: string; hierarchical?: boolean }>();
+			for (const taxonomy of seed.taxonomies) {
+				if (taxonomy.id) taxonomiesById.set(taxonomy.id, taxonomy);
+			}
 
 			for (let i = 0; i < seed.taxonomies.length; i++) {
 				const taxonomy = seed.taxonomies[i];
@@ -287,17 +291,37 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: label is required`);
 				}
 
-				if (taxonomy.hierarchical === undefined) {
+				// A translation takes its taxonomy's structure, so it may omit both, but only
+				// from an entry of the same taxonomy.
+				if (
+					taxonomy.translationOf &&
+					(taxonomy.hierarchical === undefined || taxonomy.collections === undefined) &&
+					taxonomiesById.get(taxonomy.translationOf)?.name !== taxonomy.name
+				) {
+					errors.push(
+						`${prefix}.translationOf: "${taxonomy.translationOf}" is not an entry of taxonomy "${taxonomy.name}", so hierarchical and collections are required`,
+					);
+				}
+
+				if (taxonomy.hierarchical === undefined && !taxonomy.translationOf) {
 					errors.push(`${prefix}: hierarchical is required`);
 				}
 
-				if (!Array.isArray(taxonomy.collections)) {
+				if (taxonomy.collections === undefined) {
+					if (!taxonomy.translationOf) errors.push(`${prefix}.collections: must be an array`);
+				} else if (!Array.isArray(taxonomy.collections)) {
 					errors.push(`${prefix}.collections: must be an array`);
-				} else if (taxonomy.collections.length === 0) {
+				} else if (taxonomy.collections.length === 0 && !taxonomy.translationOf) {
 					warnings.push(
 						`${prefix}.collections: taxonomy "${taxonomy.name}" is not assigned to any collections`,
 					);
 				}
+
+				const hierarchical =
+					taxonomy.hierarchical ??
+					(taxonomy.translationOf
+						? taxonomiesById.get(taxonomy.translationOf)?.hierarchical
+						: undefined);
 
 				// Validate terms if present
 				if (taxonomy.terms) {
@@ -332,9 +356,9 @@ export function validateSeed(data: unknown): ValidationResult {
 							}
 
 							// Check parent reference validity (for hierarchical taxonomies)
-							if (term.parent && taxonomy.hierarchical) {
+							if (term.parent && hierarchical) {
 								// Parent will be validated in a second pass
-							} else if (term.parent && !taxonomy.hierarchical) {
+							} else if (term.parent && !hierarchical) {
 								warnings.push(
 									`${termPrefix}.parent: taxonomy "${taxonomy.name}" is not hierarchical, parent will be ignored`,
 								);
@@ -342,7 +366,7 @@ export function validateSeed(data: unknown): ValidationResult {
 						}
 
 						// Second pass: validate parent references (within the same locale).
-						if (taxonomy.hierarchical && taxonomy.terms) {
+						if (hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
 								const termLocale = resolveConfiguredLocale(

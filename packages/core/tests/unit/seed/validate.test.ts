@@ -397,6 +397,59 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain('taxonomies[1].name: duplicate taxonomy name "category"');
 		});
 
+		it("lets a translation omit its structure only when it points at the same taxonomy", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "genre:en",
+						name: "genre",
+						label: "Genres",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{ name: "genre", label: "Géneros", locale: "es", translationOf: "genre:en" },
+					{ name: "gattung", label: "Gattungen", locale: "de", translationOf: "genre:en" },
+				],
+			});
+			expect(result.errors).toEqual([
+				'taxonomies[2].translationOf: "genre:en" is not an entry of taxonomy "gattung", so hierarchical and collections are required',
+			]);
+		});
+
+		it("checks a translation's term parents against its taxonomy's hierarchy", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+						terms: [{ slug: "news", label: "News" }],
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+						terms: [
+							{ slug: "noticias", label: "Noticias" },
+							{ slug: "local", label: "Local", parent: "noticias" },
+							{ slug: "mundo", label: "Mundo", parent: "missing" },
+						],
+					},
+				],
+			});
+			expect(result.warnings).toEqual([]);
+			expect(result.errors).toEqual([
+				'taxonomies[1].terms[2].parent: parent term "missing" not found in taxonomy',
+			]);
+		});
+
 		it("should validate term properties", () => {
 			const result = validateSeed({
 				version: "1",

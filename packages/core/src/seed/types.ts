@@ -145,8 +145,10 @@ export interface SeedTaxonomy {
 	name: string;
 	label: string;
 	labelSingular?: string;
-	hierarchical: boolean;
-	collections: string[];
+	/** Required unless `translationOf` points at an entry with the same `name`, which then supplies it. Shared by every locale. */
+	hierarchical?: boolean;
+	/** Required unless `translationOf` points at an entry with the same `name`, which then supplies it. Shared by every locale. */
+	collections?: string[];
 	locale?: string;
 	translationOf?: string;
 	terms?: SeedTaxonomyTerm[];

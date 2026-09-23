@@ -29,6 +29,10 @@ import {
 	type VersionedRedirectRecord,
 } from "../database/repositories/redirect.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import {
+	findTaxonomyStructure,
+	selectTaxonomyDefs,
+} from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
@@ -391,9 +395,9 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 
 	return {
 		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
-			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
-			const rows = await query.orderBy("name", "asc").execute();
+			let query = selectTaxonomyDefs(db);
+			if (options?.locale !== undefined) query = query.where("d.locale", "=", options.locale);
+			const rows = await query.orderBy("d.name", "asc").execute();
 			return rows.map((row) => ({
 				name: row.name,
 				label: row.label,
@@ -644,15 +648,11 @@ async function resolveTaxonomyDelta(
 		throw taxonomyAccessError("VALIDATION_ERROR", "Taxonomy term IDs must be non-empty strings");
 	}
 
-	const defs = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.select(["collections"])
-		.where("name", "=", taxonomy)
-		.execute();
-	if (defs.length === 0) {
+	const structure = await findTaxonomyStructure(db, taxonomy);
+	if (!structure) {
 		throw taxonomyAccessError("NOT_FOUND", `Taxonomy '${taxonomy}' not found`);
 	}
-	const attached = defs.some((def) => parseCollectionsColumn(def.collections).includes(collection));
+	const attached = structure.collections.includes(collection);
 	if (!attached) {
 		throw taxonomyAccessError(
 			"VALIDATION_ERROR",
