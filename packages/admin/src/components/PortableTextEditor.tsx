@@ -829,9 +829,9 @@ function convertPMNode(
 				_type: blockType,
 				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
 			};
-			const identityField = originalBlock
-				? (customBlockIdentityField(originalBlock) ?? (pluginId ? "id" : undefined))
-				: "id";
+			const identityField =
+				(originalBlock ? customBlockIdentityField(originalBlock) : undefined) ??
+				(pluginId ? "id" : undefined);
 			if (identityField) result[identityField] = pluginId;
 			return result as PortableTextBlock;
 		}
