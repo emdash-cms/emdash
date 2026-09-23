@@ -1,4 +1,4 @@
-import type { PluginContext } from "emdash";
+import { definePlugin, type PluginContext, type PluginDefinition } from "emdash";
 import type { EmailDeliverEvent } from "emdash/plugin";
 import { describe, it, expect, vi } from "vitest";
 
@@ -44,6 +44,13 @@ describe("cloudflareEmail()", () => {
 		expect(() =>
 			cloudflareEmail({ from: { email: "not-an-address" } } as CloudflareEmailConfig),
 		).toThrow(/config\.from is required/);
+	});
+
+	it("cannot be wrapped in definePlugin(), which would drop its hooks", () => {
+		const descriptor = cloudflareEmail({ from: "cms@mails.example.com" });
+		expect(() => definePlugin(descriptor as unknown as PluginDefinition)).toThrow(
+			/plugin descriptor for "cloudflare-email"/,
+		);
 	});
 });
 
