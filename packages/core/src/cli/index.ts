@@ -17,6 +17,7 @@ import { schemaCommand } from "./commands/schema.js";
 import { searchCommand } from "./commands/search-cmd.js";
 import { secretsCommand } from "./commands/secrets.js";
 import { seedCommand } from "./commands/seed.js";
+import { siteCommand } from "./commands/site.js";
 import { taxonomyCommand } from "./commands/taxonomy.js";
 import { typesCommand } from "./commands/types.js";
 
@@ -47,6 +48,7 @@ const main = defineCommand({
 		taxonomy: taxonomyCommand,
 		menu: menuCommand,
 		plugin: pluginCommand,
+		site: siteCommand,
 	},
 });
 
