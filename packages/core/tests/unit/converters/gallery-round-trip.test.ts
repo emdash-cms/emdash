@@ -193,6 +193,61 @@ describe("gallery block round-trip (core converters)", () => {
 		});
 	});
 
+	it("keeps the media reference of a seeded $media asset", () => {
+		const seeded = {
+			_type: "gallery",
+			_key: "gal004",
+			images: [
+				{
+					_type: "image",
+					_key: "img001",
+					asset: {
+						provider: "local",
+						id: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+						alt: "Local",
+						width: 1400,
+						height: 963,
+						mimeType: "image/jpeg",
+						meta: { storageKey: "01M2QZRZR8HDNT3039QNQ95B9D.jpg" },
+					},
+				},
+				{
+					_type: "image",
+					_key: "img002",
+					asset: { provider: "external", id: "01EXT", src: "https://example.com/photo.jpg" },
+				},
+			],
+		};
+
+		const pt = prosemirrorToPortableText(portableTextToProsemirror([seeded]));
+		const restored = pt[0] as PortableTextGalleryBlock;
+		expect(restored.images).toEqual([
+			{
+				_type: "image",
+				_key: "img001",
+				asset: {
+					_type: "reference",
+					_ref: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+					url: "/_emdash/api/media/file/01M2QZRZR8HDNT3039QNQ95B9D.jpg",
+					provider: "local",
+				},
+				alt: "Local",
+				width: 1400,
+				height: 963,
+			},
+			{
+				_type: "image",
+				_key: "img002",
+				asset: {
+					_type: "reference",
+					_ref: "01EXT",
+					url: "https://example.com/photo.jpg",
+					provider: "external",
+				},
+			},
+		]);
+	});
+
 	it("preserves galleries among other block types", () => {
 		const blocks = [
 			{

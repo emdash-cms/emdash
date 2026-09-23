@@ -559,4 +559,74 @@ describe("$media seed resolution", () => {
 			alt: "Image two",
 		});
 	});
+
+	it("should resolve $media in a gallery block to a media reference", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createField("posts", {
+			slug: "body",
+			label: "Body",
+			type: "portableText",
+		});
+
+		mockFetch.mockResolvedValueOnce(createMockResponse(MOCK_JPEG, "image/jpeg"));
+
+		const seed: SeedFile = {
+			version: "1",
+			content: {
+				posts: [
+					{
+						id: "post-1",
+						slug: "hello",
+						data: {
+							title: "Hello",
+							body: [
+								{
+									_type: "gallery",
+									_key: "gal1",
+									columns: 3,
+									images: [
+										{
+											_type: "image",
+											_key: "img1",
+											asset: { $media: { url: "https://example.com/photo.jpg", alt: "A photo" } },
+										},
+									],
+								},
+							],
+						},
+					},
+				],
+			},
+		};
+
+		await applySeed(db, seed, { includeContent: true, storage, baseUrl: "" });
+
+		const contentRepo = new ContentRepository(db);
+		const entry = await contentRepo.findBySlug("posts", "hello");
+		const media = await db
+			.selectFrom("media")
+			.select(["id", "storage_key"])
+			.executeTakeFirstOrThrow();
+
+		expect(entry?.data.body).toEqual([
+			{
+				_type: "gallery",
+				_key: "gal1",
+				columns: 3,
+				images: [
+					{
+						_type: "image",
+						_key: "img1",
+						asset: {
+							_type: "reference",
+							_ref: media.id,
+							url: `/_emdash/api/media/file/${media.storage_key}`,
+							provider: "local",
+						},
+						alt: "A photo",
+					},
+				],
+			},
+		]);
+	});
 });
