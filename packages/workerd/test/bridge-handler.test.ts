@@ -1160,6 +1160,14 @@ describe("Bridge Handler Conformance", () => {
 			const result = await call(handler, "email/send", { message });
 			expect(result.error).toBeUndefined();
 			expect(send).toHaveBeenCalledWith(message, "forms");
+
+			for (const invalid of [{ cc: "team@b.com" }, { cc: [42] }, { replyTo: 42 }]) {
+				const rejected = await call(handler, "email/send", {
+					message: { ...message, ...invalid },
+				});
+				expect(rejected.error).toContain("email/send requires message");
+			}
+			expect(send).toHaveBeenCalledTimes(1);
 		});
 	});
 

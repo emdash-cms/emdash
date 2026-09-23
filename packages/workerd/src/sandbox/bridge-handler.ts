@@ -1002,6 +1002,8 @@ function isEmailMessage(value: unknown): value is EmailMessage {
 	if (typeof value.subject !== "string") return false;
 	if (typeof value.text !== "string") return false;
 	if (value.html !== undefined && typeof value.html !== "string") return false;
+	if (value.cc !== undefined && !isStringArray(value.cc)) return false;
+	if (value.replyTo !== undefined && typeof value.replyTo !== "string") return false;
 	return true;
 }
 
@@ -1219,7 +1221,9 @@ function requireMediaBytes(body: Record<string, unknown>, key: string): string |
 function requireEmailMessage(body: Record<string, unknown>, key: string): EmailMessage {
 	const value = body[key];
 	if (!isEmailMessage(value)) {
-		throw new Error("email/send requires message with to, subject, and text");
+		throw new Error(
+			"email/send requires message with to, subject, and text; cc must be an array of strings and replyTo a string",
+		);
 	}
 	return value;
 }
