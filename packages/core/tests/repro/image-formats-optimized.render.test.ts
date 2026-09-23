@@ -66,6 +66,8 @@ describe("Image formats on the optimized (non-AstroPicture) path", () => {
 	});
 
 	test("a fallbackFormat listed in formats keeps that format as a source", async () => {
+		const { getImage } = await import("astro:assets");
+		vi.mocked(getImage).mockClear();
 		const html = await render({
 			image: remoteImage,
 			formats: ["avif", "webp"],
@@ -76,6 +78,8 @@ describe("Image formats on the optimized (non-AstroPicture) path", () => {
 		expect(sources.map((s) => attr(s, "type"))).toEqual(["image/avif", "image/webp"]);
 		expect(attr(sources[0]!, "srcset")).toContain("f=avif");
 		expect(attr(imgTag(html), "src")).toContain("f=avif");
+		// The avif source reuses the fallback's result: one call per distinct format.
+		expect(vi.mocked(getImage)).toHaveBeenCalledTimes(2);
 	});
 
 	test("without formats the optimized path stays a single img", async () => {

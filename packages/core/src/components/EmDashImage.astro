@@ -178,12 +178,14 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 				sizes = optimized.sizes;
 				const alternates = await Promise.all(
 					sourceFormats.map((sourceFormat) =>
-						buildResponsiveImage(getImage, {
-							src: absoluteSrc,
-							width: finalWidth,
-							height: finalHeight,
-							format: sourceFormat,
-						}).then((alternate) => ({ sourceFormat, alternate })),
+						sourceFormat === imgFormat
+							? Promise.resolve({ sourceFormat, alternate: optimized })
+							: buildResponsiveImage(getImage, {
+									src: absoluteSrc,
+									width: finalWidth,
+									height: finalHeight,
+									format: sourceFormat,
+								}).then((alternate) => ({ sourceFormat, alternate })),
 					),
 				);
 				for (const { sourceFormat, alternate } of alternates) {
