@@ -21,6 +21,14 @@
 
 // Wrapper component with EmDash defaults
 export { default as PortableText } from "./PortableText.astro";
+export { default as Blocks } from "./Blocks.astro";
+export {
+	defineBlockComponents,
+	type BlockComponent,
+	type BlockComponentProps,
+	type BlockComponents,
+	type BlockValue,
+} from "./blocks.js";
 
 /**
  * @deprecated Import from `emdash/ui/comments` instead. Barrel re-exports pull
