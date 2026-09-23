@@ -7,9 +7,13 @@ export { cn, formatRelativeTime } from "./utils.js";
 export { blocks, elements } from "./builders.js";
 export {
 	BLOCK_RESPONSE_LIMITS,
+	isEditorDraftPatchEffect,
 	isSafePluginPagePath,
 	normalizePluginPagePath,
 	validateBlocks,
+	validateContentEditorActionResponse,
+	validateContentEditorPanelInteraction,
+	validateEditorDraftPatchEffect,
 } from "./validation.js";
 
 // Re-export all types
@@ -76,6 +80,11 @@ export type {
 	ContentEditorActionInvocation,
 	PluginUiContext,
 	ContentEditorActionResponse,
+	EditorDraftFieldDefinition,
+	EditorDraftInvocationReceipt,
+	EditorDraftPatchEffect,
+	EditorDraftPatchOperation,
+	EditorDraftSnapshot,
 	// Response
 	BlockResponse,
 } from "./types.js";

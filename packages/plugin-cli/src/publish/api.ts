@@ -83,8 +83,8 @@ export type PublishErrorCode =
 	| "PROFILE_EXTENSION_INVALID"
 	| "PROFILE_INVALID"
 	| "PROFILE_PROVENANCE_REQUIRED"
+	| "PROFILE_REPOSITORY_INVALID"
 	| "PROFILE_REPOSITORY_MISMATCH"
-	| "PROFILE_REPOSITORY_MISSING"
 	| "RELEASE_ALREADY_PUBLISHED";
 
 export class PublishError extends Error {
@@ -893,15 +893,20 @@ function manualPublishExtensions(
 	const repository = releaseRepository ? canonicalizeRepositoryUrl(releaseRepository) : null;
 
 	if (current === undefined) {
-		if (!repository) {
+		if (releaseRepository !== undefined && !repository) {
 			throw new PublishError(
-				"PROFILE_REPOSITORY_MISSING",
-				"A canonical HTTPS repository URL is required so the published plugin can be verified during installation. Add `repo` to emdash-plugin.jsonc.",
+				"PROFILE_REPOSITORY_INVALID",
+				"The plugin repository must be a canonical HTTPS URL.",
 			);
 		}
+		if (!repository) return extensions;
 		extensions[NSID.packageProfileExtension] = {
 			$type: NSID.packageProfileExtension,
 			repository,
+			releasePolicy: {
+				$type: `${NSID.packageProfileExtension}#releasePolicy`,
+				requireProvenance: false,
+			},
 		};
 		return extensions;
 	}

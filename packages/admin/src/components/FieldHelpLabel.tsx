@@ -7,7 +7,7 @@ export function FieldHelpLabel({
 	help,
 	helpLabel,
 	htmlFor,
-	labelClassName = "text-sm font-medium text-kumo-default",
+	labelClassName = "text-base font-medium text-kumo-default",
 }: {
 	children: ReactNode;
 	help: ReactNode;

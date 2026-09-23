@@ -118,53 +118,6 @@ const DEFAULT_POLICY: NormalizedReleasePolicy = {
 	approvers: [],
 };
 
-const LEGACY_PROFILES_WITHOUT_EXTENSION = new Set([
-	legacyProfileKey(
-		"did:plc:n4mihg5idgr5ne4jigcmbh4k",
-		"ai-search",
-		"bafyreigs6upwh7stzzzgn6riij7g3bkwtctz5yevp5zsj2hvwphep2dw2a",
-	),
-	legacyProfileKey(
-		"did:plc:nna4pfpnegfsgaym44xqhawf",
-		"forward-email",
-		"bafyreiftqwqkeswo7wlmjpsuaahx3eq67qxyhbyzb3rx3uxxg6y7skn2iu",
-	),
-	legacyProfileKey(
-		"did:plc:juoj6qmxkdbbino76mobq2on",
-		"emdash-to-buffer",
-		"bafyreihr554isikxf2bl4vt3w2frsi6sdm6okdhswantu2l6sgjaspjuge",
-	),
-	legacyProfileKey(
-		"did:plc:tsp7az5h6qsqjzqsgz37wonx",
-		"freeform",
-		"bafyreieycjq4jve7dpx73e3ven4osxe4keihgd6k2ij56gzjca35n2cotu",
-	),
-	legacyProfileKey(
-		"did:plc:iilkrygvrmyedxyfqnwmnfe5",
-		"contact-form",
-		"bafyreicnqc7sqhq2pb77swwo2hm3eakltsy2pz3pl6jcybrwkxh4lqpgkq",
-	),
-	legacyProfileKey(
-		"did:plc:5htva5ewwisu7gfjou2o4mee",
-		"emdash-cf-email-sending",
-		"bafyreidy4456iepmc5qtetivyqph6czibq5lw56ubhiia43n4hun32mdwi",
-	),
-]);
-
-export function isLegacyProfileWithoutExtension(
-	publisherDid: string,
-	packageSlug: string,
-	profileCid: string | undefined,
-): boolean {
-	return LEGACY_PROFILES_WITHOUT_EXTENSION.has(
-		legacyProfileKey(publisherDid, packageSlug, profileCid ?? ""),
-	);
-}
-
-function legacyProfileKey(publisherDid: string, packageSlug: string, profileCid: string): string {
-	return `${publisherDid}\u0000${packageSlug}\u0000${profileCid}`;
-}
-
 /** Validate signed profile/release records without evaluating provenance evidence. */
 export async function inspectPackageReleaseRecords(
 	input: RecordInspectionInput,
@@ -195,9 +148,6 @@ export async function inspectPackageReleaseRecords(
 	if (rawProfileExtension === undefined) {
 		if (profile.extensions !== undefined && !isRecord(profile.extensions)) {
 			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-		}
-		if (!isLegacyProfileWithoutExtension(input.publisherDid, input.package, input.profileCid)) {
-			return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
 		}
 	} else {
 		profileExtension = await parseLexicon(PackageProfileExtension.mainSchema, rawProfileExtension);
