@@ -22,13 +22,15 @@
  */
 import type { ImageValue, MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
-import { Image as AstroImage, getImage } from "astro:assets";
+import { Image as AstroImage, Picture as AstroPicture, getImage } from "astro:assets";
+import type { ImageTransformFormat } from "../media/image-endpoint.js";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
+	formatContentType,
 	toAbsoluteMediaUrl,
 	RESPONSIVE_BREAKPOINTS,
 } from "../media/responsive.js";
@@ -56,6 +58,16 @@ interface Props extends Omit<
 	priority?: boolean;
 	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
 	placeholder?: boolean;
+	/**
+	 * Output formats, most preferred first. With more than one format the
+	 * component renders a `<picture>`: the last entry (or `fallbackFormat`)
+	 * becomes the `<img>` and the others become `<source>` elements in order.
+	 * Only applies to media optimized by the site's image service; images from
+	 * external media providers keep the provider's own URLs.
+	 */
+	formats?: ImageTransformFormat[];
+	/** Format for the fallback `<img>` when `formats` is set. Defaults to the last entry of `formats`. */
+	fallbackFormat?: ImageTransformFormat;
 }
 
 const {
@@ -66,6 +78,8 @@ const {
 	height,
 	priority,
 	placeholder = true,
+	formats,
+	fallbackFormat,
 	class: className,
 	id,
 	...attrs
@@ -109,6 +123,12 @@ function generateSrcset(
 		.join(", ");
 }
 
+// The fallback `<img>` uses the last requested format unless overridden. With
+// an explicit `fallbackFormat`, every `formats` entry stays a `<source>` (like
+// Astro's `<Picture>`), so the preference order the caller listed is kept.
+const imgFormat = formats?.length ? (fallbackFormat ?? formats.at(-1)) : undefined;
+const sourceFormats = formats?.length ? (fallbackFormat ? formats : formats.slice(0, -1)) : [];
+
 interface ResolvedImage {
 	src: string;
 	srcset?: string;
@@ -117,6 +137,8 @@ interface ResolvedImage {
 	width?: number;
 	height?: number;
 	generatedStyle: string;
+	/** Per-format `<source>` data when this render needs a `<picture>`. */
+	sources: { type: string; srcset: string; sizes?: string }[];
 }
 
 /**
@@ -133,6 +155,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	let srcset: string | undefined;
 	let sizes: string | undefined;
 	let astroImageSrc = "";
+	const sources: ResolvedImage["sources"] = [];
 
 	const providerId = img.provider ?? "local";
 
@@ -147,11 +170,30 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 				src: absoluteSrc,
 				width: finalWidth,
 				height: finalHeight,
+				format: imgFormat,
 			});
 			if (optimized) {
 				src = optimized.src;
 				srcset = optimized.srcset;
 				sizes = optimized.sizes;
+				const alternates = await Promise.all(
+					sourceFormats.map((sourceFormat) =>
+						buildResponsiveImage(getImage, {
+							src: absoluteSrc,
+							width: finalWidth,
+							height: finalHeight,
+							format: sourceFormat,
+						}).then((alternate) => ({ sourceFormat, alternate })),
+					),
+				);
+				for (const { sourceFormat, alternate } of alternates) {
+					if (!alternate) continue;
+					sources.push({
+						type: formatContentType(sourceFormat),
+						srcset: alternate.srcset || alternate.src,
+						sizes: alternate.srcset ? alternate.sizes : undefined,
+					});
+				}
 			}
 		}
 	} else {
@@ -225,6 +267,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 		width: finalWidth,
 		height: finalHeight,
 		generatedStyle,
+		sources,
 	};
 }
 
@@ -269,42 +312,100 @@ const astroClass = (variantClass: string | undefined) =>
 
 {
 	resolved && resolved.astroImageSrc ? (
-		<AstroImage
-			id={id}
-			src={resolved.astroImageSrc}
-			alt={finalAlt}
-			width={resolved.width}
-			height={resolved.height}
-			priority={priority}
-			layout="constrained"
-			loading={priority ? "eager" : "lazy"}
-			decoding="async"
-			class={astroClass(lightClass)}
-			style={resolved.generatedStyle || undefined}
-			{...attrs}
-		/>
+		sourceFormats.length ? (
+			<AstroPicture
+				id={id}
+				src={resolved.astroImageSrc}
+				alt={finalAlt}
+				width={resolved.width}
+				height={resolved.height}
+				priority={priority}
+				layout="constrained"
+				formats={sourceFormats}
+				fallbackFormat={imgFormat}
+				loading={priority ? "eager" : "lazy"}
+				decoding="async"
+				class={astroClass(lightClass)}
+				style={resolved.generatedStyle || undefined}
+				{...attrs}
+			/>
+		) : (
+			<AstroImage
+				id={id}
+				src={resolved.astroImageSrc}
+				alt={finalAlt}
+				width={resolved.width}
+				height={resolved.height}
+				priority={priority}
+				layout="constrained"
+				format={imgFormat}
+				loading={priority ? "eager" : "lazy"}
+				decoding="async"
+				class={astroClass(lightClass)}
+				style={resolved.generatedStyle || undefined}
+				{...attrs}
+			/>
+		)
 	) : resolved && resolved.src ? (
-		<img {...imgProps(resolved, lightClass, id)} />
+		resolved.sources.length ? (
+			<picture>
+				{resolved.sources.map((source) => (
+					<source type={source.type} srcset={source.srcset} sizes={source.sizes} />
+				))}
+				<img {...imgProps(resolved, lightClass, id)} />
+			</picture>
+		) : (
+			<img {...imgProps(resolved, lightClass, id)} />
+		)
 	) : null
 }
 {
 	resolvedDark && resolvedDark.astroImageSrc ? (
-		<AstroImage
-			id={darkId}
-			src={resolvedDark.astroImageSrc}
-			alt={finalAlt}
-			width={resolvedDark.width}
-			height={resolvedDark.height}
-			priority={priority}
-			layout="constrained"
-			loading={priority ? "eager" : "lazy"}
-			decoding="async"
-			class={astroClass("emdash-image--dark")}
-			style={resolvedDark.generatedStyle || undefined}
-			{...attrs}
-		/>
+		sourceFormats.length ? (
+			<AstroPicture
+				id={darkId}
+				src={resolvedDark.astroImageSrc}
+				alt={finalAlt}
+				width={resolvedDark.width}
+				height={resolvedDark.height}
+				priority={priority}
+				layout="constrained"
+				formats={sourceFormats}
+				fallbackFormat={imgFormat}
+				loading={priority ? "eager" : "lazy"}
+				decoding="async"
+				class={astroClass("emdash-image--dark")}
+				style={resolvedDark.generatedStyle || undefined}
+				{...attrs}
+			/>
+		) : (
+			<AstroImage
+				id={darkId}
+				src={resolvedDark.astroImageSrc}
+				alt={finalAlt}
+				width={resolvedDark.width}
+				height={resolvedDark.height}
+				priority={priority}
+				layout="constrained"
+				format={imgFormat}
+				loading={priority ? "eager" : "lazy"}
+				decoding="async"
+				class={astroClass("emdash-image--dark")}
+				style={resolvedDark.generatedStyle || undefined}
+				{...attrs}
+			/>
+		)
 	) : resolvedDark && resolvedDark.src ? (
-		<img {...imgProps(resolvedDark, "emdash-image--dark", darkId)} />
+		resolvedDark.sources.length ? (
+			<picture>
+				{resolvedDark.sources.map((source) => (
+					<source type={source.type} srcset={source.srcset} sizes={source.sizes} />
+				))}
+				<img {...imgProps(resolvedDark, "emdash-image--dark", darkId)} />
+			</picture>
+		) : (
+			<img {...imgProps(resolvedDark, "emdash-image--dark", darkId)} />
+		)
 	) : null
 }
 

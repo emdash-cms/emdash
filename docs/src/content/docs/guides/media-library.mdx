@@ -275,6 +275,25 @@ Use `priority` only for the main image visible at the top of the page. It reques
 gives the browser a high fetch-priority hint. Other images should retain the component's lazy-loading
 default.
 
+To serve a modern format with a fallback for older browsers, pass `formats` with the preferred
+formats first. With more than one format, the component renders a `<picture>` element: the last
+entry becomes the fallback `<img>` and the earlier entries become `<source>` elements in order.
+A single-entry `formats` renders one `<img>` in that format. Pass `fallbackFormat` to use a
+different format for the `<img>`; every `formats` entry then stays a `<source>`.
+
+```astro
+<Image
+  image={post.data.featured_image}
+  width={1200}
+  height={675}
+  formats={["avif", "webp"]}
+/>
+```
+
+Supported formats are `avif`, `webp`, `jpeg`, and `png`. `formats` applies to images optimized by
+the site's image service; images from external media providers keep the provider's own URLs. Without
+`formats`, the component renders a single `<img>` in the image service's default format, as before.
+
 If the field has a dark-mode counterpart, `Image` renders both sources and selects one from the
 visitor's color scheme. See [Dark mode images](/guides/dark-mode/#dark-image-variants) for the field and
 template setup.
