@@ -7,8 +7,8 @@ import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
-import { useAdminBranding } from "../lib/admin-branding-context";
-import { apiFetch } from "../lib/api";
+import { useAdminBranding } from "../lib/admin-branding-context.js";
+import { apiFetch } from "../lib/api.js";
 import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
