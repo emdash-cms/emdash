@@ -19,6 +19,7 @@ import type { Database } from "./database/types.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
 import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
+import { collectTransferStaging } from "./transfer/gc.js";
 
 /**
  * Result of a system cleanup run.
@@ -32,6 +33,8 @@ export interface CleanupResult {
 	uploadAttempts: number;
 	revisionsPruned: number;
 	mediaUsage: number;
+	/** Transfer operations whose staging area was collected. */
+	transferStaging: number;
 }
 
 const REVISION_KEEP_COUNT = 50;
@@ -60,6 +63,7 @@ export async function runSystemCleanup(
 		uploadAttempts: -1,
 		revisionsPruned: -1,
 		mediaUsage: -1,
+		transferStaging: -1,
 	};
 
 	// 1. Passkey challenges (expire after 60s, clean anything past 5 min)
@@ -140,6 +144,16 @@ export async function runSystemCleanup(
 		result.mediaUsage = mediaUsage.status === "failed" ? -1 : mediaUsage.deletedRows;
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media usage:", error);
+	}
+
+	if (storage) {
+		try {
+			result.transferStaging = (await collectTransferStaging(db, storage)).collected;
+		} catch (error) {
+			console.error("[transfer] Failed to collect transfer staging:", error);
+		}
+	} else {
+		result.transferStaging = 0;
 	}
 
 	return result;

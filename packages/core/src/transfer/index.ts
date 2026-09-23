@@ -388,10 +388,29 @@ export {
 	unpackSitePackage,
 } from "./container/tar.js";
 
+export type {
+	SiteWriteFenceCode,
+	SiteWriteFenceError,
+	SiteWriteFenceScope,
+	SiteWriteFenceStatus,
+	RecordSiteWrite,
+} from "./fence.js";
+export {
+	assertSiteWriteAllowed,
+	checkSiteWriteFence,
+	findSiteWriteFenceError,
+	readSiteWriteFence,
+	recordSiteWrite,
+	SiteWriteBlockedError,
+} from "./fence.js";
+
 export type { DomainBlocker, PortableDomainInspection, ScaffoldItem } from "./domain.js";
 export { inspectPortableDomain } from "./domain.js";
 
 export { getOrCreateSiteId, SITE_ID_OPTION } from "./site-id.js";
+
+export type { TransferStagingCollectionOptions, TransferStagingCollectionResult } from "./gc.js";
+export { collectTransferStaging, IMPORT_STAGING_RETENTION_SECONDS } from "./gc.js";
 
 export type {
 	CollectionImporter,
