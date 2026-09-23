@@ -3375,6 +3375,9 @@ export class EmDashRuntime {
 		const collectionInfo = await this.schemaRegistry
 			.getCollectionWithFields(collection)
 			.catch(() => null);
+		const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
+			? await resolveBlockTypes(this.db)
+			: undefined;
 		if (collectionInfo) {
 			try {
 				processedData = await normalizeBlocksData(
@@ -3387,6 +3390,7 @@ export class EmDashRuntime {
 						replaceBlocks: body.replaceBlocks,
 					},
 					false,
+					resolvedBlockTypes,
 				);
 			} catch (error) {
 				if (error instanceof SchemaError) {
@@ -3400,7 +3404,12 @@ export class EmDashRuntime {
 		}
 
 		// Normalize media fields (fill dimensions, storageKey, etc.)
-		processedData = await this.normalizeMediaFields(collection, processedData, collectionInfo);
+		processedData = await this.normalizeMediaFields(
+			collection,
+			processedData,
+			collectionInfo,
+			resolvedBlockTypes,
+		);
 
 		// Validate against the collection schema. Hook output is validated
 		// rather than `body.data` so plugins that mutate field values can't
@@ -3540,7 +3549,13 @@ export class EmDashRuntime {
 			}
 
 			// Normalize media fields (fill dimensions, storageKey, etc.)
-			processedData = await this.normalizeMediaFields(collection, processedData!, collectionInfo);
+			processedData = await this.normalizeMediaFields(
+				collection,
+				processedData!,
+				collectionInfo,
+				undefined,
+				false,
+			);
 
 			// Drop unknown field keys the entry already stores (e.g. a deleted field
 			// stranded in a draft revision) before validation, while still rejecting
@@ -3570,6 +3585,12 @@ export class EmDashRuntime {
 							resolvedItem?.data,
 							blockWriteOptions,
 							true,
+							resolvedBlockTypes,
+						);
+						processedData = await this.normalizeMediaFields(
+							collection,
+							processedData,
+							collectionInfo,
 							resolvedBlockTypes,
 						);
 					} catch (error) {
@@ -3623,6 +3644,12 @@ export class EmDashRuntime {
 							baseData,
 							blockWriteOptions,
 							true,
+							resolvedBlockTypes,
+						);
+						attemptData = await this.normalizeMediaFields(
+							collection,
+							attemptData,
+							collectionInfo,
 							resolvedBlockTypes,
 						);
 					} catch (error) {
@@ -5591,6 +5618,8 @@ export class EmDashRuntime {
 		collection: string,
 		data: Record<string, unknown>,
 		preloaded?: CollectionWithFields | null,
+		preloadedBlockTypes?: Awaited<ReturnType<typeof resolveBlockTypes>>,
+		includeBlocks = true,
 	): Promise<Record<string, unknown>> {
 		let collectionInfo = preloaded;
 		if (collectionInfo === undefined) {
@@ -5611,7 +5640,12 @@ export class EmDashRuntime {
 		const repeaterFields = collectionInfo.fields.filter(
 			(f) => f.type === "repeater" && Array.isArray(f.validation?.subFields),
 		);
-		if (imageFields.length === 0 && repeaterFields.length === 0) return data;
+		const blockFields = includeBlocks
+			? collectionInfo.fields.filter((field) => field.type === "blocks")
+			: [];
+		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			return data;
+		}
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
 		const result = { ...data };
@@ -5663,6 +5697,63 @@ export class EmDashRuntime {
 					return normalizedItem;
 				}),
 			);
+		}
+
+		if (blockFields.length > 0) {
+			const blockTypes = preloadedBlockTypes ?? (await resolveBlockTypes(this.db));
+			for (const field of blockFields) {
+				const value = result[field.slug];
+				if (!Array.isArray(value)) continue;
+				result[field.slug] = await Promise.all(
+					value.map(async (block) => {
+						if (!isRecord(block) || typeof block._type !== "string") return block;
+						const type = blockTypes.get(block._type);
+						const version = type?.versions.find(
+							(candidate) => candidate.version === block._version,
+						);
+						if (!version || version.unsupportedTypes?.length) return block;
+						const normalizedBlock: Record<string, unknown> = { ...block };
+						for (const nestedField of version.fields) {
+							const nestedValue = normalizedBlock[nestedField.slug];
+							if (nestedValue == null) continue;
+							try {
+								if (nestedField.type === "image") {
+									const normalized = await normalizeImageValue(nestedValue, getProvider);
+									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "file") {
+									const normalized = await normalizeMediaValue(nestedValue, getProvider);
+									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
+									const imageSlugs = (nestedField.validation?.subFields ?? [])
+										.filter((subField) => subField.type === "image")
+										.map((subField) => subField.slug);
+									normalizedBlock[nestedField.slug] = await Promise.all(
+										nestedValue.map(async (item) => {
+											if (!isRecord(item)) return item;
+											const normalizedItem = { ...item };
+											for (const slug of imageSlugs) {
+												try {
+													const normalized = await normalizeImageValue(
+														normalizedItem[slug],
+														getProvider,
+													);
+													if (normalized) normalizedItem[slug] = normalized;
+												} catch {
+													continue;
+												}
+											}
+											return normalizedItem;
+										}),
+									);
+								}
+							} catch {
+								continue;
+							}
+						}
+						return normalizedBlock;
+					}),
+				);
+			}
 		}
 
 		return result;

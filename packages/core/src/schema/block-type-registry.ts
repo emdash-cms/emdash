@@ -9,6 +9,10 @@ import {
 import { withTransaction } from "../database/transaction.js";
 import type { BlockTypeTable, BlockTypeVersionTable, Database } from "../database/types.js";
 import {
+	invalidateContentMediaUsageSchemaChange,
+	markContentMediaUsageCollectionStaleSafely,
+} from "../media/usage/schema-invalidation.js";
+import {
 	compareBlockFields,
 	fingerprintBlockFields,
 	validateBlockFields,
@@ -252,9 +256,34 @@ export class BlockTypeRegistry {
 		return [...affected].toSorted();
 	}
 
-	private async notifyMutation(slug: string): Promise<void> {
+	private async beginMediaSchemaMutation(slug: string): Promise<ReadonlySet<string>> {
+		const invalidated = new Set<string>();
+		for (const collection of await this.listAffectedCollections(slug)) {
+			if (await invalidateContentMediaUsageSchemaChange(this.db, collection)) {
+				invalidated.add(collection);
+			}
+		}
+		return invalidated;
+	}
+
+	private async notifyMutation(
+		slug: string,
+		mediaInvalidated?: ReadonlySet<string>,
+	): Promise<void> {
 		const collections = await this.listAffectedCollections(slug);
-		for (const collection of collections) invalidateSchemaCache(collection);
+		for (const collection of collections) {
+			invalidateSchemaCache(collection);
+			if (!mediaInvalidated) continue;
+			if (mediaInvalidated.has(collection)) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collection);
+			} else {
+				await markContentMediaUsageCollectionStaleSafely(
+					this.db,
+					collection,
+					"CONTENT_USAGE_STALE",
+				);
+			}
+		}
 		refreshDevTypes(this.db);
 	}
 
@@ -274,6 +303,7 @@ export class BlockTypeRegistry {
 		const fingerprint = await fingerprintBlockFields(fields);
 		const typeId = ulid();
 		const versionId = ulid();
+		const mediaInvalidated = await this.beginMediaSchemaMutation(input.slug);
 		try {
 			await executeAtomicStatements(this.db, [
 				sql<{ id: string }>`
@@ -306,7 +336,7 @@ export class BlockTypeRegistry {
 		if (!created) {
 			throw new SchemaError(`Block type "${input.slug}" was not created`, "BLOCK_TYPE_NOT_FOUND");
 		}
-		await this.notifyMutation(input.slug);
+		await this.notifyMutation(input.slug, mediaInvalidated);
 		return created;
 	}
 
@@ -363,6 +393,10 @@ export class BlockTypeRegistry {
 				)
 			RETURNING id
 		`;
+		const mediaInvalidated =
+			fields && nextFingerprint !== active.fingerprint
+				? await this.beginMediaSchemaMutation(slug)
+				: undefined;
 
 		if (compatibility && !compatibility.compatible && fields) {
 			const existingRetry = existing.versions.find(
@@ -446,7 +480,7 @@ export class BlockTypeRegistry {
 
 		const updated = await this.getBlockType(slug);
 		if (!updated) throw new SchemaError(`Block type "${slug}" not found`, "BLOCK_TYPE_NOT_FOUND");
-		await this.notifyMutation(slug);
+		await this.notifyMutation(slug, mediaInvalidated);
 		return updated;
 	}
 
@@ -492,6 +526,7 @@ export class BlockTypeRegistry {
 			throw new SchemaError(`Block type "${input.slug}" already exists`, "BLOCK_TYPE_EXISTS");
 		}
 		if (existing && onConflict === "skip") return existing;
+		const mediaInvalidated = await this.beginMediaSchemaMutation(input.slug);
 
 		if (!existing) {
 			const typeId = ulid();
@@ -590,7 +625,7 @@ export class BlockTypeRegistry {
 		if (!applied) {
 			throw new SchemaError(`Block type "${input.slug}" not found`, "BLOCK_TYPE_NOT_FOUND");
 		}
-		await this.notifyMutation(input.slug);
+		await this.notifyMutation(input.slug, mediaInvalidated);
 		return applied;
 	}
 
@@ -625,6 +660,8 @@ export class BlockTypeRegistry {
 				{ unsupportedTypes: target.unsupportedTypes },
 			);
 		}
+		const mediaInvalidated =
+			version !== existing.currentVersion ? await this.beginMediaSchemaMutation(slug) : undefined;
 		if (version !== existing.currentVersion) {
 			const result = await sql<{ id: string }>`
 				UPDATE _emdash_block_types
@@ -646,7 +683,7 @@ export class BlockTypeRegistry {
 		}
 		const updated = await this.getBlockType(slug);
 		if (!updated) throw new SchemaError(`Block type "${slug}" not found`, "BLOCK_TYPE_NOT_FOUND");
-		await this.notifyMutation(slug);
+		await this.notifyMutation(slug, mediaInvalidated);
 		return updated;
 	}
 }
