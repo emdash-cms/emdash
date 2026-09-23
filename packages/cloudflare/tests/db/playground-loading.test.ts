@@ -6,7 +6,7 @@ interface FakeElement {
 	className: string;
 	style: { display: string };
 	textContent: string;
-	addEventListener: () => void;
+	addEventListener: (type: string, listener: () => void) => void;
 }
 
 function createElement(): FakeElement {
@@ -99,5 +99,53 @@ describe("playground loading progress", () => {
 		await vi.advanceTimersByTimeAsync(1);
 		expect(elements.get("step-ready")!.className).toBe("pg-step done");
 		expect(replace).toHaveBeenCalledWith("/_emdash/admin");
+	});
+
+	it("starts a fresh session when retrying a failed setup", async () => {
+		vi.useFakeTimers();
+		const elements = new Map(
+			[
+				"step-db",
+				"step-content",
+				"step-ready",
+				"pg-message",
+				"pg-steps",
+				"pg-error",
+				"pg-error-message",
+				"pg-retry",
+			].map((id) => [id, createElement()]),
+		);
+		let retry!: () => void;
+		elements.get("pg-retry")!.addEventListener = (_type, listener) => {
+			retry = listener;
+		};
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(
+				Response.json(
+					{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
+					{ status: 500 },
+				),
+			);
+		const replace = vi.fn();
+
+		vi.stubGlobal("document", {
+			getElementById: (id: string) => elements.get(id) ?? null,
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		vi.stubGlobal("location", { replace });
+
+		const html = renderPlaygroundLoadingPage();
+		const script = html.match(/<script>([\s\S]*?)<\/script>/i)?.[1];
+		expect(script).toBeDefined();
+		// oxlint-disable-next-line typescript/no-implied-eval -- executes the rendered inline script in a controlled test environment
+		new Function(script!)();
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(elements.get("pg-message")!.textContent).toBe("Something went wrong");
+		retry();
+
+		expect(replace).toHaveBeenCalledWith("/_playground/reset");
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 });

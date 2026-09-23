@@ -211,12 +211,20 @@ describe("PluginBridge content write fence", () => {
 		const prepare = vi.fn();
 		const bridge = makeBridge({ prepare }, { defaultLocale: "en", locales: ["en", "fr"] });
 
-		await expect(bridge.contentCreate("posts", {}, { locale: "en_US" })).rejects.toThrow(
-			/invalid locale code/i,
-		);
-		await expect(bridge.contentCreate("posts", {}, { locale: "de" })).rejects.toThrow(
-			/not configured/i,
-		);
+		await expect(bridge.contentCreate("posts", {}, { locale: "en_US" })).resolves.toEqual({
+			__emdashContentCreateError: true,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: 'Invalid locale code: "en_US"',
+			},
+		});
+		await expect(bridge.contentCreate("posts", {}, { locale: "de" })).resolves.toEqual({
+			__emdashContentCreateError: true,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: 'Locale "de" is not configured for this site',
+			},
+		});
 		expect(prepare).not.toHaveBeenCalled();
 	});
 });

@@ -264,6 +264,9 @@ The operation ID is stable within the generated contract and is commonly used as
 
 ## Content lifecycle and bylines
 
+The [content lifecycle reference](/reference/content-lifecycle/) defines the state, revision,
+permission, conflict, and hook behavior shared by REST, MCP, the CLI, and the admin panel.
+
 Content reads return an opaque `_rev` token when one is available. Send `_rev` with `PUT /content/{collection}/{id}` to prevent overwriting a change made since the read. A stale token produces a conflict; read the item again before retrying. The CLI makes this check mandatory for `content update`, while the REST field remains optional for clients that deliberately choose an unconditional write.
 
 ### Read and update an entry
@@ -306,11 +309,11 @@ Content-Type: application/json
 }
 ```
 
-Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date but removes it from the live site.
+Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
 
 Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.
 
-The lifecycle operations distinguish a soft delete from permanent deletion. Restore acts on trashed content; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
+The lifecycle operations distinguish a soft delete from permanent deletion. Restore returns trashed content as a draft with no schedule; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
 
 ### Entry edit lock
 

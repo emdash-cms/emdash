@@ -10,6 +10,7 @@ import {
 } from "../../src/components/ContentEditor";
 import { fetchBylines } from "../../src/lib/api";
 import type { BylineSummary, ContentItem } from "../../src/lib/api";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
@@ -303,6 +304,39 @@ describe("ContentEditor", () => {
 		}
 	});
 
+	it("makes an entry read-only when its schema contains an unsupported field type", async () => {
+		vi.useFakeTimers();
+		try {
+			const onSave = vi.fn();
+			const onAutosave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "My Post", layout: { columns: 2 } } }),
+				fields: {
+					title: { kind: "string", label: "Title" },
+					layout: {
+						kind: "unsupported",
+						label: "Layout",
+						unsupportedType: { type: "future_blocks", path: "type" },
+					},
+				},
+				onSave,
+				onAutosave,
+			});
+
+			await expect.element(screen.getByRole("alert")).toHaveTextContent("future_blocks");
+			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
+			expect(screen.getByLabelText("Layout").query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			expect(onSave).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("uses one label and spacing rhythm across editor field types", async () => {
 		const screen = await renderEditor({
 			isNew: false,
@@ -437,7 +471,7 @@ describe("ContentEditor", () => {
 				expect(backdrop?.classList.contains("pointer-events-none") ?? true).toBe(true);
 
 				// Exiting DF with the panel still active surfaces it in the sheet.
-				document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+				await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
@@ -1023,6 +1057,130 @@ describe("ContentEditor", () => {
 		});
 	});
 
+	describe("field constraints", () => {
+		it("caps string fields at maxLength and counts characters against it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "Hello" } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(input).toHaveAttribute("maxlength", "160");
+			await expect.element(screen.getByText("5 of 160 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "Hello world");
+			await expect.element(screen.getByText("11 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags string content that already exceeds maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "x".repeat(170) } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("170 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags a cleared field against minLength, not an untouched one", async () => {
+			const screen = await renderEditor({
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { minLength: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "short");
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.clear(input);
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+		});
+
+		it("caps text fields at maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { body: "Some markdown" } }),
+				fields: {
+					body: { kind: "richText", label: "Body", validation: { maxLength: 500 } },
+				},
+			});
+			const textarea = screen.getByLabelText("Body");
+			await expect.element(textarea).toHaveAttribute("maxlength", "500");
+			await expect.element(screen.getByText("13 of 500 characters")).toBeInTheDocument();
+		});
+
+		it("shows the allowed range on number fields and flags values outside it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { rating: 12 } }),
+				fields: {
+					rating: { kind: "number", label: "Rating", validation: { min: 1, max: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Rating", { exact: true });
+			await expect.element(input).toHaveAttribute("min", "1");
+			await expect.element(input).toHaveAttribute("max", "10");
+			await expect.element(screen.getByText("Between 1 and 10")).toBeInTheDocument();
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.fill(input, "7");
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+		});
+
+		it("renders no hint when a field declares no bounds", async () => {
+			const screen = await renderEditor({
+				fields: { title: { kind: "string", label: "Title" } },
+			});
+			const input = screen.getByLabelText("Title");
+			await expect.element(input).not.toHaveAttribute("maxlength");
+			expect(screen.container.textContent).not.toContain("characters");
+		});
+
+		it("passes the field's validation to plugin field widgets", async () => {
+			const seen: unknown[] = [];
+			const pluginAdmins: PluginAdmins = {
+				counter: {
+					fields: {
+						limited: ({ validation }: { validation?: Record<string, unknown> }) => {
+							seen.push(validation);
+							return <div data-testid="limited-widget" />;
+						},
+					},
+				},
+			};
+			const screen = await render(
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						isNew
+						onSave={vi.fn()}
+						fields={{
+							summary: {
+								kind: "string",
+								label: "Summary",
+								widget: "counter:limited",
+								validation: { maxLength: 160 },
+							},
+						}}
+					/>
+				</PluginAdminProvider>,
+			);
+			await expect.element(screen.getByTestId("limited-widget")).toBeInTheDocument();
+			expect(seen[0]).toEqual({ maxLength: 160 });
+		});
+	});
+
 	describe("saving", () => {
 		it("save form calls onSave with formData including slug", async () => {
 			const onSave = vi.fn();
@@ -1426,21 +1584,27 @@ describe("ContentEditor", () => {
 			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
 		});
 
-		it("shows Publish button for draft items", async () => {
+		it("shows Publish now for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish now", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
-		it("publish button calls onPublish", async () => {
+		it("publish button confirms before calling onPublish", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish now", exact: true });
 			await publishBtn.click();
-			expect(onPublish).toHaveBeenCalled();
+			expect(onPublish).not.toHaveBeenCalled();
+			screen
+				.getByRole("dialog", { name: "Publish now?" })
+				.getByRole("button", { name: "Publish now", exact: true })
+				.element()
+				.click();
+			expect(onPublish).toHaveBeenCalledOnce();
 		});
 
 		it("shows Preview in normal mode when previews are supported", async () => {
@@ -1458,7 +1622,9 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
-				const publishButtons = screen.getByRole("button", { name: "Publish", exact: true }).all();
+				const publishButtons = screen
+					.getByRole("button", { name: "Publish now", exact: true })
+					.all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
 			} finally {
@@ -1711,7 +1877,7 @@ describe("ContentEditor", () => {
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
 				await expect
-					.element(screen.getByRole("button", { name: "Publish", exact: true }))
+					.element(screen.getByRole("button", { name: "Publish now", exact: true }))
 					.toBeVisible();
 			} finally {
 				media.restore();
@@ -1761,6 +1927,40 @@ describe("ContentEditor", () => {
 	});
 
 	describe("distraction-free mode", () => {
+		function dispatchDistractionFreeShortcut() {
+			document.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "\\",
+					shiftKey: true,
+					// `mod` maps to Ctrl on Linux/Windows and Cmd on macOS; firing both
+					// modifiers keeps the test deterministic across Playwright hosts.
+					ctrlKey: true,
+					metaKey: true,
+					bubbles: true,
+				}),
+			);
+		}
+
+		function getMainForm() {
+			return document.querySelector("form");
+		}
+
+		function isDistractionFree() {
+			return getMainForm()?.classList.toString().includes("fixed") ?? false;
+		}
+
+		it("toggles in and out with the advertised keyboard shortcut", async () => {
+			await renderEditor({ isNew: true });
+
+			expect(isDistractionFree()).toBe(false);
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(true));
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(false));
+		});
+
 		it("keeps the normal editor width and field chrome", async () => {
 			const screen = await renderEditor({
 				fields: {
@@ -1827,7 +2027,7 @@ describe("ContentEditor", () => {
 			expect(heading.parentElement?.querySelector("button")).toBeNull();
 		});
 
-		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
+		it("keeps the editor canvas and distraction-free header on the elevated surface", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const form = document.querySelector("form");
 
@@ -1840,15 +2040,6 @@ describe("ContentEditor", () => {
 			const header = heading.parentElement?.parentElement;
 			expect(form).toHaveClass("bg-kumo-elevated");
 			expect(header).toHaveClass("bg-kumo-elevated/95");
-			expect(header).toHaveClass(
-				"start-0",
-				"end-0",
-				"mx-auto",
-				"w-[calc(100%-4rem)]",
-				"max-w-3xl",
-				"py-4",
-			);
-			expect(header).not.toHaveClass("start-8", "end-8", "w-full", "p-4");
 		});
 
 		it("toggle adds fixed class for distraction-free mode", async () => {
@@ -1861,23 +2052,23 @@ describe("ContentEditor", () => {
 			expect(form?.classList.toString()).toContain("fixed");
 		});
 
-		it("escape exits distraction-free mode", async () => {
+		it("does not exit distraction-free mode with Escape", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
 			await enterBtn.click();
 
 			// Verify we're in distraction-free mode
-			let form = document.querySelector("form");
-			expect(form?.classList.toString()).toContain("fixed");
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 
 			// Press Escape
 			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-			// Wait for the state to update
-			await vi.waitFor(() => {
-				form = document.querySelector("form");
-				expect(form?.classList.toString()).not.toContain("fixed");
-			});
+			// Wait long enough that any errant state update would have been applied.
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Escape is reserved for other actions on the Posts page and must not
+			// leave distraction-free mode.
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 		});
 
 		it("keeps Live View available in distraction-free mode", async () => {
@@ -1894,10 +2085,57 @@ describe("ContentEditor", () => {
 			// second Live View link rather than replacing the panel's copy.
 			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
+
+		it("keeps scheduling available in distraction-free mode", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const schedule = [...(actionContainer?.querySelectorAll("button") ?? [])].find(
+				(action) => action.textContent?.trim() === "Schedule",
+			);
+			expect(schedule).toBeInstanceOf(HTMLButtonElement);
+			schedule?.click();
+
+			await expect
+				.element(screen.getByRole("dialog", { name: "Schedule publication" }))
+				.toBeVisible();
+		});
+
+		it("keeps scheduled-entry actions available in distraction-free mode", async () => {
+			const onUnschedule = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				onSchedule: vi.fn(),
+				onUnschedule,
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const actions = [...(actionContainer?.querySelectorAll("button") ?? [])];
+			const changeSchedule = actions.find(
+				(action) => action.textContent?.trim() === "Change schedule",
+			);
+			const removeSchedule = actions.find(
+				(action) => action.textContent?.trim() === "Remove schedule",
+			);
+
+			expect(changeSchedule).toBeInstanceOf(HTMLButtonElement);
+			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
+			removeSchedule?.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
+		});
 	});
 
 	describe("scheduler", () => {
-		it("groups draft publish timing without publishing on menu open", async () => {
+		it("keeps draft scheduling separate from confirmed publishing", async () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({
 				isNew: false,
@@ -1905,22 +2143,23 @@ describe("ContentEditor", () => {
 				onPublish,
 				onSchedule: vi.fn(),
 			});
+			const publish = screen.getByRole("button", { name: "Publish now", exact: true });
+			const schedule = screen.getByRole("button", { name: "Schedule" });
 
-			const publishTrigger = screen.getByRole("button", { name: "Publish", exact: true });
-			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "false");
-			await publishTrigger.click();
-
+			await expect.element(publish).not.toHaveAttribute("aria-haspopup", "menu");
+			await schedule.click();
 			expect(onPublish).not.toHaveBeenCalled();
-			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "true");
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Schedule publication/ }))
-				.toBeInTheDocument();
+			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
+			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("combobox", { name: "Period" })).toBeInTheDocument();
+			expect(dialog.element().querySelector('input[type="time"]')).toBeNull();
+			expect(dialog.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
+			expect(dialog.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
 		});
 
-		it("labels live draft actions without nested menu tooltips", async () => {
+		it("labels schedule and publish actions for live draft changes", async () => {
 			const screen = await renderEditor({
 				isNew: false,
 				item: makeItem({
@@ -1933,154 +2172,73 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
-
 			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish changes now/ }))
+				.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
 				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Schedule changes/ }))
-				.toBeInTheDocument();
-			expect(
-				screen.getByText("Make draft changes visible now", { exact: true }).query(),
-			).toBeNull();
-			expect(screen.getByText("Choose when changes go live", { exact: true }).query()).toBeNull();
-
-			await userEvent.hover(
-				screen.getByRole("menuitem", { name: /Publish changes now/ }).element(),
-			);
-			expect(
-				screen.getByText("Make draft changes visible now", { exact: true }).query(),
-			).toBeNull();
-
-			await screen.getByRole("menuitem", { name: /Schedule changes/ }).click();
+			await screen.getByRole("button", { name: "Schedule" }).click();
 			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
 			await expect
 				.element(dialog.getByText("Choose when these changes replace the live version."))
 				.toBeVisible();
 		});
 
-		it("groups immediate publish and schedule management for scheduled content", async () => {
-			const screen = await renderEditor({
-				isNew: false,
-				item: makeItem({
-					status: "scheduled",
-					scheduledAt: "2027-06-01T12:00:00.000Z",
-				}),
-				onPublish: vi.fn(),
-				onSchedule: vi.fn(),
-				onUnschedule: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
-
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Change schedule/ }))
-				.toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
-				.toBeInTheDocument();
-		});
-
-		it("opens scheduling in a dialog with segmented date and time fields", async () => {
-			const item = makeItem({ status: "draft" });
-			const screen = await renderEditor({
-				isNew: false,
-				item,
-				onPublish: vi.fn(),
-				onSchedule: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Publish", exact: true }).click();
-			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
-
-			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
-			await expect.element(dialog).toBeVisible();
-			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
-			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
-			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
-			await expect.element(dialog.getByRole("combobox", { name: "Period" })).toBeInTheDocument();
-			expect(dialog.element().querySelector('input[type="time"]')).toBeNull();
-			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
-		});
-
-		it("omits schedule shortcuts", async () => {
-			const item = makeItem({ status: "draft" });
-			const onSchedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn(), onSchedule });
-
-			await screen.getByRole("button", { name: "Publish", exact: true }).click();
-			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
-			expect(screen.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
-			expect(screen.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
-			expect(onSchedule).not.toHaveBeenCalled();
-		});
-
-		it("shows Publish now for scheduled items", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const onPublish = vi.fn();
-			const screen = await renderEditor({
-				isNew: false,
-				item,
-				onPublish,
-				onSchedule: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
-				.toBeInTheDocument();
-		});
-
-		it("Publish now on a scheduled item calls onPublish", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const onPublish = vi.fn();
-			const screen = await renderEditor({
-				isNew: false,
-				item,
-				onPublish,
-				onSchedule: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
-			await screen.getByRole("menuitem", { name: /Publish now/ }).click();
-			expect(onPublish).toHaveBeenCalled();
-		});
-
-		it("shows Remove schedule in the scheduled action menu", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const screen = await renderEditor({
-				isNew: false,
-				item,
-				onPublish: vi.fn(),
-				onSchedule: vi.fn(),
-				onUnschedule: vi.fn(),
-			});
-
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
-				.toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Unschedule" }).query()).toBeNull();
-		});
-
-		it("Remove schedule calls onUnschedule", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
+		it("keeps scheduled management in one two-button row", async () => {
 			const onUnschedule = vi.fn();
 			const screen = await renderEditor({
 				isNew: false,
-				item,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
 				onPublish: vi.fn(),
 				onSchedule: vi.fn(),
 				onUnschedule,
 			});
+			const changeSchedule = screen.getByRole("button", { name: "Change schedule" });
+			const removeSchedule = screen.getByRole("button", { name: "Remove schedule" });
 
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
-			await screen.getByRole("menuitem", { name: /Remove schedule/ }).click();
-			expect(onUnschedule).toHaveBeenCalled();
+			expect(changeSchedule.element().parentElement).toBe(removeSchedule.element().parentElement);
+			await changeSchedule.click();
+			const dialog = screen.getByRole("dialog", { name: "Change schedule" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Cancel" }).element().click();
+			await vi.waitFor(() => expect(dialog.query()).toBeNull());
+			await removeSchedule.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
+		});
+
+		it("confirms immediate publication of a scheduled item", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" }),
+				onPublish,
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Publish now", exact: true }).click();
+			expect(onPublish).not.toHaveBeenCalled();
+			const dialog = screen.getByRole("dialog", { name: "Publish now?" });
+			await expect
+				.element(dialog.getByText("This removes the schedule and publishes immediately."))
+				.toBeVisible();
+			dialog.getByRole("button", { name: "Publish now", exact: true }).element().click();
+			expect(onPublish).toHaveBeenCalledOnce();
+		});
+
+		it("blocks immediate publishing while a schedule change is pending", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00Z" }),
+				isUnscheduling: true,
+				onPublish,
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
+
+			const publish = screen.getByRole("button", { name: "Publish now", exact: true });
+			await expect.element(publish).toBeDisabled();
+			await publish.click({ force: true });
+			expect(screen.getByRole("dialog", { name: "Publish now?" }).query()).toBeNull();
+			expect(onPublish).not.toHaveBeenCalled();
 		});
 	});
 
@@ -2496,15 +2654,58 @@ describe("ContentEditor", () => {
 
 			await expect.element(screen.getByRole("button", { name: "Save anyway" })).not.toBeDisabled();
 		});
+	});
 
-		it("leaves the rich text editor writable when the entry is not locked", async () => {
-			await renderEditor({
+	it("leaves the rich text editor writable when the entry is not locked", async () => {
+		await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: { content: { kind: "portableText", label: "Content" } },
+		});
+
+		expect(portableTextProps.current?.editable).toBe(true);
+	});
+
+	describe("autosave race with repeater sub-field", () => {
+		it("does not overwrite a sub-field input with a stale autosave payload", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				gallery: {
+					kind: "repeater",
+					label: "Gallery",
+					validation: {
+						subFields: [{ slug: "caption", type: "string", label: "Caption" }],
+					},
+				},
+			};
+
+			const screen = await renderEditor({
 				isNew: false,
-				item: makeItem(),
-				fields: { content: { kind: "portableText", label: "Content" } },
+				item: makeItem({ data: { gallery: [] } }),
+				fields,
+				onAutosave: vi.fn(),
+				supportsDrafts: true,
 			});
 
-			expect(portableTextProps.current?.editable).toBe(true);
+			await screen.getByRole("button", { name: "Add First Item", exact: true }).click();
+			const caption = screen.getByRole("textbox", { name: "Caption" });
+			await expect.element(caption).toBeVisible();
+			await caption.fill("Mobile view of the dashboard");
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={fields}
+					isNew={false}
+					item={makeItem({ data: { gallery: [{ caption: "Mobile view" }] } })}
+					onSave={vi.fn()}
+					onAutosave={vi.fn()}
+					supportsDrafts={true}
+					autosaveCompletionToken={1}
+				/>,
+			);
+
+			await expect.element(caption).toHaveValue("Mobile view of the dashboard");
 		});
 	});
 });

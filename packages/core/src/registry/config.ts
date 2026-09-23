@@ -1,6 +1,5 @@
 /**
- * Helpers for normalizing the experimental registry integration option
- * (`config.experimental.registry` in `astro.config.mjs`) into the shape
+ * Helpers for normalizing the registry integration option into the shape
  * exposed on the admin manifest.
  *
  * The integration option accepts a human-friendly duration string for
@@ -10,7 +9,40 @@
 
 import { isDid } from "@atcute/lexicons/syntax";
 
-import type { RegistryConfig, RegistryConfigInput } from "./types.js";
+import type { RegistryConfig, RegistryConfigInput, RegistryConfigOption } from "./types.js";
+
+export const DEFAULT_REGISTRY_AGGREGATOR_URL = "https://registry.emdashcms.com";
+
+export interface ResolvedRegistryConfigInput {
+	input?: RegistryConfigInput;
+	fieldPrefix: RegistryConfigurationPrefix;
+}
+
+export function resolveRegistryConfigForSandbox(options: {
+	registry?: RegistryConfigOption;
+	experimentalRegistry?: RegistryConfigInput;
+	sandboxRunner?: string;
+	sandboxEnabled?: boolean;
+}): ResolvedRegistryConfigInput {
+	if (options.registry === false) return { fieldPrefix: "registry" };
+	if (options.registry !== undefined) {
+		return { input: options.registry, fieldPrefix: "registry" };
+	}
+	if (options.experimentalRegistry !== undefined) {
+		return { input: options.experimentalRegistry, fieldPrefix: "experimental.registry" };
+	}
+	if (options.sandboxRunner && options.sandboxEnabled !== false) {
+		return { input: DEFAULT_REGISTRY_AGGREGATOR_URL, fieldPrefix: "registry" };
+	}
+	return { fieldPrefix: "registry" };
+}
+
+export function getRegistryConfigInput(
+	registry: RegistryConfigOption | undefined,
+	experimentalRegistry: RegistryConfigInput | undefined,
+): RegistryConfigInput | undefined {
+	return resolveRegistryConfigForSandbox({ registry, experimentalRegistry }).input;
+}
 
 /**
  * Shape returned in the admin manifest's `registry` field. The browser
@@ -39,6 +71,52 @@ export interface ManifestRegistryConfig {
 		 */
 		minimumReleaseAgeExclude?: string[];
 	};
+}
+
+export type RegistryConfigurationErrorCode =
+	| "REGISTRY_AGGREGATOR_URL_REQUIRED"
+	| "REGISTRY_AGGREGATOR_URL_INVALID"
+	| "REGISTRY_AGGREGATOR_URL_FORBIDDEN"
+	| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
+	| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
+
+export type RegistryConfigurationPrefix = "registry" | "experimental.registry";
+
+type RegistryConfigurationFieldSuffix =
+	| "aggregatorUrl"
+	| "policy.minimumReleaseAge"
+	| "policy.minimumReleaseAgeExclude";
+
+export type RegistryConfigurationField =
+	`${RegistryConfigurationPrefix}.${RegistryConfigurationFieldSuffix}`;
+
+export interface ManifestRegistryConfigurationError {
+	code: RegistryConfigurationErrorCode;
+	field: RegistryConfigurationField;
+}
+
+class RegistryConfigurationError extends Error {
+	constructor(
+		public readonly code: RegistryConfigurationErrorCode,
+		public readonly field: RegistryConfigurationField,
+		message: string,
+		options?: ErrorOptions,
+	) {
+		super(`EmDash registry configuration error in ${field}: ${message}`, options);
+		this.name = "RegistryConfigurationError";
+	}
+}
+
+export interface RegistryConfigurationValidationOptions {
+	allowLocalhost?: boolean;
+	fieldPrefix?: RegistryConfigurationPrefix;
+}
+
+function registryField(
+	options: RegistryConfigurationValidationOptions,
+	suffix: RegistryConfigurationFieldSuffix,
+): RegistryConfigurationField {
+	return `${options.fieldPrefix ?? "experimental.registry"}.${suffix}`;
 }
 
 /**
@@ -169,15 +247,27 @@ export function parseDurationSeconds(duration: string | number): number {
  * own HTTPS bundle, defeating the checksum trust chain because the
  * attacker controls the unsigned transport that supplied the checksum.
  */
-export function validateAggregatorUrl(aggregatorUrl: string): URL {
+export function validateAggregatorUrl(
+	aggregatorUrl: string,
+	options: RegistryConfigurationValidationOptions = {},
+): URL {
 	let parsed: URL;
 	try {
 		parsed = new URL(aggregatorUrl);
-	} catch {
-		throw new Error(`registry.aggregatorUrl is not a valid URL: ${aggregatorUrl}`);
+	} catch (cause) {
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_INVALID",
+			registryField(options, "aggregatorUrl"),
+			"must be a valid URL",
+			{ cause },
+		);
 	}
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-		throw new Error(`registry.aggregatorUrl must use http or https: ${aggregatorUrl}`);
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+			registryField(options, "aggregatorUrl"),
+			"must use HTTP or HTTPS",
+		);
 	}
 	// Reject embedded credentials. The normalized aggregator URL ends
 	// up in the admin manifest and is shipped to every admin browser;
@@ -185,7 +275,11 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
 	// so leaving them in would both leak the credentials and break the
 	// registry UI at runtime.
 	if (parsed.username || parsed.password) {
-		throw new Error("registry.aggregatorUrl must not contain embedded credentials (user:pass@)");
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+			registryField(options, "aggregatorUrl"),
+			"must not contain embedded credentials",
+		);
 	}
 
 	// WHATWG URL preserves the brackets on IPv6 hostnames -- strip them
@@ -205,18 +299,27 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
 		hostname.startsWith("::ffff:127.") ||
 		hostname.startsWith("::ffff:7f00:");
 
-	if (!import.meta.env.DEV) {
+	const allowLocalhost = options.allowLocalhost ?? import.meta.env.DEV;
+	if (!allowLocalhost) {
 		if (parsed.protocol === "http:") {
-			throw new Error(`registry.aggregatorUrl must use https in production: ${aggregatorUrl}`);
+			throw new RegistryConfigurationError(
+				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+				registryField(options, "aggregatorUrl"),
+				"must use HTTPS outside development",
+			);
 		}
 		if (isLocalhost) {
-			throw new Error(
-				`registry.aggregatorUrl points at localhost; allowed only in dev: ${aggregatorUrl}`,
+			throw new RegistryConfigurationError(
+				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+				registryField(options, "aggregatorUrl"),
+				"must not point at localhost outside development",
 			);
 		}
 	} else if (parsed.protocol === "http:" && !isLocalhost) {
-		throw new Error(
-			`registry.aggregatorUrl must use https (http allowed only for localhost in dev): ${aggregatorUrl}`,
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+			registryField(options, "aggregatorUrl"),
+			"must use HTTPS unless it points at localhost in development",
 		);
 	}
 
@@ -228,7 +331,7 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
  * `RegistryConfig` object shape.
  *
  * Users can pass a bare aggregator URL string for the common case
- * (`experimental.registry: "https://registry.emdashcms.com"`); the
+ * (`registry: "https://registry.emdashcms.com"`); the
  * normalizer handles either form transparently.
  *
  * Returns `undefined` for `undefined` input so callers can chain with
@@ -251,28 +354,30 @@ export function coerceRegistryConfig(
  * object. Returns `null` when `input` is undefined so callers can
  * spread the result directly into the manifest object.
  *
- * Throws if the aggregator URL is malformed, points at a forbidden host,
- * or `policy.minimumReleaseAge` is unparseable. These surface at
- * runtime startup as 500s from the manifest endpoint -- intended,
- * because the alternative is silently disabling the registry on
- * misconfigured sites.
- *
- * TODO: switch to a Zod schema for richer per-field error messages and
- * to surface misconfigurations to the admin UI as a banner instead of
- * a manifest 500.
+ * Throws a field-specific configuration error if the aggregator URL is
+ * malformed or forbidden, or a registry policy value cannot be normalized.
+ * The Astro integration uses this to fail during config loading. Runtime
+ * manifest generation uses {@link resolveManifestRegistryConfig} to expose
+ * recognized failures without exposing the configured value.
  */
 export function normalizeRegistryConfig(
 	input: RegistryConfigInput | undefined,
+	options: RegistryConfigurationValidationOptions = {},
 ): ManifestRegistryConfig | null {
 	const config = coerceRegistryConfig(input);
 	if (!config) return null;
 
-	const aggregatorUrl = config.aggregatorUrl?.trim();
+	const aggregatorUrl =
+		typeof config.aggregatorUrl === "string" ? config.aggregatorUrl.trim() : undefined;
 	if (!aggregatorUrl) {
-		throw new Error("registry.aggregatorUrl is required when registry is configured");
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_REQUIRED",
+			registryField(options, "aggregatorUrl"),
+			"is required when the registry is configured",
+		);
 	}
 
-	validateAggregatorUrl(aggregatorUrl);
+	validateAggregatorUrl(aggregatorUrl, options);
 
 	const out: ManifestRegistryConfig = {
 		// Strip any trailing slash so `${aggregatorUrl}/xrpc/...` works
@@ -288,18 +393,45 @@ export function normalizeRegistryConfig(
 	let hasPolicy = false;
 
 	if (config.policy?.minimumReleaseAge !== undefined) {
-		policy.minimumReleaseAgeSeconds = parseDurationSeconds(config.policy.minimumReleaseAge);
+		try {
+			policy.minimumReleaseAgeSeconds = parseDurationSeconds(config.policy.minimumReleaseAge);
+		} catch (cause) {
+			throw new RegistryConfigurationError(
+				"REGISTRY_MINIMUM_RELEASE_AGE_INVALID",
+				registryField(options, "policy.minimumReleaseAge"),
+				'must be a duration such as "48h", "7d", or a non-negative number of seconds',
+				{ cause },
+			);
+		}
 		hasPolicy = true;
 	}
 
 	if (config.policy?.minimumReleaseAgeExclude !== undefined) {
+		if (!Array.isArray(config.policy.minimumReleaseAgeExclude)) {
+			throw new RegistryConfigurationError(
+				"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+				registryField(options, "policy.minimumReleaseAgeExclude"),
+				"must be an array of DIDs or <did>/<slug> entries",
+			);
+		}
 		// Normalize at load time so callers (browser and server) can do
 		// plain string compares without each one re-implementing the
 		// case-folding rule.
 		const list = config.policy.minimumReleaseAgeExclude.map((entry) => {
+			if (typeof entry !== "string") {
+				throw new RegistryConfigurationError(
+					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+					registryField(options, "policy.minimumReleaseAgeExclude"),
+					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
+				);
+			}
 			const trimmed = entry.trim();
 			if (!trimmed) {
-				throw new Error("registry.policy.minimumReleaseAgeExclude entries cannot be empty");
+				throw new RegistryConfigurationError(
+					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+					registryField(options, "policy.minimumReleaseAgeExclude"),
+					"entries cannot be empty",
+				);
 			}
 			const lower = trimmed.toLowerCase();
 			const [did, slug, ...extra] = lower.split("/");
@@ -309,8 +441,10 @@ export function normalizeRegistryConfig(
 				extra.length > 0 ||
 				(slug !== undefined && !REGISTRY_PACKAGE_SLUG_PATTERN.test(slug))
 			) {
-				throw new Error(
-					`registry.policy.minimumReleaseAgeExclude entry must be a DID or <did>/<slug>: ${trimmed}`,
+				throw new RegistryConfigurationError(
+					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+					registryField(options, "policy.minimumReleaseAgeExclude"),
+					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
 				);
 			}
 			return lower;
@@ -326,4 +460,21 @@ export function normalizeRegistryConfig(
 	}
 
 	return out;
+}
+
+/** Normalize registry config without allowing a known config error to hide the admin. */
+export function resolveManifestRegistryConfig(
+	input: RegistryConfigInput | undefined,
+	options: RegistryConfigurationValidationOptions = {},
+): {
+	registry?: ManifestRegistryConfig;
+	error?: ManifestRegistryConfigurationError;
+} {
+	try {
+		const registry = normalizeRegistryConfig(input, options);
+		return registry ? { registry } : {};
+	} catch (error) {
+		if (!(error instanceof RegistryConfigurationError)) throw error;
+		return { error: { code: error.code, field: error.field } };
+	}
 }

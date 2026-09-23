@@ -3,10 +3,13 @@ title: Create your first EmDash site
 description: Scaffold a local EmDash site, complete setup, and publish an edit.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Aside, Steps, TabItem, Tabs } from "@astrojs/starlight/components";
 
 This tutorial creates a Node.js site from the Starter template. The result uses SQLite and local
 media storage, so you can complete the tutorial without a cloud account.
+
+If you already have an Astro site, follow [Add EmDash to an existing Astro
+project](/existing-project/) instead.
 
 ## Prerequisites
 
@@ -22,25 +25,73 @@ The command must report `v22.16.0` or a later version.
 
 <Steps>
 
-1. Create `my-emdash-site` from the Node.js Starter template:
+1. Start the interactive scaffolder:
 
+   <Tabs syncKey="package-manager">
+   <TabItem label="npm">
    ```bash
-   npm create emdash@latest my-emdash-site -- --template node:starter --pm npm --yes
+   npm create emdash@latest
    ```
+   </TabItem>
+   <TabItem label="pnpm">
+   ```bash
+   pnpm create emdash@latest
+   ```
+   </TabItem>
+   <TabItem label="yarn">
+   ```bash
+   yarn create emdash
+   ```
+   </TabItem>
+   <TabItem label="bun">
+   ```bash
+   bun create emdash@latest
+   ```
+   </TabItem>
+   </Tabs>
 
-   The explicit `node:starter` choice creates a general-purpose site with Posts and Pages. The
-   scaffolder installs dependencies and writes a generated `EMDASH_ENCRYPTION_KEY` to the
-   gitignored `.env` file.
+2. Choose the following options when prompted:
+
+   - **Project name:** `my-emdash-site`
+   - **Where will you deploy?** **Node.js**
+   - **Which template?** **Starter**
+   - **Which package manager?** Keep the package manager detected from the command in step 1.
+   - **Install dependencies?** **Yes**
+
+   These choices create a general-purpose Node.js site with Posts and Pages. The scaffolder also
+   writes a generated `EMDASH_ENCRYPTION_KEY` to the gitignored `.env` file.
 
    If dependency installation fails, the project files remain in place. Run the retry command
    printed by the scaffolder before continuing.
 
-2. Enter the project directory and start the development server:
+3. Enter the project directory and start the development server:
 
+   <Tabs syncKey="package-manager">
+   <TabItem label="npm">
    ```bash
    cd my-emdash-site
    npm run dev
    ```
+   </TabItem>
+   <TabItem label="pnpm">
+   ```bash
+   cd my-emdash-site
+   pnpm dev
+   ```
+   </TabItem>
+   <TabItem label="yarn">
+   ```bash
+   cd my-emdash-site
+   yarn dev
+   ```
+   </TabItem>
+   <TabItem label="bun">
+   ```bash
+   cd my-emdash-site
+   bun dev
+   ```
+   </TabItem>
+   </Tabs>
 
    Keep this terminal open. Astro prints the local site URL, normally `http://localhost:4321/`.
 

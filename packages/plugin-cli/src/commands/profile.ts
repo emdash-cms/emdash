@@ -8,20 +8,25 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { resolveSources } from "../build/pipeline.js";
+import { probeEnvironment } from "../init/environment.js";
 import { resolveHandleToDid } from "../manifest/publisher.js";
 import { manifestToProfileInput, resolveSections } from "../manifest/translate.js";
 import { resumeSession } from "../oauth.js";
+import { formatPackageIdentifier } from "../package-identifier.js";
 import {
 	canonicalGitHubRepository,
 	PackageProfileSetupError,
+	readPackageProfilePolicy,
 	setupPackageProfile,
 } from "../profile/setup.js";
 
 export interface RunProfileSetupOptions {
 	dir: string;
 	repository?: string;
+	provenance?: string;
 	confirmation?: string;
 	yes?: boolean;
+	nextSteps?: boolean;
 }
 
 function cancelled(value: unknown): asserts value is Exclude<typeof value, symbol> {
@@ -29,20 +34,42 @@ function cancelled(value: unknown): asserts value is Exclude<typeof value, symbo
 		throw new PackageProfileSetupError("INVALID_INPUT", "Setup cancelled.");
 }
 
-async function repositoryValue(
-	configured: string | undefined,
-	interactive: boolean,
+interface RepositoryPromptOptions {
+	message: string;
+	initialValue?: string;
+	placeholder: string;
+	validate(value: string | undefined): string | undefined;
+}
+
+export interface ResolveProfileRepositoryOptions {
+	configured: string | undefined;
+	interactive: boolean;
+	pluginDir: string;
+	prompt?: (options: RepositoryPromptOptions) => Promise<unknown>;
+}
+
+export async function resolveProfileRepository(
+	options: ResolveProfileRepositoryOptions,
 ): Promise<string> {
-	if (configured) return configured;
-	if (!interactive) {
+	if (options.configured) return options.configured;
+	const environment = await probeEnvironment(options.pluginDir);
+	const detected = environment.repo
+		? (canonicalGitHubRepository(environment.repo) ?? undefined)
+		: undefined;
+	if (!options.interactive) {
+		if (detected) return detected;
 		throw new PackageProfileSetupError(
 			"INVALID_REPOSITORY",
 			"Add `repo` to emdash-plugin.jsonc or pass --repository with an HTTPS GitHub repository URL.",
 		);
 	}
-	const answer = await clack.text({
-		message: "GitHub repository URL",
-		placeholder: "https://github.com/example/gallery",
+	const prompt = options.prompt ?? ((input) => clack.text(input));
+	const answer = await prompt({
+		message: detected
+			? "GitHub repository URL (press enter to use the detected origin)"
+			: "GitHub repository URL",
+		...(detected === undefined ? {} : { initialValue: detected }),
+		placeholder: detected ?? "https://github.com/example/gallery",
 		validate: (value) =>
 			canonicalGitHubRepository(value ?? "") ? undefined : "Enter an HTTPS GitHub repository URL.",
 	});
@@ -50,9 +77,84 @@ async function repositoryValue(
 	return String(answer);
 }
 
+export async function resolveProfileProvenance(
+	configured: string | undefined,
+	interactive: boolean,
+	current: boolean | undefined,
+	prompt: (options: {
+		message: string;
+		initialValue: "required" | "optional";
+		options: Array<{
+			value: "required" | "optional";
+			label: string;
+			hint: string;
+		}>;
+	}) => Promise<unknown> = (input) => clack.select(input),
+): Promise<boolean> {
+	if (configured === "required") return true;
+	if (configured === "optional") return false;
+	if (configured !== undefined) {
+		throw new PackageProfileSetupError(
+			"INVALID_INPUT",
+			"--provenance must be `required` or `optional`.",
+		);
+	}
+	if (!interactive) return current ?? true;
+	const answer = await prompt({
+		message: "Should releases require verifiable build provenance?",
+		initialValue: current === false ? "optional" : "required",
+		options: [
+			{
+				value: "required",
+				label: "Require provenance",
+				hint: "recommended for automated releases",
+			},
+			{
+				value: "optional",
+				label: "Allow releases without provenance",
+				hint: "supports local publishing",
+			},
+		],
+	});
+	cancelled(answer);
+	if (answer !== "required" && answer !== "optional") {
+		throw new PackageProfileSetupError("INVALID_INPUT", "Provenance policy selection is invalid.");
+	}
+	return answer === "required";
+}
+
+export function printProfileSetupResult(
+	result: { status: "created" | "ready" | "updated"; profileUri: string },
+	identifier: string,
+	confirmation: "always" | "escalation-only",
+	requireProvenance: boolean,
+	showNextSteps: boolean,
+): void {
+	if (result.status === "ready") {
+		consola.success(`Package profile is ready for ${pc.bold(identifier)}`);
+	} else {
+		consola.success(`Published package profile for ${pc.bold(identifier)}`);
+		consola.info(
+			confirmation === "always"
+				? "Your Atmosphere account must approve every release."
+				: "Your Atmosphere account must approve releases when plugin permissions increase.",
+		);
+	}
+	consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
+	if (!showNextSteps) return;
+	if (requireProvenance) {
+		consola.info("Next, configure the provenance-backed release workflow:");
+		consola.info(`  ${pc.cyan("emdash-plugin release setup")}`);
+	} else {
+		consola.info("Next, publish a release:");
+		consola.info(`  ${pc.cyan("emdash-plugin publish")}`);
+	}
+}
+
 async function confirmationValue(
 	configured: string | undefined,
 	interactive: boolean,
+	current: "always" | "escalation-only" | undefined,
 ): Promise<"always" | "escalation-only"> {
 	if (configured === "always" || configured === "escalation-only") return configured;
 	if (configured !== undefined) {
@@ -61,10 +163,10 @@ async function confirmationValue(
 			"--confirmation must be `always` or `escalation-only`.",
 		);
 	}
-	if (!interactive) return "escalation-only";
+	if (!interactive) return current ?? "escalation-only";
 	const answer = await clack.select({
 		message: "When should a release require your approval?",
-		initialValue: "escalation-only",
+		initialValue: current ?? "escalation-only",
 		options: [
 			{
 				value: "escalation-only",
@@ -111,43 +213,65 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 			`The active CLI account does not own ${sources.manifest.slug}. Run \`emdash-plugin switch ${publisherDid}\` first.`,
 		);
 	}
-	const repository = await repositoryValue(
-		options.repository ?? sources.manifest.repo,
+	const identifier = formatPackageIdentifier(
+		storedSession.handle ?? storedSession.did,
+		sources.manifest.slug,
+	);
+	const repository = await resolveProfileRepository({
+		configured: options.repository ?? sources.manifest.repo,
 		interactive,
-	);
-	const confirmation = await confirmationValue(options.confirmation, interactive);
-	const loaded = await import("../manifest/load.js").then(({ loadManifest }) =>
-		loadManifest(sources.manifestPath),
-	);
-	sources.manifest.sections = await resolveSections(loaded.manifest.sections, dirname(loaded.path));
+		pluginDir: sources.pluginDir,
+	});
 	const oauthSession = await resumeSession(publisherDid);
 	const publisher = PublishingClient.fromHandler({
 		handler: oauthSession,
 		did: storedSession.did,
 		pds: storedSession.pds,
 	});
+	const currentPolicy = await readPackageProfilePolicy(publisher, sources.manifest.slug);
+	const requireProvenance = await resolveProfileProvenance(
+		options.provenance,
+		interactive,
+		currentPolicy?.requireProvenance,
+	);
+	const confirmation = await confirmationValue(
+		options.confirmation,
+		interactive,
+		currentPolicy?.confirmation,
+	);
+	const loaded = await import("../manifest/load.js").then(({ loadManifest }) =>
+		loadManifest(sources.manifestPath),
+	);
+	sources.manifest.sections = await resolveSections(loaded.manifest.sections, dirname(loaded.path));
 	const input = {
 		publisher,
 		slug: sources.manifest.slug,
 		profile: manifestToProfileInput(sources.manifest),
 		repository,
+		requireProvenance,
 		confirmation,
 	};
 	const proposed = await setupPackageProfile(input);
 	if (proposed.status === "ready") {
-		consola.success(`Package profile is ready: ${pc.dim(proposed.profileUri)}`);
+		printProfileSetupResult(
+			proposed,
+			identifier,
+			confirmation,
+			requireProvenance,
+			options.nextSteps !== false,
+		);
 		return;
 	}
 	if (!interactive && options.yes !== true) {
 		throw new PackageProfileSetupError(
 			"INVALID_INPUT",
-			`The ${sources.manifest.slug} package profile needs setup. Run this command in a terminal, or pass --yes to accept the default approval policy.`,
+			`The ${identifier} package profile needs setup. Run this command in a terminal, or pass --yes to accept the default approval policy.`,
 		);
 	}
 	if (interactive) {
 		const action = proposed.status === "created" ? "Create" : "Update";
 		const answer = await clack.confirm({
-			message: `${action} the ${sources.manifest.slug} package profile and allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases?`,
+			message: `${action} the ${identifier} package profile, allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases, and ${requireProvenance ? "require" : "not require"} provenance?`,
 			initialValue: true,
 		});
 		cancelled(answer);
@@ -159,13 +283,12 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 		}
 	}
 	const result = await setupPackageProfile({ ...input, apply: true });
-	consola.success(
-		`${result.status === "created" ? "Created" : "Updated"} package profile: ${pc.dim(result.profileUri)}`,
-	);
-	consola.info(
-		confirmation === "always"
-			? "Your Atmosphere account must approve every release."
-			: "Your Atmosphere account must approve releases when plugin permissions increase.",
+	printProfileSetupResult(
+		result,
+		identifier,
+		confirmation,
+		requireProvenance,
+		options.nextSteps !== false,
 	);
 }
 
@@ -191,7 +314,11 @@ export const profileSetupCommand = defineCommand({
 		},
 		repository: {
 			type: "string",
-			description: "Canonical HTTPS GitHub repository URL (defaults to manifest repo)",
+			description: "Canonical HTTPS GitHub repository URL (defaults to manifest or Git origin)",
+		},
+		provenance: {
+			type: "string",
+			description: "Provenance policy: required or optional",
 		},
 		confirmation: {
 			type: "string",

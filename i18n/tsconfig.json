@@ -6,5 +6,5 @@
 		"strict": true,
 		"types": ["node"]
 	},
-	"include": ["build.ts"]
+	"include": ["components.ts"]
 }

@@ -271,9 +271,51 @@ emdash({
 
 With `false`, plugins declared in `sandboxed` and installed from the marketplace run in the main server process without isolation or resource limits. Restore sandboxing after the diagnosis.
 
+### `registry`
+
+**Optional.** Configures the [plugin registry](/plugins/registry/) aggregator and policy. With no explicit value, EmDash uses `https://registry.emdashcms.com` when [`sandboxRunner`](#sandboxrunner) is configured and `sandbox` is not `false`.
+
+Set `registry: false` to disable registry discovery and registry-installed plugins while keeping the sandbox runner available for plugins declared in `sandboxed` and legacy Marketplace plugins:
+
+```js title="astro.config.mjs"
+emdash({
+	sandboxRunner: sandbox(),
+	registry: false,
+});
+```
+
+Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
+
+```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+	registry: {
+		aggregatorUrl: "https://registry.emdashcms.com",
+		acceptLabelers: "did:web:labels.emdashcms.com",
+		policy: {
+			minimumReleaseAge: "48h",
+			minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
+		},
+	},
+});
+```
+
+| Option                            | Type                   | Description                                                                                   |
+| --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
+| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
+| `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
+| `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
+| `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
+
+The release-age policy exempts a package's first release only when the registry reports one retained release and confirms that it observed the package continuously. A backfilled package, a deleted earlier release, or missing history evidence keeps the holdback in force. Explicit publisher and package exemptions apply regardless of history.
+
+See [The plugin registry](/plugins/registry/) for the install workflow and trust model.
+
 ### `marketplace`
 
-**Optional.** Base URL for the plugin marketplace shown in the admin. Marketplace plugins require `sandboxRunner` because they always run sandboxed.
+**Deprecated.** Base URL used to update plugins installed from the legacy Marketplace. Marketplace browsing and new installs are not shown in the admin. Existing Marketplace plugins remain updateable and uninstallable while this option is configured.
 
 ```js
 emdash({
@@ -282,7 +324,7 @@ emdash({
 });
 ```
 
-Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. When `experimental.registry` is also configured, the registry supplies new installs and updates while plugins already installed from the marketplace continue to run.
+Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. Keep this option until every Marketplace plugin has been replaced or uninstalled, then remove it. Follow [Migrate from Marketplace](/plugins/migrate-from-marketplace/) for the complete procedure.
 
 ### `fonts`
 
@@ -408,12 +450,13 @@ emdash({
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
 
-On **Cloudflare Workers**, the env-var fallback reads `process.env`, which is empty unless the `nodejs_compat_populate_process_env` compatibility flag is enabled. To use the env var instead of the config option there, set both:
+On **Cloudflare Workers**, the env-var fallback reads `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env`.
 
 ```jsonc
 // wrangler.jsonc
 {
-	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
 	"vars": { "EMDASH_SITE_URL": "https://cms.example.com" },
 }
 ```
@@ -622,36 +665,18 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 #### `experimental.registry`
 
-**Optional.** Use the experimental [plugin registry](/plugins/registry/) as the admin dashboard's source for browsing and installing plugins instead of the marketplace. Registry plugins run sandboxed, so this option requires a [`sandboxRunner`](/deployment/plugin-sandbox/).
+**Deprecated.** Use the top-level [`registry`](#registry) option. Existing `experimental.registry` configuration continues to work when the top-level option is omitted. If both are present, the top-level value takes precedence.
 
-Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
+The following change moves an existing registry URL to the top level:
 
-```js title="astro.config.mjs"
-import { sandbox } from "@emdash-cms/cloudflare";
-
+```js title="astro.config.mjs" del={2-4} ins={5}
 emdash({
-	sandboxRunner: sandbox(),
 	experimental: {
-		registry: {
-			aggregatorUrl: "https://registry.emdashcms.com",
-			acceptLabelers: "did:web:labels.emdashcms.com",
-			policy: {
-				minimumReleaseAge: "48h",
-				minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
-			},
-		},
+		registry: "https://registry.example.com",
 	},
+	registry: "https://registry.example.com",
 });
 ```
-
-| Option                            | Type                   | Description                                                                                   |
-| --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
-| `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
-| `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
-| `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
-
-See [The plugin registry](/plugins/registry/) for the full workflow, trust model, and how to query the registry from your own site.
 
 ## Database adapters
 
@@ -965,6 +990,8 @@ The site also needs a Worker Loader binding and the plugin bridge entry point. S
 ## Media provider adapters
 
 Pass media provider descriptors to [`mediaProviders`](#mediaproviders). Both built-in Cloudflare providers are imported from `@emdash-cms/cloudflare`.
+
+Each `*EnvVar` option below names an environment variable. The provider reads it in this order: a Cloudflare Workers binding of that name, then `process.env` on the Node adapter. The matching direct option (`accountId`, `accountHash`, `apiToken`) always takes precedence over both.
 
 ### `cloudflareImages(config)`
 

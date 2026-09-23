@@ -248,10 +248,10 @@ pnpm add ../plugin-activity
 
 Register the plugin's descriptor factory in `astro.config.mjs`, then start the host development server. Restart the server after changing descriptor metadata or package exports. If a package-manager file dependency copies files instead of linking them in your setup, reinstall it after rebuilding; a workspace dependency or `pnpm link` keeps the local package connected during development.
 
-## Marketplace boundary
+## Registry boundary
 
-Native packages cannot be published to the EmDash marketplace. Marketplace plugins use the sandboxed package format, bundle workflow, and installation consent flow. If the plugin no longer needs React admin code, Astro renderers, trusted fragments, or another in-process dependency, [convert it to the sandboxed format](/plugins/creating-plugins/choosing-a-format/) before publishing through the marketplace.
+Native packages cannot be published to the EmDash registry. Registry plugins use the sandboxed package format, signed release workflow, and installation consent flow. If the plugin no longer needs React admin code, Astro renderers, trusted fragments, or another in-process dependency, [convert it to the sandboxed format](/plugins/creating-plugins/choosing-a-format/) before publishing through the registry.
 
 <Aside type="note">
-	A package may publish a sandboxed plugin and a separate native rendering companion. Keep the split explicit in both READMEs: installing the marketplace plugin does not install or trust the npm companion automatically.
+	A package may publish a sandboxed plugin and a separate native rendering companion. Keep the split explicit in both READMEs: installing the registry plugin does not install or trust the npm companion automatically.
 </Aside>

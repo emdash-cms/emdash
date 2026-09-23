@@ -180,7 +180,11 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 		});
 
 		await publishBtn.click();
-		await screen.getByRole("menuitem", { name: /Publish changes now/ }).click();
+		screen
+			.getByRole("dialog", { name: "Publish changes?" })
+			.getByRole("button", { name: "Publish changes", exact: true })
+			.element()
+			.click();
 
 		// Wait for the publish toast so we know the mutation's onSuccess has run
 		// (this is where the cache invalidation fires).

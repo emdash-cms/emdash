@@ -76,7 +76,7 @@ The following example contains every root property:
 
 `settings` is a partial site-settings object. Common properties are `title`, `tagline`, `logo`, `favicon`, `url`, `postsPerPage`, `dateFormat`, `timezone`, `social`, and `seo`.
 
-The setup wizard lets the administrator replace the seeded title and tagline. Applying a seed programmatically writes every supplied setting regardless of `onConflict`.
+The setup wizard lets the administrator replace the seeded title and tagline. The default `onConflict: "skip"` preserves those values when the seed is applied again and fills in any supplied settings that are still missing.
 
 ```json title="seed/seed.json"
 {
@@ -137,8 +137,9 @@ A collection requires `slug`, `label`, and `fields`:
 | `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `scheduling`, `search`, and `seo` |
 | `urlPattern` | `string` | Public pattern such as `/posts/{slug}` |
 | `routable` | `boolean` | Whether published entries require a slug; defaults to `true` |
-| `hidden` | `boolean` | Hides only the generated sidebar link |
+| `hidden` | `boolean` | Hides the generated sidebar link and dashboard quick action; the collection stays reachable by URL and API |
 | `sortOrder` | `number` | Explicit admin-sidebar position; ordered collections come first, ascending |
+| `group` | `string` | Admin-sidebar folder; collections with the same group share one collapsible entry |
 | `commentsEnabled` | `boolean` | Enables comments for the collection |
 | `editLocking` | `boolean` | Enables edit locks; defaults to `true` |
 | `titleField` | `string` | Field used for the content-list title |
@@ -499,7 +500,7 @@ Programmatic application defaults `includeContent` to `false`. The setup wizard 
 
 - Collections, fields, bylines, content, redirects, and sections support skip, update, and error behavior.
 - Taxonomy definitions and terms honor the applicable conflict mode.
-- Settings are always applied.
+- Settings use per-key conflict handling. `skip` creates missing settings and preserves existing values. `update` overwrites every supplied setting. `error` stops at the first existing setting; settings created earlier in seed order remain applied.
 - Existing menus retain their menu row but replace all items.
 - Existing widget areas retain their area row but replace all widgets.
 - A content conflict is matched by collection, slug, and locale. A slugless entry in a non-routable collection is matched by its seed ID.

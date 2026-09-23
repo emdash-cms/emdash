@@ -1,0 +1,90 @@
+---
+title: Content Lifecycle
+description: State transitions, revisions, permissions, conflicts, and hooks for EmDash content.
+---
+
+EmDash keeps the published version of an entry separate from unpublished changes. The admin panel,
+REST API, command-line interface (CLI), and Model Context Protocol (MCP) tools use the same lifecycle
+rules.
+
+An entry can be `draft`, `scheduled`, or `published`. A published entry can also have a draft and a
+future schedule: visitors continue to receive the live revision until the scheduled draft is
+published. Trash is separate from status. A trashed entry keeps its lifecycle metadata but is
+excluded from ordinary content reads.
+
+## State transitions
+
+The following table is the canonical contract for content state, revision pointers, and publication
+timestamps. “No change” means the operation preserves the stored value.
+
+| Action | Starting state | Result | Revision effect | `publishedAt` | `scheduledAt` | Repeated call |
+| --- | --- | --- | --- | --- | --- | --- |
+| Save changes | Any active entry | Status does not change | On a revision-enabled collection, replaces the draft revision while the live revision remains public | No change | No change | A supplied `_rev` refuses a stale save; omitting it makes the REST write unconditional |
+| Publish | Draft, scheduled, or published | Published | Promotes the draft revision to live and clears the draft pointer | Set on first publish; preserved on later publishes unless an authorized caller overrides it | Cleared | Preserves the live content and publication time, but returns a new `_rev` |
+| Publish when due | Scheduled, or published with a scheduled draft | Published | Same as publish | Uses the scheduled time on first publish; preserves the existing value when publishing a new draft over live content | Cleared | A later scheduler pass skips an entry whose schedule was already cleared |
+| Unpublish | Any active entry | Draft | Clears the live pointer; preserves the existing draft or creates one from the live revision | Preserved | Cleared | An entry that is already a plain draft does not change |
+| Schedule | Draft, scheduled, or published | A draft becomes scheduled; a published entry stays published | No change | No change | Set to the requested future time | Replaces the existing schedule and returns a new `_rev` |
+| Unschedule | Scheduled, or published with a schedule | A scheduled entry becomes draft; a published entry stays published | No change | No change | Cleared | An entry without a schedule does not change |
+| Discard draft | Any active entry | Status does not change | Clears the draft pointer; the live revision remains unchanged | No change | No change | An entry without a draft does not change |
+| Move to Trash | Any active entry | Trashed and absent from ordinary reads | Preserved | Preserved | Preserved | A request for an entry already in Trash returns not found |
+| Restore from Trash | Trashed | Draft | Clears the live pointer; preserves any draft pointer | Preserved | Cleared | Requires an entry that is still in Trash |
+| Delete permanently | Trashed | Removed | Removes the entry and its revisions | Removed | Removed | Cannot be repeated or undone |
+| Restore a revision | Any active entry | Status does not change | On a revision-enabled collection, replaces the draft with a copy of the selected revision; the live revision remains unchanged | No change | No change | Creates a new revision and returns a new `_rev` |
+
+On a collection without revision support, saves and publishes use the content row instead of live
+and draft pointers. Restoring a revision writes the selected field values directly to that row.
+
+Restoring a revision on a revision-enabled collection does not publish it. Publish the entry after
+reviewing the restored draft.
+
+## Permissions and write protection
+
+Permissions depend on ownership. An Author can act on an entry they own; an Editor can perform the
+same action on any entry. Permanent deletion requires an Admin.
+
+Setting `publishedAt` during publish requires `content:publish_any`, even when the caller owns the
+entry.
+
+The REST API accepts `_rev` as an optional optimistic-concurrency precondition where shown. MCP tools
+require it for the same operations so an agent must read the entry before changing it. A stale token
+returns `CONFLICT`. Admin and REST writes protected by an entry lock return `ENTRY_LOCKED` unless an
+authorized request uses the supported lock override. MCP writes do not participate in entry locks.
+
+| Action | Permission | REST `_rev` | MCP `_rev` | Admin and REST lock | Hooks |
+| --- | --- | --- | --- | --- | --- |
+| Save changes | `content:edit_own` or `content:edit_any` | Optional | Required | Enforced | `content:beforeSave`, `content:afterSave` |
+| Publish | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforePublish`, `content:afterPublish` |
+| Unpublish | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforeUnpublish`, `content:afterUnpublish` |
+| Schedule | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforeSchedule`, `content:afterSchedule` |
+| Unschedule | `content:publish_own` or `content:publish_any` | Not accepted | Not accepted | Enforced | `content:afterUnschedule` |
+| Discard draft | `content:edit_own` or `content:edit_any` | Optional | Required | Enforced | None |
+| Move to Trash | `content:delete_own` or `content:delete_any` | Not accepted | Not accepted | Enforced | `content:beforeDelete`, `content:afterDelete` |
+| Restore from Trash | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Not enforced | `content:afterRestore` |
+| Delete permanently | `content:delete_permanent` | Not accepted | Not accepted | Not enforced | `content:afterDelete` |
+| Restore a revision | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Not enforced | None |
+
+The `content:afterDelete` event sets `permanent` to `false` when an entry moves to Trash and `true`
+after permanent deletion. Successful after-hooks run after the state change and may run after the
+response has been sent. A plugin can reject save, publish, unpublish, schedule, or move-to-Trash from
+the corresponding before-hook.
+
+When scheduled publication reaches its due time, it uses the publish hooks. If a
+`content:beforePublish` hook rejects that scheduled attempt, EmDash clears the schedule and runs
+`content:afterUnschedule`.
+
+## Conflicts and retries
+
+Use the `_rev` returned by each read or write for the next protected operation. EmDash refuses an
+outdated token instead of replacing a concurrent change. Read the entry again, review the newer
+state, and then decide whether to retry.
+
+An error response does not always prove that no state changed. If a connection ends before the
+client receives a response, read the entry before retrying a lifecycle operation. This also prevents
+a retry from replacing work completed by another editor.
+
+Revision restore commits the restored content and its audit revision together. If either write
+fails, EmDash preserves the content and revision history from before the request.
+
+See the [REST API reference](/reference/rest-api/) for HTTP request and response schemas, the
+[MCP server reference](/reference/mcp-server/) for tool inputs, and the [hook
+reference](/reference/hooks/) for event payloads.

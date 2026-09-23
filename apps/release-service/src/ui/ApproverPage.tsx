@@ -44,6 +44,10 @@ function accessCapability(
 		return t("approval.access.capability.contentRead", "read site content");
 	if (category === "content" && operation === "write")
 		return t("approval.access.capability.contentWrite", "change site content");
+	if (category === "admin" && operation === "editorDraftRead")
+		return t("approval.access.capability.editorDraftRead", "read selected unsaved editor content");
+	if (category === "admin" && operation === "editorDraftPatch")
+		return t("approval.access.capability.editorDraftPatch", "propose unsaved editor changes");
 	if (category === "email" && operation === "events")
 		return t("approval.access.capability.emailEvents", "respond to incoming email");
 	if (category === "email" && operation === "send")
@@ -61,6 +65,7 @@ function accessCapability(
 	if (category === "users" && operation === "read")
 		return t("approval.access.capability.usersRead", "read user accounts");
 	if (category === "content") return t("approval.access.category.content", "site content");
+	if (category === "admin") return t("approval.access.category.admin", "unsaved editor content");
 	if (category === "email") return t("approval.access.category.email", "email");
 	if (category === "media") return t("approval.access.category.media", "media files");
 	if (category === "network") return t("approval.access.category.network", "external websites");

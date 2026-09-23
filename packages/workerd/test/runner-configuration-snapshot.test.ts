@@ -37,6 +37,32 @@ describe("workerd configuration readiness", () => {
 		vi.restoreAllMocks();
 	});
 
+	it("propagates a failed startup to concurrent callers and retries on the next invocation", async () => {
+		db = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: new DatabaseDriver(":memory:") }),
+		});
+		runner = new WorkerdSandboxRunner({ db });
+		runner["scheduleEagerStart"] = () => {};
+		const startupError = new Error("workerd failed to start");
+		let starts = 0;
+		runner["restart"] = async () => {
+			if (++starts === 1) throw startupError;
+		};
+
+		await runner.load(manifest("1.0.0"), "export default {};");
+		const results = await Promise.allSettled([runner.ensureRunning(), runner.ensureRunning()]);
+		expect(results).toEqual([
+			{ status: "rejected", reason: startupError },
+			{ status: "rejected", reason: startupError },
+		]);
+		expect(starts).toBe(1);
+		expect(runner["needsRestart"]).toBe(true);
+
+		await runner.ensureRunning();
+		expect(starts).toBe(2);
+		expect(runner["needsRestart"]).toBe(false);
+	});
+
 	it("probes only plugins included in each spawned configuration", async () => {
 		db = new Kysely<Database>({
 			dialect: new SqliteDialect({ database: new DatabaseDriver(":memory:") }),
@@ -77,7 +103,6 @@ describe("workerd configuration readiness", () => {
 			vi.fn<typeof fetch>(async (input) => {
 				const url = new URL(input instanceof Request ? input.url : input);
 				const ready = runningPorts.has(Number(url.port));
-				// Advance the readiness deadline when no configured listener can answer.
 				if (!ready) now += 10_000;
 				return new Response(ready ? "ok" : "unavailable", { status: ready ? 200 : 503 });
 			}),

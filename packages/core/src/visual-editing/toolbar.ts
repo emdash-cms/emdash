@@ -1,3 +1,6 @@
+import { escapeHtml } from "../api/escape.js";
+import { VISUAL_ACTION_TOKEN_INVALID } from "./action-token.js";
+
 /**
  * EmDash Visual Editing Toolbar
  *
@@ -9,10 +12,34 @@
 interface ToolbarConfig {
 	editMode: boolean;
 	isPreview: boolean;
+	actionToken?: string;
+	labels: ToolbarLabels;
+}
+
+export interface ToolbarLabels {
+	publish: string;
+	publishing: string;
+	sessionExpired: string;
+	refreshPage: string;
+	publishFailed: string;
+	editMode: string;
+	openInAdmin: string;
+	hideToolbar: string;
+}
+
+const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
+const SCRIPT_PARAGRAPH_SEPARATOR_RE = /\u2029/g;
+
+function inlineScriptJson(value: unknown): string {
+	return JSON.stringify(value)
+		.replaceAll("<", "\\u003c")
+		.replace(SCRIPT_LINE_SEPARATOR_RE, "\\u2028")
+		.replace(SCRIPT_PARAGRAPH_SEPARATOR_RE, "\\u2029");
 }
 
 export function renderToolbar(config: ToolbarConfig): string {
-	const { editMode, isPreview } = config;
+	const { editMode, isPreview, actionToken = "", labels } = config;
+	const recoveryBadge = `<span class="emdash-tb-badge emdash-tb-badge--error">${escapeHtml(labels.sessionExpired)}</span>`;
 
 	return `
 <!-- EmDash Visual Editing Toolbar -->
@@ -22,25 +49,25 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     <div class="emdash-tb-divider"></div>
 
-    <label class="emdash-tb-toggle" title="Toggle edit mode">
+    <label class="emdash-tb-toggle" title="${escapeHtml(labels.editMode)}">
       <input type="checkbox" id="emdash-edit-toggle" ${editMode ? "checked" : ""} />
       <span class="emdash-tb-toggle-track">
         <span class="emdash-tb-toggle-thumb"></span>
       </span>
-      <span class="emdash-tb-toggle-label">Edit</span>
+      <span class="emdash-tb-toggle-label">${escapeHtml(labels.editMode)}</span>
     </label>
 
     <span class="emdash-tb-status" id="emdash-tb-status"></span>
 
     <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
 
-    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="Open in admin">
+    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </a>
 
-    <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">Publish</button>
+    <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">${escapeHtml(labels.publish)}</button>
 
-    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="Hide toolbar" aria-label="Hide toolbar">&times;</button>
+    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="${escapeHtml(labels.hideToolbar)}" aria-label="${escapeHtml(labels.hideToolbar)}">&times;</button>
   </div>
 </div>
 
@@ -549,6 +576,60 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   var isEditMode = toolbar.getAttribute("data-edit-mode") === "true";
+  var visualActionToken = ${inlineScriptJson(actionToken)};
+  var visualActionTokenErrorCode = ${inlineScriptJson(VISUAL_ACTION_TOKEN_INVALID)};
+  var toolbarLabels = ${inlineScriptJson(labels)};
+  var visualActionRefreshTimer = null;
+
+  function showVisualActionRecovery() {
+    if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
+    visualActionRefreshTimer = null;
+    statusEl.innerHTML = ${inlineScriptJson(recoveryBadge)};
+    publishBtn.disabled = true;
+    publishBtn.textContent = toolbarLabels.refreshPage;
+  }
+
+  function showPublishError(message) {
+    statusEl.textContent = message || toolbarLabels.publishFailed;
+    publishBtn.disabled = false;
+    publishBtn.textContent = toolbarLabels.publish;
+  }
+
+  function scheduleVisualActionTokenRefresh(delay) {
+    if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
+    visualActionRefreshTimer = setTimeout(function() {
+      visualActionRefreshTimer = null;
+      refreshVisualActionToken();
+    }, delay);
+  }
+
+  function refreshVisualActionToken() {
+    return ecFetch("/_emdash/api/visual-editing/action-token", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "X-EmDash-Visual-Action": visualActionToken },
+    })
+    .then(function(res) {
+      if (res.status === 401 || res.status === 403) {
+        showVisualActionRecovery();
+        return null;
+      }
+      if (!res.ok) throw new Error("Visual action token renewal failed");
+      return res.json();
+    })
+    .then(function(body) {
+      if (!body) return;
+      if (!body.data || !body.data.token) throw new Error("Visual action token renewal returned no token");
+      visualActionToken = body.data.token;
+      scheduleVisualActionTokenRefresh(240000);
+    })
+    .catch(function(error) {
+      console.error("Visual action token renewal failed:", error);
+      scheduleVisualActionTokenRefresh(30000);
+    });
+  }
+
+  if (visualActionToken) scheduleVisualActionTokenRefresh(240000);
 
   var dismissBtn = document.getElementById("emdash-tb-dismiss");
   if (dismissBtn) {
@@ -677,11 +758,12 @@ export function renderToolbar(config: ToolbarConfig): string {
     }
 
     publishBtn.disabled = true;
-    publishBtn.textContent = "Publishing\u2026";
+    publishBtn.textContent = toolbarLabels.publishing;
 
-    ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
+    ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
       method: "POST",
       credentials: "same-origin",
+      headers: { "X-EmDash-Visual-Action": visualActionToken },
     })
     .then(function(res) {
       if (res.ok) {
@@ -691,14 +773,23 @@ export function renderToolbar(config: ToolbarConfig): string {
           location.reload();
         }
       } else {
-        publishBtn.disabled = false;
-        publishBtn.textContent = "Publish";
-        console.error("Publish failed:", res.status);
+        if (res.status === 401) {
+          showVisualActionRecovery();
+          return;
+        }
+        return res.json().catch(function() { return null; }).then(function(body) {
+          if (body && body.error && body.error.code === visualActionTokenErrorCode) {
+            showVisualActionRecovery();
+            return;
+          }
+          showPublishError(body && body.error && body.error.message);
+          console.error("Publish failed:", res.status);
+        });
       }
     })
     .catch(function(err) {
       publishBtn.disabled = false;
-      publishBtn.textContent = "Publish";
+      publishBtn.textContent = toolbarLabels.publish;
       console.error("Publish failed:", err);
     });
   }

@@ -122,6 +122,7 @@ export default {
 					collection: event.collection,
 					resourceId: contentId,
 					resourceType: "content",
+					...(event.actor ? { userId: event.actor.id } : {}),
 					changes:
 						beforeRecord || afterRecord ? { before: beforeRecord, after: afterRecord } : undefined,
 					metadata: { slug: event.content.slug, status: event.content.status },

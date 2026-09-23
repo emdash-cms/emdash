@@ -7,10 +7,22 @@
  *
  */
 
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import type { PluginManifest, RequestMeta, UserInfo } from "../types.js";
+import type { ContentActionCallbacks } from "../context.js";
+import type {
+	ContentCreateOptions,
+	ContentItem,
+	ContentWriteInput,
+	PluginComment,
+	PluginCommentStatus,
+	PluginManifest,
+	RequestMeta,
+	TaxonomyAccessWithWrite,
+	UserInfo,
+} from "../types.js";
 
 /**
  * Resource limits for sandboxed plugins.
@@ -61,6 +73,25 @@ export type SandboxEmailSendCallback = (
 	pluginId: string,
 ) => Promise<void>;
 
+export type SandboxCommentModerateCallback = (
+	pluginId: string,
+	id: string,
+	status: PluginCommentStatus,
+	expectedStatus: PluginCommentStatus,
+) => Promise<PluginComment>;
+
+export type SandboxContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
+
+export type SandboxHttpFetchCallback = typeof fetch;
+
 /**
  * Options for creating a sandbox runner
  */
@@ -71,6 +102,11 @@ export interface SandboxOptions {
 	db: Kysely<Database>;
 	/** Called immediately before a sandboxed plugin content mutation. */
 	beforeContentWrite?: () => Promise<void>;
+	/** Runtime-owned taxonomy mutation surface used by sandbox bridges. */
+	taxonomyWrite?: TaxonomyAccessWithWrite;
+	contentActions?: ContentActionCallbacks;
+	/** Clock used to calculate recurring plugin task schedules. */
+	now?: () => Date;
 	/** Default resource limits */
 	limits?: ResourceLimits;
 	/** Site info for plugin context (injected into wrapper at generation time) */
@@ -82,15 +118,24 @@ export interface SandboxOptions {
 	};
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
+	commentModerate?: SandboxCommentModerateCallback;
+	/** Optional host HTTP transport used by test hosts and custom runtimes. */
+	httpFetch?: SandboxHttpFetchCallback;
 	/**
-	 * Media storage adapter for sandboxed plugin uploads and deletes.
-	 * When provided, plugins with write:media can upload and delete files
-	 * via ctx.media.upload() and ctx.media.delete().
+	 * Media storage adapter for sandboxed plugin byte reads, uploads, and deletes.
+	 * Each operation remains gated by its own media capability.
 	 */
 	mediaStorage?: {
 		upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+		download(key: string): Promise<{
+			body: ReadableStream<Uint8Array>;
+			contentType: string;
+			size: number;
+		}>;
 		delete(key: string): Promise<unknown>;
 	};
+	/** Worker Loader name suffix. The plugin's logical ID remains unchanged. */
+	isolateKey?: string;
 }
 
 /**
@@ -121,7 +166,12 @@ export interface SandboxedPluginInstance {
 	 * @param request - Serialized request info for context
 	 * @returns Route response data
 	 */
-	invokeRoute(routeName: string, input: unknown, request: SerializedRequest): Promise<unknown>;
+	invokeRoute(
+		routeName: string,
+		input: unknown,
+		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
+	): Promise<unknown>;
 
 	/**
 	 * Change whether the plugin may access host services.
@@ -136,6 +186,10 @@ export interface SandboxedPluginInstance {
 	terminate(): Promise<void>;
 }
 
+export interface SandboxInvocationOptions {
+	invalidateContentCache?: (tags: string[]) => Promise<void>;
+}
+
 /**
  * Serialized request for RPC transport.
  * Worker Loader can't pass Request objects directly.
@@ -146,6 +200,8 @@ export interface SerializedRequest {
 	headers: Record<string, string>;
 	/** Normalized request metadata extracted before RPC serialization */
 	meta: RequestMeta;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 	/**
 	 * Authenticated caller for private routes, resolved by the host before
 	 * dispatch. Undefined for public routes and unbound machine tokens.
@@ -243,6 +299,15 @@ export interface SandboxRunner {
 	isHealthy(): boolean;
 
 	/**
+	 * Why the runner cannot run plugins, once isAvailable() or isHealthy()
+	 * has returned false. A lowercase clause without a final period: callers
+	 * append it to their own message after a colon.
+	 *
+	 * Making this required breaks runners implemented outside this repository.
+	 */
+	unavailableReason?(): string;
+
+	/**
 	 * Load a sandboxed plugin from code.
 	 *
 	 * @param manifest - Plugin manifest with metadata and capabilities
@@ -258,12 +323,23 @@ export interface SandboxRunner {
 	 * doesn't exist when the sandbox runner is constructed.
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
+	setCommentModerate?(callback: SandboxCommentModerateCallback | null): void;
+	setContentCreate?(callback: SandboxContentCreateCallback | null): void;
+	setContentActions?(callback: ContentActionCallbacks | null): void;
+
+	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
+	setCronReschedule?(callback: (() => void) | null): void;
 
 	/**
 	 * Terminate all loaded sandboxed plugins.
 	 * Called during shutdown or when reconfiguring.
 	 */
 	terminateAll(): Promise<void>;
+}
+
+export function withUnavailableReason(message: string, runner: SandboxRunner | null): string {
+	const reason = runner?.unavailableReason?.();
+	return reason ? `${message}: ${reason}` : message;
 }
 
 /**

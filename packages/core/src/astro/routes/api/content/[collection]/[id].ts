@@ -129,11 +129,14 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		? body
 		: { ...body, authorId: undefined };
 
+	const actor = user ? { id: user.id, role: user.role } : undefined;
+
 	// Pass _rev through for optimistic concurrency validation
 	const result = await emdash.handleContentUpdate(collection, resolvedId, {
 		...writeBody,
 		locale,
 		_rev: body._rev,
+		actor,
 	});
 
 	if (!result.success) return unwrapResult(result);

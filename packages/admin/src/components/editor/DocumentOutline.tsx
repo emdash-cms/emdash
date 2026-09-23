@@ -187,7 +187,7 @@ export function DocumentOutline({
 					/>
 				}
 			>
-				<Text bold as="span">
+				<Text as="span" DANGEROUS_className="font-semibold">
 					{t`Outline`}
 				</Text>
 				<CaretDown
@@ -210,7 +210,9 @@ export function DocumentOutline({
 			>
 				<div className="space-y-0.5 pt-2">
 					{headings.length === 0 ? (
-						<p className="text-sm text-kumo-subtle px-2 py-1">{t`No headings in document`}</p>
+						<p className="px-2 py-1 text-xs leading-4 text-kumo-subtle">
+							{t`No headings in document`}
+						</p>
 					) : (
 						headings.map((heading) => {
 							const isCurrent = currentHeading?.key === heading.key;
@@ -220,7 +222,7 @@ export function DocumentOutline({
 									type="button"
 									onClick={() => handleHeadingClick(heading)}
 									className={cn(
-										"w-full text-start px-2 py-1 text-sm rounded-md transition-colors",
+										"w-full rounded-md px-2 py-1 text-start text-base transition-colors",
 										"hover:bg-kumo-tint/50 cursor-pointer",
 										"truncate",
 										getIndentClass(heading.level),

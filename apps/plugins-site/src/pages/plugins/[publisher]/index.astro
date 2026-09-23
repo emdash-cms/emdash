@@ -1,0 +1,129 @@
+---
+export const prerender = false;
+
+import { getLiveCollection } from "astro:content";
+import { isDid, isHandle } from "@atcute/lexicons/syntax";
+
+import PluginCard from "../../../components/PluginCard.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import {
+	publisherHandle,
+	publisherPath,
+	REGISTRY_PAGE_CACHE,
+} from "../../../lib/registry.js";
+
+const publisherParam = Astro.params.publisher;
+if (!publisherParam) return Astro.redirect("/404");
+
+const identifier = publisherParam.startsWith("@")
+	? publisherParam.slice(1)
+	: publisherParam;
+if (!isDid(identifier) && !isHandle(identifier)) return Astro.redirect("/404");
+const result = await getLiveCollection("plugins", {
+	q: identifier,
+	limit: 100,
+});
+if (result.error) return Astro.redirect("/?registry=unavailable");
+const entries = (result.entries ?? []).filter(({ data }) =>
+	isDid(identifier)
+		? data.package.did === identifier
+		: publisherHandle(data.package) === identifier,
+);
+if (entries.length === 0) return Astro.redirect("/404");
+
+const handle = entries
+	.map(({ data }) => publisherHandle(data.package))
+	.find(Boolean);
+const canonicalPath = publisherPath(entries[0]!.data.package);
+Astro.cache.set({
+	...REGISTRY_PAGE_CACHE,
+	tags: ["registry", `publisher:${entries[0]!.data.package.did}`],
+});
+if (handle && publisherParam !== `@${handle}`) {
+	return Astro.redirect(canonicalPath, 302);
+}
+
+const displayIdentity = handle ? `@${handle}` : identifier;
+---
+
+<BaseLayout
+	title={`${displayIdentity} plugins`}
+	description={`Browse EmDash plugins published by ${displayIdentity}.`}
+	canonical={canonicalPath}
+>
+	<section class="publisher-hero shell">
+		<a class="back-link" href="/">← All plugins</a>
+		<p class="eyebrow">Plugin publisher</p>
+		<h1>{displayIdentity}</h1>
+		<p>
+			{
+				entries.length === 1
+					? "1 public plugin"
+					: `${entries.length} public plugins`
+			}
+		</p>
+	</section>
+
+	<section class="publisher-directory shell" aria-labelledby="plugins-heading">
+		<h2 id="plugins-heading">Published plugins</h2>
+		<div class="plugin-grid">
+			{entries.map((entry) => <PluginCard entry={entry.data} />)}
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.publisher-hero {
+		padding-top: 5rem;
+		padding-bottom: 4.5rem;
+	}
+
+	.back-link {
+		display: block;
+		width: fit-content;
+		margin-bottom: 4rem;
+		color: var(--muted);
+		font-size: 0.8rem;
+		text-decoration: none;
+	}
+
+	.publisher-hero h1 {
+		margin: 0;
+		font-size: clamp(3rem, 7vw, 6rem);
+		line-height: 0.95;
+		letter-spacing: -0.065em;
+	}
+
+	.publisher-hero > p:last-child {
+		margin: 1.25rem 0 0;
+		color: var(--muted);
+	}
+
+	.publisher-directory h2 {
+		margin: 0 0 1.5rem;
+		font-size: 1.4rem;
+		letter-spacing: -0.035em;
+	}
+
+	.plugin-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.9rem;
+	}
+
+	@media (max-width: 900px) {
+		.plugin-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 640px) {
+		.publisher-hero {
+			padding-top: 3rem;
+		}
+
+		.plugin-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

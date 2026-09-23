@@ -18,6 +18,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
+import { Plugin } from "@tiptap/pm/state";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -65,11 +66,17 @@ interface PTTextBlock {
 	textAlign?: "left" | "center" | "right" | "justify";
 }
 
-type PTBlock = PTTextBlock | { _type: string; _key: string; [key: string]: unknown };
+type PTTableBlock = { _type: "table"; [key: string]: unknown };
+type PTBlock = PTTextBlock | PTTableBlock | { _type: string; _key: string; [key: string]: unknown };
+const TABLE_BLOCK_PLACEHOLDER_HTML = /<[^>]+\bdata-emdash-table-block(?:\s|=|>)/i;
 
 /** Type guard for PTTextBlock */
 function isPTTextBlock(block: PTBlock): block is PTTextBlock {
 	return block._type === "block";
+}
+
+function isPTTableBlock(value: unknown): value is PTTableBlock {
+	return typeof value === "object" && value !== null && "_type" in value && value._type === "table";
 }
 
 /** Type guard for ProseMirror JSON document node */
@@ -284,6 +291,11 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 		}
 		case "horizontalRule":
 			return { _type: "break", _key: k(), style: "lineBreak" };
+		case "table": {
+			const rawTable = node.attrs?.rawTable;
+			if (isPTTableBlock(rawTable)) return rawTable;
+			return null;
+		}
 		case "pluginBlock": {
 			// Spread the captured data back out so the block round-trips losslessly.
 			// `data` holds every field except _type / _key / id (which live on
@@ -600,14 +612,17 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			},
 		};
 	}
+	if (block._type === "table") {
+		return {
+			type: "table",
+			attrs: { rawTable: block },
+		};
+	}
 	// Unknown block types — treat as plugin blocks. Capture every field other
 	// than the well-known ones into `data` so the block round-trips losslessly,
 	// even if no plugin currently registers this type. Matches the admin
 	// editor's behaviour at PortableTextEditor.tsx:572-588.
-	const { _type, _key, id, url, ...rest } = block as { _type: string; _key: string } & Record<
-		string,
-		unknown
-	>;
+	const { _type, _key, id, url, ...rest } = block;
 	// Filter out _-prefixed keys to prevent accumulation across edit cycles.
 	const data = Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
 	return {
@@ -1096,6 +1111,76 @@ const HtmlBlockNode = Node.create({
 				contenteditable: "false",
 			}),
 			"HTML block (edit in admin)",
+		];
+	},
+});
+
+const TableBlockNode = Node.create<{ placeholder: string }>({
+	name: "table",
+	group: "block",
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addOptions() {
+		return { placeholder: "Table (edit in admin)" };
+	},
+
+	addAttributes() {
+		return {
+			rawTable: { default: null, rendered: false, parseHTML: () => null },
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'div[data-emdash-table-block="true"]' }];
+	},
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				props: {
+					handleDOMEvents: {
+						cut: (view, event) => {
+							let hasTable = false;
+							view.state.selection.content().content.descendants((node) => {
+								hasTable ||= node.type.name === "table";
+							});
+							if (!hasTable) return false;
+							event.preventDefault();
+							return true;
+						},
+					},
+					handlePaste: (_view, event, slice) => {
+						const html = event.clipboardData?.getData("text/html") ?? "";
+						if (!TABLE_BLOCK_PLACEHOLDER_HTML.test(html)) return false;
+
+						let hasTable = false;
+						let hasMissingPayload = false;
+						slice.content.descendants((node) => {
+							if (node.type.name !== "table") return;
+							hasTable = true;
+							if (!isPTTableBlock(node.attrs.rawTable)) hasMissingPayload = true;
+						});
+						if (hasTable && !hasMissingPayload) return false;
+
+						event.preventDefault();
+						return true;
+					},
+				},
+			}),
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-emdash-table-block": "true",
+				class: "emdash-plugin-block-placeholder",
+				contenteditable: "false",
+			}),
+			this.options.placeholder,
 		];
 	},
 });
@@ -2000,6 +2085,7 @@ export interface InlinePortableTextEditorProps {
 	collection: string;
 	entryId: string;
 	field: string;
+	tablePlaceholder?: string;
 }
 
 export function InlinePortableTextEditor({
@@ -2007,8 +2093,13 @@ export function InlinePortableTextEditor({
 	collection,
 	entryId,
 	field,
+	tablePlaceholder = TableBlockNode.options.placeholder,
 }: InlinePortableTextEditorProps) {
 	const initialRef = React.useRef(value);
+	// The editor document last known to be stored: the one the loaded content
+	// produced, then the one each successful save sent. `save()` does nothing
+	// while the current document is structurally equal to it (`Node.eq`).
+	const savedDocRef = React.useRef<Editor["state"]["doc"] | null>(null);
 	const savingRef = React.useRef(false);
 	const editorRef = React.useRef<ReturnType<typeof useEditor>>(null);
 
@@ -2072,9 +2163,9 @@ export function InlinePortableTextEditor({
 			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
-			const current = JSON.stringify(getBlocks());
-			const initial = JSON.stringify(initialRef.current);
-			if (current === initial) return;
+			const doc = editorRef.current?.state.doc;
+			if (!doc || !savedDocRef.current || doc.eq(savedDocRef.current)) return;
+			const blocks = getBlocks();
 
 			savingRef.current = true;
 			try {
@@ -2084,13 +2175,14 @@ export function InlinePortableTextEditor({
 						method: "PUT",
 						credentials: "same-origin",
 						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-						body: JSON.stringify({ data: { [field]: getBlocks() } }),
+						body: JSON.stringify({ data: { [field]: blocks } }),
 						keepalive: options?.keepalive ?? false,
 					},
 				);
 
 				if (res.ok) {
-					initialRef.current = getBlocks();
+					initialRef.current = blocks;
+					savedDocRef.current = doc;
 					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
 					document.dispatchEvent(
 						new CustomEvent("emdash:content-changed", {
@@ -2184,6 +2276,7 @@ export function InlinePortableTextEditor({
 			}),
 			Typography,
 			HtmlBlockNode,
+			TableBlockNode.configure({ placeholder: tablePlaceholder }),
 			PluginBlockNode,
 			slashCommandsExtension,
 		],
@@ -2201,9 +2294,10 @@ export function InlinePortableTextEditor({
 		},
 	});
 
-	// Store editor ref for getBlocks
+	// Store editor ref for getBlocks, and record the loaded document as saved.
 	React.useEffect(() => {
 		editorRef.current = editor;
+		if (editor && !savedDocRef.current) savedDocRef.current = editor.state.doc;
 	}, [editor]);
 
 	// Slash menu command handler
@@ -2571,3 +2665,4 @@ export function InlinePortableTextEditor({
 export { pmToPortableText as _pmToPortableText };
 export { portableTextToPM as _portableTextToPM };
 export { createUnsupportedFileHandlers as _createUnsupportedFileHandlers };
+export { TableBlockNode as _InlineTableBlockNode };

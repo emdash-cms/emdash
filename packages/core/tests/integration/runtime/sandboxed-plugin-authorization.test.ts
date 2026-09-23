@@ -77,7 +77,7 @@ describe("sandboxed plugin authorization across admin status changes", () => {
 			createDialect: () => new SqliteDialect({ database: sqlite }),
 			createStorage: null,
 			sandboxEnabled: true,
-			sandboxedPluginEntries: ["policy-plugin", "dormant-plugin"].map((id) => ({
+			sandboxedPluginEntries: ["policy-plugin", "dormant-plugin", "a", "a:b"].map((id) => ({
 				id,
 				version: "1.0.0",
 				options: {},
@@ -129,6 +129,15 @@ describe("sandboxed plugin authorization across admin status changes", () => {
 	it("rejects backing-service access for a plugin disabled before cold boot", async () => {
 		expect(await bridgeStatus(token("dormant-plugin"))).toBe(401);
 		expect(await bridgeStatus(token())).toBe(200);
+	});
+
+	it("keeps a plugin with a longer ID active when its prefix is disabled", async () => {
+		const siblingToken = token("a:b");
+		expect(await bridgeStatus(siblingToken)).toBe(200);
+
+		expect((await disablePlugin(context("a"))).status).toBe(200);
+		expect(await bridgeStatus(token("a"))).toBe(401);
+		expect(await bridgeStatus(siblingToken)).toBe(200);
 	});
 
 	it("revokes credentials on admin disable and keeps them revoked after re-enable", async () => {

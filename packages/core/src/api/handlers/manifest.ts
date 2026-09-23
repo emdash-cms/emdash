@@ -51,6 +51,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	reference: "reference",
 	json: "json",
 	repeater: "repeater",
+	blocks: "blocks",
 };
 
 // Collection definition shape for manifest generation
@@ -170,6 +171,7 @@ export async function buildManifestCollections(
 				titleField: collection.titleField,
 				dateField: collection.dateField,
 				...(collection.hidden ? { hidden: true } : {}),
+				...(collection.group ? { group: collection.group } : {}),
 				listColumns: listColumns.length > 0 ? listColumns : undefined,
 				fields,
 			};
@@ -269,11 +271,13 @@ function extractFieldType(name: string, schema: unknown): FieldDescriptor {
 
 function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 	const entry: ManifestFieldDescriptor = {
-		kind: FIELD_TYPE_TO_KIND[field.type] ?? "string",
+		kind: field.unsupportedType ? "unsupported" : FIELD_TYPE_TO_KIND[field.type],
 		label: field.label,
 		required: field.required,
+		translatable: field.translatable,
 		id: field.id,
 	};
+	if (field.unsupportedType) entry.unsupportedType = field.unsupportedType;
 
 	if (field.widget) entry.widget = field.widget;
 	if (field.options) entry.options = field.options;
@@ -287,11 +291,7 @@ function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 		}));
 	}
 
-	// Include validation only for field widgets that need it client-side.
-	if (
-		(field.type === "repeater" || field.type === "file" || field.type === "image") &&
-		field.validation
-	) {
+	if (field.validation) {
 		entry.validation = { ...field.validation };
 	}
 

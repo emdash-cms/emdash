@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import {
 	ArtifactFileSchema,
 	ArtifactsSchema,
+	AdminSchema,
 	AuthorSchema,
 	LicenseSchema,
 	ManifestSchema,
@@ -26,6 +27,134 @@ import {
 	SectionsSchema,
 	SecurityContactSchema,
 } from "../src/manifest/schema.js";
+
+describe("AdminSchema", () => {
+	it("accepts settings and declarative field widgets", () => {
+		const admin = {
+			settingsSchema: {
+				enabled: { type: "boolean", label: "Enabled", default: true },
+			},
+			fieldWidgets: [
+				{
+					name: "event-picker",
+					label: "Event",
+					fieldTypes: ["string"],
+					elements: [{ type: "input", action_id: "event" }],
+				},
+			],
+		};
+
+		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+
+	it("accepts bounded saved-entry panels and confirmed actions", () => {
+		const admin = {
+			editorPanels: [
+				{
+					id: "health",
+					title: "Health",
+					route: "entry/health",
+					collections: ["posts"],
+					draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+				},
+			],
+			editorActions: [
+				{
+					id: "repair",
+					label: "Repair",
+					route: "entry/repair",
+					placement: "overflow",
+					style: "danger",
+					confirm: { title: "Repair?", text: "Change entry", confirm: "Repair", deny: "Cancel" },
+				},
+			],
+		};
+		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+
+	it("requires explicit collections and a bounded selector for draft access", () => {
+		expect(
+			AdminSchema.safeParse({
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						collections: ["posts"],
+						draft: {},
+					},
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			AdminSchema.safeParse({
+				editorPanels: [
+					{
+						id: "translate",
+						title: "Translate",
+						route: "translate",
+						draft: { read: { translatable: true } },
+					},
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			AdminSchema.safeParse({
+				editorActions: [
+					{
+						id: "translate",
+						label: "Translate",
+						route: "translate",
+						placement: "toolbar",
+						collections: ["posts"],
+						draft: { patch: {} },
+					},
+				],
+			}).success,
+		).toBe(false);
+	});
+
+	it.each([
+		[
+			"duplicate panel ids",
+			{
+				editorPanels: [
+					{ id: "health", title: "Health", route: "health" },
+					{ id: "health", title: "Other", route: "other" },
+				],
+			},
+		],
+		[
+			"danger action without confirmation",
+			{
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "repair",
+						placement: "toolbar",
+						style: "danger",
+					},
+				],
+			},
+		],
+		[
+			"duplicate collection filters",
+			{
+				editorPanels: [
+					{
+						id: "health",
+						title: "Health",
+						route: "health",
+						collections: ["posts", "posts"],
+					},
+				],
+			},
+		],
+	])("rejects %s", (_label, admin) => {
+		expect(AdminSchema.safeParse(admin).success).toBe(false);
+	});
+});
 
 describe("LicenseSchema", () => {
 	it("accepts a typical SPDX expression", () => {
@@ -305,6 +434,15 @@ describe("ManifestSchema (full document)", () => {
 	it("accepts the minimal required shape", () => {
 		const result = ManifestSchema.safeParse(minimal);
 		expect(result.success).toBe(true);
+	});
+
+	it("accepts redirect read and write capabilities", () => {
+		expect(
+			ManifestSchema.safeParse({
+				...minimal,
+				capabilities: ["redirects:read", "redirects:write"],
+			}).success,
+		).toBe(true);
 	});
 
 	it("accepts a manifest with a release.artifacts block", () => {

@@ -213,8 +213,13 @@ async function databaseByName(
 			throw new Error("Cloudflare D1 database list pagination is invalid.");
 		}
 		seenCount += resultInfo.count;
+		// `name` is a substring filter, so a page can hold other databases whose names merely
+		// contain it. Only an exact match is validated as a deployment target; a preview database
+		// named `site-db-staging` must not fail the lookup for `site-db`.
 		matches.push(
-			...envelope.result.map(metadataDatabase).filter((database) => database.name === name),
+			...envelope.result
+				.filter((database) => isRecord(database) && database.name === name)
+				.map(metadataDatabase),
 		);
 		page += 1;
 	}
@@ -245,8 +250,14 @@ function listResultInfo(value: unknown, expectedPage: number, resultCount: numbe
 		perPage: listInteger(value.per_page, "per_page", 1),
 		count: listInteger(value.count, "count", 0),
 		totalCount: listInteger(value.total_count, "total_count", 0),
-		totalPages: listInteger(value.total_pages, "total_pages", 0),
+		totalPages: 0,
 	};
+	// The D1 database list returns `page`, `per_page`, `count` and `total_count` but no
+	// `total_pages`, so derive it when it is absent rather than rejecting every name lookup.
+	result.totalPages =
+		value.total_pages === undefined
+			? Math.ceil(result.totalCount / result.perPage)
+			: listInteger(value.total_pages, "total_pages", 0);
 	if (
 		result.page !== expectedPage ||
 		result.perPage > DATABASE_LIST_PAGE_SIZE ||

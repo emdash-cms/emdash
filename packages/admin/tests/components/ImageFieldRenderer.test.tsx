@@ -193,6 +193,23 @@ describe("ImageFieldRenderer", () => {
 		expect(getComputedStyle(image!.parentElement!).aspectRatio).toBe("16 / 9");
 	});
 
+	it("previews a local image whose storage key contains slashes (#2871)", async () => {
+		// Keep the current-item refresh pending so the preview comes from the stored value.
+		vi.mocked(fetchMediaItem).mockReturnValue(new Promise(() => {}));
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={{ ...selectedImage, meta: { storageKey: "2026/08/photo.jpg" } }}
+				onChange={vi.fn()}
+				variant="featured"
+			/>,
+		);
+
+		await expect.element(screen.getByText("notes-on-simplicity.jpg")).toBeVisible();
+		const image = screen.container.querySelector("img");
+		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/2026/08/photo.jpg");
+	});
+
 	it("refreshes a featured local preview from the current media item", async () => {
 		vi.mocked(fetchMediaItem).mockResolvedValueOnce({
 			id: selectedImage.id,

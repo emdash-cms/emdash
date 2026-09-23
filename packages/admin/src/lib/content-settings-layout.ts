@@ -2,6 +2,7 @@ export const CONTENT_SETTINGS_LAYOUT_VERSION = 1 as const;
 
 export const DEFAULT_CONTENT_SETTINGS_SECTION_ORDER = [
 	"publish",
+	"url-language",
 	"ownership",
 	"bylines",
 	"translations",

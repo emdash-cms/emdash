@@ -1,0 +1,60 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+Astro.response.status = 404;
+---
+
+<BaseLayout
+	title="Plugin not found"
+	description="The requested plugin is not available in the EmDash registry."
+>
+	<section class="not-found shell">
+		<div class="mark" aria-hidden="true">—</div>
+		<p class="eyebrow">404</p>
+		<h1>That plugin isn’t here.</h1>
+		<p>
+			It may have moved, been withdrawn, or not be listed in the public
+			registry.
+		</p>
+		<a class="button-primary" href="/">Browse plugins</a>
+	</section>
+</BaseLayout>
+
+<style>
+	.not-found {
+		display: flex;
+		min-height: 34rem;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+		text-align: center;
+	}
+
+	.mark {
+		display: grid;
+		place-items: center;
+		width: 5.5rem;
+		height: 5.5rem;
+		margin-bottom: 2rem;
+		color: var(--accent);
+		font-size: 2.5rem;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.4rem;
+		box-shadow: var(--shadow-card-hover);
+		transform: rotate(-5deg);
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(2.7rem, 8vw, 5.5rem);
+		letter-spacing: -0.065em;
+	}
+
+	p:not(.eyebrow) {
+		max-width: 32rem;
+		margin: 1.2rem 0 1.8rem;
+		color: var(--muted);
+		line-height: 1.6;
+	}
+</style>

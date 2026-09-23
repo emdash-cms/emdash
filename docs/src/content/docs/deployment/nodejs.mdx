@@ -53,9 +53,14 @@ export default defineConfig({
 
 2. Start the server:
 
-   ```bash
-   node ./dist/server/entry.mjs
-   ```
+	```bash
+	node ./dist/server/entry.mjs
+	```
+
+	Set `EMDASH_ENCRYPTION_KEY` and other runtime credentials through the hosting provider's
+	process environment before starting the server. The standalone Node entry does not load `.env`
+	automatically. For a local run that uses the generated `.env` file, start it with
+	`node --env-file=.env ./dist/server/entry.mjs`.
 
 The server runs on `http://localhost:4321` by default. With the default `auto` migration mode, the first request applies pending core migrations. A fresh database also receives the embedded seed. [Manage core database migrations](/deployment/core-migrations/) explains how to migrate before restarting production traffic.
 
@@ -166,19 +171,17 @@ docker compose up -d
 
 Read database and storage credentials from the process environment when the server starts. The following variables support the configuration above:
 
-### Encryption key validation
+### Plugin settings encryption
 
-`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets or any other stored data. If the variable is set, EmDash checks its format during startup, but plugin secret values remain plaintext in the database.
+`EMDASH_ENCRYPTION_KEY` encrypts plugin settings declared as secrets. A malformed value produces an operator-facing startup message, and plugin secret-setting operations fail until the value is fixed.
 
-If you set the variable, generate a valid value and add the result to your environment:
+Generate a valid value and add the result to the server process environment:
 
 ```bash
 npx emdash secrets generate  # add the result to your environment
 ```
 
-The value is operator-provided and is not stored in the database. Losing it has no current
-data-recovery impact because no stored data depends on it. Treat the database and its backups as
-sensitive because they contain plaintext plugin secrets.
+The value is operator-provided and is not stored in the database. Keep it in a secret manager and in a separate recovery backup. During rotation, provide the new key first and retain older keys after commas until every plugin secret has been saved again. EmDash does not currently report which key IDs remain in use, so track each resaved credential and verify its integration before removing an old key. Restoring the database without a referenced key leaves the corresponding settings unreadable.
 
 ### Optional: stable-value overrides
 

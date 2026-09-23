@@ -90,6 +90,31 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/manifest.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/health",
+		entrypoint: resolveRoute("api/health.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/openapi.json",
+		entrypoint: resolveRoute("api/openapi.json.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/action-token",
+		entrypoint: resolveRoute("api/visual-editing/action-token.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/toolbar-labels",
+		entrypoint: resolveRoute("api/visual-editing/toolbar-labels.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/content/[collection]/[id]/publish",
+		entrypoint: resolveRoute("api/visual-editing/content/[collection]/[id]/publish.ts"),
+	});
+
 	// Auth mode endpoint (public — used by the login page to pick the right UI)
 	injectRoute({
 		pattern: "/_emdash/api/auth/mode",
@@ -102,6 +127,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]",
+		entrypoint: resolveRoute("api/admin/scheduled-policy-rejections/[collection]/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]",
 		entrypoint: resolveRoute("api/content/[collection]/index.ts"),
 	});
@@ -109,6 +139,14 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]",
 		entrypoint: resolveRoute("api/content/[collection]/[id].ts"),
+	});
+
+	injectRoute({
+		pattern:
+			"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]",
+		entrypoint: resolveRoute(
+			"api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId].ts",
+		),
 	});
 
 	injectRoute({
@@ -180,6 +218,32 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/content/[collection]/[id]/translations.ts"),
 	});
 
+	// Content relation routes
+	injectRoute({
+		pattern: "/_emdash/api/relations",
+		entrypoint: resolveRoute("api/relations/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/relations/[id]",
+		entrypoint: resolveRoute("api/relations/[id]/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/relations/[id]/translations",
+		entrypoint: resolveRoute("api/relations/[id]/translations.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/references/[relation]/children",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/references/[relation]/children.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/references/[relation]/parents",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/references/[relation]/parents.ts"),
+	});
+
 	// Scheduled publishing routes
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/schedule",
@@ -211,6 +275,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/media/file/[...key]",
 		entrypoint: resolveRoute("api/media/file/[...key].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/media/asset/[id]/[filename]",
+		entrypoint: resolveRoute("api/media/asset/[id]/[filename].ts"),
 	});
 
 	injectRoute({
@@ -537,8 +606,23 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/verify",
+		entrypoint: resolveRoute("api/admin/plugins/registry/verify.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/registry/artifact",
 		entrypoint: resolveRoute("api/admin/plugins/registry/artifact.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/[id]/update",
+		entrypoint: resolveRoute("api/admin/plugins/registry/[id]/update.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/[id]/uninstall",
+		entrypoint: resolveRoute("api/admin/plugins/registry/[id]/uninstall.ts"),
 	});
 
 	injectRoute({

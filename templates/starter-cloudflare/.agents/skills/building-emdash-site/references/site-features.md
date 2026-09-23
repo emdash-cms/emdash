@@ -257,7 +257,20 @@ Search requires per-collection enablement:
 
 ## SEO Meta
 
-Generate SEO meta from content entries:
+> [!IMPORTANT]
+> On server-rendered content pages that fetch the entry with `getEmDashEntry()`
+> and render `<EmDashHead>`, EmDash automatically applies the SEO panel's
+> description, image, canonical URL, and noindex setting. The panel title
+> supplies the social and JSON-LD title contributions. The panel data uses the
+> entry query the page already runs, so it adds no additional query.
+>
+> `<EmDashHead>` cannot set the document `<title>`, so use `getSeoMeta()` for
+> the title. Prerendered pages, pages without `<EmDashHead>`, hand-rolled query
+> paths, and multi-entry collection results do not receive this overlay. Use
+> `getSeoMeta()` or the raw SEO data on those paths.
+
+Use `getSeoMeta()` when the template needs to set `<title>` or the page does not
+receive the automatic overlay:
 
 ```typescript
 import { getSeoMeta } from "emdash";
@@ -268,18 +281,30 @@ const seo = getSeoMeta(post, {
 	path: `/posts/${slug}`,
 	defaultOgImage: featuredImageUrl, // Optional fallback
 });
-
-// Returns: { title, description, canonical, ogImage, robots }
 ```
 
 Use in your layout's `<head>`:
 
 ```astro
 <title>{seo.title}</title>
-<meta name="description" content={seo.description} />
-<link rel="canonical" href={seo.canonical} />
-<meta property="og:image" content={seo.ogImage} />
+{seo.description && <meta name="description" content={seo.description} />}
+{seo.canonical && <link rel="canonical" href={seo.canonical} />}
+{seo.ogImage && <meta property="og:image" content={seo.ogImage} />}
 {seo.robots && <meta name="robots" content={seo.robots} />}
+```
+
+### Custom title and description defaults
+
+Pass computed fallbacks through `defaultTitle` and `defaultDescription`. Values
+set in the SEO panel take precedence over these defaults:
+
+```ts
+import { getSeoMeta } from "emdash";
+
+const seo = getSeoMeta(post, {
+	defaultTitle: `${post.data.title}: A practical guide`,
+	defaultDescription: `Read ${post.data.title} on My Blog.`,
+});
 ```
 
 ## Comments

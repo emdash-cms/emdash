@@ -4,6 +4,11 @@
  * Converts TipTap's ProseMirror JSON format to Portable Text for storage.
  */
 
+import {
+	UnsafePortableTextTableError,
+	proseMirrorTableToPortableText,
+} from "@emdash-cms/admin/portable-text-table";
+
 import { sanitizeGalleryImages } from "./gallery.js";
 import {
 	UnsupportedPortableTextMarksError,
@@ -113,6 +118,21 @@ function convertNode(
 
 		case "gallery":
 			return convertGallery(node);
+
+		case "table": {
+			const result = proseMirrorTableToPortableText(node, {
+				path,
+				createKey: generateKey,
+				inlineToSpans: (content) => {
+					const { children, markDefs } = convertInlineContent(content, true);
+					return { content: children, markDefs };
+				},
+			});
+			if (!result.ok) {
+				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+			}
+			return result.table;
+		}
 
 		case "horizontalRule":
 			return {
@@ -399,13 +419,16 @@ function convertGallery(node: ProseMirrorNode): PortableTextGalleryBlock {
 /**
  * Convert inline content (text nodes with marks) to Portable Text spans
  */
-function convertInlineContent(nodes: ProseMirrorNode[]): {
+function convertInlineContent(
+	nodes: ProseMirrorNode[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
-	const markDefMap = new Map<string, string>(); // href -> key
+	const markDefMap = new Map<string, string>();
 	const usedSpanKeys = new Set<string>();
 	const claimSpanKey = (preferred?: string) => {
 		if (preferred && !usedSpanKeys.has(preferred)) {
@@ -452,7 +475,7 @@ function convertInlineContent(nodes: ProseMirrorNode[]): {
 			});
 		} else if (node.type === "hardBreak") {
 			// Hard breaks become newlines in the text
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const lastChild = children.at(-1)!;
 				lastChild.text += "\n";
 			} else {
@@ -518,8 +541,11 @@ function convertMark(
 
 		case "link": {
 			const href = (typeof mark.attrs?.href === "string" ? mark.attrs.href : "") || "";
+			const blank = mark.attrs?.target === "_blank";
 			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
-			const mapKey = originalMarkDef ? `key:${originalMarkDef._key}` : `href:${href}`;
+			const mapKey = originalMarkDef
+				? `key:${originalMarkDef._key}`
+				: `value:${JSON.stringify([href, blank])}`;
 
 			// Check if we already have a mark def for this link
 			if (markDefMap.has(mapKey)) {
@@ -528,13 +554,16 @@ function convertMark(
 
 			// Create new mark def
 			const key = originalMarkDef?._key || generateKey();
-			const blank = mark.attrs?.target === "_blank";
 			markDefs.push({
 				...originalMarkDef,
 				_type: "link",
 				_key: key,
 				href,
-				...(blank || (originalMarkDef && Object.hasOwn(originalMarkDef, "blank")) ? { blank } : {}),
+				...(originalMarkDef
+					? blank || Object.hasOwn(originalMarkDef, "blank")
+						? { blank }
+						: {}
+					: { blank }),
 			});
 			markDefMap.set(mapKey, key);
 
