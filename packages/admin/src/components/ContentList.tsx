@@ -37,7 +37,6 @@ import type {
 	ContentItem,
 	TrashedContentItem,
 } from "../lib/api.js";
-import type { BulkTagSource } from "../lib/api/taxonomies.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
@@ -51,7 +50,7 @@ import { cn, parseTimestamp } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
-import { BulkTagDialog } from "./BulkTagDialog.js";
+import { BulkTagDialog, type SelectedBulkTagPost } from "./BulkTagDialog.js";
 import {
 	BylineFilter,
 	EMPTY_BYLINE_FILTER,
@@ -281,7 +280,9 @@ export function ContentList({
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
-	const [bulkTagSelection, setBulkTagSelection] = React.useState<BulkTagSource[] | null>(null);
+	const [bulkTagSelection, setBulkTagSelection] = React.useState<SelectedBulkTagPost[] | null>(
+		null,
+	);
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
@@ -526,7 +527,17 @@ export function ContentList({
 										variant="secondary"
 										disabled={bulkBusy}
 										onClick={() =>
-											setBulkTagSelection(Array.from(selectedIds, (id) => ({ collection, id })))
+											setBulkTagSelection(
+												Array.from(selectedIds, (id) => {
+													const item = items.find((candidate) => candidate.id === id);
+													return {
+														collection,
+														id,
+														title: item ? getEntryTitle(item, titleField) : id,
+														locale: item?.locale,
+													};
+												}),
+											)
 										}
 									>
 										{t`Add tag`}

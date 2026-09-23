@@ -138,16 +138,49 @@ describe("bulk tag dialog", () => {
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
+		const dialogSize = () => {
+			const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+			return [dialog.clientWidth, dialog.clientHeight];
+		};
+		const initialSize = dialogSize();
+		expect(initialSize[0]).toBeGreaterThan(650);
 		await page.getByRole("button", { name: "Review posts" }).click();
-		await expect.element(page.getByText("Internship experience (en)")).toBeInTheDocument();
+		expect(dialogSize()).toEqual(initialSize);
+		await expect
+			.element(page.getByRole("dialog").getByText("Internship experience", { exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole("dialog").getByText("en", { exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByText("Tags go live now; draft edits stay unpublished."))
+			.toBeInTheDocument();
 		expect(requests).toEqual([{ termId: "tag-1", apply: false, items: [source] }]);
-		await page.getByRole("button", { name: "Apply now" }).click();
+		await page.getByRole("button", { name: "Add tag to 1 post" }).click();
+		expect(dialogSize()).toEqual(initialSize);
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
 		expect(requests[1]).toEqual({
 			termId: "tag-1",
 			apply: true,
 			items: [{ collection: "posts", id: "post-1" }],
 		});
+	});
+
+	it("keeps the chosen tag and pasted links when returning from review", async () => {
+		await render(<BulkTagDialog onClose={() => undefined} />);
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await page.getByRole("option", { name: "Internship Experience" }).click();
+		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		await page.getByRole("button", { name: "Back" }).click();
+		await expect
+			.element(page.getByRole("textbox", { name: "Post URLs (one per line)" }))
+			.toHaveValue(link);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		expect(requests).toEqual([
+			{ termId: "tag-1", apply: false, items: [source] },
+			{ termId: "tag-1", apply: false, items: [source] },
+		]);
 	});
 
 	it("opens from the Posts selection bar with the selected entry", async () => {
@@ -161,6 +194,8 @@ describe("bulk tag dialog", () => {
 						type: "posts",
 						slug: "example",
 						status: "published",
+						locale: "en",
+						translationGroup: null,
 						data: { title: "Internship experience" },
 						authorId: "editor",
 						createdAt: "2026-09-01",
@@ -176,7 +211,13 @@ describe("bulk tag dialog", () => {
 		);
 		await screen.getByRole("checkbox", { name: "Select Internship experience" }).click();
 		await screen.getByRole("button", { name: "Add tag" }).click();
-		await expect.element(screen.getByText("1 selected posts")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("dialog").getByText("Internship experience", { exact: true }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("dialog").getByText("en", { exact: true }))
+			.toBeInTheDocument();
+		expect(requests).toHaveLength(0);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("button", { name: "Review posts" }).click();
@@ -194,8 +235,8 @@ describe("bulk tag dialog", () => {
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
 		await page.getByRole("button", { name: "Review posts" }).click();
-		await page.getByRole("button", { name: "Apply now" }).click();
-		await expect.element(page.getByText("Failed")).toBeInTheDocument();
+		await page.getByRole("button", { name: "Add tag to 1 post" }).click();
+		await expect.element(page.getByText("Failed", { exact: true })).toBeInTheDocument();
 		failNextApply = false;
 		await page.getByRole("button", { name: "Retry failures" }).click();
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
@@ -212,7 +253,7 @@ describe("bulk tag dialog", () => {
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(`${link}\n${link}`);
 		await page.getByRole("button", { name: "Review posts" }).click();
-		await page.getByRole("button", { name: "Apply now" }).click();
+		await page.getByRole("button", { name: "Add tag to 1 post" }).click();
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
 		await expect.element(page.getByText("Already tagged or duplicate")).toBeInTheDocument();
 		expect(requests).toEqual([
@@ -229,7 +270,8 @@ describe("bulk tag dialog", () => {
 		await page.getByRole("button", { name: "Create tag" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
 		await page.getByRole("button", { name: "Review posts" }).click();
-		await expect.element(page.getByText("Internship experience (en)")).toBeInTheDocument();
+		await expect.element(page.getByText("Internship experience")).toBeInTheDocument();
+		await expect.element(page.getByText("en", { exact: true })).toBeInTheDocument();
 		expect(requests[0]).toMatchObject({ termId: "tag-2", apply: false });
 	});
 
@@ -254,7 +296,7 @@ describe("bulk tag dialog", () => {
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
 		await page.getByRole("button", { name: "Review posts" }).click();
-		await page.getByRole("button", { name: "Apply now" }).click();
+		await page.getByRole("button", { name: "Add tag to 1 post" }).click();
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
 		await expect
 			.element(page.getByText(/cached pages may still show old tags/))
@@ -282,8 +324,8 @@ describe("bulk tag dialog", () => {
 			.getByRole("textbox", { name: "Post URLs (one per line)" })
 			.fill(`${link}\n${link}-second`);
 		await page.getByRole("button", { name: "Review posts" }).click();
-		await page.getByRole("button", { name: "Apply now" }).click();
-		await expect.element(page.getByText("Second (en)")).toBeInTheDocument();
+		await page.getByRole("button", { name: "Add tag to 2 posts" }).click();
+		await expect.element(page.getByText("Second")).toBeInTheDocument();
 		await expect.element(page.getByText("Not matched")).toBeInTheDocument();
 		failCacheRefresh = false;
 		await page.getByRole("button", { name: "Retry cache refresh" }).click();
