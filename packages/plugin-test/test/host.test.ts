@@ -1545,8 +1545,20 @@ describe("runtime plugin test host", () => {
 		await expect(
 			runtimeHost.admin.actEditorPanel("entry-context", "posts", entry.id, "invalid"),
 		).rejects.toThrow("INVALID_BLOCK_RESPONSE");
+		await runtimeHost.fixtures.collection({
+			slug: "plugin_test_invalid",
+			label: "Plugin test invalid responses",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const invalidEntry = await runtimeHost.fixtures.content("plugin_test_invalid", {
+			data: { title: "Invalid response target" },
+		});
 		await expect(
-			runtimeHost.admin.invokeEditorAction("invalid-action", "posts", entry.id),
+			runtimeHost.admin.invokeEditorAction(
+				"invalid-action",
+				"plugin_test_invalid",
+				invalidEntry.id,
+			),
 		).rejects.toThrow("INVALID_EDITOR_ACTION_RESPONSE");
 	});
 

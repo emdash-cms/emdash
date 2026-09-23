@@ -86,7 +86,7 @@
 				"label": "Invalid action",
 				"route": "invalid-action",
 				"placement": "overflow",
-				"collections": ["posts"],
+				"collections": ["plugin_test_invalid"],
 			},
 		],
 		"settingsSchema": {

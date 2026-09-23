@@ -49,7 +49,7 @@ msgstr "\"{0}\" será excluído do seu provedor de mídia."
 msgid "\"{0}\" will be permanently deleted."
 msgstr "\"{0}\" será excluído permanentemente."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:598
+#: packages/admin/src/components/RegistryPluginDetail.tsx:608
 msgid "(pre-release)"
 msgstr "(pré-lançamento)"
 
@@ -57,7 +57,7 @@ msgstr "(pré-lançamento)"
 msgid "(synced)"
 msgstr "(sincronizado)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:601
+#: packages/admin/src/components/RegistryPluginDetail.tsx:611
 msgid "(too new)"
 msgstr "(muito recente)"
 
@@ -162,6 +162,11 @@ msgstr "{0, plural, one {# menu importado} other {# menus importados}}"
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {# menu será importado} other {# menus serão importados}}"
 
+#. placeholder {0}: capabilities.length
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:226
+msgid "{0, plural, one {# permission requested} other {# permissions requested}}"
+msgstr ""
+
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
 #: packages/admin/src/components/PluginManager.tsx:492
@@ -261,7 +266,7 @@ msgstr "{0, plural, one {Usuário} other {Usuários}}"
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:705
+#: packages/admin/src/components/RegistryPluginDetail.tsx:715
 msgid "{0} {1} required — you have {2}."
 msgstr "Requer {0} {1}, você tem {2}."
 
@@ -277,7 +282,7 @@ msgid "{0} added to this post."
 msgstr "{0} adicionado a este post."
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:508
+#: packages/admin/src/components/RegistryPluginDetail.tsx:518
 msgid "{0} banner"
 msgstr "Banner de {0}"
 
@@ -307,7 +312,7 @@ msgid "{0} has been removed"
 msgstr "{0} foi removido"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:520
+#: packages/admin/src/components/RegistryPluginDetail.tsx:530
 msgid "{0} icon"
 msgstr "Ícone de {0}"
 
@@ -549,11 +554,11 @@ msgstr "{overdueCount, plural, one {Um item agendado está atrasado, mas nenhuma
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr "{overflowCount, plural, one {# arquivo não foi adicionado porque a lista de envio está cheia.} other {# arquivos não foram adicionados porque a lista de envio está cheia.}}"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:105
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:115
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} está solicitando permissões adicionais:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:116
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} requer as seguintes permissões:"
 
@@ -811,11 +816,11 @@ msgstr "Sobre o ponto focal"
 msgid "About inferred bylines"
 msgstr "Sobre créditos inferidos"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:295
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:357
 msgid "Accept & Install"
 msgstr "Aceitar e instalar"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:294
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:356
 msgid "Accept & Update"
 msgstr "Aceitar e atualizar"
 
@@ -1076,12 +1081,12 @@ msgstr ""
 msgid "After send:"
 msgstr "Após envio:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:126
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:136
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to external websites without a host restriction."
 msgstr ""
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:135
 msgid "After you explicitly invoke this plugin, it can send selected unsaved editor content to: {0}"
 msgstr ""
 
@@ -1094,7 +1099,7 @@ msgstr "Acesso do agente"
 msgid "Agent access for {0} has been updated"
 msgstr "O acesso do agente para {0} foi atualizado"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:233
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "Agent-callable MCP tools"
 msgstr "Ferramentas MCP acionáveis por agente"
 
@@ -1285,7 +1290,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:2099
 #: packages/admin/src/router.tsx:2115
 #: packages/admin/src/router.tsx:2140
-#: packages/admin/src/router.tsx:2642
+#: packages/admin/src/router.tsx:2644
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1490,7 +1495,7 @@ msgstr "Autorizar"
 msgid "Authorize Device"
 msgstr "Autorizar dispositivo"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:170
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:208
 msgid "Authorized approvers"
 msgstr "Aprovadores autorizados"
 
@@ -1498,7 +1503,7 @@ msgstr "Aprovadores autorizados"
 msgid "Authorizing..."
 msgstr "Autorizando..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:754
+#: packages/admin/src/components/RegistryPluginDetail.tsx:764
 msgid "Authors"
 msgstr "Autores"
 
@@ -1597,7 +1602,7 @@ msgid "Back to marketplace"
 msgstr "Voltar ao marketplace"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:898
+#: packages/admin/src/components/RegistryPluginDetail.tsx:908
 msgid "Back to plugins"
 msgstr "Voltar aos plugins"
 
@@ -1718,6 +1723,10 @@ msgstr ""
 msgid "Browse themes and preview them with your own content."
 msgstr "Navegue pelos temas e visualize-os com seu próprio conteúdo."
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:159
+msgid "Build provenance verified"
+msgstr ""
+
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
 #: packages/admin/src/components/PortableTextEditor.tsx:1613
 #: packages/admin/src/components/PortableTextEditor.tsx:4526
@@ -1779,7 +1788,7 @@ msgstr "Pode visualizar conteúdo"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1012
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:286
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
 #: packages/admin/src/components/ContentList.tsx:545
 #: packages/admin/src/components/ContentList.tsx:1378
@@ -1849,7 +1858,7 @@ msgstr "URL canônica"
 msgid "Capabilities"
 msgstr "Capacidades"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:83
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:93
 msgid "Capability consent"
 msgstr "Consentimento de capacidade"
 
@@ -1941,7 +1950,7 @@ msgstr "Alterar agendamento"
 msgid "Change where visitors are sent"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:886
+#: packages/admin/src/components/RegistryPluginDetail.tsx:896
 msgid "Changelog"
 msgstr "Registro de alterações"
 
@@ -2968,7 +2977,7 @@ msgstr "Intervalo de datas"
 msgid "Decimal number"
 msgstr "Número decimal"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:819
+#: packages/admin/src/components/RegistryPluginDetail.tsx:829
 msgid "Declared permissions"
 msgstr "Permissões declaradas"
 
@@ -3269,7 +3278,7 @@ msgid "Describe what this section is for..."
 msgstr "Descreva para que serve esta seção..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:425
-#: packages/admin/src/components/RegistryPluginDetail.tsx:883
+#: packages/admin/src/components/RegistryPluginDetail.tsx:893
 #: packages/admin/src/components/SectionEditor.tsx:295
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:438
@@ -3288,7 +3297,7 @@ msgstr "Destino"
 msgid "Destination path"
 msgstr "Caminho de destino"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:247
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:309
 #: packages/admin/src/components/PluginManager.tsx:608
 msgid "Destructive"
 msgstr "Destrutivo"
@@ -3522,7 +3531,7 @@ msgstr "Baixar backup"
 msgid "Download backups and schedule automatic backups to storage"
 msgstr "Baixe backups e agende backups automáticos no armazenamento"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:561
+#: packages/admin/src/components/RegistryPluginDetail.tsx:571
 msgid "Download SBOM"
 msgstr "Baixar SBOM"
 
@@ -4004,7 +4013,7 @@ msgstr "Digite a URL do seu site WordPress"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:982
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2859
+#: packages/admin/src/router.tsx:2861
 msgid "Error"
 msgstr "Erro"
 
@@ -4036,7 +4045,7 @@ msgstr "Todos os lugares que usam esta imagem serão atualizados para a versão 
 msgid "Every place using this image will update to the selected version."
 msgstr "Todos os lugares que usam esta imagem serão atualizados para a versão selecionada."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:665
+#: packages/admin/src/components/RegistryPluginDetail.tsx:675
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "Todas as versões publicadas deste plugin foram retiradas ou não puderam ser verificadas. Volte mais tarde ou entre em contato com quem publicou."
 
@@ -4602,7 +4611,7 @@ msgstr "Falha ao reescrever URLs"
 
 #: packages/admin/src/router.tsx:735
 #: packages/admin/src/router.tsx:1101
-#: packages/admin/src/router.tsx:2641
+#: packages/admin/src/router.tsx:2643
 msgid "Failed to save"
 msgstr "Falha ao salvar"
 
@@ -4735,7 +4744,7 @@ msgstr "Falha ao verificar plugin"
 msgid "Failed to verify registration"
 msgstr "Falha ao verificar registro"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:885
+#: packages/admin/src/components/RegistryPluginDetail.tsx:895
 msgid "FAQ"
 msgstr "Perguntas frequentes"
 
@@ -5039,7 +5048,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2879
+#: packages/admin/src/router.tsx:2881
 msgid "Go to Dashboard"
 msgstr "Ir para o painel"
 
@@ -5444,16 +5453,12 @@ msgstr "Incompatível"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:135
-msgid "Independent verification"
-msgstr "Verificação independente"
-
 #: packages/admin/src/components/MediaLibrary.tsx:886
 msgid "Index existing content and keep Used in results up to date."
 msgstr "Indexe o conteúdo existente e mantenha os resultados de \"Usado em\" atualizados."
 
 #: packages/admin/src/components/FieldEditor.tsx:494
-#: packages/admin/src/components/RegistryPluginDetail.tsx:575
+#: packages/admin/src/components/RegistryPluginDetail.tsx:585
 msgid "Indexed"
 msgstr "Indexado"
 
@@ -5562,7 +5567,7 @@ msgid "Instagram"
 msgstr "Instagram"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:213
-#: packages/admin/src/components/RegistryPluginDetail.tsx:626
+#: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "Install"
 msgstr "Instalar"
 
@@ -5578,7 +5583,7 @@ msgstr "Instalação bloqueada"
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "Instale o plugin EmDash Exporter no seu site WordPress e gere uma chave em Ferramentas → EmDash Migration."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:884
+#: packages/admin/src/components/RegistryPluginDetail.tsx:894
 msgid "Installation"
 msgstr "Instalação"
 
@@ -5589,7 +5594,7 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:194
 #: packages/admin/src/components/RegistryBrowse.tsx:234
-#: packages/admin/src/components/RegistryPluginDetail.tsx:611
+#: packages/admin/src/components/RegistryPluginDetail.tsx:621
 msgid "Installed"
 msgstr "Instalado"
 
@@ -5602,7 +5607,7 @@ msgstr "Instalado do marketplace (v{0})"
 msgid "Installed:"
 msgstr "Instalado:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:292
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:354
 msgid "Installing..."
 msgstr "Instalando..."
 
@@ -5683,7 +5688,7 @@ msgstr "Item excluído"
 msgid "Item updated"
 msgstr "Item atualizado"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:479
+#: packages/admin/src/components/RegistryPluginDetail.tsx:489
 msgid "Its listing has not been approved for display. Check back later."
 msgstr "A listagem deste plugin não foi aprovada para exibição. Volte a conferir mais tarde."
 
@@ -5932,7 +5937,7 @@ msgstr "Carregar mais"
 msgid "Load more folders"
 msgstr "Carregar mais pastas"
 
-#: packages/admin/src/router.tsx:2834
+#: packages/admin/src/router.tsx:2836
 msgid "Loading"
 msgstr "Carregando"
 
@@ -5948,8 +5953,8 @@ msgstr "Carregando coleções..."
 msgid "Loading comments..."
 msgstr "Carregando comentários..."
 
-#: packages/admin/src/router.tsx:2836
-#: packages/admin/src/router.tsx:2848
+#: packages/admin/src/router.tsx:2838
+#: packages/admin/src/router.tsx:2850
 msgid "Loading configuration..."
 msgstr "Carregando configuração..."
 
@@ -6212,11 +6217,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2378
+#: packages/admin/src/router.tsx:2380
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2353
+#: packages/admin/src/router.tsx:2355
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6680,7 +6685,7 @@ msgstr "novo"
 msgid "New"
 msgstr "Novo"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:203
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
 msgstr "NOVO"
 
@@ -6713,7 +6718,7 @@ msgstr "Nova pasta"
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:214
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "New public routes"
 msgstr "Novas rotas públicas"
 
@@ -6925,7 +6930,7 @@ msgstr "Nenhum cabeçalho no documento"
 msgid "No images in this gallery yet."
 msgstr "Nenhuma imagem nesta galeria ainda."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:663
+#: packages/admin/src/components/RegistryPluginDetail.tsx:673
 msgid "No installable releases"
 msgstr "Nenhuma versão instalável"
 
@@ -7035,10 +7040,6 @@ msgstr "Nenhum plugin corresponde a \"{debouncedQuery}\"."
 msgid "No preview"
 msgstr "Sem pré-visualização"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:139
-msgid "No provenance was supplied; the signed publisher policy permits this."
-msgstr "Nenhuma procedência foi fornecida; a política de publicador assinado permite isso."
-
 #: packages/admin/src/components/MediaDetailPanel.tsx:1358
 msgid "No public URL available"
 msgstr "Nenhuma URL pública disponível"
@@ -7129,7 +7130,7 @@ msgstr "Nenhum"
 msgid "None (top level)"
 msgstr "Nenhum (nível superior)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:698
+#: packages/admin/src/components/RegistryPluginDetail.tsx:708
 msgid "Not compatible with this environment"
 msgstr "Não compatível com este ambiente"
 
@@ -7347,7 +7348,7 @@ msgstr "Propriedade"
 msgid "Package"
 msgstr "Pacote"
 
-#: packages/admin/src/router.tsx:2874
+#: packages/admin/src/router.tsx:2876
 msgid "Page Not Found"
 msgstr "Página não encontrada"
 
@@ -7589,7 +7590,7 @@ msgstr ""
 msgid "Plugin column unavailable"
 msgstr "Coluna do plugin indisponível"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:831
+#: packages/admin/src/components/RegistryPluginDetail.tsx:841
 msgid "Plugin details"
 msgstr "Detalhes do plugin"
 
@@ -7630,7 +7631,7 @@ msgstr "As ferramentas MCP do plugin exigem consentimento explícito"
 msgid "Plugin not found"
 msgstr "Plugin não encontrado"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:494
+#: packages/admin/src/components/RegistryPluginDetail.tsx:504
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr "Plugin não encontrado. O publicador ou o slug pode estar incorreto."
 
@@ -7643,7 +7644,7 @@ msgstr "Páginas do plugin"
 msgid "Plugin panel unavailable."
 msgstr "Painel do plugin indisponível."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:99
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:109
 msgid "Plugin Permissions"
 msgstr "Permissões do plugin"
 
@@ -7656,8 +7657,8 @@ msgstr "Registro de plugins"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2313
-#: packages/admin/src/router.tsx:2344
+#: packages/admin/src/router.tsx:2315
+#: packages/admin/src/router.tsx:2346
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -7727,7 +7728,7 @@ msgstr "Posts e páginas"
 msgid "Posts Per Page"
 msgstr "Posts por página"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:547
+#: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Pre-release"
 msgstr "Pré-lançamento"
 
@@ -7786,7 +7787,7 @@ msgstr "Navegação principal"
 msgid "Private"
 msgstr "Privado"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:183
 msgid "Profile CID"
 msgstr "CID do perfil"
 
@@ -7794,15 +7795,11 @@ msgstr "CID do perfil"
 msgid "Propose unsaved changes to selected editor fields for your review"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:138
-msgid "Provenance is verified against the signed release and artifact."
-msgstr "A procedência é verificada em relação ao lançamento assinado e ao artefato."
-
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:161
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:199
 msgid "Provenance optional"
 msgstr "Procedência opcional"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:160
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:198
 msgid "Provenance required"
 msgstr "Procedência obrigatória"
 
@@ -7810,7 +7807,7 @@ msgstr "Procedência obrigatória"
 msgid "Provider:"
 msgstr "Provedor:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:214
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:276
 msgid "Public routes"
 msgstr ""
 
@@ -7882,23 +7879,23 @@ msgstr "{total} itens publicados"
 msgid "Published At"
 msgstr "Publicado em"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:539
+#: packages/admin/src/components/RegistryPluginDetail.tsx:549
 msgid "Published by <0/>"
 msgstr "Publicado por <0/>"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:164
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:202
 msgid "Publisher approval required for every delegated release"
 msgstr "Aprovação do publicador obrigatória para cada lançamento delegado"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:165
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:203
 msgid "Publisher approval required only for permission escalation"
 msgstr "Aprovação do publicador obrigatória apenas para escalonamento de permissão"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:648
+#: packages/admin/src/components/RegistryPluginDetail.tsx:658
 msgid "Publisher handle verification failed"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:157
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:195
 msgid "Publisher release policy"
 msgstr "Política de lançamento do publicador"
 
@@ -8102,11 +8099,11 @@ msgstr "O registro foi cancelado ou expirou. Tente novamente."
 msgid "Registry"
 msgstr "Registro"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:151
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:189
 msgid "Release CID"
 msgstr "CID do lançamento"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:679
+#: packages/admin/src/components/RegistryPluginDetail.tsx:689
 msgid "Release is too new to install"
 msgstr "O lançamento é recente demais para instalar"
 
@@ -8479,7 +8476,7 @@ msgstr "Restaurando..."
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:237
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2862
+#: packages/admin/src/router.tsx:2864
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Tentar novamente"
@@ -8529,7 +8526,7 @@ msgstr "Revisar"
 msgid "Review and block publishing, scheduling, and unpublishing content"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:108
 msgid "Review New Permissions"
 msgstr "Revisar novas permissões"
 
@@ -8537,15 +8534,15 @@ msgstr "Revisar novas permissões"
 msgid "Review proposed changes"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:113
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
 msgstr "Revise as evidências da versão verificada de forma independente e as permissões de {pluginName} antes de continuar."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:96
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:106
 msgid "Review Verified Plugin"
 msgstr "Revisar plugin verificado"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:95
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:105
 msgid "Review Verified Update"
 msgstr "Revisar atualização verificada"
 
@@ -8630,7 +8627,7 @@ msgstr "Roteável"
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:243
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:305
 #: packages/admin/src/components/PluginManager.tsx:612
 msgid "Route: {0} · Permission: {1}"
 msgstr "Rota: {0} · Permissão: {1}"
@@ -8756,12 +8753,12 @@ msgstr "Salvando..."
 msgid "Saving…"
 msgstr "Salvando…"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:551
+#: packages/admin/src/components/RegistryPluginDetail.tsx:561
 msgid "SBOM"
 msgstr "SBOM"
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:549
+#: packages/admin/src/components/RegistryPluginDetail.tsx:559
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
@@ -8830,7 +8827,7 @@ msgstr "Escopos"
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:264
-#: packages/admin/src/components/RegistryPluginDetail.tsx:724
+#: packages/admin/src/components/RegistryPluginDetail.tsx:734
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -8851,10 +8848,14 @@ msgid "Screenshot viewer"
 msgstr "Visualizador de capturas de tela"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:254
-#: packages/admin/src/components/RegistryPluginDetail.tsx:718
+#: packages/admin/src/components/RegistryPluginDetail.tsx:728
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "Capturas de tela"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:234
+msgid "Scroll to review all"
+msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:51
 msgid "SCSS"
@@ -9056,7 +9057,7 @@ msgstr "Seções"
 msgid "Secure your account"
 msgstr "Proteja sua conta"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:887
+#: packages/admin/src/components/RegistryPluginDetail.tsx:897
 #: packages/admin/src/components/Settings.tsx:85
 msgid "Security"
 msgstr "Segurança"
@@ -9073,11 +9074,11 @@ msgstr "Auditoria de segurança falhou"
 msgid "Security audit flagged concerns"
 msgstr "Auditoria de segurança sinalizou preocupações"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:335
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "A auditoria de segurança sinalizou preocupações em potencial com este plugin."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:274
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:336
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "A auditoria de segurança sinalizou este plugin como potencialmente inseguro."
 
@@ -9085,7 +9086,7 @@ msgstr "A auditoria de segurança sinalizou este plugin como potencialmente inse
 msgid "Security audit passed"
 msgstr "Auditoria de segurança aprovada"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:787
+#: packages/admin/src/components/RegistryPluginDetail.tsx:797
 msgid "Security contacts"
 msgstr "Contatos de segurança"
 
@@ -9137,7 +9138,7 @@ msgstr "Selecionar um local"
 msgid "Select a menu..."
 msgstr "Selecionar um menu..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:398
+#: packages/admin/src/components/RegistryPluginDetail.tsx:400
 msgid "Select a release before verifying it"
 msgstr "Selecione uma versão antes de verificá-la"
 
@@ -9500,6 +9501,10 @@ msgstr "Entre com chave de acesso"
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:190
 msgid "Signed in as {0}"
 msgstr "Conectado como {0}"
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:160
+msgid "Signed release verified"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:219
 msgid "Single choice from options"
@@ -9885,6 +9890,10 @@ msgstr "Taxonomia não encontrada: {taxonomyName}"
 msgid "Taxonomy: {taxonomyName}"
 msgstr "Taxonomia: {taxonomyName}"
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:172
+msgid "Technical verification details"
+msgstr ""
+
 #: packages/admin/src/components/SetupWizard.tsx:155
 msgid "Template:"
 msgstr "Modelo:"
@@ -9923,6 +9932,10 @@ msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
 msgid "The browser will usually show a QR code."
+msgstr ""
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:164
+msgid "The build provenance matches this release and its package."
 msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
@@ -9978,7 +9991,7 @@ msgstr "O menu foi excluído."
 msgid "The name of your site, used in the header and metadata"
 msgstr "O nome do seu site, usado no cabeçalho e metadados"
 
-#: packages/admin/src/router.tsx:2876
+#: packages/admin/src/router.tsx:2878
 msgid "The page you're looking for doesn't exist."
 msgstr "A página que você procura não existe."
 
@@ -10004,7 +10017,7 @@ msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "A URL pública do seu site (usada para links canônicos e sitemaps)"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:219
-#: packages/admin/src/components/RegistryPluginDetail.tsx:533
+#: packages/admin/src/components/RegistryPluginDetail.tsx:543
 msgid "The publisher identity cannot be verified."
 msgstr ""
 
@@ -10023,6 +10036,10 @@ msgstr "A pasta selecionada não existe mais. Escolha outro local e salve novame
 #: packages/admin/src/components/MediaDetailPanel.tsx:914
 msgid "The selected image could not be read."
 msgstr "Não foi possível ler a imagem selecionada."
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:165
+msgid "The signed publisher records and package are valid. Build provenance was not provided."
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
@@ -10057,7 +10074,7 @@ msgstr "Seções fornecidas pelo tema não podem ser excluídas. Edite a seção
 msgid "Themes"
 msgstr "Temas"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:235
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:297
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr "Estas ferramentas permanecem desativadas após a instalação até que você ative explicitamente o acesso do agente."
 
@@ -10196,7 +10213,7 @@ msgstr ""
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:219
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:281
 msgid "This plugin exposes the following routes without authentication:"
 msgstr ""
 
@@ -10204,7 +10221,7 @@ msgstr ""
 msgid "This plugin has no configurable settings."
 msgstr "Este plugin não tem configurações ajustáveis."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:477
+#: packages/admin/src/components/RegistryPluginDetail.tsx:487
 msgid "This plugin is not available yet"
 msgstr "Este plugin ainda não está disponível"
 
@@ -10216,7 +10233,7 @@ msgstr "Este plugin não requer permissões especiais."
 msgid "This publisher identity no longer resolves."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:650
+#: packages/admin/src/components/RegistryPluginDetail.tsx:660
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr ""
 
@@ -10224,7 +10241,7 @@ msgstr ""
 msgid "This redirect rule will be permanently removed."
 msgstr "Esta regra de redirecionamento será permanentemente removida."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:700
+#: packages/admin/src/components/RegistryPluginDetail.tsx:710
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "Esta versão exige um ambiente mais novo do que o que seu site executa atualmente. Atualize antes de instalar."
 
@@ -10265,7 +10282,7 @@ msgstr ""
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:218
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:280
 msgid "This update exposes the following routes without authentication:"
 msgstr "Esta atualização expõe as seguintes rotas sem autenticação:"
 
@@ -10629,7 +10646,7 @@ msgstr "Tabelas de conteúdo não registradas encontradas"
 msgid "Unresolved assignment"
 msgstr "Atribuição não resolvida"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:121
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Unsaved content may leave your site"
 msgstr ""
 
@@ -10702,7 +10719,7 @@ msgstr "Atualizar para v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:869
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
-#: packages/admin/src/components/RegistryPluginDetail.tsx:570
+#: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
 msgstr "Atualizado"
 
@@ -10718,7 +10735,7 @@ msgstr "Atualizando URLs de conteúdo..."
 msgid "Updating usage"
 msgstr "Atualizando o uso"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:291
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:353
 #: packages/admin/src/components/PluginManager.tsx:510
 msgid "Updating..."
 msgstr "Atualizando..."
@@ -10989,7 +11006,7 @@ msgstr "Validação"
 msgid "Verified publisher"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:415
+#: packages/admin/src/components/RegistryPluginDetail.tsx:417
 msgid "Verify the plugin before installing it"
 msgstr "Verifique o plugin antes de instalar"
 
@@ -11003,18 +11020,18 @@ msgstr "Verificando seu link..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
-#: packages/admin/src/components/RegistryPluginDetail.tsx:626
+#: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "Verifying..."
 msgstr "Verificando..."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:110
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:120
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:341
-#: packages/admin/src/components/RegistryPluginDetail.tsx:584
+#: packages/admin/src/components/RegistryPluginDetail.tsx:594
 msgid "Version"
 msgstr "Versão"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:546
+#: packages/admin/src/components/RegistryPluginDetail.tsx:556
 msgid "Version {0}"
 msgstr "Versão {0}"
 
@@ -11046,11 +11063,11 @@ msgstr "Ver configuração"
 msgid "View Site"
 msgstr "Ver site"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:745
+#: packages/admin/src/components/RegistryPluginDetail.tsx:755
 msgid "View source"
 msgstr "Ver código-fonte"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:990
+#: packages/admin/src/components/RegistryPluginDetail.tsx:1000
 msgid "View the {license} license on spdx.org"
 msgstr "Ver a licença {license} no spdx.org"
 
@@ -11123,7 +11140,7 @@ msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn não é suportado neste navegador"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:246
-#: packages/admin/src/components/RegistryPluginDetail.tsx:770
+#: packages/admin/src/components/RegistryPluginDetail.tsx:780
 msgid "Website"
 msgstr "Site"
 
@@ -11515,7 +11532,7 @@ msgid "Your Role"
 msgstr "Sua função"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:681
+#: packages/admin/src/components/RegistryPluginDetail.tsx:691
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "Seu site exige que as versões tenham pelo menos {0} antes de poderem ser instaladas. Esta versão poderá ser instalada mais tarde."
 
