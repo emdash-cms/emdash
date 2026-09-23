@@ -90,6 +90,32 @@ export interface LocaleOptions {
 	locale?: string;
 }
 
+export type BulkTagSource = { collection: string; id: string } | { url: string };
+
+export interface BulkTagResult {
+	input: BulkTagSource;
+	status: "ready" | "added" | "skipped" | "unmatched" | "failed";
+	reason?: "not_found" | "ambiguous" | "save_failed";
+	entry?: { collection: string; id: string; title: string; locale: string };
+}
+
+export async function bulkTagPosts(
+	termId: string,
+	items: BulkTagSource[],
+	apply = false,
+): Promise<BulkTagResult[]> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/bulk-tag`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ termId, items, apply }),
+	});
+	const data = await parseApiResponse<{ results: BulkTagResult[] }>(
+		response,
+		"Failed to add tag to posts",
+	);
+	return data.results;
+}
+
 export function withLocale(path: string, locale?: string): string {
 	return locale
 		? `${path}${path.includes("?") ? "&" : "?"}locale=${encodeURIComponent(locale)}`

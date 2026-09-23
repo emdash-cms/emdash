@@ -37,6 +37,7 @@ import type {
 	ContentItem,
 	TrashedContentItem,
 } from "../lib/api.js";
+import type { BulkTagSource } from "../lib/api/taxonomies.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
@@ -50,6 +51,7 @@ import { cn, parseTimestamp } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
+import { BulkTagDialog } from "./BulkTagDialog.js";
 import {
 	BylineFilter,
 	EMPTY_BYLINE_FILTER,
@@ -181,6 +183,7 @@ export interface ContentListProps {
 	onBulkPublish?: BulkActionHandler;
 	onBulkUnpublish?: BulkActionHandler;
 	onBulkDelete?: BulkActionHandler;
+	bulkTagEnabled?: boolean;
 	/** Current role used only for contributed-column visibility, not authorization. */
 	userRole?: number;
 	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
@@ -268,6 +271,7 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
+	bulkTagEnabled = false,
 	userRole = 0,
 	pluginStates,
 }: ContentListProps) {
@@ -277,10 +281,11 @@ export function ContentList({
 	const [searchQuery, setSearchQuery] = React.useState("");
 	const [page, setPage] = React.useState(0);
 	const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
+	const [bulkTagSelection, setBulkTagSelection] = React.useState<BulkTagSource[] | null>(null);
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
-	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete);
+	const bulkEnabled = !!(onBulkPublish || onBulkUnpublish || onBulkDelete || bulkTagEnabled);
 
 	// Server-side search mode: the caller refetches based on the (debounced)
 	// query, so `items`/`total` already reflect the filter and we must not
@@ -515,6 +520,18 @@ export function ContentList({
 										{t`Set to draft`}
 									</Button>
 								)}
+								{bulkTagEnabled && (
+									<Button
+										size="sm"
+										variant="secondary"
+										disabled={bulkBusy}
+										onClick={() =>
+											setBulkTagSelection(Array.from(selectedIds, (id) => ({ collection, id })))
+										}
+									>
+										{t`Add tag`}
+									</Button>
+								)}
 								{onBulkDelete && (
 									<Dialog.Root disablePointerDismissal>
 										<Dialog.Trigger
@@ -572,6 +589,25 @@ export function ContentList({
 								</Button>
 							</div>
 						</div>
+					)}
+					{bulkTagSelection && (
+						<BulkTagDialog
+							selected={bulkTagSelection}
+							defaultLocale={i18n?.defaultLocale}
+							onClose={() => setBulkTagSelection(null)}
+							onApplied={(results) => {
+								setSelectedIds(
+									new Set(
+										results.flatMap((result) =>
+											(result.status === "failed" || result.status === "unmatched") &&
+											"id" in result.input
+												? [result.input.id]
+												: [],
+										),
+									),
+								);
+							}}
+						/>
 					)}
 
 					{/* Table */}

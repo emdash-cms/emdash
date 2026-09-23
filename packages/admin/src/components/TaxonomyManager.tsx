@@ -35,6 +35,7 @@ import {
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
 import { slugify } from "../lib/utils";
+import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
@@ -909,6 +910,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 	const [deleteTarget, setDeleteTarget] = React.useState<TaxonomyTerm | null>(null);
 	const [createTaxonomyOpen, setCreateTaxonomyOpen] = React.useState(false);
 	const [deleteTaxonomyOpen, setDeleteTaxonomyOpen] = React.useState(false);
+	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
 	const [translateTarget, setTranslateTarget] = React.useState<TaxonomyTerm | null>(null);
 
 	const { data: manifest } = useQuery({
@@ -1081,6 +1083,11 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 					<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
 						{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 					</Button>
+					{taxonomyName === "tag" && (
+						<Button variant="outline" onClick={() => setBulkTagOpen(true)}>
+							{t`Add to posts`}
+						</Button>
+					)}
 					<DropdownMenu>
 						<DropdownMenu.Trigger
 							render={
@@ -1145,6 +1152,9 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 				i18n={i18n}
 				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}
 			/>
+			{bulkTagOpen && (
+				<BulkTagDialog defaultLocale={i18n?.defaultLocale} onClose={() => setBulkTagOpen(false)} />
+			)}
 
 			{i18n && translateTarget ? (
 				<TranslateTermDialog
