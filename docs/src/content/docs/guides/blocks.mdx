@@ -93,8 +93,8 @@ The Hero component reads every displayed value from the stored block:
 
 ```astro title="src/components/blocks/Hero.astro"
 ---
-import type { BlockComponentProps } from "emdash/ui";
-import { Image, PortableText } from "emdash/ui";
+import { sanitizeHref } from "emdash";
+import { Image, PortableText, type BlockComponentProps } from "emdash/ui";
 import type { PageLayoutBlock } from "../../../emdash-env";
 
 type HeroBlock = Extract<PageLayoutBlock, { _type: "hero" }>;
@@ -107,7 +107,7 @@ const { value } = Astro.props;
   <div>
     <h1>{value.heading}</h1>
     {value.body && <PortableText value={value.body} />}
-    {value.link_url && <a href={value.link_url}>{value.link_label}</a>}
+    {value.link_url && <a href={sanitizeHref(value.link_url)}>{value.link_label}</a>}
   </div>
   {value.image && <Image image={value.image} />}
 </section>

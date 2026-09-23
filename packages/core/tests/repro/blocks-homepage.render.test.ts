@@ -1,5 +1,5 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { Blocks } from "../../src/ui.js";
 import Features from "./HomeFeatures.astro";
@@ -54,6 +54,10 @@ async function render(value: unknown[]) {
 }
 
 describe("blocks homepage fixture", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	test("renders copy, links, Portable Text, media, repeaters, optional fields, and order from data", async () => {
 		const html = await render(typical);
 
@@ -87,7 +91,6 @@ describe("blocks homepage fixture", () => {
 			const html = await render(values);
 			expect(html.match(/data-home-block="quote"/g) ?? []).toHaveLength(count);
 			expect(fetch).not.toHaveBeenCalled();
-			fetch.mockRestore();
 		},
 	);
 
