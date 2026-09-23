@@ -17,7 +17,7 @@ import type {
 import { routeNameSchema } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
-import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
+import { SiteWriteBlockedError } from "../transfer/fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
 import { parseDeclaredPluginRouteInput } from "./route-wire.js";
@@ -282,7 +282,7 @@ export class PluginRouteHandler {
 				status: 200,
 			};
 		} catch (error) {
-			if (error instanceof MediaUsageActivationWriteBlockedError) {
+			if (error instanceof SiteWriteBlockedError) {
 				return {
 					success: false,
 					error: { code: error.code, message: error.message },
