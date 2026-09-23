@@ -24,6 +24,16 @@
  * ```astro
  * <PortableText value={content} components={{ type: { image: MyImage } }} />
  * ```
+ *
+ * Render a blocks field with a component map:
+ *
+ * ```astro
+ * ---
+ * import { Blocks } from "emdash/ui";
+ * import Hero from "./Hero.astro";
+ * ---
+ * <Blocks value={page.data.layout} components={{ hero: Hero }} />
+ * ```
  */
 
 // Re-export types and utilities from astro-portabletext

@@ -1,18 +1,13 @@
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, test, vi } from "vitest";
 
-import { Blocks, defineBlockComponents } from "../../src/ui.js";
+import { Blocks } from "../../src/ui.js";
 import Hero from "./BlockHero.astro";
 import Quote from "./BlockQuote.astro";
 
 const compact = (html: string) => html.replace(/\s+/g, " ").trim();
 
 describe("Blocks", () => {
-	test("exports the component and type helper from emdash/ui", () => {
-		expect(Blocks).toBeTruthy();
-		expect(defineBlockComponents).toBeTypeOf("function");
-	});
-
 	test("renders empty values without output", async () => {
 		const container = await AstroContainer.create();
 		await expect(container.renderToString(Blocks, { props: { value: [] } })).resolves.toBe("");

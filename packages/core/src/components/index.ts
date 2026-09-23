@@ -1,18 +1,20 @@
 /**
- * EmDash Portable Text Components
+ * EmDash content components
  *
- * Pre-built components for rendering Portable Text content from WordPress imports.
+ * Components for rendering Portable Text and stored block arrays.
  *
  * Usage:
  * ```astro
  * ---
- * import { PortableText } from "emdash/ui";
+ * import { Blocks, PortableText } from "emdash/ui";
+ * import Hero from "./Hero.astro";
  * ---
  * <PortableText value={post.data.content} />
+ * <Blocks value={page.data.layout} components={{ hero: Hero }} />
  * ```
  *
  * The PortableText component uses EmDash's built-in renderers by default.
- * Pass custom components to override specific types:
+ * Pass custom components to override specific Portable Text types:
  *
  * ```astro
  * <PortableText value={content} components={{ type: { image: MyImage } }} />
