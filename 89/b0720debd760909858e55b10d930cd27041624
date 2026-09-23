@@ -1,0 +1,45 @@
+docs/src/content/docs/guides/taxonomies.mdx
+  s_874c8c1c64d7fc::t_897065e638443c 34,36
+packages/admin/src/components/BulkTagDialog.tsx
+  s_0c2371b7147544::t_b15de595d4e2bd 83,91,97-104,155,284,301,318,326-338,534
+packages/admin/src/components/ContentList.tsx
+  s_0c2371b7147544::t_34a214b2c613e2 529,548-552,614
+packages/admin/src/components/TaxonomyManager.tsx
+  s_0c2371b7147544::t_a4f9dd8906504e 1157
+packages/admin/tests/components/BulkTagDialog.test.tsx
+  s_3ee8bea3bc67f8::t_8e98fcf5a8375e 17,19,43,45,55,70-75,235,248-249,258,262,265,331-359
+packages/admin/tests/components/ContentList.test.tsx
+  s_0c2371b7147544::t_a06b427bd2b3e8 808-824
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "89b0720debd760909858e55b10d930cd27041624",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_3ee8bea3bc67f8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf38-e9e9-70f2-87e2-e09a1a6ae493",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_874c8c1c64d7fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d07c-8b4f-72a0-8f13-c8bb0d708f6c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
