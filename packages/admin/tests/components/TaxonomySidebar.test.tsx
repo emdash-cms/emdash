@@ -494,16 +494,13 @@ describe("TaxonomySidebar", () => {
 		await userEvent.keyboard("{Enter}");
 
 		await vi.waitFor(() => expect(saveEntryTerms).toHaveBeenCalledTimes(1));
-		resolveFirstSave(await dataResponse({ terms: [] }));
+		resolveFirstSave(new Response(null, { status: 200 }));
 		await vi.waitFor(() => expect(saveEntryTerms).toHaveBeenCalledTimes(2));
 
 		const requestBodies = saveEntryTerms.mock.calls.map(([init]) =>
 			typeof init?.body === "string" ? JSON.parse(init.body) : null,
 		);
-		expect(requestBodies).toEqual([
-			{ termIds: [], stage: true },
-			{ termIds: ["term_beta"], stage: true },
-		]);
+		expect(requestBodies).toEqual([{ termIds: [] }, { termIds: ["term_beta"] }]);
 	});
 
 	it("creates a flat term from the tag input", async () => {
@@ -936,7 +933,6 @@ describe("TaxonomySidebar", () => {
 			if (typeof body !== "string") throw new Error("Expected a JSON request body");
 			expect(JSON.parse(body)).toEqual({
 				termIds: expect.arrayContaining(["term_beta", "term_ja"]),
-				stage: true,
 			});
 		});
 	});

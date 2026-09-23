@@ -347,8 +347,6 @@ When another user holds the lease, protected content writes return `409 ENTRY_LO
 
 The public REST contract exposes content translations and taxonomy-definition translations. Content creation accepts `translationOf`, and taxonomy creation uses the same field to add a locale variant. The content-term operations return locale-aware assignments.
 
-`POST /_emdash/api/content/{collection}/{id}/terms/{taxonomy}` replaces the entry's assignments immediately by default. Pass `"stage": true` with `termIds` to save a draft when the entry is published and the collection supports revisions. Publish or discard that draft with the content endpoints. For other entries, `stage: true` applies the terms immediately.
-
 `GET /taxonomies/{name}` returns the site's default-locale definition when `locale` is omitted, falling back to the lowest locale code only when the default locale has no definition. An update behaves differently: when `locale` is omitted, it changes the definition with the lowest locale code. Pass `locale` so a translated-taxonomy update reaches the intended definition. If that locale has no definition, the update returns `NOT_FOUND` instead of falling back to another locale. The translations operation returns every definition in the shared group and supplies the IDs accepted by `translationOf`.
 
 Deleting a taxonomy removes every locale of its definition, all its terms, and all assignments of those terms to content. It does not delete the content entries themselves.

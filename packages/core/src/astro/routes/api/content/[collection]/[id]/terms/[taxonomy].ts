@@ -5,22 +5,17 @@
  * POST /_emdash/api/content/:collection/:id/terms/:taxonomy - Set terms for an entry
  */
 
-import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
-import { encodeRev } from "#api/rev.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { ContentRepository } from "#db/repositories/content.js";
-import { RevisionRepository } from "#db/repositories/revision.js";
-import { stagedTaxonomyAssignments } from "#db/repositories/taxonomy-drafts.js";
 import {
 	TaxonomyRepository,
 	type TaxonomyAssignmentResolution,
 } from "#db/repositories/taxonomy.js";
-import { ContentMutationConflictError } from "#db/repositories/types.js";
 import { invalidateTermCache } from "#taxonomies/index.js";
 
 import { getI18nConfig } from "../../../../../../../i18n/config.js";
@@ -85,20 +80,13 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
 
 		const repo = new TaxonomyRepository(emdash.db);
-		const draft =
-			entry.draftRevisionId && hasPermission(user, "content:read_drafts")
-				? await new RevisionRepository(emdash.db).findById(entry.draftRevisionId)
-				: null;
-		const staged = draft ? stagedTaxonomyAssignments(draft.data)[taxonomy] : undefined;
-		const assignments = staged
-			? await repo.getTermAssignmentsForGroups(taxonomy, staged.after, locale, defaultLocale)
-			: await repo.getTermAssignmentsForEntry(
-					collection,
-					entry.id,
-					taxonomy,
-					locale,
-					defaultLocale,
-				);
+		const assignments = await repo.getTermAssignmentsForEntry(
+			collection,
+			entry.id,
+			taxonomy,
+			locale,
+			defaultLocale,
+		);
 
 		return apiSuccess(assignmentResponse(assignments, locale));
 	} catch (error) {
@@ -109,7 +97,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 /**
  * Set terms for an entry (replaces existing)
  */
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
@@ -165,11 +153,10 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	try {
 		const body = await parseBody(request, contentTermsBody);
 		if (isParseError(body)) return body;
-		const { termIds, stage } = body;
+		const { termIds } = body;
 
 		const repo = new TaxonomyRepository(emdash.db);
 
-		const selectedGroups = new Set<string>();
 		// Verify all term IDs exist and belong to the correct taxonomy
 		for (const termId of termIds) {
 			const term = await repo.findById(termId);
@@ -183,75 +170,6 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 					400,
 				);
 			}
-			selectedGroups.add(term.translationGroup ?? term.id);
-		}
-
-		const contentRepo = new ContentRepository(emdash.db);
-		const entry = await contentRepo.findById(collection, canonicalId);
-		if (!entry) return apiError("NOT_FOUND", "Content not found", 404);
-		const collectionRow = stage
-			? await emdash.db
-					.selectFrom("_emdash_collections")
-					.select("supports")
-					.where("slug", "=", collection)
-					.executeTakeFirst()
-			: null;
-		const supports: unknown = collectionRow?.supports ? JSON.parse(collectionRow.supports) : [];
-		if (
-			stage &&
-			entry.status === "published" &&
-			Array.isArray(supports) &&
-			supports.includes("revisions")
-		) {
-			const revisionRepo = new RevisionRepository(emdash.db);
-			const draft = entry.draftRevisionId
-				? await revisionRepo.findById(entry.draftRevisionId)
-				: null;
-			const draftData = draft?.data ?? entry.data;
-			const assignments = stagedTaxonomyAssignments(draftData);
-			const current = await repo.getTermAssignmentsForEntry(
-				collection,
-				canonicalId,
-				taxonomy,
-				entryLocale,
-				getI18nConfig()?.defaultLocale ?? "en",
-			);
-			const before =
-				(Object.hasOwn(assignments, taxonomy) ? assignments[taxonomy]?.before : undefined) ??
-				current.map((item) => item.translationGroup);
-			const after = [...selectedGroups].toSorted();
-			if (!draft && before.toSorted().join("\0") === after.join("\0")) {
-				return apiSuccess({
-					...assignmentResponse(current, entryLocale),
-					_rev: encodeRev(entry),
-					staged: false,
-				});
-			}
-			if (before.toSorted().join("\0") === after.join("\0")) {
-				delete assignments[taxonomy];
-			} else {
-				assignments[taxonomy] = { before, after };
-			}
-			const revisionId = await contentRepo.restoreDraftRevision(
-				collection,
-				canonicalId,
-				{ ...draftData, _taxonomyDrafts: assignments },
-				user!.id,
-			);
-			if (!revisionId) return apiError("NOT_FOUND", "Content not found", 404);
-			const updated = await contentRepo.findById(collection, canonicalId);
-			if (!updated) return apiError("NOT_FOUND", "Content not found", 404);
-			const selected = await repo.getTermAssignmentsForGroups(
-				taxonomy,
-				after,
-				entryLocale,
-				getI18nConfig()?.defaultLocale ?? "en",
-			);
-			return apiSuccess({
-				...assignmentResponse(selected, entryLocale),
-				_rev: encodeRev(updated),
-				staged: true,
-			});
 		}
 
 		// Set the terms (replaces existing) using the canonical ID
@@ -260,9 +178,6 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		// Term assignments changed — invalidate the hasAnyTermAssignments cache
 		// so hydration on subsequent reads issues a fresh query.
 		invalidateTermCache();
-		if (cache?.enabled && entry.status === "published") {
-			await cache.invalidate({ tags: [collection, canonicalId] });
-		}
 
 		// Get the updated terms using the canonical ID, scoped to the entry locale
 		const assignments = await repo.getTermAssignmentsForEntry(
@@ -275,9 +190,6 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 		return apiSuccess(assignmentResponse(assignments, entryLocale));
 	} catch (error) {
-		if (error instanceof ContentMutationConflictError) {
-			return apiError("CONFLICT", error.message, 409);
-		}
 		return handleError(error, "Failed to set entry terms", "TERMS_SET_ERROR");
 	}
 };

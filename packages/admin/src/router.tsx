@@ -1214,7 +1214,6 @@ function ContentEditPage() {
 				publishedItem,
 			);
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			void queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
 		onError: (error) => {
@@ -1260,7 +1259,6 @@ function ContentEditPage() {
 				queryKey: ["content", collection, id],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			void queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] });
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -1514,14 +1512,6 @@ function ContentEditPage() {
 			updateMutation.mutateAsync,
 		],
 	);
-	const handleTaxonomySaved = React.useCallback(
-		(revision?: string) => {
-			if (revision) revisionTokensRef.current.set(id, revision);
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-		},
-		[collection, id, queryClient],
-	);
 	const handleUnpublish = React.useCallback(
 		async (payload?: {
 			data: Record<string, unknown>;
@@ -1688,7 +1678,6 @@ function ContentEditPage() {
 			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
 			hasSaveConflict={conflictedEntryId === id}
 			onPublish={handlePublish}
-			onTaxonomySaved={handleTaxonomySaved}
 			onUnpublish={handleUnpublish}
 			onDiscardDraft={handleDiscardDraft}
 			onRevisionRestored={handleRevisionRestored}

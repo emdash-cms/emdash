@@ -4,13 +4,9 @@ import { ulid } from "ulidx";
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
-import {
-	invalidateCollectionCache,
-	invalidateTaxonomyObjectCache,
-} from "../../object-cache/index.js";
+import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
-import { invalidateTermCache } from "../../taxonomies/index.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
@@ -20,8 +16,6 @@ import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import { createRevisionId, RevisionRepository } from "./revision.js";
-import { stagedTaxonomyAssignments } from "./taxonomy-drafts.js";
-import { TaxonomyRepository } from "./taxonomy.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -2420,48 +2414,9 @@ export class ContentRepository {
 				provisionalRevisionId = revision.id;
 			}
 
-			let revision = await revisionRepo.findById(revisionToPublish);
+			const revision = await revisionRepo.findById(revisionToPublish);
 			if (!revision || revision.collection !== type || revision.entryId !== id) {
 				throw new EmDashValidationError("Revision does not belong to the specified content item");
-			}
-			const taxonomyDrafts = existing.draftRevisionId
-				? stagedTaxonomyAssignments(revision.data)
-				: {};
-			if (Object.keys(taxonomyDrafts).length > 0) {
-				const { _taxonomyDrafts: _pendingTerms, ...contentData } = revision.data;
-				revision = await revisionRepo.create({
-					collection: type,
-					entryId: id,
-					data: contentData,
-				});
-				revisionToPublish = revision.id;
-				provisionalRevisionId = revision.id;
-			}
-			const taxonomyRepo = new TaxonomyRepository(this.db);
-			for (const [name, { before, after }] of Object.entries(taxonomyDrafts)) {
-				const current = await taxonomyRepo.getTermAssignmentsForEntry(
-					type,
-					id,
-					name,
-					existing.locale ?? "en",
-					"en",
-				);
-				if (
-					before.toSorted().join("\0") !==
-					current
-						.map((term) => term.translationGroup)
-						.toSorted()
-						.join("\0")
-				) {
-					throw new ContentMutationConflictError();
-				}
-				const resolved = await taxonomyRepo.getTermAssignmentsForGroups(
-					name,
-					after,
-					existing.locale ?? "en",
-					"en",
-				);
-				if (resolved.length !== after.length) throw new ContentMutationConflictError();
 			}
 
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
@@ -2503,7 +2458,7 @@ export class ContentRepository {
 				: sql``;
 			let promoted = false;
 			try {
-				const promote = sql`
+				const result = await sql`
 					UPDATE ${sql.ref(tableName)}
 					SET ${sql.join(assignments, sql`, `)}
 					WHERE id = ${id}
@@ -2521,43 +2476,8 @@ export class ContentRepository {
 						AND revisions.collection = ${type}
 						AND revisions.entry_id = ${id}
 					)
-					RETURNING id
-				`;
-				const entryGroup = existing.translationGroup ?? id;
-				const isPromoted = sql`
-					EXISTS (SELECT 1 FROM ${sql.ref(tableName)}
-					WHERE id = ${id} AND live_revision_id = ${revisionToPublish}
-					AND draft_revision_id IS NULL AND version = ${existing.version + 1})
-				`;
-				const taxonomyWrites: ReturnType<typeof sql>[] = [];
-				for (const [name, { after }] of Object.entries(taxonomyDrafts)) {
-					taxonomyWrites.push(sql`
-						DELETE FROM content_taxonomies
-						WHERE collection = ${type} AND entry_id = ${entryGroup}
-						AND taxonomy_id IN (SELECT translation_group FROM taxonomies WHERE name = ${name})
-						AND ${isPromoted}
-					`);
-					for (const group of after) {
-						taxonomyWrites.push(sql`
-							INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id)
-							SELECT ${type}, ${entryGroup}, ${group}
-							WHERE ${isPromoted}
-							ON CONFLICT DO NOTHING
-						`);
-					}
-				}
-				const batched = taxonomyWrites.length
-					? await executeAtomicBatchIfSupported(this.db, [promote, ...taxonomyWrites])
-					: null;
-				if (batched) {
-					promoted = batched[0]?.rows.length === 1;
-				} else {
-					const result = await promote.execute(this.db);
-					promoted = result.rows.length === 1;
-					if (promoted) {
-						for (const write of taxonomyWrites) await write.execute(this.db);
-					}
-				}
+				`.execute(this.db);
+				promoted = (result.numAffectedRows ?? 0n) > 0n;
 			} catch (error) {
 				if (isConfirmedStatementFailure(error)) throw error;
 				let observed: ContentItem | null;
@@ -2595,10 +2515,6 @@ export class ContentRepository {
 			}
 
 			invalidateCollectionCache(type);
-			if (Object.keys(taxonomyDrafts).length > 0) {
-				invalidateTermCache();
-				invalidateTaxonomyObjectCache();
-			}
 			const updated = await this.findById(type, id);
 			if (!updated) {
 				throw new Error("Content not found");

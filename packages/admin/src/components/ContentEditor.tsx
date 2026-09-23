@@ -306,7 +306,6 @@ export interface ContentEditorProps {
 	hasSeo?: boolean;
 	/** Callback when SEO fields change */
 	onSeoChange?: (seo: ContentSeoInput) => void;
-	onTaxonomySaved?: (revision?: string) => void;
 	/** Admin manifest for resolving plugin field widgets */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 	/** Re-fetch host state after a plugin action requests an entry refresh. */
@@ -368,7 +367,6 @@ export function ContentEditor({
 	pluginBlocks,
 	hasSeo = false,
 	onSeoChange,
-	onTaxonomySaved,
 	manifest,
 	onEntryRefresh,
 	readOnly: readOnlyProp = false,
@@ -1492,7 +1490,6 @@ export function ContentEditor({
 								onTranslate={onTranslate}
 								hasSeo={hasSeo}
 								onSeoChange={onSeoChange ? handleSeoChange : undefined}
-								onTaxonomySaved={onTaxonomySaved}
 								portableTextEditor={portableTextEditor}
 								blockSidebarPanel={blockSidebarPanel}
 								onBlockSidebarClose={handleBlockSidebarClose}
