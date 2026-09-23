@@ -1673,8 +1673,13 @@ export class EmDashRuntime {
 						const seed = await loadSeed();
 						const validation = validateSeed(seed);
 						if (validation.valid) {
-							await applySeed(db, seed, { onConflict: "skip" });
+							const seedResult = await applySeed(db, seed, { onConflict: "skip" });
 							console.log("Auto-seeded default collections");
+							if (seedResult.taxonomies.skipped > 0) {
+								console.warn(
+									`[auto-seed] Kept ${seedResult.taxonomies.skipped} existing taxonomy definition(s) instead of the seed's. Edit them in the admin, or run \`emdash seed <file> --on-conflict update\` to replace them (this also overwrites other seeded records).`,
+								);
+							}
 						}
 						seedHolder.done.add(seedKey);
 						return true;

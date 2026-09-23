@@ -103,6 +103,36 @@ const SANITIZE_PATTERN = /[^a-zA-Z0-9_-]/g;
 /** Pattern to collapse multiple hyphens */
 const MULTIPLE_HYPHENS_PATTERN = /-+/g;
 
+/** The `category` and `tag` defs that migrations insert on every new database. */
+const BUILT_IN_TAXONOMY_DEFS = new Map([
+	[
+		"taxdef_category",
+		{ label: "Categories", label_singular: "Category", hierarchical: 1, collections: '["posts"]' },
+	],
+	[
+		"taxdef_tag",
+		{ label: "Tags", label_singular: "Tag", hierarchical: 0, collections: '["posts"]' },
+	],
+]);
+
+/** Whether `def` is a built-in `category`/`tag` definition still holding its migration defaults. */
+function isUntouchedBuiltInTaxonomyDef(def: {
+	id: string;
+	label: string;
+	label_singular: string | null;
+	hierarchical: number | null;
+	collections: string | null;
+}): boolean {
+	const builtIn = BUILT_IN_TAXONOMY_DEFS.get(def.id);
+	return (
+		builtIn !== undefined &&
+		def.label === builtIn.label &&
+		def.label_singular === builtIn.label_singular &&
+		def.hierarchical === builtIn.hierarchical &&
+		def.collections === builtIn.collections
+	);
+}
+
 /**
  * Apply a seed file to the database
  *
@@ -135,7 +165,7 @@ export async function applySeed(
 	const result: SeedApplyResult = {
 		collections: { created: 0, skipped: 0, updated: 0 },
 		fields: { created: 0, skipped: 0, updated: 0 },
-		taxonomies: { created: 0, terms: 0 },
+		taxonomies: { created: 0, skipped: 0, terms: 0 },
 		bylines: { created: 0, skipped: 0, updated: 0 },
 		menus: { created: 0, items: 0 },
 		redirects: { created: 0, skipped: 0, updated: 0 },
@@ -350,10 +380,13 @@ export async function applySeed(
 			if (existingDef) {
 				defId = existingDef.id;
 				defTranslationGroup = existingDef.translation_group ?? existingDef.id;
-				if (onConflict === "error") {
+				const unclaimed = isUntouchedBuiltInTaxonomyDef(existingDef);
+				if (onConflict === "error" && !unclaimed) {
 					throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
 				}
-				if (onConflict === "update") {
+				if (onConflict === "skip" && !unclaimed) {
+					result.taxonomies.skipped++;
+				} else {
 					await db
 						.updateTable("_emdash_taxonomy_defs")
 						.set({

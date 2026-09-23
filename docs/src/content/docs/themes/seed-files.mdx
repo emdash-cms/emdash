@@ -499,7 +499,7 @@ Programmatic application defaults `includeContent` to `false`. The setup wizard 
 `onConflict` is not a transaction policy for the entire seed:
 
 - Collections, fields, bylines, content, redirects, and sections support skip, update, and error behavior.
-- Taxonomy definitions and terms honor the applicable conflict mode.
+- Taxonomy definitions and terms honor the applicable conflict mode. The exception is the built-in `category` and `tag` definitions that every new database starts with: until a site edits them, a seed that declares them replaces them in every mode.
 - Settings use per-key conflict handling. `skip` creates missing settings and preserves existing values. `update` overwrites every supplied setting. `error` stops at the first existing setting; settings created earlier in seed order remain applied.
 - Existing menus retain their menu row but replace all items.
 - Existing widget areas retain their area row but replace all widgets.
