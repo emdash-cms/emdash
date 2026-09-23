@@ -1,0 +1,49 @@
+.changeset/bulk-tag-posts.md
+  s_0c2371b7147544::t_5554b9def90440 1-6
+docs/src/content/docs/guides/taxonomies.mdx
+  s_0c2371b7147544::t_5e46d0f8b40a5d 32-37
+packages/admin/src/components/BulkTagDialog.tsx
+  s_0c2371b7147544::t_25aad3f2818fe4 1-265
+packages/admin/src/components/ContentList.tsx
+  s_0c2371b7147544::t_709b299abfa7b4 40,54,186,274,284,288,523-534,593-611
+packages/admin/src/components/TaxonomyManager.tsx
+  s_0c2371b7147544::t_3d37aecfdab14b 38,913,1086-1090,1155-1157
+packages/admin/src/lib/api/taxonomies.ts
+  s_0c2371b7147544::t_9fe4f2cbe92754 93-118
+packages/admin/src/router.tsx
+  s_0c2371b7147544::t_0d0649b760c470 680-685
+packages/admin/tests/components/BulkTagDialog.test.tsx
+  s_0c2371b7147544::t_367735fec67738 1-186
+packages/core/src/api/handlers/bulk-tag.ts
+  s_0c2371b7147544::t_5a8ba938c9d484 1-206
+packages/core/src/api/schemas/taxonomies.ts
+  s_0c2371b7147544::t_c73ebcb992d0ac 68-84
+packages/core/src/astro/integration/routes.ts
+  s_0c2371b7147544::t_8623e5657f5594 516-520
+packages/core/src/astro/middleware/auth.ts
+  s_0c2371b7147544::t_5672645f6d8cfc 771
+packages/core/src/astro/routes/api/taxonomies/bulk-tag.ts
+  s_0c2371b7147544::t_7722d467e0c975 1-29
+packages/core/tests/integration/taxonomies/bulk-tag.test.ts
+  s_0c2371b7147544::t_2e413357ec254d 1-257
+packages/core/tests/unit/astro/bulk-tag-token-scope.test.ts
+  s_0c2371b7147544::t_3c7560c321a285 1-68
+packages/core/tests/unit/astro/routes.test.ts
+  s_0c2371b7147544::t_413bb2f3b0b0cc 15,222-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a495a7f3ed5ebd6401730b29908478945c5f6259",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
