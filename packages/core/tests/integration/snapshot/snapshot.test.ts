@@ -137,16 +137,26 @@ describe("generateSnapshot", () => {
 	});
 
 	it("includes block type definitions and retained versions", async () => {
-		await new BlockTypeRegistry(db).createBlockType({
+		const registry = new BlockTypeRegistry(db);
+		const created = await registry.createBlockType({
 			slug: "hero",
 			label: "Hero",
 			fields: [{ slug: "heading", label: "Heading", type: "string" }],
 		});
+		const versioned = await registry.updateBlockType("hero", {
+			expectedFingerprint: created.versions[0]!.fingerprint,
+			breaking: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		await registry.activateVersion("hero", 2, versioned.versions[0]!.fingerprint);
 
 		const snapshot = await generateSnapshot(db);
 
 		expect(snapshot.tables._emdash_block_types).toHaveLength(1);
-		expect(snapshot.tables._emdash_block_type_versions).toHaveLength(1);
+		expect(snapshot.tables._emdash_block_types[0]).toMatchObject({ current_version: 2 });
+		expect(snapshot.tables._emdash_block_type_versions.map((version) => version.version)).toEqual([
+			1, 2,
+		]);
 	});
 
 	it("includes column type info in schema", async () => {
