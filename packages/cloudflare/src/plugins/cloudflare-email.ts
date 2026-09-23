@@ -129,7 +129,7 @@ export function createCloudflareEmailDeliver(
 			);
 		}
 
-		const replyTo = message.replyTo || config.replyTo;
+		const replyTo = message.replyTo ?? config.replyTo;
 		const result = await binding.send({
 			from,
 			to: message.to,

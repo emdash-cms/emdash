@@ -1,6 +1,7 @@
 ---
 "emdash": minor
 "@emdash-cms/cloudflare": minor
+"@emdash-cms/sandbox-workerd": minor
 ---
 
 Adds optional `cc` and `replyTo` fields to plugin email messages, including from sandboxed plugins:
