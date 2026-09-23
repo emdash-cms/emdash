@@ -864,7 +864,7 @@ describe("astro middleware setup probe", () => {
 		};
 	}
 
-	it("redirects to setup when the migrations table is genuinely missing", async () => {
+	it("migrates and renders a public page when the migrations table is genuinely missing", async () => {
 		// Fresh, un-migrated database: the probe query reports a missing table.
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
@@ -875,10 +875,28 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(redirect).toHaveBeenCalledWith("/_emdash/admin/setup");
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/_emdash/admin/setup");
+		expect(redirect).not.toHaveBeenCalled();
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("answers with an uncached 503 when an un-migrated database cannot be initialized", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+		mockCreateRuntime.mockRejectedValue(new Error("migration 001 failed"));
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
 		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(503);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect(await response.text()).toContain('href="/_emdash/admin/setup"');
 	});
 
 	it("does NOT redirect to setup on a transient DB error (regression)", async () => {
