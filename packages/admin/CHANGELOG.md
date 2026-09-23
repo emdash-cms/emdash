@@ -1,5 +1,13 @@
 # @emdash-cms/admin
 
+## 0.39.1
+
+### Patch Changes
+
+- [#3286](https://github.com/emdash-cms/emdash/pull/3286) [`4ffc631`](https://github.com/emdash-cms/emdash/commit/4ffc631c71a4df1f0f8c4d8c22335dfad4bbccf6) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Refines content editor typography so headings, field labels, input values, and supporting text use a clearer, consistent hierarchy across the editing and settings panels.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.39.1
+
 ## 0.39.0
 
 ### Minor Changes
