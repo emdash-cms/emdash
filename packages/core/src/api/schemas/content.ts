@@ -269,6 +269,7 @@ export const contentPreviewUrlBody = z
 export const contentTermsBody = z
 	.object({
 		termIds: z.array(z.string()),
+		stage: z.boolean().optional(),
 	})
 	.meta({ id: "ContentTermsBody" });
 

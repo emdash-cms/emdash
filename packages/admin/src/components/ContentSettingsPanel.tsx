@@ -725,6 +725,7 @@ export interface ContentSettingsPanelProps {
 	onTranslate?: (locale: string) => void;
 	hasSeo: boolean;
 	onSeoChange?: (seo: ContentSeoInput) => void;
+	onTaxonomySaved?: (revision?: string) => void;
 	/** portableText editor for the document outline (null when none mounted) */
 	portableTextEditor: Editor | null;
 	/** When set, the panel shows the block's detail panel instead of settings */
@@ -789,6 +790,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onTranslate,
 	hasSeo,
 	onSeoChange,
+	onTaxonomySaved,
 	portableTextEditor,
 	blockSidebarPanel,
 	onBlockSidebarClose,
@@ -1164,6 +1166,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							entryLocale={activeEntryLocale}
 							defaultLocale={i18n?.defaultLocale}
 							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+							onSaved={onTaxonomySaved}
 						/>
 					</SortableContentSettingsSection>
 				)}

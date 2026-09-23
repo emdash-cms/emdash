@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable } from "kysely";
 import { ulid } from "ulidx";
 
 import { invalidateTaxonomyObjectCache } from "../../object-cache/index.js";
+import { chunks as chunkGroups, SQL_BATCH_SIZE as GROUP_BATCH_SIZE } from "../../utils/chunks.js";
 import { slugify } from "../../utils/slugify.js";
 import { withTransaction } from "../transaction.js";
 import type { Database, TaxonomyTable } from "../types.js";
@@ -718,6 +719,53 @@ export class TaxonomyRepository {
 					locale: variant.locale,
 				})),
 			};
+		});
+	}
+
+	async getTermAssignmentsForGroups(
+		taxonomyName: string,
+		groups: string[],
+		locale: string,
+		defaultLocale: string,
+	): Promise<TaxonomyAssignmentResolution[]> {
+		if (groups.length === 0) return [];
+		const rows: Array<Selectable<TaxonomyTable>> = [];
+		for (const groupBatch of chunkGroups(groups, GROUP_BATCH_SIZE)) {
+			rows.push(
+				...(await this.db
+					.selectFrom("taxonomies")
+					.selectAll()
+					.where("name", "=", taxonomyName)
+					.where("translation_group", "in", groupBatch)
+					.orderBy("locale", "asc")
+					.execute()),
+			);
+		}
+		const variants = new Map<string, Taxonomy[]>();
+		for (const row of rows) {
+			const group = row.translation_group ?? row.id;
+			const terms = variants.get(group) ?? [];
+			terms.push(this.rowToTaxonomy(row));
+			variants.set(group, terms);
+		}
+		return groups.flatMap((translationGroup) => {
+			const terms = variants.get(translationGroup);
+			if (!terms) return [];
+			return [
+				{
+					translationGroup,
+					term:
+						terms.find((term) => term.locale === locale) ??
+						terms.find((term) => term.locale === defaultLocale) ??
+						null,
+					availableLocales: terms.map((term) => term.locale),
+					translations: terms.map((term) => ({
+						id: term.id,
+						slug: term.slug,
+						locale: term.locale,
+					})),
+				},
+			];
 		});
 	}
 
