@@ -69,12 +69,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# oppføring)} other {(# oppføringer)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2214
+#: packages/admin/src/components/ContentEditor.tsx:2220
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr ""
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:2219
+#: packages/admin/src/components/ContentEditor.tsx:2225
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr ""
 
@@ -229,7 +229,7 @@ msgid "{0, plural, one {Add # image} other {Add # images}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:2224
+#: packages/admin/src/components/ContentEditor.tsx:2230
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr ""
 
@@ -297,7 +297,7 @@ msgid "{0} detected"
 msgstr "{0} oppdaget"
 
 #. placeholder {0}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:616
+#: packages/admin/src/components/TaxonomySidebar.tsx:619
 msgid "{0} fallback"
 msgstr ""
 
@@ -363,7 +363,7 @@ msgid "{0} preview"
 msgstr "{0}-forhåndsvisning"
 
 #. placeholder {0}: byline.displayName
-#: packages/admin/src/components/BylineCreditsEditor.tsx:625
+#: packages/admin/src/components/BylineCreditsEditor.tsx:632
 msgid "{0} removed from this post."
 msgstr ""
 
@@ -375,7 +375,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} system + {1} egendefinert {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:675
+#: packages/admin/src/components/TaxonomySidebar.tsx:678
 msgid "{0} updated"
 msgstr "{0} oppdatert"
 
@@ -399,7 +399,7 @@ msgstr "{0}/160 tegn"
 msgid "{base} to: {0}"
 msgstr "{base} til: {0}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:355
+#: packages/admin/src/components/RevisionHistory.tsx:359
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# endring fra neste revisjon} other {# endringer fra neste revisjon}}"
 
@@ -466,7 +466,7 @@ msgstr ""
 msgid "{label} moved to position {0}."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:531
+#: packages/admin/src/components/TaxonomySidebar.tsx:532
 msgid "{label} options"
 msgstr ""
 
@@ -632,11 +632,11 @@ msgstr ""
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:367
+#: packages/admin/src/components/RevisionHistory.tsx:371
 msgid "{unchangedCount, plural, one {Hide # unchanged} other {Hide # unchanged}}"
 msgstr "{unchangedCount, plural, one {Skjul # uendret} other {Skjul # uendret}}"
 
-#: packages/admin/src/components/RevisionHistory.tsx:368
+#: packages/admin/src/components/RevisionHistory.tsx:372
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Vis # uendret} other {Vis # uendret}}"
 
@@ -804,7 +804,7 @@ msgstr ""
 msgid "A short description of your site"
 msgstr "En kort beskrivelse av nettstedet ditt"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:755
+#: packages/admin/src/components/TaxonomySidebar.tsx:758
 msgid "A source and target locale are required"
 msgstr ""
 
@@ -881,7 +881,7 @@ msgid "Active"
 msgstr "Aktiv"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:174
-#: packages/admin/src/components/BylineCreditsEditor.tsx:501
+#: packages/admin/src/components/BylineCreditsEditor.tsx:506
 #: packages/admin/src/components/MenuEditor.tsx:441
 msgid "Add"
 msgstr "Legg til"
@@ -889,7 +889,7 @@ msgstr "Legg til"
 #. placeholder {0}: field.item_label
 #. placeholder {0}: option.byline.displayName
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
-#: packages/admin/src/components/BylineCreditsEditor.tsx:498
+#: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/PortableTextEditor.tsx:2304
 #: packages/admin/src/components/TaxonomyManager.tsx:557
 #: packages/admin/src/components/TaxonomyManager.tsx:1082
@@ -900,7 +900,7 @@ msgstr "Legg til {0}"
 msgid "Add a new passkey"
 msgstr "Legg til en ny passnøkkel"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:564
+#: packages/admin/src/components/BylineCreditsEditor.tsx:571
 msgid "Add another byline"
 msgstr ""
 
@@ -971,7 +971,7 @@ msgstr "Legg til første element"
 msgid "Add Images"
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:319
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:321
 msgid "Add images to gallery"
 msgstr ""
 
@@ -1069,7 +1069,7 @@ msgstr "Administrasjonsnavigasjon"
 msgid "Administrator"
 msgstr "Administrator"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:986
+#: packages/admin/src/components/BylineCreditsEditor.tsx:995
 msgid "Advanced"
 msgstr ""
 
@@ -1211,7 +1211,7 @@ msgstr "Slett også lagrede data for utvidelsen"
 msgid "Also match the byline linked to an entry's author when it has none assigned."
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:483
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:470
 #: packages/admin/src/components/editor/ImageNode.tsx:278
@@ -1270,8 +1270,8 @@ msgstr ""
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
-#: packages/admin/src/components/TaxonomySidebar.tsx:680
-#: packages/admin/src/components/TaxonomySidebar.tsx:776
+#: packages/admin/src/components/TaxonomySidebar.tsx:683
+#: packages/admin/src/components/TaxonomySidebar.tsx:779
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:469
 #: packages/admin/src/router.tsx:484
@@ -1430,11 +1430,11 @@ msgstr "Tilordne WordPress-forfattere til EmDash-brukere. Innlegg blir tilskreve
 msgid "Astro"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2247
+#: packages/admin/src/components/ContentEditor.tsx:2253
 msgid "At least {min}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2244
+#: packages/admin/src/components/ContentEditor.tsx:2250
 msgid "At most {max}"
 msgstr ""
 
@@ -1523,7 +1523,7 @@ msgstr "Godkjenn autentiserte brukere automatisk"
 msgid "Auto-generated from name (you can edit)"
 msgstr "Generert automatisk fra navn (du kan redigere)"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:645
+#: packages/admin/src/components/BylineCreditsEditor.tsx:654
 msgid "Automatic"
 msgstr ""
 
@@ -1546,7 +1546,7 @@ msgid "Available bylines"
 msgstr ""
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:839
+#: packages/admin/src/components/TaxonomySidebar.tsx:842
 msgid "Available in {0}"
 msgstr ""
 
@@ -1662,7 +1662,7 @@ msgstr "Før sending:"
 msgid "Before you continue:"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2241
+#: packages/admin/src/components/ContentEditor.tsx:2247
 msgid "Between {min} and {max}"
 msgstr ""
 
@@ -1786,7 +1786,7 @@ msgstr "Kan publisere eget innhold"
 msgid "Can view content"
 msgstr "Kan vise innhold"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:1012
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1021
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
@@ -1862,7 +1862,7 @@ msgstr "Egenskaper"
 msgid "Capability consent"
 msgstr "Samtykke til egenskaper"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:489
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:491
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:479
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:685
 #: packages/admin/src/components/MediaDetailPanel.tsx:1592
@@ -1933,7 +1933,7 @@ msgstr "Endre bilde"
 msgid "Change Logo"
 msgstr "Endre logo"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:621
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:627
 msgid "Change publication date"
 msgstr ""
 
@@ -1954,7 +1954,7 @@ msgstr ""
 msgid "Changelog"
 msgstr "Endringslogg"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:971
+#: packages/admin/src/components/BylineCreditsEditor.tsx:980
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
@@ -2069,8 +2069,8 @@ msgstr ""
 msgid "Choose another option"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:662
-#: packages/admin/src/components/BylineCreditsEditor.tsx:677
+#: packages/admin/src/components/BylineCreditsEditor.tsx:671
+#: packages/admin/src/components/BylineCreditsEditor.tsx:686
 msgid "Choose bylines"
 msgstr ""
 
@@ -2102,7 +2102,7 @@ msgstr ""
 msgid "Choose your preferred admin language"
 msgstr "Velg ditt foretrukne administrasjonsspråk"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:651
+#: packages/admin/src/components/BylineCreditsEditor.tsx:660
 msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
@@ -2191,7 +2191,7 @@ msgstr "Klikk på lenken i e-posten for å logge inn."
 #: packages/admin/src/components/TaxonomyManager.tsx:807
 #: packages/admin/src/components/TaxonomyManager.tsx:813
 #: packages/admin/src/components/TaxonomyManager.tsx:817
-#: packages/admin/src/components/TaxonomySidebar.tsx:602
+#: packages/admin/src/components/TaxonomySidebar.tsx:605
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
 #: packages/admin/src/components/users/InviteUserModal.tsx:94
@@ -2223,7 +2223,7 @@ msgstr ""
 msgid "Close panel"
 msgstr "Lukk panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:1736
+#: packages/admin/src/components/ContentEditor.tsx:1742
 msgid "Close settings"
 msgstr ""
 
@@ -2455,7 +2455,7 @@ msgstr "Innholdet er tilbakestilt til kladd"
 msgid "Content search results"
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:314
+#: packages/admin/src/components/RevisionHistory.tsx:318
 msgid "Content snapshot:"
 msgstr "Innholdsøyeblikksbilde:"
 
@@ -2623,7 +2623,7 @@ msgstr "Kunne ikke knytte «{draft}» til en MIME-type. Skriv inn MIME-typen dir
 msgid "Couldn’t move file"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:469
+#: packages/admin/src/components/BylineCreditsEditor.tsx:472
 msgid "Couldn’t search bylines."
 msgstr ""
 
@@ -2636,7 +2636,7 @@ msgstr "Kunne ikke bekrefte hvor mange verdier som refererer til «{0}». Sletti
 msgid "Count"
 msgstr "Antall"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:525
+#: packages/admin/src/components/BylineCreditsEditor.tsx:530
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:192
@@ -2648,21 +2648,21 @@ msgid "Create"
 msgstr "Opprett"
 
 #. placeholder {0}: option.label
-#: packages/admin/src/components/BylineCreditsEditor.tsx:511
+#: packages/admin/src/components/BylineCreditsEditor.tsx:516
 msgid "Create “{0}”"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:580
+#: packages/admin/src/components/TaxonomySidebar.tsx:583
 msgid "Create \"{trimmedInput}\""
 msgstr "Opprett «{trimmedInput}»"
 
 #. placeholder {0}: option.label
-#: packages/admin/src/components/BylineCreditsEditor.tsx:522
+#: packages/admin/src/components/BylineCreditsEditor.tsx:527
 msgid "Create {0}"
 msgstr ""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:850
+#: packages/admin/src/components/TaxonomySidebar.tsx:853
 msgid "Create {0} translation"
 msgstr ""
 
@@ -2675,7 +2675,7 @@ msgstr "Opprett en punktliste"
 msgid "Create a new {0}"
 msgstr "Opprett en ny {0}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:580
+#: packages/admin/src/components/TaxonomySidebar.tsx:583
 msgid "Create a new {singularLabel}"
 msgstr ""
 
@@ -2683,7 +2683,7 @@ msgstr ""
 msgid "Create a numbered list"
 msgstr "Opprett en nummerert liste"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:970
+#: packages/admin/src/components/BylineCreditsEditor.tsx:979
 msgid "Create a reusable public profile, then add it to this post."
 msgstr ""
 
@@ -2691,11 +2691,11 @@ msgstr ""
 msgid "Create an account"
 msgstr "Opprett en konto"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:1015
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1024
 msgid "Create and add"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:966
+#: packages/admin/src/components/BylineCreditsEditor.tsx:975
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "Opprett byline"
@@ -2894,11 +2894,11 @@ msgstr ""
 msgid "CSS"
 msgstr ""
 
-#: packages/admin/src/components/TranslationsPanel.tsx:83
+#: packages/admin/src/components/TranslationsPanel.tsx:84
 msgid "current"
 msgstr "gjeldende"
 
-#: packages/admin/src/components/RevisionHistory.tsx:282
+#: packages/admin/src/components/RevisionHistory.tsx:286
 msgid "Current"
 msgstr "Gjeldende"
 
@@ -3121,7 +3121,7 @@ msgstr "Slette felt?"
 msgid "Delete folder"
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:309
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:311
 #: packages/admin/src/components/editor/GalleryNode.tsx:254
 #: packages/admin/src/components/editor/GalleryNode.tsx:255
 msgid "Delete gallery"
@@ -3259,7 +3259,7 @@ msgstr "Avslå"
 msgid "Describe the image"
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:486
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:488
 #: packages/admin/src/components/editor/ImageNode.tsx:285
 msgid "Describe the image..."
 msgstr "Beskriv bildet …"
@@ -3501,7 +3501,7 @@ msgstr "Domenet ble oppdatert"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Har du ikke en konto? <0>Registrer deg</0>"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:911
+#: packages/admin/src/components/BylineCreditsEditor.tsx:920
 #: packages/admin/src/components/ContentList.tsx:1067
 #: packages/admin/src/components/MediaUploadDialog.tsx:353
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
@@ -3660,7 +3660,7 @@ msgstr "f.eks. MacBook Pro, iPhone"
 #: packages/admin/src/components/MenuList.tsx:234
 #: packages/admin/src/components/Sections.tsx:392
 #: packages/admin/src/components/Shell.tsx:86
-#: packages/admin/src/components/TranslationsPanel.tsx:93
+#: packages/admin/src/components/TranslationsPanel.tsx:95
 msgid "Edit"
 msgstr "Rediger"
 
@@ -3695,7 +3695,7 @@ msgstr ""
 msgid "Edit {title}"
 msgstr "Rediger {title}"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:460
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:462
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
 #: packages/admin/src/components/ImageFieldRenderer.tsx:303
 #: packages/admin/src/components/ImageFieldRenderer.tsx:359
@@ -3765,8 +3765,8 @@ msgstr "Rediger menyelementer"
 msgid "visualEditing.editMode"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:872
-#: packages/admin/src/components/BylineCreditsEditor.tsx:966
+#: packages/admin/src/components/BylineCreditsEditor.tsx:881
+#: packages/admin/src/components/BylineCreditsEditor.tsx:975
 msgid "Edit name and slug"
 msgstr ""
 
@@ -3783,7 +3783,7 @@ msgstr "Rediger omdirigering"
 msgid "Edit redirect {0}"
 msgstr "Rediger omdirigering {0}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:864
+#: packages/admin/src/components/BylineCreditsEditor.tsx:873
 msgid "Edit role"
 msgstr ""
 
@@ -3958,7 +3958,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Skriv inn en URL (https://…) eller en relativ sti (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:2288
+#: packages/admin/src/components/ContentEditor.tsx:2294
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Skriv inn en gyldig URL (f.eks. https://example.com)"
 
@@ -3978,7 +3978,7 @@ msgstr "Skriv inn e-post"
 msgid "Enter HTML..."
 msgstr "Skriv inn HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1964
+#: packages/admin/src/components/ContentEditor.tsx:1970
 msgid "Enter markdown content..."
 msgstr "Skriv inn markdown-innhold..."
 
@@ -4033,7 +4033,7 @@ msgstr "Feil ved lagring av seksjon"
 msgid "Error updating widget"
 msgstr "Feil ved oppdatering av modul"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:600
+#: packages/admin/src/components/TaxonomySidebar.tsx:603
 msgid "Esc"
 msgstr ""
 
@@ -4133,7 +4133,7 @@ msgid "Failed to confirm upload"
 msgstr ""
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:746
+#: packages/admin/src/components/TaxonomySidebar.tsx:749
 msgid "Failed to create {0}"
 msgstr ""
 
@@ -4166,11 +4166,11 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr "Kunne ikke opprette noen samlinger"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:725
+#: packages/admin/src/components/TaxonomySidebar.tsx:728
 msgid "Failed to create term"
 msgstr "Kunne ikke opprette term"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:775
+#: packages/admin/src/components/TaxonomySidebar.tsx:778
 #: packages/admin/src/router.tsx:1366
 msgid "Failed to create translation"
 msgstr "Kunne ikke opprette oversettelse"
@@ -4500,7 +4500,7 @@ msgstr "Kunne ikke laste inn utvidelser: {0}"
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "Kunne ikke laste inn utvidelser. Registeraggregatoren er kanskje utilgjengelig."
 
-#: packages/admin/src/components/RevisionHistory.tsx:198
+#: packages/admin/src/components/RevisionHistory.tsx:200
 msgid "Failed to load revisions"
 msgstr "Kunne ikke laste inn revisjoner"
 
@@ -4674,7 +4674,7 @@ msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:679
+#: packages/admin/src/components/TaxonomySidebar.tsx:682
 msgid "Failed to update {0}"
 msgstr "Kunne ikke oppdatere {0}"
 
@@ -4984,7 +4984,7 @@ msgstr ""
 msgid "From {0}"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:648
+#: packages/admin/src/components/BylineCreditsEditor.tsx:657
 msgid "From the post owner"
 msgstr ""
 
@@ -5023,7 +5023,7 @@ msgstr "Generelt"
 msgid "General Settings"
 msgstr "Generelle innstillinger"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:993
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1002
 msgid "Generated automatically."
 msgstr ""
 
@@ -5281,7 +5281,7 @@ msgstr "Bilde"
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:155
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:167
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:174
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:366
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:368
 msgid "Image {0}"
 msgstr ""
 
@@ -5295,8 +5295,8 @@ msgid "Image from media library"
 msgstr "Bilde fra mediebibliotek"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:468
-#: packages/admin/src/components/ImageFieldRenderer.tsx:520
+#: packages/admin/src/components/ImageFieldRenderer.tsx:473
+#: packages/admin/src/components/ImageFieldRenderer.tsx:525
 msgid "Image not found"
 msgstr "Fant ikke bildet"
 
@@ -5624,7 +5624,7 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr "Ugyldig invitasjonslenke"
 
-#: packages/admin/src/components/ContentEditor.tsx:2357
+#: packages/admin/src/components/ContentEditor.tsx:2363
 msgid "Invalid JSON"
 msgstr "Ugyldig JSON"
 
@@ -5744,7 +5744,7 @@ msgstr ""
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:535
+#: packages/admin/src/components/BylineCreditsEditor.tsx:541
 msgid "Keep typing to narrow the list."
 msgstr ""
 
@@ -5992,7 +5992,7 @@ msgstr "Laster meny..."
 msgid "Loading menus..."
 msgstr "Laster menyer..."
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:223
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:225
 msgid "Loading plugin panel"
 msgstr ""
 
@@ -6149,7 +6149,7 @@ msgstr "Administrer"
 msgid "Manage {0} for {1}"
 msgstr "Administrer {0} for {1}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:694
+#: packages/admin/src/components/BylineCreditsEditor.tsx:703
 msgid "Manage bylines in {entryLocale}"
 msgstr "Administrer bylinjer i {entryLocale}"
 
@@ -6471,12 +6471,12 @@ msgstr ""
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/BylineCreditsEditor.tsx:853
+#: packages/admin/src/components/BylineCreditsEditor.tsx:862
 #: packages/admin/src/components/TaxonomyManager.tsx:1092
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:505
+#: packages/admin/src/components/ImageFieldRenderer.tsx:510
 msgid "More information about {label}"
 msgstr ""
 
@@ -6630,7 +6630,7 @@ msgstr "Flere valg fra alternativer"
 msgid "My Awesome Blog"
 msgstr "Bloggen min"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:978
+#: packages/admin/src/components/BylineCreditsEditor.tsx:987
 #: packages/admin/src/components/ContentTypeList.tsx:178
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
@@ -6652,7 +6652,7 @@ msgstr "Navn og etikett er påkrevd"
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "Navnet må starte med en bokstav og kan kun inneholde små bokstaver, tall og understreker"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:590
+#: packages/admin/src/components/TaxonomySidebar.tsx:593
 msgid "Navigate"
 msgstr ""
 
@@ -6727,7 +6727,7 @@ msgstr "Nye offentlige ruter"
 msgid "New Redirect"
 msgstr "Ny omdirigering"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:514
+#: packages/admin/src/components/BylineCreditsEditor.tsx:519
 msgid "New reusable profile"
 msgstr ""
 
@@ -6804,7 +6804,7 @@ msgstr "Ingen {0} ennå."
 msgid "No {0} yet. Create one to get started."
 msgstr "Ingen {0} ennå. Opprett en for å komme i gang."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:565
+#: packages/admin/src/components/TaxonomySidebar.tsx:567
 msgid "No {label} found."
 msgstr ""
 
@@ -6841,11 +6841,11 @@ msgstr ""
 msgid "No byline fields yet."
 msgstr "Ingen byline-felt ennå."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:686
+#: packages/admin/src/components/BylineCreditsEditor.tsx:695
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Ingen bylines tilgjengelig på {entryLocale}. Opprett en variant fra Bylines-siden før du krediterer en på denne oppføringen."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:542
+#: packages/admin/src/components/BylineCreditsEditor.tsx:549
 msgid "No bylines available."
 msgstr ""
 
@@ -6910,7 +6910,7 @@ msgstr "Fant ingen EmDash-brukere"
 msgid "No expiry"
 msgstr "Ingen utløp"
 
-#: packages/admin/src/components/RevisionHistory.tsx:345
+#: packages/admin/src/components/RevisionHistory.tsx:349
 msgid "No fields to compare"
 msgstr "Ingen felt å sammenligne"
 
@@ -6922,11 +6922,11 @@ msgstr ""
 msgid "No folders found"
 msgstr ""
 
-#: packages/admin/src/components/editor/DocumentOutline.tsx:213
+#: packages/admin/src/components/editor/DocumentOutline.tsx:214
 msgid "No headings in document"
 msgstr "Ingen overskrifter i dokumentet"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:270
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:271
 msgid "No images in this gallery yet."
 msgstr ""
 
@@ -6960,7 +6960,7 @@ msgstr "Ingen treff"
 msgid "No matches. Press Enter to use “{freeFormLanguage}”."
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:542
+#: packages/admin/src/components/BylineCreditsEditor.tsx:549
 msgid "No matching bylines."
 msgstr "Ingen samsvarende bylines."
 
@@ -7072,7 +7072,7 @@ msgstr "Ingen resultater for \"{debouncedQuery}\". Prøv et annet søkeord."
 msgid "No results found"
 msgstr "Fant ingen resultater"
 
-#: packages/admin/src/components/RevisionHistory.tsx:201
+#: packages/admin/src/components/RevisionHistory.tsx:204
 msgid "No revisions yet"
 msgstr "Ingen revisjoner ennå"
 
@@ -7252,7 +7252,7 @@ msgstr ""
 "Alternativ 2\n"
 "Alternativ 3"
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:492
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:494
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:482
 msgid "Optional caption"
 msgstr ""
@@ -7320,7 +7320,7 @@ msgstr ""
 msgid "Original image cropped."
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:476
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:478
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:370
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:589
 msgid "Original:"
@@ -7504,7 +7504,7 @@ msgstr "Venter"
 msgid "Pending changes"
 msgstr "Ventende endringer"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:640
+#: packages/admin/src/components/BylineCreditsEditor.tsx:648
 msgid "People shown publicly on this post."
 msgstr ""
 
@@ -7639,7 +7639,7 @@ msgstr ""
 msgid "Plugin pages"
 msgstr ""
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:229
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:231
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr ""
@@ -7814,7 +7814,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:932
 #: packages/admin/src/components/ContentSettingsPanel.tsx:937
 #: packages/admin/src/components/ContentSettingsPanel.tsx:948
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:625
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:631
 msgid "Publication date"
 msgstr ""
 
@@ -8113,8 +8113,8 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2518
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
+#: packages/admin/src/components/ContentEditor.tsx:2524
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
 #: packages/admin/src/components/ImageFieldRenderer.tsx:315
@@ -8149,11 +8149,11 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Fjern {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2516
+#: packages/admin/src/components/ContentEditor.tsx:2522
 msgid "Remove {label}"
 msgstr "Fjern {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:859
+#: packages/admin/src/components/TaxonomySidebar.tsx:862
 msgid "Remove assignment"
 msgstr ""
 
@@ -8169,7 +8169,7 @@ msgstr "Fjern domene"
 msgid "Remove Domain?"
 msgstr "Fjerne domene?"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:882
+#: packages/admin/src/components/BylineCreditsEditor.tsx:891
 msgid "Remove from post"
 msgstr ""
 
@@ -8180,7 +8180,7 @@ msgid "Remove image"
 msgstr "Fjern bilde"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:390
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:392
 msgid "Remove image {0}"
 msgstr ""
 
@@ -8249,7 +8249,7 @@ msgstr ""
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BylineCreditsEditor.tsx:827
+#: packages/admin/src/components/BylineCreditsEditor.tsx:836
 #: packages/admin/src/components/ContentTypeList.tsx:281
 msgid "Reorder {0}"
 msgstr ""
@@ -8262,22 +8262,22 @@ msgstr "Repeater"
 msgid "Repeating group of fields"
 msgstr "Gjentakende gruppe med felt"
 
-#: packages/admin/src/components/ContentEditor.tsx:2508
-#: packages/admin/src/components/ContentEditor.tsx:2545
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
+#: packages/admin/src/components/ContentEditor.tsx:2514
+#: packages/admin/src/components/ContentEditor.tsx:2551
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
 #: packages/admin/src/components/ImageFieldRenderer.tsx:289
 #: packages/admin/src/components/ImageFieldRenderer.tsx:349
 #: packages/admin/src/components/ImageFieldRenderer.tsx:412
-#: packages/admin/src/components/ImageFieldRenderer.tsx:578
-#: packages/admin/src/components/ImageFieldRenderer.tsx:581
+#: packages/admin/src/components/ImageFieldRenderer.tsx:583
+#: packages/admin/src/components/ImageFieldRenderer.tsx:586
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2544
-#: packages/admin/src/components/ImageFieldRenderer.tsx:572
+#: packages/admin/src/components/ContentEditor.tsx:2550
+#: packages/admin/src/components/ImageFieldRenderer.tsx:577
 msgid "Replace {label}"
 msgstr ""
 
@@ -8285,11 +8285,11 @@ msgstr ""
 msgid "Replace dark mode image"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:569
+#: packages/admin/src/components/ImageFieldRenderer.tsx:574
 msgid "Replace dark mode variant for {label}"
 msgstr ""
 
-#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:503
+#: packages/admin/src/components/editor/GalleryDetailPanel.tsx:505
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:323
 #: packages/admin/src/components/MediaDetailPanel.tsx:1815
 #: packages/admin/src/components/MediaDetailPanel.tsx:1943
@@ -8420,7 +8420,7 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1558
+#: packages/admin/src/components/ContentEditor.tsx:1564
 msgid "Resize settings panel"
 msgstr ""
 
@@ -8432,7 +8432,7 @@ msgstr ""
 msgid "Restart numbering"
 msgstr ""
 
-#: packages/admin/src/components/RevisionHistory.tsx:238
+#: packages/admin/src/components/RevisionHistory.tsx:242
 msgid "Restore"
 msgstr "Gjenopprett"
 
@@ -8444,25 +8444,25 @@ msgstr "Gjenopprett {title}"
 msgid "Restore failed"
 msgstr "Gjenoppretting mislyktes"
 
-#: packages/admin/src/components/RevisionHistory.tsx:232
+#: packages/admin/src/components/RevisionHistory.tsx:236
 msgid "Restore Revision?"
 msgstr "Gjenopprette revisjon?"
 
-#: packages/admin/src/components/RevisionHistory.tsx:299
-#: packages/admin/src/components/RevisionHistory.tsx:300
+#: packages/admin/src/components/RevisionHistory.tsx:303
+#: packages/admin/src/components/RevisionHistory.tsx:304
 msgid "Restore this version"
 msgstr "Gjenopprett denne versjonen"
 
 #. placeholder {0}: formatFullDate(restoreTarget.createdAt)
-#: packages/admin/src/components/RevisionHistory.tsx:235
+#: packages/admin/src/components/RevisionHistory.tsx:239
 msgid "Restore this version from {0}? This will update the current content to this revision's data."
 msgstr "Gjenopprette denne versjonen fra {0}? Dette oppdaterer det gjeldende innholdet til dataene i denne revisjonen."
 
-#: packages/admin/src/components/RevisionHistory.tsx:239
+#: packages/admin/src/components/RevisionHistory.tsx:243
 msgid "Restoring..."
 msgstr "Gjenoppretter …"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:471
+#: packages/admin/src/components/BylineCreditsEditor.tsx:475
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
 #: packages/admin/src/components/MediaDetailPanel.tsx:1529
@@ -8473,7 +8473,7 @@ msgstr "Gjenoppretter …"
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:237
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:2864
@@ -8612,12 +8612,12 @@ msgstr "Rolle"
 msgid "Role {role}"
 msgstr "Rolle {role}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:897
+#: packages/admin/src/components/BylineCreditsEditor.tsx:906
 msgid "Role on this post (optional)"
 msgstr ""
 
 #. placeholder {0}: byline.displayName
-#: packages/admin/src/components/BylineCreditsEditor.tsx:611
+#: packages/admin/src/components/BylineCreditsEditor.tsx:618
 msgid "Role updated for {0}."
 msgstr ""
 
@@ -8686,7 +8686,7 @@ msgstr "Lagre alt-tekst"
 msgid "Save anyway"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:1015
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1024
 #: packages/admin/src/components/BylineFieldEditor.tsx:318
 msgid "Save changes"
 msgstr "Lagre endringer"
@@ -8704,7 +8704,7 @@ msgstr ""
 msgid "Save content as draft before publishing"
 msgstr "Lagre innhold som kladd før publisering"
 
-#: packages/admin/src/components/PublishingDateTimeEditor.tsx:627
+#: packages/admin/src/components/PublishingDateTimeEditor.tsx:633
 msgid "Save date"
 msgstr ""
 
@@ -9014,8 +9014,8 @@ msgstr "Søk …"
 msgid "Searchable"
 msgstr "Søkbar"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:465
-#: packages/admin/src/components/BylineCreditsEditor.tsx:548
+#: packages/admin/src/components/BylineCreditsEditor.tsx:466
+#: packages/admin/src/components/BylineCreditsEditor.tsx:555
 msgid "Searching…"
 msgstr ""
 
@@ -9116,9 +9116,9 @@ msgid "Select"
 msgstr "Velg"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2528
-#: packages/admin/src/components/ContentEditor.tsx:2544
-#: packages/admin/src/components/ImageFieldRenderer.tsx:573
+#: packages/admin/src/components/ContentEditor.tsx:2534
+#: packages/admin/src/components/ContentEditor.tsx:2550
+#: packages/admin/src/components/ImageFieldRenderer.tsx:578
 msgid "Select {label}"
 msgstr "Velg {label}"
 
@@ -9163,7 +9163,7 @@ msgstr "Velg kommentar fra {0}"
 msgid "Select Content"
 msgstr "Velg innhold"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:570
+#: packages/admin/src/components/ImageFieldRenderer.tsx:575
 msgid "Select dark mode variant for {label}"
 msgstr ""
 
@@ -9179,7 +9179,7 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Velg favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:2532
+#: packages/admin/src/components/ContentEditor.tsx:2538
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Velg fil"
@@ -9188,7 +9188,7 @@ msgstr "Velg fil"
 msgid "Select gallery images"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:553
+#: packages/admin/src/components/ImageFieldRenderer.tsx:558
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 #: packages/admin/src/components/PortableTextEditor.tsx:3792
 msgid "Select image"
@@ -9336,7 +9336,7 @@ msgstr "Angi språk"
 msgid "Set language (current: {label})"
 msgstr "Angi språk (nåværende: {label})"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:864
+#: packages/admin/src/components/BylineCreditsEditor.tsx:873
 msgid "Set role"
 msgstr ""
 
@@ -9371,8 +9371,8 @@ msgid "Setting up..."
 msgstr "Setter opp …"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:235
-#: packages/admin/src/components/ContentEditor.tsx:1408
-#: packages/admin/src/components/ContentEditor.tsx:1722
+#: packages/admin/src/components/ContentEditor.tsx:1414
+#: packages/admin/src/components/ContentEditor.tsx:1728
 #: packages/admin/src/components/ContentTypeEditor.tsx:393
 #: packages/admin/src/components/Header.tsx:102
 #: packages/admin/src/components/PluginManager.tsx:518
@@ -9702,7 +9702,7 @@ msgstr ""
 msgid "Start Import"
 msgstr "Start import"
 
-#: packages/admin/src/components/ContentEditor.tsx:1928
+#: packages/admin/src/components/ContentEditor.tsx:1934
 #: packages/admin/src/components/PortableTextEditor.tsx:2758
 #: packages/admin/src/components/PortableTextEditor.tsx:2759
 msgid "Start writing, or type '/' for commands"
@@ -9866,7 +9866,7 @@ msgid "Target locale"
 msgstr "Målspråk"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1159
-#: packages/admin/src/components/TaxonomySidebar.tsx:891
+#: packages/admin/src/components/TaxonomySidebar.tsx:894
 msgid "Taxonomies"
 msgstr "Taksonomier"
 
@@ -10121,7 +10121,7 @@ msgstr ""
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1794
+#: packages/admin/src/components/ContentEditor.tsx:1800
 msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
@@ -10142,8 +10142,8 @@ msgstr ""
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2548
-#: packages/admin/src/components/ImageFieldRenderer.tsx:592
+#: packages/admin/src/components/ContentEditor.tsx:2554
+#: packages/admin/src/components/ImageFieldRenderer.tsx:597
 msgid "This field is required"
 msgstr "Dette feltet er påkrevd"
 
@@ -10365,7 +10365,7 @@ msgstr "for å lukke"
 msgid "to select"
 msgstr "for å velge"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:596
+#: packages/admin/src/components/TaxonomySidebar.tsx:599
 msgid "Toggle"
 msgstr ""
 
@@ -10413,7 +10413,7 @@ msgstr "Oversettbar"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:283
 #: packages/admin/src/components/TaxonomyManager.tsx:393
-#: packages/admin/src/components/TranslationsPanel.tsx:104
+#: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translate"
 msgstr "Oversett"
 
@@ -10428,13 +10428,13 @@ msgid "Translate {0}"
 msgstr "Oversett {0}"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:393
-#: packages/admin/src/components/TranslationsPanel.tsx:104
+#: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
 msgstr "Oversetter …"
 
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:1028
-#: packages/admin/src/components/TaxonomySidebar.tsx:771
+#: packages/admin/src/components/TaxonomySidebar.tsx:774
 #: packages/admin/src/router.tsx:1360
 msgid "Translation created"
 msgstr "Oversettelse opprettet"
@@ -10642,7 +10642,7 @@ msgstr "Avpublisert"
 msgid "Unregistered Content Tables Found"
 msgstr "Fant uregistrerte innholdstabeller"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:837
+#: packages/admin/src/components/TaxonomySidebar.tsx:840
 msgid "Unresolved assignment"
 msgstr ""
 
@@ -10673,7 +10673,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "Uten tittel"
 
-#: packages/admin/src/components/ContentEditor.tsx:2450
+#: packages/admin/src/components/ContentEditor.tsx:2456
 msgid "Untitled file"
 msgstr "Fil uten navn"
 
@@ -10842,7 +10842,7 @@ msgstr ""
 msgid "URL Pattern"
 msgstr "URL-mønster"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:992
+#: packages/admin/src/components/BylineCreditsEditor.tsx:1001
 msgid "URL slug"
 msgstr ""
 
@@ -10935,7 +10935,7 @@ msgstr "Brukes som reserve-Open Graph-bilde når en side mangler bilde. Anbefalt
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Brukes som identifikator. Kun små bokstaver, tall og understreker."
 
-#: packages/admin/src/components/ContentEditor.tsx:2048
+#: packages/admin/src/components/ContentEditor.tsx:2054
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Brukes som hovedbildet for dette innlegget på listesider og øverst i innlegget"
 

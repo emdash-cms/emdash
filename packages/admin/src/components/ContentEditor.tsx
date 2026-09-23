@@ -1360,7 +1360,13 @@ export function ContentEditor({
 									}
 								/>
 							)}
-							<div className="space-y-6">
+							<div
+								className={cn(
+									"space-y-6",
+									!isDistractionFree &&
+										"[&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base",
+								)}
+							>
 								{Object.entries(fields).map(([name, field]) => {
 									// Key by item id so all field editors remount cleanly when the
 									// underlying content item changes (e.g. switching translations).
@@ -1790,7 +1796,7 @@ function FieldRenderer({
 		return (
 			<div className="grid gap-2">
 				<p className="text-base font-medium">{label}</p>
-				<p className="text-kumo-subtle text-sm">
+				<p className="text-xs leading-4 text-kumo-subtle">
 					{t`This field cannot be edited by this version of EmDash.`}
 				</p>
 			</div>
@@ -2306,7 +2312,7 @@ function UrlFieldEditor({
 				required={required}
 				placeholder={placeholder}
 			/>
-			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+			{error && <p className="mt-1 text-xs leading-4 text-kumo-danger">{error}</p>}
 		</div>
 	);
 }
@@ -2369,9 +2375,9 @@ function JsonFieldEditor({
 				rows={8}
 				placeholder="{}"
 				required={required}
-				className="font-mono text-sm"
+				className="font-mono text-base"
 			/>
-			{error && <p className="text-sm text-kumo-danger mt-1">{error}</p>}
+			{error && <p className="mt-1 text-xs leading-4 text-kumo-danger">{error}</p>}
 		</div>
 	);
 }
@@ -2488,12 +2494,12 @@ function FileFieldRenderer({
 								href={normalized.displayUrl}
 								target="_blank"
 								rel="noopener noreferrer"
-								className="text-sm font-medium truncate block hover:underline"
+								className="block truncate text-base font-medium hover:underline"
 							>
 								{normalized.filename}
 							</a>
 						) : (
-							<p className="text-sm font-medium truncate">{normalized.filename}</p>
+							<p className="truncate text-base font-medium">{normalized.filename}</p>
 						)}
 						{(hasMime || hasSize) && (
 							<p className="text-xs text-kumo-subtle">
@@ -2545,7 +2551,7 @@ function FileFieldRenderer({
 				confirmLabel={normalized ? t`Replace` : undefined}
 			/>
 			{required && !normalized && (
-				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
+				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);

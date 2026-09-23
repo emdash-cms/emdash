@@ -443,7 +443,7 @@ function TaxonomyTermPicker({
 								<span
 									key={option.term.id}
 									role="listitem"
-									className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-tint ps-2 text-sm ring-1 ring-inset ring-kumo-hairline"
+									className="flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm bg-kumo-tint ps-2 text-base ring-1 ring-inset ring-kumo-hairline"
 								>
 									<span className="min-w-0 truncate">{option.term.label}</span>
 									<TermLocaleBadge term={option.term} entryLocale={entryLocale} />
@@ -517,11 +517,12 @@ function TaxonomyTermPicker({
 										}}
 										onKeyDown={handleInputKeyDown}
 										placeholder={t`Search ${label}…`}
+										className="text-base font-normal"
 									/>
 								</InputGroup>
 							</div>
 							{createError ? (
-								<p role="alert" className="px-3 pt-1.5 text-sm text-kumo-danger">
+								<p role="alert" className="px-3 pt-1.5 text-xs leading-4 text-kumo-danger">
 									{createError.message}
 								</p>
 							) : null}
@@ -562,7 +563,9 @@ function TaxonomyTermPicker({
 										</div>
 									))
 								) : (
-									<p className="px-2 py-2 text-sm text-kumo-subtle">{t`No ${label} found.`}</p>
+									<p className="px-2 py-2 text-xs leading-4 text-kumo-subtle">
+										{t`No ${label} found.`}
+									</p>
 								)}
 							</div>
 
@@ -584,19 +587,19 @@ function TaxonomyTermPicker({
 
 							<div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-kumo-hairline bg-kumo-elevated px-3 py-2 text-xs leading-4 text-kumo-subtle">
 								<span className="flex items-center gap-1.5 whitespace-nowrap">
-									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-[10px] leading-4 text-kumo-default">
+									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-xs leading-4 text-kumo-default">
 										↑ ↓
 									</kbd>
 									{t`Navigate`}
 								</span>
 								<span className="flex items-center gap-1.5 whitespace-nowrap">
-									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-[10px] leading-4 text-kumo-default">
+									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-xs leading-4 text-kumo-default">
 										↵
 									</kbd>
 									{t`Toggle`}
 								</span>
 								<span className="ms-auto flex items-center gap-1.5 whitespace-nowrap">
-									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-[10px] leading-4 text-kumo-default">
+									<kbd className="inline-flex min-w-5 items-center justify-center rounded border border-kumo-hairline bg-kumo-base px-1.5 py-0.5 text-xs leading-4 text-kumo-default">
 										{t`Esc`}
 									</kbd>
 									{t`Close`}
@@ -834,7 +837,7 @@ function TaxonomySection({
 						key={assignment.translationGroup}
 						className="space-y-2 rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint p-3"
 					>
-						<p className="text-sm font-medium text-kumo-warning">{t`Unresolved assignment`}</p>
+						<p className="text-base font-medium text-kumo-warning">{t`Unresolved assignment`}</p>
 						<p className="text-xs text-kumo-subtle">
 							{t`Available in ${assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")}`}
 						</p>
@@ -887,7 +890,7 @@ export function TaxonomySidebar({
 
 	return (
 		<div className={cn("grid gap-3", className)}>
-			<Text bold as="h3">
+			<Text as="h3" DANGEROUS_className="font-semibold">
 				{t`Taxonomies`}
 			</Text>
 			<div className="grid gap-4">
