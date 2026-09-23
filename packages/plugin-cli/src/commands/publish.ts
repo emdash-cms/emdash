@@ -31,6 +31,7 @@ import pc from "picocolors";
 import { BundleError, bundlePlugin } from "../bundle/api.js";
 import { formatBytes, MAX_BUNDLE_SIZE, validateBundleSize } from "../bundle/utils.js";
 import { redirectConsolaToStderr } from "../cli-output.js";
+import { probeEnvironment } from "../init/environment.js";
 import { loadManifest, MANIFEST_FILENAME, ManifestError } from "../manifest/load.js";
 import { checkPublisher, PublisherCheckError, writePublisherBack } from "../manifest/publisher.js";
 import {
@@ -298,6 +299,8 @@ async function runPublish(args: PublishArgs): Promise<void> {
 	consola.info(
 		`Package: ${pc.bold(formatPackageReleaseIdentifier(session.handle ?? session.did, manifest.id, manifest.version))}`,
 	);
+	const pluginDir = manifestLoad ? dirname(manifestLoad.path) : process.cwd();
+	const publishRepository = manifestLoad?.manifest.repo ?? (await probeEnvironment(pluginDir)).repo;
 
 	const oauthSession = await resumeSession(session.did);
 	const needsImages = Boolean(
@@ -386,7 +389,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		url: args.url,
 		blob: packageBlob,
 		profileInput,
-		repo: manifestLoad?.manifest.repo,
+		repo: publishRepository,
 		requires: manifestLoad?.manifest.requires,
 		artifacts,
 		allowOverwrite: args["allow-overwrite"],

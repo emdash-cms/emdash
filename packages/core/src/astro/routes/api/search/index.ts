@@ -56,6 +56,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 			locale: query.locale,
 			limit: query.limit,
 			cursor: query.cursor,
+			scope: query.scope,
 		});
 
 		return apiSuccess(result);

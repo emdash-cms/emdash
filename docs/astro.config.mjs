@@ -7,8 +7,10 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
 	site: "https://docs.emdashcms.com",
 	redirects: {
+		"/": "/getting-started/",
 		"/introduction": "/why-emdash",
 	},
+	session: false,
 	integrations: [
 		starlight({
 			title: "EmDash",
@@ -255,6 +257,7 @@ export default defineConfig({
 					items: [
 						{ label: "Configuration", slug: "reference/configuration" },
 						{ label: "CLI Commands", slug: "reference/cli" },
+						{ label: "Content Lifecycle", slug: "reference/content-lifecycle" },
 						{ label: "API Reference", slug: "reference/api" },
 						{ label: "Field Types", slug: "reference/field-types" },
 						{ label: "Hook Reference", slug: "reference/hooks" },

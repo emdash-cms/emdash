@@ -1,18 +1,43 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
+	confirmAnchorMissing,
+	confirmPullRequestMissing,
 	createIssueComment,
 	findIssueCommentByMarker,
-	getIssue,
 	getIssueComments,
 	getPullRequestReviewComments,
 	getPullRequestStatus,
+	GitHubPullRequestNotFoundError,
 	getPullRequestHeadBranch,
 	listOpenManagedIssues,
 	updateIssueComment,
 } from "../../.flue/lib/github.js";
 
 const repo = { owner: "emdash-cms", repo: "emdash" };
+
+describe("GitHub missing-anchor confirmation", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("confirms a missing issue only while repository access still succeeds", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(jsonResponse({ full_name: "emdash-cms/emdash" }))
+				.mockResolvedValueOnce(jsonResponse({}, 404)),
+		);
+		await expect(confirmAnchorMissing("token", repo, 3123)).resolves.toBe(true);
+	});
+
+	test.each([401, 403, 404])(
+		"treats repository status %s as an ambiguous permission failure",
+		async (status) => {
+			vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, status)));
+			await expect(confirmAnchorMissing("token", repo, 3123)).resolves.toBe(false);
+		},
+	);
+});
 
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
@@ -78,49 +103,50 @@ describe("GitHub issue context requests", () => {
 	});
 });
 
-describe("GitHub rate-limit backoff", () => {
+describe("GitHub evolving comments", () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.unstubAllGlobals();
 	});
 
-	test("does not retry before both GitHub retry headers allow it", async () => {
-		const now = Date.parse("2026-09-16T10:00:00Z");
+	test("anchors retry headers to the response time after permit acquisition", async () => {
+		const startedAt = Date.parse("2026-09-21T12:00:00Z");
 		vi.useFakeTimers();
-		vi.setSystemTime(now);
-		const fetchMock = vi
-			.fn<typeof fetch>()
-			.mockResolvedValueOnce(
-				new Response(JSON.stringify({ message: "API rate limit exceeded" }), {
-					status: 403,
-					headers: {
-						"content-type": "application/json",
-						"retry-after": "60",
-						"x-ratelimit-remaining": "0",
-						"x-ratelimit-reset": String(Math.floor((now + 120_000) / 1_000)),
-					},
+		vi.setSystemTime(startedAt);
+		const record = vi.fn(async () => undefined);
+		const token = {
+			token: "installation-token",
+			consumer: "test",
+			gate: {
+				permit: vi.fn(async () => {
+					vi.setSystemTime(startedAt + 5_000);
+					return { allowed: true, retryAt: startedAt + 5_000 };
 				}),
-			)
-			.mockResolvedValueOnce(
-				jsonResponse({ title: "Recovered", body: "", labels: [], comments: 0 }),
-			);
-		vi.stubGlobal("fetch", fetchMock);
+				record,
+				inspect: vi.fn(async () => null),
+				getInstallationToken: vi.fn(async () => "installation-token"),
+			},
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("rate limited", {
+					status: 429,
+					headers: { "retry-after": "10" },
+				}),
+			),
+		);
 
-		await expect(getIssue("token", repo, 42)).rejects.toThrow(/rate limit/i);
-		vi.setSystemTime(now + 61_000);
-		await expect(getIssue("token", repo, 42)).rejects.toThrow(/rate limit/i);
-		expect(fetchMock).toHaveBeenCalledTimes(1);
-
-		vi.setSystemTime(now + 121_000);
-		await expect(getIssue("token", repo, 42)).resolves.toMatchObject({ title: "Recovered" });
-		expect(fetchMock).toHaveBeenCalledTimes(2);
-
-		vi.setSystemTime(now + 24 * 60 * 60_000);
+		const request = createIssueComment(token, repo, 42, "Working");
+		await expect(request).rejects.toMatchObject({
+			retryAt: startedAt + 15_000,
+		});
+		expect(record).toHaveBeenCalledWith(
+			"issue-comment:post",
+			"test",
+			expect.objectContaining({ retryAfterAt: startedAt + 15_000 }),
+		);
 	});
-});
-
-describe("GitHub evolving comments", () => {
-	afterEach(() => vi.unstubAllGlobals());
 
 	test("creates, updates, and recovers a comment by marker", async () => {
 		const fetchMock = vi
@@ -176,6 +202,20 @@ describe("GitHub evolving comments", () => {
 });
 
 describe("GitHub pull request lookup", () => {
+	test("returns a typed missing-PR error and confirms it only with repository access", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse({ data: { repository: { pullRequest: null } } }))
+			.mockResolvedValueOnce(jsonResponse({ full_name: "emdash-cms/emdash" }))
+			.mockResolvedValueOnce(jsonResponse({}, 404));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getPullRequestStatus("token", repo, 99)).rejects.toBeInstanceOf(
+			GitHubPullRequestNotFoundError,
+		);
+		await expect(confirmPullRequestMissing("token", repo, 99)).resolves.toBe(true);
+	});
+
 	afterEach(() => vi.unstubAllGlobals());
 
 	test("reads the head branch for a top-level PR comment", async () => {
@@ -198,43 +238,51 @@ describe("GitHub pull request lookup", () => {
 	});
 
 	test("combines PR, review, and check state for monitoring", async () => {
-		const fetchMock = vi
-			.fn<typeof fetch>()
-			.mockResolvedValueOnce(
-				jsonResponse({
-					number: 99,
-					html_url: "https://github.com/emdash-cms/emdash/pull/99",
-					state: "open",
-					draft: true,
-					merged: false,
-					mergeable: true,
-					head: { sha: "abc123" },
-				}),
-			)
-			.mockResolvedValueOnce(
-				jsonResponse([
-					{ state: "APPROVED", user: { login: "alice" }, submitted_at: "2026-09-08T10:00:00Z" },
-				]),
-			)
-			.mockResolvedValueOnce(
-				jsonResponse({
-					check_runs: [
-						{
-							name: "Typecheck",
-							status: "completed",
-							conclusion: "success",
-							details_url: "https://checks/1",
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+			jsonResponse({
+				data: {
+					repository: {
+						pullRequest: {
+							number: 99,
+							url: "https://github.com/emdash-cms/emdash/pull/99",
+							state: "OPEN",
+							isDraft: true,
+							merged: false,
+							mergeable: "MERGEABLE",
+							headRefOid: "abc123",
+							reviewDecision: "APPROVED",
+							commits: {
+								nodes: [
+									{
+										commit: {
+											statusCheckRollup: {
+												state: "FAILURE",
+												contexts: {
+													nodes: [
+														{
+															name: "Typecheck",
+															status: "COMPLETED",
+															conclusion: "SUCCESS",
+															detailsUrl: "https://checks/1",
+														},
+														{
+															name: "Tests",
+															status: "COMPLETED",
+															conclusion: "FAILURE",
+															detailsUrl: "https://checks/2",
+														},
+													],
+												},
+											},
+										},
+									},
+								],
+							},
 						},
-						{
-							name: "Tests",
-							status: "completed",
-							conclusion: "failure",
-							details_url: "https://checks/2",
-						},
-					],
-				}),
-			)
-			.mockResolvedValueOnce(jsonResponse({ state: "failure", statuses: [] }));
+					},
+				},
+			}),
+		);
 		vi.stubGlobal("fetch", fetchMock);
 
 		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
@@ -248,25 +296,36 @@ describe("GitHub pull request lookup", () => {
 			checks: "failing",
 			failingChecks: [{ name: "Tests", url: "https://checks/2" }],
 		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
-	test("keeps PR monitoring available when the app cannot read check runs", async () => {
+	test("keeps PR monitoring pending when the status rollup is incomplete", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi
-				.fn<typeof fetch>()
-				.mockResolvedValueOnce(
-					jsonResponse({
-						number: 99,
-						state: "open",
-						draft: true,
-						mergeable: true,
-						head: { sha: "abc123" },
-					}),
-				)
-				.mockResolvedValueOnce(jsonResponse([]))
-				.mockResolvedValueOnce(jsonResponse({}, 403))
-				.mockResolvedValueOnce(jsonResponse({ state: "pending", statuses: [] })),
+			vi.fn<typeof fetch>().mockResolvedValue(
+				jsonResponse({
+					data: {
+						repository: {
+							pullRequest: {
+								number: 99,
+								state: "OPEN",
+								isDraft: false,
+								merged: false,
+								mergeable: "UNKNOWN",
+								headRefOid: "abc123",
+								reviewDecision: null,
+								commits: {
+									nodes: [
+										{
+											commit: { statusCheckRollup: { state: "PENDING", contexts: { nodes: [] } } },
+										},
+									],
+								},
+							},
+						},
+					},
+				}),
+			),
 		);
 
 		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({

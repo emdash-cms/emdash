@@ -76,7 +76,7 @@ The following example contains every root property:
 
 `settings` is a partial site-settings object. Common properties are `title`, `tagline`, `logo`, `favicon`, `url`, `postsPerPage`, `dateFormat`, `timezone`, `social`, and `seo`.
 
-The setup wizard lets the administrator replace the seeded title and tagline. Applying a seed programmatically writes every supplied setting regardless of `onConflict`.
+The setup wizard lets the administrator replace the seeded title and tagline. The default `onConflict: "skip"` preserves those values when the seed is applied again and fills in any supplied settings that are still missing.
 
 ```json title="seed/seed.json"
 {
@@ -500,7 +500,7 @@ Programmatic application defaults `includeContent` to `false`. The setup wizard 
 
 - Collections, fields, bylines, content, redirects, and sections support skip, update, and error behavior.
 - Taxonomy definitions and terms honor the applicable conflict mode.
-- Settings are always applied.
+- Settings use per-key conflict handling. `skip` creates missing settings and preserves existing values. `update` overwrites every supplied setting. `error` stops at the first existing setting; settings created earlier in seed order remain applied.
 - Existing menus retain their menu row but replace all items.
 - Existing widget areas retain their area row but replace all widgets.
 - A content conflict is matched by collection, slug, and locale. A slugless entry in a non-routable collection is matched by its seed ID.

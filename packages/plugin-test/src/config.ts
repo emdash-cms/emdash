@@ -58,6 +58,7 @@ export function emdashPluginTest(options: EmDashPluginTestOptions = {}): PluginO
 				compatibilityDate: "2026-08-20",
 				compatibilityFlags: ["nodejs_compat"],
 				d1Databases: ["DB"],
+				r2Buckets: ["MEDIA"],
 				workerLoaders: { LOADER: {} },
 				bindings: {
 					EMDASH_PLUGIN_CODE: code,

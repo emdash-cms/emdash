@@ -23,6 +23,8 @@ export interface CreateContentInput {
 	primaryBylineId?: string | null;
 	locale?: string;
 	translationOf?: string;
+	/** Field columns selected atomically from `translationOf` during the insert. */
+	inheritFields?: string[];
 	publishedAt?: string | null;
 	/** Override created_at (ISO 8601). Used by importers to preserve original dates. */
 	createdAt?: string | null;

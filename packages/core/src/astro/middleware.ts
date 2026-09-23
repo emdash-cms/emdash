@@ -59,6 +59,7 @@ import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
+import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -295,7 +296,10 @@ async function getRuntime(
  * rather than only after the whole sweep.
  */
 export async function runScheduledTasks(
-	options: { onPublished?: (refs: PublishedRef[]) => Promise<void> } = {},
+	options: {
+		onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		invalidateContentCache?: PluginContentCacheInvalidator;
+	} = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
@@ -921,6 +925,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// Media handlers
 					handleMediaList: runtime.handleMediaList.bind(runtime),
 					handleMediaGet: runtime.handleMediaGet.bind(runtime),
+					handleMediaUpload: runtime.handleMediaUpload.bind(runtime),
 					handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
 					handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
 					...(runtime.handleMediaReplaceMetadata
@@ -930,6 +935,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						: {}),
 					handleMediaDelete: runtime.handleMediaDelete.bind(runtime),
 
+					// Comment administration
+					...(runtime.handleCommentModerate
+						? { handleCommentModerate: runtime.handleCommentModerate.bind(runtime) }
+						: {}),
+
 					// Revision handlers
 					handleRevisionList: runtime.handleRevisionList.bind(runtime),
 					handleRevisionGet: runtime.handleRevisionGet.bind(runtime),
@@ -937,6 +947,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Plugin routes
 					handlePluginApiRoute: runtime.handlePluginApiRoute.bind(runtime),
+					getPluginEditorExtension: runtime.getPluginEditorExtension.bind(runtime),
+					getPluginEditorDraftSchema: runtime.getPluginEditorDraftSchema.bind(runtime),
 					handlePublicPluginApiRoute: createPublicPluginApiRouteHandler(runtime),
 					getPluginRouteMeta: runtime.getPluginRouteMeta.bind(runtime),
 					getPluginMcpTools: runtime.getPluginMcpTools.bind(runtime),
@@ -998,6 +1010,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 					// Sync registry plugin states (after install/update/uninstall)
 					syncRegistryPlugins: runtime.syncRegistryPlugins.bind(runtime),
+					runPluginInstallLifecycle: runtime.runPluginInstallLifecycle.bind(runtime),
+					runPluginActivateLifecycle: runtime.runPluginActivateLifecycle.bind(runtime),
+					runPluginUninstallLifecycle: runtime.runPluginUninstallLifecycle.bind(runtime),
+					getRuntimePluginSettingsSchema: runtime.getRuntimePluginSettingsSchema.bind(runtime),
 
 					// Update plugin enabled/disabled status and rebuild hook pipeline
 					setPluginStatus: runtime.setPluginStatus.bind(runtime),

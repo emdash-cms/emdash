@@ -1,5 +1,5 @@
 ---
-import { getEmDashCollection } from "../../query.js";
+import { getPublishedDates } from "../../query.js";
 import { groupEntriesByPublishedAt } from "../../widgets/archives.js";
 
 interface Props {
@@ -9,11 +9,12 @@ interface Props {
 
 const { type = "monthly", limit = 12 } = Astro.props;
 
-const { entries: posts } = await getEmDashCollection("posts", {
-	orderBy: { published_at: "desc" },
-});
+const { dates } = await getPublishedDates("posts");
 
-const archiveList = groupEntriesByPublishedAt(posts, { type, limit });
+const archiveList = groupEntriesByPublishedAt(
+	dates.map((publishedAt) => ({ data: { publishedAt } })),
+	{ type, limit },
+);
 ---
 
 <ul class="widget-archives">

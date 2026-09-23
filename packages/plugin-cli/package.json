@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-cli",
-	"version": "0.11.0",
+	"version": "0.12.0",
 	"description": "CLI for authoring, building, and publishing EmDash plugins. Covers init / build / dev / bundle / publish plus registry search and identity. Atproto OAuth, FAIR-shaped records, sandboxed-plugin-only.",
 	"type": "module",
 	"main": "dist/api.mjs",
@@ -36,6 +36,7 @@
 		"@emdash-cms/plugin-types": "workspace:*",
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
+		"@emdash-cms/registry-verification": "workspace:*",
 		"@oslojs/crypto": "catalog:",
 		"chokidar": "catalog:",
 		"citty": "^0.2.2",
@@ -44,6 +45,7 @@
 		"modern-tar": "^0.7.5",
 		"picocolors": "^1.1.1",
 		"tsdown": "catalog:",
+		"typescript": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
@@ -52,7 +54,6 @@
 		"image-size": "catalog:",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
-		"typescript": "catalog:",
 		"vitest": "catalog:"
 	},
 	"keywords": [

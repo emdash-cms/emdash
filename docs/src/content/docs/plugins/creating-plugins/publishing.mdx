@@ -68,6 +68,8 @@ emdash-plugin publish
 
 `publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your personal data server (PDS), uploads any declared listing images, and writes the release record.
 
+When a canonical HTTPS repository is available, the command adds it to the package profile with optional provenance. Profiles without repository metadata also permit releases without provenance. If `profile setup` configured the package to require provenance, publish through the generated GitHub Actions workflow instead.
+
 ## Bundle
 
 `bundle` runs [`build`](/plugins/creating-plugins/cli/#build), validates, collects assets, and creates a tarball. Inside the tarball, `plugin.mjs` is packed as `backend.js` (the filename the registry expects).

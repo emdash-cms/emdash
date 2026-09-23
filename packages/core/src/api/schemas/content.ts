@@ -228,16 +228,22 @@ export const contentScheduleBody = z
 			examples: ["2025-06-15T09:00:00Z"],
 		}),
 		overrideLock: overrideLockFlag,
+		_rev: z
+			.string()
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentScheduleBody" });
 
-export const contentRevisionConditionBody = z.object({
-	_rev: z
-		.string()
-		.optional()
-		.meta({ description: "Opaque revision token for optimistic concurrency" }),
-	overrideLock: overrideLockFlag,
-});
+export const contentRevisionConditionBody = z
+	.object({
+		_rev: z
+			.string()
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
+		overrideLock: overrideLockFlag,
+	})
+	.meta({ id: "ContentRevisionConditionBody" });
 
 export const contentPublishBody = contentRevisionConditionBody
 	.extend({
@@ -362,6 +368,15 @@ export const contentResponseSchema = z
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentResponse" });
+
+/** Response for restoring an item from trash */
+export const contentRestoreResponseSchema = z
+	.object({
+		restored: z.literal(true),
+		item: contentItemSchema,
+		_rev: z.string().meta({ description: "Opaque revision token for optimistic concurrency" }),
+	})
+	.meta({ id: "ContentRestoreResponse" });
 
 /** Response for content list endpoints */
 export const contentListResponseSchema = z

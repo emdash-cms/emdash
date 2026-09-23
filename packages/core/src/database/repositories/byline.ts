@@ -1410,4 +1410,13 @@ export class BylineRepository {
 
 		return await this.getContentBylines(collectionSlug, contentId);
 	}
+
+	async deleteContentBylines(collectionSlug: string, contentId: string): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_content_bylines")
+			.where("collection_slug", "=", collectionSlug)
+			.where("content_id", "=", contentId)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
 }

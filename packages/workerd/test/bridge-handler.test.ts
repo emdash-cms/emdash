@@ -13,7 +13,11 @@ import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
+import {
+	bytesOverLimit,
+	INVALID_PLUGIN_HTTP_BYTES,
+} from "../../core/tests/fixtures/plugin-http.js";
+import { createBridgeHandler, type BridgeHandlerOptions } from "../src/sandbox/bridge-handler.js";
 
 // Set up an in-memory SQLite database with the minimum tables needed
 function createTestDb() {
@@ -55,6 +59,24 @@ async function setupTables(db: Kysely<any>) {
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.execute();
 
+	await db.schema
+		.createTable("_emdash_comments")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("content_id", "text", (col) => col.notNull())
+		.addColumn("parent_id", "text")
+		.addColumn("author_name", "text", (col) => col.notNull())
+		.addColumn("author_email", "text", (col) => col.notNull())
+		.addColumn("author_user_id", "text")
+		.addColumn("body", "text", (col) => col.notNull())
+		.addColumn("status", "text", (col) => col.notNull())
+		.addColumn("ip_hash", "text")
+		.addColumn("user_agent", "text")
+		.addColumn("moderation_metadata", "text")
+		.addColumn("created_at", "text", (col) => col.notNull())
+		.addColumn("updated_at", "text", (col) => col.notNull())
+		.execute();
+
 	// Insert a test user
 	await db
 		.insertInto("users" as any)
@@ -80,6 +102,8 @@ describe("Bridge Handler Conformance", () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
+		vi.restoreAllMocks();
 		await db.destroy();
 		sqlite.close();
 	});
@@ -90,6 +114,15 @@ describe("Bridge Handler Conformance", () => {
 		allowedHosts?: string[];
 		storageCollections?: string[];
 		beforeContentWrite?: () => Promise<void>;
+		settingsSchema?: Record<string, { type: "secret"; label: string }>;
+		commentModerate?: () => (
+			pluginId: string,
+			id: string,
+			status: "approved" | "pending" | "spam",
+			expectedStatus: "approved" | "pending" | "spam",
+		) => Promise<unknown>;
+		taxonomyWrite?: BridgeHandlerOptions["taxonomyWrite"];
+		contentActions?: BridgeHandlerOptions["contentActions"];
 	}) {
 		return createBridgeHandler({
 			pluginId: opts.pluginId ?? "test-plugin",
@@ -100,6 +133,10 @@ describe("Bridge Handler Conformance", () => {
 			db,
 			emailSend: () => null,
 			beforeContentWrite: opts.beforeContentWrite,
+			settingsSchema: opts.settingsSchema,
+			commentModerate: opts.commentModerate,
+			taxonomyWrite: opts.taxonomyWrite,
+			contentActions: opts.contentActions,
 		});
 	}
 
@@ -117,9 +154,129 @@ describe("Bridge Handler Conformance", () => {
 		return response.json() as Promise<{ result?: unknown; error?: string }>;
 	}
 
+	describe("publication actions", () => {
+		it("routes capability-gated actions through the host callback", async () => {
+			const versioned = {
+				item: {
+					id: "post-1",
+					type: "posts",
+					slug: "post-1",
+					status: "draft",
+					locale: "en",
+					data: {},
+					createdAt: "2030-01-01T00:00:00.000Z",
+					updatedAt: "2030-01-01T00:00:00.000Z",
+					publishedAt: null,
+				},
+				_rev: "revision-2",
+			};
+			const actions = {
+				flush: vi.fn().mockResolvedValue(undefined),
+				getVersioned: vi.fn().mockResolvedValue(versioned),
+				publish: vi.fn().mockResolvedValue(versioned),
+				unpublish: vi.fn().mockResolvedValue(versioned),
+				schedule: vi.fn().mockResolvedValue(versioned),
+				unschedule: vi.fn().mockResolvedValue(versioned),
+				getTrashedVersioned: vi.fn().mockResolvedValue(versioned),
+				restore: vi.fn().mockResolvedValue(versioned),
+			};
+			const handler = makeHandler({
+				capabilities: ["content:publish", "content:restore"],
+				contentActions: () => actions,
+			});
+
+			await expect(
+				call(handler, "content/publish", {
+					collection: "posts",
+					id: "post-1",
+					revision: "revision-1",
+				}),
+			).resolves.toEqual({ result: versioned });
+			expect(actions.publish).toHaveBeenCalledWith(
+				"test-plugin",
+				"posts",
+				"post-1",
+				{
+					_rev: "revision-1",
+				},
+				undefined,
+			);
+			actions.publish.mockRejectedValueOnce(
+				Object.assign(new Error("Revision precondition did not match"), { code: "CONFLICT" }),
+			);
+			await expect(
+				call(handler, "content/publish", {
+					collection: "posts",
+					id: "post-1",
+					revision: "stale",
+				}),
+			).resolves.toEqual({
+				result: {
+					__emdashContentActionError: true,
+					error: { code: "CONFLICT", message: "Revision precondition did not match" },
+				},
+			});
+
+			const denied = makeHandler({ capabilities: [], contentActions: () => actions });
+			await expect(
+				call(denied, "content/restore", {
+					collection: "posts",
+					id: "post-1",
+					revision: "revision-1",
+				}),
+			).resolves.toMatchObject({ error: "Missing capability: content:restore" });
+		});
+	});
+
 	// ── KV Operations ────────────────────────────────────────────────────
 
 	describe("KV operations", () => {
+		it("shares encrypted settings with the compatibility KV alias", async () => {
+			vi.stubEnv(
+				"EMDASH_ENCRYPTION_KEY",
+				"emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+			);
+			const handler = makeHandler({
+				settingsSchema: { apiKey: { type: "secret", label: "API key" } },
+			});
+			await call(handler, "settings/set", { key: "apiKey", value: "workerd-secret" });
+
+			expect((await call(handler, "settings/get", { key: "apiKey" })).result).toBe(
+				"workerd-secret",
+			);
+			expect((await call(handler, "kv/get", { key: "settings:apiKey" })).result).toBe(
+				"workerd-secret",
+			);
+			const stored = await db
+				.selectFrom("options" as any)
+				.select("value" as any)
+				.where("name" as any, "=", "plugin:test-plugin:settings:apiKey")
+				.executeTakeFirst();
+			expect(stored?.value).not.toContain("workerd-secret");
+			expect(JSON.parse(stored!.value)).toMatchObject({ v: 1, kid: expect.any(String) });
+			const infoLog = vi.spyOn(console, "info").mockImplementation(() => undefined);
+			await call(handler, "log", {
+				level: "info",
+				msg: "credential=workerd-secret",
+				data: { token: "workerd-secret" },
+			});
+			expect(JSON.stringify(infoLog.mock.calls)).toContain("[REDACTED]");
+			expect(JSON.stringify(infoLog.mock.calls)).not.toContain("workerd-secret");
+		});
+
+		it("fails closed without an encryption key and redacts the submitted secret", async () => {
+			vi.stubEnv("EMDASH_ENCRYPTION_KEY", "");
+			const handler = makeHandler({
+				settingsSchema: { apiKey: { type: "secret", label: "API key" } },
+			});
+			const result = await call(handler, "settings/set", {
+				key: "apiKey",
+				value: "must-not-appear",
+			});
+			expect(result.error).toMatch(/EMDASH_ENCRYPTION_KEY/);
+			expect(JSON.stringify(result)).not.toContain("must-not-appear");
+		});
+
 		it("reads and writes admin-managed settings through ctx.kv", async () => {
 			await db
 				.insertInto("options" as any)
@@ -147,6 +304,19 @@ describe("Bridge Handler Conformance", () => {
 			await call(handler, "kv/set", { key: "test", value: "hello" });
 			const result = await call(handler, "kv/get", { key: "test" });
 			expect(result.result).toBe("hello");
+		});
+
+		it("escapes reserved byte marker objects in bridge responses", async () => {
+			const handler = makeHandler({});
+			await call(handler, "kv/set", {
+				key: "marker",
+				value: { __emdashBytes: "ordinary" },
+			});
+
+			const result = await call(handler, "kv/get", { key: "marker" });
+			expect(result.result).toEqual({
+				__emdashEscapedObject: [["__emdashBytes", "ordinary"]],
+			});
 		});
 
 		it("get returns null for non-existent key", async () => {
@@ -463,6 +633,128 @@ describe("Bridge Handler Conformance", () => {
 	// ── Capability Enforcement ────────────────────────────────────────────
 
 	describe("capability enforcement", () => {
+		it("gates comment reads and moderation independently", async () => {
+			const denied = makeHandler({ capabilities: [] });
+			await expect(call(denied, "comments/get", { id: "comment-1" })).resolves.toMatchObject({
+				error: expect.stringContaining("Missing capability: comments:read"),
+			});
+
+			const readOnly = makeHandler({ capabilities: ["comments:read"] });
+			await expect(
+				call(readOnly, "comments/setStatus", {
+					id: "comment-1",
+					status: "approved",
+					expectedStatus: "pending",
+				}),
+			).resolves.toMatchObject({
+				error: expect.stringContaining("Missing capability: comments:moderate"),
+			});
+
+			const moderate = vi.fn();
+			const invalid = makeHandler({
+				capabilities: ["comments:read", "comments:moderate"],
+				commentModerate: () => moderate,
+			});
+			await expect(
+				call(invalid, "comments/setStatus", {
+					id: "comment-1",
+					status: "trash",
+					expectedStatus: "pending",
+				}),
+			).resolves.toEqual({
+				error: {
+					code: "COMMENT_STATUS_INVALID",
+					message: "status must be one of: approved, pending, spam",
+				},
+			});
+			expect(moderate).not.toHaveBeenCalled();
+		});
+
+		it("round-trips comment personal data and expected-status moderation", async () => {
+			const now = new Date().toISOString();
+			await db
+				.insertInto("_emdash_comments" as never)
+				.values({
+					id: "comment-1",
+					collection: "posts",
+					content_id: "post-1",
+					parent_id: null,
+					author_name: "Reader",
+					author_email: "reader@example.com",
+					author_user_id: "user-1",
+					body: "Hello",
+					status: "pending",
+					ip_hash: "sha256:reader",
+					user_agent: "Test/1.0",
+					moderation_metadata: '{"score":2}',
+					created_at: now,
+					updated_at: now,
+				} as never)
+				.execute();
+			const moderate = vi.fn(async (_pluginId, id, status, expectedStatus) => ({
+				id,
+				status,
+				expectedStatus,
+			}));
+			const handler = makeHandler({
+				capabilities: ["comments:moderate", "comments:read"],
+				commentModerate: () => moderate,
+			});
+
+			const read = await call(handler, "comments/get", { id: "comment-1" });
+			expect(read.result).toMatchObject({
+				authorEmail: "reader@example.com",
+				body: "Hello",
+				ipHash: "sha256:reader",
+				userAgent: "Test/1.0",
+				moderationMetadata: { score: 2 },
+			});
+			expect(read.result).not.toHaveProperty("authorUserId");
+			await call(handler, "comments/setStatus", {
+				id: "comment-1",
+				status: "approved",
+				expectedStatus: "pending",
+			});
+			expect(moderate).toHaveBeenCalledWith("test-plugin", "comment-1", "approved", "pending");
+
+			const conflict = makeHandler({
+				capabilities: ["comments:moderate", "comments:read"],
+				commentModerate: () => async () => {
+					throw Object.assign(new Error("Comment status changed"), {
+						code: "COMMENT_STATUS_CONFLICT",
+						currentStatus: "approved",
+					});
+				},
+			});
+			await expect(
+				call(conflict, "comments/setStatus", {
+					id: "comment-1",
+					status: "spam",
+					expectedStatus: "pending",
+				}),
+			).resolves.toEqual({
+				error: {
+					code: "COMMENT_STATUS_CONFLICT",
+					message: "Comment status changed",
+					currentStatus: "approved",
+				},
+			});
+		});
+		it("separately denies schema and revision history reads", async () => {
+			const handler = makeHandler({ capabilities: ["content:read"] });
+			expect((await call(handler, "schema/listCollections")).error).toContain(
+				"Missing capability: schema:read",
+			);
+			expect(
+				(
+					await call(handler, "content/listRevisions", {
+						collection: "posts",
+						id: "123",
+					})
+				).error,
+			).toContain("Missing capability: content:revisions:read");
+		});
+
 		it("rejects content read without content:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "content/get", {
@@ -588,11 +880,7 @@ describe("Bridge Handler Conformance", () => {
 			});
 		});
 
-		it("content:write does not imply content:read at the bridge boundary", async () => {
-			// The bridge enforces capabilities strictly: a plugin that declares
-			// only write:content cannot call ctx.content.get/list. This matches
-			// the Cloudflare PluginBridge behavior. The plugin must declare
-			// read:content explicitly to read.
+		it("allows content reads through the content:write implication", async () => {
 			await db.schema
 				.createTable("ec_posts")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -605,7 +893,7 @@ describe("Bridge Handler Conformance", () => {
 				collection: "posts",
 				id: "123",
 			});
-			expect(result.error).toContain("Missing capability: content:read");
+			expect(result.error).toBeUndefined();
 		});
 
 		it("rejects taxonomy read without taxonomies:read capability", async () => {
@@ -616,7 +904,45 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.error).toContain("Missing capability: taxonomies:read");
 		});
 
-		it("allows taxonomy read with taxonomies:read", async () => {
+		it("enforces taxonomy write and delegates mutations to the runtime surface", async () => {
+			const createTerm = vi.fn(async () => ({
+				id: "term-2",
+				taxonomy: "genre",
+				slug: "reviews",
+				label: "Reviews",
+				parentId: null,
+				data: null,
+				locale: "en",
+				translationGroup: "term-2",
+			}));
+			const taxonomyWrite = {
+				getAll: vi.fn(async () => []),
+				getTerms: vi.fn(async () => []),
+				getEntryTerms: vi.fn(async () => []),
+				createTerm,
+				addEntryTerms: vi.fn(async () => []),
+				removeEntryTerms: vi.fn(async () => []),
+			};
+			const reader = makeHandler({ capabilities: ["taxonomies:read"], taxonomyWrite });
+			expect(
+				(
+					await call(reader, "taxonomy/createTerm", {
+						taxonomy: "genre",
+						input: { label: "Reviews" },
+					})
+				).error,
+			).toContain("Missing capability: taxonomies:write");
+
+			const writer = makeHandler({ capabilities: ["taxonomies:write"], taxonomyWrite });
+			const result = await call(writer, "taxonomy/createTerm", {
+				taxonomy: "genre",
+				input: { label: "Reviews" },
+			});
+			expect(result.error).toBeUndefined();
+			expect(createTerm).toHaveBeenCalledWith("genre", { label: "Reviews" });
+		});
+
+		it("allows taxonomy read with implied access from taxonomies:write", async () => {
 			await db.schema
 				.createTable("_emdash_taxonomy_defs")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -642,7 +968,7 @@ describe("Bridge Handler Conformance", () => {
 				})
 				.execute();
 
-			const handler = makeHandler({ capabilities: ["taxonomies:read"] });
+			const handler = makeHandler({ capabilities: ["taxonomies:write"] });
 			const result = await call(handler, "taxonomy/list", {});
 			expect(result.error).toBeUndefined();
 			const defs = result.result as Array<{ name: string; hierarchical: boolean }>;
@@ -1015,7 +1341,7 @@ describe("Bridge Handler Conformance", () => {
 			expect(list.items.length).toBeLessThanOrEqual(1);
 		});
 
-		it("media/list clamps negative limit to 1", async () => {
+		it.each([-5, 0])("media/list clamps a %s limit to 1", async (limit) => {
 			await db.schema
 				.createTable("media")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -1042,11 +1368,43 @@ describe("Bridge Handler Conformance", () => {
 			}
 
 			const handler = makeHandler({ capabilities: ["read:media"] });
-			const result = await call(handler, "media/list", { limit: -5 });
+			const result = await call(handler, "media/list", { limit });
 			expect(result.error).toBeUndefined();
 			const list = result.result as { items: unknown[] };
 			expect(list.items.length).toBeGreaterThanOrEqual(1);
 			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("media/list defaults a non-number limit", async () => {
+			await db.schema
+				.createTable("media")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("filename", "text", (col) => col.notNull())
+				.addColumn("mime_type", "text", (col) => col.notNull())
+				.addColumn("size", "integer")
+				.addColumn("storage_key", "text", (col) => col.notNull())
+				.addColumn("status", "text", (col) => col.notNull().defaultTo("ready"))
+				.addColumn("created_at", "text", (col) => col.notNull())
+				.execute();
+			for (const id of ["m-1", "m-2", "m-3"]) {
+				await db
+					.insertInto("media" as any)
+					.values({
+						id,
+						filename: `${id}.png`,
+						mime_type: "image/png",
+						size: 100,
+						storage_key: `keys/${id}`,
+						status: "ready",
+						created_at: new Date().toISOString(),
+					})
+					.execute();
+			}
+
+			const handler = makeHandler({ capabilities: ["read:media"] });
+			const result = await call(handler, "media/list", { limit: "bad" });
+			expect(result.error).toBeUndefined();
+			expect((result.result as { items: unknown[] }).items).toHaveLength(3);
 		});
 
 		it("storage/query clamps negative limit to 1", async () => {
@@ -1101,6 +1459,223 @@ describe("Bridge Handler Conformance", () => {
 			});
 			expect(result.error).toBeUndefined();
 			expect(result.result).toBeNull();
+		});
+	});
+
+	describe("HTTP response wire", () => {
+		it("serializes one bounded binary response representation", async () => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+				new Response(INVALID_PLUGIN_HTTP_BYTES, {
+					status: 206,
+					statusText: "Partial Content",
+					headers: { "content-type": "application/octet-stream" },
+				}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/file",
+				});
+				expect(result.error).toBeUndefined();
+				expect(result.result).toMatchObject({
+					status: 206,
+					statusText: "Partial Content",
+					headers: [["content-type", "application/octet-stream"]],
+					finalUrl: "https://93.184.216.34/file",
+					redirected: false,
+					body: {
+						__emdashBytes: Buffer.from(INVALID_PLUGIN_HTTP_BYTES).toString("base64"),
+					},
+				});
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("rejects an oversized decoded request before dispatch", async () => {
+			const handler = makeHandler({
+				capabilities: ["network:request"],
+				allowedHosts: ["api.example.com"],
+			});
+			const result = await call(handler, "http/fetch", {
+				url: "https://api.example.com/upload",
+				init: {
+					method: "POST",
+					bodyType: "base64",
+					body: Buffer.alloc(8 * 1024 * 1024 + 1).toString("base64"),
+				},
+			});
+			expect(result.error).toMatch(/request body exceeds the 8388608 byte limit/i);
+		});
+
+		it.each([
+			{
+				caseName: "string body type",
+				init: { bodyType: "string", body: "payload" },
+				expectedError: 'init.bodyType must be "base64"',
+			},
+			{
+				caseName: "form-data body type",
+				init: { bodyType: "formdata", body: [] },
+				expectedError: 'init.bodyType must be "base64"',
+			},
+			{
+				caseName: "body without a body type",
+				init: { body: "cGF5bG9hZA==" },
+				expectedError: "init.bodyType and init.body must be present together",
+			},
+			{
+				caseName: "body type without a body",
+				init: { bodyType: "base64" },
+				expectedError: "init.bodyType and init.body must be present together",
+			},
+		])("rejects $caseName before dispatch", async ({ init, expectedError }) => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("ok"));
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["api.example.com"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://api.example.com/upload",
+					init,
+				});
+				expect(result.error).toContain(expectedError);
+				expect(fetchMock).not.toHaveBeenCalled();
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("rejects an oversized streamed response", async () => {
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValue(new Response(bytesOverLimit(8 * 1024 * 1024)));
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/oversized",
+				});
+				expect(result.error).toMatch(/response body exceeds the 8388608 byte limit/i);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it.each([
+			{ status: 301, method: "POST", rewritten: true },
+			{ status: 302, method: "POST", rewritten: true },
+			{ status: 303, method: "PUT", rewritten: true },
+			{ status: 307, method: "POST", rewritten: false },
+			{ status: 308, method: "POST", rewritten: false },
+		])(
+			"applies Fetch method and body rules for a $status redirect",
+			async ({ status, method, rewritten }) => {
+				const fetchMock = vi
+					.fn<typeof fetch>()
+					.mockResolvedValueOnce(
+						new Response(null, {
+							status,
+							headers: { location: "https://93.184.216.34/final" },
+						}),
+					)
+					.mockResolvedValueOnce(new Response("ok"));
+				vi.stubGlobal("fetch", fetchMock);
+				try {
+					const handler = makeHandler({
+						capabilities: ["network:request"],
+						allowedHosts: ["93.184.216.34"],
+					});
+					const result = await call(handler, "http/fetch", {
+						url: "https://93.184.216.34/start",
+						init: {
+							method,
+							headers: [
+								["content-type", "application/octet-stream"],
+								["content-language", "en"],
+								["content-length", String(INVALID_PLUGIN_HTTP_BYTES.byteLength)],
+								["transfer-encoding", "chunked"],
+							],
+							bodyType: "base64",
+							body: Buffer.from(INVALID_PLUGIN_HTTP_BYTES).toString("base64"),
+						},
+					});
+					expect(result.error).toBeUndefined();
+					const redirectedInit = fetchMock.mock.calls[1]?.[1];
+					expect(redirectedInit?.method).toBe(rewritten ? "GET" : method);
+					if (rewritten) expect(redirectedInit?.body).toBeUndefined();
+					else expect(redirectedInit?.body).toBeInstanceOf(ArrayBuffer);
+					const headers = new Headers(redirectedInit?.headers);
+					expect(headers.get("content-type")).toBe(rewritten ? null : "application/octet-stream");
+					expect(headers.get("content-language")).toBe(rewritten ? null : "en");
+					expect(headers.get("content-length")).toBe(
+						rewritten ? null : String(INVALID_PLUGIN_HTTP_BYTES.byteLength),
+					);
+					expect(headers.get("transfer-encoding")).toBe(rewritten ? null : "chunked");
+				} finally {
+					vi.unstubAllGlobals();
+				}
+			},
+		);
+
+		it.each([
+			{ mode: "manual", expectedError: false },
+			{ mode: "error", expectedError: true },
+		] as const)("honors redirect mode $mode", async ({ mode, expectedError }) => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+				new Response(null, {
+					status: 302,
+					headers: { location: "https://93.184.216.34/final" },
+				}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/start",
+					init: { redirect: mode },
+				});
+				if (expectedError) expect(result.error).toMatch(/redirect mode is "error"/i);
+				else expect(result.result).toMatchObject({ status: 302, redirected: false });
+				expect(fetchMock).toHaveBeenCalledOnce();
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("does not follow a non-redirect 3xx response with Location", async () => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+				new Response(null, {
+					status: 304,
+					headers: { location: "https://93.184.216.34/final" },
+				}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/start",
+				});
+				expect(result.result).toMatchObject({ status: 304, redirected: false });
+				expect(fetchMock).toHaveBeenCalledOnce();
+			} finally {
+				vi.unstubAllGlobals();
+			}
 		});
 	});
 

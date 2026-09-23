@@ -346,9 +346,23 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"network:request",
 	"network:request:unrestricted",
 	"content:read",
+	"content:revisions:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
+	"comments:read",
+	"comments:moderate",
+	"schema:read",
+	"admin.editor-draft:read",
+	"admin.editor-draft:patch",
+	"hooks.content-policy:register",
 	"taxonomies:read",
+	"taxonomies:write",
+	"redirects:read",
+	"redirects:write",
 	"media:read",
+	"media:bytes:read",
+	"media:metadata:write",
 	"media:write",
 	"users:read",
 	"email:send",
@@ -545,6 +559,136 @@ export const AdminWidgetSchema = z
 		description: "A single dashboard widget declaration.",
 	});
 
+const editorExtensionIdSchema = z
+	.string()
+	.min(1)
+	.max(64)
+	.regex(/^[a-z][a-z0-9_-]*$/, "editor extension id must be a lowercase slug");
+const editorRouteSchema = z
+	.string()
+	.min(1)
+	.max(128)
+	.regex(/^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/, "editor extension route must be a safe path");
+const editorCollectionsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "editor extension collection must be a collection slug"),
+	)
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "editor extension collections must be unique",
+	});
+const editorDraftFieldsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "invalid editor draft field slug"),
+	)
+	.min(1)
+	.max(32)
+	.refine((fields) => new Set(fields).size === fields.length, {
+		message: "editor draft fields must be unique",
+	});
+const EditorDraftFieldSelectorSchema = z.union([
+	z.object({ fields: editorDraftFieldsSchema, translatable: z.literal(true).optional() }).strict(),
+	z.object({ fields: editorDraftFieldsSchema.optional(), translatable: z.literal(true) }).strict(),
+]);
+const EditorDraftAccessSchema = z.union([
+	z
+		.object({
+			read: EditorDraftFieldSelectorSchema,
+			patch: EditorDraftFieldSelectorSchema.optional(),
+		})
+		.strict(),
+	z
+		.object({
+			read: EditorDraftFieldSelectorSchema.optional(),
+			patch: EditorDraftFieldSelectorSchema,
+		})
+		.strict(),
+]);
+const editorDraftCollectionsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "editor extension collection must be a collection slug"),
+	)
+	.min(1)
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "editor extension collections must be unique",
+	});
+const editorPanelBase = {
+	id: editorExtensionIdSchema,
+	title: z.string().min(1).max(128),
+	route: editorRouteSchema,
+	order: z.number().int().min(-1_000).max(1_000).optional(),
+};
+
+export const EditorPanelSchema = z.union([
+	z.object({ ...editorPanelBase, collections: editorCollectionsSchema.optional() }).strict(),
+	z
+		.object({
+			...editorPanelBase,
+			collections: editorDraftCollectionsSchema,
+			draft: EditorDraftAccessSchema,
+		})
+		.strict(),
+]);
+
+const EditorActionConfirmSchema = z
+	.object({
+		title: z.string().min(1).max(128),
+		text: z.string().min(1).max(1_024),
+		confirm: z.string().min(1).max(64),
+		deny: z.string().min(1).max(64),
+		style: z.literal("danger").optional(),
+	})
+	.strict();
+
+const editorActionBase = {
+	id: editorExtensionIdSchema,
+	label: z.string().min(1).max(128),
+	route: editorRouteSchema,
+	placement: z.enum(["toolbar", "overflow"]),
+	style: z.enum(["default", "danger"]).optional(),
+	confirm: EditorActionConfirmSchema.optional(),
+};
+
+export const EditorActionSchema = z
+	.union([
+		z.object({ ...editorActionBase, collections: editorCollectionsSchema.optional() }).strict(),
+		z
+			.object({
+				...editorActionBase,
+				collections: editorDraftCollectionsSchema,
+				draft: EditorDraftAccessSchema,
+			})
+			.strict(),
+	])
+	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
+		message: "danger editor actions require confirmation",
+		path: ["confirm"],
+	});
+
+function addDuplicateEditorExtensionIssues(
+	items: readonly { id: string }[] | undefined,
+	ctx: z.RefinementCtx,
+	path: "editorPanels" | "editorActions",
+): void {
+	const seen = new Set<string>();
+	for (const [index, item] of (items ?? []).entries()) {
+		if (seen.has(item.id)) {
+			ctx.addIssue({ code: "custom", message: `duplicate ${path} id`, path: [path, index, "id"] });
+		}
+		seen.add(item.id);
+	}
+}
+
 const settingBase = {
 	label: z.string().min(1),
 	description: z.string().optional(),
@@ -635,12 +779,17 @@ export const AdminSchema = z
 			.optional(),
 		settingsSchema: z.record(z.string(), SettingFieldSchema).optional(),
 		fieldWidgets: z.array(FieldWidgetSchema).max(32).optional(),
+		editorPanels: z.array(EditorPanelSchema).max(32).optional(),
+		editorActions: z.array(EditorActionSchema).max(32).optional(),
 	})
 	.strict()
+	.superRefine((admin, ctx) => {
+		addDuplicateEditorExtensionIssues(admin.editorPanels, ctx, "editorPanels");
+		addDuplicateEditorExtensionIssues(admin.editorActions, ctx, "editorActions");
+	})
 	.meta({
 		title: "Admin surface",
-		description:
-			"Pages and widgets the plugin exposes in the admin UI. The plugin's `admin` route handler renders Block Kit content for each path / widget id at runtime.",
+		description: "Pages, widgets, and saved-entry extensions the plugin exposes in the admin UI.",
 	});
 
 // ──────────────────────────────────────────────────────────────────────────

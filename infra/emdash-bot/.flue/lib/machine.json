@@ -412,7 +412,8 @@
 		"resume": {
 			"description": "Continue the saved conversation and workspace from a timed-out run.",
 			"actors": [
-				"maintainer"
+				"maintainer",
+				"system"
 			],
 			"arg": "directive",
 			"legacy": true
@@ -925,6 +926,12 @@
 			"to": "needs_attention"
 		},
 		{
+			"from": "working",
+			"event": "resume",
+			"to": "working",
+			"action": "investigate.resume"
+		},
+		{
 			"from": "blocked",
 			"event": "triage",
 			"to": "triaging",
@@ -1065,6 +1072,12 @@
 			"from": "in_review",
 			"event": "agent.failed",
 			"to": "needs_attention"
+		},
+		{
+			"from": "in_review",
+			"event": "resume",
+			"to": "in_review",
+			"action": "investigate.resume"
 		},
 		{
 			"from": "in_review",
@@ -1423,6 +1436,12 @@
 		},
 		{
 			"from": "fixing",
+			"event": "resume",
+			"to": "fixing",
+			"action": "investigate.resume"
+		},
+		{
+			"from": "fixing",
 			"event": "agent.by_design",
 			"to": "blocked",
 			"note": "fix run concluded the behaviour is intended"
@@ -1600,6 +1619,7 @@
 		],
 		"statuses": [
 			"running",
+			"paused",
 			"succeeded",
 			"failed",
 			"timed_out",

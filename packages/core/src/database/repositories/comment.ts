@@ -66,6 +66,20 @@ export interface CommentFindOptions {
 	cursor?: string;
 }
 
+export interface PluginCommentFindOptions {
+	status?: Exclude<CommentStatus, "trash">;
+	collection?: string;
+	contentId?: string;
+	limit?: number;
+	cursor?: string;
+}
+
+export type ConditionalCommentStatusResult =
+	| { state: "updated"; comment: Comment }
+	| { state: "unchanged"; comment: Comment }
+	| { state: "conflict"; comment: Comment }
+	| { state: "not_found" };
+
 // ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
@@ -230,6 +244,50 @@ export class CommentRepository {
 		return result;
 	}
 
+	/** List non-trashed comments for capability-gated plugin administration. */
+	async findForPlugin(options: PluginCommentFindOptions = {}): Promise<FindManyResult<Comment>> {
+		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
+		let query = this.db.selectFrom("_emdash_comments").selectAll().where("status", "!=", "trash");
+
+		if (options.status) query = query.where("status", "=", options.status);
+		if (options.collection) query = query.where("collection", "=", options.collection);
+		if (options.contentId) query = query.where("content_id", "=", options.contentId);
+		if (options.cursor) {
+			const decoded = decodeCursor(options.cursor);
+			query = query.where((eb: ExpressionBuilder<Database, "_emdash_comments">) =>
+				eb.or([
+					eb("created_at", "<", decoded.orderValue),
+					eb.and([eb("created_at", "=", decoded.orderValue), eb("id", "<", decoded.id)]),
+				]),
+			);
+		}
+
+		const rows = await query
+			.orderBy("created_at", "desc")
+			.orderBy("id", "desc")
+			.limit(limit + 1)
+			.execute();
+		const items = rows.slice(0, limit).map((row) => this.rowToComment(row));
+		const result: FindManyResult<Comment> = { items };
+		if (rows.length > limit && items.length > 0) {
+			const last = items.at(-1)!;
+			result.nextCursor = encodeCursor(last.createdAt, last.id);
+		}
+		return result;
+	}
+
+	async countForPlugin(options: Omit<PluginCommentFindOptions, "limit" | "cursor"> = {}) {
+		let query = this.db
+			.selectFrom("_emdash_comments")
+			.select((eb) => eb.fn.count("id").as("count"))
+			.where("status", "!=", "trash");
+		if (options.status) query = query.where("status", "=", options.status);
+		if (options.collection) query = query.where("collection", "=", options.collection);
+		if (options.contentId) query = query.where("content_id", "=", options.contentId);
+		const result = await query.executeTakeFirst();
+		return Number(result?.count ?? 0);
+	}
+
 	/**
 	 * Update comment status
 	 */
@@ -244,6 +302,34 @@ export class CommentRepository {
 
 		invalidateCommentObjectCache();
 		return this.findById(id);
+	}
+
+	/** Atomically change status only when the caller's observed state is current. */
+	async updateStatusIf(
+		id: string,
+		status: CommentStatus,
+		expectedStatus: CommentStatus,
+	): Promise<ConditionalCommentStatusResult> {
+		const existing = await this.findById(id);
+		if (!existing) return { state: "not_found" };
+		if (existing.status !== expectedStatus) return { state: "conflict", comment: existing };
+		if (status === expectedStatus) return { state: "unchanged", comment: existing };
+
+		const now = new Date().toISOString();
+		const result = await this.db
+			.updateTable("_emdash_comments")
+			.set({ status, updated_at: now })
+			.where("id", "=", id)
+			.where("status", "=", expectedStatus)
+			.returningAll()
+			.executeTakeFirst();
+		if (result) {
+			invalidateCommentObjectCache();
+			return { state: "updated", comment: this.rowToComment(result) };
+		}
+
+		const current = await this.findById(id);
+		return !current ? { state: "not_found" } : { state: "conflict", comment: current };
 	}
 
 	/**

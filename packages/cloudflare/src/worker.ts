@@ -13,9 +13,8 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
-import { runScheduledTasks } from "emdash/middleware";
 
-export { PluginBridge } from "./sandbox/index.js";
+export { PluginBridge } from "./sandbox/bridge.js";
 
 const APP_KEY = Symbol.for("@emdash-cms/cloudflare:astro-app");
 const CACHE_PROVIDER_KEY = Symbol.for("@emdash-cms/cloudflare:cache-provider");
@@ -68,6 +67,13 @@ async function invalidatePublishedTags(
 	await provider.invalidate({ tags });
 }
 
+async function invalidateContentTags(tags: string[]): Promise<void> {
+	if (tags.length === 0) return;
+	const provider = await getCacheProvider();
+	if (!provider) return;
+	await provider.invalidate({ tags });
+}
+
 /**
  * Build a Worker `scheduled()` handler for general maintenance.
  */
@@ -92,6 +98,7 @@ export function createScheduledHandler(
 		ctx.waitUntil(
 			(async () => {
 				try {
+					const { runScheduledTasks } = await import("emdash/middleware");
 					// Invalidate incrementally as each collection batch publishes, so a
 					// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
 					// large backlog) still purged the cache tags for everything it managed
@@ -99,6 +106,7 @@ export function createScheduledHandler(
 					// purge that may never run.
 					const { published } = await runScheduledTasks({
 						onPublished: invalidatePublishedTags,
+						invalidateContentCache: invalidateContentTags,
 					});
 					if (published.length > 0) {
 						console.log(`[scheduled] Published ${published.length} scheduled item(s)`);

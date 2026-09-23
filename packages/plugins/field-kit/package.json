@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-field-kit",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Composable field widgets for EmDash CMS — object forms, lists, grids, and tag inputs for json fields",
 	"type": "module",
 	"main": "src/index.ts",

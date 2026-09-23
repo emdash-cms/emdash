@@ -30,6 +30,8 @@
  * the manifest shape may evolve before the registry phase 1 cutover.
  */
 
+import type { ManifestRouteEntry } from "./routes.js";
+
 // ── Plugin capability vocabulary ─────────────────────────────────────────────
 
 /**
@@ -47,11 +49,28 @@ export type PluginCapability =
 	| "network:request:unrestricted" // ctx.http (unrestricted)
 	// Content
 	| "content:read"
+	| "content:revisions:read"
 	| "content:write"
-	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
+	| "content:publish"
+	| "content:restore"
+	// Comments
+	| "comments:read"
+	| "comments:moderate"
+	// Schema
+	| "schema:read"
+	| "admin.editor-draft:read"
+	| "admin.editor-draft:patch"
+	| "hooks.content-policy:register"
+	// Taxonomies
 	| "taxonomies:read"
+	| "taxonomies:write"
+	// Redirects
+	| "redirects:read"
+	| "redirects:write"
 	// Media
 	| "media:read"
+	| "media:bytes:read"
+	| "media:metadata:write"
 	| "media:write"
 	// Users
 	| "users:read"
@@ -147,6 +166,8 @@ export function normalizeCapability(cap: string): string {
  * `network:fetch` and `network:request` should resolve to a single
  * `network:request`).
  */
+export function normalizeCapabilities(caps: readonly PluginCapability[]): PluginCapability[];
+export function normalizeCapabilities(caps: readonly string[]): string[];
 export function normalizeCapabilities(caps: readonly string[]): string[] {
 	const seen = new Set<string>();
 	const out: string[] = [];
@@ -182,9 +203,25 @@ export type AccessConstraints = Record<string, unknown>;
  * {@link capabilitiesToDeclaredAccess} / {@link declaredAccessToCapabilities}.
  */
 export interface DeclaredAccess {
-	content?: { read?: AccessConstraints; write?: AccessConstraints };
-	taxonomies?: { read?: AccessConstraints };
-	media?: { read?: AccessConstraints; write?: AccessConstraints };
+	content?: {
+		read?: AccessConstraints;
+		revisionsRead?: AccessConstraints;
+		write?: AccessConstraints;
+		publish?: AccessConstraints;
+		restore?: AccessConstraints;
+		policy?: AccessConstraints;
+	};
+	comments?: { read?: AccessConstraints; moderate?: AccessConstraints };
+	schema?: { read?: AccessConstraints };
+	admin?: { editorDraftRead?: AccessConstraints; editorDraftPatch?: AccessConstraints };
+	taxonomies?: { read?: AccessConstraints; write?: AccessConstraints };
+	redirects?: { read?: AccessConstraints; write?: AccessConstraints };
+	media?: {
+		read?: AccessConstraints;
+		bytesRead?: AccessConstraints;
+		metadataWrite?: AccessConstraints;
+		write?: AccessConstraints;
+	};
 	network?: { request?: { allowedHosts?: string[] } };
 	email?: { send?: AccessConstraints; events?: AccessConstraints; transport?: AccessConstraints };
 	page?: { fragments?: AccessConstraints };
@@ -212,15 +249,40 @@ export function capabilitiesToDeclaredAccess(
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out: DeclaredAccess = {};
 
-	if (caps.has("content:read") || caps.has("content:write")) {
+	if (
+		caps.has("content:read") ||
+		caps.has("content:revisions:read") ||
+		caps.has("content:write") ||
+		caps.has("content:publish")
+	) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
-	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
+	if (caps.has("content:publish")) (out.content ??= {}).publish = {};
+	if (caps.has("content:restore")) (out.content ??= {}).restore = {};
+	if (caps.has("comments:read") || caps.has("comments:moderate")) {
+		out.comments = { read: {} };
+		if (caps.has("comments:moderate")) out.comments.moderate = {};
+	}
+	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
+	if (caps.has("schema:read")) out.schema = { read: {} };
+	if (caps.has("admin.editor-draft:read")) (out.admin ??= {}).editorDraftRead = {};
+	if (caps.has("admin.editor-draft:patch")) (out.admin ??= {}).editorDraftPatch = {};
+	if (caps.has("taxonomies:read") || caps.has("taxonomies:write")) {
+		out.taxonomies = { read: {} };
+		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
+	}
+	if (caps.has("redirects:read") || caps.has("redirects:write")) {
+		out.redirects = { read: {} };
+		if (caps.has("redirects:write")) out.redirects.write = {};
+	}
+	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
 	}
+	if (caps.has("media:bytes:read")) (out.media ??= {}).bytesRead = {};
+	if (caps.has("media:metadata:write")) (out.media ??= {}).metadataWrite = {};
 	if (caps.has("network:request:unrestricted")) {
 		// Unrestricted: omit allowedHosts entirely (its absence is what the
 		// lexicon and the decoder read as "no host restriction").
@@ -255,12 +317,41 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 	let allowedHosts: string[] = [];
 
 	if (declaredAccess.content?.read) caps.add("content:read");
+	if (declaredAccess.content?.revisionsRead) {
+		caps.add("content:revisions:read");
+		caps.add("content:read");
+	}
 	if (declaredAccess.content?.write) {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
+	if (declaredAccess.content?.publish) {
+		caps.add("content:publish");
+		caps.add("content:read");
+	}
+	if (declaredAccess.content?.restore) caps.add("content:restore");
+	if (declaredAccess.comments?.read) caps.add("comments:read");
+	if (declaredAccess.comments?.moderate) {
+		caps.add("comments:moderate");
+		caps.add("comments:read");
+	}
+	if (declaredAccess.schema?.read) caps.add("schema:read");
+	if (declaredAccess.admin?.editorDraftRead) caps.add("admin.editor-draft:read");
+	if (declaredAccess.admin?.editorDraftPatch) caps.add("admin.editor-draft:patch");
+	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
+	if (declaredAccess.taxonomies?.write) {
+		caps.add("taxonomies:write");
+		caps.add("taxonomies:read");
+	}
+	if (declaredAccess.redirects?.read) caps.add("redirects:read");
+	if (declaredAccess.redirects?.write) {
+		caps.add("redirects:write");
+		caps.add("redirects:read");
+	}
 	if (declaredAccess.media?.read) caps.add("media:read");
+	if (declaredAccess.media?.bytesRead) caps.add("media:bytes:read");
+	if (declaredAccess.media?.metadataWrite) caps.add("media:metadata:write");
 	if (declaredAccess.media?.write) {
 		caps.add("media:write");
 		caps.add("media:read");
@@ -311,17 +402,37 @@ export interface ManifestHookEntry {
  * Route entry in a plugin manifest. Either a plain route name or a structured
  * entry with the `public` flag set.
  */
-export interface ManifestRouteEntry {
-	name: string;
-	public?: boolean;
-	/** RBAC permission required to invoke this route. */
-	permission?: string;
-	/**
-	 * Cache-Control value for successful GET responses. Only honored on
-	 * routes that are also `public: true`.
-	 */
-	cacheControl?: string;
-}
+export type {
+	ManifestRouteEntry,
+	PluginFormData,
+	PluginFormDataFileEntry,
+	PluginFormDataTextEntry,
+	PluginRouteBodyMode,
+	PluginRouteMethod,
+	PluginRouteQuery,
+	PluginRouteRequest,
+	PluginRouteResponseMode,
+	RouteOptions,
+} from "./routes.js";
+export {
+	extractManifestRoute,
+	extractRouteOptions,
+	isJsonPostRouteContract,
+	manifestRouteEntrySchema,
+	normalizeManifestRoute,
+	PLUGIN_ROUTE_BODY_MODES,
+	PLUGIN_ROUTE_DEFAULT_BODY_BYTES,
+	PLUGIN_ROUTE_MAX_BODY_BYTES,
+	PLUGIN_ROUTE_MAX_DECLARED_HEADERS,
+	PLUGIN_ROUTE_MAX_FILENAME_BYTES,
+	PLUGIN_ROUTE_MAX_MULTIPART_PART_BYTES,
+	PLUGIN_ROUTE_MAX_MULTIPART_PARTS,
+	PLUGIN_ROUTE_METHODS,
+	PLUGIN_ROUTE_RESPONSE_MODES,
+	pluginRouteRequestSchema,
+	routeNameSchema,
+	routeOptionsSchema,
+} from "./routes.js";
 
 /** JSON Schema persisted in plugin manifests for cross-isolate discovery. */
 export type PluginJsonSchema = Record<string, unknown>;
@@ -371,6 +482,44 @@ export interface StorageCollectionConfig {
  */
 export type PluginStorageConfig = Record<string, StorageCollectionConfig>;
 
+export interface PluginEditorDraftFieldSelector {
+	fields?: string[];
+	translatable?: true;
+}
+
+export interface PluginEditorDraftAccess {
+	read?: PluginEditorDraftFieldSelector;
+	patch?: PluginEditorDraftFieldSelector;
+}
+
+export interface PluginEditorPanel {
+	id: string;
+	title: string;
+	route: string;
+	collections?: string[];
+	order?: number;
+	draft?: PluginEditorDraftAccess;
+}
+
+export interface PluginEditorActionConfirm {
+	title: string;
+	text: string;
+	confirm: string;
+	deny: string;
+	style?: "danger";
+}
+
+export interface PluginEditorAction {
+	id: string;
+	label: string;
+	route: string;
+	placement: "toolbar" | "overflow";
+	collections?: string[];
+	style?: "default" | "danger";
+	confirm?: PluginEditorActionConfirm;
+	draft?: PluginEditorDraftAccess;
+}
+
 /**
  * Plugin admin surface in the manifest. Sandboxed plugins MUST NOT set the
  * `entry` field (that requires native/trusted mode); the bundler validates
@@ -383,6 +532,10 @@ export interface PluginAdminConfig {
 	pages?: Array<unknown>;
 	/** Dashboard widgets declared by the plugin. */
 	widgets?: Array<unknown>;
+	/** Saved-entry Block Kit panels declared by the plugin. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions declared by the plugin. */
+	editorActions?: PluginEditorAction[];
 	/**
 	 * Native-only: a module specifier for a React entry. Sandboxed plugins
 	 * MUST NOT set this; the bundler validates the absence and the publish
@@ -501,7 +654,6 @@ export {
 	DEPRECATED_PLUGIN_CAPABILITIES,
 	HOOK_NAMES,
 	normalizeManifestHook,
-	normalizeManifestRoute,
 	PLUGIN_CAPABILITIES,
 	pluginManifestSchema,
 	reconcileManifestAccess,

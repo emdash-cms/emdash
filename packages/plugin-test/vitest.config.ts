@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 
 import { emdashPluginTest } from "./src/config.js";
 
-const fixture = fileURLToPath(new URL("./test/fixture", import.meta.url));
+const fixture = fileURLToPath(new URL("../plugins/marketplace-test", import.meta.url));
 export default defineConfig({
 	plugins: [emdashPluginTest({ dir: fixture })],
 	test: {

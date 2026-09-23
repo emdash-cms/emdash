@@ -59,17 +59,17 @@ export function resolveContentCreateLocale(
 		if (typeof locale !== "string") {
 			throw new Error("Invalid locale code: expected a string");
 		}
-		if (!isValidLocaleCode(locale)) {
-			throw new Error(`Invalid locale code: "${locale}"`);
-		}
-
 		const configured = config?.locales.find(
 			(candidate) => candidate.toLowerCase() === locale.toLowerCase(),
 		);
-		if (config && !configured) {
+		if (configured) return configured;
+		if (!isValidLocaleCode(locale)) {
+			throw new Error(`Invalid locale code: "${locale}"`);
+		}
+		if (config) {
 			throw new Error(`Locale "${locale}" is not configured for this site`);
 		}
-		return configured ?? locale;
+		return locale;
 	}
 
 	return config?.defaultLocale ?? "en";

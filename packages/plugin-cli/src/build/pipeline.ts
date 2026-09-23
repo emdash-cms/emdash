@@ -18,14 +18,15 @@
  *      the hook/route surface into a `ResolvedPlugin`. Identity + trust
  *      contract come from the manifest, not the code.
  *
- *   3. `buildRuntime({ entries, outDir, tmpDir })` — build `src/plugin.ts`
- *      again, this time minified + tree-shaken + with `.d.mts` types, to
+ *   3. `buildRuntime({ entries, outDir, tmpDir })` — remove build-only MCP
+ *      metadata from the authoring module, then build it minified + tree-shaken
+ *      alongside `.d.mts` types from the authoring entry, to
  *      produce `<outDir>/plugin.mjs` and `<outDir>/plugin.d.mts`. Probe
  *      and runtime builds differ deliberately in minification and dts
  *      output; the probe only reads `default.hooks` / `default.routes`
  *      *keys*, which minification doesn't rename (object literal keys
- *      stay stable). Both pass the same source through tsdown with no
- *      `external` and no `alias` — sandboxed plugins must not import
+ *      stay stable). The probe bundles Zod so MCP schemas can be evaluated
+ *      from the temporary output. Sandboxed plugins must not import
  *      from `emdash` at runtime (types come from `emdash/plugin` and
  *      are erased before bundling).
  *
@@ -37,6 +38,8 @@
 import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { extractRouteOptions, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 
 import type { ResolvedPlugin } from "../bundle/types.js";
 import { fileExists } from "../bundle/utils.js";
@@ -57,6 +60,7 @@ import {
 	type ProbedHookEntry,
 	type ProbedRouteEntry,
 } from "./probe-schema.js";
+import { stripBuildOnlyMcp } from "./runtime-source.js";
 
 const PLUGIN_ENTRY_PATH = "src/plugin.ts";
 const PACKAGE_JSON_PATH = "package.json";
@@ -272,6 +276,8 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			widgets: entries.manifest.admin.widgets,
 			settingsSchema: entries.manifest.admin.settingsSchema,
 			fieldWidgets: entries.manifest.admin.fieldWidgets,
+			editorPanels: entries.manifest.admin.editorPanels,
+			editorActions: entries.manifest.admin.editorActions,
 		},
 	};
 
@@ -287,6 +293,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
+			noExternal: ["emdash/plugin", "zod"],
 			inlineOnly: false,
 			treeshake: true,
 		});
@@ -342,8 +349,48 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 	if (parsed.mcp) {
 		resolvedPlugin.mcp = parsed.mcp;
 	}
+	validateEditorExtensionRoutes(resolvedPlugin);
 
 	return resolvedPlugin;
+}
+
+export function validateEditorExtensionRoutes(plugin: ResolvedPlugin): void {
+	for (const [kind, extensions] of [
+		["editor panel", plugin.admin.editorPanels],
+		["editor action", plugin.admin.editorActions],
+	] as const) {
+		for (const extension of extensions ?? []) {
+			const route = plugin.routes[extension.route];
+			if (!route) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" references missing route "${extension.route}".`,
+				);
+			}
+			if (route.public === true) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" must reference a private route.`,
+				);
+			}
+			if (!isJsonPostRouteContract(route)) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" must reference a route that accepts POST JSON requests and returns JSON.`,
+				);
+			}
+		}
+	}
+
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new BuildPipelineError(
+				"MANIFEST_INVALID",
+				"Block Kit admin route must accept POST JSON requests and return JSON.",
+			);
+		}
+	}
 }
 
 /**
@@ -484,9 +531,8 @@ function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin[
 function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string] {
 	return {
 		handler: entry.handler,
-		public: entry.public,
-		permission: entry.permission,
-		cacheControl: entry.cacheControl,
+		input: entry.input,
+		...extractRouteOptions(entry),
 	};
 }
 
@@ -513,31 +559,53 @@ export interface RuntimeFiles {
 /**
  * Build `src/plugin.ts` into `<outDir>/plugin.mjs` + `<outDir>/plugin.d.mts`.
  *
- * Same source as the probe; the configuration differs only in
- * `minify: true` and `dts: true`. The probe stays unminified for
- * stable property-key reads (`default.hooks`, `default.routes`); the
- * runtime build minifies because this output is what runs in the
- * isolate (loader string-embeds it) or is `import`-ed in-process. No
- * `external`, no `alias` — sandboxed plugins must not import from
- * `emdash` at runtime.
+ * MCP schemas are build/install metadata, so the runtime transform removes
+ * the `mcp` property and schema declarations unused by hooks/routes. The result
+ * is minified because this output runs in the
+ * isolate (loader string-embeds it) or is imported in-process. Imports from
+ * the lightweight `emdash/plugin` authoring subpath and Zod are bundled so
+ * route handlers can use them inside the isolate. Imports from the main
+ * `emdash` package remain unsupported.
  */
 export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFiles> {
 	const { entries, outDir, tmpDir, build } = ctx;
 
 	const runtimeOutDir = join(tmpDir, "runtime");
+	const runtimeSourcePlugin = {
+		name: "emdash-runtime-source",
+		transform(code: string, id: string) {
+			if (resolve(id) !== resolve(entries.pluginEntry)) return null;
+			return { code: stripBuildOnlyMcp(code, id), map: null };
+		},
+	};
 
 	try {
 		await build({
 			config: false,
 			entry: { plugin: entries.pluginEntry },
 			format: "esm",
-			outExtensions: () => ({ js: ".mjs", dts: ".d.mts" }),
+			outExtensions: () => ({ js: ".mjs" }),
 			outDir: runtimeOutDir,
-			dts: true,
+			dts: false,
 			platform: "neutral",
 			external: [],
+			noExternal: ["emdash/plugin", "zod"],
 			inlineOnly: false,
 			minify: true,
+			plugins: [runtimeSourcePlugin],
+			treeshake: true,
+		});
+		await build({
+			config: false,
+			entry: { plugin: entries.pluginEntry },
+			format: "esm",
+			outExtensions: () => ({ dts: ".d.mts" }),
+			outDir: runtimeOutDir,
+			clean: false,
+			dts: { emitDtsOnly: true },
+			platform: "neutral",
+			external: ["emdash/plugin"],
+			inlineOnly: false,
 			treeshake: true,
 		});
 	} catch (error) {

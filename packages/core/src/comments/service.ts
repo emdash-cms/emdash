@@ -11,6 +11,8 @@
  * Also handles admin moderation (status changes) with afterModerate hooks.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import type { Kysely } from "kysely";
 
 import { CommentRepository } from "../database/repositories/comment.js";
@@ -61,9 +63,26 @@ export interface CommentHookRunner {
 	/** Fire comment:afterCreate (fire-and-forget). */
 	fireAfterCreate(event: CommentAfterCreateEvent): void;
 
-	/** Fire comment:afterModerate (fire-and-forget). */
-	fireAfterModerate(event: CommentAfterModerateEvent): void;
+	/** Run comment:afterModerate after a successful transition. */
+	fireAfterModerate(event: CommentAfterModerateEvent): void | Promise<void>;
 }
+
+export type CommentModerationOrigin =
+	| { source: "admin"; userId: string; name: string | null }
+	| { source: "plugin"; pluginId: string };
+
+export class CommentStatusConflictError extends Error {
+	readonly code = "COMMENT_STATUS_CONFLICT";
+	readonly currentStatus: CommentStatus;
+
+	constructor(currentStatus: CommentStatus) {
+		super("Comment status changed; read the current comment before retrying");
+		this.name = "CommentStatusConflictError";
+		this.currentStatus = currentStatus;
+	}
+}
+
+const commentModerationALS = new AsyncLocalStorage<ReadonlySet<string>>();
 
 // ---------------------------------------------------------------------------
 // Service
@@ -168,25 +187,53 @@ export async function moderateComment(
 	db: Kysely<Database>,
 	id: string,
 	newStatus: CommentStatus,
-	moderator: { id: string; name: string | null },
+	expectedStatus: CommentStatus,
+	origin: CommentModerationOrigin,
 	hooks: CommentHookRunner,
+	onApproved?: (comment: Comment) => void | Promise<void>,
+): Promise<Comment | null> {
+	const active = commentModerationALS.getStore();
+	if (active?.has(id)) throw new Error("Recursive comment moderation is not allowed");
+	const next = new Set(active);
+	next.add(id);
+	return commentModerationALS.run(next, () =>
+		moderateCommentWithinGuard(db, id, newStatus, expectedStatus, origin, hooks, onApproved),
+	);
+}
+
+async function moderateCommentWithinGuard(
+	db: Kysely<Database>,
+	id: string,
+	newStatus: CommentStatus,
+	expectedStatus: CommentStatus,
+	origin: CommentModerationOrigin,
+	hooks: CommentHookRunner,
+	onApproved?: (comment: Comment) => void | Promise<void>,
 ): Promise<Comment | null> {
 	const repo = new CommentRepository(db);
-	const existing = await repo.findById(id);
-	if (!existing) return null;
+	const result = await repo.updateStatusIf(id, newStatus, expectedStatus);
+	if (result.state === "not_found") return null;
+	if (result.state === "conflict") throw new CommentStatusConflictError(result.comment.status);
+	if (result.state === "unchanged") return result.comment;
+	const updated = result.comment;
 
-	const previousStatus = existing.status;
-	const updated = await repo.updateStatus(id, newStatus);
-	if (!updated) return null;
+	if (newStatus === "approved") await onApproved?.(updated);
 
-	// Fire comment:afterModerate (fire-and-forget)
+	// Run comment:afterModerate after a successful transition
 	const afterEvent: CommentAfterModerateEvent = {
 		comment: commentToStored(updated),
-		previousStatus,
+		previousStatus: expectedStatus,
 		newStatus,
-		moderator,
+		moderator:
+			origin.source === "admin"
+				? { id: origin.userId, name: origin.name }
+				: { id: origin.pluginId, name: null },
+		origin:
+			origin.source === "admin"
+				? { source: "admin", userId: origin.userId }
+				: { source: "plugin", pluginId: origin.pluginId },
 	};
-	hooks.fireAfterModerate(afterEvent);
+	await hooks.fireAfterModerate(afterEvent);
 
 	return updated;
 }

@@ -10,6 +10,7 @@ import {
 	describeCapability,
 	CAPABILITY_LABELS,
 	PluginMcpConsentRequiredError,
+	PluginInstallConsentRequiredError,
 	MarketplaceUpdateEscalationError,
 	MarketplaceUpdateMcpConsentRequiredError,
 } from "../../src/lib/api/marketplace";
@@ -202,6 +203,35 @@ describe("marketplace API client", () => {
 			expect(error).toBeInstanceOf(PluginMcpConsentRequiredError);
 			expect((error as PluginMcpConsentRequiredError).tools).toEqual([tool]);
 		});
+
+		it("carries public routes and MCP tools in one install consent error", async () => {
+			const tool = {
+				name: "sync",
+				description: "Sync content",
+				route: "sync",
+				permission: "content:write",
+				destructive: false,
+			};
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "ROUTE_VISIBILITY_ESCALATION",
+							details: {
+								routeVisibilityChanges: { newlyPublic: ["webhook"] },
+								mcpTools: [tool],
+							},
+						},
+					}),
+					{ status: 409 },
+				),
+			);
+
+			const error = await installMarketplacePlugin("my-plugin").catch((reason: unknown) => reason);
+			expect(error).toBeInstanceOf(PluginInstallConsentRequiredError);
+			expect((error as PluginInstallConsentRequiredError).tools).toEqual([tool]);
+			expect((error as PluginInstallConsentRequiredError).newlyPublicRoutes).toEqual(["webhook"]);
+		});
 	});
 
 	// -----------------------------------------------------------------------
@@ -359,6 +389,11 @@ describe("describeCapability", () => {
 	it("returns known capability label", () => {
 		expect(describeCapability("read:content")).toBe("Read your content");
 		expect(describeCapability("write:media")).toBe("Upload and manage media");
+		expect(describeCapability("comments:read")).toContain("author email addresses");
+		expect(describeCapability("redirects:write")).toBe("Change where visitors are sent");
+		expect(describeCapability("hooks.content-policy:register")).toBe(
+			"Review and block publishing, scheduling, and unpublishing content",
+		);
 	});
 
 	it("returns raw capability string for unknown capabilities", () => {
@@ -367,12 +402,18 @@ describe("describeCapability", () => {
 
 	it("appends allowed hosts for network:fetch", () => {
 		const result = describeCapability("network:fetch", ["api.example.com", "cdn.example.com"]);
-		expect(result).toBe("Make network requests to: api.example.com, cdn.example.com");
+		expect(result).toBe(
+			"Connect to network hosts and load external plugin admin images to: api.example.com, cdn.example.com",
+		);
 	});
 
 	it("ignores empty allowed hosts for network:fetch", () => {
-		expect(describeCapability("network:fetch", [])).toBe("Make network requests");
-		expect(describeCapability("network:fetch")).toBe("Make network requests");
+		expect(describeCapability("network:fetch", [])).toBe(
+			"Connect to network hosts and load external plugin admin images",
+		);
+		expect(describeCapability("network:fetch")).toBe(
+			"Connect to network hosts and load external plugin admin images",
+		);
 	});
 
 	it("ignores allowed hosts for non-fetch capabilities", () => {
@@ -385,9 +426,23 @@ describe("CAPABILITY_LABELS", () => {
 		expect(Object.keys(CAPABILITY_LABELS)).toEqual([
 			// Canonical
 			"content:read",
+			"content:revisions:read",
 			"content:write",
+			"content:publish",
+			"content:restore",
+			"comments:read",
+			"comments:moderate",
+			"schema:read",
+			"admin.editor-draft:read",
+			"admin.editor-draft:patch",
+			"hooks.content-policy:register",
 			"taxonomies:read",
+			"taxonomies:write",
+			"redirects:read",
+			"redirects:write",
 			"media:read",
+			"media:bytes:read",
+			"media:metadata:write",
 			"media:write",
 			"users:read",
 			"network:request",

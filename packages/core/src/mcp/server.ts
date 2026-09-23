@@ -739,7 +739,7 @@ export function createMcpServer(
 	}) as typeof server.registerTool;
 
 	for (const tool of pluginTools) {
-		if (!(tool.permission in Permissions)) continue;
+		if (!Object.hasOwn(Permissions, tool.permission)) continue;
 		server.registerTool(
 			`${tool.pluginId}__${tool.name}`,
 			{
@@ -784,6 +784,7 @@ export function createMcpServer(
 					);
 				}
 				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const routeCache = payload.cache;
 				const result = await payload.emdash.handlePluginMcpTool(
 					tool.pluginId,
 					tool.name,
@@ -792,6 +793,7 @@ export function createMcpServer(
 					payload.userId,
 					request,
 					payload.user,
+					routeCache?.enabled ? (tags) => routeCache.invalidate({ tags }) : undefined,
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {
@@ -1041,7 +1043,10 @@ export function createMcpServer(
 				if (itemId) {
 					return unwrapAndInvalidate(
 						extra,
-						await emdash.handleContentPublish(args.collection, itemId),
+						await emdash.handleContentPublish(args.collection, itemId, {
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
 						[args.collection, itemId],
 						true,
 					);
@@ -1197,7 +1202,11 @@ export function createMcpServer(
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentPublish(args.collection, resolvedId, { _rev: rev }),
+					await emdash.handleContentPublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1232,7 +1241,11 @@ export function createMcpServer(
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentUnpublish(args.collection, resolvedId, { _rev: rev }),
+					await emdash.handleContentUnpublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1297,7 +1310,9 @@ export function createMcpServer(
 		"content_restore",
 		{
 			title: "Restore Content",
-			description: "Restore a soft-deleted content item from the trash back to its previous state.",
+			description:
+				"Restore a soft-deleted content item from the trash. It comes back as a draft " +
+				"with no schedule, even if it was published or scheduled before it was trashed.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1408,6 +1423,8 @@ export function createMcpServer(
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
 				}),
 				[args.collection, resolvedId],
 			);
@@ -1420,7 +1437,8 @@ export function createMcpServer(
 			title: "Unpublish Content",
 			description:
 				"Unpublish a content item, reverting it to draft status. It will no " +
-				"longer be visible on the live site, but its content and publication date are preserved.",
+				"longer be visible on the live site, but its content and publication date are preserved. " +
+				"Any pending schedule is cancelled.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1430,7 +1448,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1447,7 +1465,11 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+				await ec.handleContentUnpublish(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1464,6 +1486,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
 				),
@@ -1472,7 +1495,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1489,7 +1512,11 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt),
+				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1500,9 +1527,9 @@ export function createMcpServer(
 		{
 			title: "Cancel Scheduled Publication",
 			description:
-				"Cancel a previously scheduled publication. The item remains in its current " +
-				"status (typically 'draft' or 'scheduled'); only the scheduledAt timestamp is " +
-				"cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+				"Cancel a previously scheduled publication. Scheduled drafts return to draft status; " +
+				"published items stay published. The scheduledAt timestamp is cleared. Idempotent — " +
+				"calling on an item that isn't scheduled is a no-op.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1560,8 +1587,8 @@ export function createMcpServer(
 		{
 			title: "Discard Draft",
 			description:
-				"Discard the current draft changes and revert to the last published " +
-				"version. Only works on items that have been published at least once.",
+				"Discard the current draft revision. Published content reverts to its live " +
+				"version; an item without a pending draft is unchanged.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -2874,7 +2901,9 @@ export function createMcpServer(
 				"parent must exist, belong to the same taxonomy, and not introduce a cycle " +
 				"(a term cannot be its own ancestor). The new parent's ancestor chain must " +
 				"not exceed 100 levels — reparenting under a chain of 100+ ancestors is " +
-				"rejected.",
+				"rejected. Translations of a term can share a slug: pass `locale` to " +
+				"update a specific translation; otherwise the lowest matching locale is " +
+				"updated.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				termSlug: z.string().describe("Current slug of the term to update"),
@@ -2882,6 +2911,7 @@ export function createMcpServer(
 				label: z.string().optional().describe("New display name"),
 				parentId: z.string().nullable().optional().describe("New parent term ID; null to detach"),
 				description: z.string().optional().describe("New description"),
+				locale: z.string().optional().describe("Locale of the term to update (e.g. 'fr')"),
 			}),
 		},
 		async (args, extra) => {
@@ -2892,12 +2922,18 @@ export function createMcpServer(
 				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
 				return unwrapAndInvalidate(
 					extra,
-					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
-						slug: args.slug,
-						label: args.label,
-						parentId: args.parentId,
-						description: args.description,
-					}),
+					await handleTermUpdate(
+						ec.db,
+						args.taxonomy,
+						args.termSlug,
+						{
+							slug: args.slug,
+							label: args.label,
+							parentId: args.parentId,
+							description: args.description,
+						},
+						{ locale: args.locale },
+					),
 					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
@@ -2913,10 +2949,13 @@ export function createMcpServer(
 			description:
 				"Permanently delete a term from a taxonomy. Any content tagged with this " +
 				"term loses the association. Cannot delete a term that has children — " +
-				"delete children first.",
+				"delete children first. Translations of a term can share a slug: pass " +
+				"`locale` to delete a specific translation; otherwise the lowest matching " +
+				"locale is deleted.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name"),
 				termSlug: z.string().describe("Slug of the term to delete"),
+				locale: z.string().optional().describe("Locale of the term to delete (e.g. 'fr')"),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -2928,7 +2967,7 @@ export function createMcpServer(
 				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
 				return unwrapAndInvalidate(
 					extra,
-					await handleTermDelete(ec.db, args.taxonomy, args.termSlug),
+					await handleTermDelete(ec.db, args.taxonomy, args.termSlug, { locale: args.locale }),
 					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {

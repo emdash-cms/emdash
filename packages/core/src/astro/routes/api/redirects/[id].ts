@@ -17,7 +17,6 @@ import {
 } from "#api/handlers/redirects.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { updateRedirectBody } from "#api/schemas.js";
-import { invalidateRedirectCache } from "#redirects/cache.js";
 
 export const prerender = false;
 
@@ -62,7 +61,6 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleRedirectUpdate(db, id, body);
-		invalidateRedirectCache();
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to update redirect", "REDIRECT_UPDATE_ERROR");
@@ -85,7 +83,6 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 
 	try {
 		const result = await handleRedirectDelete(db, id);
-		invalidateRedirectCache();
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to delete redirect", "REDIRECT_DELETE_ERROR");

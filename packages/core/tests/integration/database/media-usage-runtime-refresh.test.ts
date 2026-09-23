@@ -861,6 +861,8 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		});
 		expect(fr.success).toBe(true);
 		if (!fr.success) throw new Error(fr.error.message);
+		expect(fr.data.item.data.shared_hero).toEqual(mediaRef("media-draft-sibling-old-en"));
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-fr")).toEqual([]);
 		const frSourceBefore = await usageRepo.findSource(
 			sourceKey("posts", fr.data.item.id, "columns"),
 		);
@@ -879,14 +881,22 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 				}),
 			}),
 		]);
-		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-fr")).toEqual([
-			expect.objectContaining({
-				source: expect.objectContaining({
-					contentId: fr.data.item.id,
-					sourceVariant: "columns",
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-en")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: en.data.item.id,
+						sourceVariant: "columns",
+					}),
 				}),
-			}),
-		]);
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: fr.data.item.id,
+						sourceVariant: "columns",
+					}),
+				}),
+			]),
+		);
 		expect(
 			(await usageRepo.findSource(sourceKey("posts", fr.data.item.id, "columns")))
 				?.currentGeneration,
@@ -916,6 +926,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		});
 		expect(fr.success).toBe(true);
 		if (!fr.success) throw new Error(fr.error.message);
+		expect(fr.data.item.data.shared_hero).toEqual(mediaRef("media-publish-sibling-old-en"));
 		await runtime.handleContentPublish("posts", en.data.item.id);
 		await runtime.handleContentPublish("posts", fr.data.item.id);
 		await runtime.handleContentUpdate("posts", en.data.item.id, {
@@ -925,7 +936,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		const published = await runtime.handleContentPublish("posts", en.data.item.id);
 
 		expect(published.success).toBe(true);
-		expect(await usageRepo.findCurrentUsageByMediaId("media-publish-sibling-old-fr")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-publish-sibling-old-en")).toEqual([]);
 		expect(await usageRepo.findCurrentUsageByMediaId("media-publish-sibling-new")).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
@@ -967,9 +978,11 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		});
 		expect(fr.success).toBe(true);
 		if (!fr.success) throw new Error(fr.error.message);
+		expect(fr.data.item.data.shared_hero).toEqual(mediaRef("media-clear-sibling-old-en"));
 		await runtime.handleContentPublish("posts", en.data.item.id);
 		await runtime.handleContentPublish("posts", fr.data.item.id);
-		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-fr")).toHaveLength(1);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-en")).toHaveLength(2);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-fr")).toEqual([]);
 		await runtime.handleContentUpdate("posts", en.data.item.id, {
 			data: { shared_hero: null },
 		});
@@ -977,7 +990,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		const published = await runtime.handleContentPublish("posts", en.data.item.id);
 
 		expect(published.success).toBe(true);
-		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-fr")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-en")).toEqual([]);
 	});
 
 	it("refreshes trashed i18n siblings when non-translatable fields sync to them", async () => {

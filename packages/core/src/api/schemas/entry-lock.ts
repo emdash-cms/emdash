@@ -45,4 +45,13 @@ export const entryLockConflictSchema = z.object({
 	}),
 });
 
+export const entryMutationConflictSchema = z.object({
+	success: z.literal(false),
+	error: z.object({
+		code: z.string().meta({ examples: ["CONFLICT", "ENTRY_LOCKED"] }),
+		message: z.string(),
+		details: entryLockHolderSchema.optional(),
+	}),
+});
+
 export type EntryLockAcquireBody = z.infer<typeof entryLockAcquireBody>;

@@ -110,8 +110,10 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/health",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
-	// Public site search — read-only. The query layer hardcodes status='published'
-	// so unauthenticated callers only see published content. Admin endpoints
+	"/_emdash/api/visual-editing/toolbar-labels",
+	// Public site search — read-only. Unauthenticated callers only see
+	// published content: /search forces status='published' without the
+	// content:read_drafts permission and /suggest hardcodes it. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.
 	"/_emdash/api/search",
 	"/_emdash/api/search/suggest",
@@ -195,6 +197,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (csrfError) return csrfError;
 		}
 		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+			return handlePublicRouteAuth(context, next);
+		}
+		// Search filters drafts by permission, so resolve the session user when
+		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
+		// are not resolved on public routes; token callers continue to receive
+		// published results only.
+		if (url.pathname === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}
 		return next();
@@ -777,6 +786,10 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
+
+	// Backups are a full-site content export and must precede the generic
+	// settings rules, which would otherwise let a settings:read token through.
+	["/_emdash/api/settings/backups", "*", "admin"],
 
 	// Settings — use granular scopes so tokens with settings:read or
 	// settings:manage are not rejected at the middleware level.

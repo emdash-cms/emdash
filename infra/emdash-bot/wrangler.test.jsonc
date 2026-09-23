@@ -37,6 +37,14 @@
 				"name": "Sandbox",
 			},
 			{
+				"class_name": "DashboardDO",
+				"name": "DASHBOARD",
+			},
+			{
+				"class_name": "GitHubRateLimitDO",
+				"name": "GITHUB_RATE_LIMIT",
+			},
+			{
 				"class_name": "OrchestratorDO",
 				"name": "Orchestrator",
 			},
@@ -53,6 +61,14 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": ["Sandbox", "OrchestratorDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["GitHubRateLimitDO"],
+		},
+		{
+			"tag": "v3",
+			"new_sqlite_classes": ["DashboardDO"],
 		},
 	],
 

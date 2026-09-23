@@ -60,6 +60,18 @@ const { entries: scienceFictionBooks } = await getEmDashCollection("books", {
 });
 ```
 
+## Delete a taxonomy
+
+Open the taxonomy in the admin, then choose **Delete taxonomy** from the actions menu in the page header and confirm. The action requires the `taxonomies:manage` permission, which editors and administrators hold.
+
+Deleting a taxonomy deletes its terms in every language and removes those terms from the content filed under them. The content entries themselves are kept.
+
+<Aside type="caution">
+	Deleting a taxonomy cannot be undone. Templates that query the deleted name keep rendering but show
+	nothing: `getTaxonomyTerms()` returns an empty array, and a `where` filter on the name returns no
+	entries. Update those queries and the archive pages that depend on them.
+</Aside>
+
 ## Query a term list
 
 Use `getTaxonomyTerms()` to render a taxonomy index, navigation list, or set of filters. Hierarchical taxonomies return a tree through each term's `children` array.

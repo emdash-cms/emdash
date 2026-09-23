@@ -99,7 +99,7 @@ You can instead provide `--account-id` with `--d1 <database-uuid-or-name>`. Name
 
 ## Configure D1 migrations in CI
 
-D1 does not provide the advisory migration lock used by PostgreSQL. Run at most one migration job for an account and database UUID.
+EmDash holds a migration lock in the D1 database while it applies migrations, from `emdash migrate` and from runtime migrations in `auto` mode alike. A second run that starts while the lock is held waits up to 10 seconds. If the first run finishes in that time, the second run succeeds without applying anything; otherwise, it fails without applying migrations. Run one migration job at a time for an account and database UUID so a second job waits in the CI queue instead of failing.
 
 Set the following secret and variables in the CI environment:
 
@@ -159,6 +159,58 @@ jobs:
 ```
 
 Update `EMDASH_TARGET_FINGERPRINT` only after reviewing a changed target locally. The fingerprint contains no credential, but changing it without checking the account and database removes the guard against migrating the wrong database.
+
+## Release a stuck migration lock
+
+A D1 migration run that stops before it releases the migration lock leaves the lock held. This happens when a CI job is cancelled during `emdash migrate`, when a Worker in `auto` mode stops during a runtime migration, or when a development server is stopped while it applies migrations. A run that fails with a migration error releases the lock. EmDash does not release a lock it does not hold, because the holder may still be applying migrations or may have stopped partway through one. Until the lock is released, the site cannot apply its pending migrations, and in `auto` mode EmDash fails to initialize.
+
+After the lock has been held for more than a minute, `emdash migrate` and runtime migrations stop waiting for it and report the following error:
+
+```text
+The migration lock has been held since 2026-09-01T12:00:00.000Z (lock 1788264000000). A migration may still be running; if none is, check the database and release the lock: https://docs.emdashcms.com/deployment/core-migrations/#release-a-stuck-migration-lock
+```
+
+Releasing the lock of a remote D1 database uses `emdash migrate`, so it needs a build that wrote `.emdash/migrations.json` and an API token with D1 Edit permission, as described in [Provision D1 before migrating it](#provision-d1-before-migrating-it).
+
+<Steps>
+
+1. Confirm that no migration job, deployment, or other `emdash migrate` command is running against the database.
+
+2. Inspect the lock and the migration sets with the same target options that the migration used.
+
+   ```bash
+   pnpm emdash migrate --status
+   ```
+
+   The report starts with the lock and its id. If the stopped run was applying a migration, that was the first pending migration, and it may be partly applied.
+
+   ```text
+   Migration lock: held since 2026-09-01T12:00:00.000Z (id 1788264000000)
+   ```
+
+   A Worker in `auto` mode can also hold the lock while it applies migrations. Run the command again a minute or more later, and wait instead of releasing the lock while the known applied migrations keep changing.
+
+3. Release the lock with that id. The command asks you to confirm the target, and it releases the lock only while the lock still has that id. In a non-interactive shell, add `--expected-target-fingerprint` with the target fingerprint that `--status` printed.
+
+   ```bash
+   pnpm emdash migrate --release-lock 1788264000000
+   ```
+
+4. Apply the pending migrations again.
+
+   ```bash
+   pnpm emdash migrate
+   ```
+
+   If the apply fails in the first pending migration, treat that migration as left partway through and follow the entry for an ambiguous D1 write in [Troubleshooting](#troubleshooting).
+
+</Steps>
+
+`emdash migrate` reaches remote D1 databases only. When the lock is held in the local D1 database of a development server, stop the server and clear the lock with Wrangler, replacing `DB` with the binding name and the number with the lock id from the error.
+
+```bash
+pnpm wrangler d1 execute DB --local --command "UPDATE _emdash_migrations_lock SET is_locked = 0 WHERE is_locked = 1788264000000"
+```
 
 ## Hyperdrive connects to the origin
 

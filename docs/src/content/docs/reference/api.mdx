@@ -630,6 +630,7 @@ interface SearchOptions {
 	locale?: string; // Default: all locales
 	limit?: number; // Default: 20
 	cursor?: string;
+	scope?: "all" | "title"; // Default: "all"
 }
 
 interface SearchResponse {
@@ -664,6 +665,8 @@ if (results.nextCursor) {
 	});
 }
 ```
+
+With `scope: "title"` the query matches only each collection's title field instead of the full indexed text -- useful for pickers and autocomplete where body-text matches would surprise. Collections whose title field is not indexed for search return no results under this scope.
 
 ## Error handling
 

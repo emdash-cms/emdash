@@ -15,7 +15,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import { HookPipeline, createHookPipeline } from "../../../src/plugins/hooks.js";
-import type { ResolvedPlugin, ResolvedHook, ContentHookEvent } from "../../../src/plugins/types.js";
+import type {
+	ContentHookEvent,
+	ContentPolicyEvent,
+	ResolvedHook,
+	ResolvedPlugin,
+} from "../../../src/plugins/types.js";
 
 /**
  * Create a minimal resolved plugin for testing
@@ -245,6 +250,101 @@ describe("HookPipeline", () => {
 			// Both transformations land, and handler2 received handler1's output.
 			expect(content).toEqual({ title: "x", step1: true, step2: true });
 			expect(handler2.mock.calls[0]?.[0]?.content).toEqual({ title: "x", step1: true });
+		});
+	});
+
+	describe("content publication policy", () => {
+		const event: ContentPolicyEvent = {
+			collection: "posts",
+			content: { id: "post-1", title: "Draft" },
+			origin: { source: "api" },
+			actor: { id: "user-1", role: 3, source: "api" },
+		};
+
+		it("requires the dedicated policy capability", () => {
+			const plugin = createTestPlugin({
+				id: "reader",
+				capabilities: ["content:read"],
+				hooks: {
+					"content:beforePublish": createTestHook("reader", vi.fn()),
+				},
+			});
+
+			const pipeline = new HookPipeline([plugin], { db });
+			expect(pipeline.hasHooks("content:beforePublish")).toBe(false);
+		});
+
+		it("stops in priority order when a plugin explicitly cancels", async () => {
+			const later = vi.fn(async () => undefined);
+			const pipeline = new HookPipeline(
+				[
+					createTestPlugin({
+						id: "guard",
+						capabilities: ["hooks.content-policy:register"],
+						hooks: {
+							"content:beforePublish": createTestHook(
+								"guard",
+								async () => ({ cancel: true as const, reason: "Approval is required." }),
+								{ priority: 10 },
+							),
+						},
+					}),
+					createTestPlugin({
+						id: "later",
+						capabilities: ["hooks.content-policy:register"],
+						hooks: {
+							"content:beforePublish": createTestHook("later", later, { priority: 20 }),
+						},
+					}),
+				],
+				{ db },
+			);
+
+			await expect(
+				pipeline.runContentPolicy("content:beforePublish", event),
+			).resolves.toMatchObject({
+				cancellation: { pluginId: "guard", reason: "Approval is required." },
+			});
+			expect(later).not.toHaveBeenCalled();
+		});
+
+		it("rejects malformed decisions and honors continue error policy", async () => {
+			const allowed = vi.fn(async () => undefined);
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+			const pipeline = new HookPipeline(
+				[
+					createTestPlugin({
+						id: "malformed",
+						capabilities: ["hooks.content-policy:register"],
+						hooks: {
+							"content:beforeSchedule": createTestHook(
+								"malformed",
+								async () => ({ cancel: true as const, reason: "\u0000" }),
+								{ errorPolicy: "continue" },
+							),
+						},
+					}),
+					createTestPlugin({
+						id: "allowed",
+						capabilities: ["hooks.content-policy:register"],
+						hooks: {
+							"content:beforeSchedule": createTestHook("allowed", allowed),
+						},
+					}),
+				],
+				{ db },
+			);
+
+			const result = await pipeline.runContentPolicy("content:beforeSchedule", {
+				...event,
+				scheduledAt: "2030-01-01T00:00:00.000Z",
+			});
+			expect(result.results).toMatchObject([{ success: false }, { success: true }]);
+			expect(allowed).toHaveBeenCalledOnce();
+			expect(consoleError).toHaveBeenCalledWith(
+				'[content-policy] Plugin "malformed" failed content:beforeSchedule; continuing by policy',
+			);
+			consoleError.mockRestore();
 		});
 	});
 

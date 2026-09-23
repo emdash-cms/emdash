@@ -42,6 +42,7 @@ export interface PackageRow {
 	security: string; // JSON array
 	keywords: string | null; // JSON array
 	sections: string | null; // JSON map
+	emdash_extension: string | null; // JSON of validated profileExtension contents
 	last_updated: string | null;
 	latest_version: string | null;
 	signature_metadata: string | null;
@@ -82,6 +83,7 @@ const PACKAGE_VIEW_COLUMN_NAMES = [
 	"security",
 	"keywords",
 	"sections",
+	"emdash_extension",
 	"last_updated",
 	"latest_version",
 	"signature_metadata",
@@ -215,6 +217,10 @@ function synthesizePackageProfile(row: PackageRow, uri: string): Record<string, 
 	if (row.sections !== null) {
 		const sections = parseJsonObject(row.sections);
 		if (sections) profile["sections"] = sections;
+	}
+	if (row.emdash_extension !== null) {
+		const extension = parseJsonObject(row.emdash_extension);
+		if (extension) profile["extensions"] = { [NSID.packageProfileExtension]: extension };
 	}
 	if (row.last_updated !== null) profile["lastUpdated"] = row.last_updated;
 	// `slug` in the record is optional but, when present, must equal the

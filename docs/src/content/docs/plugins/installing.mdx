@@ -80,7 +80,13 @@ The consent dialog shows every permission declared by the plugin. Common permiss
 | ----------------- | ----------------------------------------------- |
 | `content:read`    | Read site content                               |
 | `content:write`   | Create, update, and delete content              |
-| `media:read`      | Read media records and files                    |
+| `content:revisions:read` | Read retained content revision history      |
+| `schema:read`     | Read collection and field definitions           |
+| `redirects:read`  | Read redirect rules                              |
+| `redirects:write` | Change where visitors are sent                   |
+| `media:read`      | Read safe metadata for ready media              |
+| `media:bytes:read` | Read the file contents and content hash of ready media |
+| `media:metadata:write` | Change media alt text, captions, and focal points |
 | `media:write`     | Upload, replace, and delete media               |
 | `network:request` | Send requests to the plugin's allowed host list |
 
@@ -89,7 +95,7 @@ The dialog also identifies plugin routes exposed as Model Context Protocol (MCP)
 <Aside type="caution">
 	Install code only from publishers you trust. Runtime isolation and capability checks limit a
 	sandboxed plugin, but an approved permission still authorizes the described operation. For
-	example, `content:write` allows the plugin to change content.
+	example, `redirects:write` allows the plugin to change where visitors are sent.
 </Aside>
 
 ## Update a plugin

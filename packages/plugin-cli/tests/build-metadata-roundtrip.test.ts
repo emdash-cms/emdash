@@ -30,10 +30,33 @@ describe("plugin build metadata round trip", () => {
 				license: "MIT",
 				author: { name: "Example" },
 				security: { email: "security@example.com" },
-				capabilities: ["content:read"],
+				capabilities: [
+					"content:read",
+					"redirects:write",
+					"admin.editor-draft:read",
+					"admin.editor-draft:patch",
+				],
 				admin: {
+					editorPanels: [
+						{
+							id: "health",
+							title: "Health",
+							route: "entry-health",
+							collections: ["events"],
+							draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+						},
+					],
+					editorActions: [
+						{
+							id: "repair",
+							label: "Repair",
+							route: "entry-repair",
+							placement: "overflow",
+						},
+					],
 					settingsSchema: {
 						enabled: { type: "boolean", label: "Enabled", default: true },
+						apiKey: { type: "secret", label: "API key" },
 					},
 					fieldWidgets: [
 						{
@@ -51,8 +74,18 @@ describe("plugin build metadata round trip", () => {
 			`export default {
 				hooks: { "content:afterSave": async () => undefined },
 				routes: {
-					feed: { public: true, cacheControl: "public, max-age=60", handler: async () => [] },
-					manage: { permission: "content:edit_any", handler: async () => ({ ok: true }) }
+					feed: {
+						methods: ["POST"],
+						request: { body: "form-data", maxBytes: 4096, headers: ["content-type", "x-signature"] },
+						response: "raw",
+						public: true,
+						cacheControl: "public, max-age=60",
+						handler: async () => []
+					},
+					legacy: async () => ({ ok: true }),
+					manage: { permission: "content:edit_any", handler: async () => ({ ok: true }) },
+					"entry-health": { permission: "content:edit_own", handler: async () => ({ blocks: [] }) },
+					"entry-repair": { permission: "content:edit_own", handler: async () => ({ refresh: true }) }
 				},
 				mcp: { tools: { manageCalendar: {
 					description: "Manage the calendar.", route: "manage",
@@ -72,20 +105,51 @@ describe("plugin build metadata round trip", () => {
 
 		expect(persistedManifest.routes).toContainEqual({
 			name: "feed",
+			methods: ["POST"],
+			request: {
+				body: "form-data",
+				maxBytes: 4096,
+				headers: ["content-type", "x-signature"],
+			},
+			response: "raw",
 			public: true,
 			cacheControl: "public, max-age=60",
 		});
+		expect(persistedManifest.routes).toContain("legacy");
 		expect(persistedManifest.mcp.tools[0]).toMatchObject({
 			name: "manageCalendar",
 			permission: "content:edit_any",
 		});
 		expect(persistedManifest.admin.fieldWidgets[0].name).toBe("event-picker");
+		expect(persistedManifest.admin.settingsSchema.apiKey).toEqual({
+			type: "secret",
+			label: "API key",
+		});
+		expect(persistedManifest.capabilities).toEqual([
+			"content:read",
+			"admin.editor-draft:read",
+			"admin.editor-draft:patch",
+			"redirects:read",
+			"redirects:write",
+		]);
+		expect(persistedManifest.admin.editorPanels[0]).toMatchObject({
+			id: "health",
+			route: "entry-health",
+			draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+		});
+		expect(persistedManifest.admin.editorActions[0]).toMatchObject({
+			id: "repair",
+			route: "entry-repair",
+		});
 		expect(descriptor).toMatchObject({
+			capabilities: persistedManifest.capabilities,
 			hooks: ["content:afterSave"],
 			routes: persistedManifest.routes,
 			mcp: persistedManifest.mcp,
 			settingsSchema: persistedManifest.admin.settingsSchema,
 			fieldWidgets: persistedManifest.admin.fieldWidgets,
+			editorPanels: persistedManifest.admin.editorPanels,
+			editorActions: persistedManifest.admin.editorActions,
 		});
 	});
 });

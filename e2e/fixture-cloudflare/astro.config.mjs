@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 /**
  * Minimal Astro config for Playwright e2e tests against the Cloudflare runtime.
  *
@@ -7,12 +9,17 @@
  */
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
-import { d1, r2 } from "@emdash-cms/cloudflare";
+import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import { colorPlugin } from "@emdash-cms/plugin-color";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
+const registryUrl = process.env.EMDASH_REGISTRY_URL || undefined;
+const registryFixturePath = process.env.EMDASH_REGISTRY_FIXTURE;
+const registryFixture = registryFixturePath
+	? JSON.parse(readFileSync(registryFixturePath, "utf8"))
+	: null;
 
 // Mirrors a server dependency introduced by Astro after the initial dependency scan.
 const lateManifestImport = {
@@ -36,7 +43,8 @@ export default defineConfig({
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [colorPlugin()],
 			marketplace: marketplaceUrl,
-			sandboxRunner: marketplaceUrl ? "./noop-sandbox.mjs" : undefined,
+			registry: registryUrl,
+			sandboxRunner: sandbox(),
 		}),
 	],
 	i18n: {
@@ -46,6 +54,9 @@ export default defineConfig({
 	},
 	devToolbar: { enabled: false },
 	vite: {
+		define: {
+			__EMDASH_REGISTRY_FIXTURE__: JSON.stringify(registryFixture),
+		},
 		plugins: [lateManifestImport],
 		server: {
 			fs: { strict: false },

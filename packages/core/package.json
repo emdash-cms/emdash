@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.38.0",
+  "version": "0.39.1",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -23,11 +23,16 @@
       "default": "./dist/astro/index.mjs"
     },
     "./plugin": {
-      "types": "./dist/plugin-types.d.mts"
+      "types": "./dist/plugin-types.d.mts",
+      "default": "./dist/plugin-types.mjs"
     },
     "./plugin-test-runtime": {
       "types": "./dist/plugin-test-runtime.d.mts",
       "default": "./dist/plugin-test-runtime.mjs"
+    },
+    "./testing/registry": {
+      "types": "./dist/registry/testing.d.mts",
+      "default": "./dist/registry/testing.mjs"
     },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
@@ -119,6 +124,10 @@
       "types": "./dist/database/pg-migration-lock.d.mts",
       "default": "./dist/database/pg-migration-lock.mjs"
     },
+    "./database/migration-lock": {
+      "types": "./dist/database/migration-lock.d.mts",
+      "default": "./dist/database/migration-lock.mjs"
+    },
     "./storage/local": {
       "types": "./dist/storage/local.d.mts",
       "default": "./dist/storage/local.mjs"
@@ -189,6 +198,18 @@
     "./plugins/adapt-sandbox-entry": {
       "types": "./dist/plugins/adapt-sandbox-entry.d.mts",
       "default": "./dist/plugins/adapt-sandbox-entry.mjs"
+    },
+    "./plugins/host": {
+      "types": "./dist/plugins/host.d.mts",
+      "default": "./dist/plugins/host.mjs"
+    },
+    "./plugins/secret-redactor": {
+      "types": "./dist/plugins/secret-redactor.d.mts",
+      "default": "./dist/plugins/secret-redactor.mjs"
+    },
+    "./plugins/http-wire": {
+      "types": "./dist/plugins/http-wire.d.mts",
+      "default": "./dist/plugins/http-wire.mjs"
     }
   },
   "imports": {
@@ -236,6 +257,7 @@
     "@atcute/multibase": "catalog:",
     "@emdash-cms/admin": "workspace:*",
     "@emdash-cms/auth": "workspace:*",
+    "@emdash-cms/blocks": "workspace:*",
     "@emdash-cms/gutenberg-to-portable-text": "workspace:*",
     "@emdash-cms/plugin-types": "workspace:*",
     "@emdash-cms/registry-client": "workspace:*",
@@ -308,7 +330,6 @@
     "@astrojs/react": "catalog:",
     "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
-    "@emdash-cms/blocks": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "better-sqlite3": "catalog:",

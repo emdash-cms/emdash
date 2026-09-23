@@ -8,6 +8,7 @@ import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-run
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
+import { PLUGIN_CAPABILITY_IMPLICATIONS } from "../../../src/plugins/types.js";
 import type { Storage } from "../../../src/storage/types.js";
 
 class MemoryStorage implements Storage {
@@ -64,6 +65,7 @@ class MemoryStorage implements Storage {
 }
 
 let currentInvokeHook: SandboxedPluginInstance["invokeHook"] = async () => undefined;
+let loadedSandboxCapabilities: string[] = [];
 
 function createDeps(
 	invokeHook: SandboxedPluginInstance["invokeHook"],
@@ -71,16 +73,20 @@ function createDeps(
 	pluginId = "sandbox-host",
 ): RuntimeDependencies {
 	currentInvokeHook = invokeHook;
+	loadedSandboxCapabilities = [];
 	const runner = {
 		isAvailable: () => true,
 		isHealthy: () => true,
-		load: vi.fn(async (manifest: { id: string; version: string }) => ({
-			id: `${manifest.id}:${manifest.version}`,
-			invokeHook: (...args: Parameters<SandboxedPluginInstance["invokeHook"]>) =>
-				currentInvokeHook(...args),
-			invokeRoute: vi.fn(),
-			terminate: vi.fn(),
-		})),
+		load: vi.fn(async (manifest: { id: string; version: string; capabilities: string[] }) => {
+			loadedSandboxCapabilities = [...manifest.capabilities];
+			return {
+				id: `${manifest.id}:${manifest.version}`,
+				invokeHook: (...args: Parameters<SandboxedPluginInstance["invokeHook"]>) =>
+					currentInvokeHook(...args),
+				invokeRoute: vi.fn(),
+				terminate: vi.fn(),
+			};
+		}),
 		setEmailSend: vi.fn(),
 		terminateAll: vi.fn(),
 	};
@@ -189,6 +195,18 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 			pluginId: "sandbox-host",
 		});
 		expect(runtime.hooks.getHookCount("page:fragments")).toBe(0);
+	});
+
+	it("applies every canonical capability implication before loading the sandbox", async () => {
+		const deps = createDeps(vi.fn(), {}, "sandbox-implications");
+		deps.sandboxedPluginEntries[0]!.capabilities = PLUGIN_CAPABILITY_IMPLICATIONS.map(
+			([granted]) => granted,
+		);
+		runtime = await EmDashRuntime.create(deps);
+
+		expect(loadedSandboxCapabilities).toEqual(
+			expect.arrayContaining(PLUGIN_CAPABILITY_IMPLICATIONS.flat()),
+		);
 	});
 
 	it("loads a cold registry plugin without replaying install or activating twice", async () => {

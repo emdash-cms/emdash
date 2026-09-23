@@ -365,6 +365,56 @@ describe("SchemaRegistry", () => {
 	});
 
 	describe("Field Operations", () => {
+		it("preserves unsupported stored field types instead of treating them as strings", async () => {
+			await registry.createField("posts", {
+				slug: "future",
+				label: "Future",
+				type: "string",
+			});
+
+			await db
+				.updateTable("_emdash_fields")
+				.set({ type: "future_blocks" })
+				.where("slug", "=", "future")
+				.execute();
+
+			const field = await registry.getField("posts", "future");
+			expect(field?.unsupportedType).toEqual({
+				type: "future_blocks",
+				path: "type",
+			});
+			await expect(
+				registry.updateField("posts", "future", { label: "Changed" }),
+			).rejects.toMatchObject({ code: "UNSUPPORTED_FIELD_TYPE" });
+		});
+
+		it("preserves unsupported stored repeater sub-field types", async () => {
+			await registry.createField("posts", {
+				slug: "sections",
+				label: "Sections",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "title", label: "Title", type: "string" }],
+				},
+			});
+
+			await db
+				.updateTable("_emdash_fields")
+				.set({
+					validation: JSON.stringify({
+						subFields: [{ slug: "title", label: "Title", type: "future_nested" }],
+					}),
+				})
+				.where("slug", "=", "sections")
+				.execute();
+
+			const field = await registry.getField("posts", "sections");
+			expect(field?.unsupportedType).toEqual({
+				type: "future_nested",
+				path: "validation.subFields[0].type",
+			});
+		});
+
 		beforeEach(async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 		});

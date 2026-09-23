@@ -183,7 +183,7 @@ export class FTSManager {
 	 * modes (migration 039) do not apply to self-contained tables.
 	 *
 	 * `INSERT OR REPLACE` keeps the insert path idempotent: re-running a
-	 * populate (D1 has no migration lock, so two isolates can race) converges
+	 * populate (search repair runs per isolate, so two isolates can race) converges
 	 * on one index row per content row instead of failing on the rowid
 	 * constraint.
 	 *
@@ -313,8 +313,8 @@ export class FTSManager {
 	/**
 	 * Populate the FTS table from existing content.
 	 *
-	 * `INSERT OR REPLACE` so a concurrent double-populate (D1 has no
-	 * migration lock) converges instead of failing on the rowid constraint.
+	 * `INSERT OR REPLACE` so a concurrent double-populate (search repair runs
+	 * per isolate) converges instead of failing on the rowid constraint.
 	 */
 	async populateFromContent(collectionSlug: string, searchableFields: string[]): Promise<void> {
 		if (!isSqlite(this.db)) return;

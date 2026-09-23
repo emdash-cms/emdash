@@ -45,6 +45,7 @@ export default defineConfig({
 			miniflare: {
 				bindings: {
 					GITHUB_WEBHOOK_SECRET: "test-webhook-secret",
+					EMDASH_BOT_OPERATOR_SECRET: "test-operator-secret",
 					// Empty key so readAppCreds returns null in tests and the
 					// orchestrator's side-effect path no-ops without hitting
 					// api.github.com. Tests that need a real key inject it via

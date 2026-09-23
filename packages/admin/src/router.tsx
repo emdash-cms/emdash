@@ -121,6 +121,7 @@ import {
 	ApiResponseError,
 	isTerminalRequestError,
 	useCurrentUser,
+	type AdminManifest,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -139,6 +140,7 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { runBulkAction } from "./lib/bulk";
+import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -732,7 +734,11 @@ function ContentNewPage() {
 		onError: (error) => {
 			toastManager.add({
 				title: t`Failed to save`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(
+						error,
+						manifest?.collections[collection]?.fields ?? EMPTY_FIELDS,
+					) ?? (error instanceof Error ? error.message : t`An error occurred`),
 				variant: "error",
 			});
 		},
@@ -840,6 +846,8 @@ const contentEditRoute = createRoute({
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
+const EMPTY_FIELDS: AdminManifest["collections"][string]["fields"] = {};
+
 function ContentEditPage() {
 	const { t } = useLingui();
 	const { collection, id } = useParams({
@@ -859,6 +867,7 @@ function ContentEditPage() {
 
 	const i18n = manifest?.i18n;
 	const activeLocale = i18n ? (searchParams.locale ?? i18n.defaultLocale) : undefined;
+	const collectionFields = manifest?.collections[collection]?.fields ?? EMPTY_FIELDS;
 
 	const { data: rawItem, isLoading } = useQuery({
 		queryKey: ["content", collection, id, { locale: activeLocale }],
@@ -882,14 +891,31 @@ function ContentEditPage() {
 	}
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
-	const serializeEditorSave = React.useCallback(<T,>(operation: () => Promise<T>) => {
-		const result = editorSaveQueueRef.current.then(operation);
-		editorSaveQueueRef.current = result.then(
-			() => undefined,
-			() => undefined,
-		);
-		return result;
-	}, []);
+	// Written together with the conflict state rather than on render, so a save
+	// that runs before the next render still sees the conflict.
+	const conflictedEntryIdRef = React.useRef("");
+	const serializeEditorSave = React.useCallback(
+		<T,>(operation: () => Promise<T>, { explicitSave = false } = {}) => {
+			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
+			const result = editorSaveQueueRef.current.then(() => {
+				// The token the recovery fetched is only for a save the writer starts
+				// while the conflict shows; anything else would write over a version
+				// they have not seen.
+				if (!savesOverConflict && conflictedEntryIdRef.current === id) {
+					throw new Error(
+						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
+					);
+				}
+				return operation();
+			});
+			editorSaveQueueRef.current = result.then(
+				() => undefined,
+				() => undefined,
+			);
+			return result;
+		},
+		[id, t],
+	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
 	React.useEffect(() => {
@@ -996,7 +1022,12 @@ function ContentEditPage() {
 		autosaveRejectionSequenceRef.current += 1;
 		setAutosaveRejection({ entryId, token: autosaveRejectionSequenceRef.current });
 	}, []);
-	const [conflictedEntryId, setConflictedEntryId] = React.useState("");
+	const [conflictedEntryId, setConflictedEntryIdState] = React.useState("");
+	const setConflictedEntryId = React.useCallback((next: React.SetStateAction<string>) => {
+		conflictedEntryIdRef.current =
+			typeof next === "function" ? next(conflictedEntryIdRef.current) : next;
+		setConflictedEntryIdState(conflictedEntryIdRef.current);
+	}, []);
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
 		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
@@ -1069,11 +1100,13 @@ function ContentEditPage() {
 			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to save`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(error, collectionFields) ??
+					(error instanceof Error ? error.message : t`An error occurred`),
 				type: "error",
 			});
 		},
-		[entryLock.reportWriteError, t, toastManager],
+		[collectionFields, entryLock.reportWriteError, t, toastManager],
 	);
 
 	const updateMutation = useMutation({
@@ -1093,7 +1126,12 @@ function ContentEditPage() {
 			}
 		},
 		onSuccess: (_, variables) => {
-			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+			// Only a save the writer started resolves the conflict. An author or SEO
+			// write carries the recovered token too, and clearing the notice for one
+			// would hand the editor's stale copy a token the server accepts.
+			if (variables.source === "editor") {
+				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+			}
 			handleContentUpdateSuccess(variables.targetId);
 		},
 		onError: async (error, variables) => {
@@ -1156,7 +1194,9 @@ function ContentEditPage() {
 			if (entryLock.reportWriteError(err, variables.targetId)) return;
 			toastManager.add({
 				title: t`Autosave failed`,
-				description: err instanceof Error ? err.message : t`An error occurred`,
+				description:
+					describeContentValidationError(err, collectionFields) ??
+					(err instanceof Error ? err.message : t`An error occurred`),
 				type: "error",
 			});
 		},
@@ -1325,7 +1365,9 @@ function ContentEditPage() {
 		onError: (error) => {
 			toastManager.add({
 				title: t`Failed to create translation`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(error, collectionFields) ??
+					(error instanceof Error ? error.message : t`An error occurred`),
 				type: "error",
 			});
 		},
@@ -1360,13 +1402,15 @@ function ContentEditPage() {
 	// are referentially stable.
 	const handleSave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
-			void serializeEditorSave(() =>
-				updateMutation.mutateAsync({
-					targetId: id,
-					targetLocale: rawItem?.locale ?? activeLocale,
-					source: "editor",
-					changes: payload,
-				}),
+			void serializeEditorSave(
+				() =>
+					updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					}),
+				{ explicitSave: true },
 			).catch(() => undefined);
 		},
 		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
@@ -1592,6 +1636,13 @@ function ContentEditPage() {
 		},
 		[id],
 	);
+	const handlePluginEntryRefresh = React.useCallback(async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
+			queryClient.invalidateQueries({ queryKey: ["translations", collection, id] }),
+		]);
+	}, [collection, id, queryClient]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -1656,6 +1707,7 @@ function ContentEditPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
+			onEntryRefresh={handlePluginEntryRefresh}
 			readOnly={entryLock.readOnly}
 			notice={
 				<EntryLockNotice
@@ -2273,6 +2325,8 @@ function RegistryBrowsePage() {
 			const { fetchPlugins } = await import("./lib/api/plugins.js");
 			return fetchPlugins();
 		},
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
 	});
 
 	if (manifest?.registry) {
@@ -2397,7 +2451,8 @@ const taxonomyRoute = createRoute({
 
 function TaxonomyPage() {
 	const { taxonomy } = useParams({ from: "/_admin/taxonomies/$taxonomy" });
-	return <TaxonomyManager taxonomyName={taxonomy} />;
+	const navigate = useNavigate();
+	return <TaxonomyManager taxonomyName={taxonomy} onDeleted={() => void navigate({ to: "/" })} />;
 }
 
 // Widgets route
