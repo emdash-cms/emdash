@@ -39,6 +39,7 @@ export interface SetupPackageProfileOptions {
 	slug: string;
 	profile: ProfileInput;
 	repository: string;
+	requireProvenance?: boolean;
 	confirmation?: "always" | "escalation-only";
 	approvers?: readonly string[];
 	apply?: boolean;
@@ -51,6 +52,11 @@ export interface SetupPackageProfileResult {
 	candidate: Record<string, unknown>;
 	written: boolean;
 	cid?: string;
+}
+
+export interface CurrentPackageProfilePolicy {
+	requireProvenance: boolean;
+	confirmation: "always" | "escalation-only";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -86,8 +92,15 @@ export function canonicalGitHubRepository(value: string): string | null {
 	}
 }
 
-function profileExtension(options: SetupPackageProfileOptions, repository: string) {
-	const approvers = [...(options.approvers ?? [options.publisher.did])].toSorted();
+function profileExtension(
+	options: SetupPackageProfileOptions,
+	repository: string,
+	existing?: PackageProfileExtension.Main,
+) {
+	const existingPolicy = existing?.releasePolicy;
+	const approvers = [
+		...(options.approvers ?? existingPolicy?.approvers ?? [options.publisher.did]),
+	].toSorted();
 	if (
 		approvers.length === 0 ||
 		approvers.length > 32 ||
@@ -104,11 +117,27 @@ function profileExtension(options: SetupPackageProfileOptions, repository: strin
 		repository,
 		releasePolicy: {
 			$type: `${NSID.packageProfileExtension}#releasePolicy`,
-			requireProvenance: true,
-			confirmation: options.confirmation ?? "escalation-only",
+			requireProvenance:
+				options.requireProvenance ??
+				(existing === undefined ? true : (existingPolicy?.requireProvenance ?? false)),
+			confirmation: options.confirmation ?? existingPolicy?.confirmation ?? "escalation-only",
 			approvers,
 		},
 	};
+}
+
+function sameExtensionPolicy(
+	current: PackageProfileExtension.Main,
+	desired: ReturnType<typeof profileExtension>,
+): boolean {
+	const currentPolicy = current.releasePolicy;
+	return (
+		current.repository === desired.repository &&
+		(currentPolicy?.requireProvenance ?? false) === desired.releasePolicy.requireProvenance &&
+		(currentPolicy?.confirmation ?? "escalation-only") === desired.releasePolicy.confirmation &&
+		JSON.stringify([...(currentPolicy?.approvers ?? [])].toSorted()) ===
+			JSON.stringify(desired.releasePolicy.approvers)
+	);
 }
 
 function createProfile(
@@ -170,6 +199,61 @@ function validateCandidate(
 	return profile.value;
 }
 
+export async function readPackageProfilePolicy(
+	publisher: PackageProfilePublisher,
+	slug: string,
+): Promise<CurrentPackageProfilePolicy | null> {
+	let existing: { value: unknown };
+	try {
+		existing = await publisher.getRecord({ collection: NSID.packageProfile, rkey: slug });
+	} catch (error) {
+		if (error instanceof ClientResponseError && error.error === "RecordNotFound") return null;
+		throw error;
+	}
+	const profile = safeParse(PackageProfile.mainSchema, existing.value);
+	if (!profile.ok) {
+		throw new PackageProfileSetupError(
+			"PROFILE_INVALID",
+			"The existing package profile is invalid and was not changed.",
+		);
+	}
+	const rawExtensions = profile.value.extensions;
+	if (rawExtensions !== undefined && !isRecord(rawExtensions)) {
+		throw new PackageProfileSetupError(
+			"PROFILE_EXTENSION_INVALID",
+			"The existing package profile has invalid extension data and was not changed.",
+		);
+	}
+	const rawExtension = rawExtensions?.[NSID.packageProfileExtension];
+	if (rawExtension === undefined) {
+		return null;
+	}
+	const extension = safeParse(PackageProfileExtension.mainSchema, rawExtension);
+	if (!extension.ok) {
+		throw new PackageProfileSetupError(
+			"PROFILE_EXTENSION_INVALID",
+			"The existing delegated release settings are invalid and were not changed.",
+		);
+	}
+	const confirmation = extension.value.releasePolicy?.confirmation ?? "escalation-only";
+	const normalizedConfirmation =
+		confirmation === "always"
+			? "always"
+			: confirmation === "escalation-only"
+				? "escalation-only"
+				: null;
+	if (normalizedConfirmation === null) {
+		throw new PackageProfileSetupError(
+			"PROFILE_EXTENSION_INVALID",
+			"The existing delegated release settings are invalid and were not changed.",
+		);
+	}
+	return {
+		requireProvenance: extension.value.releasePolicy?.requireProvenance ?? false,
+		confirmation: normalizedConfirmation,
+	};
+}
+
 export async function setupPackageProfile(
 	options: SetupPackageProfileOptions,
 ): Promise<SetupPackageProfileResult> {
@@ -184,7 +268,6 @@ export async function setupPackageProfile(
 		);
 	}
 	const profileUri = `at://${options.publisher.did}/${NSID.packageProfile}/${options.slug}`;
-	const extension = profileExtension(options, repository);
 	let existing: { cid: string; value: unknown } | null;
 	try {
 		existing = await options.publisher.getRecord({
@@ -199,6 +282,7 @@ export async function setupPackageProfile(
 	let status: SetupPackageProfileResult["status"];
 	let candidate: Record<string, unknown>;
 	if (existing === null) {
+		const extension = profileExtension(options, repository);
 		status = "created";
 		candidate = createProfile(options, profileUri, extension);
 	} else {
@@ -233,7 +317,8 @@ export async function setupPackageProfile(
 					`The package profile is linked to ${parsedExtension.value.repository}, not ${repository}.`,
 				);
 			}
-			if (parsedExtension.value.repository === repository) {
+			const extension = profileExtension(options, repository, parsedExtension.value);
+			if (sameExtensionPolicy(parsedExtension.value, extension)) {
 				return {
 					status: "ready",
 					profileUri,
@@ -248,13 +333,12 @@ export async function setupPackageProfile(
 				extensions: {
 					...extensions,
 					[NSID.packageProfileExtension]: {
-						...parsedExtension.value,
-						$type: NSID.packageProfileExtension,
-						repository,
+						...extension,
 					},
 				},
 			};
 		} else {
+			const extension = profileExtension(options, repository);
 			status = "updated";
 			candidate = {
 				...parsed.value,
@@ -263,7 +347,11 @@ export async function setupPackageProfile(
 			};
 		}
 	}
-	const validatedCandidate = validateCandidate(candidate, extension);
+	const candidateExtensions = candidate["extensions"];
+	const candidateExtension = isRecord(candidateExtensions)
+		? candidateExtensions[NSID.packageProfileExtension]
+		: undefined;
+	const validatedCandidate = validateCandidate(candidate, candidateExtension);
 	if (!options.apply) return { status, profileUri, candidate, written: false };
 
 	let put: { uri: string; cid: string };

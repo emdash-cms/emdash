@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-loader",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Astro live content loader for the EmDash plugin registry.",
 	"type": "module",
 	"main": "dist/index.js",

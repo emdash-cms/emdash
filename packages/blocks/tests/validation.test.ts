@@ -6,6 +6,7 @@ import {
 	validateBlocks,
 	validateContentEditorActionResponse,
 	validateContentEditorPanelInteraction,
+	validateEditorDraftPatchEffect,
 } from "../src/validation.js";
 
 describe("isSafePluginPagePath", () => {
@@ -1136,6 +1137,17 @@ describe("validateContentEditorActionResponse", () => {
 	it("accepts one bounded host effect and an optional toast", () => {
 		expect(
 			validateContentEditorActionResponse(
+				{
+					patch: {
+						type: "editor-draft-patch",
+						operations: [{ op: "set", field: "title", value: "Translated" }],
+					},
+				},
+				policy,
+			),
+		).toEqual({ valid: true, errors: [] });
+		expect(
+			validateContentEditorActionResponse(
 				{ refresh: true, toast: { message: "Entry updated", type: "success" } },
 				policy,
 			),
@@ -1165,6 +1177,56 @@ describe("validateContentEditorActionResponse", () => {
 		);
 		expect(result.valid).toBe(false);
 		expect(result.errors[0]?.message).toContain("maximum size");
+	});
+});
+
+describe("validateEditorDraftPatchEffect", () => {
+	it("accepts unique whole-field set and clear operations", () => {
+		expect(
+			validateEditorDraftPatchEffect({
+				type: "editor-draft-patch",
+				operations: [
+					{ op: "set", field: "title", value: "Translated" },
+					{ op: "clear", field: "excerpt" },
+				],
+			}),
+		).toEqual({ valid: true, errors: [] });
+	});
+
+	it.each([
+		["unknown operation", [{ op: "merge", field: "title", value: "x" }]],
+		[
+			"duplicate field",
+			[
+				{ op: "clear", field: "title" },
+				{ op: "clear", field: "title" },
+			],
+		],
+		["system field", [{ op: "clear", field: "_rev" }]],
+		["extra clear value", [{ op: "clear", field: "title", value: "x" }]],
+	])("rejects %s", (_label, operations) => {
+		expect(validateEditorDraftPatchEffect({ type: "editor-draft-patch", operations }).valid).toBe(
+			false,
+		);
+	});
+
+	it("rejects operation-count and decoded-byte limits", () => {
+		expect(
+			validateEditorDraftPatchEffect({
+				type: "editor-draft-patch",
+				operations: Array.from({ length: 33 }, (_, index) => ({
+					op: "set",
+					field: `field_${index}`,
+					value: index,
+				})),
+			}).valid,
+		).toBe(false);
+		expect(
+			validateEditorDraftPatchEffect({
+				type: "editor-draft-patch",
+				operations: [{ op: "set", field: "body", value: "x".repeat(192 * 1024) }],
+			}).valid,
+		).toBe(false);
 	});
 });
 

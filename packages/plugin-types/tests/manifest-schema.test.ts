@@ -113,7 +113,13 @@ describe("pluginManifestSchema", () => {
 					},
 				],
 				editorPanels: [
-					{ id: "health", title: "Health", route: "entry-panel", collections: ["posts"] },
+					{
+						id: "health",
+						title: "Health",
+						route: "entry-panel",
+						collections: ["posts"],
+						draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+					},
 				],
 				editorActions: [
 					{
@@ -153,6 +159,7 @@ describe("pluginManifestSchema", () => {
 		});
 		expect(result.admin.fieldWidgets?.[0]?.name).toBe("event-picker");
 		expect(result.admin.editorPanels?.[0]?.route).toBe("entry-panel");
+		expect(result.admin.editorPanels?.[0]?.draft?.patch).toEqual({ fields: ["title"] });
 		expect(result.admin.editorActions?.[0]?.confirm?.confirm).toBe("Repair");
 	});
 

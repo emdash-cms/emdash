@@ -20,6 +20,8 @@ import { BlockMenu } from "../../src/components/editor/BlockMenu";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
 
+import "../../src/styles.css";
+
 // ---------------------------------------------------------------------------
 // Mocks — same as other editor tests
 // ---------------------------------------------------------------------------
@@ -292,6 +294,48 @@ describe("BlockMenu", () => {
 			expect(findButtonByText(updatedMenu, "Bullet List")).toBeTruthy();
 			expect(findButtonByText(updatedMenu, "Numbered List")).toBeTruthy();
 		});
+	});
+
+	it("uses the light interaction surface for highlighted block transforms", async () => {
+		const root = document.documentElement;
+		const previousMode = root.getAttribute("data-mode");
+		const previousTheme = root.getAttribute("data-theme");
+		root.dataset.mode = "light";
+		root.dataset.theme = "classic";
+
+		try {
+			const { editor } = await getEditor();
+			const onClose = vi.fn();
+
+			await render(<BlockMenuTestWrapper editor={editor} isOpen={true} onClose={onClose} />);
+			await vi.waitFor(() => {
+				expect(getBlockMenu()).toBeTruthy();
+			});
+
+			findButtonByText(getBlockMenu()!, "Turn into")!.click();
+			await vi.waitFor(() => {
+				expect(findButtonByText(getBlockMenu()!, "Heading 1")).toBeTruthy();
+			});
+
+			const item = findButtonByText(getBlockMenu()!, "Heading 1")!;
+			await userEvent.hover(item);
+
+			const tintReference = document.createElement("div");
+			tintReference.style.backgroundColor = "var(--color-kumo-tint)";
+			document.body.append(tintReference);
+			const expectedColor = getComputedStyle(tintReference).backgroundColor;
+			tintReference.remove();
+
+			await vi.waitFor(() => {
+				expect(item.hasAttribute("data-highlighted")).toBe(true);
+				expect(getComputedStyle(item).backgroundColor).toBe(expectedColor);
+			});
+		} finally {
+			if (previousMode === null) root.removeAttribute("data-mode");
+			else root.setAttribute("data-mode", previousMode);
+			if (previousTheme === null) root.removeAttribute("data-theme");
+			else root.setAttribute("data-theme", previousTheme);
+		}
 	});
 
 	it("returns to main menu when Back is clicked in transform submenu", async () => {

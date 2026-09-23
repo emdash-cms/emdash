@@ -147,10 +147,10 @@ export function RepeaterField({
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
-				<label htmlFor={id} className="text-sm font-medium">
+				<label htmlFor={id} className="text-base font-medium text-kumo-default">
 					{label}
 					{items.length > 0 && (
-						<span className="ms-2 text-kumo-subtle font-normal">
+						<span className="ms-2 text-xs font-normal leading-4 text-kumo-subtle">
 							{plural(items.length, { one: "(# item)", other: "(# items)" })}
 						</span>
 					)}
@@ -164,7 +164,7 @@ export function RepeaterField({
 
 			{items.length === 0 ? (
 				<div className="border-2 border-dashed rounded-lg p-6 text-center text-kumo-subtle">
-					<p className="text-sm">{t`No items yet`}</p>
+					<p className="text-xs leading-4">{t`No items yet`}</p>
 					{canAdd && (
 						<Button
 							variant="outline"
@@ -268,7 +268,7 @@ function SortableRepeaterItem({
 				) : (
 					<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 				)}
-				<span className="text-sm font-medium flex-1 truncate">{summaryLabel}</span>
+				<span className="flex-1 truncate text-base font-medium">{summaryLabel}</span>
 				{onRemove && (
 					<Button
 						variant="ghost"
@@ -350,7 +350,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 				<Switch
 					checked={Boolean(value)}
 					onCheckedChange={(checked) => onChange(checked)}
-					label={<span className="text-sm">{subField.label}</span>}
+					label={<span className="text-base">{subField.label}</span>}
 				/>
 			);
 		case "datetime":
