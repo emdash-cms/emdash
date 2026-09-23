@@ -2292,6 +2292,8 @@ function RegistryBrowsePage() {
 			const { fetchPlugins } = await import("./lib/api/plugins.js");
 			return fetchPlugins();
 		},
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
 	});
 
 	if (manifest?.registry) {

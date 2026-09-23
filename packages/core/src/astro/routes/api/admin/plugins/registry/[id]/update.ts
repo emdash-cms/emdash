@@ -15,10 +15,12 @@ import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { handleRegistryUpdate } from "#api/index.js";
+import { handleRegistryUpdate, rollbackPluginUpdate } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { finalizePluginUpdate } from "#plugins/install-finalization.js";
 import { pluginPublicRouteAcknowledgementSchema } from "#plugins/routes.js";
+import { PluginStateRepository } from "#plugins/state.js";
 
 import { getRegistryConfigInput } from "../../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../../version.js";
@@ -62,6 +64,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 		const body = await parseOptionalBody(request, updateBodySchema, {});
 		if (isParseError(body)) return body;
+		const previousState = await new PluginStateRepository(emdash.db).get(id);
 
 		const result = await handleRegistryUpdate(
 			emdash.db,
@@ -81,9 +84,25 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		);
 
 		if (!result.success) return unwrapResult(result);
+		if (!previousState) return apiError("UPDATE_FAILED", "Failed to update plugin", 500);
 
-		await emdash.syncRegistryPlugins();
-		await emdash.runPluginActivateLifecycle(id);
+		await finalizePluginUpdate({
+			pluginId: id,
+			syncRuntime: () => emdash.syncRegistryPlugins(),
+			runLifecycle: () => emdash.runPluginActivateLifecycle(id),
+			rollback: () =>
+				rollbackPluginUpdate(
+					emdash.db,
+					emdash.storage,
+					previousState,
+					result.data.newVersion,
+					"registry",
+				),
+			runRollbackLifecycle: () =>
+				previousState.status === "active"
+					? emdash.runPluginActivateLifecycle(id)
+					: Promise.resolve(),
+		});
 
 		return unwrapResult(result);
 	} catch (error) {
