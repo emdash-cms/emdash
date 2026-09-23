@@ -90,7 +90,13 @@ The editor caps input at `maxLength` and shows a live character count against th
 
 ### `url`
 
-A web address. The content API rejects values that are not valid URLs.
+A link target. A value must be one of:
+
+- an absolute `http:` or `https:` URL, such as `https://example.com/page`
+- a `mailto:` or `tel:` link
+- a site-relative path, such as `/about`, or a fragment, such as `#contact`
+
+The content API and the admin editor reject anything else, including protocol-relative URLs (`//example.com`) and schemes that can run script, such as `javascript:` and `data:`.
 
 ```ts
 {
@@ -101,7 +107,9 @@ A web address. The content API rejects values that are not valid URLs.
 }
 ```
 
-URL fields are stored as text. Use a `string` field instead when a value may be a relative path such as `/about`, because relative paths are not valid values for a `url` field.
+URL fields are stored as text. Seeds and plugin content updates are not format-checked. They still reject a value that uses any scheme other than `http:`, `https:`, `mailto:`, or `tel:`.
+
+Entries saved by earlier EmDash releases can hold a `url` value with some other scheme. Those values stay stored and queries return them unchanged. A write that sends the value again is rejected until the value is corrected. This includes an admin save of that entry and duplicating it. To render such values safely, pass `url` values through [`sanitizeHref()`](/reference/api/#sanitizehref-and-issafehref) before putting them in an `href`.
 
 ### `slug`
 
