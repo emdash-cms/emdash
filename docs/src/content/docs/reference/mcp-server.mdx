@@ -188,6 +188,23 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | `settings_get` | Get Site Settings | `settings:read` |
 | `settings_update` | Update Site Settings | `settings:manage` |
 
+### Site transfer tools
+
+`transfer:*` means any one of `transfer:export`, `transfer:analyze`, or `transfer:execute`. The `admin` scope satisfies every requirement in this table.
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `site_transfer_capabilities` | Get Site Transfer Capabilities | `transfer:*` |
+| `site_export_start` | Start Site Export | `transfer:export` |
+| `site_export_status` | Get Site Export Status | `transfer:export` |
+| `site_import_analyze` | Analyze Site Import | `transfer:analyze` |
+| `site_import_start` | Start Site Import | `transfer:execute` |
+| `site_import_status` | Get Site Import Status | `transfer:*` |
+| `site_import_resume` | Resume Site Import | `transfer:execute` |
+| `site_import_receipt` | Get Site Import Receipt | `transfer:*` |
+
+`site_export_start` and `site_import_start` also accept a token without the scope when an admin approves the request. For the operation an approved request starts, `site_export_status`, `site_import_status`, `site_import_resume`, and `site_import_receipt` then accept the same token without the scope.
+
 {/* mcp-tool-inventory:end */}
 
 ## Use the tool schemas

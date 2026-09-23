@@ -51,7 +51,11 @@ describe("documentation reference inventories", () => {
 			);
 			// Core registrations declare one literal scope guard. Fail if that source shape changes
 			// instead of guessing which scope the reference should publish.
-			const scopeMatches = [...block.matchAll(/requireScope\(extra, "([^"]+)"\)/g)];
+			const scopeMatches = [
+				...block.matchAll(
+					/(?:requireScope|requireTransferScope|transferScopeHeld|requireTransferAccess)\(extra, "([^"]+)"/g,
+				),
+			];
 			const scope = scopeMatches[0]?.[1];
 			if (!registrationName || scopeMatches.length !== 1 || !scope) {
 				throw new Error(
