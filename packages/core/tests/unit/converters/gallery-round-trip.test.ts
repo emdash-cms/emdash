@@ -248,6 +248,24 @@ describe("gallery block round-trip (core converters)", () => {
 		]);
 	});
 
+	it("encodes a seeded storage key into the file route like the admin does", () => {
+		const seeded = {
+			_type: "gallery",
+			_key: "gal005",
+			images: [
+				{
+					_type: "image",
+					_key: "img001",
+					asset: { provider: "local", id: "01M", meta: { storageKey: "uploads/a b#1.jpg" } },
+				},
+			],
+		};
+
+		const pt = prosemirrorToPortableText(portableTextToProsemirror([seeded]));
+		const restored = pt[0] as PortableTextGalleryBlock;
+		expect(restored.images[0]?.asset.url).toBe("/_emdash/api/media/file/uploads/a%20b%231.jpg");
+	});
+
 	it("preserves galleries among other block types", () => {
 		const blocks = [
 			{

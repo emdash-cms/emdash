@@ -3,7 +3,7 @@
  * the editor round-trip and the stored shape stay in lockstep.
  */
 
-import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
+import { localMediaFileUrl } from "../../media/url.js";
 import type { PortableTextGalleryImage } from "./types.js";
 
 /**
@@ -33,7 +33,7 @@ export function sanitizeGalleryImages(
 		const url =
 			nonEmptyString(assetRecord.url) ??
 			nonEmptyString(assetRecord.src) ??
-			(storageKey ? `${INTERNAL_MEDIA_PREFIX}${storageKey}` : undefined);
+			(storageKey ? localMediaFileUrl(storageKey) : undefined);
 		const alt = nonEmptyString(record.alt) ?? nonEmptyString(assetRecord.alt);
 		const width = typeof record.width === "number" ? record.width : assetRecord.width;
 		const height = typeof record.height === "number" ? record.height : assetRecord.height;
