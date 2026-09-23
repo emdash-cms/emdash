@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 /**
  * Minimal Astro config for Playwright e2e tests against the Cloudflare runtime.
@@ -11,6 +12,7 @@ import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
 import { colorPlugin } from "@emdash-cms/plugin-color";
+import registryTestPlugin from "@emdash-cms/plugin-marketplace-test";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 
@@ -20,6 +22,46 @@ const registryFixturePath = process.env.EMDASH_REGISTRY_FIXTURE;
 const registryFixture = registryFixturePath
 	? JSON.parse(readFileSync(registryFixturePath, "utf8"))
 	: null;
+const e2eHookNames = new Set([
+	"content:afterSave",
+	"content:beforeDelete",
+	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
+	"content:afterPublish",
+	"content:afterUnpublish",
+	"content:afterRestore",
+	"content:afterSchedule",
+	"content:afterUnschedule",
+	"media:afterUpload",
+	"comment:beforeCreate",
+	"comment:afterCreate",
+	"comment:afterModerate",
+	"email:beforeSend",
+	"email:deliver",
+	"email:afterSend",
+	"cron",
+	"page:metadata",
+]);
+const e2eHooks = registryTestPlugin.hooks.filter((hook) =>
+	e2eHookNames.has(typeof hook === "string" ? hook : hook.name),
+);
+const deniedPlugin = {
+	id: "sandbox-denied-test",
+	version: "1.0.0",
+	format: "standard",
+	entrypoint: fileURLToPath(new URL("../fixtures/sandbox-denied-plugin.mjs", import.meta.url)),
+	capabilities: [],
+	allowedHosts: [],
+	storage: {},
+	hooks: [],
+	routes: [
+		{ name: "admin", permission: "plugins:manage" },
+		{ name: "authority-probe", permission: "plugins:manage" },
+	],
+	adminPages: [{ path: "/denials", label: "Denied authority", icon: "shield" }],
+};
 
 // Mirrors a server dependency introduced by Astro after the initial dependency scan.
 const lateManifestImport = {
@@ -42,6 +84,7 @@ export default defineConfig({
 			middleware: { outer: "./src/outer-middleware.ts" },
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [colorPlugin()],
+			sandboxed: [{ ...registryTestPlugin, hooks: e2eHooks }, deniedPlugin],
 			marketplace: marketplaceUrl,
 			registry: registryUrl,
 			sandboxRunner: sandbox(),

@@ -41,7 +41,7 @@ const TARGETS: Record<string, Target> = {
 	cloudflare: {
 		fixtureDir: resolve(ROOT, "e2e/fixture-cloudflare"),
 		buildFilter: "emdash-e2e-fixture-cloudflare...",
-		depsMarkers: [CLOUDFLARE_DIST, COLOR_PLUGIN_DIST],
+		depsMarkers: [CLOUDFLARE_DIST, COLOR_PLUGIN_DIST, REGISTRY_TEST_PLUGIN_DIST],
 		usesTempDb: false,
 	},
 };
@@ -339,6 +339,7 @@ export default async function globalSetup(): Promise<void> {
 			EMDASH_MARKETPLACE_URL: marketplaceUrl,
 			EMDASH_REGISTRY_URL: marketplaceUrl,
 			EMDASH_REGISTRY_FIXTURE: registryFixturePath,
+			EMDASH_ENCRYPTION_KEY: "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 		},
 		stdio: "pipe",
 	});

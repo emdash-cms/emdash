@@ -1,6 +1,7 @@
 ---
 import { getEmDashEntry, getSeoMeta } from "emdash";
-import { PortableText } from "emdash/ui";
+import { createPublicPageContext } from "emdash/page";
+import { EmDashHead, PortableText } from "emdash/ui";
 import { Comments, CommentForm } from "emdash/ui/comments";
 
 interface Props {
@@ -17,12 +18,22 @@ const seo = getSeoMeta(post, {
 	siteUrl: Astro.url.origin,
 	path: Astro.url.pathname.replace(/\/$/, ""),
 });
+const pageCtx = createPublicPageContext({
+	Astro,
+	kind: "content",
+	pageType: "article",
+	title: String(post.data.title),
+	description: typeof post.data.excerpt === "string" ? post.data.excerpt : null,
+	canonical: seo.canonical,
+	content: { collection: "posts", id: post.data.id, slug: post.data.slug },
+});
 ---
 
 <html>
 	<head>
 		<meta charset="utf-8" />
 		<title>{post.data.title}</title>
+		<EmDashHead page={pageCtx} />
 		{seo.canonical && <link rel="canonical" href={seo.canonical} />}
 		<style>
 			#body :global(pre) {
