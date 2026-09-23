@@ -101,7 +101,7 @@ msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# коментар оновлено} few {# коментарі оновлено} many {# коментарів оновлено} other {# коментарів оновлено}}"
 
 #. placeholder {0}: comments.length
-#: packages/admin/src/components/comments/CommentInbox.tsx:336
+#: packages/admin/src/components/comments/CommentInbox.tsx:369
 msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# коментар} few {# коментарі} many {# коментарів} other {# коментарів}}"
 
@@ -179,7 +179,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# допис} few {# дописи} many {# дописів} other {# дописів}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:452
+#: packages/admin/src/components/Redirects.tsx:461
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# перенаправлення утворює цикл.} few {# перенаправлення утворюють цикл.} many {# перенаправлень утворюють цикл.} other {# перенаправлень утворюють цикл.}}"
 
@@ -194,7 +194,7 @@ msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} oth
 msgstr ""
 
 #. placeholder {0}: selected.size
-#: packages/admin/src/components/comments/CommentInbox.tsx:220
+#: packages/admin/src/components/comments/CommentInbox.tsx:261
 msgid "{0, plural, one {# selected} other {# selected}}"
 msgstr "{0, plural, one {# обрано} few {# обрано} many {# обрано} other {# обрано}}"
 
@@ -620,10 +620,6 @@ msgstr ""
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# елемент} few {# елементи} many {# елементів} other {# елементів}}"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:151
-msgid "{total, plural, one {# total} other {# total}}"
-msgstr "{total, plural, one {# всього} few {# всього} many {# всього} other {# всього}}"
-
 #: packages/admin/src/components/Dashboard.tsx:307
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {Чернетка} few {Чернетки} many {Чернеток} other {Чернеток}}"
@@ -644,11 +640,11 @@ msgstr "{unchangedCount, plural, one {Показати # без змін} few {�
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:142
+#: packages/admin/src/components/Redirects.tsx:144
 msgid "/new-page or /articles/[slug]"
 msgstr "/new-page або /articles/[slug]"
 
-#: packages/admin/src/components/Redirects.tsx:133
+#: packages/admin/src/components/Redirects.tsx:135
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page або /blog/[slug]"
 
@@ -722,19 +718,19 @@ msgstr "3. Виберіть \"Увесь вміст\""
 msgid "30 days"
 msgstr "30 днів"
 
-#: packages/admin/src/components/Redirects.tsx:156
+#: packages/admin/src/components/Redirects.tsx:158
 msgid "301 Permanent"
 msgstr "301 Постійне"
 
-#: packages/admin/src/components/Redirects.tsx:157
+#: packages/admin/src/components/Redirects.tsx:159
 msgid "302 Temporary"
 msgstr "302 Тимчасове"
 
-#: packages/admin/src/components/Redirects.tsx:158
+#: packages/admin/src/components/Redirects.tsx:160
 msgid "307 Temporary (Strict)"
 msgstr "307 Тимчасове (суворе)"
 
-#: packages/admin/src/components/Redirects.tsx:159
+#: packages/admin/src/components/Redirects.tsx:161
 msgid "308 Permanent (Strict)"
 msgstr "308 Постійне (суворе)"
 
@@ -750,15 +746,15 @@ msgstr "4. Натисніть \"Завантажити файл експорту
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Введіть \"EmDash\" і натисніть \"Додати\""
 
-#: packages/admin/src/components/Redirects.tsx:402
+#: packages/admin/src/components/Redirects.tsx:436
 msgid "404 Errors"
 msgstr "Помилки 404"
 
-#: packages/admin/src/components/Redirects.tsx:160
+#: packages/admin/src/components/Redirects.tsx:162
 msgid "410 Content Deleted (Gone)"
 msgstr "410 Вміст видалено (Gone)"
 
-#: packages/admin/src/components/Redirects.tsx:161
+#: packages/admin/src/components/Redirects.tsx:163
 msgid "451 Unavailable for legal reasons"
 msgstr "451 Недоступно з юридичних причин"
 
@@ -862,7 +858,7 @@ msgstr "Інформація про обліковий запис"
 msgid "ACF Fields"
 msgstr "Поля ACF"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:291
+#: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/ContentList.tsx:637
 #: packages/admin/src/components/ContentList.tsx:769
 #: packages/admin/src/components/ContentTypeList.tsx:190
@@ -1138,7 +1134,7 @@ msgstr "Усі підписи"
 msgid "All capabilities"
 msgstr "Усі можливості"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:135
+#: packages/admin/src/components/comments/CommentInbox.tsx:152
 msgid "All collections"
 msgstr "Усі колекції"
 
@@ -1164,13 +1160,13 @@ msgid "All Sources"
 msgstr "Усі джерела"
 
 #: packages/admin/src/components/ContentList.tsx:858
-#: packages/admin/src/components/Redirects.tsx:426
+#: packages/admin/src/components/Redirects.tsx:391
 msgid "All statuses"
 msgstr "Усі статуси"
 
 #: packages/admin/src/components/MediaLibrary.tsx:984
 #: packages/admin/src/components/MediaPickerModal.tsx:381
-#: packages/admin/src/components/Redirects.tsx:432
+#: packages/admin/src/components/Redirects.tsx:398
 msgid "All types"
 msgstr "Усі типи"
 
@@ -1356,8 +1352,8 @@ msgid "Apply link"
 msgstr "Застосувати посилання"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:148
-#: packages/admin/src/components/comments/CommentInbox.tsx:229
-#: packages/admin/src/components/comments/CommentInbox.tsx:481
+#: packages/admin/src/components/comments/CommentInbox.tsx:270
+#: packages/admin/src/components/comments/CommentInbox.tsx:514
 msgid "Approve"
 msgstr "Схвалити"
 
@@ -1373,7 +1369,7 @@ msgstr ""
 msgid "approved"
 msgstr "схвалено"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:176
+#: packages/admin/src/components/comments/CommentInbox.tsx:218
 msgid "Approved"
 msgstr "Схвалено"
 
@@ -1468,7 +1464,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Автентифікацію скасовано або час вичерпано. Спробуйте ще раз."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
-#: packages/admin/src/components/comments/CommentInbox.tsx:279
+#: packages/admin/src/components/comments/CommentInbox.tsx:325
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1348
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -1507,11 +1503,11 @@ msgstr "Авторизація..."
 msgid "Authors"
 msgstr "Автори"
 
-#: packages/admin/src/components/Redirects.tsx:530
+#: packages/admin/src/components/Redirects.tsx:539
 msgid "auto"
 msgstr "авто"
 
-#: packages/admin/src/components/Redirects.tsx:432
+#: packages/admin/src/components/Redirects.tsx:398
 msgid "Auto (slug change)"
 msgstr "Авто (зміна slug)"
 
@@ -1813,7 +1809,7 @@ msgstr "Може переглядати вміст"
 #: packages/admin/src/components/PluginManager.tsx:790
 #: packages/admin/src/components/PortableTextEditor.tsx:4679
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
-#: packages/admin/src/components/Redirects.tsx:183
+#: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
@@ -2173,8 +2169,8 @@ msgstr "Перейдіть за посиланням у листі, щоб ув�
 #: packages/admin/src/components/PortableTextEditor.tsx:2094
 #: packages/admin/src/components/PortableTextEditor.tsx:2098
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
-#: packages/admin/src/components/Redirects.tsx:115
-#: packages/admin/src/components/Redirects.tsx:121
+#: packages/admin/src/components/Redirects.tsx:117
+#: packages/admin/src/components/Redirects.tsx:123
 #: packages/admin/src/components/SectionPickerModal.tsx:61
 #: packages/admin/src/components/SectionPickerModal.tsx:67
 #: packages/admin/src/components/SectionPickerModal.tsx:71
@@ -2229,7 +2225,7 @@ msgstr "Закрити налаштування"
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
 #: packages/admin/src/components/PortableTextEditor.tsx:4015
-#: packages/admin/src/components/Redirects.tsx:478
+#: packages/admin/src/components/Redirects.tsx:487
 msgid "Code"
 msgstr "Код"
 
@@ -2308,7 +2304,7 @@ msgid "Comma-separated keywords for search."
 msgstr "Ключові слова для пошуку через кому."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:95
-#: packages/admin/src/components/comments/CommentInbox.tsx:282
+#: packages/admin/src/components/comments/CommentInbox.tsx:328
 msgid "Comment"
 msgstr "Коментар"
 
@@ -2316,7 +2312,7 @@ msgstr "Коментар"
 msgid "Comment Detail"
 msgstr "Деталі коментаря"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:148
+#: packages/admin/src/components/comments/CommentInbox.tsx:162
 #: packages/admin/src/components/ContentTypeEditor.tsx:541
 #: packages/admin/src/components/Sidebar.tsx:415
 msgid "Comments"
@@ -2325,6 +2321,10 @@ msgstr "Коментарі"
 #: packages/admin/src/components/ContentTypeEditor.tsx:598
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Коментарі від авторизованих користувачів CMS схвалюються автоматично"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:582
+msgid "Comments with this status will appear here."
+msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:86
 msgid "Complete"
@@ -2397,7 +2397,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:380
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
-#: packages/admin/src/components/comments/CommentInbox.tsx:285
+#: packages/admin/src/components/comments/CommentInbox.tsx:331
 #: packages/admin/src/components/Dashboard.tsx:375
 #: packages/admin/src/components/PortableTextEditor.tsx:2926
 #: packages/admin/src/components/SectionEditor.tsx:215
@@ -2639,7 +2639,7 @@ msgstr "Кількість"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:530
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuList.tsx:178
-#: packages/admin/src/components/Redirects.tsx:192
+#: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:680
 #: packages/admin/src/components/Widgets.tsx:454
@@ -2741,15 +2741,15 @@ msgid "Create personal access tokens for programmatic API access"
 msgstr "Створюйте персональні токени доступу для програмного доступу до API"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:248
+#: packages/admin/src/components/Redirects.tsx:250
 msgid "Create redirect for {0}"
 msgstr "Створити перенаправлення для {0}"
 
-#: packages/admin/src/components/Redirects.tsx:247
+#: packages/admin/src/components/Redirects.tsx:249
 msgid "Create redirect for this path"
 msgstr "Створити перенаправлення для цього шляху"
 
-#: packages/admin/src/components/Redirects.tsx:469
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "Create redirect rules to manage URL changes."
 msgstr "Створюйте правила перенаправлення для керування змінами URL."
 
@@ -2860,7 +2860,7 @@ msgid "Creating cropped copy..."
 msgstr ""
 
 #: packages/admin/src/components/MenuList.tsx:178
-#: packages/admin/src/components/Redirects.tsx:189
+#: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
 #: packages/admin/src/components/TaxonomyManager.tsx:891
@@ -2947,7 +2947,7 @@ msgstr ""
 msgid "Dashboard"
 msgstr "Панель керування"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:288
+#: packages/admin/src/components/comments/CommentInbox.tsx:334
 #: packages/admin/src/components/ContentList.tsx:626
 msgid "Date"
 msgstr "Дата"
@@ -3018,8 +3018,8 @@ msgstr "Визначте структуру вашого вмісту"
 msgid "Defined in code"
 msgstr "Визначено в коді"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:259
-#: packages/admin/src/components/comments/CommentInbox.tsx:399
+#: packages/admin/src/components/comments/CommentInbox.tsx:300
+#: packages/admin/src/components/comments/CommentInbox.tsx:432
 #: packages/admin/src/components/ContentTypeEditor.tsx:728
 #: packages/admin/src/components/ContentTypeList.tsx:236
 #: packages/admin/src/components/editor/BlockMenu.tsx:318
@@ -3029,7 +3029,7 @@ msgstr "Визначено в коді"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1908
 #: packages/admin/src/components/MenuEditor.tsx:549
 #: packages/admin/src/components/MenuList.tsx:258
-#: packages/admin/src/components/Redirects.tsx:603
+#: packages/admin/src/components/Redirects.tsx:612
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
@@ -3100,7 +3100,7 @@ msgstr "Видалити стовпець"
 msgid "Delete columns"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:397
+#: packages/admin/src/components/comments/CommentInbox.tsx:430
 msgid "Delete Comment?"
 msgstr "Видалити коментар?"
 
@@ -3144,7 +3144,7 @@ msgstr ""
 msgid "Delete Menu"
 msgstr "Видалити меню"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:517
+#: packages/admin/src/components/comments/CommentInbox.tsx:550
 msgid "Delete permanently"
 msgstr "Видалити назавжди"
 
@@ -3157,16 +3157,16 @@ msgstr "Видалити назавжди"
 msgid "Delete Permanently?"
 msgstr "Видалити назавжди?"
 
-#: packages/admin/src/components/Redirects.tsx:544
+#: packages/admin/src/components/Redirects.tsx:553
 msgid "Delete redirect"
 msgstr "Видалити перенаправлення"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:545
+#: packages/admin/src/components/Redirects.tsx:554
 msgid "Delete redirect {0}"
 msgstr "Видалити перенаправлення {0}"
 
-#: packages/admin/src/components/Redirects.tsx:601
+#: packages/admin/src/components/Redirects.tsx:610
 msgid "Delete Redirect?"
 msgstr "Видалити перенаправлення?"
 
@@ -3213,14 +3213,14 @@ msgstr ""
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Видалення \"{0}\" також прибере {1, plural, one {# збережене значення} few {# збережені значення} many {# збережених значень} other {# збережених значень}} у всіх підписах. Цю дію не можна скасувати."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:400
+#: packages/admin/src/components/comments/CommentInbox.tsx:433
 #: packages/admin/src/components/ContentTypeEditor.tsx:729
 #: packages/admin/src/components/ContentTypeList.tsx:237
 #: packages/admin/src/components/MediaDetailPanel.tsx:1804
 #: packages/admin/src/components/MediaDetailPanel.tsx:1909
 #: packages/admin/src/components/MediaFolderDialog.tsx:185
 #: packages/admin/src/components/MenuList.tsx:259
-#: packages/admin/src/components/Redirects.tsx:604
+#: packages/admin/src/components/Redirects.tsx:613
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:353
 #: packages/admin/src/components/TaxonomyManager.tsx:1176
@@ -3289,11 +3289,11 @@ msgstr "Опис"
 msgid "Description (optional)"
 msgstr "Опис (необов'язково)"
 
-#: packages/admin/src/components/Redirects.tsx:477
+#: packages/admin/src/components/Redirects.tsx:486
 msgid "Destination"
 msgstr "Призначення"
 
-#: packages/admin/src/components/Redirects.tsx:141
+#: packages/admin/src/components/Redirects.tsx:143
 msgid "Destination path"
 msgstr "Шлях призначення"
 
@@ -3347,7 +3347,7 @@ msgstr "Вимкнути плагін"
 msgid "Disable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:513
+#: packages/admin/src/components/Redirects.tsx:522
 msgid "Disable redirect"
 msgstr "Вимкнути перенаправлення"
 
@@ -3360,7 +3360,7 @@ msgid "Disable User?"
 msgstr "Вимкнути користувача?"
 
 #: packages/admin/src/components/PluginManager.tsx:433
-#: packages/admin/src/components/Redirects.tsx:426
+#: packages/admin/src/components/Redirects.tsx:391
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
@@ -3642,7 +3642,7 @@ msgstr "Дублювати {title}"
 msgid "e.g. application/zip or .pdf"
 msgstr "напр. application/zip або .pdf"
 
-#: packages/admin/src/components/Redirects.tsx:168
+#: packages/admin/src/components/Redirects.tsx:170
 msgid "e.g. import, blog"
 msgstr "напр. import, blog"
 
@@ -3770,16 +3770,16 @@ msgstr ""
 msgid "Edit name and slug"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:536
+#: packages/admin/src/components/Redirects.tsx:545
 msgid "Edit redirect"
 msgstr "Редагувати перенаправлення"
 
-#: packages/admin/src/components/Redirects.tsx:106
+#: packages/admin/src/components/Redirects.tsx:108
 msgid "Edit Redirect"
 msgstr "Редагувати перенаправлення"
 
 #. placeholder {0}: r.source
-#: packages/admin/src/components/Redirects.tsx:537
+#: packages/admin/src/components/Redirects.tsx:546
 msgid "Edit redirect {0}"
 msgstr "Редагувати перенаправлення {0}"
 
@@ -3928,7 +3928,7 @@ msgstr "Увімкнути плагін"
 msgid "Enable plugin MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:513
+#: packages/admin/src/components/Redirects.tsx:522
 msgid "Enable redirect"
 msgstr "Увімкнути перенаправлення"
 
@@ -3940,8 +3940,8 @@ msgstr ""
 msgid "Enable tracking to index existing content and keep references up to date."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:176
-#: packages/admin/src/components/Redirects.tsx:426
+#: packages/admin/src/components/Redirects.tsx:178
+#: packages/admin/src/components/Redirects.tsx:391
 msgid "Enabled"
 msgstr "Увімкнено"
 
@@ -4845,7 +4845,7 @@ msgstr ""
 msgid "Filter by capability"
 msgstr "Фільтр за можливістю"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:211
+#: packages/admin/src/components/comments/CommentInbox.tsx:185
 msgid "Filter by collection"
 msgstr "Фільтр за колекцією"
 
@@ -4862,13 +4862,13 @@ msgid "Filter by source"
 msgstr "Фільтр за джерелом"
 
 #: packages/admin/src/components/ContentList.tsx:897
-#: packages/admin/src/components/Redirects.tsx:427
+#: packages/admin/src/components/Redirects.tsx:392
 msgid "Filter by status"
 msgstr "Фільтр за статусом"
 
 #: packages/admin/src/components/MediaLibrary.tsx:990
 #: packages/admin/src/components/MediaPickerModal.tsx:1276
-#: packages/admin/src/components/Redirects.tsx:433
+#: packages/admin/src/components/Redirects.tsx:399
 msgid "Filter by type"
 msgstr "Фільтр за типом"
 
@@ -5070,7 +5070,7 @@ msgstr "Сітка"
 msgid "Group"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:167
+#: packages/admin/src/components/Redirects.tsx:169
 msgid "Group (optional)"
 msgstr "Група (необов'язково)"
 
@@ -5191,8 +5191,8 @@ msgstr ""
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Ієрархічна (як категорії, з батьківсько-дочірніми зв'язками)"
 
-#: packages/admin/src/components/Redirects.tsx:226
-#: packages/admin/src/components/Redirects.tsx:479
+#: packages/admin/src/components/Redirects.tsx:228
+#: packages/admin/src/components/Redirects.tsx:488
 msgid "Hits"
 msgstr "Переходи"
 
@@ -5811,7 +5811,7 @@ msgstr "Останній вхід"
 msgid "Last page"
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:227
+#: packages/admin/src/components/Redirects.tsx:229
 msgid "Last seen"
 msgstr "Остання активність"
 
@@ -5916,7 +5916,7 @@ msgstr "Перегляд наживо"
 #: packages/admin/src/components/ContentPickerModal.tsx:228
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:207
-#: packages/admin/src/components/Redirects.tsx:560
+#: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:468
@@ -5949,7 +5949,7 @@ msgstr "Завантаження полів підпису…"
 msgid "Loading collections..."
 msgstr "Завантаження колекцій..."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:299
+#: packages/admin/src/components/comments/CommentInbox.tsx:309
 msgid "Loading comments..."
 msgstr "Завантаження коментарів..."
 
@@ -6000,7 +6000,7 @@ msgstr ""
 msgid "Loading plugins..."
 msgstr "Завантаження плагінів..."
 
-#: packages/admin/src/components/Redirects.tsx:464
+#: packages/admin/src/components/Redirects.tsx:473
 msgid "Loading redirects..."
 msgstr "Завантаження перенаправлень..."
 
@@ -6045,7 +6045,7 @@ msgstr "Завантаження віджетів..."
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:204
 #: packages/admin/src/components/PortableTextEditor.tsx:2593
-#: packages/admin/src/components/Redirects.tsx:560
+#: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
@@ -6182,7 +6182,7 @@ msgstr "Керується {providerName}"
 msgid "Managed by an external media provider"
 msgstr "Керується зовнішнім медіа-провайдером"
 
-#: packages/admin/src/components/Redirects.tsx:432
+#: packages/admin/src/components/Redirects.tsx:398
 msgid "Manual"
 msgstr "Вручну"
 
@@ -6196,15 +6196,15 @@ msgid "Map WordPress user {0} to EmDash user"
 msgstr "Зіставити користувача WordPress {0} з користувачем EmDash"
 
 #. placeholder {0}: item.path
-#: packages/admin/src/components/Redirects.tsx:256
+#: packages/admin/src/components/Redirects.tsx:258
 msgid "Mark {0} as Gone (410)"
 msgstr "Позначити {0} як видалено (410)"
 
-#: packages/admin/src/components/Redirects.tsx:255
+#: packages/admin/src/components/Redirects.tsx:257
 msgid "Mark as Gone (410) — tells search engines it was permanently deleted"
 msgstr "Позначити як видалено (410) — повідомляє пошуковим системам, що сторінку остаточно видалено"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:493
+#: packages/admin/src/components/comments/CommentInbox.tsx:526
 msgid "Mark as spam"
 msgstr "Позначити як спам"
 
@@ -6722,8 +6722,8 @@ msgstr ""
 msgid "New public routes"
 msgstr "Нові публічні маршрути"
 
-#: packages/admin/src/components/Redirects.tsx:106
-#: packages/admin/src/components/Redirects.tsx:370
+#: packages/admin/src/components/Redirects.tsx:108
+#: packages/admin/src/components/Redirects.tsx:373
 msgid "New Redirect"
 msgstr "Нове перенаправлення"
 
@@ -6763,7 +6763,7 @@ msgstr "Новини"
 msgid "Next"
 msgstr "Далі"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:363
+#: packages/admin/src/components/comments/CommentInbox.tsx:396
 #: packages/admin/src/components/ContentList.tsx:733
 #: packages/admin/src/components/MediaLibrary.tsx:1316
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
@@ -6808,7 +6808,7 @@ msgstr "Ще немає {0}. Створіть, щоб почати."
 msgid "No {label} found."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:218
+#: packages/admin/src/components/Redirects.tsx:220
 msgid "No 404 errors recorded yet."
 msgstr "Ще не зафіксовано помилок 404."
 
@@ -6821,7 +6821,7 @@ msgstr "Немає alt-тексту"
 msgid "No API tokens yet. Create one to get started."
 msgstr "Ще немає API-токенів. Створіть, щоб почати."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:539
+#: packages/admin/src/components/comments/CommentInbox.tsx:568
 msgid "No approved comments yet."
 msgstr "Ще немає схвалених коментарів."
 
@@ -6858,13 +6858,13 @@ msgstr "Підписи не знайдено"
 msgid "No collections configured"
 msgstr "Колекції не налаштовано"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:538
+#: packages/admin/src/components/comments/CommentInbox.tsx:567
 msgid "No comments awaiting moderation."
 msgstr "Немає коментарів на модерації."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:534
-msgid "No comments match your search."
-msgstr "Жоден коментар не відповідає вашому пошуку."
+#: packages/admin/src/components/comments/CommentInbox.tsx:577
+msgid "No comments match your filters."
+msgstr ""
 
 #: packages/admin/src/components/SandboxedPluginWidget.tsx:96
 msgid "No content"
@@ -7048,7 +7048,7 @@ msgstr "Публічний URL недоступний"
 msgid "No recent activity"
 msgstr "Немає недавньої активності"
 
-#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:477
 msgid "No redirects yet"
 msgstr "Ще немає перенаправлень"
 
@@ -7089,7 +7089,7 @@ msgstr "Секції не знайдено"
 msgid "No sections yet"
 msgstr "Ще немає секцій"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:540
+#: packages/admin/src/components/comments/CommentInbox.tsx:569
 msgid "No spam comments."
 msgstr "Немає спам-коментарів."
 
@@ -7384,8 +7384,8 @@ msgstr ""
 msgid "Parent"
 msgstr "Батьківський"
 
-#: packages/admin/src/components/Redirects.tsx:518
-#: packages/admin/src/components/Redirects.tsx:524
+#: packages/admin/src/components/Redirects.tsx:527
+#: packages/admin/src/components/Redirects.tsx:533
 msgid "Part of a redirect loop"
 msgstr "Частина циклу перенаправлення"
 
@@ -7457,7 +7457,7 @@ msgstr "Passkeys потребують HTTPS або http://localhost (з ваши
 msgid "Paste your migration key"
 msgstr "Вставте ключ міграції"
 
-#: packages/admin/src/components/Redirects.tsx:225
+#: packages/admin/src/components/Redirects.tsx:227
 msgid "Path"
 msgstr "Шлях"
 
@@ -7496,7 +7496,7 @@ msgstr "PDF"
 msgid "pending"
 msgstr "очікує"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:171
+#: packages/admin/src/components/comments/CommentInbox.tsx:202
 msgid "Pending"
 msgstr "Очікує"
 
@@ -7768,7 +7768,7 @@ msgstr "Переглянути чернетку"
 msgid "Previous"
 msgstr "Попередній"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:344
+#: packages/admin/src/components/comments/CommentInbox.tsx:377
 #: packages/admin/src/components/ContentList.tsx:721
 #: packages/admin/src/components/MediaLibrary.tsx:1315
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
@@ -8029,7 +8029,7 @@ msgstr "Email одержувача"
 msgid "Recovery link sent to {0}"
 msgstr "Посилання для відновлення надіслано на {0}"
 
-#: packages/admin/src/components/Redirects.tsx:450
+#: packages/admin/src/components/Redirects.tsx:459
 msgid "Redirect loop detected"
 msgstr "Виявлено цикл перенаправлення"
 
@@ -8037,8 +8037,8 @@ msgstr "Виявлено цикл перенаправлення"
 msgid "Redirecting to login..."
 msgstr "Перенаправлення на вхід..."
 
-#: packages/admin/src/components/Redirects.tsx:364
-#: packages/admin/src/components/Redirects.tsx:385
+#: packages/admin/src/components/Redirects.tsx:365
+#: packages/admin/src/components/Redirects.tsx:416
 #: packages/admin/src/components/Sidebar.tsx:423
 msgid "Redirects"
 msgstr "Перенаправлення"
@@ -8526,6 +8526,10 @@ msgstr "Переглянути"
 msgid "Review and block publishing, scheduling, and unpublishing content"
 msgstr ""
 
+#: packages/admin/src/components/comments/CommentInbox.tsx:163
+msgid "Review and moderate comments across your content."
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:108
 msgid "Review New Permissions"
 msgstr "Переглянути нові дозволи"
@@ -8667,7 +8671,7 @@ msgstr "Те саме вікно"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1866
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
 #: packages/admin/src/components/MenuEditor.tsx:626
-#: packages/admin/src/components/Redirects.tsx:191
+#: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
@@ -8740,7 +8744,7 @@ msgstr "Збережено \"{0}\"."
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/PluginSettings.tsx:166
 #: packages/admin/src/components/PluginSettings.tsx:209
-#: packages/admin/src/components/Redirects.tsx:188
+#: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:33
 #: packages/admin/src/components/TaxonomyManager.tsx:677
 #: packages/admin/src/components/users/UserDetail.tsx:311
@@ -8909,11 +8913,11 @@ msgstr ""
 msgid "Search bylines…"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:201
+#: packages/admin/src/components/comments/CommentInbox.tsx:175
 msgid "Search comments"
 msgstr "Шукати коментарі"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:200
+#: packages/admin/src/components/comments/CommentInbox.tsx:157
 msgid "Search comments..."
 msgstr "Шукати коментарі..."
 
@@ -8984,7 +8988,7 @@ msgstr ""
 msgid "Search sections..."
 msgstr "Шукати секції..."
 
-#: packages/admin/src/components/Redirects.tsx:417
+#: packages/admin/src/components/Redirects.tsx:360
 msgid "Search source or destination..."
 msgstr "Шукати джерело або призначення..."
 
@@ -9142,7 +9146,7 @@ msgstr "Оберіть меню..."
 msgid "Select a release before verifying it"
 msgstr ""
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:275
+#: packages/admin/src/components/comments/CommentInbox.tsx:321
 msgid "Select all"
 msgstr "Обрати все"
 
@@ -9155,7 +9159,7 @@ msgid "Select column"
 msgstr ""
 
 #. placeholder {0}: comment.authorName
-#: packages/admin/src/components/comments/CommentInbox.tsx:448
+#: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Select comment by {0}"
 msgstr "Обрати коментар від {0}"
 
@@ -9659,12 +9663,12 @@ msgstr "Сортувати теми"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:704
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:235
 #: packages/admin/src/components/PluginManager.tsx:624
-#: packages/admin/src/components/Redirects.tsx:475
+#: packages/admin/src/components/Redirects.tsx:484
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
 msgstr "Джерело"
 
-#: packages/admin/src/components/Redirects.tsx:132
+#: packages/admin/src/components/Redirects.tsx:134
 msgid "Source path"
 msgstr "Шлях джерела"
 
@@ -9673,8 +9677,8 @@ msgid "spam"
 msgstr "спам"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:159
-#: packages/admin/src/components/comments/CommentInbox.tsx:181
-#: packages/admin/src/components/comments/CommentInbox.tsx:239
+#: packages/admin/src/components/comments/CommentInbox.tsx:233
+#: packages/admin/src/components/comments/CommentInbox.tsx:280
 msgid "Spam"
 msgstr "Спам"
 
@@ -9710,7 +9714,7 @@ msgstr "Почніть писати або введіть «/» для кома�
 
 #: packages/admin/src/components/ContentList.tsx:612
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
-#: packages/admin/src/components/Redirects.tsx:480
+#: packages/admin/src/components/Redirects.tsx:489
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:615
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:641
@@ -9718,7 +9722,7 @@ msgstr "Почніть писати або введіть «/» для кома�
 msgid "Status"
 msgstr "Статус"
 
-#: packages/admin/src/components/Redirects.tsx:152
+#: packages/admin/src/components/Redirects.tsx:154
 msgid "Status code"
 msgstr "Код статусу"
 
@@ -10237,7 +10241,7 @@ msgstr ""
 msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:602
+#: packages/admin/src/components/Redirects.tsx:611
 msgid "This redirect rule will be permanently removed."
 msgstr "Це правило перенаправлення буде остаточно видалено."
 
@@ -10312,7 +10316,7 @@ msgstr "Це назавжди видалить \"{0}\" і прибере йог�
 msgid "This will permanently delete \"{0}\". This action cannot be undone."
 msgstr "Це назавжди видалить \"{0}\". Цю дію не можна скасувати."
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:398
+#: packages/admin/src/components/comments/CommentInbox.tsx:431
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "Це остаточно видалить цей коментар. Цю дію не можна скасувати."
 
@@ -10449,9 +10453,9 @@ msgid "trash"
 msgstr "кошик"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:170
-#: packages/admin/src/components/comments/CommentInbox.tsx:190
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
-#: packages/admin/src/components/comments/CommentInbox.tsx:505
+#: packages/admin/src/components/comments/CommentInbox.tsx:290
+#: packages/admin/src/components/comments/CommentInbox.tsx:538
 #: packages/admin/src/components/ContentList.tsx:450
 msgid "Trash"
 msgstr "Кошик"
@@ -10460,7 +10464,7 @@ msgstr "Кошик"
 msgid "Trash is empty"
 msgstr "Кошик порожній"
 
-#: packages/admin/src/components/comments/CommentInbox.tsx:541
+#: packages/admin/src/components/comments/CommentInbox.tsx:570
 msgid "Trash is empty."
 msgstr "Кошик порожній."
 
@@ -10471,6 +10475,10 @@ msgstr "Перемикач так/ні"
 #: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "Try a broader media type or clear your filters."
 msgstr "Спробуйте ширший тип медіа або скиньте фільтри."
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:581
+msgid "Try a different search or collection filter."
+msgstr ""
 
 #: packages/admin/src/components/ContentPickerModal.tsx:172
 #: packages/admin/src/components/SectionPickerModal.tsx:103
@@ -10708,7 +10716,7 @@ msgstr "Оновити налаштування сайту"
 msgid "Update the {0} details"
 msgstr "Оновити дані {0}"
 
-#: packages/admin/src/components/Redirects.tsx:110
+#: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."
 msgstr "Оновіть це правило перенаправлення."
 
@@ -10891,7 +10899,7 @@ msgstr ""
 msgid "Usage may be out of date."
 msgstr ""
 
-#: packages/admin/src/components/Redirects.tsx:111
+#: packages/admin/src/components/Redirects.tsx:113
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Використовуйте [param] або [...rest] у шляхах для зіставлення з шаблоном."
 
@@ -11071,7 +11079,7 @@ msgstr "Переглянути код"
 msgid "View the {license} license on spdx.org"
 msgstr "Переглянути ліцензію {license} на spdx.org"
 
-#: packages/admin/src/components/Redirects.tsx:456
+#: packages/admin/src/components/Redirects.tsx:465
 msgid "Visitors hitting these paths will see an error."
 msgstr "Відвідувачі за цими шляхами побачать помилку."
 

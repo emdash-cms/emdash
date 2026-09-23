@@ -11,6 +11,8 @@ import {
 import type { MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
+import "../../src/styles.css";
+
 // ---------------------------------------------------------------------------
 // Mocks — heavy components that need network / Astro context
 // ---------------------------------------------------------------------------
@@ -317,6 +319,36 @@ describe("Toolbar Presence and Structure", () => {
 				"Heading 6",
 			]),
 		);
+	});
+
+	it("uses the light interaction surface for highlighted heading choices", async () => {
+		const root = document.documentElement;
+		const previousMode = root.getAttribute("data-mode");
+		const previousTheme = root.getAttribute("data-theme");
+		root.dataset.mode = "light";
+		root.dataset.theme = "classic";
+
+		try {
+			const { screen } = await renderEditor();
+			const { item } = await getHeadingMenuItem(screen, "Heading 1");
+			await userEvent.hover(item.element());
+
+			const tintReference = document.createElement("div");
+			tintReference.style.backgroundColor = "var(--color-kumo-tint)";
+			document.body.append(tintReference);
+			const expectedColor = getComputedStyle(tintReference).backgroundColor;
+			tintReference.remove();
+
+			await vi.waitFor(() => {
+				expect(item.element().hasAttribute("data-highlighted")).toBe(true);
+				expect(getComputedStyle(item.element()).backgroundColor).toBe(expectedColor);
+			});
+		} finally {
+			if (previousMode === null) root.removeAttribute("data-mode");
+			else root.setAttribute("data-mode", previousMode);
+			if (previousTheme === null) root.removeAttribute("data-theme");
+			else root.setAttribute("data-theme", previousTheme);
+		}
 	});
 
 	it("has all list buttons", async () => {
