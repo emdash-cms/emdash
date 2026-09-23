@@ -1,0 +1,25 @@
+packages/admin/src/components/BulkTagDialog.tsx
+  s_0c2371b7147544::t_24ea16e4383f17 79,81,86,88,97,117-127,228-237,240,259,343
+packages/admin/src/components/ContentList.tsx
+  s_0c2371b7147544::t_cbe6d629262996 286,530,541-543,606-619,621-624
+packages/admin/src/components/TaxonomyManager.tsx
+  s_0c2371b7147544::t_1706d491d90e55 1155-1159
+packages/admin/tests/components/BulkTagDialog.test.tsx
+  s_0c2371b7147544::t_81bc4c893ce53d 137,147,171,187-212,260,278,294,306,321,347
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4019ed580c666a3fc244d73fe7c6bb56c72e6353",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
