@@ -39,9 +39,16 @@ export function BulkTagDialog({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const termLocale = defaultLocale ?? "en";
 	const { data: terms = [], isLoading } = useQuery({
-		queryKey: ["taxonomy-terms", "tag", "all"],
-		queryFn: () => fetchTerms("tag"),
+		queryKey: [
+			"taxonomy-terms",
+			"tag",
+			termLocale,
+			{ includeCounts: false, resolveFallback: true },
+		],
+		queryFn: () =>
+			fetchTerms("tag", { locale: termLocale, includeCounts: false, resolveFallback: true }),
 	});
 	const options = uniqueTerms(terms);
 	const [termId, setTermId] = React.useState("");
@@ -52,6 +59,7 @@ export function BulkTagDialog({
 	const [applied, setApplied] = React.useState(false);
 	const [busy, setBusy] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
+	const [cacheRefreshFailed, setCacheRefreshFailed] = React.useState(false);
 
 	const sources: BulkTagSource[] =
 		selected ??
@@ -76,6 +84,7 @@ export function BulkTagDialog({
 			setNewLabel("");
 			setReview(null);
 			setApplied(false);
+			setCacheRefreshFailed(false);
 		} catch (caught) {
 			setError(caught instanceof Error ? caught.message : t`Could not create tag`);
 		} finally {
@@ -91,8 +100,9 @@ export function BulkTagDialog({
 		setBusy(true);
 		setError(null);
 		try {
-			setReview(await bulkTagPosts(termId, sources));
+			setReview((await bulkTagPosts(termId, sources)).results);
 			setApplied(false);
+			setCacheRefreshFailed(false);
 		} catch (caught) {
 			setError(caught instanceof Error ? caught.message : t`Could not review posts`);
 		} finally {
@@ -100,24 +110,46 @@ export function BulkTagDialog({
 		}
 	};
 
-	const apply = async (items: BulkTagSource[]) => {
+	const apply = async (indices: number[], refreshOnly = false) => {
+		if (!review || indices.length === 0) return;
+		const targets = indices.map((index) => ({ index, reviewed: review[index]! }));
 		setBusy(true);
 		setError(null);
 		try {
-			const next = await bulkTagPosts(termId, items, true);
-			setReview(
-				(previous) =>
-					previous?.map(
-						(result) =>
-							next.find(
-								(updated) => JSON.stringify(updated.input) === JSON.stringify(result.input),
-							) ?? result,
-					) ?? next,
+			const response = await bulkTagPosts(
+				termId,
+				targets.map(({ reviewed }) =>
+					reviewed.entry
+						? { collection: reviewed.entry.collection, id: reviewed.entry.id }
+						: reviewed.input,
+				),
+				true,
+				refreshOnly,
 			);
+			const next = response.results;
+			const merged = [...review];
+			for (const [position, { index, reviewed }] of targets.entries()) {
+				const updated = next[position];
+				if (updated) {
+					merged[index] = {
+						...updated,
+						status:
+							reviewed.status === "added" && updated.status === "skipped"
+								? "added"
+								: updated.status,
+						input: reviewed.input,
+						entry: updated.entry ?? reviewed.entry,
+					};
+				}
+			}
+			setReview(merged);
 			setApplied(true);
+			setCacheRefreshFailed((previous) =>
+				refreshOnly ? response.cacheRefreshFailed : previous || response.cacheRefreshFailed,
+			);
 			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", "tag"] });
 			void queryClient.invalidateQueries({ queryKey: ["content"] });
-			onApplied?.(next);
+			onApplied?.(merged);
 		} catch (caught) {
 			setError(caught instanceof Error ? caught.message : t`Could not add tag`);
 		} finally {
@@ -136,10 +168,12 @@ export function BulkTagDialog({
 					<Select
 						label={t`Tag`}
 						value={termId}
+						disabled={busy}
 						onValueChange={(value) => {
 							setTermId(value ?? "");
 							setReview(null);
 							setApplied(false);
+							setCacheRefreshFailed(false);
 						}}
 						items={Object.fromEntries(options.map((term) => [term.id, term.label]))}
 					>
@@ -155,6 +189,7 @@ export function BulkTagDialog({
 							<Input
 								label={t`New tag name`}
 								value={newLabel}
+								disabled={busy}
 								onChange={(event) => setNewLabel(event.target.value)}
 							/>
 							<Button
@@ -172,6 +207,7 @@ export function BulkTagDialog({
 						<Button
 							type="button"
 							variant="outline"
+							disabled={busy}
 							onClick={() => setCreating(true)}
 						>{t`Create new tag`}</Button>
 					)}
@@ -182,10 +218,12 @@ export function BulkTagDialog({
 							label={t`Post URLs (one per line)`}
 							rows={5}
 							value={urls}
+							disabled={busy}
 							onChange={(event) => {
 								setUrls(event.target.value);
 								setReview(null);
 								setApplied(false);
+								setCacheRefreshFailed(false);
 							}}
 							placeholder={t`https://example.com/blog/my-post`}
 						/>
@@ -229,6 +267,11 @@ export function BulkTagDialog({
 							{!applied && (
 								<p className="text-sm text-kumo-subtle">{t`Apply now changes tags immediately on published posts. It does not publish other draft edits.`}</p>
 							)}
+							{cacheRefreshFailed && (
+								<p role="status" className="text-sm text-kumo-subtle">
+									{t`Tags were saved, but cached pages may still show old tags. Retry the cache refresh.`}
+								</p>
+							)}
 						</div>
 					)}
 					<DialogError message={error} />
@@ -238,18 +281,46 @@ export function BulkTagDialog({
 						{applied || (review && ready === 0) ? t`Done` : t`Cancel`}
 					</Button>
 					{applied ? (
-						failed.length > 0 && (
-							<Button
-								type="button"
-								disabled={busy}
-								onClick={() => void apply(failed.map((result) => result.input))}
-							>{t`Retry failures`}</Button>
-						)
+						<>
+							{failed.length > 0 && (
+								<Button
+									type="button"
+									disabled={busy}
+									onClick={() =>
+										void apply(
+											results.flatMap((result, index) =>
+												result.status === "failed" ? [index] : [],
+											),
+										)
+									}
+								>{t`Retry failures`}</Button>
+							)}
+							{cacheRefreshFailed && (
+								<Button
+									type="button"
+									disabled={busy}
+									onClick={() =>
+										void apply(
+											results.flatMap((result, index) =>
+												(result.status === "added" || result.status === "skipped") && result.entry
+													? [index]
+													: [],
+											),
+											true,
+										)
+									}
+								>{t`Retry cache refresh`}</Button>
+							)}
+						</>
 					) : review ? (
 						<Button
 							type="button"
 							disabled={busy || ready === 0}
-							onClick={() => void apply(sources)}
+							onClick={() =>
+								void apply(
+									results.flatMap((result, index) => (result.status === "ready" ? [index] : [])),
+								)
+							}
 						>
 							{busy ? t`Adding…` : t`Apply now`}
 						</Button>

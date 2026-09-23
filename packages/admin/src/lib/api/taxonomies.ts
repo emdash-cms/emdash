@@ -90,6 +90,11 @@ export interface LocaleOptions {
 	locale?: string;
 }
 
+export interface FetchTermsOptions extends LocaleOptions {
+	includeCounts?: boolean;
+	resolveFallback?: boolean;
+}
+
 export type BulkTagSource = { collection: string; id: string } | { url: string };
 
 export interface BulkTagResult {
@@ -103,17 +108,17 @@ export async function bulkTagPosts(
 	termId: string,
 	items: BulkTagSource[],
 	apply = false,
-): Promise<BulkTagResult[]> {
+	refreshOnly = false,
+): Promise<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }> {
 	const response = await apiFetch(`${API_BASE}/taxonomies/bulk-tag`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ termId, items, apply }),
+		body: JSON.stringify({ termId, items, apply, ...(refreshOnly ? { refreshOnly: true } : {}) }),
 	});
-	const data = await parseApiResponse<{ results: BulkTagResult[] }>(
+	return parseApiResponse<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }>(
 		response,
 		"Failed to add tag to posts",
 	);
-	return data.results;
 }
 
 export function withLocale(path: string, locale?: string): string {
@@ -176,11 +181,16 @@ export async function deleteTaxonomy(name: string): Promise<void> {
  */
 export async function fetchTerms(
 	taxonomyName: string,
-	options: LocaleOptions = {},
+	options: FetchTermsOptions = {},
 ): Promise<TaxonomyTerm[]> {
-	const response = await apiFetch(
-		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms`, options.locale),
-	);
+	const params = new URLSearchParams();
+	if (options.locale) params.set("locale", options.locale);
+	if (options.includeCounts !== undefined)
+		params.set("includeCounts", String(options.includeCounts));
+	if (options.resolveFallback !== undefined)
+		params.set("resolveFallback", String(options.resolveFallback));
+	const query = params.size > 0 ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/taxonomies/${taxonomyName}/terms${query}`);
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(response, "Failed to fetch terms");
 	return data.terms;
 }

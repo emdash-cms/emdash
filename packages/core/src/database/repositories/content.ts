@@ -575,6 +575,44 @@ export class ContentRepository {
 		return this.mapRow(type, row);
 	}
 
+	async findManyByIds(type: string, ids: string[]): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (ids.length === 0) return items;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE id IN (${sql.join(batch)}) AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				items.set(item.id, item);
+			}
+		}
+		return items;
+	}
+
+	async findManyBySlugsInLocale(
+		type: string,
+		slugs: string[],
+		locale: string,
+	): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (slugs.length === 0) return items;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				if (item.slug !== null) items.set(item.slug, item);
+			}
+		}
+		return items;
+	}
+
 	/**
 	 * Find content by id, including trashed (soft-deleted) items.
 	 * Used by restore endpoint for ownership checks.
@@ -2115,6 +2153,27 @@ export class ContentRepository {
 			AND deleted_at IS NULL
 		`.execute(this.db);
 		return result.rows.map((row) => row.id);
+	}
+
+	async findTranslationIdsForGroups(
+		type: string,
+		translationGroups: string[],
+	): Promise<Map<string, string[]>> {
+		const ids = new Map<string, string[]>();
+		if (translationGroups.length === 0) return ids;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(translationGroups)], SQL_BATCH_SIZE)) {
+			const result = await sql<{ id: string; translation_group: string }>`
+				SELECT id, translation_group FROM ${sql.ref(tableName)}
+				WHERE translation_group IN (${sql.join(batch)}) AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const group = ids.get(row.translation_group) ?? [];
+				group.push(row.id);
+				ids.set(row.translation_group, group);
+			}
+		}
+		return ids;
 	}
 
 	/**

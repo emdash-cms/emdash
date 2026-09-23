@@ -69,6 +69,7 @@ export const bulkTagBody = z
 	.object({
 		termId: z.string().min(1),
 		apply: z.boolean().default(false),
+		refreshOnly: z.boolean().optional(),
 		items: z
 			.array(
 				z.union([

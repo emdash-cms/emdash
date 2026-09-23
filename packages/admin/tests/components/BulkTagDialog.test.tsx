@@ -11,8 +11,13 @@ import { render } from "../utils/render.tsx";
 const link = "https://blog.example.com/posts/example";
 const source = { url: link };
 const entry = { collection: "posts", id: "post-1", title: "Internship experience", locale: "en" };
-const requests: Array<{ termId: string; apply: boolean; items: unknown[] }> = [];
+const requests: Array<{ termId: string; apply: boolean; items: unknown[]; refreshOnly?: boolean }> =
+	[];
+const termRequests: string[] = [];
 let failNextApply = false;
+let failCacheRefresh = false;
+let skipOnCacheRetry = false;
+let unmatchedSecondOnApply = false;
 let createdTag = false;
 
 vi.mock("@tanstack/react-router", async () => {
@@ -32,7 +37,11 @@ function response(data: unknown): Response {
 describe("bulk tag dialog", () => {
 	beforeEach(() => {
 		requests.length = 0;
+		termRequests.length = 0;
 		failNextApply = false;
+		failCacheRefresh = false;
+		skipOnCacheRetry = false;
+		unmatchedSecondOnApply = false;
 		createdTag = false;
 		vi.stubGlobal(
 			"fetch",
@@ -51,15 +60,17 @@ describe("bulk tag dialog", () => {
 						},
 					});
 				}
-				if (input.endsWith("/terms"))
+				if (input.includes("/terms?")) {
+					termRequests.push(input);
+					const locale = new URL(input, window.location.origin).searchParams.get("locale");
 					return response({
 						terms: [
 							{
-								id: "tag-1",
+								id: locale === "fr" ? "tag-1-fr" : "tag-1",
 								name: "tag",
-								label: "Internship Experience",
+								label: locale === "fr" ? "Expérience de stage" : "Internship Experience",
 								slug: "internship",
-								locale: "en",
+								locale: locale === "fr" ? "fr" : "en",
 								translationGroup: "tag-1",
 								children: [],
 							},
@@ -78,19 +89,38 @@ describe("bulk tag dialog", () => {
 								: []),
 						],
 					});
+				}
 				if (input.endsWith("/bulk-tag")) {
 					const body = JSON.parse(init?.body as string) as {
 						termId: string;
 						apply: boolean;
+						refreshOnly?: boolean;
 						items: Array<{ url?: string; id?: string }>;
 					};
 					requests.push(body);
 					return response({
-						results: body.items.map((item) => ({
-							input: item,
-							entry,
-							status: body.apply ? (failNextApply ? "failed" : "added") : "ready",
-						})),
+						results: body.items.map((item, index) => {
+							if (unmatchedSecondOnApply && body.apply && index === 1) {
+								return { input: item, status: "unmatched", reason: "not_found" };
+							}
+							const duplicate = index > 0 && item.url === body.items[0]?.url;
+							return {
+								input: item,
+								entry: index > 0 ? { ...entry, id: "post-2", title: "Second" } : entry,
+								status: duplicate
+									? "skipped"
+									: body.apply
+										? failNextApply
+											? "failed"
+											: body.refreshOnly ||
+												  (skipOnCacheRetry &&
+														requests.filter((request) => request.apply).length > 1)
+												? "skipped"
+												: "added"
+										: "ready",
+							};
+						}),
+						cacheRefreshFailed: body.apply && failCacheRefresh,
 					});
 				}
 				throw new Error(`Unexpected request: ${input}`);
@@ -113,7 +143,11 @@ describe("bulk tag dialog", () => {
 		expect(requests).toEqual([{ termId: "tag-1", apply: false, items: [source] }]);
 		await page.getByRole("button", { name: "Apply now" }).click();
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
-		expect(requests[1]).toEqual({ termId: "tag-1", apply: true, items: [source] });
+		expect(requests[1]).toEqual({
+			termId: "tag-1",
+			apply: true,
+			items: [{ collection: "posts", id: "post-1" }],
+		});
 	});
 
 	it("opens from the Posts selection bar with the selected entry", async () => {
@@ -167,8 +201,23 @@ describe("bulk tag dialog", () => {
 		await expect.element(page.getByText("Added")).toBeInTheDocument();
 		expect(requests).toEqual([
 			{ termId: "tag-1", apply: false, items: [source] },
-			{ termId: "tag-1", apply: true, items: [source] },
-			{ termId: "tag-1", apply: true, items: [source] },
+			{ termId: "tag-1", apply: true, items: [{ collection: "posts", id: "post-1" }] },
+			{ termId: "tag-1", apply: true, items: [{ collection: "posts", id: "post-1" }] },
+		]);
+	});
+
+	it("keeps duplicate URL rows distinct and only applies the reviewed post once", async () => {
+		await render(<BulkTagDialog onClose={() => undefined} />);
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await page.getByRole("option", { name: "Internship Experience" }).click();
+		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(`${link}\n${link}`);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		await page.getByRole("button", { name: "Apply now" }).click();
+		await expect.element(page.getByText("Added")).toBeInTheDocument();
+		await expect.element(page.getByText("Already tagged or duplicate")).toBeInTheDocument();
+		expect(requests).toEqual([
+			{ termId: "tag-1", apply: false, items: [source, source] },
+			{ termId: "tag-1", apply: true, items: [{ collection: "posts", id: "post-1" }] },
 		]);
 	});
 
@@ -182,5 +231,65 @@ describe("bulk tag dialog", () => {
 		await page.getByRole("button", { name: "Review posts" }).click();
 		await expect.element(page.getByText("Internship experience (en)")).toBeInTheDocument();
 		expect(requests[0]).toMatchObject({ termId: "tag-2", apply: false });
+	});
+
+	it("prefers the configured language and skips unused term counts", async () => {
+		await render(<BulkTagDialog defaultLocale="fr" onClose={() => undefined} />);
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await page.getByRole("option", { name: "Expérience de stage" }).click();
+		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		expect(requests[0]?.termId).toBe("tag-1-fr");
+		const params = new URL(termRequests[0]!, window.location.origin).searchParams;
+		expect(params.get("locale")).toBe("fr");
+		expect(params.get("resolveFallback")).toBe("true");
+		expect(params.get("includeCounts")).toBe("false");
+	});
+
+	it("shows committed results with a cache warning and allows refreshing without retagging", async () => {
+		failCacheRefresh = true;
+		skipOnCacheRetry = true;
+		await render(<BulkTagDialog onClose={() => undefined} />);
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await page.getByRole("option", { name: "Internship Experience" }).click();
+		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		await page.getByRole("button", { name: "Apply now" }).click();
+		await expect.element(page.getByText("Added")).toBeInTheDocument();
+		await expect
+			.element(page.getByText(/cached pages may still show old tags/))
+			.toBeInTheDocument();
+		failCacheRefresh = false;
+		await page.getByRole("button", { name: "Retry cache refresh" }).click();
+		await expect.element(page.getByText("Added")).toBeInTheDocument();
+		await expect
+			.element(page.getByText(/cached pages may still show old tags/))
+			.not.toBeInTheDocument();
+		expect(requests.filter((request) => request.apply)).toHaveLength(2);
+		expect(requests.at(-1)).toMatchObject({
+			refreshOnly: true,
+			items: [{ collection: "posts", id: "post-1" }],
+		});
+	});
+
+	it("cache-only retry excludes an unmatched row with a preserved reviewed title", async () => {
+		failCacheRefresh = true;
+		unmatchedSecondOnApply = true;
+		await render(<BulkTagDialog onClose={() => undefined} />);
+		await page.getByRole("combobox", { name: "Tag" }).click();
+		await page.getByRole("option", { name: "Internship Experience" }).click();
+		await page
+			.getByRole("textbox", { name: "Post URLs (one per line)" })
+			.fill(`${link}\n${link}-second`);
+		await page.getByRole("button", { name: "Review posts" }).click();
+		await page.getByRole("button", { name: "Apply now" }).click();
+		await expect.element(page.getByText("Second (en)")).toBeInTheDocument();
+		await expect.element(page.getByText("Not matched")).toBeInTheDocument();
+		failCacheRefresh = false;
+		await page.getByRole("button", { name: "Retry cache refresh" }).click();
+		expect(requests.at(-1)).toMatchObject({
+			refreshOnly: true,
+			items: [{ collection: "posts", id: "post-1" }],
+		});
 	});
 });

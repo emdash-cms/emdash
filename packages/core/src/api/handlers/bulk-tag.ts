@@ -18,6 +18,12 @@ import type { ApiResult } from "../types.js";
 type BulkTagInput = z.infer<typeof bulkTagBody>;
 type BulkTagSource = BulkTagInput["items"][number];
 type Collection = Awaited<ReturnType<SchemaRegistry["listCollections"]>>[number];
+type UrlCandidate = {
+	collection: Collection;
+	locale: string;
+	identifier: string;
+	by: "slug" | "id";
+};
 const TRAILING_SLASHES = /\/+$/;
 
 export interface BulkTagResult {
@@ -44,23 +50,21 @@ function normalizedPath(path: string): string {
 	return path.replace(TRAILING_SLASHES, "") || "/";
 }
 
-async function resolveUrl(
+async function urlCandidates(
 	url: string,
 	origin: string,
 	collections: Collection[],
-	content: ContentRepository,
-): Promise<{ item: ContentItem; collection: Collection } | "not_found" | "ambiguous"> {
+): Promise<{ path: string; candidates: UrlCandidate[] } | null> {
 	let parsed: URL;
 	try {
 		parsed = new URL(url);
 	} catch {
-		return "not_found";
+		return null;
 	}
-	if (parsed.origin !== origin || !["https:", "http:"].includes(parsed.protocol))
-		return "not_found";
+	if (parsed.origin !== origin || !["https:", "http:"].includes(parsed.protocol)) return null;
 
 	const locales = getI18nConfig()?.locales ?? ["en"];
-	const matches = new Map<string, { item: ContentItem; collection: Collection }>();
+	const candidates: UrlCandidate[] = [];
 	for (const collection of collections) {
 		const pattern = collection.urlPattern ?? `/${collection.slug}/{slug}`;
 		for (const locale of locales) {
@@ -78,26 +82,10 @@ async function resolveUrl(
 			} catch {
 				continue;
 			}
-			const item =
-				slugIndex >= 0
-					? await content.findBySlug(collection.slug, identifier, locale)
-					: await content.findById(collection.slug, identifier);
-			if (!item || item.locale !== locale || !item.liveRevisionId || !item.slug) continue;
-			const canonical = await resolveLocalizedContentRoutePath({
-				pattern,
-				collection: collection.slug,
-				slug: item.slug,
-				id: item.id,
-				date: item.publishedAt,
-				locale,
-			});
-			if (canonical && normalizedPath(canonical) === normalizedPath(parsed.pathname)) {
-				matches.set(`${collection.slug}:${item.id}`, { item, collection });
-			}
+			candidates.push({ collection, locale, identifier, by: slugIndex >= 0 ? "slug" : "id" });
 		}
 	}
-	if (matches.size > 1) return "ambiguous";
-	return matches.values().next().value ?? "not_found";
+	return { path: parsed.pathname, candidates };
 }
 
 export async function handleBulkTag(
@@ -105,7 +93,7 @@ export async function handleBulkTag(
 	origin: string,
 	input: BulkTagInput,
 	invalidate?: (tags: string[]) => Promise<void>,
-): Promise<ApiResult<{ results: BulkTagResult[] }>> {
+): Promise<ApiResult<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }>> {
 	try {
 		const taxonomy = new TaxonomyRepository(db);
 		const term = await taxonomy.findById(input.termId);
@@ -130,20 +118,133 @@ export async function handleBulkTag(
 		);
 		const byCollection = new Map(collections.map((collection) => [collection.slug, collection]));
 		const content = new ContentRepository(db);
+		const idNeeds = new Map<string, Set<string>>();
+		const slugNeeds = new Map<string, { collection: string; locale: string; slugs: Set<string> }>();
+		const parsedUrls = new Map<number, Awaited<ReturnType<typeof urlCandidates>>>();
+		for (const [index, source] of input.items.entries()) {
+			if ("url" in source) {
+				const parsed = await urlCandidates(source.url, origin, collections);
+				parsedUrls.set(index, parsed);
+				for (const candidate of parsed?.candidates ?? []) {
+					if (candidate.by === "id") {
+						const ids = idNeeds.get(candidate.collection.slug) ?? new Set<string>();
+						ids.add(candidate.identifier);
+						idNeeds.set(candidate.collection.slug, ids);
+					} else {
+						const key = `${candidate.collection.slug}:${candidate.locale}`;
+						const group = slugNeeds.get(key) ?? {
+							collection: candidate.collection.slug,
+							locale: candidate.locale,
+							slugs: new Set<string>(),
+						};
+						group.slugs.add(candidate.identifier);
+						slugNeeds.set(key, group);
+					}
+				}
+			} else if (byCollection.has(source.collection)) {
+				const ids = idNeeds.get(source.collection) ?? new Set<string>();
+				ids.add(source.id);
+				idNeeds.set(source.collection, ids);
+			}
+		}
+		const byId = new Map<string, Map<string, ContentItem>>();
+		for (const [collection, ids] of idNeeds) {
+			byId.set(collection, await content.findManyByIds(collection, [...ids]));
+		}
+		const bySlug = new Map<string, Map<string, ContentItem>>();
+		for (const [key, group] of slugNeeds) {
+			bySlug.set(
+				key,
+				await content.findManyBySlugsInLocale(group.collection, [...group.slugs], group.locale),
+			);
+		}
+		const prepared: Array<{
+			source: BulkTagSource;
+			resolved: { item: ContentItem; collection: Collection } | "not_found" | "ambiguous";
+		}> = [];
+		const groups = new Map<string, Set<string>>();
+		for (const [index, source] of input.items.entries()) {
+			let resolved: (typeof prepared)[number]["resolved"] = "not_found";
+			if ("url" in source) {
+				const parsed = parsedUrls.get(index);
+				const matches = new Map<string, { item: ContentItem; collection: Collection }>();
+				for (const candidate of parsed?.candidates ?? []) {
+					const item =
+						candidate.by === "id"
+							? byId.get(candidate.collection.slug)?.get(candidate.identifier)
+							: bySlug
+									.get(`${candidate.collection.slug}:${candidate.locale}`)
+									?.get(candidate.identifier);
+					if (!item || item.locale !== candidate.locale || item.status !== "published") continue;
+					const canonical = await resolveLocalizedContentRoutePath({
+						pattern: candidate.collection.urlPattern ?? `/${candidate.collection.slug}/{slug}`,
+						collection: candidate.collection.slug,
+						slug: item.slug ?? "",
+						id: item.id,
+						date: item.publishedAt,
+						locale: candidate.locale,
+					});
+					if (canonical && parsed && normalizedPath(canonical) === normalizedPath(parsed.path)) {
+						matches.set(`${candidate.collection.slug}:${item.id}`, {
+							item,
+							collection: candidate.collection,
+						});
+					}
+				}
+				resolved = matches.size > 1 ? "ambiguous" : (matches.values().next().value ?? "not_found");
+			} else {
+				const collection = byCollection.get(source.collection);
+				const item = byId.get(source.collection)?.get(source.id);
+				if (item && collection) resolved = { item, collection };
+			}
+			prepared.push({ source, resolved });
+			if (typeof resolved !== "string") {
+				const collectionGroups = groups.get(resolved.collection.slug) ?? new Set<string>();
+				collectionGroups.add(resolved.item.translationGroup ?? resolved.item.id);
+				groups.set(resolved.collection.slug, collectionGroups);
+			}
+		}
+		const termGroup = term.translationGroup ?? term.id;
+		const assigned = new Set<string>();
+		if (!input.apply) {
+			for (const [collection, entryGroups] of groups) {
+				for (const batch of chunks([...entryGroups], 50)) {
+					const rows = await db
+						.selectFrom("content_taxonomies")
+						.select("entry_id")
+						.where("collection", "=", collection)
+						.where("taxonomy_id", "=", termGroup)
+						.where("entry_id", "in", batch)
+						.execute();
+					for (const row of rows) assigned.add(`${collection}:${row.entry_id}`);
+				}
+			}
+		}
+		const siblingIds = new Map<string, Map<string, string[]>>();
+		if (input.apply && invalidate) {
+			for (const [collection, entryGroups] of groups) {
+				siblingIds.set(
+					collection,
+					await content.findTranslationIdsForGroups(collection, [...entryGroups]),
+				);
+			}
+		}
 		const seen = new Set<string>();
 		const purge = new Set<string>([taxonomyTag("tag")]);
 		const results: BulkTagResult[] = [];
 		let changed = false;
-		for (const source of input.items) {
-			let resolved: Awaited<ReturnType<typeof resolveUrl>>;
-			if ("url" in source) {
-				resolved = await resolveUrl(source.url, origin, collections, content);
-			} else {
-				const collection = byCollection.get(source.collection);
-				const item = collection ? await content.findById(source.collection, source.id) : null;
-				resolved = item && collection ? { item, collection } : "not_found";
-			}
+		for (const { source, resolved } of prepared) {
 			if (typeof resolved === "string") {
+				if (
+					input.apply &&
+					input.refreshOnly &&
+					invalidate &&
+					"id" in source &&
+					byCollection.has(source.collection)
+				) {
+					purge.add(source.collection);
+					purge.add(source.id);
+				}
 				results.push({ input: source, status: "unmatched", reason: resolved });
 				continue;
 			}
@@ -161,29 +262,25 @@ export async function handleBulkTag(
 				continue;
 			}
 			try {
-				const assigned = await db
-					.selectFrom("content_taxonomies")
-					.select("entry_id")
-					.where("collection", "=", collection.slug)
-					.where("entry_id", "=", group)
-					.where("taxonomy_id", "=", term.translationGroup ?? term.id)
-					.executeTakeFirst();
 				const inserted =
-					input.apply && !assigned
-						? await taxonomy.attachGroupsToEntry(collection.slug, item.id, [
-								term.translationGroup ?? term.id,
-							])
+					input.apply && !input.refreshOnly
+						? await taxonomy.attachGroupsToEntry(collection.slug, item.id, [termGroup])
 						: 0;
 				if (inserted) changed = true;
 				seen.add(key);
-				if (input.apply) {
+				if (input.apply && invalidate) {
 					purge.add(collection.slug);
-					for (const id of await content.findTranslationIds(collection.slug, group)) purge.add(id);
+					for (const id of siblingIds.get(collection.slug)?.get(group) ?? [item.id]) purge.add(id);
 				}
 				results.push({
 					input: source,
-					status:
-						assigned || (input.apply && !inserted) ? "skipped" : input.apply ? "added" : "ready",
+					status: input.apply
+						? inserted
+							? "added"
+							: "skipped"
+						: assigned.has(key)
+							? "skipped"
+							: "ready",
 					entry,
 				});
 			} catch (error) {
@@ -192,10 +289,16 @@ export async function handleBulkTag(
 			}
 		}
 		if (changed) invalidateTermCache();
-		if (input.apply && invalidate && purge.size > 1) {
-			for (const batch of chunks([...purge], 100)) await invalidate(batch);
+		let cacheRefreshFailed = false;
+		if (input.apply && invalidate && (purge.size > 1 || input.refreshOnly)) {
+			try {
+				for (const batch of chunks([...purge], 100)) await invalidate(batch);
+			} catch (error) {
+				console.error("[bulk-tag] Failed to invalidate cache:", error);
+				cacheRefreshFailed = true;
+			}
 		}
-		return { success: true, data: { results } };
+		return { success: true, data: { results, cacheRefreshFailed } };
 	} catch (error) {
 		console.error("[bulk-tag] Failed:", error);
 		return {
