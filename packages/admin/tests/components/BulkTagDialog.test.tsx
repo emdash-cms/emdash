@@ -134,7 +134,7 @@ describe("bulk tag dialog", () => {
 	});
 
 	it("previews the exact title and language before applying the tag", async () => {
-		await render(<BulkTagDialog onClose={() => undefined} />);
+		await render(<BulkTagDialog open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -144,6 +144,7 @@ describe("bulk tag dialog", () => {
 		};
 		const initialSize = dialogSize();
 		expect(initialSize[0]).toBeGreaterThan(650);
+		expect(initialSize[1]).toBeLessThan(550);
 		await page.getByRole("button", { name: "Review posts" }).click();
 		expect(dialogSize()).toEqual(initialSize);
 		await expect
@@ -167,7 +168,7 @@ describe("bulk tag dialog", () => {
 	});
 
 	it("keeps the chosen tag and pasted links when returning from review", async () => {
-		await render(<BulkTagDialog onClose={() => undefined} />);
+		await render(<BulkTagDialog open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -181,6 +182,32 @@ describe("bulk tag dialog", () => {
 			{ termId: "tag-1", apply: false, items: [source] },
 			{ termId: "tag-1", apply: false, items: [source] },
 		]);
+	});
+
+	it("closes and resets before reopening", async () => {
+		const onClosed = vi.fn();
+		function Host() {
+			const [open, setOpen] = React.useState(false);
+			return (
+				<>
+					<button type="button" onClick={() => setOpen(true)}>
+						Open bulk tagging
+					</button>
+					<BulkTagDialog open={open} onClose={() => setOpen(false)} onClosed={onClosed} />
+				</>
+			);
+		}
+		await render(<Host />);
+		expect(termRequests).toHaveLength(0);
+		await page.getByRole("button", { name: "Open bulk tagging" }).click();
+		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
+		await page.getByRole("button", { name: "Close" }).click();
+		await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+		await vi.waitFor(() => expect(onClosed).toHaveBeenCalledOnce());
+		await page.getByRole("button", { name: "Open bulk tagging" }).click();
+		await expect
+			.element(page.getByRole("textbox", { name: "Post URLs (one per line)" }))
+			.toHaveValue("");
 	});
 
 	it("opens from the Posts selection bar with the selected entry", async () => {
@@ -230,7 +257,7 @@ describe("bulk tag dialog", () => {
 
 	it("retries failed writes without repeating the successful review", async () => {
 		failNextApply = true;
-		await render(<BulkTagDialog onClose={() => undefined} />);
+		await render(<BulkTagDialog open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -248,7 +275,7 @@ describe("bulk tag dialog", () => {
 	});
 
 	it("keeps duplicate URL rows distinct and only applies the reviewed post once", async () => {
-		await render(<BulkTagDialog onClose={() => undefined} />);
+		await render(<BulkTagDialog open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(`${link}\n${link}`);
@@ -264,7 +291,7 @@ describe("bulk tag dialog", () => {
 
 	it("creates and selects a new tag in a right-to-left dialog", async () => {
 		document.documentElement.dir = "rtl";
-		await render(<BulkTagDialog defaultLocale="ar" onClose={() => undefined} />);
+		await render(<BulkTagDialog open defaultLocale="ar" onClose={() => undefined} />);
 		await page.getByRole("button", { name: "Create new tag" }).click();
 		await page.getByRole("textbox", { name: "New tag name" }).fill("تجربة التدريب");
 		await page.getByRole("button", { name: "Create tag" }).click();
@@ -276,7 +303,7 @@ describe("bulk tag dialog", () => {
 	});
 
 	it("prefers the configured language and skips unused term counts", async () => {
-		await render(<BulkTagDialog defaultLocale="fr" onClose={() => undefined} />);
+		await render(<BulkTagDialog open defaultLocale="fr" onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Expérience de stage" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -291,7 +318,7 @@ describe("bulk tag dialog", () => {
 	it("shows committed results with a cache warning and allows refreshing without retagging", async () => {
 		failCacheRefresh = true;
 		skipOnCacheRetry = true;
-		await render(<BulkTagDialog onClose={() => undefined} />);
+		await render(<BulkTagDialog open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page.getByRole("textbox", { name: "Post URLs (one per line)" }).fill(link);
@@ -317,7 +344,7 @@ describe("bulk tag dialog", () => {
 	it("cache-only retry excludes an unmatched row with a preserved reviewed title", async () => {
 		failCacheRefresh = true;
 		unmatchedSecondOnApply = true;
-		await render(<BulkTagDialog onClose={() => undefined} />);
+		await render(<BulkTagDialog open onClose={() => undefined} />);
 		await page.getByRole("combobox", { name: "Tag" }).click();
 		await page.getByRole("option", { name: "Internship Experience" }).click();
 		await page

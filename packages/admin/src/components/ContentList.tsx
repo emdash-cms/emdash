@@ -283,6 +283,7 @@ export function ContentList({
 	const [bulkTagSelection, setBulkTagSelection] = React.useState<SelectedBulkTagPost[] | null>(
 		null,
 	);
+	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
@@ -526,7 +527,7 @@ export function ContentList({
 										size="sm"
 										variant="secondary"
 										disabled={bulkBusy}
-										onClick={() =>
+										onClick={() => {
 											setBulkTagSelection(
 												Array.from(selectedIds, (id) => {
 													const item = items.find((candidate) => candidate.id === id);
@@ -537,8 +538,9 @@ export function ContentList({
 														locale: item?.locale,
 													};
 												}),
-											)
-										}
+											);
+											setBulkTagOpen(true);
+										}}
 									>
 										{t`Add tag`}
 									</Button>
@@ -601,25 +603,25 @@ export function ContentList({
 							</div>
 						</div>
 					)}
-					{bulkTagSelection && (
-						<BulkTagDialog
-							selected={bulkTagSelection}
-							defaultLocale={i18n?.defaultLocale}
-							onClose={() => setBulkTagSelection(null)}
-							onApplied={(results) => {
-								setSelectedIds(
-									new Set(
-										results.flatMap((result) =>
-											(result.status === "failed" || result.status === "unmatched") &&
-											"id" in result.input
-												? [result.input.id]
-												: [],
-										),
+					<BulkTagDialog
+						open={bulkTagOpen}
+						selected={bulkTagSelection ?? undefined}
+						defaultLocale={i18n?.defaultLocale}
+						onClose={() => setBulkTagOpen(false)}
+						onClosed={() => setBulkTagSelection(null)}
+						onApplied={(results) => {
+							setSelectedIds(
+								new Set(
+									results.flatMap((result) =>
+										(result.status === "failed" || result.status === "unmatched") &&
+										"id" in result.input
+											? [result.input.id]
+											: [],
 									),
-								);
-							}}
-						/>
-					)}
+								),
+							);
+						}}
+					/>
 
 					{/* Table */}
 					<div className="rounded-md border bg-kumo-base overflow-x-auto">

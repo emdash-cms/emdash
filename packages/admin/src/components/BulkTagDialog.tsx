@@ -76,12 +76,16 @@ function ResultBadge({ status }: { status: BulkTagResult["status"] }) {
 }
 
 export function BulkTagDialog({
+	open,
 	onClose,
+	onClosed,
 	selected,
 	defaultLocale,
 	onApplied,
 }: {
+	open: boolean;
 	onClose: () => void;
+	onClosed?: () => void;
 	selected?: SelectedBulkTagPost[];
 	defaultLocale?: string;
 	onApplied?: (results: BulkTagResult[]) => void;
@@ -90,6 +94,7 @@ export function BulkTagDialog({
 	const queryClient = useQueryClient();
 	const termLocale = defaultLocale ?? "en";
 	const { data: terms = [], isLoading } = useQuery({
+		enabled: open,
 		queryKey: [
 			"taxonomy-terms",
 			"tag",
@@ -109,6 +114,17 @@ export function BulkTagDialog({
 	const [busy, setBusy] = React.useState(false);
 	const [error, setError] = React.useState<string | null>(null);
 	const [cacheRefreshFailed, setCacheRefreshFailed] = React.useState(false);
+	const reset = () => {
+		setTermId("");
+		setCreating(false);
+		setNewLabel("");
+		setUrls("");
+		setReview(null);
+		setApplied(false);
+		setBusy(false);
+		setError(null);
+		setCacheRefreshFailed(false);
+	};
 
 	const sources: BulkTagSource[] = selected
 		? selected.map(({ collection, id }) => ({ collection, id }))
@@ -209,10 +225,19 @@ export function BulkTagDialog({
 	};
 
 	return (
-		<Dialog.Root open onOpenChange={(open) => !open && !busy && onClose()} disablePointerDismissal>
+		<Dialog.Root
+			open={open}
+			onOpenChange={(nextOpen) => !nextOpen && !busy && onClose()}
+			onOpenChangeComplete={(nextOpen) => {
+				if (nextOpen) return;
+				reset();
+				onClosed?.();
+			}}
+			disablePointerDismissal={busy}
+		>
 			<Dialog
 				size="xl"
-				className="flex h-[calc(100dvh-2rem)] max-h-[38rem] w-[calc(100vw-2rem)] min-w-0 max-w-3xl flex-col overflow-hidden p-0 sm:w-[calc(100vw-2rem)]"
+				className="flex h-[calc(100dvh-2rem)] max-h-[28rem] w-[calc(100vw-2rem)] min-w-0 max-w-3xl flex-col overflow-hidden p-0 sm:w-[calc(100vw-2rem)]"
 			>
 				<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
 					<div className="min-w-0">
@@ -231,7 +256,7 @@ export function BulkTagDialog({
 						onClick={onClose}
 					/>
 				</div>
-				<div className="min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-6 py-6">
+				<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-6 py-6">
 					{!review ? (
 						<>
 							<div className="space-y-2">
@@ -315,7 +340,7 @@ export function BulkTagDialog({
 								<InputArea
 									className="w-full"
 									label={t`Post URLs (one per line)`}
-									rows={5}
+									rows={4}
 									value={urls}
 									disabled={busy}
 									onChange={(event) => setUrls(event.target.value)}
