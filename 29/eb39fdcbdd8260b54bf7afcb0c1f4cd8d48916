@@ -1,0 +1,57 @@
+.changeset/quiet-tags-publish.md
+  s_0c2371b7147544::t_c58bbe25d6e0af 1-6
+docs/src/content/docs/guides/taxonomies.mdx
+  s_0c2371b7147544::t_edef3a727251cb 30-31
+docs/src/content/docs/reference/rest-api.mdx
+  s_0c2371b7147544::t_c9b4c76b59b041 350-351
+packages/admin/src/components/ContentEditor.tsx
+  s_0c2371b7147544::t_c4c92a3725cb46 309,371,1495
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_28dac149ff7651::t_81af5088907309 728,793,1169
+packages/admin/src/components/TaxonomySidebar.tsx
+  s_28dac149ff7651::t_ae1ea1fd29959f 23,75,173,177,179,633,641,671,677,681-684,888,913
+packages/admin/src/router.tsx
+  s_0c2371b7147544::t_8ec549ae376545 1217,1263,1517-1524,1691
+packages/admin/tests/components/TaxonomySidebar.test.tsx
+  s_0c2371b7147544::t_48ed46be8e689a 497,503-506,939
+packages/admin/tests/publish-button-locale.test.tsx
+  s_0c2371b7147544::t_2dc2d9f9082350 39,403-554
+packages/core/src/astro/routes/api/content/[collection]/[id]/terms/[taxonomy].ts
+  s_0c2371b7147544::t_4ae4e7de1c12d3 8,14,17-18,23,88-101,112,168,172,186-254,263-265,278-280
+packages/core/src/database/repositories/content.ts
+  s_0c2371b7147544::t_4c0b1e67be4600 7-10,13,23-24,2423,2427-2465,2506,2524-2560,2598-2601
+packages/core/src/database/repositories/taxonomy-drafts.ts
+  s_0c2371b7147544::t_51d9ff762d44ea 1-26
+packages/core/tests/integration/taxonomies/taxonomy-editor-publish.test.ts
+  s_0c2371b7147544::t_8f75a8bc8177e3 1-175
+packages/core/tests/workerd/taxonomy-editor-publish-d1.test.ts
+  s_0c2371b7147544::t_7e250bf482941a 1-90
+packages/core/src/api/schemas/content.ts
+  s_0c2371b7147544::t_4beeeb2c71868b 272
+packages/core/src/database/repositories/taxonomy.ts
+  s_0c2371b7147544::t_67dea731c43a0f 5,725-771
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "29eb39fdcbdd8260b54bf7afcb0c1f4cd8d48916",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_28dac149ff7651": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f31f27554ffe3P4sybm1HnyiO9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
