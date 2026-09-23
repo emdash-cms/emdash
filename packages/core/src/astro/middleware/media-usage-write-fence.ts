@@ -56,7 +56,7 @@ const ROUTE_CHECKED_PATTERNS = [
 ] as const;
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const TRAILING_SLASHES = /\/+$/;
+const SLASH = 0x2f;
 
 function underPrefix(pathname: string, prefix: string): boolean {
 	return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -69,7 +69,13 @@ function normalizePathname(pathname: string): string {
 	} catch {
 		// Keep the raw pathname; the router cannot match it either.
 	}
-	return decoded.toLowerCase().replace(TRAILING_SLASHES, "");
+	return trimTrailingSlashes(decoded.toLowerCase());
+}
+
+function trimTrailingSlashes(path: string): string {
+	let end = path.length;
+	while (end > 0 && path.charCodeAt(end - 1) === SLASH) end--;
+	return path.slice(0, end);
 }
 
 export interface SiteWriteRequestScope {

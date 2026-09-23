@@ -124,6 +124,20 @@ describe("siteWriteFenceScope", () => {
 			recordWrite: false,
 		});
 	});
+
+	it("ignores trailing slashes", () => {
+		expect(siteWriteFenceScope("POST", "/_emdash/api/content/posts///")).toEqual(
+			siteWriteFenceScope("POST", "/_emdash/api/content/posts"),
+		);
+		expect(siteWriteFenceScope("POST", "/_emdash/api/admin/transfer/")).toBeNull();
+	});
+
+	it("classifies a path with a long run of slashes in linear time", () => {
+		const pathname = `/_emdash/api/content${"/".repeat(100_000)}x`;
+		const started = performance.now();
+		expect(siteWriteFenceScope("POST", pathname)?.transfer).toBe(true);
+		expect(performance.now() - started).toBeLessThan(250);
+	});
 });
 
 describeEachDialect("site write fence middleware", (dialect) => {
