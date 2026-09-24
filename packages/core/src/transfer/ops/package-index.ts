@@ -6,7 +6,8 @@
  * Conventions for what analysis stores:
  * - `group_id`: the record's `translationGroup`, or its `id` when it has none
  *   (what `by: "group"` references resolve against);
- * - `name_key`: the collection `slug` or menu `name` (what `by: "slug"` and
+ * - `name_key`: the collection or block type `slug`, the menu `name`, or the
+ *   block type version's `blockTypeVersionKey` (what `by: "slug"` and
  *   `by: "name"` references resolve against);
  * - `parent_id` and `depth` for topological kinds.
  */

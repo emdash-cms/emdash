@@ -28,6 +28,8 @@ import { PORTABLE_SETTING_NAMES } from "./settings.js";
 
 export const RECORD_KINDS = [
 	"principal",
+	"block_type",
+	"block_type_version",
 	"collection",
 	"field",
 	"taxonomy_def",
@@ -139,6 +141,31 @@ export const principalRecordSchema = z.strictObject({
 	id: portableIdSchema,
 	displayName: shortString,
 	email: shortString.optional(),
+});
+
+export const blockTypeRecordSchema = z.strictObject({
+	kind: z.literal("block_type"),
+	id: portableIdSchema,
+	slug: identifierSchema,
+	label: shortString,
+	description: longText.optional(),
+	icon: shortString.optional(),
+	category: shortString.optional(),
+	currentVersion: integer,
+	source: shortString,
+	createdAt: timestamp,
+	updatedAt: timestamp,
+});
+
+/** The version's `fingerprint` is derived from `fields` and recomputed by the importer. */
+export const blockTypeVersionRecordSchema = z.strictObject({
+	kind: z.literal("block_type_version"),
+	id: portableIdSchema,
+	blockTypeId: portableIdSchema,
+	version: integer,
+	fields: z.array(jsonValue),
+	createdAt: timestamp,
+	updatedAt: timestamp,
 });
 
 export const collectionRecordSchema = z.strictObject({
@@ -501,6 +528,8 @@ export const settingRecordSchema = z.strictObject({
 });
 
 export type PrincipalRecord = z.infer<typeof principalRecordSchema>;
+export type BlockTypeRecord = z.infer<typeof blockTypeRecordSchema>;
+export type BlockTypeVersionRecord = z.infer<typeof blockTypeVersionRecordSchema>;
 export type CollectionRecord = z.infer<typeof collectionRecordSchema>;
 export type FieldRecord = z.infer<typeof fieldRecordSchema>;
 export type TaxonomyDefRecord = z.infer<typeof taxonomyDefRecordSchema>;
@@ -530,6 +559,8 @@ export type SettingRecord = z.infer<typeof settingRecordSchema>;
 
 export const RECORD_SCHEMAS = Object.freeze({
 	principal: principalRecordSchema,
+	block_type: blockTypeRecordSchema,
+	block_type_version: blockTypeVersionRecordSchema,
 	collection: collectionRecordSchema,
 	field: fieldRecordSchema,
 	taxonomy_def: taxonomyDefRecordSchema,
@@ -631,6 +662,8 @@ export interface KindReference {
 export const KIND_REFERENCES: Readonly<Record<RecordKind, readonly KindReference[]>> =
 	Object.freeze({
 		principal: [],
+		block_type: [],
+		block_type_version: [{ property: "blockTypeId", targets: ["block_type"], by: "id" }],
 		collection: [],
 		field: [{ property: "collectionId", targets: ["collection"], by: "id" }],
 		taxonomy_def: [
@@ -714,6 +747,31 @@ export const KIND_REFERENCES: Readonly<Record<RecordKind, readonly KindReference
 	});
 
 /**
+ * Block type slugs a `blocks` field refers to in `validation.allowedTypes`
+ * and `validation.retiredTypes`. Each must name a `block_type` record: the
+ * target resolves them whenever it reads the field.
+ */
+export function blocksFieldTypeSlugs(record: FieldRecord): string[] {
+	const validation = record.validation;
+	if (record.type !== "blocks" || typeof validation !== "object" || validation === null) return [];
+	if (Array.isArray(validation)) return [];
+	const slugs = new Set<string>();
+	for (const list of [validation.allowedTypes, validation.retiredTypes]) {
+		if (!Array.isArray(list)) continue;
+		for (const slug of list) if (typeof slug === "string") slugs.add(slug);
+	}
+	return [...slugs];
+}
+
+/**
+ * Key of a block type's version: a `block_type`'s `currentVersion` must name
+ * the `block_type_version` record with the same key.
+ */
+export function blockTypeVersionKey(blockTypeId: string, version: number): string {
+	return `${blockTypeId}:${version}`;
+}
+
+/**
  * Top-level properties that carry identity rather than content. The media
  * reference walker never rewrites them.
  */
@@ -750,7 +808,15 @@ export type ImportRecordStage = (typeof IMPORT_RECORD_STAGES)[number];
  */
 export const IMPORT_STAGE_KINDS: Readonly<Record<ImportRecordStage, readonly RecordKind[]>> =
 	Object.freeze({
-		schema: ["collection", "field", "taxonomy_def", "relation", "byline_field"],
+		schema: [
+			"block_type",
+			"block_type_version",
+			"collection",
+			"field",
+			"taxonomy_def",
+			"relation",
+			"byline_field",
+		],
 		media: ["media_folder", "media"],
 		terms_bylines: ["term", "byline", "byline_field_value", "byline_field_group_value"],
 		content: ["revision", "entry"],
@@ -774,6 +840,8 @@ export const NON_IMPORTED_KINDS: readonly RecordKind[] = Object.freeze(["princip
 
 export const sitePackageRecordSchema = z.discriminatedUnion("kind", [
 	principalRecordSchema,
+	blockTypeRecordSchema,
+	blockTypeVersionRecordSchema,
 	collectionRecordSchema,
 	fieldRecordSchema,
 	taxonomyDefRecordSchema,

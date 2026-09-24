@@ -73,6 +73,35 @@ const TARGET_LOCAL: ColumnSpec = { class: "targetLocal" };
 
 const PORTABLE_TABLE_LIST: PortableTableSpec[] = [
 	{
+		table: "_emdash_block_types",
+		kind: "block_type",
+		columns: {
+			id: f("id"),
+			slug: f("slug"),
+			label: f("label"),
+			description: f("description"),
+			icon: f("icon"),
+			category: f("category"),
+			current_version: f("currentVersion", "integer"),
+			source: f("source"),
+			created_at: f("createdAt"),
+			updated_at: f("updatedAt"),
+		},
+	},
+	{
+		table: "_emdash_block_type_versions",
+		kind: "block_type_version",
+		columns: {
+			id: f("id"),
+			block_type_id: f("blockTypeId"),
+			version: f("version", "integer"),
+			fields: f("fields", "json"),
+			fingerprint: DERIVED,
+			created_at: f("createdAt"),
+			updated_at: f("updatedAt"),
+		},
+	},
+	{
 		table: "_emdash_collections",
 		kind: "collection",
 		columns: {

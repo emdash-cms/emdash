@@ -7,6 +7,7 @@ import {
 } from "../../../src/transfer/format/columns.js";
 import { KIND_FEATURE, SITE_PACKAGE_FEATURES } from "../../../src/transfer/format/features.js";
 import {
+	blocksFieldTypeSlugs,
 	compareIds,
 	compareStreamOrder,
 	identityProperties,
@@ -89,6 +90,24 @@ describe("record kind registry", () => {
 			"i18n",
 			"trash",
 		]);
+	});
+
+	it("reads block type slugs only from a blocks field's allowed and retired types", () => {
+		const field = {
+			kind: "field",
+			id: "F1",
+			collectionId: "C1",
+			slug: "body",
+			label: "Body",
+			type: "blocks",
+			columnType: "JSON",
+			translatable: true,
+			indexed: false,
+			validation: { allowedTypes: ["callout", 7], retiredTypes: ["quote", "callout"], maxItems: 3 },
+		} as const;
+		expect(blocksFieldTypeSlugs(field)).toEqual(["callout", "quote"]);
+		expect(blocksFieldTypeSlugs({ ...field, type: "json" })).toEqual([]);
+		expect(blocksFieldTypeSlugs({ ...field, validation: ["callout"] })).toEqual([]);
 	});
 
 	it("identity properties include ids and references but not content", () => {

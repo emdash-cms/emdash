@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { sha256Hex } from "../../../src/transfer/format/digest.js";
 import {
+	blocksFieldTypeSlugs,
+	blockTypeVersionKey,
 	compareStreamOrder,
 	KIND_REFERENCES,
 	RECORD_KINDS,
@@ -100,6 +102,31 @@ describe("golden package", () => {
 				}
 				seen.add(record.id);
 			}
+		}
+	});
+
+	it("resolves block type references held inside fields and block types", async () => {
+		const golden = await buildGoldenPackage(createMemoryStorage());
+		const slugs = new Set(
+			golden.records.block_type.flatMap((record) =>
+				record.kind === "block_type" ? [record.slug] : [],
+			),
+		);
+		const versions = new Set(
+			golden.records.block_type_version.flatMap((record) =>
+				record.kind === "block_type_version"
+					? [blockTypeVersionKey(record.blockTypeId, record.version)]
+					: [],
+			),
+		);
+		const referenced = golden.records.field.flatMap((record) =>
+			record.kind === "field" ? blocksFieldTypeSlugs(record) : [],
+		);
+		expect(referenced.toSorted()).toEqual(["callout", "quote"]);
+		for (const slug of referenced) expect(slugs.has(slug), slug).toBe(true);
+		for (const record of golden.records.block_type) {
+			if (record.kind !== "block_type") continue;
+			expect(versions.has(blockTypeVersionKey(record.id, record.currentVersion))).toBe(true);
 		}
 	});
 

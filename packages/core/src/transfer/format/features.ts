@@ -48,6 +48,8 @@ export function isSitePackageFeature(value: string): value is SitePackageFeature
  */
 export const KIND_FEATURE: Readonly<Record<RecordKind, SitePackageFeature>> = Object.freeze({
 	principal: "principals",
+	block_type: "schema",
+	block_type_version: "schema",
 	collection: "schema",
 	field: "schema",
 	taxonomy_def: "taxonomies",

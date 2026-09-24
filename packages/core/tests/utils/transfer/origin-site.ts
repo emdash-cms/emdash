@@ -11,6 +11,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../../src/database/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import type { Storage } from "../../../src/storage/types.js";
 import { fixtureId } from "./golden-package.js";
@@ -50,6 +51,8 @@ export interface OriginSite {
 		alice: string;
 		bob: string;
 		carol: string;
+		calloutBlock: string;
+		quoteBlock: string;
 		posts: string;
 		pages: string;
 		hello: string;
@@ -96,6 +99,8 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		alice: fixtureId(1001),
 		bob: fixtureId(1002),
 		carol: fixtureId(1003),
+		calloutBlock: "",
+		quoteBlock: "",
 		posts: "",
 		pages: "",
 		hello: fixtureId(1010),
@@ -202,6 +207,36 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		.values({ plugin_id: "seo-plus", collection: "cache", id: "x", data: JSON.stringify({ a: 1 }) })
 		.execute();
 
+	const blockTypes = new BlockTypeRegistry(db);
+	const calloutV1 = await blockTypes.createBlockType({
+		slug: "callout",
+		label: "Callout",
+		description: "A highlighted note",
+		icon: "megaphone",
+		category: "Text",
+		fields: [{ slug: "text", label: "Text", type: "string", required: true }],
+	});
+	const calloutV2 = await blockTypes.updateBlockType("callout", {
+		expectedFingerprint: calloutV1.versions[0]!.fingerprint,
+		breaking: true,
+		fields: [
+			{ slug: "heading", label: "Heading", type: "string", required: true },
+			{ slug: "image", label: "Image", type: "image" },
+		],
+	});
+	const callout = await blockTypes.activateVersion(
+		"callout",
+		2,
+		calloutV2.versions.find((version) => version.active)!.fingerprint,
+	);
+	const quote = await blockTypes.createBlockType({
+		slug: "quote",
+		label: "Quote",
+		fields: [{ slug: "quote", label: "Quote", type: "text" }],
+	});
+	ids.calloutBlock = callout.id;
+	ids.quoteBlock = quote.id;
+
 	const posts = await registry.createCollection({
 		slug: "posts",
 		label: "Posts",
@@ -246,6 +281,12 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		label: "Metadata",
 		type: "json",
 		translatable: false,
+	});
+	await registry.createField("posts", {
+		slug: "blocks",
+		label: "Blocks",
+		type: "blocks",
+		validation: { allowedTypes: ["callout"], retiredTypes: ["quote"] },
 	});
 	const pages = await registry.createCollection({
 		slug: "pages",
@@ -473,6 +514,18 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		},
 	];
 
+	const blocksValue = () => [
+		{
+			_type: "callout",
+			_version: 2,
+			_key: "c1",
+			heading: "Read this first",
+			image: imageValue(ids.inlineMedia),
+		},
+		{ _type: "callout", _version: 1, _key: "c2", text: "An older callout" },
+		{ _type: "quote", _version: 1, _key: "q1", quote: "Retired but kept" },
+	];
+
 	await raw
 		.insertInto("_emdash_bylines")
 		.values(
@@ -540,6 +593,7 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 						title: "Hello world",
 						content: portableText(),
 						featured_image: imageValue(ids.heroMedia),
+						blocks: blocksValue(),
 					}),
 					author_id: ids.alice,
 					created_at: T1,
@@ -595,6 +649,7 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 			related: ids.about,
 			rating: 4.5,
 			metadata: JSON.stringify({ reading: { minutes: 3 } }),
+			blocks: JSON.stringify(blocksValue()),
 		}),
 		postRow({
 			id: ids.bonjour,
@@ -636,7 +691,10 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 			title: "Old news",
 		}),
 	])) {
-		await raw.insertInto("ec_posts").values(row).execute();
+		await raw
+			.insertInto("ec_posts")
+			.values({ ...row, blocks: row.blocks ?? "[]" })
+			.execute();
 	}
 	await raw
 		.insertInto("ec_pages")

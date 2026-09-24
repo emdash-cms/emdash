@@ -4,7 +4,8 @@
  * reference. Cross-references are realistic: two locales with translations,
  * drafts with draft revisions, scheduled and trashed entries, a term
  * hierarchy, an inferred byline credit, media referenced from Portable Text,
- * image fields, repeaters, SEO and settings, threaded comments with reactions.
+ * image fields, repeaters, a blocks field whose values use every version of
+ * its block types, SEO and settings, threaded comments with reactions.
  *
  * Storage-key references appear only as `emdash-media:<mediaId>`
  * placeholders, exactly as an exporter writes them.
@@ -36,6 +37,12 @@ export const GOLDEN_IDS = {
 	alice: "user_alice",
 	bob: "user_bob",
 
+	calloutBlock: fixtureId(90),
+	calloutV1: fixtureId(91),
+	calloutV2: fixtureId(92),
+	quoteBlock: fixtureId(93),
+	quoteV1: fixtureId(94),
+
 	posts: fixtureId(100),
 	pages: fixtureId(101),
 
@@ -46,6 +53,7 @@ export const GOLDEN_IDS = {
 	postRelated: fixtureId(114),
 	postRating: fixtureId(115),
 	postMetadata: fixtureId(116),
+	postBlocks: fixtureId(117),
 	pageTitle: fixtureId(120),
 	pageContent: fixtureId(121),
 
@@ -190,8 +198,37 @@ function portableText(): unknown[] {
 	];
 }
 
+/** A `blocks` field value: the current callout, a callout kept at version 1, and a retired quote. */
+function blocksValue(): unknown[] {
+	return [
+		{
+			_type: "callout",
+			_version: 2,
+			_key: "c1",
+			heading: "Read this first",
+			body: [
+				{
+					_type: "block",
+					_key: "cb1",
+					style: "normal",
+					markDefs: [],
+					children: [{ _type: "span", _key: "cs1", text: "Inside a block", marks: [] }],
+				},
+			],
+			image: imageValue(ids.inlineMedia, { alt: "Callout" }),
+		},
+		{ _type: "callout", _version: 1, _key: "c2", text: "An older callout" },
+		{ _type: "quote", _version: 1, _key: "q1", quote: "Retired but kept", tone: "cool" },
+	];
+}
+
 function revisionData(title: string): Record<string, unknown> {
-	return { title, content: portableText(), featured_image: imageValue(ids.heroMedia) };
+	return {
+		title,
+		content: portableText(),
+		featured_image: imageValue(ids.heroMedia),
+		blocks: blocksValue(),
+	};
 }
 
 /**
@@ -213,6 +250,70 @@ export function goldenRecords(
 		email: "alice@example.com",
 	});
 	add({ kind: "principal", id: ids.bob, displayName: "Bob" });
+
+	add({
+		kind: "block_type",
+		id: ids.calloutBlock,
+		slug: "callout",
+		label: "Callout",
+		description: "A highlighted note",
+		icon: "megaphone",
+		category: "Text",
+		currentVersion: 2,
+		source: "user",
+		createdAt: T0,
+		updatedAt: T1,
+	});
+	add({
+		kind: "block_type_version",
+		id: ids.calloutV1,
+		blockTypeId: ids.calloutBlock,
+		version: 1,
+		fields: [{ slug: "text", label: "Text", type: "string", required: true }],
+		createdAt: T0,
+		updatedAt: T0,
+	});
+	add({
+		kind: "block_type_version",
+		id: ids.calloutV2,
+		blockTypeId: ids.calloutBlock,
+		version: 2,
+		fields: [
+			{ slug: "heading", label: "Heading", type: "string", required: true },
+			{ slug: "body", label: "Body", type: "portableText" },
+			{ slug: "image", label: "Image", type: "image", options: { darkVariant: true } },
+		],
+		createdAt: T1,
+		updatedAt: T1,
+	});
+	add({
+		kind: "block_type",
+		id: ids.quoteBlock,
+		slug: "quote",
+		label: "Quote",
+		currentVersion: 1,
+		source: "user",
+		createdAt: T0,
+		updatedAt: T0,
+	});
+	add({
+		kind: "block_type_version",
+		id: ids.quoteV1,
+		blockTypeId: ids.quoteBlock,
+		version: 1,
+		fields: [
+			{ slug: "quote", label: "Quote", type: "text", validation: { maxLength: 500 } },
+			{
+				slug: "tone",
+				label: "Tone",
+				type: "select",
+				validation: { options: ["warm", "cool"] },
+				defaultValue: "warm",
+			},
+		],
+		createdAt: T0,
+		updatedAt: T0,
+	});
 
 	add({
 		kind: "collection",
@@ -306,6 +407,15 @@ export function goldenRecords(
 	});
 	field(ids.postRating, ids.posts, "rating", "number", "REAL", 5, { defaultValue: 0 });
 	field(ids.postMetadata, ids.posts, "metadata", "json", "JSON", 6, { translatable: false });
+	field(ids.postBlocks, ids.posts, "blocks", "blocks", "JSON", 7, {
+		defaultValue: [],
+		validation: {
+			allowedTypes: ["callout"],
+			retiredTypes: ["quote"],
+			minItems: 0,
+			maxItems: 100,
+		},
+	});
 	field(ids.pageTitle, ids.pages, "title", "string", "TEXT", 0, { required: true });
 	field(ids.pageContent, ids.pages, "content", "portableText", "JSON", 1);
 
@@ -573,6 +683,7 @@ export function goldenRecords(
 		related: ids.about,
 		rating: 4.5,
 		metadata: { reading: { minutes: 3 }, tags: ["a", "b"] },
+		blocks: blocksValue(),
 	});
 
 	add({
@@ -607,7 +718,7 @@ export function goldenRecords(
 		liveRevisionId: ids.bonjourLive,
 		locale: "fr",
 		translationGroup: ids.hello,
-		fields: { title: "Bonjour le monde", content: [], rating: 3 },
+		fields: { title: "Bonjour le monde", content: [], rating: 3, blocks: [] },
 	});
 	add({
 		kind: "entry",
@@ -637,7 +748,7 @@ export function goldenRecords(
 		version: 1,
 		locale: "en",
 		translationGroup: ids.draftPost,
-		fields: { title: "Work in progress" },
+		fields: { title: "Work in progress", blocks: [] },
 	});
 	add({
 		kind: "entry",
@@ -652,7 +763,7 @@ export function goldenRecords(
 		version: 1,
 		locale: "en",
 		translationGroup: ids.scheduledPost,
-		fields: { title: "Coming soon" },
+		fields: { title: "Coming soon", blocks: [] },
 	});
 	add({
 		kind: "entry",
@@ -668,7 +779,7 @@ export function goldenRecords(
 		version: 2,
 		locale: "en",
 		translationGroup: ids.trashedPost,
-		fields: { title: "Old news" },
+		fields: { title: "Old news", blocks: [] },
 	});
 
 	add({

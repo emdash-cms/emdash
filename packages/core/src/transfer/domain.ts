@@ -6,10 +6,11 @@
  * empty when it holds no content and no user-made schema: no term
  * assignments, relations, content references, bylines or byline fields,
  * media or media folders, revisions, SEO rows, comments or reactions,
- * redirects, or user sections, and only seeded collections, none with a row
- * in its content table (trash included). Everything else a seed leaves is
- * scaffold:
+ * redirects, or user sections, and only seeded collections and block types,
+ * no collection with a row in its content table (trash included). Everything
+ * else a seed leaves is scaffold:
  * - the seeded collections;
+ * - the seeded block types (`source = 'seed'`) and their versions;
  * - taxonomy definitions attached only to those collections or to
  *   collections that do not exist, and their unassigned terms;
  * - menus and their items, widget areas and their widgets;
@@ -17,7 +18,8 @@
  *
  * The importer's `clear_scaffold` stage deletes exactly the reported
  * `seededScaffold` items, in order: terms before their definitions, menu
- * items before menus, widgets before widget areas.
+ * items before menus, widgets before widget areas, and block types after the
+ * collections whose fields name them.
  */
 
 import { sql, type Kysely } from "kysely";
@@ -33,11 +35,13 @@ export type ScaffoldItem =
 	| { type: "menu"; id: string; name: string; locale: string }
 	| { type: "widget"; id: string; areaId: string; widgetType: string }
 	| { type: "widget_area"; id: string; name: string }
-	| { type: "section"; id: string; slug: string };
+	| { type: "section"; id: string; slug: string }
+	| { type: "block_type"; id: string; slug: string };
 
 export type DomainBlocker =
 	| { code: "table_not_empty"; table: string }
 	| { code: "collection_not_seeded"; id: string; slug: string }
+	| { code: "block_type_not_seeded"; id: string; slug: string }
 	| { code: "collection_has_entries"; id: string; slug: string }
 	| { code: "taxonomy_def_not_scaffold"; id: string; name: string };
 
@@ -150,6 +154,17 @@ export async function inspectPortableDomain(
 		}
 	}
 
+	const blockTypes = await db
+		.selectFrom("_emdash_block_types")
+		.select(["id", "slug", "source"])
+		.orderBy("slug")
+		.execute();
+	for (const blockType of blockTypes) {
+		if (blockType.source !== "seed") {
+			blockers.push({ code: "block_type_not_seeded", id: blockType.id, slug: blockType.slug });
+		}
+	}
+
 	// Terms, menu items, and widgets are only scaffold on a site without content;
 	// on any other site the blockers already say it is not empty.
 	if (blockers.length > 0) return { empty: false, seededScaffold, blockers };
@@ -223,6 +238,10 @@ export async function inspectPortableDomain(
 		.execute();
 	for (const section of sections) {
 		seededScaffold.push({ type: "section", id: section.id, slug: section.slug });
+	}
+
+	for (const blockType of blockTypes) {
+		seededScaffold.push({ type: "block_type", id: blockType.id, slug: blockType.slug });
 	}
 
 	return { empty: true, seededScaffold, blockers };
