@@ -15,10 +15,10 @@ import webhookNotifier from "../../../../plugins/webhook-notifier/src/plugin.js"
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
 import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
-import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
 import { adaptSandboxEntry } from "../../../src/plugins/adapt-sandbox-entry.js";
 import { PluginContextFactory } from "../../../src/plugins/context.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
+import { setDefaultDnsResolver } from "../../../src/security/ssrf.js";
 
 const MANIFEST_URL = new URL(
 	"../../../../plugins/webhook-notifier/emdash-plugin.jsonc",
