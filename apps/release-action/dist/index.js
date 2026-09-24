@@ -12377,7 +12377,7 @@ var require_checkpoint = /* @__PURE__ */ __commonJSMin(((exports) => {
 	function verifySignedNote(signedNote, tlogs) {
 		const data = Buffer.from(signedNote.note, "utf-8");
 		return signedNote.signatures.some((signature) => {
-			const tlog = tlogs.find((tlog) => core_1.crypto.bufferEqual(tlog.logID.subarray(0, 4), signature.keyHint) && tlog.baseURL.match(signature.name));
+			const tlog = tlogs.find((tlog) => core_1.crypto.bufferEqual(tlog.logID.subarray(0, 4), signature.keyHint) && tlog.baseURL.includes(signature.name));
 			if (!tlog) return false;
 			return core_1.crypto.verify(data, tlog.publicKey, signature.signature);
 		});
@@ -12435,7 +12435,18 @@ var require_checkpoint = /* @__PURE__ */ __commonJSMin(((exports) => {
 				message: "too few lines in checkpoint header"
 			});
 			const origin = lines[0];
-			return new LogCheckpoint(origin, BigInt(lines[1]), Buffer.from(lines[2], "base64"), lines.slice(3));
+			let logSize;
+			try {
+				logSize = BigInt(lines[1]);
+			} catch {
+				throw new error_1.VerificationError({
+					code: "TLOG_INCLUSION_PROOF_ERROR",
+					message: "invalid checkpoint log size"
+				});
+			}
+			const rootHash = Buffer.from(lines[2], "base64");
+			const rest = lines.slice(3);
+			return new LogCheckpoint(origin, logSize, rootHash, rest);
 		}
 	};
 	exports.LogCheckpoint = LogCheckpoint;
@@ -12449,7 +12460,15 @@ var require_merkle = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const RFC6962_NODE_HASH_PREFIX = Buffer.from([1]);
 	function verifyMerkleInclusion(entry, checkpoint) {
 		const inclusionProof = entry.inclusionProof;
-		const logIndex = BigInt(inclusionProof.logIndex);
+		let logIndex;
+		try {
+			logIndex = BigInt(inclusionProof.logIndex);
+		} catch {
+			throw new error_1.VerificationError({
+				code: "TLOG_INCLUSION_PROOF_ERROR",
+				message: "invalid inclusion proof log index"
+			});
+		}
 		const treeSize = BigInt(checkpoint.logSize);
 		if (logIndex < 0n || logIndex >= treeSize) throw new error_1.VerificationError({
 			code: "TLOG_INCLUSION_PROOF_ERROR",
@@ -12545,7 +12564,15 @@ var require_tlog = /* @__PURE__ */ __commonJSMin(((exports) => {
 	const set_1 = require_set();
 	function verifyTLogBody(entry, sigContent) {
 		const { kind, version } = entry.kindVersion;
-		const body = JSON.parse(entry.canonicalizedBody.toString("utf8"));
+		let body;
+		try {
+			body = JSON.parse(entry.canonicalizedBody.toString("utf8"));
+		} catch {
+			throw new error_1.VerificationError({
+				code: "TLOG_BODY_ERROR",
+				message: "invalid canonicalized body"
+			});
+		}
 		if (kind !== body.kind || version !== body.apiVersion) throw new error_1.VerificationError({
 			code: "TLOG_BODY_ERROR",
 			message: `kind/version mismatch - expected: ${kind}/${version}, received: ${body.kind}/${body.apiVersion}`
@@ -12661,15 +12688,22 @@ var require_verifier = /* @__PURE__ */ __commonJSMin(((exports) => {
 			}
 		}
 		verifyTLogs({ signature: content, tlogEntries }) {
-			let tlogCount = 0;
+			const entryIDs = [];
 			tlogEntries.forEach((entry) => {
-				tlogCount++;
 				(0, tlog_1.verifyTLogInclusion)(entry, this.trustMaterial.tlogs);
 				(0, tlog_1.verifyTLogBody)(entry, content);
+				entryIDs.push({
+					logID: entry.logId.keyId,
+					logIndex: entry.logIndex
+				});
 			});
-			if (tlogCount < this.options.tlogThreshold) throw new error_1.VerificationError({
+			if (containsDupes(entryIDs)) throw new error_1.VerificationError({
 				code: "TLOG_ERROR",
-				message: `expected ${this.options.tlogThreshold} tlog entries, got ${tlogCount}`
+				message: "duplicate tlog entry"
+			});
+			if (entryIDs.length < this.options.tlogThreshold) throw new error_1.VerificationError({
+				code: "TLOG_ERROR",
+				message: `expected ${this.options.tlogThreshold} tlog entries, got ${entryIDs.length}`
 			});
 		}
 		verifySignature(entity, signer) {
