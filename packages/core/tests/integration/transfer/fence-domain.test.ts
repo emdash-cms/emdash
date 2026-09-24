@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { createContentAccessWithWrite } from "../../../src/plugins/context.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import { defaultSeed } from "../../../src/seed/default.js";
@@ -362,6 +363,46 @@ describeEachDialect("transfer fence, domain, and site id", (dialect) => {
 			expect(result.empty).toBe(false);
 			expect(result.blockers).toContainEqual(
 				expect.objectContaining({ code: "collection_not_seeded", slug: "products" }),
+			);
+		});
+
+		it("treats seeded block types as scaffold listed after the collections that use them", async () => {
+			await applySeed(
+				ctx.db,
+				{
+					...defaultSeed,
+					blockTypes: [
+						{
+							slug: "callout",
+							label: "Callout",
+							currentVersion: 1,
+							versions: [{ version: 1, fields: [{ slug: "text", label: "Text", type: "string" }] }],
+						},
+					],
+				},
+				{ includeContent: false, onConflict: "skip" },
+			);
+			const result = await inspectPortableDomain(ctx.db);
+			expect(result.blockers).toEqual([]);
+			expect(result.empty).toBe(true);
+			const types = result.seededScaffold.map((item) => item.type);
+			expect(result.seededScaffold).toContainEqual(
+				expect.objectContaining({ type: "block_type", slug: "callout" }),
+			);
+			expect(types.indexOf("block_type")).toBeGreaterThan(types.lastIndexOf("collection"));
+		});
+
+		it("is not empty with a block type the user created", async () => {
+			await seedDefault();
+			await new BlockTypeRegistry(ctx.db).createBlockType({
+				slug: "callout",
+				label: "Callout",
+				fields: [{ slug: "text", label: "Text", type: "string" }],
+			});
+			const result = await inspectPortableDomain(ctx.db);
+			expect(result.empty).toBe(false);
+			expect(result.blockers).toContainEqual(
+				expect.objectContaining({ code: "block_type_not_seeded", slug: "callout" }),
 			);
 		});
 
