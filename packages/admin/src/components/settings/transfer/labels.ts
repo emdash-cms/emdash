@@ -6,6 +6,8 @@ import type { PackageErrorReason } from "../../../lib/transfer-package.js";
 
 const RECORD_KIND_LABELS: Record<string, MessageDescriptor> = {
 	principal: msg`Authors`,
+	block_type: msg`Block types`,
+	block_type_version: msg`Block type versions`,
 	collection: msg`Collections`,
 	field: msg`Fields`,
 	taxonomy_def: msg`Taxonomies`,
@@ -102,6 +104,8 @@ export function domainBlockerLabel(i18n: I18n, blocker: PortableDomainBlocker): 
 			return i18n._(msg`Collection “${blocker.slug}” has entries`);
 		case "collection_not_seeded":
 			return i18n._(msg`Collection “${blocker.slug}” was created on this site`);
+		case "block_type_not_seeded":
+			return i18n._(msg`Block type “${blocker.slug}” was created on this site`);
 		case "taxonomy_def_not_scaffold":
 			return i18n._(msg`Taxonomy “${blocker.name}” is used by content on this site`);
 		default:
@@ -220,6 +224,7 @@ export function packageErrorLabel(i18n: I18n, reason: PackageErrorReason): strin
 /** Scaffold item types in the order the review lists them. */
 export const SCAFFOLD_TYPE_ORDER: readonly ScaffoldItem["type"][] = [
 	"collection",
+	"block_type",
 	"taxonomy_def",
 	"term",
 	"menu",
@@ -240,6 +245,7 @@ export function scaffoldItemName(
 ): string {
 	switch (item.type) {
 		case "collection":
+		case "block_type":
 		case "section":
 			return item.slug;
 		case "taxonomy_def":

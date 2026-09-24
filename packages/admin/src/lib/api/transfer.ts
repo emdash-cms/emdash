@@ -69,6 +69,7 @@ export interface TransferOperation {
 export type PortableDomainBlocker =
 	| { code: "table_not_empty"; table: string }
 	| { code: "collection_not_seeded"; id: string; slug: string }
+	| { code: "block_type_not_seeded"; id: string; slug: string }
 	| { code: "collection_has_entries"; id: string; slug: string }
 	| { code: "taxonomy_def_not_scaffold"; id: string; name: string };
 
@@ -103,7 +104,8 @@ export type ScaffoldItem =
 	| { type: "menu"; id: string; name: string; locale: string }
 	| { type: "widget"; id: string; areaId: string; widgetType: string }
 	| { type: "widget_area"; id: string; name: string }
-	| { type: "section"; id: string; slug: string };
+	| { type: "section"; id: string; slug: string }
+	| { type: "block_type"; id: string; slug: string };
 
 export interface TransferPage<T> {
 	items: T[];
