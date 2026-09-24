@@ -206,10 +206,18 @@ async function recordDelivery(ctx: PluginContext, record: DeliveryRecord): Promi
 	const deliveries = ctx.storage.deliveries!;
 	await deliveries.put(crypto.randomUUID(), record);
 
-	const excess = (await deliveries.count()) - MAX_DELIVERY_RECORDS;
-	if (excess <= 0) return;
-	const oldest = await deliveries.query({ orderBy: { timestamp: "asc" }, limit: excess });
-	await deliveries.deleteMany(oldest.items.map((item) => item.id));
+	// query() caps a page at 100 rows, so a backlog past that needs more than
+	// one round to clear, and a delete can race a concurrent insert and still
+	// leave the count over the cap. Looping and re-counting after every batch
+	// catches both instead of trusting a single count-then-delete to have
+	// caught up.
+	for (;;) {
+		const excess = (await deliveries.count()) - MAX_DELIVERY_RECORDS;
+		if (excess <= 0) return;
+		const oldest = await deliveries.query({ orderBy: { timestamp: "asc" }, limit: excess });
+		if (oldest.items.length === 0) return;
+		await deliveries.deleteMany(oldest.items.map((item) => item.id));
+	}
 }
 
 // ── Plugin definition ──
@@ -327,19 +335,18 @@ export default {
 					const deliveries = ctx.storage.deliveries!;
 					const successful = await deliveries.count({ status: "success" });
 					const failed = await deliveries.count({ status: "failed" });
-					const pending = await deliveries.count({ status: "pending" });
 
 					return {
 						configured: !!url,
 						enabled: enabled ?? true,
-						stats: { successful, failed, pending },
+						stats: { successful, failed },
 					};
 				} catch (error) {
 					ctx.log.error("Failed to get status", error);
 					return {
 						configured: false,
 						enabled: true,
-						stats: { successful: 0, failed: 0, pending: 0 },
+						stats: { successful: 0, failed: 0 },
 					};
 				}
 			},
@@ -429,12 +436,10 @@ async function buildStatusWidget(ctx: PluginContext) {
 
 		let successful = 0;
 		let failed = 0;
-		let pending = 0;
 		try {
 			const deliveries = ctx.storage.deliveries!;
 			successful = await deliveries.count({ status: "success" });
 			failed = await deliveries.count({ status: "failed" });
-			pending = await deliveries.count({ status: "pending" });
 		} catch {
 			// Storage not available yet
 		}
@@ -461,7 +466,6 @@ async function buildStatusWidget(ctx: PluginContext) {
 				stats: [
 					{ label: "Delivered", value: String(successful) },
 					{ label: "Failed", value: String(failed) },
-					{ label: "Pending", value: String(pending) },
 				],
 			});
 		} else {

@@ -406,4 +406,25 @@ describe("webhook-notifier plugin", () => {
 		const newest = await deliveries.query({ orderBy: { timestamp: "desc" }, limit: 1 });
 		expect(newest.items[0]?.data).toMatchObject({ resourceId: post.id });
 	});
+
+	it("prunes a backlog past one query page down to the cap", async () => {
+		const deliveries = ctx.storage.deliveries!;
+		await deliveries.putMany(
+			Array.from({ length: 650 }, (_, i) => ({
+				id: `old-${i}`,
+				data: {
+					timestamp: new Date(Date.UTC(2026, 0, 1, 0, 0, i)).toISOString(),
+					webhookUrl: WEBHOOK_URL,
+					event: "content:update",
+					status: "success",
+				},
+			})),
+		);
+
+		const post = await createPost("Newest after backlog");
+
+		expect(await deliveries.count()).toBe(500);
+		const newest = await deliveries.query({ orderBy: { timestamp: "desc" }, limit: 1 });
+		expect(newest.items[0]?.data).toMatchObject({ resourceId: post.id });
+	});
 });
