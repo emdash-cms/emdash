@@ -110,7 +110,20 @@ class DecodedImage {
 	}
 }
 
-function mountEditablePage(routes: Routes, { pageShowsImage = true } = {}) {
+const HERO_SRCSET = [640, 1280]
+	.map((width) => `/_image?href=${encodeURIComponent(HERO_SRC)}&w=${width} ${width}w`)
+	.join(", ");
+const HERO_SIZES = "(min-width: 1280px) 1280px, 100vw";
+
+interface PageOptions {
+	pageShowsImage?: boolean;
+	responsive?: "srcset" | "picture";
+}
+
+function mountEditablePage(
+	routes: Routes,
+	{ pageShowsImage = true, responsive }: PageOptions = {},
+) {
 	const doc = document.implementation.createHTMLDocument("Post");
 	const hero = doc.createElement("div");
 	hero.setAttribute(
@@ -120,7 +133,24 @@ function mountEditablePage(routes: Routes, { pageShowsImage = true } = {}) {
 	const heroImg = doc.createElement("img");
 	heroImg.setAttribute("src", HERO_SRC);
 	heroImg.setAttribute("alt", STORED_HERO.alt);
-	if (pageShowsImage) hero.append(heroImg);
+	if (responsive) {
+		heroImg.setAttribute("srcset", HERO_SRCSET);
+		heroImg.setAttribute("sizes", HERO_SIZES);
+	}
+	if (responsive === "picture") {
+		const picture = doc.createElement("picture");
+		for (const type of ["image/avif", "image/webp"]) {
+			const source = doc.createElement("source");
+			source.setAttribute("type", type);
+			source.setAttribute("srcset", HERO_SRCSET);
+			source.setAttribute("sizes", HERO_SIZES);
+			picture.append(source);
+		}
+		picture.append(heroImg);
+		hero.append(picture);
+	} else if (pageShowsImage) {
+		hero.append(heroImg);
+	}
 	doc.body.append(hero);
 	doc.body.insertAdjacentHTML(
 		"beforeend",
@@ -163,6 +193,16 @@ async function openImagePopover(page: ReturnType<typeof mountEditablePage>): Pro
 	});
 }
 
+function chooseFileToUpload(popover: HTMLElement, file: File): void {
+	const input = popover.querySelector<HTMLInputElement>("#emdash-img-upload")!;
+	Object.defineProperty(input, "files", { value: [file] });
+	input.dispatchEvent(new Event("change"));
+}
+
+function pngFile(name: string): File {
+	return new File([new Uint8Array([137, 80, 78, 71])], name, { type: "image/png" });
+}
+
 function savedImage(requests: RecordedRequest[]): unknown {
 	const save = requests.find((request) => request.method === "PUT" && request.url === ENTRY_URL);
 	if (typeof save?.body !== "string") return undefined;
@@ -178,12 +218,8 @@ describe("toolbar image popover", () => {
 		});
 		const popover = await openImagePopover(page);
 
-		const input = popover.querySelector<HTMLInputElement>("#emdash-img-upload")!;
-		const file = new File([new Uint8Array([137, 80, 78, 71])], "new-hero.png", {
-			type: "image/png",
-		});
-		Object.defineProperty(input, "files", { value: [file] });
-		input.dispatchEvent(new Event("change"));
+		const file = pngFile("new-hero.png");
+		chooseFileToUpload(popover, file);
 
 		const saveStatus = page.doc.getElementById("emdash-tb-save-status")!;
 		await vi.waitFor(() => expect(saveStatus.textContent).toBe("Saved"));
@@ -308,5 +344,52 @@ describe("toolbar image popover", () => {
 		expect(popover.querySelector(".emdash-img-preview")).toBeNull();
 		expect(popover.querySelector('[data-action="remove"]')).toBeNull();
 		expect(popover.querySelector<HTMLInputElement>("#emdash-img-alt")?.value).toBe("");
+	});
+
+	describe.each([
+		["an img with srcset", "srcset"],
+		["a picture with sources", "picture"],
+	] as const)("when the page renders the image as %s", (_markup, responsive) => {
+		function responsiveCandidates(page: ReturnType<typeof mountEditablePage>): string[] {
+			return Array.from(page.hero.querySelectorAll("[srcset], [sizes]"), (el) => el.outerHTML);
+		}
+
+		it("displays an uploaded image instead of the previous one", async () => {
+			const uploaded = mediaItem("01UPLOADED", "new-hero.png");
+			const page = mountEditablePage(
+				{ ...entryRoutes, "POST /_emdash/api/media": () => apiSuccess({ item: uploaded }, 201) },
+				{ responsive },
+			);
+			const popover = await openImagePopover(page);
+
+			chooseFileToUpload(popover, pngFile("new-hero.png"));
+
+			await vi.waitFor(() => expect(page.heroImg.getAttribute("src")).toBe(uploaded.url));
+			expect(responsiveCandidates(page)).toEqual([]);
+		});
+
+		it("displays an image picked from the library instead of the previous one", async () => {
+			const picked = mediaItem("01LIBRARYPICK", "picked.png");
+			const page = mountEditablePage(
+				{
+					...entryRoutes,
+					"GET /_emdash/api/media?mimeType=image/&limit=30": () =>
+						apiSuccess({ items: [picked], totalCount: 1 }),
+				},
+				{ responsive },
+			);
+			const popover = await openImagePopover(page);
+
+			popover.querySelector<HTMLButtonElement>('[data-action="browse"]')!.click();
+			const thumbnail = await vi.waitFor(() => {
+				const item = popover.querySelector<HTMLElement>(".emdash-img-grid-item");
+				if (!item) throw new Error("Media library did not render");
+				return item;
+			});
+			thumbnail.click();
+
+			await vi.waitFor(() => expect(page.heroImg.getAttribute("src")).toBe(picked.url));
+			expect(responsiveCandidates(page)).toEqual([]);
+		});
 	});
 });

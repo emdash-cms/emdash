@@ -1269,12 +1269,28 @@ export function renderToolbar(config: ToolbarConfig): string {
     saveField(collection, id, field, newValue).then(function() {
       // Update the image in the DOM
       if (imgEl) {
-        imgEl.src = itemUrl;
+        replacePageImageSource(imgEl, itemUrl);
         imgEl.alt = item.alt || "";
         imgEl.style.display = "";
       }
       closeImagePopover();
     });
+  }
+
+  // The rendered srcset/sizes (and any <picture> sources) still describe the
+  // previous media and take precedence over src, so they have to go. The next
+  // server render restores responsive variants for the new image.
+  function replacePageImageSource(img, url) {
+    var picture = img.parentElement;
+    if (picture && picture.tagName === "PICTURE") {
+      Array.prototype.forEach.call(picture.querySelectorAll("source"), function(source) {
+        source.removeAttribute("srcset");
+        source.removeAttribute("sizes");
+      });
+    }
+    img.removeAttribute("srcset");
+    img.removeAttribute("sizes");
+    img.src = url;
   }
 
   function handleImageUpload(file, popover, annotation, element, imgEl) {
