@@ -39,6 +39,7 @@ import {
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
+	POST_MODEL_PERMIT_WAIT_MS,
 	type GitHubToken,
 } from "../lib/github.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
@@ -441,14 +442,36 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 
 		let data: ReviewResult;
 		if (token) {
-			const reviewToken = token;
+			const postModelToken =
+				typeof token !== "string"
+					? { ...token, maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS }
+					: token;
 			data = await reviewUntilCurrentHead(initialRevision, {
 				review: reviewRevision,
-				currentRevision: () =>
-					fetchPullRequestRevision(reviewToken, payload.owner, payload.repo, payload.prNumber),
+				currentRevision: async () => {
+					stage = "posting_review";
+					if (
+						!(await reportStage(
+							env,
+							postModelToken,
+							payload,
+							runId,
+							"posting_review",
+							"The model review is complete; the bot is verifying the PR head before publishing.",
+						))
+					) {
+						throw new Error("Review attempt is no longer active");
+					}
+					return fetchPullRequestRevision(
+						postModelToken,
+						payload.owner,
+						payload.repo,
+						payload.prNumber,
+					);
+				},
 				classifyMove: async (fromHeadSha, toHeadSha) => {
 					const move = await classifyPullRequestHeadMove(
-						reviewToken,
+						postModelToken,
 						payload.owner,
 						payload.repo,
 						fromHeadSha,
@@ -467,7 +490,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 					if (
 						!(await reportStage(
 							env,
-							reviewToken,
+							postModelToken,
 							reviewedPayload,
 							runId,
 							"posting_review",
@@ -477,7 +500,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 						throw new Error("Review attempt is no longer active");
 					}
 					await postReview(
-						reviewToken,
+						postModelToken,
 						payload.owner,
 						payload.repo,
 						payload.prNumber,
@@ -493,10 +516,14 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 											`review-publication-retry:${payload.attemptId ?? runId}`,
 										)
 									: undefined;
+								const postModelRetryToken =
+									retryToken && typeof retryToken !== "string"
+										? { ...retryToken, maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS }
+										: retryToken;
 								if (
 									!(await reportStage(
 										env,
-										retryToken,
+										postModelRetryToken,
 										reviewedPayload,
 										runId,
 										"posting_review",
@@ -505,7 +532,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 								) {
 									throw new Error("Review attempt is no longer active");
 								}
-								return retryToken;
+								return postModelRetryToken;
 							},
 						},
 					);

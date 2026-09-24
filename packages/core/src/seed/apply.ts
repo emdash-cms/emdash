@@ -24,6 +24,7 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { coalesceObjectCacheWrites } from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaRegistry } from "../schema/registry.js";
@@ -150,6 +151,14 @@ export async function applySeed(
 	db: Kysely<Database>,
 	seed: SeedFile,
 	options: SeedApplyOptions = {},
+): Promise<SeedApplyResult> {
+	return coalesceObjectCacheWrites(() => applySeedWrites(db, seed, options));
+}
+
+async function applySeedWrites(
+	db: Kysely<Database>,
+	seed: SeedFile,
+	options: SeedApplyOptions,
 ): Promise<SeedApplyResult> {
 	// Validate seed first
 	const validation = validateSeed(seed);
@@ -1405,9 +1414,17 @@ async function resolveValue(
 		for (const [k, v] of Object.entries(value)) {
 			resolved[k] = await resolveValue(v, seedIdMap, mediaContext, result);
 		}
-		// Gallery renderers read `asset._ref`/`asset.url`, not the MediaValue that `$media` yields.
+		// Site components and other readers of saved blocks expect `asset._ref`/`asset.url`, not the MediaValue that `$media` yields.
 		if (resolved._type === "gallery" && Array.isArray(resolved.images)) {
 			resolved.images = sanitizeGalleryImages(resolved.images, ulid);
+		} else if (
+			resolved._type === "image" &&
+			"asset" in value &&
+			isSeedMediaReference(value.asset)
+		) {
+			// Merged over the block because the gallery image shape drops image-block fields such as `alignment`.
+			const [image] = sanitizeGalleryImages([resolved], ulid);
+			if (image) Object.assign(resolved, image);
 		}
 		return resolved;
 	}

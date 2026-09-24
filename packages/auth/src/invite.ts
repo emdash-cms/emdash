@@ -240,8 +240,7 @@ export async function completeInvite(
 ): Promise<User> {
 	const hash = hashToken(token);
 
-	// Validate token one more time
-	const authToken = await adapter.getToken(hash, "invite");
+	const authToken = await adapter.consumeToken(hash, "invite");
 	if (!authToken || authToken.expiresAt < new Date()) {
 		throw new InviteError("invalid_token", "Invalid or expired invite");
 	}
@@ -249,9 +248,6 @@ export async function completeInvite(
 	if (!authToken.email || authToken.role === null) {
 		throw new InviteError("invalid_token", "Invalid invite data");
 	}
-
-	// Delete token (single-use)
-	await adapter.deleteToken(hash);
 
 	// Create user
 	const user = await adapter.createUser({

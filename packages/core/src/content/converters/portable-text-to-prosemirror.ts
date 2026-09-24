@@ -9,7 +9,7 @@ import {
 	portableTextTableToProseMirror,
 } from "@emdash-cms/admin/portable-text-table";
 
-import { sanitizeGalleryImages } from "./gallery.js";
+import { resolveImageMedia, sanitizeGalleryImages } from "./gallery.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -648,17 +648,18 @@ function imageAlignment(value: unknown): PortableTextImageBlock["alignment"] {
  * Convert image block to ProseMirror
  */
 function convertImage(block: PortableTextImageBlock, preserveIdentity: boolean): ProseMirrorNode {
+	const { asset, alt, width, height } = resolveImageMedia(block);
 	return {
 		type: "image",
 		attrs: identityAttrs(
 			{
-				src: block.asset.url || block.asset._ref,
-				alt: block.alt || "",
+				src: asset.url || asset._ref,
+				alt: alt || "",
 				title: block.caption || "",
-				mediaId: block.asset._ref,
-				provider: block.asset.provider,
-				width: block.width,
-				height: block.height,
+				mediaId: asset._ref,
+				provider: asset.provider,
+				width,
+				height,
 				displayWidth: block.displayWidth,
 				displayHeight: block.displayHeight,
 				alignment: imageAlignment(block.alignment),

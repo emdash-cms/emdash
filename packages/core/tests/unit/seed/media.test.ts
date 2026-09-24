@@ -629,4 +629,98 @@ describe("$media seed resolution", () => {
 			},
 		]);
 	});
+
+	it("should resolve $media in an image block to a media reference", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createField("posts", {
+			slug: "body",
+			label: "Body",
+			type: "portableText",
+		});
+
+		mockFetch.mockResolvedValueOnce(createMockResponse(MOCK_PNG, "image/png"));
+
+		const seed: SeedFile = {
+			version: "1",
+			content: {
+				posts: [
+					{
+						id: "post-1",
+						slug: "hello",
+						data: {
+							title: "Hello",
+							body: [
+								{
+									_type: "image",
+									_key: "img1",
+									asset: { $media: { url: "https://example.com/photo.png", alt: "A photo" } },
+									caption: "A caption",
+									alignment: "wide",
+								},
+							],
+						},
+					},
+				],
+			},
+		};
+
+		await applySeed(db, seed, { includeContent: true, storage, baseUrl: "" });
+
+		const contentRepo = new ContentRepository(db);
+		const entry = await contentRepo.findBySlug("posts", "hello");
+		const media = await db
+			.selectFrom("media")
+			.select(["id", "storage_key"])
+			.executeTakeFirstOrThrow();
+
+		expect(entry?.data.body).toEqual([
+			{
+				_type: "image",
+				_key: "img1",
+				asset: {
+					_type: "reference",
+					_ref: media.id,
+					url: `/_emdash/api/media/file/${media.storage_key}`,
+					provider: "local",
+				},
+				alt: "A photo",
+				caption: "A caption",
+				width: 1,
+				height: 1,
+				alignment: "wide",
+			},
+		]);
+	});
+
+	it("should store an image block without $media as written", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createField("posts", {
+			slug: "body",
+			label: "Body",
+			type: "portableText",
+		});
+
+		const block = {
+			_type: "image",
+			_key: "img1",
+			asset: {
+				_ref: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+				url: "/_emdash/api/media/file/01M2QZRZR8HDNT3039QNQ95B9D.jpg",
+				meta: { blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj" },
+			},
+			alt: "A photo",
+		};
+		const seed: SeedFile = {
+			version: "1",
+			content: {
+				posts: [{ id: "post-1", slug: "hello", data: { title: "Hello", body: [block] } }],
+			},
+		};
+
+		await applySeed(db, seed, { includeContent: true, storage });
+
+		const contentRepo = new ContentRepository(db);
+		const entry = await contentRepo.findBySlug("posts", "hello");
+		expect(entry?.data.body).toEqual([block]);
+	});
 });

@@ -194,7 +194,7 @@ msgstr "{0, plural, one {# preusmeravanje je deo petlje.} few {# preusmeravanja 
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:210
 #: packages/admin/src/components/editor/TableControls.tsx:243
-#: packages/admin/src/components/PortableTextEditor.tsx:4110
+#: packages/admin/src/components/PortableTextEditor.tsx:4128
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr ""
 
@@ -417,7 +417,7 @@ msgstr "{base} na: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# promena iz sledeće revizije} few {# promene iz sledeće revizije} other {# promena iz sledeće revizije}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2704
+#: packages/admin/src/components/PortableTextEditor.tsx:2722
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
@@ -594,7 +594,7 @@ msgstr ""
 msgid "{previewRows} × {previewColumns} table"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2705
+#: packages/admin/src/components/PortableTextEditor.tsx:2723
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
@@ -619,7 +619,7 @@ msgstr ""
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2835
+#: packages/admin/src/components/PortableTextEditor.tsx:2853
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
@@ -655,7 +655,7 @@ msgstr "{unchangedCount, plural, one {Sakrij # nepromenjeno} few {Sakrij # nepro
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Prikaži # nepromenjeno} few {Prikaži # nepromenjena} other {Prikaži # nepromenjenih}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2703
+#: packages/admin/src/components/PortableTextEditor.tsx:2721
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -918,7 +918,7 @@ msgstr "Dodaj"
 #. placeholder {0}: option.byline.displayName
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
-#: packages/admin/src/components/PortableTextEditor.tsx:2316
+#: packages/admin/src/components/PortableTextEditor.tsx:2334
 #: packages/admin/src/components/TaxonomyManager.tsx:755
 #: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Add {0}"
@@ -949,7 +949,7 @@ msgid "Add byline"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
-#: packages/admin/src/components/PortableTextEditor.tsx:4123
+#: packages/admin/src/components/PortableTextEditor.tsx:4141
 msgid "Add column after"
 msgstr "Dodaj kolonu posle"
 
@@ -1011,7 +1011,7 @@ msgstr ""
 msgid "Add images to gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2316
+#: packages/admin/src/components/PortableTextEditor.tsx:2334
 msgid "Add item"
 msgstr "Dodaj stavku"
 
@@ -1019,7 +1019,7 @@ msgstr "Dodaj stavku"
 msgid "Add Item"
 msgstr "Dodaj stavku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4035
+#: packages/admin/src/components/PortableTextEditor.tsx:4053
 msgid "Add link"
 msgstr "Dodaj link"
 
@@ -1058,7 +1058,7 @@ msgid "Add row above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
-#: packages/admin/src/components/PortableTextEditor.tsx:4116
+#: packages/admin/src/components/PortableTextEditor.tsx:4134
 msgid "Add row below"
 msgstr ""
 
@@ -1168,15 +1168,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4621
+#: packages/admin/src/components/PortableTextEditor.tsx:4639
 msgid "Align Center"
 msgstr "Poravnaj po centru"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4613
+#: packages/admin/src/components/PortableTextEditor.tsx:4631
 msgid "Align Left"
 msgstr "Poravnaj levo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4629
+#: packages/admin/src/components/PortableTextEditor.tsx:4647
 msgid "Align Right"
 msgstr "Poravnaj desno"
 
@@ -1415,7 +1415,7 @@ msgid "Application Password"
 msgstr "Lozinka za aplikaciju"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:4707
+#: packages/admin/src/components/PortableTextEditor.tsx:4725
 msgid "Apply"
 msgstr "Primeni"
 
@@ -1423,8 +1423,8 @@ msgstr "Primeni"
 msgid "Apply changes"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3961
-#: packages/admin/src/components/PortableTextEditor.tsx:3962
+#: packages/admin/src/components/PortableTextEditor.tsx:3979
+#: packages/admin/src/components/PortableTextEditor.tsx:3980
 msgid "Apply link"
 msgstr "Primeni link"
 
@@ -1518,7 +1518,7 @@ msgid "Audio"
 msgstr "Audio"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:278
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:274
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:438
 msgid "Authentication error: {0}"
 msgstr "Greška autentifikacije: {0}"
@@ -1527,7 +1527,7 @@ msgstr "Greška autentifikacije: {0}"
 msgid "Authentication error: {error}"
 msgstr "Greška autentifikacije: {error}"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:255
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:251
 msgid "Authentication failed"
 msgstr "Autentifikacija nije uspela"
 
@@ -1536,7 +1536,7 @@ msgstr "Autentifikacija nije uspela"
 msgid "Authentication is managed by an external provider ({0}). Passkey settings are not available when using external authentication."
 msgstr "Autentifikacijom upravlja eksterni provajder ({0}). Passkey podešavanja nisu dostupna pri korišćenju eksterne autentifikacije."
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:262
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:258
 msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Autentifikacija je otkazana ili je isteklo vreme. Pokušajte ponovo."
 
@@ -1771,8 +1771,8 @@ msgstr ""
 msgid "Blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3985
-#: packages/admin/src/components/PortableTextEditor.tsx:4489
+#: packages/admin/src/components/PortableTextEditor.tsx:4003
+#: packages/admin/src/components/PortableTextEditor.tsx:4507
 msgid "Bold"
 msgstr "Podebljano"
 
@@ -1820,8 +1820,8 @@ msgid "Build provenance verified"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1625
-#: packages/admin/src/components/PortableTextEditor.tsx:4538
+#: packages/admin/src/components/PortableTextEditor.tsx:1643
+#: packages/admin/src/components/PortableTextEditor.tsx:4556
 msgid "Bullet List"
 msgstr "Lista sa tačkama"
 
@@ -1905,7 +1905,7 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:790
-#: packages/admin/src/components/PortableTextEditor.tsx:4691
+#: packages/admin/src/components/PortableTextEditor.tsx:4709
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -2289,9 +2289,9 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:2100
-#: packages/admin/src/components/PortableTextEditor.tsx:2106
-#: packages/admin/src/components/PortableTextEditor.tsx:2110
+#: packages/admin/src/components/PortableTextEditor.tsx:2118
+#: packages/admin/src/components/PortableTextEditor.tsx:2124
+#: packages/admin/src/components/PortableTextEditor.tsx:2128
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
@@ -2346,14 +2346,14 @@ msgid "Close settings"
 msgstr "Zatvori podešavanja"
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
-#: packages/admin/src/components/PortableTextEditor.tsx:4027
+#: packages/admin/src/components/PortableTextEditor.tsx:4045
 #: packages/admin/src/components/Redirects.tsx:487
 msgid "Code"
 msgstr "Kod"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1655
-#: packages/admin/src/components/PortableTextEditor.tsx:4580
+#: packages/admin/src/components/PortableTextEditor.tsx:1673
+#: packages/admin/src/components/PortableTextEditor.tsx:4598
 msgid "Code Block"
 msgstr "Blok koda"
 
@@ -2391,7 +2391,7 @@ msgid "Collections created:"
 msgstr "Kreirane kolekcije:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
-#: packages/admin/src/components/PortableTextEditor.tsx:4121
+#: packages/admin/src/components/PortableTextEditor.tsx:4139
 msgid "Column added after"
 msgstr ""
 
@@ -2407,7 +2407,7 @@ msgstr ""
 msgid "Column width increased"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2835
+#: packages/admin/src/components/PortableTextEditor.tsx:2853
 msgid "Column width resized"
 msgstr ""
 
@@ -2525,7 +2525,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
 #: packages/admin/src/components/Dashboard.tsx:375
-#: packages/admin/src/components/PortableTextEditor.tsx:2938
+#: packages/admin/src/components/PortableTextEditor.tsx:2956
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/components/Widgets.tsx:899
@@ -2626,7 +2626,7 @@ msgstr "Nastavi →"
 msgid "Continue Import"
 msgstr "Nastavi uvoz"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4555
+#: packages/admin/src/components/PortableTextEditor.tsx:4573
 msgid "Continue numbering"
 msgstr ""
 
@@ -2706,7 +2706,7 @@ msgstr "Nije moguće automatski kopirati. Izaberite URL iznad i kopirajte ručno
 msgid "Could not create tag"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3712
+#: packages/admin/src/components/PortableTextEditor.tsx:3730
 msgid "Could not insert section"
 msgstr ""
 
@@ -2818,7 +2818,7 @@ msgstr ""
 msgid "Create a block type before adding a blocks field."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1626
+#: packages/admin/src/components/PortableTextEditor.tsx:1644
 msgid "Create a bullet list"
 msgstr "Kreiraj listu sa tačkama"
 
@@ -2831,7 +2831,7 @@ msgstr "Kreiraj novi {0}"
 msgid "Create a new {singularLabel}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1636
+#: packages/admin/src/components/PortableTextEditor.tsx:1654
 msgid "Create a numbered list"
 msgstr "Kreiraj numerisanu listu"
 
@@ -3587,11 +3587,11 @@ msgstr "Odbaci"
 msgid "Dismiss completed {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3733
+#: packages/admin/src/components/PortableTextEditor.tsx:3751
 msgid "Dismiss section error"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3700
+#: packages/admin/src/components/PortableTextEditor.tsx:3718
 msgid "Dismiss table paste error"
 msgstr ""
 
@@ -3640,7 +3640,7 @@ msgstr "Režim bez ometanja (⌘⇧\\)"
 msgid "Distribute columns evenly"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1673
+#: packages/admin/src/components/PortableTextEditor.tsx:1691
 msgid "Divider"
 msgstr "Razdelnik"
 
@@ -3760,7 +3760,7 @@ msgstr "Prevucite i otpustite ili kliknite za pregled (.xml)"
 msgid "Drag here to add"
 msgstr "Prevucite ovde da dodate"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2492
+#: packages/admin/src/components/PortableTextEditor.tsx:2510
 msgid "Drag to reorder"
 msgstr "Prevucite za promenu redosleda"
 
@@ -3854,7 +3854,7 @@ msgstr "Uredi"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:332
-#: packages/admin/src/components/PortableTextEditor.tsx:2097
+#: packages/admin/src/components/PortableTextEditor.tsx:2115
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:310
 #: packages/admin/src/components/TaxonomyManager.tsx:483
@@ -3927,7 +3927,7 @@ msgstr ""
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4035
+#: packages/admin/src/components/PortableTextEditor.tsx:4053
 msgid "Edit link"
 msgstr "Uredi link"
 
@@ -4014,10 +4014,6 @@ msgstr "em1.…"
 msgid "Email"
 msgstr "E-pošta"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:322
-msgid "Email (optional)"
-msgstr "E-pošta (opciono)"
-
 #: packages/admin/src/components/LoginPage.tsx:127
 #: packages/admin/src/components/SignupPage.tsx:84
 #: packages/admin/src/components/users/InviteUserModal.tsx:152
@@ -4055,11 +4051,11 @@ msgid "Email verified!"
 msgstr "E-pošta verifikovana!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2952
+#: packages/admin/src/components/PortableTextEditor.tsx:2970
 msgid "Embed a {0}"
 msgstr "Ugradi {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2955
+#: packages/admin/src/components/PortableTextEditor.tsx:2973
 msgid "Embeds"
 msgstr "Ugradnje"
 
@@ -4618,7 +4614,7 @@ msgstr "Generisanje pregleda nije uspelo"
 msgid "Failed to generate preview URL"
 msgstr "Generisanje URL-a pregleda nije uspelo"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:177
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:173
 msgid "Failed to get authentication options"
 msgstr "Preuzimanje opcija autentifikacije nije uspelo"
 
@@ -4928,7 +4924,7 @@ msgstr "Otpremanje medija nije uspelo"
 msgid "Failed to upload to provider"
 msgstr "Otpremanje provajderu nije uspelo"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:249
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:245
 msgid "Failed to verify authentication"
 msgstr "Verifikacija autentifikacije nije uspela"
 
@@ -5202,7 +5198,7 @@ msgid "Full admin access"
 msgstr "Pun admin pristup"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2919
+#: packages/admin/src/components/PortableTextEditor.tsx:2937
 msgid "Gallery"
 msgstr ""
 
@@ -5312,37 +5308,37 @@ msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1565
+#: packages/admin/src/components/PortableTextEditor.tsx:1583
 msgid "Heading 1"
 msgstr "Naslov 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1575
+#: packages/admin/src/components/PortableTextEditor.tsx:1593
 msgid "Heading 2"
 msgstr "Naslov 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1585
+#: packages/admin/src/components/PortableTextEditor.tsx:1603
 msgid "Heading 3"
 msgstr "Naslov 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1595
+#: packages/admin/src/components/PortableTextEditor.tsx:1613
 msgid "Heading 4"
 msgstr "Naslov 4"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1605
+#: packages/admin/src/components/PortableTextEditor.tsx:1623
 msgid "Heading 5"
 msgstr "Naslov 5"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:1615
+#: packages/admin/src/components/PortableTextEditor.tsx:1633
 msgid "Heading 6"
 msgstr "Naslov 6"
 
@@ -5428,7 +5424,7 @@ msgstr "Kako kreirati Application Password"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1665
+#: packages/admin/src/components/PortableTextEditor.tsx:1683
 msgid "HTML"
 msgstr "HTML"
 
@@ -5479,7 +5475,7 @@ msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 #: packages/admin/src/components/FieldEditor.tsx:803
-#: packages/admin/src/components/PortableTextEditor.tsx:2904
+#: packages/admin/src/components/PortableTextEditor.tsx:2922
 msgid "Image"
 msgstr "Slika"
 
@@ -5686,49 +5682,49 @@ msgstr ""
 msgid "Indexing existing content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4517
+#: packages/admin/src/components/PortableTextEditor.tsx:4535
 msgid "Inline Code"
 msgstr "Ugrađeni kod"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:2097
+#: packages/admin/src/components/PortableTextEditor.tsx:2115
 msgid "Insert {0}"
 msgstr "Umetni {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1646
+#: packages/admin/src/components/PortableTextEditor.tsx:1664
 msgid "Insert a blockquote"
 msgstr "Umetni citat"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1656
+#: packages/admin/src/components/PortableTextEditor.tsx:1674
 msgid "Insert a code block"
 msgstr "Umetni blok koda"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1674
+#: packages/admin/src/components/PortableTextEditor.tsx:1692
 msgid "Insert a horizontal rule"
 msgstr "Umetni horizontalnu liniju"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2935
+#: packages/admin/src/components/PortableTextEditor.tsx:2953
 msgid "Insert a reusable section"
 msgstr "Umetni ponovo upotrebljivu sekciju"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1684
+#: packages/admin/src/components/PortableTextEditor.tsx:1702
 msgid "Insert a table"
 msgstr "Umetni tabelu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2905
+#: packages/admin/src/components/PortableTextEditor.tsx:2923
 msgid "Insert an image"
 msgstr "Umetni sliku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2920
+#: packages/admin/src/components/PortableTextEditor.tsx:2938
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1928
+#: packages/admin/src/components/PortableTextEditor.tsx:1946
 msgid "Insert block"
 msgstr "Umetni blok"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4469
-#: packages/admin/src/components/PortableTextEditor.tsx:4479
+#: packages/admin/src/components/PortableTextEditor.tsx:4487
+#: packages/admin/src/components/PortableTextEditor.tsx:4497
 msgid "Insert block after current block"
 msgstr "Umetni blok posle trenutnog bloka"
 
@@ -5736,20 +5732,20 @@ msgstr "Umetni blok posle trenutnog bloka"
 msgid "Insert block below"
 msgstr "Umetni blok ispod"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4594
+#: packages/admin/src/components/PortableTextEditor.tsx:4612
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3805
+#: packages/admin/src/components/PortableTextEditor.tsx:3823
 msgid "Insert image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4587
+#: packages/admin/src/components/PortableTextEditor.tsx:4605
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4647
-#: packages/admin/src/components/PortableTextEditor.tsx:4661
+#: packages/admin/src/components/PortableTextEditor.tsx:4665
+#: packages/admin/src/components/PortableTextEditor.tsx:4679
 msgid "Insert Link"
 msgstr "Umetni link"
 
@@ -5765,7 +5761,7 @@ msgstr ""
 msgid "Insert paragraph before"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1666
+#: packages/admin/src/components/PortableTextEditor.tsx:1684
 msgid "Insert raw HTML"
 msgstr "Umetni sirovi HTML"
 
@@ -5881,13 +5877,13 @@ msgstr ""
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3992
-#: packages/admin/src/components/PortableTextEditor.tsx:4496
+#: packages/admin/src/components/PortableTextEditor.tsx:4010
+#: packages/admin/src/components/PortableTextEditor.tsx:4514
 msgid "Italic"
 msgstr "Kurziv"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2478
+#: packages/admin/src/components/PortableTextEditor.tsx:2496
 #: packages/admin/src/components/RepeaterField.tsx:247
 msgid "Item {0}"
 msgstr "Stavka {0}"
@@ -6006,7 +6002,7 @@ msgstr ""
 msgid "Language"
 msgstr "Jezik"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1566
+#: packages/admin/src/components/PortableTextEditor.tsx:1584
 msgid "Large section heading"
 msgstr "Veliki naslov sekcije"
 
@@ -6049,10 +6045,6 @@ msgstr "Poslednje korišćeno {0}"
 msgid "Learn more"
 msgstr "Saznaj više"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:331
-msgid "Leave blank to use a discoverable passkey."
-msgstr "Ostavite prazno za passkey koji se može otkriti."
-
 #: packages/admin/src/components/WordPressImport.tsx:2513
 msgid "Leave unassigned"
 msgstr "Ostavi nedodeljeno"
@@ -6078,7 +6070,7 @@ msgstr "Licenca"
 msgid "Limit"
 msgstr "Limit"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4672
+#: packages/admin/src/components/PortableTextEditor.tsx:4690
 msgid "Link"
 msgstr ""
 
@@ -6183,7 +6175,7 @@ msgstr "Učitavanje konfiguracije..."
 msgid "Loading content..."
 msgstr "Učitavanje sadržaja..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3667
+#: packages/admin/src/components/PortableTextEditor.tsx:3685
 msgid "Loading editor..."
 msgstr "Učitavanje editora..."
 
@@ -6270,7 +6262,7 @@ msgstr "Učitavanje vidžeta..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1729
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:204
-#: packages/admin/src/components/PortableTextEditor.tsx:2605
+#: packages/admin/src/components/PortableTextEditor.tsx:2623
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
@@ -6479,8 +6471,8 @@ msgstr "Maksimalno oznaka"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2908
-#: packages/admin/src/components/PortableTextEditor.tsx:2923
+#: packages/admin/src/components/PortableTextEditor.tsx:2926
+#: packages/admin/src/components/PortableTextEditor.tsx:2941
 #: packages/admin/src/components/Settings.tsx:70
 #: packages/admin/src/components/Sidebar.tsx:406
 #: packages/admin/src/components/WordPressImport.tsx:770
@@ -6562,7 +6554,7 @@ msgstr ""
 msgid "Media Write"
 msgstr "Pisanje medija"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1576
+#: packages/admin/src/components/PortableTextEditor.tsx:1594
 msgid "Medium section heading"
 msgstr "Srednji naslov sekcije"
 
@@ -6671,7 +6663,7 @@ msgstr "Min. vrednost"
 msgid "Minimum blocks"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1606
+#: packages/admin/src/components/PortableTextEditor.tsx:1624
 msgid "Minor section heading"
 msgstr ""
 
@@ -7216,7 +7208,7 @@ msgstr "Nema verzija za instalaciju"
 msgid "No invite token provided"
 msgstr "Nije prosleđen token za pozivnicu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2401
+#: packages/admin/src/components/PortableTextEditor.tsx:2419
 #: packages/admin/src/components/RepeaterField.tsx:167
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -7255,7 +7247,7 @@ msgstr ""
 msgid "No matching media"
 msgstr "Nema odgovarajućih medija"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:265
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:261
 msgid "No matching passkey found for this account."
 msgstr "Nije pronađen odgovarajući passkey za ovaj nalog."
 
@@ -7338,7 +7330,7 @@ msgstr "Nema nedavne aktivnosti"
 msgid "No redirects yet"
 msgstr "Još nema preusmeravanja"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1957
+#: packages/admin/src/components/PortableTextEditor.tsx:1975
 #: packages/admin/src/components/RepeaterField.tsx:398
 msgid "No results"
 msgstr "Nema rezultata"
@@ -7443,8 +7435,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Broj objava po stranici u prikazima liste"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1635
-#: packages/admin/src/components/PortableTextEditor.tsx:4546
+#: packages/admin/src/components/PortableTextEditor.tsx:1653
+#: packages/admin/src/components/PortableTextEditor.tsx:4564
 msgid "Numbered List"
 msgstr "Numerisana lista"
 
@@ -7738,7 +7730,7 @@ msgstr "Passkey-evi ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Passkey-evi su siguran način prijave bez lozinke na vaš nalog. Možete registrovati više passkey-eva za različite uređaje."
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:302
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:297
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
 msgid "Passkeys Not Available Here"
 msgstr "Passkey-evi nisu dostupni ovde"
@@ -7747,7 +7739,7 @@ msgstr "Passkey-evi nisu dostupni ovde"
 msgid "Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback."
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:159
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:155
 msgid "Passkeys require HTTPS or http://localhost (with your port); this hostname is not a secure browser context."
 msgstr "Passkey-evi zahtevaju HTTPS ili http://localhost (sa vašim portom); ovaj hostname nije siguran kontekst pregledača."
 
@@ -8042,7 +8034,7 @@ msgstr "Priprema registracije..."
 msgid "Preparing to download files from WordPress..."
 msgstr "Priprema preuzimanja fajlova iz WordPress-a..."
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:167
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:163
 #: packages/admin/src/components/SetupWizard.tsx:233
 msgid "Preparing..."
 msgstr "Priprema..."
@@ -8224,8 +8216,8 @@ msgid "Quick edit alt text"
 msgstr "Brzo uredi alt tekst"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1645
-#: packages/admin/src/components/PortableTextEditor.tsx:4572
+#: packages/admin/src/components/PortableTextEditor.tsx:1663
+#: packages/admin/src/components/PortableTextEditor.tsx:4590
 msgid "Quote"
 msgstr "Citat"
 
@@ -8346,7 +8338,7 @@ msgstr "Preusmeravanje na prijavu..."
 msgid "Redirects"
 msgstr "Preusmeravanja"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4730
+#: packages/admin/src/components/PortableTextEditor.tsx:4748
 msgid "Redo"
 msgstr "Ponovi"
 
@@ -8424,7 +8416,7 @@ msgstr ""
 #: packages/admin/src/components/ImageFieldRenderer.tsx:368
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/PortableTextEditor.tsx:4703
+#: packages/admin/src/components/PortableTextEditor.tsx:4721
 #: packages/admin/src/components/settings/GeneralSettings.tsx:236
 #: packages/admin/src/components/settings/GeneralSettings.tsx:296
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -8492,13 +8484,13 @@ msgid "Remove image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2517
+#: packages/admin/src/components/PortableTextEditor.tsx:2535
 #: packages/admin/src/components/RepeaterField.tsx:283
 msgid "Remove item {0}"
 msgstr "Ukloni stavku {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3973
-#: packages/admin/src/components/PortableTextEditor.tsx:3974
+#: packages/admin/src/components/PortableTextEditor.tsx:3991
+#: packages/admin/src/components/PortableTextEditor.tsx:3992
 msgid "Remove link"
 msgstr "Ukloni link"
 
@@ -8733,7 +8725,7 @@ msgstr ""
 msgid "Resolving publisher handle..."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4562
+#: packages/admin/src/components/PortableTextEditor.tsx:4580
 msgid "Restart numbering"
 msgstr ""
 
@@ -8976,7 +8968,7 @@ msgid "Row added above"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
-#: packages/admin/src/components/PortableTextEditor.tsx:4114
+#: packages/admin/src/components/PortableTextEditor.tsx:4132
 msgid "Row added below"
 msgstr ""
 
@@ -9378,7 +9370,7 @@ msgstr "Pretraživo"
 msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2934
+#: packages/admin/src/components/PortableTextEditor.tsx:2952
 msgid "Section"
 msgstr "Sekcija"
 
@@ -9449,7 +9441,7 @@ msgstr "Bezbednosna provera je prošla"
 msgid "Security contacts"
 msgstr "Bezbednosni kontakti"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:271
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:267
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:435
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Bezbednosna greška. Uveri se da koristiš bezbednu vezu."
@@ -9543,13 +9535,13 @@ msgstr "Izaberi favicon"
 msgid "Select file"
 msgstr "Izaberi fajl"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3819
+#: packages/admin/src/components/PortableTextEditor.tsx:3837
 msgid "Select gallery images"
 msgstr ""
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:558
 #: packages/admin/src/components/MediaPickerModal.tsx:228
-#: packages/admin/src/components/PortableTextEditor.tsx:3804
+#: packages/admin/src/components/PortableTextEditor.tsx:3822
 msgid "Select image"
 msgstr "Izaberi sliku"
 
@@ -9590,7 +9582,7 @@ msgid "Select which content types to import."
 msgstr "Izaberi koje tipove sadržaja da uvezeš."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2612
+#: packages/admin/src/components/PortableTextEditor.tsx:2630
 #: packages/admin/src/components/RepeaterField.tsx:396
 msgid "Select..."
 msgstr "Izaberi..."
@@ -9599,7 +9591,7 @@ msgstr "Izaberi..."
 msgid "Selected {label}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1948
+#: packages/admin/src/components/PortableTextEditor.tsx:1966
 msgid "Selected {selectedItemTitle}"
 msgstr "Izabrano {selectedItemTitle}"
 
@@ -9865,7 +9857,7 @@ msgstr "Prijavi se putem emaila"
 msgid "Sign in with email link"
 msgstr "Prijavi se putem email linka"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:137
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:134
 #: packages/admin/src/components/LoginPage.tsx:254
 msgid "Sign in with Passkey"
 msgstr "Prijavi se sa Passkey"
@@ -9991,15 +9983,15 @@ msgstr "Slug kopiran u clipboard"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Slugovi se ne mogu menjati nakon kreiranja polja."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1586
+#: packages/admin/src/components/PortableTextEditor.tsx:1604
 msgid "Small section heading"
 msgstr "Mali naslov sekcije"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1596
+#: packages/admin/src/components/PortableTextEditor.tsx:1614
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1616
+#: packages/admin/src/components/PortableTextEditor.tsx:1634
 msgid "Smallest section heading"
 msgstr ""
 
@@ -10093,8 +10085,8 @@ msgid "Start Import"
 msgstr "Započni uvoz"
 
 #: packages/admin/src/components/ContentEditor.tsx:1938
-#: packages/admin/src/components/PortableTextEditor.tsx:2770
-#: packages/admin/src/components/PortableTextEditor.tsx:2771
+#: packages/admin/src/components/PortableTextEditor.tsx:2788
+#: packages/admin/src/components/PortableTextEditor.tsx:2789
 msgid "Start writing, or type '/' for commands"
 msgstr "Počni da pišeš ili ukucaj '/' za komande"
 
@@ -10128,8 +10120,8 @@ msgstr "Sačuvane rezervne kopije"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Čuvano po lokalu — svaki prevod potpisa autora ima sopstvenu vrednost."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4006
-#: packages/admin/src/components/PortableTextEditor.tsx:4510
+#: packages/admin/src/components/PortableTextEditor.tsx:4024
+#: packages/admin/src/components/PortableTextEditor.tsx:4528
 msgid "Strikethrough"
 msgstr "Precrtano"
 
@@ -10150,11 +10142,11 @@ msgstr "Podpolja"
 msgid "Subscriber"
 msgstr "Pretplatnik"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4013
+#: packages/admin/src/components/PortableTextEditor.tsx:4031
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4020
+#: packages/admin/src/components/PortableTextEditor.tsx:4038
 msgid "Superscript"
 msgstr ""
 
@@ -10192,15 +10184,15 @@ msgstr "Sistemska polja"
 
 #: packages/admin/src/components/editor/TableControls.tsx:35
 #: packages/admin/src/components/editor/TableControls.tsx:388
-#: packages/admin/src/components/PortableTextEditor.tsx:1683
+#: packages/admin/src/components/PortableTextEditor.tsx:1701
 msgid "Table"
 msgstr "Tabela"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3681
+#: packages/admin/src/components/PortableTextEditor.tsx:3699
 msgid "Table cells accept text, links, and formatting only."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4105
+#: packages/admin/src/components/PortableTextEditor.tsx:4123
 msgid "Table controls"
 msgstr "Kontrole tabele"
 
@@ -10209,7 +10201,7 @@ msgid "Table deleted"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:421
-#: packages/admin/src/components/PortableTextEditor.tsx:3564
+#: packages/admin/src/components/PortableTextEditor.tsx:3582
 msgid "Table inserted"
 msgstr ""
 
@@ -10217,7 +10209,7 @@ msgstr ""
 msgid "Table size"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3678
+#: packages/admin/src/components/PortableTextEditor.tsx:3696
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
@@ -10321,7 +10313,7 @@ msgstr "Pojam obrisan"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4461
+#: packages/admin/src/components/PortableTextEditor.tsx:4479
 msgid "Text formatting"
 msgstr "Formatiranje teksta"
 
@@ -10499,7 +10491,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Ova kolekcija je definisana u kodu. Neka podešavanja se ovde ne mogu menjati. Uredi live.config.ts fajl da izmeniš šemu."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3653
+#: packages/admin/src/components/PortableTextEditor.tsx:3671
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -10536,11 +10528,11 @@ msgstr ""
 msgid "This field cannot be edited by this version of EmDash."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3636
+#: packages/admin/src/components/PortableTextEditor.tsx:3654
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3655
+#: packages/admin/src/components/PortableTextEditor.tsx:3673
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr ""
 
@@ -10611,7 +10603,7 @@ msgstr ""
 msgid "This passkey is already registered on this device."
 msgstr "Ovaj Passkey je već registrovan na ovom uređaju."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3674
+#: packages/admin/src/components/PortableTextEditor.tsx:3692
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr ""
 
@@ -10672,12 +10664,12 @@ msgstr "Ovo uklanja profil potpisa autora. Linkovi potpisa autora u sadržaju se
 msgid "This removes the schedule and publishes immediately."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3715
+#: packages/admin/src/components/PortableTextEditor.tsx:3733
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr ""
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3717
+#: packages/admin/src/components/PortableTextEditor.tsx:3735
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -10697,15 +10689,15 @@ msgstr ""
 msgid "This sign-in link is invalid or has already been used. Request a new one from the login page."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3676
+#: packages/admin/src/components/PortableTextEditor.tsx:3694
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3634
+#: packages/admin/src/components/PortableTextEditor.tsx:3652
 msgid "This table cannot be edited safely"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3680
+#: packages/admin/src/components/PortableTextEditor.tsx:3698
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
@@ -11007,12 +10999,12 @@ msgstr "Nije moguće pristupiti tržištu"
 msgid "Unassigned"
 msgstr "Nedodeljeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3999
-#: packages/admin/src/components/PortableTextEditor.tsx:4503
+#: packages/admin/src/components/PortableTextEditor.tsx:4017
+#: packages/admin/src/components/PortableTextEditor.tsx:4521
 msgid "Underline"
 msgstr "Podvučeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4723
+#: packages/admin/src/components/PortableTextEditor.tsx:4741
 msgid "Undo"
 msgstr "Poništi"
 
@@ -11356,7 +11348,7 @@ msgstr ""
 msgid "Use URL"
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:356
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:333
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
 msgstr "Koristi biometrijsku autentifikaciju uređaja, bezbednosni ključ ili PIN za prijavu."
 
@@ -11460,7 +11452,7 @@ msgstr "Proverava se pozivnica..."
 msgid "Verifying your link..."
 msgstr "Proverava se link..."
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:212
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:208
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
 #: packages/admin/src/components/RegistryPluginDetail.tsx:636
 msgid "Verifying..."
@@ -11551,7 +11543,7 @@ msgstr "Vue"
 msgid "Wait for updates already in progress to finish."
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:181
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:177
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:340
 msgid "Waiting for passkey..."
 msgstr "Čeka se Passkey..."
@@ -11585,7 +11577,7 @@ msgstr ""
 msgid "Web address"
 msgstr "Web adresa"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:160
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:156
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:319
 msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn nije podržan u ovom pregledaču"
@@ -11915,7 +11907,6 @@ msgstr "Pozvan si!"
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:326
 #: packages/admin/src/components/SetupWizard.tsx:201
 msgid "you@example.com"
 msgstr "you@example.com"
@@ -11924,7 +11915,7 @@ msgstr "you@example.com"
 msgid "Your account has been created successfully."
 msgstr "Tvoj nalog je uspešno kreiran."
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:308
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:303
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:481
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Tvoj pregledač ne podržava Passkey. Koristi moderan pregledač kao Chrome, Safari, Firefox ili Edge."
@@ -11938,7 +11929,7 @@ msgstr ""
 msgid "Your credential manager, such as iCloud Keychain, saves it and may sync it to your other devices."
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyLogin.tsx:268
+#: packages/admin/src/components/auth/PasskeyLogin.tsx:264
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:432
 msgid "Your device doesn't support the required security features."
 msgstr "Tvoj uređaj ne podržava potrebne bezbednosne funkcije."
