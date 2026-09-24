@@ -450,6 +450,67 @@ describe("validateSeed", () => {
 			]);
 		});
 
+		it("checks term parents against the hierarchy at the end of a translation chain", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						id: "topic:es",
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+					},
+					{
+						name: "topic",
+						label: "Sujets",
+						locale: "fr",
+						translationOf: "topic:es",
+						terms: [
+							{ slug: "actualites", label: "Actualités" },
+							{ slug: "locales", label: "Locales", parent: "actualites" },
+						],
+					},
+				],
+			});
+			expect(result.warnings).toEqual([]);
+			expect(result.errors).toEqual([]);
+		});
+
+		it("requires the structure when a translation chain loops", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						locale: "en",
+						translationOf: "topic:es",
+					},
+					{
+						id: "topic:es",
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+					},
+				],
+			});
+			expect(result.errors).toEqual([
+				'taxonomies[0].translationOf: the translationOf chain from "topic:es" loops, so hierarchical and collections are required',
+				'taxonomies[1].translationOf: the translationOf chain from "topic:en" loops, so hierarchical and collections are required',
+			]);
+		});
+
 		it("should validate term properties", () => {
 			const result = validateSeed({
 				version: "1",

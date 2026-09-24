@@ -1672,6 +1672,38 @@ describe("applySeed", () => {
 			}
 		});
 
+		it("follows a chain of taxonomy translations to the entry that declares the structure", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{ name: "topics", label: "Sujets", locale: "fr", translationOf: "tax:topics:es" },
+					{
+						id: "tax:topics:es",
+						name: "topics",
+						label: "Temas",
+						locale: "es",
+						translationOf: "tax:topics:en",
+					},
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			const rows = await selectTaxonomyDefs(db).where("d.name", "=", "topics").execute();
+			expect(rows).toHaveLength(3);
+			for (const row of rows) {
+				expect(row).toMatchObject({ hierarchical: 1, collections: JSON.stringify(["posts"]) });
+			}
+		});
+
 		it("imports menu item translations sharing one translation_group", async () => {
 			const seed: SeedFile = {
 				version: "1",

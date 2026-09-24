@@ -97,7 +97,7 @@ async function applyDisplayDateFields(
 }
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
-import { validateSeed } from "./validate.js";
+import { findTaxonomyStructureSource, validateSeed } from "./validate.js";
 
 /** Pattern to remove file extensions */
 const EXTENSION_PATTERN = /\.[^.]+$/;
@@ -401,14 +401,11 @@ export async function applySeed(
 			}
 			const replacesDef = onConflict === "update" || unclaimed;
 
-			// The structure belongs to the taxonomy, not the locale: a translation of
-			// an entry with the same name takes that entry's `hierarchical` and
-			// `collections`, even when it comes first, and an existing taxonomy's are
-			// rewritten only by a source entry that replaces its definition.
-			const source = taxonomy.translationOf
-				? taxonomiesBySeedId.get(taxonomy.translationOf)
-				: undefined;
-			const declared = source?.name === taxonomy.name ? source : taxonomy;
+			// The structure belongs to the taxonomy, not the locale: a translation takes
+			// `hierarchical` and `collections` from the entry its same-name
+			// `translationOf` chain ends at, even when it comes first, and an existing
+			// taxonomy's are rewritten only by a source entry that replaces its definition.
+			const declared = findTaxonomyStructureSource(taxonomy, taxonomiesBySeedId) ?? taxonomy;
 			const existingStructure = await findTaxonomyStructure(db, taxonomy.name);
 			const writesStructure = !existingStructure || (replacesDef && !taxonomy.translationOf);
 			const structure =
