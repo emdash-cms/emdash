@@ -66,6 +66,8 @@ export interface PasskeyLoginProps {
 	onSuccess: (response: unknown) => void;
 	/** Called on error */
 	onError?: (error: Error) => void;
+	/** @deprecated Ignored. Sign-in always uses discoverable credentials. */
+	showEmailInput?: boolean;
 	/** Button text */
 	buttonText?: string;
 }
