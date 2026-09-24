@@ -15,7 +15,7 @@ import { ulid } from "ulidx";
 import type { Database } from "../database/types.js";
 import type { CronAccess, CronEvent, CronTaskInfo } from "./types.js";
 
-/** Timezone used to resolve all recurring plugin cron expressions. */
+/** Matches the Workers runtime, which always runs in UTC, so Node hosts fire at the same instant. */
 const CRON_TIMEZONE = "UTC";
 
 /** Stale lock threshold in minutes */
@@ -345,7 +345,6 @@ export function nextCronTime(expression: string, currentTime: Date = new Date())
  */
 function isCronExpression(schedule: string): boolean {
 	try {
-		// Cron constructor validates; we discard the instance immediately.
 		const _cron = new Cron(schedule, { timezone: CRON_TIMEZONE });
 		void _cron;
 		return true;

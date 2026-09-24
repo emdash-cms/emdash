@@ -1,7 +1,3 @@
-// Pin the suite to UTC so cron and other timezone-sensitive behavior is
-// tested consistently regardless of the runner's local timezone.
-process.env.TZ = "UTC";
-
 import { defineConfig } from "vitest/config";
 
 // Stub the adapter-provided virtual modules that runtime code imports.
