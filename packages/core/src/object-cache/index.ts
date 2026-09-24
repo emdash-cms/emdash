@@ -701,8 +701,8 @@ export function invalidateObjectCache(namespace: string): void {
 }
 
 function persistEpoch(namespace: string, stamp: number): void {
-	// Coalesce repeated bumps of the same namespace within a tick (e.g. a bulk
-	// publish loop) into a single backend write that persists the latest epoch.
+	// Coalesce repeated bumps of the same namespace within a tick into a single
+	// backend write that persists the latest epoch.
 	if (pendingBumps.has(namespace)) return;
 	pendingBumps.add(namespace);
 	after(async () => {
