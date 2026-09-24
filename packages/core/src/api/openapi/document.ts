@@ -1077,7 +1077,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				operationId: "getMediaUsage",
 				summary: "Get media usage details",
 				description:
-					"Returns paginated content entry groups whose current indexed sources reference a local media item. Results include aggregate coverage and are advisory during concurrent writes. Requires media read and draft-content read permission; token-authenticated callers also require admin scope.",
+					"Returns paginated content entry groups whose current indexed sources reference a local media item, and the site settings that select it. Results include aggregate coverage and are advisory during concurrent writes. Requires media read and draft-content read permission; token-authenticated callers also require admin scope.",
 				tags: ["Media"],
 				requestParams: {
 					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),

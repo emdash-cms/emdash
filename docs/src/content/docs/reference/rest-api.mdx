@@ -398,7 +398,9 @@ Media operations cover listing, upload, metadata updates, image replacement, fol
 
 `GET /media` supports cursor or numbered-page pagination, MIME-type and filename filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
 
-`usage.count` counts distinct active content rows or locales whose current indexed source references the media item. Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
+`usage.count` counts distinct active content rows or locales whose current indexed source references the media item, plus each site setting that selects it (`logo`, `favicon`, `seo.defaultOgImage`). Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
+
+`GET /media/{id}/usage` returns the referencing content entries in pages. Every page also includes `siteSettings`, the site settings that select the media item, for example `[{ "setting": "favicon" }]`. Site settings are read from the stored settings on each request and do not depend on usage indexing.
 
 Every usage result includes a coverage status:
 
@@ -412,7 +414,7 @@ Every usage result includes a coverage status:
 | `stale` | The index is older than the content it describes. |
 | `unknown` | The stored state is not recognized by this EmDash version. |
 
-Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image blocks, and media declared by retained block versions in EmDash collections. It does not scan application code, rendered HTML, settings, menus, widgets, plugin data, external sites, or provider-only assets.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image and gallery blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
 ### Direct multipart upload
 

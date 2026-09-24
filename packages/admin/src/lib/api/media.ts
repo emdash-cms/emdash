@@ -69,9 +69,14 @@ export interface MediaUsageEntryDetail {
 	sources: MediaUsageSourceDetail[];
 }
 
+export interface MediaUsageSiteSettingDetail {
+	setting: "logo" | "favicon" | "seo.defaultOgImage";
+}
+
 export interface MediaUsageDetailsResponse {
 	items: MediaUsageEntryDetail[];
 	nextCursor?: string;
+	siteSettings: MediaUsageSiteSettingDetail[];
 	coverage: MediaUsageCoverage;
 }
 

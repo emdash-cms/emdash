@@ -337,10 +337,10 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 			status: "failed",
 		});
 
-		const scopes = await repo.findCollectionIndexStatusScopes({
-			adapterId: "content-media",
-			scopeType: "collection",
-		});
+		const { scopes } = await repo.findCoverageWithOptions(
+			{ adapterId: "content-media", scopeType: "collection" },
+			[],
+		);
 
 		expect(scopes).toEqual([
 			{

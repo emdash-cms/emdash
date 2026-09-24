@@ -27,6 +27,11 @@ import {
 	runMediaUsageMaintenanceStep,
 	type MediaUsageMaintenanceContinuation,
 } from "../../media/usage/maintenance-engine.js";
+import {
+	groupSiteSettingMediaUsage,
+	MEDIA_USAGE_SITE_SETTING_OPTIONS,
+	type MediaUsageSiteSetting,
+} from "../../media/usage/site-settings.js";
 import { ErrorCode } from "../errors.js";
 import type {
 	MediaUsageCoverage,
@@ -38,6 +43,7 @@ import type {
 	MediaUsageProgressAdvanceResponse,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
+	MediaUsageSiteSettingDetail,
 	MediaUsageSummary,
 } from "../schemas/media-usage.js";
 import type { ApiResult } from "../types.js";
@@ -53,6 +59,7 @@ export type {
 	MediaUsageSourceDetail,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
+	MediaUsageSiteSettingDetail,
 	MediaUsageSummary,
 } from "../schemas/media-usage.js";
 
@@ -181,7 +188,7 @@ export async function handleMediaUsageSummaries(
 
 	try {
 		const repository = new MediaUsageRepository(db);
-		const coverage = await loadMediaUsageCoverage(repository);
+		const { coverage, siteSettings } = await loadMediaUsageCoverage(repository);
 		const counts =
 			options.includeCount && coverage.status === "complete"
 				? await repository.findActiveEntryCountsByMediaIds(mediaIds)
@@ -190,7 +197,9 @@ export async function handleMediaUsageSummaries(
 
 		for (const mediaId of new Set(mediaIds)) {
 			summaries[mediaId] = {
-				count: counts ? (counts.get(mediaId) ?? 0) : null,
+				count: counts
+					? (counts.get(mediaId) ?? 0) + (siteSettings.get(mediaId)?.length ?? 0)
+					: null,
 				coverage,
 			};
 		}
@@ -226,13 +235,16 @@ export async function handleMediaUsageDetails(
 		}
 
 		const repository = new MediaUsageRepository(db);
-		const coverage = await loadMediaUsageCoverage(repository);
+		const { coverage, siteSettings } = await loadMediaUsageCoverage(repository);
 		const page = await repository.findCurrentEntryUsagePageByMediaId(mediaId, options);
 		return {
 			success: true,
 			data: {
 				items: page.items.map(toMediaUsageEntryDetail),
 				...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+				siteSettings: (siteSettings.get(mediaId) ?? []).map(
+					(setting): MediaUsageSiteSettingDetail => ({ setting }),
+				),
 				coverage,
 			},
 		};
@@ -336,16 +348,23 @@ function normalizeMediaUsageCoverageStatus(
 	return "unknown";
 }
 
-async function loadMediaUsageCoverage(
-	repository: MediaUsageRepository,
-): Promise<MediaUsageCoverage> {
-	const scopes = await repository.findCollectionIndexStatusScopes({
-		adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
-		scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
-	});
+async function loadMediaUsageCoverage(repository: MediaUsageRepository): Promise<{
+	coverage: MediaUsageCoverage;
+	siteSettings: Map<string, MediaUsageSiteSetting[]>;
+}> {
+	const { scopes, options } = await repository.findCoverageWithOptions(
+		{
+			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+		},
+		MEDIA_USAGE_SITE_SETTING_OPTIONS,
+	);
 	return {
-		scope: "all_content_collections",
-		status: aggregateMediaUsageCoverageStatus(scopes),
+		coverage: {
+			scope: "all_content_collections",
+			status: aggregateMediaUsageCoverageStatus(scopes),
+		},
+		siteSettings: groupSiteSettingMediaUsage(options),
 	};
 }
 
