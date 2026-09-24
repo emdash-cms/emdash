@@ -730,6 +730,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       var adminLink = document.getElementById("emdash-tb-admin");
       if (adminLink) {
         adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(ref.collection) + "/" + encodeURIComponent(ref.id);
+        adminLink.target = adminWindowName(ref.collection, ref.id);
         adminLink.style.display = "";
       }
 
@@ -948,13 +949,18 @@ export function renderToolbar(config: ToolbarConfig): string {
     }
   }
 
+  // A window name may not contain whitespace, and ids are not constrained to a safe alphabet.
+  function adminWindowName(collection, id) {
+    return "emdash-admin-" + (collection + "-" + id).replace(/[^A-Za-z0-9_-]/g, "_");
+  }
+
   // Fallback: open admin
   function openAdmin(annotation) {
     var url = "/_emdash/admin/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id);
     if (annotation.field) {
       url += "?field=" + encodeURIComponent(annotation.field);
     }
-    window.open(url, "emdash-admin");
+    window.open(url, adminWindowName(annotation.collection, annotation.id));
   }
 
   // --- Inline image editing ---

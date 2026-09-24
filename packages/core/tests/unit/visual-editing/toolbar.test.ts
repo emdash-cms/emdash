@@ -200,6 +200,44 @@ describe("renderToolbar", () => {
 		expect(vi.getTimerCount()).toBe(expected.timers);
 	});
 
+	describe("admin window name", () => {
+		function adminWindowNameIn(script: string): (c: string, i: string) => string {
+			const start = script.indexOf("function adminWindowName(");
+			const end = script.indexOf("// Fallback: open admin");
+			if (start < 0 || end < 0) throw new Error("adminWindowName was not rendered");
+			const context = createContext({});
+			runInContext(script.slice(start, end), context);
+			return runInContext("adminWindowName", context) as (c: string, i: string) => string;
+		}
+
+		it("gives two entries two different window names", () => {
+			const adminWindowName = adminWindowNameIn(toolbarScript(actionToolbar()));
+			expect(adminWindowName("posts", "post-1")).not.toBe(adminWindowName("posts", "post-2"));
+			expect(adminWindowName("posts", "a")).not.toBe(adminWindowName("pages", "a"));
+		});
+
+		it("gives one entry the same name every time, so a repeat click reuses its window", () => {
+			const adminWindowName = adminWindowNameIn(toolbarScript(actionToolbar()));
+			expect(adminWindowName("posts", "post-1")).toBe(adminWindowName("posts", "post-1"));
+		});
+
+		it("replaces characters a browsing context name cannot carry", () => {
+			const adminWindowName = adminWindowNameIn(toolbarScript(actionToolbar()));
+			// A window name may not contain whitespace, and neither collection names nor
+			// ids are constrained to a safe alphabet by the time they reach here.
+			expect(adminWindowName("my posts", "id with spaces")).toBe(
+				"emdash-admin-my_posts-id_with_spaces",
+			);
+			expect(adminWindowName("posts", 'a"b<c>')).toMatch(/^[A-Za-z0-9_-]+$/);
+		});
+
+		it("never falls back to one shared window name", () => {
+			const script = toolbarScript(actionToolbar());
+			expect(script).not.toMatch(/target\s*=\s*"emdash-admin"/);
+			expect(script).not.toContain('window.open(url, "emdash-admin")');
+		});
+	});
+
 	it("includes save status element", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain('id="emdash-tb-save-status"');
