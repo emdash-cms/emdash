@@ -696,6 +696,12 @@ function ContentListPage() {
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			bulkTagEnabled={
+				(currentUser?.role ?? 0) >= ROLE_EDITOR &&
+				manifest.taxonomies.some(
+					(taxonomy) => taxonomy.name === "tag" && taxonomy.collections.includes(collection),
+				)
+			}
 			pluginStates={manifest.plugins}
 			userRole={currentUser?.role ?? 0}
 		/>

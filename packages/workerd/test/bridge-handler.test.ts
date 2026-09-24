@@ -113,7 +113,7 @@ describe("Bridge Handler Conformance", () => {
 		capabilities?: string[];
 		allowedHosts?: string[];
 		storageCollections?: string[];
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: BridgeHandlerOptions["beforeContentWrite"];
 		settingsSchema?: Record<string, { type: "secret"; label: string }>;
 		commentModerate?: () => (
 			pluginId: string,
@@ -1797,6 +1797,32 @@ describe("Bridge Handler Conformance", () => {
 				.execute();
 			expect(after).toHaveLength(1);
 			expect((after[0] as any).slug).toBe("conflict");
+		});
+
+		it("reports a content write to the guard only once it has succeeded", async () => {
+			const rowsWhenRecorded: number[] = [];
+			const recordWrite = vi.fn(async () => {
+				const rows = await db
+					.selectFrom("ec_atomic_posts" as any)
+					.selectAll()
+					.execute();
+				rowsWhenRecorded.push(rows.length);
+			});
+			const handler = makeHandler({
+				capabilities: ["write:content"],
+				beforeContentWrite: async () => recordWrite,
+			});
+
+			await call(handler, "content/create", {
+				collection: "atomic_posts",
+				data: { slug: "taken", title: "first" },
+			});
+			const refused = await call(handler, "content/createMany", {
+				collection: "atomic_posts",
+				items: [{ slug: "fresh" }, { slug: "taken" }],
+			});
+			expect(refused.error).toBeDefined();
+			expect(rowsWhenRecorded).toEqual([1]);
 		});
 
 		it("contentCreateMany commits all when no item fails", async () => {
