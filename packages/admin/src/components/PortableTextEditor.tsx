@@ -4732,7 +4732,7 @@ function EditorToolbar({
 												"bg-kumo-interact/50 text-kumo-default",
 										)}
 										onMouseDown={(event) => event.preventDefault()}
-										aria-label={t`Insert Link`}
+										aria-label={editorState.isImage ? t`Image link` : t`Insert Link`}
 										aria-pressed={editorState.isLink || editorState.imageHasLink}
 									>
 										<LinkIcon className="h-4 w-4" aria-hidden="true" />

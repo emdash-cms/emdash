@@ -1905,10 +1905,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		);
 		await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
 
-		screen
-			.getByRole("button", { name: /Insert Link|Edit link/ })
-			.element()
-			.click();
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
 		await vi.waitFor(() => {
 			expect(document.querySelector('[role="combobox"]')).toBeTruthy();
 		});

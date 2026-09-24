@@ -575,10 +575,7 @@ describe("link destination input in the editor", () => {
 		const { screen, editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm);
 
-		screen
-			.getByRole("button", { name: /Insert Link|Edit link/ })
-			.element()
-			.click();
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
 
 		await typeQuery(screen, "hello");
 		const option = screen.getByRole("option", { name: /Hello World/ });
@@ -597,10 +594,7 @@ describe("link destination input in the editor", () => {
 		const { screen, editor, pm } = await renderEditor();
 		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
 
-		screen
-			.getByRole("button", { name: /Insert Link|Edit link/ })
-			.element()
-			.click();
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
 
 		await typeQuery(screen, "hello");
 		const option = screen.getByRole("option", { name: /Hello World/ });
