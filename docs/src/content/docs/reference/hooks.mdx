@@ -714,6 +714,19 @@ interface CommentModerateEvent {
 { status: "approved" | "pending" | "spam"; reason?: string }
 ```
 
+#### Active moderator
+
+EmDash includes a built-in moderator that applies the collection's comment settings. When a site has no stored moderator choice and exactly one plugin provides `comment:moderate`, EmDash selects the plugin. When several plugins provide it, EmDash selects none and new comments stay pending. EmDash stores the choice it makes, so a site that started without a moderation plugin keeps the built-in moderator after one is added.
+
+An administrator changes the choice with an API token that has the `admin` scope. The following request selects a plugin by its ID:
+
+```sh
+curl -X PUT https://example.com/_emdash/api/admin/hooks/exclusive/comment:moderate \
+	-H "Authorization: Bearer $EMDASH_TOKEN" \
+	-H "Content-Type: application/json" \
+	--data '{"pluginId":"ai-moderation"}'
+```
+
 ### `comment:afterCreate`
 
 **Capability:** `users:read`

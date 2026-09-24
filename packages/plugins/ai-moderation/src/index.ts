@@ -2,8 +2,9 @@
  * AI Moderation Plugin
  *
  * Uses Cloudflare Workers AI (Llama Guard 3 8B) to moderate comments.
- * Provides the exclusive comment:moderate hook alongside the built-in
- * default moderator; a site decides comments with whichever one it selects.
+ * Registers as the exclusive comment:moderate provider, replacing the
+ * built-in default moderator unless the site has already stored a
+ * comment:moderate selection.
  */
 
 import type { ResolvedPlugin } from "emdash";
