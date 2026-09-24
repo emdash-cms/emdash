@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { findTaxonomyStructure } from "../../src/database/repositories/taxonomy-def.js";
 import type { Database } from "../../src/database/types.js";
+import { setI18nConfig } from "../../src/i18n/config.js";
 import { applySeed } from "../../src/seed/apply.js";
 import type { SeedFile } from "../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../utils/test-db.js";
@@ -129,6 +130,7 @@ describe("applySeed onConflict modes", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownTestDatabase(db);
 	});
 
@@ -224,6 +226,51 @@ describe("applySeed onConflict modes", () => {
 
 			const structure = await findTaxonomyStructure(db, "tag");
 			expect(structure).toMatchObject({ hierarchical: true, collections: ["posts", "pages"] });
+		});
+
+		it("applies the seed's structure to a built-in taxonomy nobody has changed from a site in another locale", async () => {
+			setI18nConfig({ defaultLocale: "de", locales: ["de", "en"] });
+			const seed = createTestSeed({
+				taxonomies: [
+					{
+						name: "tag",
+						label: "Schlagwörter",
+						hierarchical: true,
+						collections: ["posts", "pages"],
+					},
+				],
+			});
+
+			await applySeed(db, seed);
+
+			const structure = await findTaxonomyStructure(db, "tag");
+			expect(structure).toMatchObject({ hierarchical: true, collections: ["posts", "pages"] });
+		});
+
+		it("replaces a built-in's label in its own locale after an entry in another locale changed the structure", async () => {
+			setI18nConfig({ defaultLocale: "de", locales: ["de", "en"] });
+			const seed = createTestSeed({
+				taxonomies: [
+					{
+						id: "tag:de",
+						name: "tag",
+						label: "Schlagwörter",
+						hierarchical: true,
+						collections: ["posts", "pages"],
+					},
+					{ name: "tag", label: "Topics", locale: "en", translationOf: "tag:de" },
+				],
+			});
+
+			await applySeed(db, seed);
+
+			const en = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.select("label")
+				.where("name", "=", "tag")
+				.where("locale", "=", "en")
+				.executeTakeFirst();
+			expect(en?.label).toBe("Topics");
 		});
 
 		it("applies a translation's terms with the structure its source entry writes later in the file", async () => {

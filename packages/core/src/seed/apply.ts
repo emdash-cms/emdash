@@ -384,6 +384,19 @@ export async function applySeed(
 		for (const taxonomy of seed.taxonomies) {
 			if (taxonomy.id) taxonomiesBySeedId.set(taxonomy.id, taxonomy);
 		}
+		// Read before any entry applies: a structure write rewrites every locale's
+		// definition, which would make a built-in look edited to later entries.
+		const untouchedBuiltInDefIds = new Set(
+			(
+				await db
+					.selectFrom("_emdash_taxonomy_defs")
+					.select(["id", "label", "label_singular", "hierarchical", "collections"])
+					.where("id", "in", [...BUILT_IN_TAXONOMY_DEFS.keys()])
+					.execute()
+			)
+				.filter(isUntouchedBuiltInTaxonomyDef)
+				.map((def) => def.id),
+		);
 		// Entries that declare their taxonomy's structure apply first: a translation's
 		// terms need the structure its source entry may still replace.
 		const declaresOwnStructure = (taxonomy: SeedTaxonomy) =>
@@ -396,14 +409,14 @@ export async function applySeed(
 		for (const taxonomy of orderedTaxonomies) {
 			const defLocale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
 
-			// (name, locale) is the UNIQUE key after migration 036.
-			const existingDef = await db
+			const defsOfName = await db
 				.selectFrom("_emdash_taxonomy_defs")
-				.select(["id", "label", "label_singular", "hierarchical", "collections"])
+				.select(["id", "locale"])
 				.where("name", "=", taxonomy.name)
-				.where("locale", "=", defLocale)
-				.executeTakeFirst();
-			const unclaimed = existingDef !== undefined && isUntouchedBuiltInTaxonomyDef(existingDef);
+				.execute();
+			// (name, locale) is the UNIQUE key after migration 036.
+			const existingDef = defsOfName.find((def) => def.locale === defLocale);
+			const unclaimed = existingDef !== undefined && untouchedBuiltInDefIds.has(existingDef.id);
 			if (existingDef && onConflict === "error" && !unclaimed) {
 				throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
 			}
@@ -411,9 +424,12 @@ export async function applySeed(
 
 			// The structure belongs to the taxonomy, not the locale: a translation takes
 			// the one its source entry left, and an existing taxonomy's is rewritten only
-			// by a source entry that replaces its definition.
+			// by a source entry that replaces its definition or finds nothing but untouched
+			// built-in definitions of it, in any locale.
 			const existingStructure = await findTaxonomyStructure(db, taxonomy.name);
-			const writesStructure = !existingStructure || (replacesDef && !taxonomy.translationOf);
+			const replacesStructure =
+				replacesDef || defsOfName.every((def) => untouchedBuiltInDefIds.has(def.id));
+			const writesStructure = !existingStructure || (replacesStructure && !taxonomy.translationOf);
 			const structure =
 				existingStructure && !writesStructure
 					? existingStructure
