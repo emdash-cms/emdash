@@ -56,6 +56,7 @@ import { slugify } from "../lib/utils";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { TableToolbarSearch } from "./TableToolbar.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -614,6 +615,7 @@ function TermFormDialog({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const slugInputId = React.useId();
 	const [label, setLabel] = React.useState(term?.label || "");
 	const [slug, setSlug] = React.useState(term?.slug || "");
 	const [parentId, setParentId] = React.useState(term?.parentId || "");
@@ -737,11 +739,11 @@ function TermFormDialog({
 				}
 			}}
 		>
-			<Dialog className="p-6 max-h-[85vh] flex flex-col" size="lg">
+			<Dialog className="p-7 max-h-[85vh] flex flex-col" size="lg">
 				<form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-					<div className="flex items-start justify-between gap-4 mb-4">
+					<div className="flex items-start justify-between gap-4">
 						<div className="flex flex-col space-y-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+							<Dialog.Title className="text-lg font-semibold leading-none">
 								{term
 									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
 									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
@@ -769,7 +771,7 @@ function TermFormDialog({
 						/>
 					</div>
 
-					<div className="space-y-4 py-4 flex-1 overflow-y-auto -mx-1 px-1 min-h-0">
+					<div className="space-y-4 pt-5 pb-4 flex-1 overflow-y-auto -mx-1 px-1 min-h-0">
 						<Input
 							label={t`Name`}
 							value={label}
@@ -778,9 +780,22 @@ function TermFormDialog({
 							required
 						/>
 
-						<div>
+						<div className="space-y-2">
+							<FieldHelpLabel
+								htmlFor={slugInputId}
+								help={
+									<span className="block max-w-64 text-pretty">{t`Auto-generated from name (you can edit)`}</span>
+								}
+								helpLabel={t`How is the slug generated?`}
+								side="right"
+								buttonSize="sm"
+							>
+								{t`Slug`}
+							</FieldHelpLabel>
 							<Input
-								label={t`Slug`}
+								id={slugInputId}
+								aria-label={t`Slug`}
+								className="w-full"
 								value={slug}
 								onChange={(e) => {
 									setSlug(e.target.value);
@@ -789,9 +804,6 @@ function TermFormDialog({
 								placeholder="news"
 								required
 							/>
-							<p className="text-sm text-kumo-subtle mt-1">
-								{t`Auto-generated from name (you can edit)`}
-							</p>
 						</div>
 
 						{taxonomyDef.hierarchical && (
@@ -858,7 +870,7 @@ function TermFormDialog({
 						) : null}
 					</div>
 
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+					<div className="flex flex-wrap justify-end gap-2">
 						<Button type="button" variant="outline" onClick={onClose}>
 							{t`Cancel`}
 						</Button>

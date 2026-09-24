@@ -11,6 +11,8 @@ import {
 	TaxonomyManager,
 } from "../../src/components/TaxonomyManager";
 import type { TaxonomyTerm } from "../../src/lib/api/taxonomies.js";
+
+import "../../dist/styles.css";
 import { render } from "../utils/render.tsx";
 
 const taxonomyResponse = JSON.stringify({
@@ -377,6 +379,23 @@ describe("TaxonomyManager", () => {
 			.toBeInTheDocument();
 	});
 
+	it("shows slug guidance beside the label only when requested", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await screen.getByRole("button", { name: "Add tag" }).click();
+
+		const nameInput = screen.getByRole("textbox", { name: "Name" });
+		const slugInput = screen.getByRole("textbox", { name: "Slug" });
+		await expect.element(nameInput).toBeInTheDocument();
+		await expect.element(slugInput).toBeInTheDocument();
+		expect(screen.getByText("Auto-generated from name (you can edit)").query()).toBeNull();
+
+		await screen.getByRole("button", { name: "How is the slug generated?" }).hover();
+		await expect.element(screen.getByText("Auto-generated from name (you can edit)")).toBeVisible();
+		await screen.getByText("Slug", { exact: true }).click();
+		await expect.element(slugInput).toHaveFocus();
+	});
+
 	it("filters tags by label or slug without changing their stored order", async () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
@@ -545,7 +564,7 @@ describe("TaxonomyManager", () => {
 		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
 
 		await expect.element(screen.getByLabelText("Name")).toBeInTheDocument();
-		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toBeInTheDocument();
 		// The InputArea uses "Description (optional)" as label
 		await expect.element(screen.getByText("Description (optional)")).toBeInTheDocument();
 	});
@@ -556,7 +575,7 @@ describe("TaxonomyManager", () => {
 		});
 		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
 		await screen.getByLabelText("Name").fill("音楽");
-		await expect.element(screen.getByLabelText("Slug")).toHaveValue("音楽");
+		await expect.element(screen.getByRole("textbox", { name: "Slug" })).toHaveValue("音楽");
 
 		await userEvent.keyboard("{Enter}");
 
@@ -575,7 +594,7 @@ describe("TaxonomyManager", () => {
 		});
 		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
 		await screen.getByLabelText("Name").fill("Music");
-		await screen.getByLabelText("Slug").fill("custom-music");
+		await screen.getByRole("textbox", { name: "Slug" }).fill("custom-music");
 
 		await userEvent.keyboard("{Enter}");
 
