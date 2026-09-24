@@ -987,9 +987,9 @@ export function renderToolbar(config: ToolbarConfig): string {
       credentials: "same-origin"
     })
     .then(function(r) { return r.json(); })
-    .then(function(entry) {
-      var currentValue = entry.data && entry.data[field];
-      showImagePopover(element, imgEl, annotation, currentValue);
+    .then(function(body) {
+      if (!body || !body.success) throw new Error("Failed to load entry");
+      showImagePopover(element, imgEl, annotation, body.data.item.data[field]);
     })
     .catch(function() {
       // If fetch fails, still show popover with what we can infer from DOM
@@ -1020,7 +1020,9 @@ export function renderToolbar(config: ToolbarConfig): string {
     var popover = document.createElement("div");
     popover.className = "emdash-img-popover";
 
-    var currentSrc = currentValue ? (currentValue.previewUrl || currentValue.src) : (imgEl ? imgEl.src : null);
+    // Local images are stored without a URL (the site builds it at render
+    // time), so preview what the page shows when the value carries none.
+    var currentSrc = (currentValue && (currentValue.previewUrl || currentValue.src)) || (imgEl ? imgEl.src : null);
     var currentAlt = currentValue ? (currentValue.alt || "") : (imgEl ? (imgEl.alt || "") : "");
 
     // Build popover HTML

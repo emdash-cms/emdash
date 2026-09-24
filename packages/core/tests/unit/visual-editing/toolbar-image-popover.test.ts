@@ -53,29 +53,43 @@ function mediaItem(id: string, filename: string) {
 	};
 }
 
-const entryRoutes: Routes = {
-	"GET /_emdash/api/manifest": () =>
-		apiSuccess({
-			collections: {
-				posts: { label: "Posts", fields: { featured_image: { kind: "image", label: "Image" } } },
-			},
-		}),
-	[`GET ${ENTRY_URL}`]: () =>
-		apiSuccess({
-			item: {
-				id: "post-1",
-				slug: "hello",
-				status: "published",
-				data: {
-					title: "Hello",
-					featured_image: { id: "01HEROORIGINAL", provider: "local", src: HERO_SRC, alt: "Hero" },
-				},
-			},
-			_rev: "rev-1",
-		}),
-	[`PUT ${ENTRY_URL}`]: () =>
-		apiSuccess({ item: { id: "post-1", status: "published" }, _rev: "rev-2" }),
+// Local images picked in the admin or created by a seed are stored without a
+// URL; the site builds it at render time.
+const STORED_HERO = {
+	provider: "local",
+	id: "01HEROORIGINAL",
+	alt: "Harbour at dawn",
+	width: 1200,
+	height: 800,
+	mimeType: "image/jpeg",
+	filename: "hero.jpg",
+	meta: { storageKey: "01HEROORIGINAL.jpg" },
 };
+
+function entryRoutesWith(featuredImage: unknown): Routes {
+	return {
+		"GET /_emdash/api/manifest": () =>
+			apiSuccess({
+				collections: {
+					posts: { label: "Posts", fields: { featured_image: { kind: "image", label: "Image" } } },
+				},
+			}),
+		[`GET ${ENTRY_URL}`]: () =>
+			apiSuccess({
+				item: {
+					id: "post-1",
+					slug: "hello",
+					status: "published",
+					data: { title: "Hello", featured_image: featuredImage },
+				},
+				_rev: "rev-1",
+			}),
+		[`PUT ${ENTRY_URL}`]: () =>
+			apiSuccess({ item: { id: "post-1", status: "published" }, _rev: "rev-2" }),
+	};
+}
+
+const entryRoutes = entryRoutesWith(STORED_HERO);
 
 // jsdom never decodes images, so load events have to be simulated for the
 // dimension probe that runs before an upload.
@@ -96,7 +110,7 @@ class DecodedImage {
 	}
 }
 
-function mountEditablePage(routes: Routes) {
+function mountEditablePage(routes: Routes, { pageShowsImage = true } = {}) {
 	const doc = document.implementation.createHTMLDocument("Post");
 	const hero = doc.createElement("div");
 	hero.setAttribute(
@@ -105,8 +119,8 @@ function mountEditablePage(routes: Routes) {
 	);
 	const heroImg = doc.createElement("img");
 	heroImg.setAttribute("src", HERO_SRC);
-	heroImg.setAttribute("alt", "Hero");
-	hero.append(heroImg);
+	heroImg.setAttribute("alt", STORED_HERO.alt);
+	if (pageShowsImage) hero.append(heroImg);
 	doc.body.append(hero);
 	doc.body.insertAdjacentHTML(
 		"beforeend",
@@ -137,11 +151,11 @@ function mountEditablePage(routes: Routes) {
 		console,
 	});
 
-	return { doc, heroImg, requests };
+	return { doc, hero, heroImg, requests };
 }
 
 async function openImagePopover(page: ReturnType<typeof mountEditablePage>): Promise<HTMLElement> {
-	page.heroImg.click();
+	(page.heroImg.isConnected ? page.heroImg : page.hero).click();
 	return vi.waitFor(() => {
 		const popover = page.doc.querySelector<HTMLElement>(".emdash-img-popover");
 		if (!popover) throw new Error("Image popover did not open");
@@ -222,5 +236,77 @@ describe("toolbar image popover", () => {
 		const browser = popover.querySelector<HTMLElement>(".emdash-img-browser")!;
 		await vi.waitFor(() => expect(browser.textContent).toContain("Failed to load media"));
 		expect(browser.textContent).not.toContain("No images found");
+	});
+
+	it("saves edited alt text together with the existing image reference", async () => {
+		const page = mountEditablePage(entryRoutes);
+		const popover = await openImagePopover(page);
+
+		const altInput = popover.querySelector<HTMLInputElement>("#emdash-img-alt")!;
+		altInput.value = "Fishing boats in the harbour at dawn";
+		altInput.dispatchEvent(new Event("input"));
+
+		await vi.waitFor(
+			() =>
+				expect(savedImage(page.requests)).toEqual({
+					...STORED_HERO,
+					alt: "Fishing boats in the harbour at dawn",
+				}),
+			{ timeout: 2000 },
+		);
+		expect(page.heroImg.getAttribute("alt")).toBe("Fishing boats in the harbour at dawn");
+	});
+
+	it("highlights the field's current image in the media library", async () => {
+		const other = mediaItem("01LIBRARYOTHER", "other.png");
+		const current = mediaItem(STORED_HERO.id, "hero.jpg");
+		const page = mountEditablePage({
+			...entryRoutes,
+			"GET /_emdash/api/media?mimeType=image/&limit=30": () =>
+				apiSuccess({ items: [other, current], totalCount: 2 }),
+		});
+		const popover = await openImagePopover(page);
+
+		popover.querySelector<HTMLButtonElement>('[data-action="browse"]')!.click();
+
+		await vi.waitFor(() =>
+			expect(popover.querySelectorAll(".emdash-img-grid-item")).toHaveLength(2),
+		);
+		const highlighted = Array.from(
+			popover.querySelectorAll(".emdash-img-grid-item--selected img"),
+			(img) => img.getAttribute("src"),
+		);
+		expect(highlighted).toEqual([current.url]);
+	});
+
+	it("previews the page's image when the stored value carries no URL", async () => {
+		const page = mountEditablePage(entryRoutes);
+		const popover = await openImagePopover(page);
+
+		expect(popover.querySelector(".emdash-img-preview")?.getAttribute("src")).toBe(HERO_SRC);
+		expect(popover.querySelector(".emdash-img-empty")).toBeNull();
+		expect(popover.querySelector('[data-action="remove"]')).not.toBeNull();
+	});
+
+	it("falls back to the page's image when the entry cannot be loaded", async () => {
+		const page = mountEditablePage({
+			...entryRoutes,
+			[`GET ${ENTRY_URL}`]: () => apiError("NOT_FOUND", "Content item not found: post-1", 404),
+		});
+		const popover = await openImagePopover(page);
+
+		expect(popover.querySelector(".emdash-img-preview")?.getAttribute("src")).toBe(HERO_SRC);
+		expect(popover.querySelector<HTMLInputElement>("#emdash-img-alt")?.value).toBe(STORED_HERO.alt);
+		expect(popover.querySelector('[data-action="remove"]')).not.toBeNull();
+	});
+
+	it("shows an empty image field as having no image", async () => {
+		const page = mountEditablePage(entryRoutesWith(null), { pageShowsImage: false });
+		const popover = await openImagePopover(page);
+
+		expect(popover.querySelector(".emdash-img-empty")?.textContent).toBe("No image selected");
+		expect(popover.querySelector(".emdash-img-preview")).toBeNull();
+		expect(popover.querySelector('[data-action="remove"]')).toBeNull();
+		expect(popover.querySelector<HTMLInputElement>("#emdash-img-alt")?.value).toBe("");
 	});
 });
