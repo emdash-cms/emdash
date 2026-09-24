@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => {
 	const invokeHook = vi.fn();
 	const bridge = vi.fn(() => ({}));
 	const loader = {
-		get: vi.fn(() => ({
+		get: vi.fn((_name: string, _configure: () => unknown) => ({
 			getEntrypoint: () => ({ invokeHook, invokeRoute }),
 		})),
 	};
@@ -135,6 +135,59 @@ describe("Cloudflare sandbox route errors", () => {
 			props: expect.objectContaining({
 				capabilities: expect.arrayContaining(["redirects:write", "redirects:read"]),
 			}),
+		});
+	});
+
+	it("applies the default subrequest budget to Dynamic Worker invocations", async () => {
+		mocks.invokeHook.mockResolvedValue(undefined);
+		const runner = new CloudflareSandboxRunner({ db: null as never });
+		const plugin = await runner.load(
+			{
+				id: "budget-default",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["content:afterSave"],
+				routes: [],
+				admin: {},
+			},
+			"export default {}",
+		);
+
+		await plugin.invokeHook("content:afterSave", {});
+		const configure = mocks.loader.get.mock.calls.at(-1)?.[1];
+		expect(configure).toBeTypeOf("function");
+		expect(configure?.()).toMatchObject({
+			limits: { cpuMs: 50, subRequests: 30 },
+		});
+	});
+
+	it("applies configured subrequest and CPU budgets to Dynamic Worker invocations", async () => {
+		mocks.invokeHook.mockResolvedValue(undefined);
+		const runner = new CloudflareSandboxRunner({
+			db: null as never,
+			limits: { cpuMs: 80, subrequests: 18 },
+		});
+		const plugin = await runner.load(
+			{
+				id: "budget-configured",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["content:afterSave"],
+				routes: [],
+				admin: {},
+			},
+			"export default {}",
+		);
+
+		await plugin.invokeHook("content:afterSave", {});
+		const configure = mocks.loader.get.mock.calls.at(-1)?.[1];
+		expect(configure).toBeTypeOf("function");
+		expect(configure?.()).toMatchObject({
+			limits: { cpuMs: 80, subRequests: 18 },
 		});
 	});
 

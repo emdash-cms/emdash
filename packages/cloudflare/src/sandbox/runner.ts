@@ -46,7 +46,7 @@ import {
 	setHttpFetchCallback,
 } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
-import { generatePluginWrapper } from "./wrapper.js";
+import { DEFAULT_PLUGIN_SUBREQUEST_LIMIT, generatePluginWrapper } from "./wrapper.js";
 
 /**
  * Default resource limits for sandboxed plugins.
@@ -60,7 +60,7 @@ import { generatePluginWrapper } from "./wrapper.js";
 const DEFAULT_LIMITS = {
 	cpuMs: 50,
 	memoryMb: 128,
-	subrequests: 10,
+	subrequests: DEFAULT_PLUGIN_SUBREQUEST_LIMIT,
 	wallTimeMs: 30_000,
 } as const;
 
@@ -340,6 +340,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		if (!this.wrapperCode) {
 			this.wrapperCode = generatePluginWrapper(this.manifest, {
 				site: this.siteInfo,
+				subrequestLimit: this.limits.subrequests,
 			});
 		}
 

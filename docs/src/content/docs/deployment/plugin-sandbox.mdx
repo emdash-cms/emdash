@@ -114,14 +114,34 @@ If `workerd` exits unexpectedly, the runner logs `[emdash:workerd] workerd exite
 
 ## Resource limits
 
-Each runner applies the same set of limits per plugin invocation. The limits are fixed; the `emdash()` integration has no option for them.
+Each runner applies resource limits per plugin hook or route invocation. Set `sandboxLimits` in `emdash()` to override one or more defaults for every sandboxed plugin on the site.
 
-| Limit       | Value  | Cloudflare Workers                                                        | Node.js                |
-| ----------- | ------ | ------------------------------------------------------------------------- | ---------------------- |
-| CPU time    | 50 ms  | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
-| Subrequests | 10     | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
-| Memory      | 128 MB | Not enforced per plugin; the platform's isolate memory ceiling applies    | Not enforced           |
-| Wall time   | 30 s   | Enforced by the runner                                                    | Enforced by the runner |
+| Limit       | Default | Cloudflare Workers                                                     | Node.js                |
+| ----------- | ------- | ---------------------------------------------------------------------- | ---------------------- |
+| CPU time    | 50 ms   | Enforced by the Worker Loader; the plugin throws when it hits the limit | Not enforced           |
+| Subrequests | 30      | Enforced by EmDash and Worker Loader; the plugin throws at the limit    | Not enforced           |
+| Memory      | 128 MB  | Not enforced per plugin; the platform's isolate memory ceiling applies | Not enforced           |
+| Wall time   | 30 s    | Enforced by the runner                                                 | Enforced by the runner |
+
+The following example lowers the subrequest budget and shortens the wall-time limit:
+
+```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+	sandboxLimits: {
+		subrequests: 20,
+		wallTimeMs: 15_000,
+	},
+});
+```
+
+On Cloudflare, each bridge-backed context operation counts as a subrequest. This includes storage, KV, settings, content, network, and log calls. EmDash counts these calls in the plugin wrapper so local `@emdash-cms/plugin-test` runs enforce the same configured budget. Worker Loader also enforces the limit after deployment. Local helpers such as `ctx.url()` and values such as `ctx.site` do not cross the bridge. Use storage batch methods such as `getMany()`, `putMany()`, and `deleteMany()` when one invocation handles several records.
+
+Cloudflare limits one request chain to [32 Worker invocations](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/#limits), and every Service Binding call counts toward that total. A request normally enters the host Worker and the plugin Dynamic Worker before the plugin calls the bridge, so the default leaves room for 30 bridge calls. Raising `subrequests` above 30 does not remove Cloudflare's request-chain limit.
+
+The Node.js runner logs a warning when `sandboxLimits` contains `cpuMs`, `memoryMb`, or `subrequests`, because standalone workerd cannot enforce those settings. It still enforces `wallTimeMs`.
 
 When a hook or route exceeds the wall-time limit, the invocation fails with `Plugin <id> exceeded wall-time limit of 30000ms during hook:<name>` (or `route:<name>`). For a hook, EmDash logs the failure with the prefix `EmDash: Sandboxed plugin <id>` and continues the request without that plugin's result. A plugin route that exceeds the limit fails for its caller.
 

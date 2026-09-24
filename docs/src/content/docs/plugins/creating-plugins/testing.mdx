@@ -258,7 +258,7 @@ The runtime host exposes shipped operations only. Capability-specific helpers fo
 
 The default Vitest configuration uses Worker Loader because it is the fastest production sandbox path for plugin development. EmDash also runs equivalent runtime content and restart journeys against the Node.js workerd runner. Add a separate, opt-in Node/workerd job when a plugin depends on runner-sensitive behavior; the generated project does not run both runners by default.
 
-Neither host renders the EmDash admin application or reproduces Cloudflare's deployed CPU, memory, and subrequest limits. Use a disposable EmDash site for browser journeys, and verify limit-sensitive behavior on a Cloudflare preview or staging deployment.
+Neither host renders the EmDash admin application or reproduces Cloudflare's deployed CPU or memory limits. The default Worker Loader host does enforce EmDash's bridge-call subrequest budget. Use a disposable EmDash site for browser journeys, and verify CPU- or memory-sensitive behavior on a Cloudflare preview or staging deployment.
 
 For Block Kit handlers, use `host.admin.loadPage()` or `loadWidget()` to exercise the private route, host-attested locale context, response validation, and Worker Loader isolate. Use `admin.act()` and `admin.submit()` for page interactions.
 

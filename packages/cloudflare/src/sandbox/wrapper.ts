@@ -18,6 +18,8 @@ const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
 const COMMENT_CLOSE_RE = /\*\//g;
 
+export const DEFAULT_PLUGIN_SUBREQUEST_LIMIT = 30;
+
 /**
  * Options for wrapper generation
  *
@@ -34,11 +36,14 @@ export interface WrapperOptions {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	/** Maximum bridge-backed context calls per invocation. */
+	subrequestLimit?: number;
 }
 
 export function generatePluginWrapper(manifest: PluginManifest, options?: WrapperOptions): string {
 	const storageCollections = Object.keys(manifest.storage || {});
 	const site = options?.site ?? { name: "", url: "", locale: "en" };
+	const subrequestLimit = options?.subrequestLimit ?? DEFAULT_PLUGIN_SUBREQUEST_LIMIT;
 	// Normalize so manifests that still declare legacy names (`read:users`)
 	// expose the same APIs as canonical names (`users:read`).
 	const capabilities = normalizePluginCapabilities(manifest.capabilities ?? []);
@@ -144,12 +149,32 @@ async function unwrapRedirectResult(promise) {
 	throw new Error("Invalid redirect bridge response");
 }
 
+function createBudgetedBridge(target) {
+	if (target === null || (typeof target !== "object" && typeof target !== "function")) {
+		return target;
+	}
+	let calls = 0;
+	return new Proxy(target, {
+		get(target, property, receiver) {
+			const value = Reflect.get(target, property, receiver);
+			if (typeof value !== "function") return value;
+			return (...args) => {
+				calls += 1;
+				if (calls > ${subrequestLimit}) {
+					throw new Error("Plugin exceeded subrequest limit of ${subrequestLimit}");
+				}
+				return Reflect.apply(value, target, args);
+			};
+		},
+	});
+}
+
 // -----------------------------------------------------------------------------
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
 function createContext(env, originHook, invocationId) {
-	const bridge = env.BRIDGE;
+	const bridge = createBudgetedBridge(env.BRIDGE);
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
 	// KV - proxies to bridge.kvGet/Set/Delete/List

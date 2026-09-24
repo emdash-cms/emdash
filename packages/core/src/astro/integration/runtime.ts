@@ -14,6 +14,7 @@ import type { RuntimeMigrationConfig } from "../../database/migrations/policy.js
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
+import type { ResourceLimits } from "../../plugins/sandbox/types.js";
 import type {
 	FieldWidgetConfig,
 	PluginEditorAction,
@@ -294,6 +295,12 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	sandboxRunner?: string;
+
+	/**
+	 * Resource limits applied to each sandboxed plugin hook or route invocation.
+	 * Enforcement depends on the selected runner.
+	 */
+	sandboxLimits?: ResourceLimits;
 
 	/**
 	 * Explicitly disable plugin sandboxing, even if a sandbox runner is configured.
