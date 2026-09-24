@@ -19,7 +19,6 @@ import type { Database } from "./database/types.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
 import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
-import { collectTransferStaging } from "./transfer/gc.js";
 
 /**
  * Result of a system cleanup run.
@@ -148,6 +147,7 @@ export async function runSystemCleanup(
 
 	if (storage) {
 		try {
+			const { collectTransferStaging } = await import("./transfer/gc.js");
 			result.transferStaging = (await collectTransferStaging(db, storage)).collected;
 		} catch (error) {
 			console.error("[transfer] Failed to collect transfer staging:", error);

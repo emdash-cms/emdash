@@ -19,6 +19,7 @@ import {
 	type TransferErrorCode,
 	type TransferErrorDetail,
 } from "../errors.js";
+import { bumpRunningExportWriteEpochs } from "../fence.js";
 import { isSha256Digest, type Sha256Digest } from "../format/digest.js";
 import { TRANSFER_LIMITS } from "../format/limits.js";
 import { siteImportReceiptSchema, type SiteImportReceipt } from "../format/receipt.js";
@@ -746,13 +747,7 @@ export class TransferOperationRepository {
 	 * `updated_at`. Returns the number of exports touched.
 	 */
 	async recordWriteForRunningExports(): Promise<number> {
-		const result = await this.db
-			.updateTable("_emdash_transfer_operations")
-			.set({ write_epoch: sql<number>`write_epoch + 1` })
-			.where("kind", "=", "export")
-			.where("state", "=", "running")
-			.executeTakeFirst();
-		return Number(result.numUpdatedRows ?? 0n);
+		return bumpRunningExportWriteEpochs(this.db);
 	}
 
 	/** Operations newest first, `{ items, nextCursor }` over `(created_at, id)`. */

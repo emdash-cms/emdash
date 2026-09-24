@@ -14,7 +14,6 @@ import { apiError } from "../api/error.js";
 import { findMediaUsageActivationWriteFenceError } from "../api/media-usage-write-fence.js";
 import type { Database } from "../database/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
-import { TransferOperationRepository } from "./ops/operations.js";
 
 export type SiteWriteFenceCode =
 	| "MEDIA_USAGE_ACTIVATION_IN_PROGRESS"
@@ -148,10 +147,21 @@ export async function findSiteWriteFenceError(
  */
 export async function recordSiteWrite(db: Kysely<Database>): Promise<void> {
 	try {
-		await new TransferOperationRepository(db).recordWriteForRunningExports();
+		await bumpRunningExportWriteEpochs(db);
 	} catch (error) {
 		console.error("[transfer] Failed to record a write for running exports:", error);
 	}
+}
+
+/** Increments the write epoch of every running export; returns how many there were. */
+export async function bumpRunningExportWriteEpochs(db: Kysely<Database>): Promise<number> {
+	const result = await db
+		.updateTable("_emdash_transfer_operations")
+		.set({ write_epoch: sql<number>`write_epoch + 1` })
+		.where("kind", "=", "export")
+		.where("state", "=", "running")
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0n);
 }
 
 /** Records a completed write for running exports; a no-op when none was running. */
