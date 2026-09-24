@@ -29,6 +29,24 @@ describe("contentUrl", () => {
 			}),
 		).toBe("/en/posts/english-test");
 	});
+
+	it("resolves date tokens from the publish date and still applies the locale prefix", () => {
+		expect(
+			contentUrl("posts", "witaj", "/{year}/{month}/{day}/{slug}", {
+				locale: "pl",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: false },
+				date: "2023-05-08T12:00:00.000Z",
+			}),
+		).toBe("/pl/2023/05/08/witaj");
+	});
+
+	it("keeps date tokens literal without a publish date", () => {
+		expect(contentUrl("posts", "hello", "/{year}/{slug}", { date: null })).toBe("/{year}/hello");
+	});
+
+	it("resolves {id} tokens from the entry id", () => {
+		expect(contentUrl("posts", "hello", "/p/{id}", { id: "01ABC" })).toBe("/p/01ABC");
+	});
 });
 
 describe("sanitizeRedirectUrl", () => {

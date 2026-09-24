@@ -6,6 +6,7 @@
  */
 
 import { CommandPalette } from "@cloudflare/kumo";
+import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui as useLinguiContext } from "@lingui/react";
@@ -252,6 +253,7 @@ export function buildNavItems(
 		if (config.enabled === false) continue;
 		if (config.adminPages && config.adminPages.length > 0) {
 			for (const page of config.adminPages) {
+				if (!isSafePluginPagePath(page.path)) continue;
 				// Same treatment as the sidebar: declared labels go through the
 				// shared i18n instance so plugin catalogs can localize them.
 				const label = resolvePluginPageLabel(page.label, pluginId, translateLabel);
@@ -259,7 +261,7 @@ export function buildNavItems(
 				items.push({
 					id: `plugin-${pluginId}-${page.path}`,
 					title: label,
-					to: `/plugins/${pluginId}${page.path}`,
+					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,
 					icon: resolveNavIcon(page.icon),
 					keywords: ["plugin", pluginId],
 				});

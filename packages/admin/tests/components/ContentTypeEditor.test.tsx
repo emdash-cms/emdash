@@ -62,6 +62,7 @@ function makeCollection(
 		fields: [],
 		hasSeo: false,
 		routable: true,
+		editLocking: true,
 		commentsEnabled: false,
 		commentsModeration: "first_time",
 		commentsClosedAfterDays: 90,
@@ -197,6 +198,7 @@ describe("ContentTypeEditor", () => {
 			description: undefined,
 			urlPattern: undefined,
 			routable: true,
+			editLocking: true,
 			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
@@ -220,6 +222,8 @@ describe("ContentTypeEditor", () => {
 			description: "Blog posts",
 			urlPattern: undefined,
 			routable: true,
+			editLocking: true,
+			group: null,
 			supports: ["drafts"],
 			hasSeo: false,
 			commentsEnabled: false,
@@ -270,6 +274,21 @@ describe("ContentTypeEditor", () => {
 		await expect.element(screen.getByText("When the entry was created")).toBeInTheDocument();
 		await expect.element(screen.getByText("When the entry was last modified")).toBeInTheDocument();
 		await expect.element(screen.getByText("When the entry was published")).toBeInTheDocument();
+	});
+
+	it("shows an unsupported field's stored type without allowing it to be edited", async () => {
+		const field = makeField({
+			slug: "layout",
+			label: "Layout",
+			unsupportedType: { type: "future_blocks", path: "type" },
+		});
+		const collection = makeCollection({ fields: [field] });
+		const screen = await render(<ContentTypeEditor {...defaultProps()} collection={collection} />);
+
+		await expect.element(screen.getByText("future_blocks")).toBeInTheDocument();
+		await expect.element(screen.getByText("Unsupported", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Edit Layout field" })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Delete Layout field" })).toBeEnabled();
 	});
 
 	// ---- Add field button opens FieldEditor dialog ----
@@ -523,6 +542,35 @@ describe("ContentTypeEditor", () => {
 		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
 
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ routable: false }));
+	});
+
+	it("saves whether the collection takes edit locks", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ editLocking: true });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Edit locking").click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ editLocking: false }));
+	});
+
+	it("saves a trimmed sidebar group and clears it with null", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ group: "Calendar" });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Group").fill("  Club  ");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ group: "Club" }));
+
+		await screen.getByLabelText("Group").fill("");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ group: null }));
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {

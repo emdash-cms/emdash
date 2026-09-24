@@ -1,5 +1,19 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.7
+
+### Patch Changes
+
+- [#3181](https://github.com/emdash-cms/emdash/pull/3181) [`ed3e9f5`](https://github.com/emdash-cms/emdash/commit/ed3e9f5afc08ce5ab399f1aeeb027c680e33723b) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes a form's webhook silently doing nothing. The call was never awaited or handed to the runtime, so on Cloudflare Workers it could be dropped once the visitor's confirmation had been sent; it now runs through `after()`, which registers it with the host so it is guaranteed to finish. A response that is not a success is also logged now: `fetch` only rejects on a transport error, so a 4xx, a 5xx, and the sign-in page an authenticated endpoint redirects to were all treated as if the webhook had worked, leaving no trace anywhere. The redirect case is detected by comparing the final URL rather than `Response.redirected`, because plugin HTTP access follows redirects itself and always reports `redirected: false`.
+
+- [#3139](https://github.com/emdash-cms/emdash/pull/3139) [`59ebc01`](https://github.com/emdash-cms/emdash/commit/59ebc01e404be8207be7e0d9615b024bec3a0e43) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes checkbox-group validation so forms submit successfully when more than one option is selected.
+
+## 0.2.6
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
 ## 0.2.5
 
 ### Patch Changes

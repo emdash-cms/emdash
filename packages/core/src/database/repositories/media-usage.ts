@@ -1839,14 +1839,9 @@ export class MediaUsageRepository {
 			.limit(Math.max(0, Math.floor(input.limit)));
 
 		if (input.cursor) {
+			const cursor = input.cursor;
 			query = query.where((eb) =>
-				eb.or([
-					eb("u.created_at", ">", input.cursor!.createdAt),
-					eb.and([
-						eb("u.created_at", "=", input.cursor!.createdAt),
-						eb("u.id", ">", input.cursor!.id),
-					]),
-				]),
+				eb(eb.refTuple("u.created_at", "u.id"), ">", eb.tuple(cursor.createdAt, cursor.id)),
 			);
 		}
 

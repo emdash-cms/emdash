@@ -61,6 +61,7 @@ export const ADMIN_NAV_ICONS = {
 	contentTypes: Database,
 	plugins: Plug,
 	import: Download,
+	folder: Folder,
 } as const satisfies Record<string, Icon>;
 
 const COLLECTION_NAV_ICON_OVERRIDES: Record<string, Icon> = {

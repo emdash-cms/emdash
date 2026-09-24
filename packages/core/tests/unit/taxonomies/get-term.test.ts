@@ -10,6 +10,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import { primeRegisteredCollections } from "../../../src/schema/collection-slugs-cache.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -63,6 +64,9 @@ describeEachDialect("getTerm", (dialect) => {
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "=", "category")
 			.execute();
+		// In production the runtime's init read primes this; the query budget
+		// below reflects the steady state, not the once-per-isolate lookup.
+		primeRegisteredCollections(["post", "page"]);
 	});
 
 	afterEach(async () => {

@@ -26,9 +26,13 @@ export function assessPullRequest(
 		problems.push(`Failing checks: ${checks.join(", ") || "unknown check"}.`);
 	}
 	if (problems.length > 0) {
+		const hasStableRepairCause =
+			status.review === "changes-requested" || status.failingChecks.length > 0;
 		const fingerprint = JSON.stringify({
 			headSha: status.headSha,
-			mergeability: status.mergeability,
+			// A check/review repair already rebuilds on the current base. GitHub's
+			// transient unknown/conflicting/mergeable oscillation is not new work.
+			mergeability: hasStableRepairCause ? "conflicting" : status.mergeability,
 			review: status.review,
 			failingChecks: status.failingChecks.map(({ name }) => name).toSorted(),
 		});

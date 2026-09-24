@@ -17,4 +17,9 @@
 			"bucket_name": "emdash-e2e-media",
 		},
 	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
 }

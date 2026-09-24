@@ -14,7 +14,7 @@
  *
  * The discovery client is constructed lazily so we only pull
  * `@atcute/client` into the admin bundle when the registry path is
- * actually exercised. Sites with no `experimental.registry` config never
+ * actually exercised. Sites with no active `registry` config never
  * pay the cost (verified at ~2 KB gzip when it does load).
  */
 
@@ -30,6 +30,7 @@ import type {
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import {
+	isProvenFirstRelease,
 	registryLabelerPolicy,
 	registryLabelerPolicyKey,
 	type RegistryLabelerPolicy,
@@ -39,6 +40,7 @@ import { msg } from "@lingui/core/macro";
 
 import {
 	API_BASE,
+	ApiResponseError,
 	apiFetch,
 	parseApiResponse,
 	throwResponseError,
@@ -91,6 +93,7 @@ export interface RegistryInstallRequest {
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: PluginMcpConsentTool[];
+	acknowledgedPublicRoutes?: string[];
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -103,6 +106,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: PluginMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -234,9 +238,9 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 
 /**
  * Returns whether a release should be considered installable given the
- * configured policy. Currently implements the minimum-release-age check
- * described in RFC 0001's "Pre-label gap and launch tempo" section,
- * plus the `minimumReleaseAgeExclude` allowlist.
+ * configured policy. Applies the `minimumReleaseAgeExclude` allowlist first,
+ * then the proven-first-release exemption, then the minimum-release-age
+ * holdback described in RFC 0001's "Pre-label gap and launch tempo" section.
  *
  * Returns `false` (release blocked) when the policy is configured but
  * the release is missing a valid `indexedAt` -- we fail closed rather
@@ -244,7 +248,10 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
  */
 export function releasePassesPolicy(
 	release: RegistryReleaseView,
-	pkg: { did: string; slug: string },
+	pkg: Pick<
+		RegistryPackageView,
+		"did" | "slug" | "historicalReleaseCount" | "releaseHistoryComplete"
+	>,
 	policy: RegistryClientConfig["policy"],
 	now: number = Date.now(),
 ): boolean {
@@ -252,6 +259,7 @@ export function releasePassesPolicy(
 	if (releaseExemptFromMinimumAge(policy.minimumReleaseAgeExclude, pkg.did, pkg.slug)) {
 		return true;
 	}
+	if (isProvenFirstRelease(pkg)) return true;
 	const indexedAt = Date.parse(release.indexedAt);
 	if (!Number.isFinite(indexedAt)) return false;
 	const ageSeconds = (now - indexedAt) / 1000;
@@ -762,6 +770,33 @@ export async function verifyRegistryPlugin(
 	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to verify plugin`));
 }
 
+export function registryVerificationErrorMessage(error: unknown): string | null {
+	if (!(error instanceof ApiResponseError) || error.code !== "RECORD_VERIFICATION_FAILED") {
+		return null;
+	}
+	const verificationCode = error.details?.["verificationCode"];
+	if (
+		verificationCode === "PROFILE_EXTENSION_INVALID" ||
+		verificationCode === "PROFILE_REPOSITORY_INVALID" ||
+		verificationCode === "PROFILE_POLICY_INVALID"
+	) {
+		return i18n._(
+			msg`This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI.`,
+		);
+	}
+	if (
+		verificationCode === "PROVENANCE_REQUIRED" ||
+		verificationCode === "PROVENANCE_UNVERIFIABLE"
+	) {
+		return i18n._(
+			msg`This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release.`,
+		);
+	}
+	return i18n._(
+		msg`This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release.`,
+	);
+}
+
 /**
  * Install a plugin from the registry.
  *
@@ -797,7 +832,7 @@ export async function installRegistryPlugin(
 export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
-	confirmRouteVisibilityChanges?: boolean;
+	acknowledgedPublicRoutes?: string[];
 	confirmMcpTools?: boolean;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;

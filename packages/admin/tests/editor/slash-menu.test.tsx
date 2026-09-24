@@ -9,6 +9,7 @@
  * since there's no standalone export.
  */
 
+import { TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import { SuggestionPluginKey } from "@tiptap/suggestion";
 import { describe, it, expect, vi } from "vitest";
@@ -17,6 +18,8 @@ import { userEvent } from "vitest/browser";
 import type { PortableTextEditorProps } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
 import { render } from "../utils/render";
+
+import "../../src/styles.css";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -483,6 +486,61 @@ describe("Slash Command Menu", () => {
 		expect(titles).toContain("Table");
 	});
 
+	it("opens the shared table picker and preserves the query on Escape", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/table");
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)
+			.find((item) => item.textContent?.includes("Table"))!
+			.click();
+
+		await expect.element(screen.getByRole("grid", { name: "Table size" })).toBeVisible();
+		expect(editor.getText()).toContain("/table");
+		await userEvent.keyboard("{Escape}");
+
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toContain("/table");
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+	});
+
+	it("closes the shared table picker when the editor becomes read-only", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/table");
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)
+			.find((item) => item.textContent?.includes("Table"))!
+			.click();
+		await expect.element(screen.getByRole("grid", { name: "Table size" })).toBeVisible();
+
+		await screen.rerender(<PortableTextEditor editable={false} />);
+
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toContain("/table");
+	});
+
+	it("inserts the chosen table and removes the slash query in one undo", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/table");
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)
+			.find((item) => item.textContent?.includes("Table"))!
+			.click();
+		await expect.element(screen.getByRole("grid", { name: "Table size" })).toBeVisible();
+
+		await userEvent.keyboard("{ArrowRight}{ArrowRight}{ArrowDown}{Enter}");
+
+		await waitForSlashMenuClosed();
+		const table = editor.state.doc.firstChild!;
+		expect(TableMap.get(table)).toMatchObject({ width: 3, height: 2 });
+		expect(table.firstChild?.firstChild?.type.spec.tableRole).toBe("header_cell");
+		expect(editor.getText()).not.toContain("/table");
+		expect(editor.commands.undo()).toBe(true);
+		expect(editor.getText()).toContain("/table");
+	});
+
 	it("shows descriptions for each command", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusEditor(pm);
@@ -567,6 +625,37 @@ describe("Slash Command Menu", () => {
 		const classes = selectedItem.className.split(WHITESPACE_SPLIT_REGEX);
 		expect(classes).toContain("bg-kumo-interact");
 		expect(classes).not.toContain("bg-kumo-tint");
+	});
+
+	it("uses a quieter interaction surface for light-mode selection", async () => {
+		const root = document.documentElement;
+		const previousMode = root.getAttribute("data-mode");
+		const previousTheme = root.getAttribute("data-theme");
+		root.dataset.mode = "light";
+		root.dataset.theme = "classic";
+
+		try {
+			const { editor, pm } = await renderEditor();
+			await focusEditor(pm);
+			editor.commands.insertContent("/");
+
+			const menu = await waitForSlashMenu();
+			const selectedItem = getSlashMenuItems(menu)[0]!;
+			const tintReference = document.createElement("div");
+			tintReference.style.backgroundColor = "var(--color-kumo-tint)";
+			document.body.append(tintReference);
+			const expectedColor = getComputedStyle(tintReference).backgroundColor;
+			tintReference.remove();
+
+			await vi.waitFor(() => {
+				expect(getComputedStyle(selectedItem).backgroundColor).toBe(expectedColor);
+			});
+		} finally {
+			if (previousMode === null) root.removeAttribute("data-mode");
+			else root.setAttribute("data-mode", previousMode);
+			if (previousTheme === null) root.removeAttribute("data-theme");
+			else root.setAttribute("data-theme", previousTheme);
+		}
 	});
 
 	it("moves selection down with ArrowDown", async () => {

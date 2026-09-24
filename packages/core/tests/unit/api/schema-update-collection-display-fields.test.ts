@@ -43,6 +43,7 @@ describe("collectionSchema display fields", () => {
 			hasSeo: false,
 			hidden: false,
 			sortOrder: null,
+			editLocking: true,
 			createdAt: "2026-08-20T00:00:00Z",
 			updatedAt: "2026-08-20T00:00:00Z",
 			titleField: "run_status",
@@ -67,6 +68,7 @@ describe("collectionSchema display fields", () => {
 			hasSeo: false,
 			hidden: false,
 			sortOrder: null,
+			editLocking: true,
 			createdAt: "2026-08-20T00:00:00Z",
 			updatedAt: "2026-08-20T00:00:00Z",
 			titleField: null,
@@ -91,6 +93,7 @@ describe("collectionSchema display fields", () => {
 			hasSeo: false,
 			hidden: false,
 			sortOrder: null,
+			editLocking: true,
 			createdAt: "2026-08-20T00:00:00Z",
 			updatedAt: "2026-08-20T00:00:00Z",
 		});

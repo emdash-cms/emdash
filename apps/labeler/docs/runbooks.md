@@ -258,15 +258,15 @@ curl --fail-with-body --silent --show-error \
 Compare `verificationMethod[0].publicKeyMultibase` with the reviewed
 `LABEL_SIGNING_PUBLIC_KEY`; a `z` prefix alone is not sufficient verification.
 
-Verify the published policy remains manual-only and names only profile and release listing
-subjects:
+Verify the published policy enables assisted automatic moderation and names only profile and
+release listing subjects:
 
 ```sh
 curl --fail-with-body --silent --show-error \
   "${EMDASH_LABELER_ORIGIN}/.well-known/emdash-labeler-policy.json" \
   | jq -e '
       .labelerDid == "did:web:labels.emdashcms.com" and
-      .autoPass == "disabled" and
+      .autoPass == "assisted" and
       .subjectCollections == [
         "com.emdashcms.experimental.package.profile",
         "com.emdashcms.experimental.package.release"
@@ -274,14 +274,14 @@ curl --fail-with-body --silent --show-error \
     '
 ```
 
-Verify the public XRPC policy exposes the same manual positive-label rule and metadata-only
+Verify the public XRPC policy exposes automated positive labels for the same metadata-only
 subjects:
 
 ```sh
 curl --fail-with-body --silent --show-error \
   "${EMDASH_LABELER_ORIGIN}/xrpc/com.emdashcms.experimental.labeler.getPolicy" \
   | jq -e '
-      .policyVersion == "listing-metadata-v1" and
+      .policyVersion == "listing-metadata-v2" and
       .supportedSubjects == [
         {
           "kind": "profile",
@@ -293,6 +293,7 @@ curl --fail-with-body --silent --show-error \
         }
       ] and
       ([.labels[] | select(.value == "listing-passed")][0].issuanceModes == [
+        "automated",
         "reviewer",
         "admin"
       ])
@@ -573,7 +574,7 @@ EMDASH_EVAL_START="$(curl --fail-with-body --silent --show-error \
   --header 'Content-Type: application/json' \
   --header "Origin: ${EMDASH_LABELER_ORIGIN}" \
   --header 'X-EmDash-Request: 1' \
-  --header 'Idempotency-Key: eval-listing-metadata-v1-001' \
+  --header 'Idempotency-Key: eval-listing-metadata-v2-001' \
   --data '{"reason":"Run the protected evaluation for the reviewed model bundle."}' \
   "${EMDASH_LABELER_ORIGIN}/_admin/api/evals/run")"
 
@@ -618,9 +619,8 @@ artifact:
 pnpm --dir apps/labeler exec wrangler d1 execute emdash-labeler --remote --json --command "SELECT id, workflow_instance_id, status, attempt, result_json, comparison_json, report_markdown, failure_code, failure_summary, created_at, completed_at FROM eval_runs WHERE id = REPLACE_WITH_RUN_ID"
 ```
 
-The comparison and challenge hash do not authorize a promotion. A successful run also does not
-enable automatic passing. The published policy remains `autoPass: "disabled"` until a separate
-authenticated review and policy change is deployed.
+An evaluation run does not change runtime behavior. Change the selected models, prompts, or
+`autoPass` policy through the normal reviewed configuration and deployment workflow.
 
 ## Recover the aggregator D1 database
 

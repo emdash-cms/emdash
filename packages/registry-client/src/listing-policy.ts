@@ -8,6 +8,20 @@ export interface RegistryLabelerPolicy {
 	acceptLabelers?: string;
 }
 
+export interface ReleaseHistoryEvidence {
+	historicalReleaseCount?: number;
+	releaseHistoryComplete?: boolean;
+}
+
+/** Return true only when the aggregator proves one complete observed release history. */
+export function isProvenFirstRelease(evidence: ReleaseHistoryEvidence): boolean {
+	return (
+		evidence.releaseHistoryComplete === true &&
+		Number.isSafeInteger(evidence.historicalReleaseCount) &&
+		evidence.historicalReleaseCount === 1
+	);
+}
+
 function normalizeAcceptLabelers(value: string | undefined): string | undefined {
 	const normalized = value?.trim();
 	return normalized ? normalized : undefined;

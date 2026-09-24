@@ -6,7 +6,7 @@
  */
 
 import type { RouteContext, StorageCollection } from "emdash";
-import { PluginRouteError } from "emdash";
+import { after, PluginRouteError } from "emdash";
 import { ulid } from "ulidx";
 
 import { formatSubmissionText, formatWebhookPayload } from "../format.js";
@@ -23,6 +23,28 @@ function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
 
 function submissions(ctx: RouteContext): StorageCollection<Submission> {
 	return ctx.storage.submissions as StorageCollection<Submission>;
+}
+
+/**
+ * Whether two URLs name the same target, ignoring a difference that is not one.
+ *
+ * A configured `https://example.test/hook` answered by `https://example.test/hook/` is the same endpoint, and
+ * warning about it would train editors to ignore the warning. Anything unparseable falls back to string equality.
+ */
+const withoutTrailingSlash = (u: URL) =>
+	u.pathname.endsWith("/") ? u.pathname.slice(0, -1) : u.pathname;
+
+function sameTarget(a: string, b: string): boolean {
+	try {
+		const [x, y] = [new URL(a), new URL(b)];
+		return (
+			x.origin === y.origin &&
+			withoutTrailingSlash(x) === withoutTrailingSlash(y) &&
+			x.search === y.search
+		);
+	} catch {
+		return a === b;
+	}
 }
 
 export async function submitHandler(ctx: RouteContext<SubmitInput>) {
@@ -220,21 +242,40 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		}
 	}
 
-	// 9. Webhook (fire and forget)
+	// 9. Webhook, deferred past the response rather than dropped.
+	//
+	// `after()` hands the promise to the host's lifetime extender (`waitUntil` under workerd), so the
+	// call is still guaranteed to run once the visitor has their confirmation. A bare floating promise
+	// is not: the isolate may be torn down as soon as the response is sent.
+	//
+	// The response is inspected too, because `fetch` only rejects on a transport error. A 4xx or 5xx
+	// resolves, and so does the login page a webhook behind an auth wall redirects to, which is why a
+	// misconfigured webhook could fail on every submission and log nothing.
+	//
+	// Redirects are detected by comparing the final URL, NOT by `response.redirected`: plugin HTTP access
+	// follows redirects itself with `redirect: "manual"` so it can strip credentials on a cross-origin hop,
+	// so the response it hands back always reports `redirected: false` however many hops it took.
 	if (settings.webhookUrl && ctx.http) {
 		const payload = formatWebhookPayload(form, submissionId, result.data, files);
-		ctx.http
-			.fetch(settings.webhookUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			})
-			.catch((err: unknown) => {
-				ctx.log.error("Webhook failed", {
-					error: String(err),
-					url: settings.webhookUrl,
+		const { http, log } = ctx;
+		const url = settings.webhookUrl;
+		after(async () => {
+			try {
+				const response = await http.fetch(url, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
 				});
-			});
+				if (!response.ok) {
+					log.error("Webhook failed", { url, status: response.status });
+				} else if (response.url && !sameTarget(response.url, url)) {
+					// A 2xx from somewhere else. Usually an auth wall, and the webhook never ran.
+					log.warn("Webhook was redirected", { url, finalUrl: response.url });
+				}
+			} catch (error: unknown) {
+				log.error("Webhook failed", { url, error: String(error) });
+			}
+		});
 	}
 
 	// 10. Return success

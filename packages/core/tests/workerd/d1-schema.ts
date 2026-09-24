@@ -95,3 +95,35 @@ export async function listColumns(db: Kysely<Database>, table: string): Promise<
 	const rows = await sql<{ name: string }>`PRAGMA table_info(${sql.ref(table)})`.execute(db);
 	return rows.rows.map((row) => row.name);
 }
+
+/**
+ * Seed the collection a site would have carried into migration 004.
+ *
+ * `SchemaRegistry` gives a content table the system columns listed in
+ * `schema/registry.ts` plus one per field. Six system columns arrive later,
+ * from migrations 013, 014, 019 and 031, so this carries the other nine plus
+ * two ordinary fields.
+ */
+export async function seedLegacyCollection(db: Kysely<Database>): Promise<void> {
+	await sql`
+		CREATE TABLE ec_probe (
+			id TEXT PRIMARY KEY,
+			slug TEXT NOT NULL,
+			title TEXT,
+			body TEXT,
+			status TEXT DEFAULT 'draft',
+			author_id TEXT,
+			created_at TEXT,
+			updated_at TEXT,
+			published_at TEXT,
+			deleted_at TEXT,
+			version INTEGER DEFAULT 1
+		)
+	`.execute(db);
+	await sql`
+		INSERT INTO ec_probe (id, slug, title, status) VALUES ('p1', 'probe-1', 'Probe', 'draft')
+	`.execute(db);
+	await sql`
+		INSERT INTO _emdash_collections (id, slug, label) VALUES ('c1', 'probe', 'Probe')
+	`.execute(db);
+}

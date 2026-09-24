@@ -29,14 +29,24 @@ import {
 	contentItemSchema,
 	contentListQuery,
 	contentListResponseSchema,
+	contentPublishBody,
+	contentRestoreResponseSchema,
+	contentRevisionConditionBody,
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
+	contentTermsResponseSchema,
 	contentTrashQuery,
 	contentTranslationsResponseSchema,
 	contentUpdateBody,
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
+import {
+	entryLockAcquireBody,
+	entryMutationConflictSchema,
+	entryLockReleaseResponseSchema,
+	entryLockStatusSchema,
+} from "../schemas/entry-lock.js";
 import {
 	mediaUsageDetailsQuery,
 	mediaUsageDetailsResponseSchema,
@@ -209,6 +219,21 @@ function standardErrors(
 /** Common auth error responses (401 + 403) */
 const authErrors = standardErrors(401, 403);
 
+const entryPathParams = z.object({
+	collection: z.string().meta({ description: "Collection slug" }),
+	id: z.string().meta({ description: "Content ID or slug" }),
+});
+
+/** 409 for optimistic-concurrency or edit-lock conflicts. */
+const entryMutationConflict = {
+	"409": {
+		description: "The content changed or another editor holds its edit lock",
+		content: {
+			[JSON_CONTENT]: { schema: entryMutationConflictSchema },
+		},
+	},
+};
+
 // ---------------------------------------------------------------------------
 // Content routes
 // ---------------------------------------------------------------------------
@@ -329,9 +354,12 @@ const contentPaths = {
 				"Moves the content item to trash. Use the permanent delete endpoint to remove permanently.",
 			tags: ["Content"],
 			requestParams: {
-				path: z.object({
-					collection: z.string().meta({ description: "Collection slug" }),
-					id: z.string().meta({ description: "Content ID or slug" }),
+				path: entryPathParams,
+				query: z.object({
+					overrideLock: z.enum(["true", "false"]).optional().meta({
+						description:
+							"Delete even though another editor holds this entry's edit lock. Without it the delete is refused with 409 ENTRY_LOCKED.",
+					}),
 				}),
 			},
 			responses: {
@@ -345,6 +373,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -353,12 +382,17 @@ const contentPaths = {
 		post: {
 			operationId: "publishContent",
 			summary: "Publish a content item",
+			description:
+				"Promotes the current draft to live content and clears any pending schedule. An optional revision token rejects stale publication attempts.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentPublishBody } },
 			},
 			responses: {
 				"200": {
@@ -370,7 +404,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -387,6 +422,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Unpublished content item",
@@ -397,7 +435,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -427,17 +466,22 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 		delete: {
 			operationId: "unscheduleContent",
 			summary: "Cancel scheduled publishing",
-			description: "Reverts a scheduled item to draft status.",
+			description:
+				"Clears the scheduled publication time. A scheduled draft returns to draft status; a published item stays published.",
 			tags: ["Content"],
 			requestParams: {
-				path: z.object({
-					collection: z.string().meta({ description: "Collection slug" }),
-					id: z.string().meta({ description: "Content ID or slug" }),
+				path: entryPathParams,
+				query: z.object({
+					overrideLock: z.enum(["true", "false"]).optional().meta({
+						description:
+							"Unschedule even though another editor holds this entry's edit lock. Without it the request is refused with 409 ENTRY_LOCKED.",
+					}),
 				}),
 			},
 			responses: {
@@ -451,6 +495,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -497,12 +542,12 @@ const contentPaths = {
 					description: "Restored",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ restored: z.literal(true) })),
+							schema: successEnvelope(contentRestoreResponseSchema),
 						},
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
+				...standardErrors(404, 409, 500),
 			},
 		},
 	},
@@ -572,6 +617,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Content item reverted to live version",
@@ -579,6 +627,81 @@ const contentPaths = {
 						[JSON_CONTENT]: {
 							schema: successEnvelope(contentResponseSchema),
 						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/lock": {
+		get: {
+			operationId: "getEntryLock",
+			summary: "Read the entry's edit lock",
+			description: "Reports who is holding the entry, if anyone, without changing the lease.",
+			tags: ["Content"],
+			requestParams: {
+				path: entryPathParams,
+			},
+			responses: {
+				"200": {
+					description: "Current lock state",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(entryLockStatusSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		post: {
+			operationId: "acquireEntryLock",
+			summary: "Take or refresh the entry's edit lock",
+			description:
+				"Takes the lock for the caller, or reports who holds it. `heldByCaller` " +
+				"tells the two apart. The lease lasts seven minutes; repeating this call " +
+				"and every save on the entry extend it. `takeover` claims the lock from " +
+				"whoever holds it; their next heartbeat or save reports the new holder.",
+			tags: ["Content"],
+			requestParams: {
+				path: entryPathParams,
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: entryLockAcquireBody } },
+			},
+			responses: {
+				"200": {
+					description: "Lock state after the attempt",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(entryLockStatusSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		delete: {
+			operationId: "releaseEntryLock",
+			summary: "Release the caller's edit lock",
+			description:
+				"Releases the lock only when the caller holds it; `released` is false otherwise.",
+			tags: ["Content"],
+			requestParams: {
+				path: entryPathParams,
+				query: z.object({
+					token: z.string().optional().meta({
+						description:
+							"The session token sent on acquire. With it, only the tab that last claimed the lock releases it.",
+					}),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Whether a lock was released",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(entryLockReleaseResponseSchema) },
 					},
 				},
 				...authErrors,
@@ -613,15 +736,44 @@ const contentPaths = {
 		},
 	},
 
-	"/_emdash/api/content/{collection}/{id}/terms": {
-		put: {
-			operationId: "setContentTerms",
-			summary: "Set taxonomy terms on a content item",
+	"/_emdash/api/content/{collection}/{id}/terms/{taxonomy}": {
+		get: {
+			operationId: "getContentTerms",
+			summary: "Get taxonomy terms assigned to a content item",
+			description:
+				"Returns the terms of one taxonomy that are assigned to the content item, resolved to the item's locale with fallback to the site default.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Terms assigned to the content item",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(contentTermsResponseSchema),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		post: {
+			operationId: "setContentTerms",
+			summary: "Set taxonomy terms on a content item",
+			description:
+				"Assign a set of terms to the content item for the named taxonomy, replacing any existing assignments for that taxonomy. Every term id must belong to the named taxonomy.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Collection slug" }),
+					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
 				}),
 			},
 			requestBody: {
@@ -632,7 +784,7 @@ const contentPaths = {
 					description: "Terms updated",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ termIds: z.array(z.string()) })),
+							schema: successEnvelope(contentTermsResponseSchema),
 						},
 					},
 				},

@@ -229,14 +229,14 @@ export class ExecEnv {
 	}
 
 	async execWritable(command: string, options: ExecOptions = {}): Promise<ExecResult> {
+		await this.#snapshotBase();
 		const result = await this.exec(command, options);
 		await this.checkpointContainer();
 		return result;
 	}
 
 	async checkpointContainer(): Promise<void> {
-		const baseRef = this.#snapshotBaseRef;
-		if (!baseRef) throw new Error("workspace snapshot base is not initialized");
+		const baseRef = await this.#snapshotBase();
 		const container = await this.container();
 		const pathsResult = await this.#bounded(
 			container.exec(
@@ -286,6 +286,13 @@ export class ExecEnv {
 			this.#bounded(this.#state.writeFile(DELETED_LOG, JSON.stringify(deleted)), "writeFile"),
 			this.#bounded(this.#state.writeFile(MODE_LOG, JSON.stringify(modes)), "writeFile"),
 		]);
+	}
+
+	async #snapshotBase(): Promise<string> {
+		const baseRef = this.#snapshotBaseRef ?? (await this.#readMarker());
+		if (!baseRef) throw new Error("workspace snapshot base is not initialized");
+		this.#snapshotBaseRef = baseRef;
+		return baseRef;
 	}
 
 	async #checkpointPath(container: ContainerBackend, path: string): Promise<CandidatePathState> {

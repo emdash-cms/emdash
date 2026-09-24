@@ -20,7 +20,7 @@ The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry
 
 ## Before you update
 
-Take a backup. Core migrations that a new release applies to the database have no undo step, so a backup is the only way back to the previous state. [Backups](/guides/backups/) describes the options for each database.
+Take a restorable database backup and a separate media-storage backup. EmDash's JSON export cannot restore a site, and core migrations have no operational undo step. [Backups and recovery](/guides/backups/) describes the usable recovery point for each database.
 
 Check the Node.js version on the machine that builds the site and, for a Node.js deployment, on the server. [Getting Started](/getting-started/#prerequisites) lists the supported versions.
 
@@ -74,11 +74,11 @@ pnpm wrangler deploy
 
 With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. To apply them before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
 
-After the deploy, open the admin and one public page of the site.
+After the deploy, open the admin, load at least one public page, edit and publish a disposable entry, and upload and retrieve a disposable media file. If the site uses scheduled tasks or sandboxed plugins, verify those paths too.
 
 ## If the site breaks after an update
 
 - The build fails, or a page of your own errors at runtime: read the release entries marked **Breaking** for the versions you skipped and make the changes they state.
 - A plugin fails to load: read the plugin's own release entry and [Upgrading plugins on your site](/plugins/upgrading-sites/).
 - An error names an Astro API or an `@astrojs/*` package: EmDash requires Astro 6 or later. Astro's [upgrade guide](https://docs.astro.build/en/upgrade-astro/) explains how to update `astro` and its official integrations together.
-- To return to the previous release, reinstall the previous versions of the packages. Reinstalling does not undo core migrations; if the previous release fails against the migrated database, restore the backup taken before the update.
+- To return to the previous release, reinstall the matching previous package versions and redeploy that artifact. Reinstalling does not undo core migrations. If the previous artifact cannot use the migrated database, stop traffic and restore the pre-update database and artifact together; restore media only if the update changed it.

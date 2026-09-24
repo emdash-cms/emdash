@@ -1,6 +1,6 @@
 ---
 title: Plugins
-description: Extend EmDash with hooks, storage, settings, admin pages, and API routes.
+description: Choose, install, and operate sandboxed or native EmDash plugins.
 ---
 
 import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
@@ -34,10 +34,10 @@ Plugins extend EmDash through a defined extension surface. They can react to con
 
 EmDash plugins come in two formats:
 
-- **Sandboxed plugins** run in an isolated runtime managed by a configurable sandbox runner. They can be installed from the marketplace with one click, are subject to capability and resource enforcement, and reach only the APIs they declare. This is the recommended choice for most plugins.
-- **Native plugins** run in the same process as your Astro site. They have full access to the runtime, can ship React admin pages and Portable Text rendering components, and inject HTML into public pages. They install via a code change plus a deploy, and run from npm rather than the marketplace.
+- **Sandboxed plugins** run in a separate runtime managed by a configured sandbox runner. Administrators can install them from the plugin registry, and site developers can register them under `sandboxed: []` in `astro.config.mjs`. The runner limits plugins to their declared EmDash APIs and applies the resource limits supported by the platform.
+- **Native plugins** run in the same process as your Astro site. They have full access to the runtime, can ship React admin pages and Portable Text rendering components, and inject HTML into public pages. They install from npm through `astro.config.mjs` and require a deploy.
 
-If you're installing a plugin someone else built, you almost always want sandboxed. If you're building one yourself, see [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/).
+Prefer a sandboxed plugin unless it needs React admin pages, Portable Text rendering components, page fragments, or direct access to the site process. If you're building a plugin, see [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/).
 
 ## For site operators
 
@@ -46,7 +46,7 @@ If you want to install or configure plugins on your site:
 <LinkCard
 	title="Installing plugins"
 	href="/plugins/installing/"
-	description="Install from the marketplace, enable, configure settings."
+	description="Choose an install source, configure the sandbox, review permissions, and manage updates."
 />
 
 ## For plugin authors

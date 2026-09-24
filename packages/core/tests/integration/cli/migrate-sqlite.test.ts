@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import Database from "better-sqlite3";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { MIGRATE_EXIT_CODES } from "../../../src/cli/commands/migrate.js";
@@ -112,6 +113,56 @@ describe("built migrate CLI with SQLite", () => {
 		const check = run("--check", "--json");
 		expect(check.code).toBe(0);
 		expect(JSON.parse(check.stdout)).toMatchObject({ pending: [], unknownApplied: [] });
+	});
+
+	it("shows a held migration lock and releases it only with the confirmed id", async () => {
+		await writeFile(
+			join(projectRoot, ".emdash", "lock-migrations.json"),
+			JSON.stringify({
+				schemaVersion: 1,
+				emdashVersion: identity.emdashVersion,
+				migrationSet: { names: identity.names, fingerprint: identity.fingerprint },
+				i18n: null,
+				database: {
+					type: "sqlite",
+					executorEntrypoint: "emdash/db/sqlite-migrations",
+					executorConfig: { url: "file:./lock.db" },
+				},
+			}),
+		);
+		const manifest = ["--manifest", ".emdash/lock-migrations.json"];
+		const initial: unknown = JSON.parse(run(...manifest, "--status", "--json").stdout);
+		if (
+			typeof initial !== "object" ||
+			initial === null ||
+			!("target" in initial) ||
+			typeof initial.target !== "object" ||
+			initial.target === null ||
+			!("fingerprint" in initial.target) ||
+			typeof initial.target.fingerprint !== "string"
+		) {
+			throw new Error("CLI returned an invalid target report");
+		}
+		const confirm = ["--expected-target-fingerprint", initial.target.fingerprint];
+		expect(run(...manifest, ...confirm).code).toBe(0);
+		const heldSince = Date.parse("2026-09-01T12:00:00.000Z");
+		const database = new Database(join(projectRoot, "lock.db"));
+		try {
+			database.prepare("UPDATE _emdash_migrations_lock SET is_locked = ?").run(heldSince);
+		} finally {
+			database.close();
+		}
+
+		expect(run(...manifest, "--status").stdout).toContain(
+			`Migration lock: held since 2026-09-01T12:00:00.000Z (id ${heldSince})`,
+		);
+		const stale = run(...manifest, ...confirm, "--release-lock", String(heldSince + 1));
+		expect(stale.code).toBe(MIGRATE_EXIT_CODES.error);
+		expect(stale.stderr).toContain("The migration lock has a different id now.");
+		const released = run(...manifest, ...confirm, "--release-lock", String(heldSince));
+		expect(released.code).toBe(MIGRATE_EXIT_CODES.success);
+		expect(released.stdout).toContain(`Released migration lock ${heldSince}.`);
+		expect(JSON.parse(run(...manifest, "--status", "--json").stdout)).not.toHaveProperty("lock");
 	});
 
 	it("bounds real signal cleanup without waiting for in-flight execution", async () => {

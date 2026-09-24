@@ -2,10 +2,13 @@
 // whole diff file, so an oversized diff (generated types, lockfiles, large
 // catalogs) lands in the model context verbatim and kills the model call.
 // Oversized per-file sections are elided down to their headers with a note;
-// the agent reads those files from the checkout instead. Generated Worker
-// types are always omitted from both paths by the review-context guards.
+// the agent reads those files from the checkout instead. Generated review
+// artifacts are always omitted from every model-visible path.
 
+import { utf8ByteLength } from "./byte-budget.js";
 import {
+	COMPILED_RELEASE_ACTION_NOTICE,
+	COMPILED_RELEASE_ACTION_PATH,
 	GENERATED_WORKER_TYPES_FILENAME,
 	GENERATED_WORKER_TYPES_NOTICE,
 } from "./review-context.js";
@@ -14,6 +17,9 @@ const DEFAULT_PER_FILE_BYTES = 48 * 1024;
 const DEFAULT_TOTAL_BYTES = 384 * 1024;
 const GENERATED_WORKER_TYPES_DIFF_PATH = new RegExp(
 	`(?:^|/)${GENERATED_WORKER_TYPES_FILENAME.replaceAll(".", "\\.")}(?=["\\t ]|$)`,
+);
+const COMPILED_RELEASE_ACTION_DIFF_PATH = new RegExp(
+	`(?:^|[ "'])[ab]/${COMPILED_RELEASE_ACTION_PATH.replaceAll(".", "\\.")}(?=["'\\t ]|$)`,
 );
 
 export interface DiffBudget {
@@ -33,30 +39,38 @@ export function elideLargeDiffSections(diff: string, budget: DiffBudget = {}): s
 	for (const section of sections) {
 		if (isGeneratedWorkerTypesSection(section)) {
 			elide(section, GENERATED_WORKER_TYPES_NOTICE.trim());
+		} else if (isCompiledReleaseActionSection(section)) {
+			elideToChangeMarker(section, COMPILED_RELEASE_ACTION_NOTICE.trim());
 		}
 	}
 	if (
-		sections.reduce((total, section) => total + section.text.length, 0) <=
+		sections.reduce((total, section) => total + utf8ByteLength(section.text), 0) <=
 		Math.min(perFileBytes, totalBytes)
 	) {
 		return sections.map((section) => section.text).join("");
 	}
 	for (const section of sections) {
-		if (!section.elided && section.text.length > perFileBytes) elide(section);
+		if (!section.elided && utf8ByteLength(section.text) > perFileBytes) elide(section);
 	}
 	// Still over the total budget: elide the largest remaining sections until
 	// under it (or nothing left to elide).
-	let total = sections.reduce((n, s) => n + s.text.length, 0);
+	let total = sections.reduce((n, s) => n + utf8ByteLength(s.text), 0);
 	while (total > totalBytes) {
 		const next = sections
 			.filter((s) => !s.elided)
-			.toSorted((a, b) => b.text.length - a.text.length)[0];
+			.toSorted((a, b) => utf8ByteLength(b.text) - utf8ByteLength(a.text))[0];
 		if (!next) break;
-		total -= next.text.length;
+		total -= utf8ByteLength(next.text);
 		elide(next);
-		total += next.text.length;
+		total += utf8ByteLength(next.text);
 	}
 	return sections.map((s) => s.text).join("");
+}
+
+function isCompiledReleaseActionSection(section: Section): boolean {
+	const lineEnd = section.text.indexOf("\n");
+	const firstLine = lineEnd === -1 ? section.text : section.text.slice(0, lineEnd);
+	return COMPILED_RELEASE_ACTION_DIFF_PATH.test(firstLine);
 }
 
 function isGeneratedWorkerTypesSection(section: Section): boolean {
@@ -77,6 +91,13 @@ function splitSections(diff: string): Section[] {
 		sections.push({ text: diff.slice(starts[i], end), elided: false });
 	}
 	return sections;
+}
+
+function elideToChangeMarker(section: Section, notice: string): void {
+	section.elided = true;
+	const lineEnd = section.text.indexOf("\n");
+	const firstLine = lineEnd === -1 ? section.text : section.text.slice(0, lineEnd);
+	section.text = `${firstLine}\n${notice}\n`;
 }
 
 function elide(section: Section, notice?: string): void {

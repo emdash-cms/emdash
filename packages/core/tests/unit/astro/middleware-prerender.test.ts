@@ -23,8 +23,13 @@ const {
 	MOCK_RUNTIME,
 	PUBLIC_PLUGIN_RESULT,
 	mockGetPluginRouteMeta,
+	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
+	mockGetRuntimePluginSettingsSchema,
+	mockRunPluginActivateLifecycle,
+	mockRunPluginInstallLifecycle,
+	mockRunPluginUninstallLifecycle,
 } = vi.hoisted(() => {
 	const publicPluginResult = { success: true, data: { ok: true } };
 	const ok = async () => ({ success: true });
@@ -36,6 +41,11 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const handleMediaUpload = vi.fn(ok);
+	const runPluginInstallLifecycle = vi.fn(async () => undefined);
+	const runPluginActivateLifecycle = vi.fn(async () => undefined);
+	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
+	const getRuntimePluginSettingsSchema = vi.fn(() => ({ apiKey: { type: "secret" } }));
 	return {
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl },
@@ -65,6 +75,7 @@ const {
 			handleContentTranslations: ok,
 			handleMediaList: ok,
 			handleMediaGet: ok,
+			handleMediaUpload,
 			handleMediaCreate: ok,
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
@@ -72,6 +83,8 @@ const {
 			handleRevisionGet: ok,
 			handleRevisionRestore: ok,
 			getPluginRouteMeta,
+			getPluginEditorExtension: () => null,
+			getPluginEditorDraftSchema: async () => null,
 			handlePluginApiRoute,
 			getPluginMcpTools: async () => [],
 			getEnabledPluginMcpTools: async () => [],
@@ -88,14 +101,25 @@ const {
 			isSandboxBypassed: () => false,
 			syncMarketplacePlugins: async () => undefined,
 			syncRegistryPlugins: async () => undefined,
+			runPluginInstallLifecycle,
+			runPluginActivateLifecycle,
+			runPluginUninstallLifecycle,
+			getRuntimePluginSettingsSchema,
 			setPluginStatus: async () => undefined,
 		},
 		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
+		mockHandleMediaUpload: handleMediaUpload,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
+		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
+		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
+		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
+		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
 	};
 });
+
+const mockCreateRuntime = vi.hoisted(() => vi.fn());
 
 vi.mock(
 	"virtual:emdash/config",
@@ -138,7 +162,7 @@ vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
-		create: async () => MOCK_RUNTIME,
+		create: mockCreateRuntime,
 	},
 }));
 
@@ -162,8 +186,10 @@ vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import onRequest from "../../../src/astro/middleware.js";
+import { EmDashConfigurationError } from "../../../src/config/errors.js";
 import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
+import { EmDashStorageError } from "../../../src/storage/types.js";
 
 /** Reset the globalThis-backed singletons between tests. */
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
@@ -172,6 +198,16 @@ function resetSetupVerified() {
 	delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
 	delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 }
+
+beforeEach(() => {
+	resetSetupVerified();
+	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
+	mockGetRuntimePluginSettingsSchema.mockClear();
+	mockHandleMediaUpload.mockClear();
+	mockRunPluginActivateLifecycle.mockClear();
+	mockRunPluginInstallLifecycle.mockClear();
+	mockRunPluginUninstallLifecycle.mockClear();
+});
 
 /** A getDb stub whose migrations-probe query throws `error`. */
 function getDbThatFailsProbe(error: Error) {
@@ -234,6 +270,66 @@ function createAnonymousPublicPageContext(locals: Record<string, unknown> = {}) 
 	return createRequestContext({ locals });
 }
 
+describe("astro middleware runtime initialization errors", () => {
+	it.each([
+		[
+			"D1",
+			new EmDashConfigurationError(
+				'D1 binding "SITE_DB" not found in environment. Check your wrangler.jsonc configuration.',
+				"BINDING_NOT_FOUND",
+			),
+		],
+		[
+			"R2",
+			new EmDashStorageError(
+				'R2 binding "SITE_MEDIA" not found. Make sure the binding is defined in wrangler.jsonc.',
+				"BINDING_NOT_FOUND",
+			),
+		],
+	])("returns the %s configuration failure from an EmDash API route", async (_kind, error) => {
+		mockCreateRuntime.mockRejectedValue(error);
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/dashboard",
+		});
+		const next = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" } },
+				{ status: 500 },
+			),
+		);
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(response.status).toBe(500);
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "BINDING_NOT_FOUND", message: error.message },
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("does not expose an arbitrary runtime initialization error", async () => {
+		mockCreateRuntime.mockRejectedValue(new Error("database password leaked here"));
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/dashboard",
+		});
+		const next = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" } },
+				{ status: 500 },
+			),
+		);
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" },
+		});
+		expect(next).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe("astro middleware prerendered routes", () => {
 	beforeEach(() => {
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
@@ -271,6 +367,8 @@ describe("astro middleware prerendered routes", () => {
 		expect(response.status).toBe(200);
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
+		expect(typeof emdash.getPluginEditorExtension).toBe("function");
+		expect(typeof emdash.getPluginEditorDraftSchema).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
 		// Regression for #1462: the author filter route reads
 		// `locals.emdash.handleContentAuthors`; it must be wired onto the
@@ -473,6 +571,59 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(response.status).toBe(200);
 		expect(sessionGet).toHaveBeenCalledWith("user");
+	});
+
+	it("exposes plugin install lifecycle through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/admin/plugins/registry/install",
+			method: "POST",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		expect(typeof emdash.runPluginInstallLifecycle).toBe("function");
+		expect(typeof emdash.runPluginActivateLifecycle).toBe("function");
+		expect(typeof emdash.runPluginUninstallLifecycle).toBe("function");
+		expect(typeof emdash.getRuntimePluginSettingsSchema).toBe("function");
+		await (emdash.runPluginInstallLifecycle as (pluginId: string) => Promise<void>)("gallery");
+		await (emdash.runPluginActivateLifecycle as (pluginId: string) => Promise<void>)("gallery");
+		await (
+			emdash.runPluginUninstallLifecycle as (pluginId: string, deleteData: boolean) => Promise<void>
+		)("gallery", true);
+		expect(
+			(emdash.getRuntimePluginSettingsSchema as (pluginId: string) => Record<string, unknown>)(
+				"gallery",
+			),
+		).toEqual({ apiKey: { type: "secret" } });
+		expect(mockRunPluginInstallLifecycle).toHaveBeenCalledWith("gallery");
+		expect(mockRunPluginActivateLifecycle).toHaveBeenCalledWith("gallery");
+		expect(mockRunPluginUninstallLifecycle).toHaveBeenCalledWith("gallery", true);
+		expect(mockGetRuntimePluginSettingsSchema).toHaveBeenCalledWith("gallery");
+	});
+
+	it("exposes media upload through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/media",
+			method: "POST",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		const input = { filename: "photo.jpg", base64: "cGhvdG8=" };
+		await (emdash.handleMediaUpload as (value: typeof input) => Promise<{ success: boolean }>)(
+			input,
+		);
+		expect(mockHandleMediaUpload).toHaveBeenCalledWith(input);
 	});
 });
 

@@ -69,6 +69,42 @@ describe("operator mutation API", () => {
 		);
 	});
 
+	it("approves without requiring a reason", async () => {
+		const approve = vi.fn(async () => ({
+			action: "approve" as const,
+			operatorActionId: 8,
+			labels: [],
+		}));
+		const response = await handleOperatorApi(
+			operatorRequest(`/_admin/api/assessments/${RUN.runKey}/approve`, {
+				uri: RUN.subject.uri,
+				cid: RUN.subject.cid,
+			}),
+			{} as Env,
+			dependencies(REVIEWER, { approve }),
+		);
+
+		expect(response.status).toBe(200);
+		expect(approve).toHaveBeenCalledWith(
+			expect.objectContaining({ reason: "" }),
+			RUN.subject,
+			expect.any(Date),
+		);
+	});
+
+	it("still requires a reason to block a revision", async () => {
+		const response = await handleOperatorApi(
+			operatorRequest(`/_admin/api/assessments/${RUN.runKey}/block`, {
+				uri: RUN.subject.uri,
+				cid: RUN.subject.cid,
+			}),
+			{} as Env,
+			dependencies(REVIEWER),
+		);
+
+		expect(response.status).toBe(400);
+	});
+
 	it("requires the custom header, same origin, JSON, authentication, and role", async () => {
 		const missingHeader = operatorRequest(`/_admin/api/assessments/${RUN.runKey}/approve`, {
 			reason: "Review",
@@ -204,6 +240,106 @@ describe("operator mutation API", () => {
 });
 
 describe("operator review reads", () => {
+	it("lists only the current assessment run for an exact subject revision", async () => {
+		const db = new DatabaseSync(":memory:");
+		db.exec(`
+			CREATE TABLE assessments (
+				run_key TEXT PRIMARY KEY,
+				subject_uri TEXT NOT NULL,
+				subject_cid TEXT NOT NULL,
+				subject_kind TEXT NOT NULL,
+				state TEXT NOT NULL,
+				state_version INTEGER NOT NULL,
+				policy_version TEXT NOT NULL,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				completed_at TEXT
+			);
+			CREATE TABLE current_assessments (
+				subject_uri TEXT NOT NULL,
+				subject_cid TEXT NOT NULL,
+				assessment_id TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				PRIMARY KEY (subject_uri, subject_cid)
+			);
+			CREATE TABLE current_subjects (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				deleted_at TEXT
+			);
+			CREATE TABLE operator_actions (
+				id INTEGER PRIMARY KEY,
+				action TEXT NOT NULL,
+				subject_uri TEXT,
+				subject_cid TEXT,
+				created_at TEXT
+			);
+		`);
+		const uri = "at://did:plc:fixture/profile/repeated";
+		const cid = "cid-repeated";
+		const insertAssessment = db.prepare(
+			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', 'review', 1, 'policy-v1', ?, ?, NULL)`,
+		);
+		insertAssessment.run(
+			"assessment-stale-revision",
+			uri,
+			"cid-stale",
+			"2026-08-24T09:00:00.000Z",
+			"2026-08-24T09:00:00.000Z",
+		);
+		insertAssessment.run(
+			"assessment-old",
+			uri,
+			cid,
+			"2026-08-24T10:00:00.000Z",
+			"2026-08-24T10:00:00.000Z",
+		);
+		insertAssessment.run(
+			"assessment-current",
+			uri,
+			cid,
+			"2026-08-24T11:00:00.000Z",
+			"2026-08-24T11:00:00.000Z",
+		);
+		db.prepare("INSERT INTO current_assessments VALUES (?, ?, ?, ?)").run(
+			uri,
+			cid,
+			"assessment-current",
+			"2026-08-24T11:00:00.000Z",
+		);
+		db.prepare("INSERT INTO current_assessments VALUES (?, ?, ?, ?)").run(
+			uri,
+			"cid-stale",
+			"assessment-stale-revision",
+			"2026-08-24T09:00:00.000Z",
+		);
+		db.prepare("INSERT INTO current_subjects VALUES (?, ?, NULL)").run(uri, cid);
+
+		const page = await readOperatorAssessmentPage(
+			{
+				async all(sql, bindings) {
+					return db.prepare(sql).all(...bindings);
+				},
+			},
+			{ state: "review", limit: 10 },
+		);
+
+		expect(page.items.map((row) => row["run_key"])).toEqual(["assessment-current"]);
+		const superseded = await readOperatorAssessmentPage(
+			{
+				async all(sql, bindings) {
+					return db.prepare(sql).all(...bindings);
+				},
+			},
+			{ state: "superseded", limit: 10 },
+		);
+		expect(superseded.items.map((row) => row["run_key"])).toEqual([
+			"assessment-stale-revision",
+			"assessment-old",
+		]);
+		db.close();
+	});
+
 	it("returns the current operator session without exposing Access configuration", async () => {
 		const response = await handleOperatorApi(
 			new Request("https://labels.example/_admin/api/session"),
@@ -301,6 +437,18 @@ describe("operator review reads", () => {
 				subject_cid TEXT,
 				created_at TEXT
 			);
+			CREATE TABLE current_assessments (
+				subject_uri TEXT NOT NULL,
+				subject_cid TEXT NOT NULL,
+				assessment_id TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				PRIMARY KEY (subject_uri, subject_cid)
+			);
+			CREATE TABLE current_subjects (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				deleted_at TEXT
+			);
 		`);
 		const insertAssessment = db.prepare(
 			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', 'review', 1, 'policy-v1', ?, ?, NULL)`,
@@ -394,6 +542,18 @@ describe("operator review reads", () => {
 				subject_uri TEXT,
 				subject_cid TEXT,
 				created_at TEXT NOT NULL
+			);
+			CREATE TABLE current_assessments (
+				subject_uri TEXT NOT NULL,
+				subject_cid TEXT NOT NULL,
+				assessment_id TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				PRIMARY KEY (subject_uri, subject_cid)
+			);
+			CREATE TABLE current_subjects (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				deleted_at TEXT
 			);
 		`);
 		const insertAssessment = db.prepare(
@@ -498,6 +658,40 @@ describe("operator rerun idempotency", () => {
 				reason: "Different reason",
 			}),
 		).rejects.toThrow(/another action/);
+	});
+});
+
+describe("operator assessment detail", () => {
+	it("includes the resolved publisher handle", async () => {
+		const resolvePublisherHandle = vi.fn(async () => "publisher.example");
+		const response = await handleOperatorApi(
+			new Request(`https://labels.example/_admin/api/assessments/${RUN.runKey}`),
+			{} as Env,
+			{
+				...dependencies(REVIEWER),
+				resolvePublisherHandle,
+			},
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ publisherHandle: "publisher.example" });
+		expect(resolvePublisherHandle).toHaveBeenCalledWith("did:plc:fixture");
+	});
+
+	it("keeps assessment detail available when handle resolution fails", async () => {
+		const response = await handleOperatorApi(
+			new Request(`https://labels.example/_admin/api/assessments/${RUN.runKey}`),
+			{} as Env,
+			{
+				...dependencies(REVIEWER),
+				resolvePublisherHandle: async () => {
+					throw new Error("resolver unavailable");
+				},
+			},
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({ publisherHandle: null });
 	});
 });
 

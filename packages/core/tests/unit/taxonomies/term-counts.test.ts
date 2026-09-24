@@ -16,6 +16,10 @@ import { ContentRepository } from "../../../src/database/repositories/content.js
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import { runWithContext } from "../../../src/request-context.js";
+import {
+	primeRegisteredCollections,
+	setRegisteredCollectionsRevalidateWindowForTests,
+} from "../../../src/schema/collection-slugs-cache.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { fetchVisibleTermCounts } from "../../../src/taxonomies/term-counts.js";
 import {
@@ -502,11 +506,17 @@ describe("visible term counts past the compound-SELECT ceiling", () => {
 
 	it("still skips a missing ec_* table when it falls beyond the first batch", async () => {
 		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
-		const existing = collectionSlugs(D1_COMPOUND_SELECT_LIMIT);
-		const term = await seedTaxonomy([...existing, "ghost"], existing);
+		const slugs = collectionSlugs(D1_COMPOUND_SELECT_LIMIT + 1);
+		const term = await seedTaxonomy(slugs, slugs);
 
-		const counts = await fetchVisibleTermCounts(db, "topic", [...existing, "ghost"]);
-		expect(counts.get(term.translationGroup ?? term.id)).toBe(existing.length);
+		// Fill the slug cache, then lose the last table behind the registry's
+		// back so the missing table sits in the second chunk and the count
+		// reaches it through the runBatch backstop, not the slug filter.
+		await fetchVisibleTermCounts(db, "topic", slugs);
+		await sql`DROP TABLE ${sql.ref(`ec_${slugs.at(-1)}`)}`.execute(db);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", slugs);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(slugs.length - 1);
 	});
 
 	it("takes a single statement on a backend that declares no ceiling", async () => {
@@ -517,5 +527,98 @@ describe("visible term counts past the compound-SELECT ceiling", () => {
 		const counts = await fetchVisibleTermCounts(db, "topic", slugs);
 		expect(counts.get(term.translationGroup ?? term.id)).toBe(slugs.length);
 		expect(countStatements()).toBe(1);
+	});
+
+	it("never sends a statement referencing a declared collection that was never created", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "ghost"], ["real"]);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "ghost"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
+		expect(statements.some((source) => source.includes("ec_ghost"))).toBe(false);
+	});
+
+	it("counts a collection created on this isolate immediately", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "later"], ["real"]);
+
+		// Populate the slug cache while `later` does not exist yet.
+		await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "later", label: "later", labelSingular: "later" });
+		await registry.createField("later", { slug: "title", label: "Title", type: "string" });
+		const contentRepo = new ContentRepository(db);
+		const taxRepo = new TaxonomyRepository(db);
+		const entry = await contentRepo.create({
+			type: "later",
+			slug: "later-entry",
+			status: "published",
+			data: { title: "later" },
+		});
+		await taxRepo.attachToEntry("later", entry.id, term.id);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(2);
+	});
+
+	it("revalidates a stale slug set so another isolate's create is counted within the window", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "later"], ["real"]);
+		await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "later", label: "later", labelSingular: "later" });
+		await registry.createField("later", { slug: "title", label: "Title", type: "string" });
+		const contentRepo = new ContentRepository(db);
+		const taxRepo = new TaxonomyRepository(db);
+		const entry = await contentRepo.create({
+			type: "later",
+			slug: "later-entry",
+			status: "published",
+			data: { title: "later" },
+		});
+		await taxRepo.attachToEntry("later", entry.id, term.id);
+
+		// Restore the pre-create view, as if the create happened on another
+		// isolate, and let the revalidation window elapse immediately.
+		primeRegisteredCollections(["real"]);
+		setRegisteredCollectionsRevalidateWindowForTests(-1);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(2);
+	});
+
+	it("stops querying a collection deleted on another isolate within the window", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "gone"], ["real", "gone"]);
+		await fetchVisibleTermCounts(db, "topic", ["real", "gone"]);
+
+		// Cross-isolate delete: table and registry row vanish without a local
+		// cache reset.
+		await sql`DROP TABLE ${sql.ref("ec_gone")}`.execute(db);
+		await db.deleteFrom("_emdash_collections").where("slug", "=", "gone").execute();
+		setRegisteredCollectionsRevalidateWindowForTests(-1);
+
+		// This render hits the missing-table backstop and flags the stale set.
+		await fetchVisibleTermCounts(db, "topic", ["real", "gone"]);
+
+		statements.length = 0;
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "gone"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
+		expect(statements.some((source) => source.includes("ec_gone"))).toBe(false);
+	});
+
+	it("degrades to a partial count when a registered collection's table is missing (drift backstop)", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "phantom"], ["real", "phantom"]);
+
+		// Fill the slug cache, then drop the table behind the registry's back —
+		// the shape a partially applied D1 create/delete leaves behind.
+		await fetchVisibleTermCounts(db, "topic", ["real", "phantom"]);
+		await sql`DROP TABLE ${sql.ref("ec_phantom")}`.execute(db);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "phantom"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
 	});
 });

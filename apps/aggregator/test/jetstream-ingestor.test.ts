@@ -126,6 +126,7 @@ describe("JetstreamIngestor", () => {
 			rkey: "p",
 			operation: "create",
 			cid: "bafyrecord",
+			source: "jetstream",
 			jetstreamRecord: { slug: "p", license: "MIT" },
 		});
 		expect(h.ingestor.currentCursor).toBe(event.time_us);
@@ -314,6 +315,7 @@ describe("JetstreamIngestor", () => {
 			rkey: "p",
 			operation: "delete",
 			cid: "",
+			source: "jetstream",
 		});
 		expect(h.queue.jobs[0]?.jetstreamRecord).toBeUndefined();
 

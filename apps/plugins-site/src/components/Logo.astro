@@ -1,0 +1,76 @@
+---
+interface Props {
+	compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+---
+
+<span class:list={["logo", { compact }]}>
+	<span class="brand-name">EmDash</span>
+	<img
+		class="logo-light"
+		src="/logo-light.svg"
+		width="471"
+		height="118"
+		alt=""
+		aria-hidden="true"
+	/>
+	<img
+		class="logo-dark"
+		src="/logo-dark.svg"
+		width="471"
+		height="118"
+		alt=""
+		aria-hidden="true"
+	/>
+	{!compact && <strong>Plugins</strong>}
+</span>
+
+<style>
+	.logo {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--ink);
+		font-size: 1rem;
+		font-weight: 700;
+		letter-spacing: -0.025em;
+	}
+
+	.logo img {
+		width: 6.75rem;
+		height: auto;
+		flex: none;
+	}
+
+	.logo-dark {
+		display: none;
+	}
+
+	.brand-name {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	:global([data-theme="dark"]) .logo-light {
+		display: none;
+	}
+
+	:global([data-theme="dark"]) .logo-dark {
+		display: block;
+	}
+
+	.logo strong {
+		color: var(--muted);
+		font-weight: 500;
+	}
+
+	.logo.compact strong {
+		display: none;
+	}
+</style>

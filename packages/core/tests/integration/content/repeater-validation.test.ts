@@ -46,7 +46,7 @@ const validRows = [
 		amount: 1.5,
 		count: 2,
 		active: true,
-		startsAt: "2026-08-13T12:00:00Z",
+		startsAt: "2026-08-13T12:00:00.000Z",
 		category: "news",
 		futureField: { preserved: true },
 	},

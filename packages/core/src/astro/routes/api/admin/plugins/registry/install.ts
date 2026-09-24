@@ -18,10 +18,12 @@ import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { handleRegistryInstall } from "#api/index.js";
+import { handleRegistryInstall, handleRegistryUninstall } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseBody } from "#api/parse.js";
+import { finalizePluginInstall } from "#plugins/install-finalization.js";
 
+import { getRegistryConfigInput } from "../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../version.js";
 
 export const prerender = false;
@@ -59,6 +61,7 @@ const installBodySchema = z.object({
 	 */
 	acknowledgedDeclaredAccess: z.unknown().optional(),
 	acknowledgedMcpTools: z.unknown().optional(),
+	acknowledgedPublicRoutes: z.unknown().optional(),
 	acknowledgedProfileCid: z.string().min(1).max(256).optional(),
 	acknowledgedReleaseCid: z.string().min(1).max(256).optional(),
 });
@@ -94,13 +97,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			emdash.config.experimental?.registry,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
 			{
 				did: body.did,
 				slug: body.slug,
 				version: body.version,
 				acknowledgedDeclaredAccess: body.acknowledgedDeclaredAccess,
 				acknowledgedMcpTools: body.acknowledgedMcpTools,
+				acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
 				acknowledgedProfileCid: body.acknowledgedProfileCid,
 				acknowledgedReleaseCid: body.acknowledgedReleaseCid,
 			},
@@ -112,8 +116,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		if (!result.success) return unwrapResult(result);
 
-		// Sync runtime so the new plugin becomes active without a worker restart.
-		await emdash.syncRegistryPlugins();
+		await finalizePluginInstall({
+			pluginId: result.data.pluginId,
+			syncRuntime: () => emdash.syncRegistryPlugins(),
+			runLifecycle: () => emdash.runPluginInstallLifecycle(result.data.pluginId),
+			rollback: () =>
+				handleRegistryUninstall(emdash.db, emdash.storage, result.data.pluginId, {
+					deleteData: true,
+				}),
+		});
 
 		return unwrapResult(result, 201);
 	} catch (error) {

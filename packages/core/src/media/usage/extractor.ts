@@ -125,24 +125,59 @@ function extractPortableTextOccurrences(
 	if (!Array.isArray(value)) return;
 
 	for (const [blockIndex, block] of value.entries()) {
-		if (!isRecord(block) || block._type !== "image" || !isRecord(block.asset)) continue;
+		if (!isRecord(block)) continue;
 
-		const provider = normalizeProvider(block.asset.provider);
-		const ref = readPortableTextAssetRef(block.asset, provider);
-		if (!ref) continue;
+		if (block._type === "image") {
+			addPortableTextAssetOccurrence(
+				occurrences,
+				seen,
+				fieldSlug,
+				`${fieldSlug}[${blockIndex}]`,
+				block.asset,
+			);
+			continue;
+		}
 
-		addRefOccurrence(occurrences, seen, {
-			fieldSlug,
-			fieldPath: `${fieldSlug}[${blockIndex}].asset.${ref.key}`,
-			referenceType: "portable_text_image",
-			ref: buildMediaRef({
-				id: ref.id,
-				provider,
-				mimeType: normalizeMimeValue(block.asset.mimeType),
-				fallbackKind: "image",
-			}),
-		});
+		// A gallery block holds its images in `images[]`, each with its own asset.
+		if (block._type === "gallery" && Array.isArray(block.images)) {
+			for (const [imageIndex, image] of block.images.entries()) {
+				if (!isRecord(image)) continue;
+				addPortableTextAssetOccurrence(
+					occurrences,
+					seen,
+					fieldSlug,
+					`${fieldSlug}[${blockIndex}].images[${imageIndex}]`,
+					image.asset,
+				);
+			}
+		}
 	}
+}
+
+function addPortableTextAssetOccurrence(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	fieldSlug: string,
+	pathPrefix: string,
+	asset: unknown,
+): void {
+	if (!isRecord(asset)) return;
+
+	const provider = normalizeProvider(asset.provider);
+	const ref = readPortableTextAssetRef(asset, provider);
+	if (!ref) return;
+
+	addRefOccurrence(occurrences, seen, {
+		fieldSlug,
+		fieldPath: `${pathPrefix}.asset.${ref.key}`,
+		referenceType: "portable_text_image",
+		ref: buildMediaRef({
+			id: ref.id,
+			provider,
+			mimeType: normalizeMimeValue(asset.mimeType),
+			fallbackKind: "image",
+		}),
+	});
 }
 
 function addOccurrence(

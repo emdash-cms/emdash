@@ -29,15 +29,12 @@ import {
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
+import { applyCandidateForRevision } from "../lib/candidate-revision.js";
 import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
-import {
-	getBranchSha,
-	mintInstallationToken,
-	readAppCreds,
-	readRepoContext,
-} from "../lib/github.js";
+import { githubRateLimitGate } from "../lib/github-rate-limit-client.js";
+import { readRepoContext } from "../lib/github.js";
 import {
 	applyInvestigationResult,
 	prepareWorkPlanComment,
@@ -55,7 +52,9 @@ import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/time
 import { untarInto } from "../lib/untar.js";
 import { updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
 import {
+	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
+	isGitHubRateLimitFailure,
 	prepareWorkspaceBeforeModel,
 	WORKSPACE_SANDBOX_ATTEMPT_LIMIT,
 } from "../lib/workspace-attachment.js";
@@ -247,6 +246,7 @@ type TriageResult = v.InferOutput<typeof triageResultSchema>;
 interface RunFailure {
 	stage: "workspace" | "verification" | "publication" | "reporting";
 	message: string;
+	retryAt?: number;
 }
 
 export function Investigate({ id }: AgentProps) {
@@ -536,7 +536,12 @@ export function Investigate({ id }: AgentProps) {
 						});
 						return { output: published };
 					} catch (error) {
-						setLastFailure({ stage: "publication", message: safeFailureMessage(error) });
+						const retryAt = await publicationRetryAt(error);
+						setLastFailure({
+							stage: "publication",
+							message: safeFailureMessage(error),
+							...(retryAt ? { retryAt } : {}),
+						});
 						throw error;
 					}
 				},
@@ -549,7 +554,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_triage",
 				description:
-					"Report the triage disposition, issue kind, useful existing labels, and concise evidence. auto-work is only for an obvious, localized, low-risk change with no product or security decision.",
+					"Report the triage disposition, issue kind, useful existing labels, and concise evidence. Use auto-work for a clear bug that needs no product, compatibility, security, migration, dependency, release, or CI decision; the work run owns reproduction and safe delivery.",
 				input: triageResultSchema,
 				output: reportedResultSchema,
 				durable: true,
@@ -581,9 +586,7 @@ export function Investigate({ id }: AgentProps) {
 				durable: true,
 				async run({ data, step, log }) {
 					requireCandidatePublication(data.implemented, publication);
-					const pushed = await step.do("verify-publication", () =>
-						detectPublication(input.issueNumber, publication),
-					);
+					const pushed = publication !== null;
 					const failure =
 						data.implemented && !pushed
 							? (lastFailure ?? {
@@ -619,9 +622,7 @@ export function Investigate({ id }: AgentProps) {
 				async run({ data, step, log }) {
 					const delivered = data.fixed === true || data.implemented === true;
 					requireCandidatePublication(delivered, publication);
-					const pushed = await step.do("verify-publication", () =>
-						detectPublication(input.issueNumber, publication),
-					);
+					const pushed = publication !== null;
 					const failure =
 						delivered && !pushed
 							? (lastFailure ?? {
@@ -946,7 +947,7 @@ async function attachContainerAttempt(
 		},
 	});
 	if (input.mode === "revise" && input.previousBranchSha) {
-		await applyCandidateForRevision(container, input.previousBranchSha);
+		await applyCandidateForRevision(container, input.previousBranchSha, cloneRef(input));
 	}
 	return {
 		...container,
@@ -960,44 +961,41 @@ async function attachContainerAttempt(
 	};
 }
 
-async function applyCandidateForRevision(
-	container: ContainerBackend,
-	candidateSha: string,
-): Promise<void> {
-	const fetch = await container.exec(
-		`git fetch --depth ${CLONE_DEPTH} origin ${quote(candidateSha)}`,
-		{
-			cwd: REPO_DIR,
-			timeoutMs: 5 * 60_000,
-		},
-	);
-	if (fetch.exitCode !== 0) {
-		throw new Error(`candidate fetch failed (${fetch.exitCode}): ${fetch.stderr.slice(-500)}`);
-	}
-	const apply = await container.exec(
-		[
-			"candidate=FETCH_HEAD",
-			'base="$(git merge-base HEAD "$candidate")"',
-			'test -n "$base"',
-			'git diff --binary "$base" "$candidate" -- > /tmp/emdash-candidate.patch',
-			"git apply --3way --whitespace=nowarn /tmp/emdash-candidate.patch",
-		].join(" && "),
-		{ cwd: REPO_DIR, timeoutMs: 5 * 60_000 },
-	);
-	if (apply.exitCode === 0) return;
-	const conflicts = await container.exec("git ls-files -u", {
-		cwd: REPO_DIR,
-		timeoutMs: DEFAULT_RPC_TIMEOUT_MS,
-	});
-	if (conflicts.exitCode === 0 && conflicts.stdout.trim() !== "") return;
-	throw new Error(`candidate rebase setup failed (${apply.exitCode}): ${apply.stderr.slice(-500)}`);
-}
-
 async function attachPublisherContainer(
 	id: string,
 	input: InvestigateData,
 ): Promise<ContainerBackend> {
-	const container = fromSandbox(workspaceSandbox(`${id}-publisher`));
+	return attachPublisherWorkspaceWithRetry({
+		agentId: id,
+		attach: ({ sandboxId }) => attachPublisherContainerAttempt(sandboxId, input),
+		discard: async ({ sandboxId }) => {
+			await withDeadline(
+				workspaceSandbox(sandboxId).destroy(),
+				DEFAULT_RPC_TIMEOUT_MS,
+				"failed publisher sandbox cleanup",
+			);
+		},
+		onRetry: async ({ attempt, error }) => {
+			console.warn("[investigate] retrying publisher on a fresh sandbox", {
+				runId: input.runId,
+				attempt: attempt + 1,
+				error: errorMessage(error),
+			});
+		},
+		onDiscardFailure: async ({ sandboxId, discardError }) => {
+			console.warn("[investigate] failed publisher sandbox cleanup", {
+				sandboxId,
+				error: errorMessage(discardError),
+			});
+		},
+	});
+}
+
+async function attachPublisherContainerAttempt(
+	id: string,
+	input: InvestigateData,
+): Promise<ContainerBackend> {
+	const container = fromSandbox(workspaceSandbox(id));
 	await prepareContainer(container, input, true);
 	return container;
 }
@@ -1107,24 +1105,6 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-async function detectPublication(
-	issueNumber: number,
-	publication: CandidatePublication | null,
-): Promise<boolean> {
-	if (!publication) return false;
-	const repo = readRepoContext(workerEnv);
-	const creds = readAppCreds(workerEnv);
-	if (!repo || !creds) return false;
-	try {
-		const token = await mintInstallationToken(creds);
-		const currentBranchSha = await getBranchSha(token, repo, `bot/fix-${issueNumber}`);
-		return currentBranchSha === publication.commitSha;
-	} catch (error) {
-		console.warn("[investigate] publication verification failed", { error: errorMessage(error) });
-		return false;
-	}
-}
-
 function reportPayload(
 	runId: string,
 	result: InvestigationResult | ImplementationResult | TriageResult,
@@ -1144,13 +1124,25 @@ function reportPayload(
 function withRunFailure<T extends InvestigationResult | ImplementationResult>(
 	result: T,
 	failure: RunFailure | null,
-): T & { failureStage?: RunFailure["stage"] } {
+): T & { failureStage?: RunFailure["stage"]; failureRetryAt?: number } {
 	if (!failure) return result;
 	return {
 		...result,
 		failureStage: failure.stage,
+		...(failure.retryAt ? { failureRetryAt: failure.retryAt } : {}),
 		summary: truncateSummary(`${result.summary}\n\n${failure.message}`),
 	};
+}
+
+async function publicationRetryAt(error: unknown): Promise<number | undefined> {
+	if (!isGitHubRateLimitFailure(error)) return undefined;
+	const fallback = Date.now() + 60_000;
+	try {
+		const state = await githubRateLimitGate(workerEnv).inspect();
+		return Math.max(fallback, state?.backoffUntil ?? 0, state?.nextPermitAt ?? 0);
+	} catch {
+		return fallback;
+	}
 }
 
 function safeFailureMessage(error: unknown): string {
@@ -1170,7 +1162,7 @@ function buildPrompt(input: InvestigateData): string {
 		? [
 				"- Read the issue, AGENTS.md, recent context, and the smallest relevant source area.",
 				"- Do not edit files, attach the container, run tests, or publish a candidate.",
-				"- Choose auto-work only for an obvious, localized, low-risk task. Otherwise ask for specific information or maintainer approval.",
+				"- Choose auto-work for a clear bug unless it needs a product, compatibility, security, migration, dependency, release, or CI decision. Deeper investigation alone is not a reason to wait for approval.",
 				"- Suggest only existing classification labels; lifecycle labels are controlled by the orchestrator.",
 			]
 		: diagnose

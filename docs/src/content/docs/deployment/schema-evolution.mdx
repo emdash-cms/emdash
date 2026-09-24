@@ -1,11 +1,11 @@
 ---
-title: Evolving a Deployed Site
+title: Evolve a deployed site's schema
 description: Change the schema and content model of a live EmDash site, and keep your seed file in sync.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash stores collections, fields, and taxonomies in the database, next to the content itself. Deploying new code does not change that content model, but a new EmDash version may migrate EmDash-managed database tables on the first request. This page explains how to change the content model of a site that is already deployed, using Cloudflare D1 as the running example. The same workflows apply to the other [database options](/deployment/database/).
+EmDash stores collections, fields, and taxonomies in the database beside the content. Use this guide to change that live content model without confusing it with a code deploy, a first-time seed, or an EmDash core migration. The examples use Cloudflare D1; the same separation applies to every [database adapter](/deployment/database/).
 
 ## What changes what
 
@@ -59,14 +59,14 @@ npx emdash schema remove-field posts legacy_field --url https://example.com
 npx emdash schema create projects --label Projects --url https://example.com
 ```
 
-Because these commands are plain CLI calls, they can be scripted: a repeatable "migration" for your content model is a shell script of `emdash schema` calls, checked into your repository and run against each environment in turn.
+These commands can be checked into a script so each environment receives the same ordered change. The commands are not automatically idempotent: rerunning `create` or `add-field` against an object that already exists can fail. Inspect the target with `emdash schema list` or `get`, record which environment completed each step, and stop on the first error.
 
 See the [CLI reference](/reference/cli/#emdash-schema) for the full command list.
 
 <Aside type="caution">
-	Removing a field deletes its column and data. Test schema changes against a preview environment
-	before running them against production — see [Rehearse changes on a preview
-	environment](#rehearse-changes-on-a-preview-environment).
+	Removing a field deletes its column and values. A JSON export cannot restore them. Take a raw
+	database backup, then test the exact command against a disposable copy before production. See
+	[Rehearse changes on a preview environment](#rehearse-changes-on-a-preview-environment).
 </Aside>
 
 ## Keep the seed file in sync
@@ -91,33 +91,31 @@ A destructive schema change (removing a field, restructuring a collection) is sa
 
 <Steps>
 
-1. Add a preview environment with its own D1 database to `wrangler.jsonc`:
+1. Create a separate preview D1 database and let Wrangler add it to the `preview` environment:
 
-   ```jsonc
-   {
-     "env": {
-       "preview": {
-         "d1_databases": [{ "binding": "DB", "database_name": "emdash-db-preview" }],
-       },
-     },
-   }
+   ```bash
+   npx wrangler d1 create emdash-db-preview \
+     --binding DB --env preview --update-config
    ```
 
-2. Copy production into it:
+   Confirm that `env.preview.d1_databases` contains the new database name and UUID. Bindings are not inherited from the top-level Wrangler configuration.
+
+2. Export production, then import the SQL through the preview environment's `DB` binding:
 
    ```bash
    npx wrangler d1 export emdash-db --remote --output=./prod.sql
-   npx wrangler d1 execute emdash-db-preview --remote --file=./prod.sql
+   npx wrangler d1 execute DB --env preview --remote --file=./prod.sql
    ```
 
-3. Deploy and run the schema change against the preview URL:
+3. Build the project, deploy it to the preview environment, then run the schema change against the preview URL:
 
    ```bash
+   npm run build
    npx wrangler deploy --env preview
    npx emdash schema remove-field posts legacy_field --url https://preview.example.com
    ```
 
-4. Verify the site renders and the admin behaves as expected, then run the same commands against production.
+4. Verify the public pages, admin forms, generated types, and any template that reads the changed fields. Take a fresh production database backup, then run the same commands once against production.
 
 </Steps>
 

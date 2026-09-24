@@ -36,6 +36,8 @@ export interface RecordVerificationInput {
 	package: string;
 	version: string;
 	rkey: string;
+	/** CID from the verified profile record envelope, not from profile content. */
+	profileCid?: string;
 	profile: unknown;
 	release: unknown;
 	provenance?: ProvenanceEvidence;
@@ -71,9 +73,9 @@ export interface RecordVerificationReason {
 export interface VerifiedRecordContext {
 	profile: PackageProfile.Main;
 	release: PackageRelease.Main;
-	profileExtension: PackageProfileExtension.Main;
+	profileExtension: PackageProfileExtension.Main | null;
 	releaseExtension: PackageReleaseExtension.Main;
-	repository: string;
+	repository: string | null;
 	policy: NormalizedReleasePolicy;
 	declaredAccess: CanonicalDeclaredAccess;
 	verifiedProvenance?: VerifiedProvenance;
@@ -137,33 +139,34 @@ export async function inspectPackageReleaseRecords(
 		);
 	}
 
-	if (profile.extensions === undefined) {
-		return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
-	}
-	if (!isRecord(profile.extensions)) {
-		return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-	}
-	const profileExtensions = profile.extensions;
-	const rawProfileExtension = profileExtensions[NSID.packageProfileExtension];
+	let profileExtension: PackageProfileExtension.Main | null = null;
+	let repository: string | null = null;
+	let policy: NormalizedReleasePolicy = { ...DEFAULT_POLICY, approvers: [] };
+	const rawProfileExtension = isRecord(profile.extensions)
+		? profile.extensions[NSID.packageProfileExtension]
+		: undefined;
 	if (rawProfileExtension === undefined) {
-		return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
+		if (profile.extensions !== undefined && !isRecord(profile.extensions)) {
+			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
+		}
+	} else {
+		profileExtension = await parseLexicon(PackageProfileExtension.mainSchema, rawProfileExtension);
+		if (!profileExtension) {
+			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
+		}
+		repository = canonicalizeRepositoryUrl(profileExtension.repository);
+		if (!repository || repository !== profileExtension.repository) {
+			return failed(
+				"PROFILE_REPOSITORY_INVALID",
+				"The signed repository anchor is not canonical HTTPS.",
+			);
+		}
+		const normalizedPolicy = normalizePolicy(profileExtension.releasePolicy);
+		if (!normalizedPolicy) {
+			return failed("PROFILE_POLICY_INVALID", "The signed release policy is invalid.");
+		}
+		policy = normalizedPolicy;
 	}
-	const profileExtension = await parseLexicon(
-		PackageProfileExtension.mainSchema,
-		rawProfileExtension,
-	);
-	if (!profileExtension) {
-		return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-	}
-	const repository = canonicalizeRepositoryUrl(profileExtension.repository);
-	if (!repository || repository !== profileExtension.repository) {
-		return failed(
-			"PROFILE_REPOSITORY_INVALID",
-			"The signed repository anchor is not canonical HTTPS.",
-		);
-	}
-	const policy = normalizePolicy(profileExtension.releasePolicy);
-	if (!policy) return failed("PROFILE_POLICY_INVALID", "The signed release policy is invalid.");
 
 	const release = await parseLexicon(PackageRelease.mainSchema, input.release);
 	if (!release) return failed("RELEASE_LEXICON_INVALID", "The package release is malformed.");
@@ -265,6 +268,13 @@ async function verifyPackageReleaseRecordsInternal(
 			provenance: { status: "absent-optional" },
 			value: context,
 		};
+	}
+	if (repository === null) {
+		return failed(
+			"PROVENANCE_UNVERIFIABLE",
+			"The release supplies provenance, but its signed profile has no repository anchor.",
+			"failed",
+		);
 	}
 
 	if (!input.provenance) {

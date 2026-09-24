@@ -14,6 +14,8 @@ import type { APIContext } from "astro";
 import { describe, expect, it } from "vitest";
 
 import { GET as getManifest } from "../../../src/astro/routes/api/manifest.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 interface ManifestEnvelope {
 	data: {
@@ -24,6 +26,7 @@ interface ManifestEnvelope {
 		plugins?: Record<string, unknown>;
 		taxonomies?: unknown[];
 		version?: string;
+		timezone?: string;
 	};
 }
 
@@ -78,5 +81,33 @@ describe("manifest route admin branding", () => {
 		const response = await getManifest(ctx);
 		const body = (await response.json()) as ManifestEnvelope;
 		expect(body.data.admin).toEqual(branding);
+	});
+
+	it("includes the configured site timezone for datetime controls", async () => {
+		const db = await setupTestDatabase();
+		try {
+			await new OptionsRepository(db).set("site:timezone", "Asia/Tokyo");
+			const context = {
+				locals: {
+					emdash: {
+						db,
+						config: { admin: { siteName: "Configured name" } },
+						getManifest: async () => ({
+							version: "test",
+							hash: "test",
+							collections: {},
+							plugins: {},
+							taxonomies: [],
+						}),
+					},
+				},
+			} as unknown as APIContext;
+
+			const response = await getManifest(context);
+			const body = (await response.json()) as ManifestEnvelope;
+			expect(body.data.timezone).toBe("Asia/Tokyo");
+		} finally {
+			await teardownTestDatabase(db);
+		}
 	});
 });

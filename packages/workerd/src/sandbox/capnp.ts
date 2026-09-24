@@ -124,7 +124,7 @@ export function generateCapnpConfig(options: CapnpOptions): string {
 		//
 		// In other words: plugins cannot reach the internet by calling plain
 		// fetch(). They must use ctx.http.fetch(), which goes through the
-		// http/fetch bridge handler, which enforces network:fetch capability
+		// http/fetch bridge handler, which enforces network:request capability
 		// and the allowedHosts allowlist.
 		lines.push(`  globalOutbound = "emdash-backing",`);
 		// Note: workerd capnp config does not support per-worker cpu/memory

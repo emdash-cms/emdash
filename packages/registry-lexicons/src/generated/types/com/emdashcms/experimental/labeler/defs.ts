@@ -383,6 +383,7 @@ const _publicFindingSchema = /*#__PURE__*/ v.object({
 		| "malicious-or-deceptive-link"
 		| "material-impersonation"
 		| "misleading-media-or-claims"
+		| "moderation-manipulation"
 		| "phishing-or-credential-solicitation"
 		| "scam-or-spam"
 		| (string & {})

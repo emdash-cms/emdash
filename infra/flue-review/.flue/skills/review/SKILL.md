@@ -43,13 +43,15 @@ Key operations:
 - **Search within one file:** `state.searchText({ path, query, options })`
 - **List / explore:** `state.readdir({ path })`, `state.glob({ pattern })`, `state.find({ path, options })`, `state.walkTree({ path, options })`
 
-Batch work into a single `code` call where you can (read several files, run several searches, and return a combined object) — it's far cheaper than one call per file.
+Keep each `code` result below the tool's output limit. Batch bounded excerpts and searches when that reduces repeated calls. For a large file, return only the slices around changed or relevant lines, or use `state.searchFiles` and `state.searchText` with bounded matches.
+
+`apps/release-action/dist/index.js` is a compiled artifact. Its checkout contents and diff contents are replaced by a marker when it changes. Never try to read or reconstruct the compiled contents. Review the authored source and tests instead.
 
 ## Inputs
 
 Your inputs include the PR number, title, description, the base branch, the repo directory (`repoDir`, the working tree checked out at the **PR head** — the version that would merge), and `diffPath` (the unified `base...head` diff). The PR title/description and any linked issue are in your inputs; you cannot fetch anything from GitHub (no network).
 
-Start by reading the diff at `diffPath` to see exactly what changed, then read the full changed files and search the tree to trace call-sites and siblings.
+Start by reading the diff at `diffPath` to see exactly what changed. Read bounded authored files in full. For large authored files, read the changed sections and enough surrounding code to understand them, then search the tree to trace call-sites and siblings. Do not read omitted compiled artifacts.
 
 ## First, check whether this is a follow-up
 
@@ -60,7 +62,7 @@ Start by reading the diff at `diffPath` to see exactly what changed, then read t
 Breadth first, depth second. The two most common ways to fail are to grade the implementation without asking whether the change should exist, and to latch onto the first thread while the rest of the diff goes unread. Work in this order:
 
 1. **Frame the change and judge the approach.** Read the PR description, the linked issue/discussion, and the diff. Before grading code, ask whether it is the right code at all: is it solving a real problem, the _right_ problem (did the author misread the issue)? Is the approach sound, does it fit EmDash's architecture and conventions, is there a simpler/more idiomatic way, is it good taste? Most PRs are from external contributors who may have the wrong end of the stick. **A flawless implementation of the wrong thing is still the wrong thing**, and matters more than any line-level bug. (For a _feature_, AGENTS.md requires a prior approved Discussion; an unsolicited feature may be the wrong thing to merge regardless of code quality.) Carry any approach-level concern through to the summary and let it shape the verdict.
-2. **Enumerate candidates.** Read the full changed files. Then write a numbered list of _candidate_ problems, as many as you can generate, specific to what this code does. Use the categories below to jog each kind of bug, tailored to the code. Cover **every changed hunk**. Aim wide — an unconfirmed candidate costs nothing yet.
+2. **Enumerate candidates.** Read each bounded authored file in full and inspect targeted sections of large authored files. Then write a numbered list of _candidate_ problems, as many as you can generate, specific to what this code does. Use the categories below to jog each kind of bug, tailored to the code. Cover **every changed hunk**. Aim wide — an unconfirmed candidate costs nothing yet.
 3. **Verify each candidate against the code.** Go down the list. For each, read the relevant code in full and trace call-sites/siblings (`state.searchFiles`) only as far as needed to confirm or kill it. **Self-correct**: drop candidates that turn out fine; do not report hypotheses you couldn't confirm. When code _looks_ correct, treat that as a claim to disprove against the runtime semantics in AGENTS.md, not a conclusion.
 4. **Then go deep on systemic issues.** After the per-hunk sweep, trace cross-cutting concerns a line-by-line pass misses: does the change behave differently on the production runtime than in tests; does a cache/invalidation cover every write path; does a new query against a content table miss a `locale` filter; is a sibling implementation now inconsistent.
 5. **Prioritize.** Cull survivors into findings with calibrated severity and choose a verdict. Coverage is the goal; don't conclude until every changed hunk has been considered.

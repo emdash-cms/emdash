@@ -1,14 +1,10 @@
-import { requireAccessVerification } from "./access.js";
 import { createAggregatorReconciliationClient } from "./aggregator-reconciliation.js";
+import app from "./app.js";
 import { createD1AssessmentLifecycleStore } from "./assessment/lifecycle.js";
 import { purgeExpiredMediaQuarantine } from "./assessment/runtime-media.js";
 import { createProductionListingLabelIssuer } from "./assessment/runtime.js";
 import { processDiscoveryQueue, quarantineDiscoveryDeadLetters } from "./discovery/queue.js";
-import { queryLabels } from "./labels/index.js";
 import { logEvent } from "./observability.js";
-import { handleOperatorApi } from "./operator/api.js";
-import { handlePublicAssessmentXrpc } from "./public-assessment.js";
-import { labelerDidDocument, labelerPolicyDocument } from "./public-service.js";
 import {
 	createD1AuthoritativeCursorStore,
 	reconcileAuthoritativeRegistry,
@@ -17,82 +13,18 @@ import { createD1LabelerReconciliationStore, reconcileLabeler } from "./reconcil
 import { repairLabelerReconciliationFindings } from "./reconciliation/repair.js";
 import { createReconciliationWorkflowControl } from "./reconciliation/workflows.js";
 import { readAssessmentVersions } from "./runtime-config.js";
-import { createRuntimeListingLabelSigner } from "./runtime-signer.js";
-import {
-	createLabelPublicationTarget,
-	publishPendingLabels,
-	subscribeLabels,
-} from "./subscriptions/index.js";
+import { createLabelPublicationTarget, publishPendingLabels } from "./subscriptions/index.js";
 
 export { AssessmentWorkflow } from "./assessment/workflow.js";
 export { LiveEvaluationWorkflow } from "../evals/workflow.js";
 export { LabelerDiscoveryDO } from "./discovery-do.js";
 export { LabelSubscriptionDO } from "./label-subscription-do.js";
 
-const HEALTH_PATH = "/health";
-const OPERATOR_PREFIX = "/_admin/";
 const DISCOVERY_DO_NAME = "main";
-const QUERY_LABELS_PATH = "/xrpc/com.atproto.label.queryLabels";
-const SUBSCRIBE_LABELS_PATH = "/xrpc/com.atproto.label.subscribeLabels";
 
 export default {
-	async fetch(request: Request, env: Env): Promise<Response> {
-		const url = new URL(request.url);
-		if (url.pathname === "/.well-known/did.json") return labelerDidDocument(env);
-		if (url.pathname === "/.well-known/emdash-labeler-policy.json") {
-			return labelerPolicyDocument(env);
-		}
-		if (url.pathname === QUERY_LABELS_PATH) {
-			return queryLabels(env.DB, request, () => createRuntimeListingLabelSigner(env));
-		}
-		if (url.pathname === SUBSCRIBE_LABELS_PATH) {
-			return subscribeLabels(env.LABEL_SUBSCRIPTION_DO, request);
-		}
-		const publicAssessment = await handlePublicAssessmentXrpc(request, env);
-		if (publicAssessment) return publicAssessment;
-		if (url.pathname === HEALTH_PATH) {
-			if (request.method !== "GET" && request.method !== "HEAD") {
-				return new Response(null, {
-					status: 405,
-					headers: { allow: "GET, HEAD" },
-				});
-			}
-			const [discovery, signing] = await Promise.all([
-				env.LABELER_DISCOVERY_DO.getByName(DISCOVERY_DO_NAME).status(),
-				createProductionListingLabelIssuer(env).then(
-					() => ({ ready: true as const }),
-					() => ({ ready: false as const, reason: "signing-configuration-invalid" as const }),
-				),
-			]);
-			const ready = discovery.ready && signing.ready;
-			const status = ready ? 200 : 503;
-			if (request.method === "HEAD") {
-				return new Response(null, {
-					status,
-					headers: { "cache-control": "no-store", "content-type": "application/json" },
-				});
-			}
-			return Response.json(
-				{
-					service: "emdash-labeler",
-					status: ready ? "ok" : "not-ready",
-					discovery,
-					signing,
-				},
-				{ status, headers: { "cache-control": "no-store" } },
-			);
-		}
-
-		if (url.pathname.startsWith("/_admin/api/")) {
-			return handleOperatorApi(request, env);
-		}
-		if (url.pathname === "/_admin" || url.pathname.startsWith(OPERATOR_PREFIX)) {
-			const verification = await requireAccessVerification(request, env);
-			if (!verification.ok) return verification;
-			return env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request));
-		}
-
-		return new Response("not found", { status: 404 });
+	async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
+		return app.fetch(request, env, context);
 	},
 
 	async scheduled(controller: ScheduledController, env: Env): Promise<void> {

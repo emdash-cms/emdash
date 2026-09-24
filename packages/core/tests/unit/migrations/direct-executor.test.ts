@@ -30,6 +30,7 @@ interface DialectTracker {
 
 interface TrackedDialectOptions {
 	setup?: (database: Database.Database) => void;
+	beforeClose?: (database: Database.Database) => void;
 	closeError?: Error;
 }
 
@@ -52,6 +53,7 @@ function createTrackedDialectFactory(options: TrackedDialectOptions = {}): {
 			const close = database.close.bind(database);
 			database.close = () => {
 				tracker.closeCalls += 1;
+				options.beforeClose?.(database);
 				close();
 				if (options.closeError) throw options.closeError;
 			};
@@ -76,6 +78,25 @@ async function migrationRequest(action: MigrationRequest["action"]): Promise<Mig
 			migrationSetFingerprint: identity.fingerprint,
 		},
 	};
+}
+
+const LOCK_HELD_SINCE = Date.parse("2026-09-01T12:00:00.000Z");
+
+function holdMigrationLock(database: Database.Database): void {
+	database.exec(`
+		CREATE TABLE _emdash_migrations_lock (
+			id TEXT PRIMARY KEY,
+			is_locked INTEGER NOT NULL DEFAULT 0
+		);
+		INSERT INTO _emdash_migrations_lock (id, is_locked) VALUES ('migration_lock', ${LOCK_HELD_SINCE});
+	`);
+}
+
+function lockValue(database: Database.Database): number {
+	const row = database.prepare("SELECT is_locked FROM _emdash_migrations_lock").get() as {
+		is_locked: number;
+	};
+	return row.is_locked;
 }
 
 afterEach(() => {
@@ -335,6 +356,54 @@ describe("createDirectMigrationExecutor", () => {
 
 		await expect(execution).rejects.toThrow("execution interrupted");
 		expect(destroy).toHaveBeenCalledOnce();
+	});
+
+	it("reports a held migration lock on check", async () => {
+		const { createDialect } = createTrackedDialectFactory({ setup: holdMigrationLock });
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		await expect(executor.execute(await migrationRequest("check"))).resolves.toMatchObject({
+			pending: MIGRATION_NAMES,
+			lock: { id: String(LOCK_HELD_SINCE), heldSince: "2026-09-01T12:00:00.000Z" },
+		});
+	});
+
+	it("releases a migration lock only when it still has the confirmed id", async () => {
+		const values: number[] = [];
+		const recordLock = (database: Database.Database) => values.push(lockValue(database));
+		const request = await migrationRequest("release-lock");
+
+		const stale = createTrackedDialectFactory({
+			setup: holdMigrationLock,
+			beforeClose: recordLock,
+		});
+		await expect(
+			createDirectMigrationExecutor({ target: TARGET, createDialect: stale.createDialect }).execute(
+				{ ...request, lockId: String(LOCK_HELD_SINCE + 1) },
+			),
+		).rejects.toThrow("different id now");
+
+		const confirmed = createTrackedDialectFactory({
+			setup: holdMigrationLock,
+			beforeClose: recordLock,
+		});
+		const report = await createDirectMigrationExecutor({
+			target: TARGET,
+			createDialect: confirmed.createDialect,
+		}).execute({ ...request, lockId: String(LOCK_HELD_SINCE) });
+
+		expect(values).toEqual([LOCK_HELD_SINCE, 0]);
+		expect(report).toMatchObject({ pending: MIGRATION_NAMES, executed: [] });
+		expect(report.lock).toBeUndefined();
+	});
+
+	it("refuses to release a migration lock that is not held", async () => {
+		const { createDialect } = createTrackedDialectFactory();
+		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
+
+		await expect(
+			executor.execute({ ...(await migrationRequest("release-lock")), lockId: "1789000000000" }),
+		).rejects.toThrow("not held");
 	});
 
 	it("snapshots its target before it can be confirmed or reported", async () => {

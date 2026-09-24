@@ -23,6 +23,7 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/content/{collection}/{id}/duplicate");
 		expect(paths).toContain("/_emdash/api/content/{collection}/{id}/compare");
 		expect(paths).toContain("/_emdash/api/content/{collection}/{id}/translations");
+		expect(paths).toContain("/_emdash/api/content/{collection}/{id}/terms/{taxonomy}");
 		expect(paths).toContain("/_emdash/api/content/{collection}/trash");
 	});
 
@@ -357,6 +358,56 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/admin/allowed-domains/{domain}");
 	});
 
+	it("documents content terms operations at the nested taxonomy path", () => {
+		const doc = generateOpenApiDocument();
+		const termsPath = doc.paths?.["/_emdash/api/content/{collection}/{id}/terms/{taxonomy}"];
+
+		expect(termsPath).toBeDefined();
+		expect(termsPath).toHaveProperty("get");
+		expect(termsPath).toHaveProperty("post");
+		expect(termsPath).not.toHaveProperty("put");
+
+		const getOp = termsPath?.get as {
+			operationId?: string;
+			parameters?: Array<{ name?: string; in?: string }>;
+			responses?: Record<string, unknown>;
+		};
+		expect(getOp.operationId).toBe("getContentTerms");
+		expect(getOp.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "taxonomy", in: "path" })]),
+		);
+		expect(getOp.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"404": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+
+		const postOp = termsPath?.post as {
+			operationId?: string;
+			requestBody?: unknown;
+			responses?: Record<string, unknown>;
+		};
+		expect(postOp.operationId).toBe("setContentTerms");
+		expect(postOp.requestBody).toBeDefined();
+		expect(postOp.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"404": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+
+		expect(doc.paths).not.toHaveProperty("/_emdash/api/content/{collection}/{id}/terms");
+	});
+
 	it("has correct HTTP methods on content collection endpoint", () => {
 		const doc = generateOpenApiDocument();
 		const collectionPath = doc.paths?.["/_emdash/api/content/{collection}"];
@@ -423,6 +474,8 @@ describe("OpenAPI document generation", () => {
 		expect(operationIds).toContain("deleteContent");
 		expect(operationIds).toContain("publishContent");
 		expect(operationIds).toContain("duplicateContent");
+		expect(operationIds).toContain("getContentTerms");
+		expect(operationIds).toContain("setContentTerms");
 
 		// Media operations
 		expect(operationIds).toContain("listMedia");
@@ -497,6 +550,8 @@ describe("OpenAPI document generation", () => {
 		expect(schemas).toHaveProperty("ContentItem");
 		expect(schemas).toHaveProperty("ContentResponse");
 		expect(schemas).toHaveProperty("ContentListResponse");
+		expect(schemas).toHaveProperty("ContentTermsResponse");
+		expect(schemas).toHaveProperty("ContentEntryTerm");
 
 		// Media schemas
 		expect(schemas).toHaveProperty("MediaItem");

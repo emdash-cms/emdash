@@ -27,9 +27,11 @@ import {
 	canonicalMediaProviderId,
 	getMediaObjectPosition,
 	getMediaPreviewUrl,
+	localMediaFileUrl,
 	metaString,
 } from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -70,9 +72,9 @@ function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | 
 	if (!value) return undefined;
 	if (value.previewUrl || value.src) return value.previewUrl || value.src;
 	if (!value.provider || value.provider === "local") {
-		return `/_emdash/api/media/file/${encodeURIComponent(
+		return localMediaFileUrl(
 			typeof value.meta?.storageKey === "string" ? value.meta.storageKey : value.id,
-		)}`;
+		);
 	}
 	return undefined;
 }
@@ -219,14 +221,17 @@ export function ImageFieldRenderer({
 		setPickerOpen(true);
 	};
 
-	const handleSelect = (item: MediaItem) => {
+	const handlePrimarySelect = (item: MediaItem) => {
 		const selected = mediaItemToImageFieldValue(item);
+		onChange(darkValue ? { ...selected, darkVariant: darkValue } : selected);
+	};
 
+	const handleSelect = (item: MediaItem) => {
 		if (pickerTarget === "darkVariant") {
-			if (objectValue) onChange({ ...objectValue, darkVariant: selected });
+			if (objectValue) onChange({ ...objectValue, darkVariant: mediaItemToImageFieldValue(item) });
 			return;
 		}
-		onChange(darkValue ? { ...selected, darkVariant: darkValue } : selected);
+		handlePrimarySelect(item);
 	};
 
 	const handleRemove = () => {
@@ -387,7 +392,7 @@ export function ImageFieldRenderer({
 							)}
 						</div>
 						<div className="grid min-w-0 flex-1 gap-0.5">
-							<Text as="p" variant="secondary">
+							<Text as="p" variant="secondary" size="xs">
 								{t`Dark mode variant`}
 							</Text>
 							<Text as="p" bold truncate>
@@ -459,7 +464,12 @@ export function ImageFieldRenderer({
 				{imageBroken ? (
 					<div className="flex h-full items-center justify-center gap-2 text-kumo-subtle">
 						<ImageBroken className="h-5 w-5" aria-hidden="true" />
-						<Text as="span" variant="secondary" DANGEROUS_className="sr-only sm:not-sr-only">
+						<Text
+							as="span"
+							variant="secondary"
+							size="xs"
+							DANGEROUS_className="sr-only sm:not-sr-only"
+						>
 							{t`Image not found`}
 						</Text>
 					</div>
@@ -480,7 +490,7 @@ export function ImageFieldRenderer({
 							{selectedFilename}
 						</Text>
 						{metadata && (
-							<Text as="p" variant="secondary" truncate>
+							<Text as="p" variant="secondary" size="xs" truncate>
 								<bdi dir="ltr">{metadata}</bdi>
 							</Text>
 						)}
@@ -512,7 +522,7 @@ export function ImageFieldRenderer({
 					<div className="grid gap-2">
 						<div className="flex min-h-20 items-center justify-center gap-2 rounded-lg border bg-kumo-tint text-kumo-subtle">
 							<ImageBroken className="h-5 w-5" />
-							<span className="text-sm">{t`Image not found`}</span>
+							<span className="text-xs leading-4">{t`Image not found`}</span>
 						</div>
 						{primaryActions}
 					</div>
@@ -528,6 +538,14 @@ export function ImageFieldRenderer({
 						{primaryActions}
 					</div>
 				)
+			) : isFeatured ? (
+				<ImageDropTarget
+					label={label}
+					onSelect={() => openPicker("image")}
+					onUploaded={handlePrimarySelect}
+					allowedMimeTypes={allowedMimeTypes}
+					fieldId={fieldId}
+				/>
 			) : (
 				<Button
 					type="button"
@@ -571,12 +589,12 @@ export function ImageFieldRenderer({
 			/>
 			{assetEditor.dialog}
 			{assetEditor.error && (
-				<p role="alert" className="text-sm text-kumo-danger">
+				<p role="alert" className="text-xs leading-4 text-kumo-danger">
 					{assetEditor.error}
 				</p>
 			)}
 			{required && !displayUrl && (
-				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
+				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
 			)}
 		</div>
 	);

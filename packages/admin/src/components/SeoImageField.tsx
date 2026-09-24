@@ -8,11 +8,12 @@
 
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Image as ImageIcon, X } from "@phosphor-icons/react";
+import { X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { ContentSeo, ContentSeoInput, MediaItem } from "../lib/api";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
 export interface SeoImageFieldProps {
@@ -69,17 +70,12 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 					</div>
 				</div>
 			) : (
-				<Button
-					type="button"
-					variant="outline"
-					className="mt-2 h-32 w-full justify-center border-dashed"
-					onClick={() => setPickerOpen(true)}
-				>
-					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
-						<ImageIcon className="h-8 w-8" />
-						<span>{t`Select OG image`}</span>
-					</div>
-				</Button>
+				<ImageDropTarget
+					className="mt-2"
+					label={t`OG Image`}
+					onSelect={() => setPickerOpen(true)}
+					onUploaded={handleSelect}
+				/>
 			)}
 			<MediaPickerModal
 				open={pickerOpen}

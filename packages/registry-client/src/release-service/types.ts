@@ -151,6 +151,7 @@ export interface WorkloadPolicyResource {
 	workflowRef: string;
 	allowedRefs: readonly string[];
 	allowedEnvironments: readonly string[];
+	repositoryConnection: boolean;
 	active: boolean;
 	stateVersion: number;
 	authorizedBy: string;

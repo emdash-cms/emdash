@@ -3,27 +3,27 @@ title: AI Tools
 description: Connect Claude, ChatGPT, and other AI assistants to your EmDash site.
 ---
 
-import { Aside, Steps, Tabs, TabItem, LinkCard } from "@astrojs/starlight/components";
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash has a built-in [MCP server](https://modelcontextprotocol.io) that lets AI assistants work directly with your site's content. You can ask Claude, ChatGPT, or other tools to draft posts, update pages, manage media, search your content, and more -- all through natural conversation.
+EmDash has a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that lets AI assistants work directly with your site's content. You can ask Claude, ChatGPT, or other tools to draft posts, update pages, manage media, search your content, and more -- all through natural conversation.
 
 <Aside>
-	This guide covers your **site's** MCP server -- for managing the content of an EmDash site. If you want to give an AI coding assistant access to the EmDash documentation itself (so it can answer questions about EmDash as you build), see [Docs MCP for AI Tools](/docs-mcp) instead. Most developers connect both.
+	This guide covers your **site's** MCP server -- for managing the content of an EmDash site. If you want to give an AI coding assistant access to the EmDash documentation itself (so it can answer questions about EmDash as you build), see [Docs MCP for AI Tools](/docs-mcp) instead. You can connect either server or both, depending on whether the assistant needs documentation, site content, or both.
 </Aside>
 
-## The MCP Server
+## Your site's MCP server
 
-The MCP server is enabled by default -- the route at `/_emdash/api/mcp` is mounted unless you explicitly turn it off. It always requires authentication, so no content is exposed without valid credentials.
+The MCP server is enabled by default. EmDash mounts `/_emdash/api/mcp` unless you turn it off. The endpoint accepts OAuth or personal access bearer tokens; an admin browser session by itself does not authenticate an MCP request. OAuth lets the person connecting the client choose scopes before EmDash issues the token.
 
 To disable it, set `mcp: false` in your Astro configuration:
 
 ```js title="astro.config.mjs"
 emdash({
-  mcp: false,
-})
+	mcp: false,
+});
 ```
 
-## Setting Up
+## Connect an AI client
 
 Your site's MCP server URL is:
 
@@ -36,42 +36,24 @@ Replace `example.com` with your domain. For local development, use `http://local
 <Tabs>
 <TabItem label="Claude">
 
-Connectors added in [claude.ai](https://claude.ai) work in both the web app and Claude Desktop.
-
-<Steps>
-
-1. Go to [Settings > Connectors](https://claude.ai/settings/connectors)
-
-2. Click **Add custom connector**
-
-3. Enter your site's MCP server URL
-
-4. Click **Add** -- your browser opens for you to log in and approve access
-
-5. Start a new conversation, click **+** in the chat input, then **Connectors**, and toggle your site on
-
-</Steps>
-
-For Team and Enterprise plans, an Owner first adds the connector from [Admin Settings > Connectors](https://claude.ai/admin-settings/connectors). Members then connect individually from their own settings.
+Add the URL as a remote custom connector. Claude opens the EmDash OAuth flow so you can sign in and choose permissions. Anthropic changes the connector screens independently of EmDash, so follow its [current custom connector instructions](https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp) for the exact controls and plan requirements.
 
 </TabItem>
 <TabItem label="ChatGPT">
 
-ChatGPT supports MCP servers on Pro, Business, and Enterprise plans.
+ChatGPT developer mode can connect a remote MCP server and supports OAuth-authenticated tools. Eligibility and the settings screens can change, so follow the [official ChatGPT developer mode guide](https://developers.openai.com/api/docs/guides/developer-mode) and use your site's MCP URL when creating the app. Review each write call before approving it.
 
-<Steps>
+</TabItem>
+<TabItem label="Codex">
 
-1. Go to **Settings > Apps & Connectors > Advanced settings** and enable **Developer Mode**
+Add the remote server from the Codex CLI, then start its OAuth login:
 
-2. Go to **Settings > Connectors > Create**
+```bash
+codex mcp add emdash-site --url https://example.com/_emdash/api/mcp
+codex mcp login emdash-site
+```
 
-3. Enter a name, description, and your site's MCP server URL
-
-4. Click **Create**
-
-5. In a conversation, click **+** near the composer, then **More**, and select your connector
-
-</Steps>
+The ChatGPT desktop app, Codex CLI, and IDE extension share MCP configuration for the same Codex host. See the [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for configuration files, OAuth, and supported transports.
 
 </TabItem>
 </Tabs>
@@ -80,7 +62,7 @@ ChatGPT supports MCP servers on Pro, Business, and Enterprise plans.
 	Using a coding tool like VS Code, Cursor, or Windsurf? See the [MCP Server Reference](/reference/mcp-server) for configuration details.
 </Aside>
 
-## What You Can Do
+## Work with site content
 
 Once connected, you can ask the AI assistant to perform any of these operations in natural language. You don't need to know the tool names -- just describe what you want.
 
@@ -93,19 +75,29 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 - **Publish and schedule** -- "Publish the summer sale post", "Schedule the announcement for June 1st at 9am", or "Cancel the schedule on the launch post"
 - **Compare versions** -- "Show me what changed in the homepage since it was last published"
 - **Manage drafts** -- "Discard the draft changes on the about page" or "Duplicate the newsletter template"
-- **Translations** -- "What translations exist for the welcome post?" (when i18n is enabled)
+- **Translations** -- "What translations exist for the welcome post?" or "Create a French draft linked to this English post" (when i18n is enabled)
+
+### Bylines
+
+- **Browse bylines** -- "List the guest contributors whose names contain 'Lee'"
+- **Credit content** -- "Add Priya Shah as the primary byline on this post"
+- **Manage bylines** -- "Create a guest byline for Sam Rivera" or "Update this contributor's bio"
+- **Translate bylines** -- "Show the locale variants of this byline"
+
+Creating, updating, deleting, and translating bylines requires the Editor role. Content write tools accept existing byline IDs when the caller has permission to create or edit that content.
 
 ### Media
 
 - **Browse media** -- "List all uploaded images" or "Show me PDFs in the media library"
 - **Check details** -- "Get the details for this media item"
-- **Register uploads** -- "Register the file I just uploaded to `media/2026/banner.png` as a media item"
+- **Upload files** -- "Upload this base64 image as `banner.png`" or "Import the image at this public URL"
+- **Register existing storage objects** -- "Register `media/2026/banner.png` as a media item"
 - **Update metadata** -- "Set the alt text on the hero image to 'Mountain sunset'"
 - **Remove files** -- "Delete the old banner image"
 
-<Aside>
-	The MCP transport can't carry binary uploads. To add a new image, upload the bytes via the admin UI (or your own signed-upload flow) and then ask the AI to register the metadata.
-</Aside>
+`media_upload` accepts either base64-encoded bytes or a public HTTP(S) URL. It stores the file, registers the media item, and returns the ID and URL. `media_create` only registers metadata for a file that is already in storage. URL imports reject private network targets and re-check redirects; both paths enforce the site's MIME-type and upload-size limits.
+
+Contributors can use `media_upload`. Registering an existing storage object with `media_create` requires Author or a higher role.
 
 ### Search
 
@@ -127,13 +119,13 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 - **Set items** -- "Replace the items in the main menu with Home, Blog, About, and Contact"
 - **Delete menus** -- "Delete the unused 'mobile' menu"
 
-### Site Settings
+### Site settings
 
 - **Inspect** -- "What's the current site title?" or "Show me the social links"
 - **Update identity** -- "Set the site title to 'Acme Blog' and tagline to 'Stories from the team'"
 - **Set logo / favicon** -- "Use this image as the site logo" (after uploading it with `media_upload`)
 - **SEO defaults** -- "Set the default OG image to the new banner" or "Update the title separator to a vertical bar"
-- **Social handles** -- "Add our Mastodon and YouTube links to the social settings"
+- **Social handles** -- "Add our GitHub and YouTube links to the social settings"
 
 <Aside>
 	Reading site settings requires the Editor role; updating them requires Admin.
@@ -146,7 +138,8 @@ Once connected, you can ask the AI assistant to perform any of these operations 
 - **Modify schema** -- "Add a 'featured' boolean field to posts"
 
 <Aside type="caution">
-	Schema changes (creating/deleting collections and fields) modify your database structure and require Admin permissions. The AI will tell you if you don't have sufficient access.
+	Schema changes modify the database structure and can delete stored field data. They require Admin
+	permissions, and EmDash rejects the tool call when the connected user or token lacks them.
 </Aside>
 
 ### Revisions
@@ -161,11 +154,11 @@ When an MCP client opens the OAuth consent page, every permission it requested i
 | Role | What the AI can do |
 | --- | --- |
 | **Admin** | Everything, including schema changes and updating site settings |
-| **Editor** | All content, media, taxonomies, and menus. Can view schema and read settings. |
-| **Author** | Own content and media |
-| **Contributor** | Own content (no publishing) and media |
+| **Editor** | Manage all content, media, bylines, taxonomies, and menus. View schema and read settings. |
+| **Author** | Create content; edit and publish owned content; upload media and manage owned media. |
+| **Contributor** | Create draft content and upload media, without publishing. |
 
-If you try something you don't have access to, the AI will let you know.
+EmDash rejects a tool call when either the token scope or the user's role is insufficient. A client may explain that error, but EmDash remains the authority that enforces it.
 
 ## Tips
 
@@ -175,6 +168,6 @@ If you try something you don't have access to, the AI will let you know.
 - **Use compare for review.** Before publishing, ask "Compare the live and draft versions of this post" to see exactly what will change.
 - **Rich text fields use Portable Text.** The AI can write content for rich text fields, but complex formatting is best done in the admin editor.
 
-## For Developers
+## For developers
 
 The MCP server endpoint, authentication methods, OAuth discovery, tool parameters, and error handling are documented in the [MCP Server Reference](/reference/mcp-server).

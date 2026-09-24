@@ -40,6 +40,7 @@ const restrictToVerticalAxis: Modifier = ({ transform }) => ({
 export interface SortableContentSettingsSectionProps {
 	id: ContentSettingsSectionId;
 	label: string;
+	hidden?: boolean;
 	/** Leaves room for an existing disclosure chevron at the inline end. */
 	disclosure?: boolean;
 	children: React.ReactNode;
@@ -103,7 +104,7 @@ export function SortableContentSettingsSections({
 		[sectionIds, storedLayout],
 	);
 	const visibleIds = React.useMemo(
-		() => layout.order.filter((id) => sectionsById.has(id)),
+		() => layout.order.filter((id) => !sectionsById.get(id)?.props.hidden),
 		[layout.order, sectionsById],
 	);
 	const sensors = useSensors(
@@ -201,7 +202,7 @@ export function SortableContentSettingsSection({
 					className="flex items-center px-4 pe-12"
 					style={{ minHeight: 48 }}
 				>
-					<span className="text-[15px] font-semibold">{label}</span>
+					<span className="text-base font-semibold">{label}</span>
 				</div>
 			)}
 			{children}

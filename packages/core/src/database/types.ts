@@ -396,6 +396,7 @@ export interface DeviceCodeTable {
 export interface OptionTable {
 	name: string;
 	value: string; // JSON
+	revision: Generated<string>;
 }
 
 export interface AuditLogTable {
@@ -433,12 +434,14 @@ export interface CollectionTable {
 	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
-	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry and dashboard quick action
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
+	nav_group: string | null; // admin sidebar folder label; NULL = inline
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
 	comments_auto_approve_users: Generated<number>; // 0 or 1
+	edit_locking: Generated<number>; // 0 or 1; take an edit lock when an entry is opened
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
@@ -475,6 +478,29 @@ export interface FieldTable {
 	created_at: Generated<string>;
 }
 
+export interface BlockTypeTable {
+	id: string;
+	slug: string;
+	label: string;
+	description: string | null;
+	icon: string | null;
+	category: string | null;
+	current_version: number;
+	source: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BlockTypeVersionTable {
+	id: string;
+	block_type_id: string;
+	version: number;
+	fields: string;
+	fingerprint: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 // Plugin Storage Tables
 
 export interface PluginStorageTable {
@@ -482,6 +508,7 @@ export interface PluginStorageTable {
 	collection: string;
 	id: string;
 	data: string; // JSON
+	revision: Generated<string>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
@@ -659,6 +686,8 @@ export interface Database {
 	_emdash_migrations: MigrationTable;
 	_emdash_collections: CollectionTable;
 	_emdash_fields: FieldTable;
+	_emdash_block_types: BlockTypeTable;
+	_emdash_block_type_versions: BlockTypeVersionTable;
 	_plugin_storage: PluginStorageTable;
 	_plugin_state: PluginStateTable;
 	_plugin_indexes: PluginIndexTable;
@@ -677,6 +706,7 @@ export interface Database {
 	_emdash_comments: CommentTable;
 	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
+	_emdash_redirect_write_lock: RedirectWriteLockTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
@@ -686,6 +716,7 @@ export interface Database {
 	_emdash_relations: RelationTable;
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
+	_emdash_entry_locks: EntryLockTable;
 }
 
 export type MediaRow = {
@@ -720,8 +751,18 @@ export interface RedirectTable {
 	last_hit_at: string | null;
 	group_name: string | null;
 	auto: number; // boolean: system-generated from slug change
+	config_revision: string;
+	source_guard: number;
+	write_generation: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface RedirectWriteLockTable {
+	id: number;
+	token: string;
+	expires_at: number;
+	generation: number;
 }
 
 export interface NotFoundLogTable {
@@ -859,4 +900,13 @@ export interface RateLimitTable {
 	key: string; // {ip}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
+}
+
+export interface EntryLockTable {
+	collection: string;
+	entry_id: string; // ID in the ec_* table
+	user_id: string;
+	token: string; // identifies the holder's editing session, one per tab
+	acquired_at: string; // ISO 8601 with milliseconds
+	expires_at: string; // ISO 8601 with milliseconds
 }

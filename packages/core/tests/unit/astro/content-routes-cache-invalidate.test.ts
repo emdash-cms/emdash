@@ -5,11 +5,24 @@
  */
 
 import { Role } from "@emdash-cms/auth";
-import { describe, it, expect, vi } from "vitest";
+import type { Kysely } from "kysely";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
 import { PUT as updateContent } from "../../../src/astro/routes/api/content/[collection]/[id].js";
+import type { Database } from "../../../src/database/types.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("PUT content route — edge cache invalidation", () => {
+	let db: Kysely<Database>;
+
+	beforeAll(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterAll(async () => {
+		await teardownTestDatabase(db);
+	});
+
 	const makeUser = () => ({
 		id: "user-1",
 		role: Role.EDITOR,
@@ -44,7 +57,7 @@ describe("PUT content route — edge cache invalidation", () => {
 			request,
 			url: new URL(request.url),
 			locals: {
-				emdash: { handleContentUpdate, handleContentGet },
+				emdash: { handleContentUpdate, handleContentGet, db },
 				user: makeUser(),
 			},
 			cache: { enabled: true, invalidate },

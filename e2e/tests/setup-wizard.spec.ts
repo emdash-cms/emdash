@@ -15,6 +15,7 @@ import { refreshServerPatAfterDevBypass } from "../fixtures/refresh-server-pat";
 
 const BASE_URL = "http://localhost:4444";
 const ADMIN_DASHBOARD_PATTERN = /\/_emdash\/admin\/?$/;
+const PASSKEY_ACTION_REGEX = /^(Create passkey|Use another device|Use a security key)$/;
 
 async function resetSetup(): Promise<void> {
 	const res = await fetch(`${BASE_URL}/_emdash/api/setup/dev-reset`, {
@@ -90,7 +91,14 @@ test.describe("Setup Wizard", () => {
 		await admin.page.getByRole("button", { name: "Continue" }).click();
 
 		await expect(admin.page.locator("text=Secure your account")).toBeVisible();
-		await expect(admin.page.locator("text=Choose how to sign in")).toBeVisible();
+		await expect(
+			admin.page.getByRole("heading", {
+				name: "With a passkey, you don’t need to remember complex passwords",
+			}),
+		).toBeVisible();
+		await expect(
+			admin.page.getByRole("button", { name: PASSKEY_ACTION_REGEX }).first(),
+		).toBeVisible();
 	});
 
 	test("setup wizard not accessible after setup complete", async ({ admin }) => {

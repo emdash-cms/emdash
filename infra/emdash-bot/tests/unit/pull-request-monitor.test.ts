@@ -55,6 +55,32 @@ describe("pull request monitoring", () => {
 		}
 	});
 
+	test("does not repeat a stable repair when GitHub toggles mergeability", () => {
+		const conflicting = assessPullRequest(
+			status({
+				mergeability: "conflicting",
+				review: "changes-requested",
+				checks: "failing",
+				failingChecks: [{ name: "Smoke Tests", url: null }],
+			}),
+			null,
+		);
+		expect(conflicting.kind).toBe("repair");
+		if (conflicting.kind !== "repair") return;
+
+		expect(
+			assessPullRequest(
+				status({
+					mergeability: "unknown",
+					review: "changes-requested",
+					checks: "failing",
+					failingChecks: [{ name: "Smoke Tests", url: null }],
+				}),
+				conflicting.fingerprint,
+			),
+		).toEqual({ kind: "waiting" });
+	});
+
 	test("projects merged and closed pull requests", () => {
 		expect(assessPullRequest(status({ state: "merged" }), null)).toEqual({ kind: "merged" });
 		expect(assessPullRequest(status({ state: "closed" }), null)).toEqual({ kind: "closed" });

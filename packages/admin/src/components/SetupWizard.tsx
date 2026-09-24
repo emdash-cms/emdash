@@ -250,6 +250,7 @@ interface AuthMethodStepProps {
 function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 	const { t } = useLingui();
 	const [activeProvider, setActiveProvider] = React.useState<string | null>(null);
+	const [passkeyComplete, setPasskeyComplete] = React.useState(false);
 
 	const buttonProviders = providers.filter((p) => p.LoginButton);
 	const hasProviders = buttonProviders.length > 0;
@@ -283,24 +284,20 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 
 	return (
 		<div className="space-y-6">
-			{/* Passkey option */}
-			<div className="text-center">
-				<h3 className="text-lg font-medium">{t`Choose how to sign in`}</h3>
-				<p className="text-sm text-kumo-subtle mt-1">
-					{t`Pick any method to create your admin account.`}
-				</p>
-			</div>
-
 			<PasskeyRegistration
 				optionsEndpoint="/_emdash/api/setup/admin"
 				verifyEndpoint="/_emdash/api/setup/admin/verify"
 				onSuccess={handleSetupSuccess}
-				buttonText={t`Create Passkey`}
 				additionalData={{ ...adminData }}
+				showEducation
+				showSuccessStep
+				successButtonText={t`Open the dashboard`}
+				onSuccessReady={() => setPasskeyComplete(true)}
+				onBack={onBack}
 			/>
 
 			{/* Auth provider options */}
-			{hasProviders && (
+			{!passkeyComplete && hasProviders && (
 				<>
 					<div className="relative">
 						<div className="absolute inset-0 flex items-center">
@@ -327,10 +324,6 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 					</div>
 				</>
 			)}
-
-			<Button type="button" variant="ghost" onClick={onBack} className="w-full">
-				{t`← Back`}
-			</Button>
 		</div>
 	);
 }

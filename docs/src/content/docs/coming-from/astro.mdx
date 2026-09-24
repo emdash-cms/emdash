@@ -1,183 +1,142 @@
 ---
 title: EmDash for Astro Developers
-description: Add WordPress-style CMS features to your Astro site with EmDash
+description: Add database-backed, editor-managed content to a server-rendered Astro site.
 ---
 
-import { Aside, Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 
-EmDash is a CMS built specifically for Astro. It extends your Astro site with database-backed content, a polished admin UI, and WordPress-style features (menus, widgets, taxonomies) while preserving the developer experience you expect.
+EmDash adds an admin application, database-backed collections, media, menus, taxonomies, settings, revisions, and previews to an Astro site. Pages and components remain ordinary Astro files.
 
-Everything you know about Astro still applies. EmDash adds content management on top of your existing Astro workflow.
+## What EmDash adds
 
-## What EmDash Adds
+| Feature | What it provides |
+| --- | --- |
+| Admin | Browser-based collection, media, menu, taxonomy, and settings management at `/_emdash/admin` |
+| Database collections | Editor-managed content queried at request time |
+| Media library | Stored images and files with media field values for templates |
+| Drafts, revisions, and previews | Editorial work before publication |
+| Menus and widget areas | Ordered, editable site regions outside entry fields |
+| Site settings | Shared identity and display values such as title, tagline, logo, and pagination size |
+| Plugins | Hooks, routes, storage, and optional admin extensions |
 
-EmDash provides the content management features that file-based Astro sites lack:
+These features live alongside Astro rather than replacing it. Astro still controls routing, layouts, rendering, styles, and the deployment adapter.
 
-| Feature              | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| **Admin UI**         | Full WYSIWYG editing interface at `/_emdash/admin` |
-| **Database storage** | Content stored in SQLite, libSQL, Cloudflare D1, or PostgreSQL |
-| **Media library**    | Upload, organize, and serve images and files         |
-| **Navigation menus** | Drag-and-drop menu management with nesting           |
-| **Widget areas**     | Dynamic sidebars and footer regions                  |
-| **Site settings**    | Global configuration (title, logo, social links)     |
-| **Taxonomies**       | Categories, tags, and custom taxonomies              |
-| **Preview system**   | Signed preview URLs for draft content                |
-| **Revisions**        | Content version history                              |
+## EmDash and Astro collections
 
-<Aside type="tip">
-	EmDash sites run in SSR mode by default, so content is served at runtime and changes appear
-	immediately.
-</Aside>
+Astro content collections and EmDash collections can coexist. Use Astro collections for repository-owned content and EmDash for content managed through `/_emdash/admin`.
 
-## Astro Collections vs EmDash
+| | Astro content collection | EmDash collection |
+| --- | --- | --- |
+| Storage | Files in the project | SQL database |
+| Editing | Repository workflow | EmDash admin |
+| Query | `getCollection()` | `getEmDashCollection()` |
+| Rich text | Markdown or MDX | Portable Text |
+| Delivery | Build-time or live loader | Runtime live loader |
 
-Astro's `astro:content` collections are file-based and resolved at build time. EmDash collections are database-backed and resolved at runtime.
-
-|                    | Astro Collections                    | EmDash Collections                 |
-| ------------------ | ------------------------------------ | ------------------------------------ |
-| **Storage**        | Markdown/MDX files in `src/content/` | SQL database (SQLite, libSQL, D1, or Postgres) |
-| **Editing**        | Code editor                          | Admin UI                             |
-| **Content format** | Markdown with frontmatter            | Portable Text (structured JSON)      |
-| **Updates**        | Requires rebuild                     | Instant (SSR)                        |
-| **Schema**         | Zod in `content.config.ts`           | Defined in admin, stored in database |
-| **Best for**       | Developer-managed content            | Editor-managed content               |
-
-### Use Both Together
-
-Astro collections and EmDash can coexist. Use Astro collections for developer content (docs, changelogs) and EmDash for editor content (blog posts, pages):
+Use both collection systems when ownership differs. For example, a product site can keep developer-authored release notes in an Astro content collection and editor-authored articles in EmDash:
 
 ```astro title="src/pages/index.astro"
 ---
 import { getCollection } from "astro:content";
 import { getEmDashCollection } from "emdash";
 
-// Developer-managed docs from files
-const docs = await getCollection("docs");
-
-// Editor-managed posts from database
-const { entries: posts } = await getEmDashCollection("posts", {
-  status: "published",
-  limit: 5,
-});
+const [releaseNotes, { entries: articles }] = await Promise.all([
+  getCollection("releases"),
+  getEmDashCollection("articles", { limit: 3 }),
+]);
 ---
 ```
 
-## Configuration
+The two results remain separate. EmDash does not copy file-based entries into its database.
 
-EmDash requires two configuration files.
+## Configure a site
 
-### Astro Integration
+The current Node templates configure Astro for server output, add the EmDash integration, and use the SQLite and local-storage adapters.
 
-The following configuration registers EmDash as an Astro integration in server output mode:
+The following reduced configuration contains those required pieces:
 
-```ts title="astro.config.mjs"
-import { defineConfig } from "astro/config";
+```js title="astro.config.mjs"
+import node from "@astrojs/node";
 import react from "@astrojs/react";
+import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 export default defineConfig({
-	output: "server", // Required for EmDash
-	integrations: [
-		react(), // Required — the admin UI is a React app
-		emdash({
-			database: sqlite({ url: "file:./data.db" }),
-			storage: local({
-				directory: "./uploads",
-				baseUrl: "/_emdash/api/media/file",
-			}),
-		}),
-	],
+  output: "server",
+  adapter: node({ mode: "standalone" }),
+  integrations: [
+    react(),
+    emdash({
+      database: sqlite({ url: "file:./data.db" }),
+      storage: local({
+        directory: "./uploads",
+        baseUrl: "/_emdash/api/media/file",
+      }),
+    }),
+  ],
 });
 ```
 
-<Aside>
-	Adding EmDash to an existing Astro project? Follow the [dedicated
-	guide](/existing-project/) — it covers the peer dependencies, required
-	integrations, and deployment caveats step by step.
-</Aside>
+EmDash also supplies Cloudflare templates configured for D1 and R2. Start from the template for the deployment target instead of translating the Node adapters by hand.
 
-### Live Collections Loader
+## Register the live collection
 
-The following file registers EmDash as a live content source:
+The templates expose EmDash content through one Astro live collection named `_emdash`:
 
 ```ts title="src/live.config.ts"
 import { defineLiveCollection } from "astro:content";
 import { emdashLoader } from "emdash/runtime";
 
 export const collections = {
-	_emdash: defineLiveCollection({
-		loader: emdashLoader(),
-	}),
+  _emdash: defineLiveCollection({ loader: emdashLoader() }),
 };
 ```
 
-The `_emdash` collection internally routes to your content types (posts, pages, products).
+`getEmDashCollection()` and `getEmDashEntry()` select the requested content type through this loader.
 
-## Querying Content
+## Query collections
 
-EmDash provides query functions that follow Astro's [live content collections](https://docs.astro.build/en/reference/experimental-flags/live-content-collections/) pattern, returning `{ entries, error }` or `{ entry, error }`:
+The following query reads the most recently published posts. `orderBy` uses stored field names and maps each name to `"asc"` or `"desc"`:
 
-<Tabs>
-  <TabItem label="EmDash">
-```ts
-import { getEmDashCollection, getEmDashEntry } from "emdash";
+```astro title="src/pages/posts/index.astro"
+---
+import { getEmDashCollection } from "emdash";
 
-// Get all published posts - returns { entries, error }
-const { entries: posts } = await getEmDashCollection("posts", {
-status: "published",
+const { entries: posts, error, cacheHint } = await getEmDashCollection("posts", {
+  orderBy: { published_at: "desc" },
+  limit: 10,
 });
 
-// Get a single post by slug - returns { entry, error, isPreview }
-const { entry: post } = await getEmDashEntry("posts", "my-post");
+if (error) return new Response("Could not load posts", { status: 500 });
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+---
 
-````
-  </TabItem>
-  <TabItem label="Astro">
-```ts
-import { getCollection, getEntry } from "astro:content";
-
-// Get all blog entries
-const posts = await getCollection("blog");
-
-// Get a single entry by slug
-const post = await getEntry("blog", "my-post");
-````
-
-  </TabItem>
-</Tabs>
-
-### Filtering Options
-
-`getEmDashCollection` supports filtering that Astro's `getCollection` doesn't:
-
-```ts
-const { entries: posts } = await getEmDashCollection("posts", {
-	status: "published", // draft | published | archived
-	limit: 10, // max results
-	where: { category: "news" }, // taxonomy filter
-});
+{posts.map((post) => (
+  <article>
+    <h2><a href={`/posts/${post.id}`}>{post.data.title}</a></h2>
+  </article>
+))}
 ```
 
-## Rendering Content
+Anonymous queries return published content. An explicit `status` filter is useful in authenticated or preview-aware code. `where` accepts content fields and taxonomy names; see [Querying content](/guides/querying-content/) for the complete filter and pagination shapes.
 
-EmDash stores rich text as Portable Text, a structured JSON format. Render it with the `PortableText` component:
+## Query one entry
 
-<Tabs>
-  <TabItem label="EmDash">
+Pass a slug or database ID to `getEmDashEntry()`. The following route uses its URL slug:
+
 ```astro title="src/pages/posts/[slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 import { PortableText } from "emdash/ui";
 
-const { slug } = Astro.params;
-const { entry: post } = await getEmDashEntry("posts", slug);
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
 
-if (!post) {
-return Astro.redirect("/404");
-}
-
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) return new Response("Could not load the post", { status: 500 });
+if (!post) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
 <article>
@@ -185,223 +144,52 @@ return Astro.redirect("/404");
   <PortableText value={post.data.content} />
 </article>
 ```
-  </TabItem>
-  <TabItem label="Astro">
-```astro title="src/pages/blog/[slug].astro"
----
-import { getEntry, render } from "astro:content";
 
-const { slug } = Astro.params;
-const post = await getEntry("blog", slug);
-const { Content } = await render(post);
+The returned `entry.id` is Astro's route identifier and is normally the slug. The database content ID is `entry.data.id`. Use `data.id` with helpers that require a stored content ID.
 
----
+## Use dynamic CMS features
 
-<article>
-  <h1>{post.data.title}</h1>
-  <Content />
-</article>
-```
-  </TabItem>
-</Tabs>
-
-<Aside>
-	Portable Text preserves content structure without embedding HTML. This makes content portable
-	across renderers and prevents XSS vulnerabilities.
-</Aside>
-
-## Dynamic Features
-
-EmDash provides APIs for WordPress-style features that don't exist in Astro's content layer.
-
-### Navigation Menus
-
-The following layout fetches a menu by location and renders it with nested items:
+EmDash exports server helpers for data that does not belong to a single collection entry:
 
 ```astro title="src/layouts/Base.astro"
 ---
-import { getMenu } from "emdash";
+import { getMenu, getSiteSettings } from "emdash";
+import { WidgetArea } from "emdash/ui";
 
-const primaryMenu = await getMenu("primary");
----
-
-{primaryMenu && (
-  <nav>
-    <ul>
-      {primaryMenu.items.map(item => (
-        <li>
-          <a href={item.url}>{item.label}</a>
-          {item.children.length > 0 && (
-            <ul>
-              {item.children.map(child => (
-                <li><a href={child.url}>{child.label}</a></li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ul>
-  </nav>
-)}
-```
-
-### Widget Areas
-
-The following layout fetches a widget area and renders each widget:
-
-```astro title="src/layouts/BlogPost.astro"
----
-import { getWidgetArea } from "emdash";
-import { PortableText } from "emdash/ui";
-
-const sidebar = await getWidgetArea("sidebar");
----
-
-{sidebar && sidebar.widgets.length > 0 && (
-  <aside>
-    {sidebar.widgets.map(widget => (
-      <div class="widget">
-        {widget.title && <h3>{widget.title}</h3>}
-        {widget.type === "content" && widget.content && (
-          <PortableText value={widget.content} />
-        )}
-      </div>
-    ))}
-  </aside>
-)}
-```
-
-### Site Settings
-
-The following component reads global site settings and renders a logo or title:
-
-```astro title="src/components/Header.astro"
----
-import { getSiteSettings, getSiteSetting } from "emdash";
-
-const settings = await getSiteSettings();
-// Or fetch individual values:
-const title = await getSiteSetting("title");
+const [menu, settings] = await Promise.all([
+  getMenu("primary"),
+  getSiteSettings(),
+]);
 ---
 
 <header>
-  {settings.logo ? (
-    <img src={settings.logo.url} alt={settings.title} />
-  ) : (
-    <span>{settings.title}</span>
-  )}
-  {settings.tagline && <p>{settings.tagline}</p>}
+  <a href="/">{settings.title}</a>
+  <nav>
+    {menu?.items.map((item) => <a href={item.url}>{item.label}</a>)}
+  </nav>
 </header>
+
+<main><slot /></main>
+<aside><WidgetArea name="sidebar" /></aside>
 ```
 
-## Plugins
+## Choose a plugin format
 
-Extend EmDash with plugins that add hooks, storage, settings, and admin UI:
+Sandboxed and native plugins have different package shapes. Sandboxed plugins use `emdash-plugin.jsonc` plus a default-exported `src/plugin.ts` object. Native plugins export a descriptor factory and `createPlugin()` built with `definePlugin()`.
 
-```ts title="astro.config.mjs"
-import react from "@astrojs/react";
-import emdash from "emdash/astro";
-import seoPlugin from "@emdash-cms/plugin-seo";
-
-export default defineConfig({
-	integrations: [
-		react(),
-		emdash({
-			// ...
-			plugins: [seoPlugin({ generateSitemap: true })],
-		}),
-	],
-});
-```
-
-Create custom plugins with `definePlugin`:
-
-```ts title="src/plugins/analytics.ts"
-import { definePlugin } from "emdash";
-
-export default definePlugin({
-	id: "analytics",
-	version: "1.0.0",
-	capabilities: ["content:read"],
-
-	hooks: {
-		"content:afterSave": async (event, ctx) => {
-			ctx.log.info("Content saved", { id: event.content.id });
-		},
-	},
-
-	admin: {
-		settingsSchema: {
-			trackingId: { type: "string", label: "Tracking ID" },
-		},
-	},
-});
-```
-
-## Server Rendering
-
-EmDash sites run in SSR mode, so content is served at runtime and changes appear immediately.
-
-For static pages with `getStaticPaths`, content is fetched at build time:
-
-```astro title="src/pages/posts/[slug].astro"
----
-import { getEmDashCollection, getEmDashEntry } from "emdash";
-
-export async function getStaticPaths() {
-  const { entries: posts } = await getEmDashCollection("posts", {
-    status: "published",
-  });
-
-  return posts.map((post) => ({
-    params: { slug: post.data.slug },
-  }));
-}
-
-const { slug } = Astro.params;
-const { entry: post } = await getEmDashEntry("posts", slug);
----
-```
-
-For dynamic pages, set `prerender = false` to fetch content on each request:
-
-```astro title="src/pages/posts/[slug].astro"
----
-export const prerender = false;
-
-import { getEmDashEntry } from "emdash";
-
-const { slug } = Astro.params;
-const { entry: post, error } = await getEmDashEntry("posts", slug);
-
-if (error) {
-  return new Response("Server error", { status: 500 });
-}
-
-if (!post) {
-  return new Response(null, { status: 404 });
-}
----
-```
+Read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) before adding a plugin. Do not copy a native `definePlugin()` example into a sandboxed package.
 
 <Aside type="tip">
-	Use server rendering for frequently updated content. Use static generation for content that
-	changes rarely and benefits from CDN caching.
+  Start from an official template when creating a new site. Its adapter, seed path, live collection, middleware, and package versions are kept together.
 </Aside>
 
-## Next Steps
+## Next steps
 
 <CardGrid>
-	<Card title="Getting Started" icon="rocket">
-		[Create your first EmDash site](/getting-started/) in under 5 minutes.
-	</Card>
-	<Card title="Querying Content" icon="document">
-		[Learn the query API](/guides/querying-content/) in detail.
-	</Card>
-	<Card title="Create a Blog" icon="pencil">
-		[Build a complete blog](/guides/create-a-blog/) with categories and tags.
-	</Card>
-	<Card title="Deploy to Cloudflare" icon="external">
-		[Take your site to production](/deployment/cloudflare/) on Workers.
-	</Card>
+  <Card title="Query content" icon="document" href="/guides/querying-content/">
+    Use filters, pagination, locales, and cache hints.
+  </Card>
+  <Card title="Create a theme" icon="puzzle" href="/themes/creating-themes/">
+    Package an Astro site and its seed file as a reusable template.
+  </Card>
 </CardGrid>

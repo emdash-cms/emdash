@@ -176,6 +176,11 @@ export const contentListQuery = cursorPaginationQuery
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
 const contentDateOverride = contentDateTime.nullish();
 
+const overrideLockFlag = z.boolean().optional().meta({
+	description:
+		"Write even though another editor holds this entry's edit lock. Without it the write is refused with 409 ENTRY_LOCKED.",
+});
+
 export const contentCreateBody = z
 	.object({
 		data: z.record(z.string(), z.unknown()),
@@ -206,6 +211,7 @@ export const contentUpdateBody = z
 			.optional()
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 		skipRevision: z.boolean().optional(),
+		overrideLock: overrideLockFlag,
 		seo: contentSeoInput.optional(),
 		taxonomies: z.record(z.string(), z.array(z.string())).optional().meta({
 			description:
@@ -217,22 +223,27 @@ export const contentUpdateBody = z
 
 export const contentScheduleBody = z
 	.object({
-		scheduledAt: z
+		scheduledAt: contentDateTime.meta({
+			description: "ISO 8601 datetime with Z or an explicit offset for scheduled publishing",
+			examples: ["2025-06-15T09:00:00Z"],
+		}),
+		overrideLock: overrideLockFlag,
+		_rev: z
 			.string()
-			.min(1, "scheduledAt is required")
-			.meta({
-				description: "ISO 8601 datetime for scheduled publishing",
-				examples: ["2025-06-15T09:00:00Z"],
-			}),
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentScheduleBody" });
 
-export const contentRevisionConditionBody = z.object({
-	_rev: z
-		.string()
-		.optional()
-		.meta({ description: "Opaque revision token for optimistic concurrency" }),
-});
+export const contentRevisionConditionBody = z
+	.object({
+		_rev: z
+			.string()
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
+		overrideLock: overrideLockFlag,
+	})
+	.meta({ id: "ContentRevisionConditionBody" });
 
 export const contentPublishBody = contentRevisionConditionBody
 	.extend({
@@ -260,6 +271,42 @@ export const contentTermsBody = z
 		termIds: z.array(z.string()),
 	})
 	.meta({ id: "ContentTermsBody" });
+
+/** A single term variant returned as part of an entry's term assignments. */
+const contentEntryTermSchema = z
+	.object({
+		id: z.string(),
+		name: z.string().meta({ description: "Taxonomy name" }),
+		slug: z.string(),
+		label: z.string(),
+		parentId: z.string().nullable(),
+		locale: localeCode,
+		translationGroup: z.string().nullable(),
+	})
+	.meta({ id: "ContentEntryTerm" });
+
+/** Term assignments response for the content terms endpoint. */
+export const contentTermsResponseSchema = z
+	.object({
+		terms: z.array(contentEntryTermSchema),
+		unresolved: z.array(
+			z.object({
+				translationGroup: z.string(),
+				availableLocales: z.array(localeCode),
+				translations: z.array(
+					z.object({
+						id: z.string(),
+						slug: z.string(),
+						locale: localeCode,
+					}),
+				),
+			}),
+		),
+		entryLocale: localeCode,
+		defaultLocale: localeCode,
+		implicitDefaultLocale: z.boolean(),
+	})
+	.meta({ id: "ContentTermsResponse" });
 
 export const contentTrashQuery = cursorPaginationQuery
 	.extend({
@@ -321,6 +368,15 @@ export const contentResponseSchema = z
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentResponse" });
+
+/** Response for restoring an item from trash */
+export const contentRestoreResponseSchema = z
+	.object({
+		restored: z.literal(true),
+		item: contentItemSchema,
+		_rev: z.string().meta({ description: "Opaque revision token for optimistic concurrency" }),
+	})
+	.meta({ id: "ContentRestoreResponse" });
 
 /** Response for content list endpoints */
 export const contentListResponseSchema = z

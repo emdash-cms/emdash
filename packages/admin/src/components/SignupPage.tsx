@@ -189,6 +189,7 @@ function handleSignupSuccess() {
 function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 	const { t } = useLingui();
 	const [name, setName] = React.useState("");
+	const [passkeyComplete, setPasskeyComplete] = React.useState(false);
 
 	return (
 		<div className="space-y-6">
@@ -209,32 +210,32 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 				</p>
 			</div>
 
-			{/* Email display (read-only) */}
-			<Input label={t`Email`} value={verifyResult.email} disabled className="bg-kumo-tint" />
+			{!passkeyComplete && (
+				<>
+					<Input label={t`Email`} value={verifyResult.email} disabled className="bg-kumo-tint" />
 
-			{/* Name input (optional) */}
-			<Input
-				label={t`Your name (optional)`}
-				type="text"
-				value={name}
-				onChange={(e) => setName(e.target.value)}
-				placeholder={t`Jane Doe`}
-				autoComplete="name"
-			/>
+					<Input
+						label={t`Your name (optional)`}
+						type="text"
+						value={name}
+						onChange={(e) => setName(e.target.value)}
+						placeholder={t`Jane Doe`}
+						autoComplete="name"
+					/>
+				</>
+			)}
 
 			{/* Passkey registration */}
 			<div className="pt-4 border-t">
-				<h3 className="text-sm font-medium mb-3">{t`Create your passkey`}</h3>
-				<p className="text-sm text-kumo-subtle mb-4">
-					{t`Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key.`}
-				</p>
-
 				<PasskeyRegistration
 					optionsEndpoint="/_emdash/api/setup/admin"
 					verifyEndpoint="/_emdash/api/auth/signup/complete"
 					onSuccess={handleSignupSuccess}
-					buttonText={t`Create Account`}
 					additionalData={{ token, name: name || undefined }}
+					showEducation
+					showSuccessStep
+					successButtonText={t`Open the dashboard`}
+					onSuccessReady={() => setPasskeyComplete(true)}
 				/>
 			</div>
 		</div>

@@ -23,6 +23,8 @@ export interface CreateContentInput {
 	primaryBylineId?: string | null;
 	locale?: string;
 	translationOf?: string;
+	/** Field columns selected atomically from `translationOf` during the insert. */
+	inheritFields?: string[];
 	publishedAt?: string | null;
 	/** Override created_at (ISO 8601). Used by importers to preserve original dates. */
 	createdAt?: string | null;
@@ -34,7 +36,10 @@ export interface UpdateContentInput {
 	slug?: string | null;
 	publishedAt?: string | null;
 	scheduledAt?: string | null;
+	/** Entry owner (`ec_{collection}.author_id`). */
 	authorId?: string | null;
+	/** Revision author, separate from entry ownership. */
+	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
 }
 

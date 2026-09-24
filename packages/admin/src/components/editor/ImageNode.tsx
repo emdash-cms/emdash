@@ -215,12 +215,12 @@ function ImageNodeView({
 				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
 			)}
 		>
-			<figure className="relative">
+			<figure className="relative my-0!">
 				<img
 					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className="rounded-lg max-w-full h-auto"
+					className="rounded-lg max-w-full h-auto object-cover"
 					width={renderWidth}
 					height={renderHeight}
 					style={{

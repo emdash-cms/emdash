@@ -64,6 +64,16 @@ let upgradeEvidence: {
 	revisionCount: number;
 	currentCid: string | null;
 	invalidExpiryEpoch: number | null;
+	releaseHistoryComplete: number | null;
+	firstObservedSource: string | null;
+	releaseHistoryRows: number;
+	packageCount: number;
+	releaseCount: number;
+	publicPackageCount: number;
+	publicReleaseCount: number;
+	packageInstallability: string | null;
+	revisionInstallability: string | null;
+	publicPackageInstallability: string | null;
 };
 
 beforeAll(async () => {
@@ -74,6 +84,14 @@ beforeAll(async () => {
 		"0003_listing_projection.sql",
 		"0004_signed_label_ingest.sql",
 		"0005_restrictive_label_authority.sql",
+		"0006_release_history.sql",
+		"0007_publisher_handle.sql",
+		"0008_handle_resolved_at.sql",
+		"0009_handle_refresh_attempted_at.sql",
+		"0010_clear_duplicate_handles.sql",
+		"0011_unique_publisher_handle.sql",
+		"0012_profile_installability.sql",
+		"0013_extensionless_profiles.sql",
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(0, 2));
 	await testEnv.DB.prepare(
@@ -98,11 +116,102 @@ beforeAll(async () => {
 	)
 		.bind(LABELER_DID, packageProfileUri(DID_A, "legacy"), PROFILE_CID_1, NOW.toISOString())
 		.run();
-	await applyD1Migrations(testEnv.DB, migrations.slice(2));
+	await applyD1Migrations(testEnv.DB, migrations.slice(2, 11));
+	await testEnv.DB.prepare(
+		`INSERT INTO releases
+		   (did, package, version, rkey, version_sort, artifacts, emdash_extension,
+		    cts, record_blob, signature_metadata, verified_at, indexed_at)
+		 VALUES (?, 'legacy', '1.0.0', 'legacy:1.0.0', '0000000001.0000000000.0000000000~',
+		         '{}', '{}', ?, ?, ?, ?, ?)`,
+	)
+		.bind(
+			DID_A,
+			NOW.toISOString(),
+			new Uint8Array([4, 5, 6]),
+			JSON.stringify({ cid: RELEASE_CID_1 }),
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO public_projection_generations
+		   (generation, policy_mode, policy_version, policy_hash, required_positive_sources,
+		    accepted_state_sources, redaction_sources, source_epoch, rebuild_sequence,
+		    created_at, completed_at)
+		 SELECT 'legacy-generation', 'open', '', '', '[]', '[]', '[]', source_epoch, 0, ?, ?
+		 FROM listing_projection_control WHERE id = 1`,
+	)
+		.bind(NOW.toISOString(), NOW.toISOString())
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO public_packages
+		   (generation, did, slug, profile_cid, type, name, license, authors, security,
+		    record_blob, signature_metadata, verified_at, indexed_at, labels_json, projected_at)
+		 VALUES ('legacy-generation', ?, 'legacy', ?, 'emdash-plugin', 'Legacy', 'MIT',
+		         '[]', '[]', ?, ?, ?, ?, '[]', ?)`,
+	)
+		.bind(
+			DID_A,
+			PROFILE_CID_1,
+			new Uint8Array([1, 2, 3]),
+			JSON.stringify({ cid: PROFILE_CID_1 }),
+			NOW.toISOString(),
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+	await testEnv.DB.prepare(
+		`INSERT INTO public_releases
+		   (generation, did, package, version, release_cid, rkey, version_sort, artifacts,
+		    emdash_extension, cts, record_blob, signature_metadata, verified_at, indexed_at,
+		    labels_json, projected_at)
+		 VALUES ('legacy-generation', ?, 'legacy', '1.0.0', ?, 'legacy:1.0.0',
+		         '0000000001.0000000000.0000000000~', '{}', '{}', ?, ?, ?, ?, ?, '[]', ?)`,
+	)
+		.bind(
+			DID_A,
+			RELEASE_CID_1,
+			NOW.toISOString(),
+			new Uint8Array([4, 5, 6]),
+			JSON.stringify({ cid: RELEASE_CID_1 }),
+			NOW.toISOString(),
+			NOW.toISOString(),
+			NOW.toISOString(),
+		)
+		.run();
+	await applyD1Migrations(testEnv.DB, migrations.slice(11, 12));
+	await testEnv.DB.batch([
+		testEnv.DB.prepare(
+			`UPDATE packages
+			 SET installability_status = 'invalid',
+			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
+		),
+		testEnv.DB.prepare(
+			`UPDATE public_packages
+			 SET installability_status = 'invalid',
+			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
+		),
+		testEnv.DB.prepare(
+			`UPDATE profile_installability_reconciliation
+			 SET status = 'complete', completed_at = ? WHERE id = 1`,
+		).bind(NOW.toISOString()),
+	]);
+	await applyD1Migrations(testEnv.DB, migrations.slice(12));
+	const removedInstallabilityArtifacts = await testEnv.DB.prepare(
+		`SELECT COUNT(*) AS count FROM sqlite_master
+		 WHERE name IN (
+		   'idx_package_profile_revisions_installability',
+		   'profile_installability_reconciliation'
+		 )`,
+	).first<{ count: number }>();
+	expect(removedInstallabilityArtifacts?.count).toBe(0);
 
 	const projectionMigration = migrations[2];
 	if (!projectionMigration) throw new Error("projection migration fixture missing");
 	await applyD1Migrations(testEnv.DB, [projectionMigration], "projection_restart_probe");
+	const releaseHistoryMigration = migrations[5];
+	if (!releaseHistoryMigration) throw new Error("release history migration fixture missing");
+	await applyD1Migrations(testEnv.DB, [releaseHistoryMigration], "release_history_restart_probe");
 
 	const revision = await testEnv.DB.prepare(
 		`SELECT COUNT(*) AS revision_count,
@@ -125,6 +234,91 @@ beforeAll(async () => {
 					.bind(LABELER_DID, packageProfileUri(DID_A, "legacy"))
 					.first<{ exp_epoch: number | null }>()
 			)?.exp_epoch ?? null,
+		releaseHistoryComplete:
+			(
+				await testEnv.DB.prepare(
+					`SELECT release_history_complete FROM package_release_history
+					 WHERE did = ? AND package = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ release_history_complete: number }>()
+			)?.release_history_complete ?? null,
+		firstObservedSource:
+			(
+				await testEnv.DB.prepare(
+					`SELECT first_observed_source FROM package_release_history
+					 WHERE did = ? AND package = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ first_observed_source: string }>()
+			)?.first_observed_source ?? null,
+		releaseHistoryRows:
+			(
+				await testEnv.DB.prepare(
+					`SELECT COUNT(*) AS count FROM package_release_history
+					 WHERE did = ? AND package = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		packageCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM packages WHERE did = ? AND slug = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		releaseCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM releases WHERE did = ? AND package = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		publicPackageCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM public_packages WHERE did = ? AND slug = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		publicReleaseCount:
+			(
+				await testEnv.DB.prepare(
+					"SELECT COUNT(*) AS count FROM public_releases WHERE did = ? AND package = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
+		packageInstallability:
+			(
+				await testEnv.DB.prepare(
+					"SELECT installability_status FROM packages WHERE did = ? AND slug = 'legacy'",
+				)
+					.bind(DID_A)
+					.first<{ installability_status: string }>()
+			)?.installability_status ?? null,
+		revisionInstallability:
+			(
+				await testEnv.DB.prepare(
+					`SELECT installability_status FROM package_profile_revisions
+					 WHERE did = ? AND slug = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ installability_status: string }>()
+			)?.installability_status ?? null,
+		publicPackageInstallability:
+			(
+				await testEnv.DB.prepare(
+					`SELECT installability_status FROM public_packages
+					 WHERE did = ? AND slug = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ installability_status: string }>()
+			)?.installability_status ?? null,
 	};
 });
 
@@ -141,6 +335,7 @@ beforeEach(async () => {
 		"labels",
 		"release_duplicate_attempts",
 		"releases",
+		"package_release_history",
 		"packages",
 		"package_profile_heads",
 		"package_profile_revisions",
@@ -155,6 +350,16 @@ describe("revision migration and ingest", () => {
 			revisionCount: 1,
 			currentCid: PROFILE_CID_1,
 			invalidExpiryEpoch: null,
+			releaseHistoryComplete: 0,
+			firstObservedSource: "unknown",
+			releaseHistoryRows: 1,
+			packageCount: 1,
+			releaseCount: 1,
+			publicPackageCount: 1,
+			publicReleaseCount: 1,
+			packageInstallability: "valid",
+			revisionInstallability: "valid",
+			publicPackageInstallability: "valid",
 		});
 	});
 
@@ -204,6 +409,99 @@ describe("revision migration and ingest", () => {
 });
 
 describe("projection policy", () => {
+	it("projects a profile without the optional repository extension", async () => {
+		await seedProfile({
+			did: DID_A,
+			slug: "extensionless",
+			cid: PROFILE_CID_1,
+			name: "Extensionless plugin",
+			at: NOW,
+			extension: "missing",
+		});
+		await seedRelease({
+			did: DID_A,
+			slug: "extensionless",
+			cid: RELEASE_CID_1,
+			version: "1.0.0",
+			at: NOW,
+		});
+
+		await rebuild("open");
+
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status
+				 FROM public_packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "extensionless")
+				.first(),
+		).toEqual({ emdash_extension: null, installability_status: "valid" });
+	});
+
+	it("keeps an approved but uninstallable profile out of public discovery", async () => {
+		await seedProfile({
+			cid: PROFILE_CID_1,
+			name: "Incomplete profile",
+			at: NOW,
+			extension: "invalid",
+		});
+		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+		await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-passed");
+		await putLabel(releaseUri(DID_A, "demo", "1.0.0"), RELEASE_CID_1, "listing-passed");
+		const allowlisted = await xrpc(
+			"allowlist",
+			`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			[packageProfileUri(DID_A, "demo")],
+		);
+		expect(allowlisted.status).toBe(404);
+
+		await rebuild("projection");
+
+		await expectUnavailable(DID_A, "demo");
+	});
+
+	it("materializes repeated signed deliveries as one semantic label", async () => {
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		const uri = releaseUri(DID_A, "demo", "1.0.0");
+		const epoch = Math.floor(NOW.getTime() / 1_000);
+		for (const delivery of [1, 2]) {
+			await testEnv.DB.prepare(
+				`INSERT INTO listing_labels
+				   (digest, state_digest, src, uri, cid, val, neg, cts, cts_epoch,
+				    cts_fraction, exp, exp_epoch, sig, ver, received_at)
+				 VALUES (?, 'same-semantic-state', ?, ?, ?, 'listing-passed', 0, ?, ?, ?,
+				         NULL, NULL, ?, 1, ?)`,
+			)
+				.bind(
+					`delivery-${delivery}`,
+					LABELER_DID,
+					uri,
+					RELEASE_CID_1,
+					NOW.toISOString(),
+					epoch,
+					"0".repeat(32),
+					new Uint8Array([delivery]),
+					NOW.toISOString(),
+				)
+				.run();
+		}
+		await rebuild("projection");
+
+		const response = await xrpc(
+			"projection",
+			`${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		const body = (await response.json()) as { labels: Array<{ val: string }> };
+
+		expect(body.labels.filter((label) => label.val === "listing-passed")).toHaveLength(1);
+	});
+
 	it("does not let the accepted-labelers header disable a required source", async () => {
 		const optionalSource = "did:plc:labeler000000000000000bb";
 		const policy: ListingModerationPolicy = {
@@ -1436,6 +1734,7 @@ interface SeedProfileOptions {
 	at: Date;
 	did?: string;
 	slug?: string;
+	extension?: "valid" | "missing" | "invalid";
 }
 
 async function seedProfile(options: SeedProfileOptions): Promise<void> {
@@ -1453,6 +1752,19 @@ async function seedProfile(options: SeedProfileOptions): Promise<void> {
 			license: "MIT",
 			authors: [{ name: "Publisher" }],
 			security: [{ email: "security@example.test" }],
+			...(options.extension === "missing"
+				? {}
+				: {
+						extensions: {
+							[NSID.packageProfileExtension]: {
+								$type: NSID.packageProfileExtension,
+								repository:
+									options.extension === "invalid"
+										? "http://github.com/example/demo"
+										: "https://github.com/example/demo",
+							},
+						},
+					}),
 		}),
 		options.at,
 	);

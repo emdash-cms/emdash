@@ -255,6 +255,24 @@ describe("ExecEnv container exec", () => {
 		expect(fs.files.get("/.emdash-bot/changes.json")).toBe('["/repo/src/a.ts"]');
 	});
 
+	test("recovers the snapshot base after the execution environment is reconstructed", async () => {
+		const fs = fakeState();
+		const initial = makeEnv({ state: fs.state });
+		await initial.ensureRepo({ dir: "/repo", ref: "base-sha" });
+
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "passed", stderr: "" },
+			{ exitCode: 0, stdout: "\n", stderr: "" },
+		);
+		const resumed = makeEnv({ state: fs.state, container: con.container });
+
+		await expect(resumed.execWritable("pnpm test")).resolves.toMatchObject({ stdout: "passed" });
+
+		expect(con.execs[1]).toContain("git diff --name-only -z");
+		expect(con.execs[1]).toContain("base-sha");
+	});
+
 	test("rejects a shell-created symlink that escapes the repository", async () => {
 		const fs = fakeState();
 		const con = fakeContainer();

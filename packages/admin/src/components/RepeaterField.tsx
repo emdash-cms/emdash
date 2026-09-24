@@ -42,6 +42,7 @@ export interface RepeaterFieldProps {
 	subFields: RepeaterSubFieldDef[];
 	minItems?: number;
 	maxItems?: number;
+	timezone?: string;
 }
 
 type RepeaterItem = Record<string, unknown> & { _key: string };
@@ -65,6 +66,7 @@ export function RepeaterField({
 	subFields,
 	minItems = 0,
 	maxItems,
+	timezone = "UTC",
 }: RepeaterFieldProps) {
 	const { t } = useLingui();
 	const rawItems = Array.isArray(value) ? value : [];
@@ -145,10 +147,10 @@ export function RepeaterField({
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
-				<label htmlFor={id} className="text-sm font-medium">
+				<label htmlFor={id} className="text-base font-medium text-kumo-default">
 					{label}
 					{items.length > 0 && (
-						<span className="ms-2 text-kumo-subtle font-normal">
+						<span className="ms-2 text-xs font-normal leading-4 text-kumo-subtle">
 							{plural(items.length, { one: "(# item)", other: "(# items)" })}
 						</span>
 					)}
@@ -162,7 +164,7 @@ export function RepeaterField({
 
 			{items.length === 0 ? (
 				<div className="border-2 border-dashed rounded-lg p-6 text-center text-kumo-subtle">
-					<p className="text-sm">{t`No items yet`}</p>
+					<p className="text-xs leading-4">{t`No items yet`}</p>
 					{canAdd && (
 						<Button
 							variant="outline"
@@ -194,6 +196,7 @@ export function RepeaterField({
 									onChange={(fieldSlug, fieldValue) =>
 										handleItemChange(item._key, fieldSlug, fieldValue)
 									}
+									timezone={timezone}
 								/>
 							))}
 						</div>
@@ -212,6 +215,7 @@ interface SortableRepeaterItemProps {
 	onToggleCollapse: () => void;
 	onRemove?: () => void;
 	onChange: (fieldSlug: string, value: unknown) => void;
+	timezone: string;
 }
 
 function SortableRepeaterItem({
@@ -222,6 +226,7 @@ function SortableRepeaterItem({
 	onToggleCollapse,
 	onRemove,
 	onChange,
+	timezone,
 }: SortableRepeaterItemProps) {
 	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -263,7 +268,7 @@ function SortableRepeaterItem({
 				) : (
 					<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 				)}
-				<span className="text-sm font-medium flex-1 truncate">{summaryLabel}</span>
+				<span className="flex-1 truncate text-base font-medium">{summaryLabel}</span>
 				{onRemove && (
 					<Button
 						variant="ghost"
@@ -288,6 +293,7 @@ function SortableRepeaterItem({
 							subField={sf}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
+							timezone={timezone}
 						/>
 					))}
 				</div>
@@ -300,9 +306,10 @@ interface SubFieldInputProps {
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
+	timezone: string;
 }
 
-function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
+function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
@@ -343,7 +350,7 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				<Switch
 					checked={Boolean(value)}
 					onCheckedChange={(checked) => onChange(checked)}
-					label={<span className="text-sm">{subField.label}</span>}
+					label={<span className="text-base">{subField.label}</span>}
 				/>
 			);
 		case "datetime":
@@ -351,8 +358,14 @@ function SubFieldInput({ subField, value, onChange }: SubFieldInputProps) {
 				<Input
 					label={subField.label}
 					type="datetime-local"
-					value={toDatetimeLocalInputValue(value)}
-					onChange={(e) => onChange(fromDatetimeLocalInputValue(e.target.value))}
+					value={toDatetimeLocalInputValue(value, timezone)}
+					onChange={(e) => {
+						try {
+							onChange(fromDatetimeLocalInputValue(e.target.value, timezone));
+						} catch {
+							onChange(e.target.value);
+						}
+					}}
 					required={subField.required}
 				/>
 			);

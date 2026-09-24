@@ -18,6 +18,7 @@ import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { openNodeSqliteDatabase } from "../../src/db/node-sqlite-compat.js";
 import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
+import { resetRegisteredCollectionsCacheForTests } from "../../src/schema/collection-slugs-cache.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
 
@@ -34,6 +35,7 @@ import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
  */
 function resetSchemaCachesForTests(): void {
 	resetTaxonomyDefsCacheForTests();
+	resetRegisteredCollectionsCacheForTests();
 }
 
 // ---------------------------------------------------------------------------
