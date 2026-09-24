@@ -556,6 +556,7 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
 							// Registry routes are lazy, so their AT Protocol graph is not
 							// present during Vite's initial dependency scan.
+							"emdash > @atcute/identity-resolver",
 							"emdash > @emdash-cms/registry-lexicons > @atcute/atproto/types/label/defs",
 							"emdash > @emdash-cms/registry-client > @atcute/client",
 							"emdash > @emdash-cms/registry-client > @atcute/crypto",

@@ -4640,7 +4640,7 @@ msgid "Failed to import media"
 msgstr "Не вдалося імпортувати медіа"
 
 #: packages/admin/src/lib/api/marketplace.ts:344
-#: packages/admin/src/lib/api/registry.ts:825
+#: packages/admin/src/lib/api/registry.ts:789
 msgid "Failed to install plugin"
 msgstr "Не вдалося встановити плагін"
 
@@ -4853,7 +4853,7 @@ msgid "Failed to set entry terms"
 msgstr "Не вдалося встановити терміни запису"
 
 #: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/registry.ts:1039
+#: packages/admin/src/lib/api/registry.ts:1003
 msgid "Failed to uninstall plugin"
 msgstr "Не вдалося видалити плагін"
 
@@ -4892,7 +4892,7 @@ msgstr "Не вдалося оновити медіа"
 
 #: packages/admin/src/components/PluginManager.tsx:314
 #: packages/admin/src/lib/api/marketplace.ts:370
-#: packages/admin/src/lib/api/registry.ts:914
+#: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
 msgstr "Не вдалося оновити плагін"
 
@@ -4932,7 +4932,7 @@ msgstr "Не вдалося завантажити до провайдера"
 msgid "Failed to verify authentication"
 msgstr "Не вдалося підтвердити автентифікацію"
 
-#: packages/admin/src/lib/api/registry.ts:770
+#: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
 msgstr ""
 
@@ -5282,7 +5282,7 @@ msgstr "Гостьовий підпис"
 msgid "Guest only"
 msgstr "Лише гості"
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:92
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
 msgstr ""
 
@@ -7976,7 +7976,7 @@ msgid "Plugin uninstalled"
 msgstr "Плагін видалено"
 
 #: packages/admin/src/lib/api/marketplace.ts:232
-#: packages/admin/src/lib/api/registry.ts:954
+#: packages/admin/src/lib/api/registry.ts:918
 msgid "Plugin update requires re-consent"
 msgstr "Оновлення плагіна потребує повторної згоди"
 
@@ -8729,7 +8729,7 @@ msgstr ""
 msgid "Resize settings panel"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:94
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
 msgstr ""
 
@@ -10620,15 +10620,15 @@ msgstr ""
 msgid "This permanently deletes {0} from storage."
 msgstr "Це остаточно видалить {0} із сховища."
 
-#: packages/admin/src/lib/api/registry.ts:784
+#: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
 msgstr ""
 
-#: packages/admin/src/lib/api/registry.ts:792
+#: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
 msgstr ""
 
-#: packages/admin/src/lib/api/registry.ts:796
+#: packages/admin/src/lib/api/registry.ts:760
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
 msgstr ""
 

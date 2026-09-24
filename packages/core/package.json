@@ -253,6 +253,7 @@
     "test:repro": "vitest run --config vitest.repro.config.ts"
   },
   "dependencies": {
+    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@atcute/multibase": "catalog:",
     "@emdash-cms/admin": "workspace:*",
