@@ -86,7 +86,6 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 			})();
 		</script>
 		<link rel="stylesheet" href={adminStylesUrl} />
-		{/* Rendering <Font> for an unregistered family throws mid-stream and empties the response. */}
 		{componentDataByCssVariable.has("--font-emdash") ? <Font cssVariable="--font-emdash" /> : null}
 		{favicon ? (
 			<link rel="icon" href={favicon} type={faviconType} />
