@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# 則留言已匯入} other {# 則留言已匯入}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2153
+#: packages/admin/src/router.tsx:2159
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# 則留言已更新} other {# 則留言已更新}}"
 
@@ -136,6 +136,11 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:220
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# 個項目} other {# 個項目}}"
+
+#. placeholder {0}: tagMatches?.matchCount ?? 0
+#: packages/admin/src/components/TaxonomyManager.tsx:1381
+msgid "{0, plural, one {# matching tag} other {# matching tags}}"
+msgstr ""
 
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:478
@@ -287,7 +292,7 @@ msgid "{0} banner"
 msgstr "{0} 橫幅"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:245
+#: packages/admin/src/components/TaxonomyManager.tsx:439
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
 msgstr ""
 
@@ -375,7 +380,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "{0} 個系統欄位 + {1} 個自訂{2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:678
+#: packages/admin/src/components/TaxonomySidebar.tsx:679
 msgid "{0} updated"
 msgstr "{0} 已更新"
 
@@ -393,6 +398,15 @@ msgstr ""
 #: packages/admin/src/components/SeoPanel.tsx:215
 msgid "{0}/160 characters"
 msgstr "{0}/160 個字元"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:391
+msgid "{added} posts tagged"
+msgstr ""
+
+#. placeholder {0}: failed.length
+#: packages/admin/src/components/BulkTagDialog.tsx:388
+msgid "{added} tagged · {0} failed"
+msgstr ""
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:465
@@ -439,7 +453,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1208
+#: packages/admin/src/components/ContentList.tsx:1267
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} 個項目} other {#{1} 個項目}}"
 
@@ -470,7 +484,7 @@ msgstr ""
 msgid "{label} options"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1197
+#: packages/admin/src/components/ContentList.tsx:1256
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {符合「{searchQuery}」的 # 個項目} other {符合「{searchQuery}」的 # 個項目}}"
 
@@ -584,6 +598,11 @@ msgstr ""
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
+#. placeholder {0}: results.length
+#: packages/admin/src/components/BulkTagDialog.tsx:403
+msgid "{ready} of {0} ready"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:924
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
 msgstr ""
@@ -604,11 +623,11 @@ msgstr ""
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:494
+#: packages/admin/src/components/ContentList.tsx:503
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr "{selectedCount, plural, one {已選取 # 個項目} other {已選取 # 個項目}}"
 
-#: packages/admin/src/components/ContentList.tsx:536
+#: packages/admin/src/components/ContentList.tsx:575
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {要將 # 個項目移至回收桶嗎？之後仍可還原。} other {要將 # 個項目移至回收桶嗎？之後仍可還原。}}"
 
@@ -616,7 +635,7 @@ msgstr "{selectedCount, plural, one {要將 # 個項目移至回收桶嗎？之�
 msgid "{subLabel} ({label}, item {position})"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1203
+#: packages/admin/src/components/ContentList.tsx:1262
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# 個項目} other {# 個項目}}"
 
@@ -676,6 +695,10 @@ msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:74
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:390
+msgid "1 post tagged"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:37
@@ -800,7 +823,7 @@ msgstr ""
 msgid "A short description of your site"
 msgstr "網站的簡短說明"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:758
+#: packages/admin/src/components/TaxonomySidebar.tsx:761
 msgid "A source and target locale are required"
 msgstr ""
 
@@ -830,7 +853,7 @@ msgstr "接受邀請"
 msgid "Access denied"
 msgstr "存取遭拒"
 
-#: packages/admin/src/router.tsx:2173
+#: packages/admin/src/router.tsx:2179
 msgid "Access Denied"
 msgstr "存取遭拒"
 
@@ -860,10 +883,11 @@ msgid "ACF Fields"
 msgstr "ACF 欄位"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:769
+#: packages/admin/src/components/ContentList.tsx:696
+#: packages/admin/src/components/ContentList.tsx:828
 #: packages/admin/src/components/ContentTypeList.tsx:190
-#: packages/admin/src/components/TaxonomyManager.tsx:1113
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1455
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
 msgstr "操作"
@@ -895,8 +919,8 @@ msgstr "新增"
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/PortableTextEditor.tsx:2316
-#: packages/admin/src/components/TaxonomyManager.tsx:557
-#: packages/admin/src/components/TaxonomyManager.tsx:1082
+#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Add {0}"
 msgstr "新增 {0}"
 
@@ -1007,7 +1031,7 @@ msgstr "新增連結以建立導覽選單"
 msgid "Add MIME type or extension"
 msgstr "新增 MIME 類型或副檔名"
 
-#: packages/admin/src/components/ContentList.tsx:432
+#: packages/admin/src/components/ContentList.tsx:441
 msgid "Add New"
 msgstr "新增"
 
@@ -1046,6 +1070,27 @@ msgstr "新增 SEO 中繼資料欄位 (標題、說明、圖片) 並納入網站
 msgid "Add Sub-Field"
 msgstr "新增子欄位"
 
+#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/TaxonomyManager.tsx:1313
+msgid "Add tag"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:527
+msgid "Add tag to {ready} posts"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:526
+msgid "Add tag to 1 post"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:252
+msgid "Add tag to posts"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
+msgid "Add to posts"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:403
 msgid "Add Widget Area"
 msgstr "新增小工具區域"
@@ -1054,10 +1099,18 @@ msgstr "新增小工具區域"
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "新增您的社群媒體個人檔案。網站佈景主題可以使用這些資料，並將其顯示在頁首、頁尾或作者簡介中。"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:59
+msgid "Added"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
 msgstr "正在新增…"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:524
+msgid "Adding…"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Additional data to import."
@@ -1067,7 +1120,7 @@ msgstr "要匯入的其他資料。"
 msgid "admin"
 msgstr "管理員"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
 #: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -1132,12 +1185,12 @@ msgstr "靠右對齊"
 msgid "Alignment"
 msgstr "對齊"
 
-#: packages/admin/src/components/ContentList.tsx:444
+#: packages/admin/src/components/ContentList.tsx:453
 msgid "All"
 msgstr "全部"
 
-#: packages/admin/src/components/ContentList.tsx:919
-#: packages/admin/src/components/ContentList.tsx:923
+#: packages/admin/src/components/ContentList.tsx:978
+#: packages/admin/src/components/ContentList.tsx:982
 msgid "All authors"
 msgstr "所有作者"
 
@@ -1175,7 +1228,7 @@ msgstr "所有角色"
 msgid "All Sources"
 msgstr "所有來源"
 
-#: packages/admin/src/components/ContentList.tsx:858
+#: packages/admin/src/components/ContentList.tsx:917
 #: packages/admin/src/components/Redirects.tsx:391
 msgid "All statuses"
 msgstr "所有狀態"
@@ -1218,6 +1271,10 @@ msgstr "允許的類型"
 #: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
 msgstr "已經有帳號了嗎？"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:61
+msgid "Already tagged or duplicate"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:784
 msgid "Also delete plugin storage data"
@@ -1267,9 +1324,9 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:476
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:232
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:491
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
@@ -1286,27 +1343,27 @@ msgstr ""
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
-#: packages/admin/src/components/TaxonomySidebar.tsx:683
-#: packages/admin/src/components/TaxonomySidebar.tsx:779
+#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:782
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:488
 #: packages/admin/src/router.tsx:503
 #: packages/admin/src/router.tsx:517
 #: packages/admin/src/router.tsx:531
-#: packages/admin/src/router.tsx:759
-#: packages/admin/src/router.tsx:1123
-#: packages/admin/src/router.tsx:1217
-#: packages/admin/src/router.tsx:1242
-#: packages/admin/src/router.tsx:1266
-#: packages/admin/src/router.tsx:1290
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:1355
-#: packages/admin/src/router.tsx:1388
-#: packages/admin/src/router.tsx:1409
-#: packages/admin/src/router.tsx:2118
-#: packages/admin/src/router.tsx:2134
-#: packages/admin/src/router.tsx:2159
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:765
+#: packages/admin/src/router.tsx:1129
+#: packages/admin/src/router.tsx:1223
+#: packages/admin/src/router.tsx:1248
+#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1296
+#: packages/admin/src/router.tsx:1342
+#: packages/admin/src/router.tsx:1361
+#: packages/admin/src/router.tsx:1394
+#: packages/admin/src/router.tsx:1415
+#: packages/admin/src/router.tsx:2124
+#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:2165
+#: packages/admin/src/router.tsx:2680
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1344,8 +1401,8 @@ msgstr "允許任何媒體類型 (仍受全域限制)。"
 
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/Settings.tsx:101
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:333
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:348
 msgid "API Tokens"
 msgstr "API 權杖"
 
@@ -1397,7 +1454,7 @@ msgstr "已核准"
 msgid "Arbitrary JSON data"
 msgstr "任意 JSON 資料"
 
-#: packages/admin/src/components/ContentList.tsx:862
+#: packages/admin/src/components/ContentList.tsx:921
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "已封存"
@@ -1535,7 +1592,7 @@ msgstr "自動 (代稱變更)"
 msgid "Auto-approve authenticated users"
 msgstr "自動核准已驗證身分的使用者"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:603
+#: packages/admin/src/components/TaxonomyManager.tsx:791
 msgid "Auto-generated from name (you can edit)"
 msgstr "由名稱自動產生 (您可以編輯)"
 
@@ -1553,7 +1610,7 @@ msgstr "自動備份"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自動備份需要儲存後端 (R2、S3 或本機儲存空間)。請在 EmDash 設定中設定儲存空間以啟用自動備份。"
 
-#: packages/admin/src/router.tsx:1214
+#: packages/admin/src/router.tsx:1220
 msgid "Autosave failed"
 msgstr "自動儲存失敗"
 
@@ -1562,7 +1619,7 @@ msgid "Available bylines"
 msgstr ""
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:842
+#: packages/admin/src/components/TaxonomySidebar.tsx:845
 msgid "Available in {0}"
 msgstr ""
 
@@ -1583,6 +1640,7 @@ msgstr "個人頭像"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
+#: packages/admin/src/components/BulkTagDialog.tsx:463
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaDetailPanel.tsx:1793
 #: packages/admin/src/components/MediaLibrary.tsx:811
@@ -1820,13 +1878,15 @@ msgstr "可以發佈自己的內容"
 msgid "Can view content"
 msgstr "可以檢視內容"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:290
+#: packages/admin/src/components/BulkTagDialog.tsx:468
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1021
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/components/ContentList.tsx:1378
-#: packages/admin/src/components/ContentList.tsx:1560
+#: packages/admin/src/components/ContentList.tsx:584
+#: packages/admin/src/components/ContentList.tsx:1437
+#: packages/admin/src/components/ContentList.tsx:1619
 #: packages/admin/src/components/ContentPickerModal.tsx:240
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
@@ -1851,11 +1911,11 @@ msgstr "可以檢視內容"
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/SecuritySettings.tsx:166
-#: packages/admin/src/components/TaxonomyManager.tsx:386
-#: packages/admin/src/components/TaxonomyManager.tsx:673
-#: packages/admin/src/components/TaxonomyManager.tsx:888
+#: packages/admin/src/components/TaxonomyManager.tsx:580
+#: packages/admin/src/components/TaxonomyManager.tsx:880
+#: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1933
@@ -1992,7 +2052,7 @@ msgstr "變更記錄"
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1282
+#: packages/admin/src/router.tsx:1288
 msgid "Changes discarded"
 msgstr "已捨棄變更"
 
@@ -2077,8 +2137,8 @@ msgstr ""
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1045
-#: packages/admin/src/components/ContentList.tsx:1051
+#: packages/admin/src/components/ContentList.tsx:1104
+#: packages/admin/src/components/ContentList.tsx:1110
 msgid "Choose a date range"
 msgstr ""
 
@@ -2093,6 +2153,14 @@ msgstr ""
 #. placeholder {0}: formatFileFormat(item.mimeType)
 #: packages/admin/src/components/MediaDetailPanel.tsx:907
 msgid "Choose a non-empty {0} image."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:299
+msgid "Choose a tag"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:172
+msgid "Choose a tag and enter between 1 and 50 posts."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:231
@@ -2140,8 +2208,8 @@ msgstr "選擇偏好的管理後台語言"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:571
-#: packages/admin/src/components/ContentList.tsx:1059
+#: packages/admin/src/components/ContentList.tsx:610
+#: packages/admin/src/components/ContentList.tsx:1118
 msgid "Clear"
 msgstr "清除"
 
@@ -2149,7 +2217,7 @@ msgstr "清除"
 msgid "Clear completed"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:964
+#: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
@@ -2157,6 +2225,7 @@ msgstr "清除篩選條件"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/MediaLibrary.tsx:1119
+#: packages/admin/src/components/TaxonomyManager.tsx:1425
 msgid "Clear search"
 msgstr "清除搜尋"
 
@@ -2192,6 +2261,7 @@ msgstr ""
 msgid "Click this link to sign in to {siteName}:"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:262
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
 #: packages/admin/src/components/BylineFieldEditor.tsx:222
@@ -2234,13 +2304,11 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:337
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:343
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:347
-#: packages/admin/src/components/TaxonomyManager.tsx:363
-#: packages/admin/src/components/TaxonomyManager.tsx:566
-#: packages/admin/src/components/TaxonomyManager.tsx:572
-#: packages/admin/src/components/TaxonomyManager.tsx:576
-#: packages/admin/src/components/TaxonomyManager.tsx:807
-#: packages/admin/src/components/TaxonomyManager.tsx:813
-#: packages/admin/src/components/TaxonomyManager.tsx:817
+#: packages/admin/src/components/TaxonomyManager.tsx:557
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:772
+#: packages/admin/src/components/TaxonomyManager.tsx:1019
+#: packages/admin/src/components/TaxonomyManager.tsx:1027
 #: packages/admin/src/components/TaxonomySidebar.tsx:605
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -2314,7 +2382,7 @@ msgstr "內容集合"
 msgid "Collection:"
 msgstr "內容集合:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:858
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Collections"
 msgstr "內容集合"
 
@@ -2400,7 +2468,7 @@ msgstr "元件"
 msgid "Configure Field"
 msgstr "設定欄位"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:431
 msgid "Confirm"
 msgstr "確認"
 
@@ -2477,7 +2545,7 @@ msgstr "內容錯誤 ({0})"
 msgid "Content found:"
 msgstr "找到的內容:"
 
-#: packages/admin/src/router.tsx:1329
+#: packages/admin/src/router.tsx:1335
 msgid "Content has been scheduled for publishing"
 msgstr "已排程發佈內容"
 
@@ -2489,7 +2557,7 @@ msgstr "內容已更新為選取的修訂版本。"
 msgid "Content ID:"
 msgstr "內容 ID:"
 
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1242
 msgid "Content is now live"
 msgstr "內容現已上線"
 
@@ -2501,11 +2569,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "讀取內容"
 
-#: packages/admin/src/router.tsx:1260
+#: packages/admin/src/router.tsx:1266
 msgid "Content removed from public view"
 msgstr "已從公開頁面移除內容"
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1354
 msgid "Content reverted to draft"
 msgstr "內容已還原為草稿"
 
@@ -2584,7 +2652,7 @@ msgstr "投稿者"
 msgid "Copied"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "已複製到剪貼簿"
@@ -2611,12 +2679,12 @@ msgstr "複製邀請連結"
 msgid "Copy slug"
 msgstr "複製代稱"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:258
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
 msgid "Copy this token now — it won't be shown again."
 msgstr "請立即複製這個權杖 — 之後不會再次顯示。"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:289
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:296
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
 msgid "Copy token"
 msgstr "複製權杖"
 
@@ -2626,9 +2694,17 @@ msgstr "複製權杖"
 msgid "Copy URL"
 msgstr "複製網址"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:229
+msgid "Could not add tag"
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:136
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "無法自動複製。請選取上方網址並手動複製。"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:164
+msgid "Could not create tag"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3712
 msgid "Could not insert section"
@@ -2646,8 +2722,16 @@ msgstr "無法從 URL 載入圖片"
 msgid "Could not load media."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:328
+msgid "Could not load tags."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:1202
 msgid "Could not load this folder."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:182
+msgid "Could not review posts"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:816
@@ -2695,7 +2779,8 @@ msgstr ""
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr "無法確認有多少值參照「{0}」。刪除後仍會移除這個欄位所有已儲存的值 — 但無法檢查上方的數量。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1112
+#: packages/admin/src/components/TaxonomyManager.tsx:1400
+#: packages/admin/src/components/TaxonomyManager.tsx:1454
 msgid "Count"
 msgstr "數量"
 
@@ -2704,7 +2789,7 @@ msgstr "數量"
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/TaxonomyManager.tsx:680
+#: packages/admin/src/components/TaxonomyManager.tsx:891
 #: packages/admin/src/components/Widgets.tsx:454
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
@@ -2725,7 +2810,7 @@ msgid "Create {0}"
 msgstr ""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:856
 msgid "Create {0} translation"
 msgstr ""
 
@@ -2738,7 +2823,7 @@ msgid "Create a bullet list"
 msgstr "建立項目符號清單"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:562
+#: packages/admin/src/components/TaxonomyManager.tsx:760
 msgid "Create a new {0}"
 msgstr "建立新的 {0}"
 
@@ -2788,7 +2873,11 @@ msgstr "建立選單"
 msgid "Create New Menu"
 msgstr "建立新選單"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/BulkTagDialog.tsx:321
+msgid "Create new tag"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
 msgstr "建立新權杖"
 
@@ -2801,9 +2890,9 @@ msgid "Create passkey"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:230
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:341
 msgid "Create personal access tokens for programmatic API access"
 msgstr "建立個人存取權杖，以透過程式存取 API"
 
@@ -2833,8 +2922,12 @@ msgstr "建立區段"
 msgid "Create sections in the Sections library to use them here"
 msgstr "請先在區段庫中建立區段，才能在這裡使用"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:800
-#: packages/admin/src/components/TaxonomyManager.tsx:891
+#: packages/admin/src/components/BulkTagDialog.tsx:287
+msgid "Create tag"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1013
+#: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Create Taxonomy"
 msgstr "建立分類法"
 
@@ -2842,8 +2935,8 @@ msgstr "建立分類法"
 msgid "Create taxonomy terms and change content classifications"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 msgid "Create Token"
 msgstr "建立權杖"
 
@@ -2863,7 +2956,7 @@ msgstr ""
 msgid "Create your first navigation menu to get started"
 msgstr "建立第一個導覽選單以開始使用"
 
-#: packages/admin/src/components/ContentList.tsx:665
+#: packages/admin/src/components/ContentList.tsx:724
 msgid "Create your first one"
 msgstr "建立第一個項目"
 
@@ -2888,9 +2981,9 @@ msgstr "建立、更新及刪除分類項目"
 msgid "Create, update, delete content"
 msgstr "建立、更新、刪除內容"
 
-#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:927
 #: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "建立時間"
@@ -2906,7 +2999,7 @@ msgid "Created {0}"
 msgstr "建立於 {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1380
+#: packages/admin/src/router.tsx:1386
 msgid "Created {0} translation"
 msgstr "已建立 {0} 翻譯"
 
@@ -2929,8 +3022,8 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
-#: packages/admin/src/components/TaxonomyManager.tsx:891
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
+#: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Creating..."
 msgstr "正在建立…"
 
@@ -3019,7 +3112,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:685
 msgid "Date"
 msgstr "日期"
 
@@ -3032,7 +3125,7 @@ msgstr "日期與時間"
 msgid "Date and time picker"
 msgstr "日期與時間選擇器"
 
-#: packages/admin/src/components/ContentList.tsx:941
+#: packages/admin/src/components/ContentList.tsx:1000
 msgid "Date field to filter on"
 msgstr "用來篩選的日期欄位"
 
@@ -3040,7 +3133,7 @@ msgstr "用來篩選的日期欄位"
 msgid "Date Format"
 msgstr "日期格式"
 
-#: packages/admin/src/components/ContentList.tsx:991
+#: packages/admin/src/components/ContentList.tsx:1050
 msgid "Date range"
 msgstr ""
 
@@ -3073,7 +3166,7 @@ msgstr "預設社群圖片"
 msgid "Default Social Image"
 msgstr "預設社群圖片"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:803
+#: packages/admin/src/components/TaxonomyManager.tsx:1015
 msgid "Define a new taxonomy for classifying content"
 msgstr "定義新的分類法以分類內容"
 
@@ -3104,8 +3197,8 @@ msgstr "在程式碼中定義"
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
-#: packages/admin/src/components/TaxonomyManager.tsx:1191
+#: packages/admin/src/components/TaxonomyManager.tsx:1524
+#: packages/admin/src/components/TaxonomyManager.tsx:1540
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:588
@@ -3125,7 +3218,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:408
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:312
-#: packages/admin/src/components/TaxonomyManager.tsx:297
+#: packages/admin/src/components/TaxonomyManager.tsx:491
 #: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
@@ -3147,7 +3240,7 @@ msgid "Delete {0} widget area"
 msgstr "刪除 {0} 小工具區域"
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:1171
+#: packages/admin/src/components/TaxonomyManager.tsx:1520
 msgid "Delete {0}?"
 msgstr "要刪除 {0} 嗎？"
 
@@ -3224,11 +3317,11 @@ msgid "Delete permanently"
 msgstr "永久刪除"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1571
+#: packages/admin/src/components/ContentList.tsx:1630
 msgid "Delete Permanently"
 msgstr "永久刪除"
 
-#: packages/admin/src/components/ContentList.tsx:1551
+#: packages/admin/src/components/ContentList.tsx:1610
 msgid "Delete Permanently?"
 msgstr "要永久刪除嗎？"
 
@@ -3261,11 +3354,20 @@ msgstr "要刪除區段嗎？"
 msgid "Delete table"
 msgstr "刪除表格"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:365
+msgid "Delete tag"
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+msgid "Delete tag {0}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1362
 msgid "Delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1189
+#: packages/admin/src/components/TaxonomyManager.tsx:1538
 msgid "Delete Taxonomy"
 msgstr ""
 
@@ -3273,12 +3375,12 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr "要刪除小工具區域嗎？"
 
-#: packages/admin/src/components/ContentList.tsx:766
+#: packages/admin/src/components/ContentList.tsx:825
 msgid "Deleted"
 msgstr "已刪除"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1190
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr ""
 
@@ -3298,8 +3400,8 @@ msgstr "刪除「{0}」也會移除所有署名資料中的 {1, plural, one {# �
 #: packages/admin/src/components/Redirects.tsx:613
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:353
-#: packages/admin/src/components/TaxonomyManager.tsx:1176
-#: packages/admin/src/components/TaxonomyManager.tsx:1192
+#: packages/admin/src/components/TaxonomyManager.tsx:1525
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
 #: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
@@ -3360,7 +3462,7 @@ msgstr "說明此區段的用途…"
 msgid "Description"
 msgstr "說明"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:635
+#: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Description (optional)"
 msgstr "說明 (選填)"
 
@@ -3476,7 +3578,7 @@ msgid "Discarding..."
 msgstr "正在捨棄變更…"
 
 #: packages/admin/src/components/Dashboard.tsx:188
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "關閉"
 
@@ -3576,8 +3678,9 @@ msgstr "網域已更新"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "還沒有帳號嗎？<0>註冊</0>"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:468
 #: packages/admin/src/components/BylineCreditsEditor.tsx:920
-#: packages/admin/src/components/ContentList.tsx:1067
+#: packages/admin/src/components/ContentList.tsx:1126
 #: packages/admin/src/components/MediaUploadDialog.tsx:353
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2144
@@ -3592,6 +3695,10 @@ msgstr "下載 {0}"
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
 msgstr "下載完整網站備份: 所有內容 (包括草稿及回收桶中的內容)、內容集合、分類法、選單、小工具、媒體中繼資料及網站設定。絕不包含使用者帳號及機密資訊。"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
@@ -3614,7 +3721,7 @@ msgstr "下載 SBOM"
 msgid "Downloading"
 msgstr "正在下載"
 
-#: packages/admin/src/components/ContentList.tsx:860
+#: packages/admin/src/components/ContentList.tsx:919
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "草稿"
@@ -3709,7 +3816,7 @@ msgstr "將 WordPress 匯出檔案拖放到這裡"
 msgid "Duplicate"
 msgstr "複製"
 
-#: packages/admin/src/components/ContentList.tsx:1351
+#: packages/admin/src/components/ContentList.tsx:1410
 msgid "Duplicate {title}"
 msgstr "複製 {title}"
 
@@ -3725,7 +3832,7 @@ msgstr "例如 application/zip 或 .pdf"
 msgid "e.g. import, blog"
 msgstr "例如 import、blog"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:484
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:499
 msgid "e.g., CI/CD Pipeline"
 msgstr "例如 CI/CD Pipeline"
 
@@ -3749,8 +3856,9 @@ msgstr "編輯"
 #: packages/admin/src/components/ContentTypeList.tsx:332
 #: packages/admin/src/components/PortableTextEditor.tsx:2097
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
-#: packages/admin/src/components/TaxonomyManager.tsx:289
-#: packages/admin/src/components/TaxonomyManager.tsx:556
+#: packages/admin/src/components/TaxonomyManager.tsx:310
+#: packages/admin/src/components/TaxonomyManager.tsx:483
+#: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/routes/byline-schema.tsx:449
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Edit {0}"
@@ -3770,7 +3878,7 @@ msgstr "編輯 {itemLabel}"
 msgid "Edit {label}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1343
+#: packages/admin/src/components/ContentList.tsx:1402
 msgid "Edit {title}"
 msgstr "編輯 {title}"
 
@@ -4090,9 +4198,9 @@ msgstr "輸入您的 WordPress 網站網址"
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:532
-#: packages/admin/src/components/TaxonomyManager.tsx:982
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2892
+#: packages/admin/src/router.tsx:2898
 msgid "Error"
 msgstr "錯誤"
 
@@ -4141,6 +4249,10 @@ msgstr ""
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:254
+msgid "Existing tags stay in place."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2026
 msgid "Exists"
 msgstr "已存在"
@@ -4162,8 +4274,8 @@ msgstr ""
 msgid "Expand details"
 msgstr "展開詳細資料"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:365
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:526
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:380
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:541
 msgid "Expiry"
 msgstr "到期日"
 
@@ -4187,6 +4299,7 @@ msgstr "Facebook"
 msgid "Fail"
 msgstr "失敗"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:63
 #: packages/admin/src/components/WordPressImport.tsx:2146
 msgid "Failed"
 msgstr "失敗"
@@ -4216,7 +4329,7 @@ msgid "Failed to confirm upload"
 msgstr "無法確認上傳"
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:749
+#: packages/admin/src/components/TaxonomySidebar.tsx:752
 msgid "Failed to create {0}"
 msgstr ""
 
@@ -4249,19 +4362,19 @@ msgstr "無法建立區段"
 msgid "Failed to create some collections"
 msgstr "建立部分內容集合失敗"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:728
+#: packages/admin/src/components/TaxonomySidebar.tsx:731
 msgid "Failed to create term"
 msgstr "建立分類項目失敗"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1385
+#: packages/admin/src/components/TaxonomySidebar.tsx:781
+#: packages/admin/src/router.tsx:1391
 msgid "Failed to create translation"
 msgstr "無法建立翻譯"
 
 #: packages/admin/src/router.tsx:487
 #: packages/admin/src/router.tsx:516
 #: packages/admin/src/router.tsx:599
-#: packages/admin/src/router.tsx:1408
+#: packages/admin/src/router.tsx:1414
 msgid "Failed to delete"
 msgstr "無法刪除"
 
@@ -4286,7 +4399,7 @@ msgid "Failed to delete collection"
 msgstr "無法刪除內容集合"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2133
+#: packages/admin/src/router.tsx:2139
 msgid "Failed to delete comment"
 msgstr "刪除留言失敗"
 
@@ -4331,11 +4444,11 @@ msgstr "刪除重新導向失敗"
 msgid "Failed to delete section"
 msgstr "無法刪除區段"
 
-#: packages/admin/src/lib/api/taxonomies.ts:145
+#: packages/admin/src/lib/api/taxonomies.ts:176
 msgid "Failed to delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/lib/api/taxonomies.ts:231
+#: packages/admin/src/lib/api/taxonomies.ts:267
 msgid "Failed to delete term"
 msgstr "無法刪除分類項目"
 
@@ -4360,7 +4473,7 @@ msgstr "無法停用搜尋"
 msgid "Failed to disable user"
 msgstr "無法停用使用者"
 
-#: packages/admin/src/router.tsx:1289
+#: packages/admin/src/router.tsx:1295
 msgid "Failed to discard changes"
 msgstr "捨棄變更失敗"
 
@@ -4492,8 +4605,8 @@ msgstr "擷取分類項目失敗"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:998
-#: packages/admin/src/router.tsx:2064
+#: packages/admin/src/router.tsx:1004
+#: packages/admin/src/router.tsx:2070
 msgid "Failed to fetch user"
 msgstr "無法擷取使用者"
 
@@ -4608,7 +4721,7 @@ msgstr "載入小工具失敗"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2158
+#: packages/admin/src/router.tsx:2164
 msgid "Failed to perform bulk action"
 msgstr "執行批次操作失敗"
 
@@ -4621,7 +4734,7 @@ msgid "Failed to prepare import"
 msgstr "準備匯入失敗"
 
 #: packages/admin/src/router.tsx:555
-#: packages/admin/src/router.tsx:1241
+#: packages/admin/src/router.tsx:1247
 msgid "Failed to publish"
 msgstr "發佈失敗"
 
@@ -4684,7 +4797,7 @@ msgstr "還原內容失敗"
 msgid "Failed to restore revision"
 msgstr "無法還原修訂版本"
 
-#: packages/admin/src/lib/api/api-tokens.ts:99
+#: packages/admin/src/lib/api/api-tokens.ts:102
 msgid "Failed to revoke API token"
 msgstr "撤銷 API 權杖失敗"
 
@@ -4692,9 +4805,9 @@ msgstr "撤銷 API 權杖失敗"
 msgid "Failed to rewrite URLs"
 msgstr "重寫網址失敗"
 
-#: packages/admin/src/router.tsx:754
-#: packages/admin/src/router.tsx:1120
-#: packages/admin/src/router.tsx:2673
+#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:1126
+#: packages/admin/src/router.tsx:2679
 msgid "Failed to save"
 msgstr "儲存失敗"
 
@@ -4713,7 +4826,7 @@ msgstr "無法儲存欄位"
 msgid "Failed to save settings"
 msgstr "無法儲存設定"
 
-#: packages/admin/src/router.tsx:1335
+#: packages/admin/src/router.tsx:1341
 msgid "Failed to schedule"
 msgstr "無法排程"
 
@@ -4744,11 +4857,11 @@ msgstr "無法設定內容項目的分類項目"
 msgid "Failed to uninstall plugin"
 msgstr "無法解除安裝外掛"
 
-#: packages/admin/src/router.tsx:1265
+#: packages/admin/src/router.tsx:1271
 msgid "Failed to unpublish"
 msgstr "取消發佈失敗"
 
-#: packages/admin/src/router.tsx:1354
+#: packages/admin/src/router.tsx:1360
 msgid "Failed to unschedule"
 msgstr "無法取消排程"
 
@@ -4757,7 +4870,7 @@ msgid "Failed to update"
 msgstr "更新失敗"
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:682
+#: packages/admin/src/components/TaxonomySidebar.tsx:685
 msgid "Failed to update {0}"
 msgstr "更新 {0} 失敗"
 
@@ -4799,7 +4912,7 @@ msgstr "更新區段失敗"
 msgid "Failed to update settings"
 msgstr "無法更新設定"
 
-#: packages/admin/src/router.tsx:2117
+#: packages/admin/src/router.tsx:2123
 msgid "Failed to update status"
 msgstr "無法更新狀態"
 
@@ -4916,7 +5029,7 @@ msgstr "檔案名稱在上傳後無法變更"
 msgid "Files upload as soon as you add them."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:915
+#: packages/admin/src/components/ContentList.tsx:974
 msgid "Filter by author"
 msgstr "依作者篩選"
 
@@ -4932,7 +5045,7 @@ msgstr "依權限篩選"
 msgid "Filter by collection"
 msgstr "依內容集合篩選"
 
-#: packages/admin/src/components/ContentList.tsx:1037
+#: packages/admin/src/components/ContentList.tsx:1096
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
@@ -4944,7 +5057,7 @@ msgstr "依角色篩選"
 msgid "Filter by source"
 msgstr "依來源篩選"
 
-#: packages/admin/src/components/ContentList.tsx:897
+#: packages/admin/src/components/ContentList.tsx:956
 #: packages/admin/src/components/Redirects.tsx:392
 msgid "Filter by status"
 msgstr "依狀態篩選"
@@ -5006,7 +5119,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1787
+#: packages/admin/src/router.tsx:1793
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -5063,7 +5176,7 @@ msgid "Freeform"
 msgstr ""
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:988
+#: packages/admin/src/components/ContentList.tsx:1047
 msgid "From {0}"
 msgstr ""
 
@@ -5084,7 +5197,7 @@ msgstr "完整"
 msgid "Full access"
 msgstr "完整存取權"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:118
 msgid "Full admin access"
 msgstr "完整管理員存取權"
 
@@ -5110,7 +5223,7 @@ msgstr "一般設定"
 msgid "Generated automatically."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:828
+#: packages/admin/src/components/TaxonomyManager.tsx:1038
 msgid "Genres"
 msgstr "文類"
 
@@ -5131,7 +5244,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2912
+#: packages/admin/src/router.tsx:2918
 msgid "Go to Dashboard"
 msgstr "前往控制台"
 
@@ -5256,8 +5369,8 @@ msgstr "hero, banner, cta, 主視覺, 橫幅"
 msgid "Hide from search engines"
 msgstr "對搜尋引擎隱藏"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Hide token"
 msgstr "隱藏權杖"
 
@@ -5270,7 +5383,7 @@ msgstr ""
 msgid "Hide toolbar"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:851
+#: packages/admin/src/components/TaxonomyManager.tsx:1061
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "階層式 (類似分類，具有上層/子層關係)"
 
@@ -5305,6 +5418,10 @@ msgstr ""
 msgid "Hour"
 msgstr ""
 
+#: packages/admin/src/components/TaxonomyManager.tsx:793
+msgid "How is the slug generated?"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1536
 msgid "How to create an Application Password"
 msgstr "如何建立應用程式密碼"
@@ -5322,6 +5439,10 @@ msgstr "HTML 原始碼"
 #: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
 msgstr "https://example.com 或 /about"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:368
+msgid "https://example.com/blog/my-post"
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1121
 msgid "https://example.com/image.jpg"
@@ -5431,6 +5552,10 @@ msgstr "匯入"
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Import {0}"
 msgstr "匯入 {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
+msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
@@ -5748,7 +5873,7 @@ msgstr "邀請第一位團隊成員"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "呼叫所有已啟用外掛的 MCP 工具"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr "僅呼叫這個外掛已啟用的 MCP 工具"
 
@@ -5855,7 +5980,7 @@ msgstr "Kotlin"
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:169
-#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:1035
 #: packages/admin/src/components/Widgets.tsx:436
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -5910,7 +6035,7 @@ msgstr "上次出現時間"
 msgid "Last updated"
 msgstr "上次更新時間"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
 #: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "上次使用時間"
@@ -6014,8 +6139,8 @@ msgstr "即時檢視"
 msgid "Load more"
 msgstr "載入更多"
 
-#: packages/admin/src/components/ContentList.tsx:745
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:804
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
@@ -6028,7 +6153,7 @@ msgstr "載入更多"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2867
+#: packages/admin/src/router.tsx:2873
 msgid "Loading"
 msgstr "正在載入"
 
@@ -6049,8 +6174,8 @@ msgstr "正在載入內容集合…"
 msgid "Loading comments..."
 msgstr "正在載入留言..."
 
-#: packages/admin/src/router.tsx:2869
-#: packages/admin/src/router.tsx:2881
+#: packages/admin/src/router.tsx:2875
+#: packages/admin/src/router.tsx:2887
 msgid "Loading configuration..."
 msgstr "正在載入設定..."
 
@@ -6116,7 +6241,12 @@ msgstr "正在載入設定..."
 msgid "Loading setup..."
 msgstr "正在載入設定..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1117
+#: packages/admin/src/components/BulkTagDialog.tsx:325
+msgid "Loading tags…"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
+#: packages/admin/src/components/TaxonomyManager.tsx:1459
 msgid "Loading terms..."
 msgstr "正在載入分類項目..."
 
@@ -6128,10 +6258,10 @@ msgstr ""
 msgid "Loading widgets..."
 msgstr "正在載入小工具…"
 
-#: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:745
-#: packages/admin/src/components/ContentList.tsx:779
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:706
+#: packages/admin/src/components/ContentList.tsx:804
+#: packages/admin/src/components/ContentList.tsx:838
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
@@ -6144,11 +6274,11 @@ msgstr "正在載入小工具…"
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:99
-#: packages/admin/src/components/TaxonomyManager.tsx:1049
+#: packages/admin/src/components/TaxonomyManager.tsx:1273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -6165,8 +6295,8 @@ msgstr ""
 msgid "Local time"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:619
-#: packages/admin/src/components/ContentList.tsx:762
+#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:821
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "語系"
@@ -6218,7 +6348,7 @@ msgstr "長文字"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "僅限小寫字母、數字及連字號"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:843
+#: packages/admin/src/components/TaxonomyManager.tsx:1053
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "僅限小寫字母、數字和底線，且必須以字母開頭"
 
@@ -6241,7 +6371,7 @@ msgstr "管理"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1066
+#: packages/admin/src/components/TaxonomyManager.tsx:1290
 msgid "Manage {0} for {1}"
 msgstr "管理 {1} 的 {0}"
 
@@ -6313,11 +6443,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "市集"
 
-#: packages/admin/src/router.tsx:2399
+#: packages/admin/src/router.tsx:2405
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2374
+#: packages/admin/src/router.tsx:2380
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6575,8 +6705,10 @@ msgstr "每月/每年彙整"
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: taxonomyDef.label
+#. placeholder {0}: term.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:862
-#: packages/admin/src/components/TaxonomyManager.tsx:1092
+#: packages/admin/src/components/TaxonomyManager.tsx:322
+#: packages/admin/src/components/TaxonomyManager.tsx:1341
 msgid "More actions for {0}"
 msgstr ""
 
@@ -6596,6 +6728,10 @@ msgstr ""
 msgid "More table actions"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:428
+msgid "More than one post matches this link"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
 msgstr "熱門項目"
@@ -6610,19 +6746,19 @@ msgstr "將「{0}」下移"
 msgid "Move \"{0}\" up"
 msgstr "將「{0}」上移"
 
-#: packages/admin/src/components/ContentList.tsx:1372
+#: packages/admin/src/components/ContentList.tsx:1431
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "要將「{title}」移至回收桶嗎？之後仍可還原。"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: term.label
 #: packages/admin/src/components/FieldEditor.tsx:692
-#: packages/admin/src/components/TaxonomyManager.tsx:268
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 msgid "Move {0} down"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:267
+#: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
 msgstr ""
 
@@ -6639,22 +6775,28 @@ msgstr ""
 #. placeholder {0}: blockType.label
 #. placeholder {0}: term.label
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/TaxonomyManager.tsx:255
+#: packages/admin/src/components/TaxonomyManager.tsx:449
 msgid "Move {0} up"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:254
+#: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1422
 msgid "Move {title} to trash"
 msgstr "將 {title} 移至回收桶"
 
 #: packages/admin/src/components/MenuEditor.tsx:537
+#: packages/admin/src/components/TaxonomyManager.tsx:346
 msgid "Move down"
 msgstr "下移"
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:342
+msgid "Move down {0}"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
@@ -6664,26 +6806,32 @@ msgstr ""
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:529
+#: packages/admin/src/components/ContentList.tsx:568
 msgid "Move to trash"
 msgstr "移至回收桶"
 
-#: packages/admin/src/components/ContentList.tsx:556
-#: packages/admin/src/components/ContentList.tsx:1385
+#: packages/admin/src/components/ContentList.tsx:595
+#: packages/admin/src/components/ContentList.tsx:1444
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1297
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1317
 msgid "Move to Trash"
 msgstr "移至回收桶"
 
-#: packages/admin/src/components/ContentList.tsx:534
-#: packages/admin/src/components/ContentList.tsx:1370
+#: packages/admin/src/components/ContentList.tsx:573
+#: packages/admin/src/components/ContentList.tsx:1429
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1302
 msgid "Move to Trash?"
 msgstr "要移至回收桶嗎？"
 
 #: packages/admin/src/components/MenuEditor.tsx:528
+#: packages/admin/src/components/TaxonomyManager.tsx:338
 msgid "Move up"
 msgstr "上移"
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:334
+msgid "Move up {0}"
+msgstr ""
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:693
@@ -6743,20 +6891,21 @@ msgstr "我的精彩網誌"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:157
-#: packages/admin/src/components/TaxonomyManager.tsx:584
-#: packages/admin/src/components/TaxonomyManager.tsx:834
-#: packages/admin/src/components/TaxonomyManager.tsx:1111
+#: packages/admin/src/components/TaxonomyManager.tsx:780
+#: packages/admin/src/components/TaxonomyManager.tsx:1044
+#: packages/admin/src/components/TaxonomyManager.tsx:1399
+#: packages/admin/src/components/TaxonomyManager.tsx:1453
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
 msgid "Name"
 msgstr "名稱"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:971
 msgid "Name and label are required"
 msgstr "名稱及標籤為必填"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:766
+#: packages/admin/src/components/TaxonomyManager.tsx:977
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "名稱必須以字母開頭，且只能包含小寫字母、數字及底線"
 
@@ -6785,7 +6934,7 @@ msgstr ""
 msgid "Never"
 msgstr "從未"
 
-#: packages/admin/src/router.tsx:1380
+#: packages/admin/src/router.tsx:1386
 msgid "new"
 msgstr "新增"
 
@@ -6847,7 +6996,15 @@ msgstr "新增區段"
 msgid "new tab"
 msgstr "新分頁"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1079
+#: packages/admin/src/components/BulkTagDialog.tsx:275
+msgid "New tag name"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1352
+msgid "New taxonomy"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1326
 msgid "New Taxonomy"
 msgstr "新增分類法"
 
@@ -6863,7 +7020,7 @@ msgstr "新視窗"
 msgid "Newest"
 msgstr "最新項目"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:587
+#: packages/admin/src/components/TaxonomyManager.tsx:783
 msgid "News"
 msgstr "新聞"
 
@@ -6872,7 +7029,7 @@ msgid "Next"
 msgstr "下一個"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:733
+#: packages/admin/src/components/ContentList.tsx:792
 #: packages/admin/src/components/MediaLibrary.tsx:1316
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
 msgid "Next page"
@@ -6892,7 +7049,7 @@ msgstr ""
 msgid "Next, the browser's passkey window will open"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1408
+#: packages/admin/src/components/ContentList.tsx:1467
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -6903,12 +7060,13 @@ msgid "No (shared across translations)"
 msgstr "否 (在各翻譯間共用)"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:658
+#: packages/admin/src/components/ContentList.tsx:717
 msgid "No {0} yet."
 msgstr "目前沒有 {0}。"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1120
+#: packages/admin/src/components/TaxonomyManager.tsx:1391
+#: packages/admin/src/components/TaxonomyManager.tsx:1462
 msgid "No {0} yet. Create one to get started."
 msgstr "尚無 {0}。請建立一個以開始使用。"
 
@@ -6925,7 +7083,7 @@ msgstr "尚未記錄任何 404 錯誤。"
 msgid "No alt text"
 msgstr "沒有替代文字"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:402
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
 msgid "No API tokens yet. Create one to get started."
 msgstr "尚無 API 權杖。建立一個即可開始。"
 
@@ -7022,6 +7180,10 @@ msgstr "尚未設定電子郵件服務提供者。請手動分享此連結。"
 msgid "No EmDash users found"
 msgstr "找不到 EmDash 使用者"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:429
+msgid "No exact match on this site"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "No expiry"
 msgstr "永不到期"
@@ -7096,6 +7258,10 @@ msgstr "沒有符合的媒體"
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:265
 msgid "No matching passkey found for this account."
 msgstr "找不到與這個帳號相符的通行金鑰。"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+msgid "No matching tags"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:567
 #: packages/admin/src/components/FieldEditor.tsx:597
@@ -7177,8 +7343,8 @@ msgstr "目前沒有重新導向"
 msgid "No results"
 msgstr "沒有結果"
 
-#: packages/admin/src/components/ContentList.tsx:655
-#: packages/admin/src/components/ContentList.tsx:674
+#: packages/admin/src/components/ContentList.tsx:714
+#: packages/admin/src/components/ContentList.tsx:733
 msgid "No results for \"{activeSearch}\""
 msgstr "找不到符合「{activeSearch}」的結果"
 
@@ -7245,8 +7411,8 @@ msgstr ""
 msgid "None"
 msgstr "無"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:613
-#: packages/admin/src/components/TaxonomyManager.tsx:622
+#: packages/admin/src/components/TaxonomyManager.tsx:820
+#: packages/admin/src/components/TaxonomyManager.tsx:829
 msgid "None (top level)"
 msgstr "無 (最上層)"
 
@@ -7254,7 +7420,11 @@ msgstr "無 (最上層)"
 msgid "Not compatible with this environment"
 msgstr "與這個環境不相容"
 
-#: packages/admin/src/components/ContentList.tsx:1407
+#: packages/admin/src/components/BulkTagDialog.tsx:64
+msgid "Not matched"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1466
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr "未設定"
@@ -7385,7 +7555,7 @@ msgstr "顯示於圖片下方的選填圖說"
 msgid "Optional caption for display"
 msgstr "選填顯示圖說"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:638
+#: packages/admin/src/components/TaxonomyManager.tsx:845
 msgid "Optional description"
 msgstr "選填的說明"
 
@@ -7476,7 +7646,7 @@ msgstr "所有權"
 msgid "Package"
 msgstr "套件"
 
-#: packages/admin/src/router.tsx:2907
+#: packages/admin/src/router.tsx:2913
 msgid "Page Not Found"
 msgstr "找不到頁面"
 
@@ -7508,7 +7678,7 @@ msgid "Paragraph inserted before table"
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/TaxonomyManager.tsx:609
+#: packages/admin/src/components/TaxonomyManager.tsx:816
 msgid "Parent"
 msgstr "上層項目"
 
@@ -7644,11 +7814,11 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1554
+#: packages/admin/src/components/ContentList.tsx:1613
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "要永久刪除「{title}」嗎？此操作無法復原。"
 
-#: packages/admin/src/components/ContentList.tsx:1543
+#: packages/admin/src/components/ContentList.tsx:1602
 msgid "Permanently delete {title}"
 msgstr "永久刪除 {title}"
 
@@ -7785,8 +7955,8 @@ msgstr "外掛庫"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2334
-#: packages/admin/src/router.tsx:2365
+#: packages/admin/src/router.tsx:2340
+#: packages/admin/src/router.tsx:2371
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -7796,8 +7966,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "外掛回應 {0}: {text}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:530
 msgid "Plugin tools: {0}"
 msgstr "外掛工具: {0}"
 
@@ -7842,6 +8012,10 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:399
 msgid "Post"
 msgstr "文章"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:363
+msgid "Post URLs (one per line)"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:407
 #: packages/admin/src/components/WordPressImport.tsx:1338
@@ -7897,7 +8071,7 @@ msgid "Previous"
 msgstr "上一個"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/ContentList.tsx:780
 #: packages/admin/src/components/MediaLibrary.tsx:1315
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
 msgid "Previous page"
@@ -7955,7 +8129,7 @@ msgstr ""
 msgid "visualEditing.publish"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:505
+#: packages/admin/src/components/ContentList.tsx:514
 #: packages/admin/src/components/ContentSettingsPanel.tsx:900
 #: packages/admin/src/components/ContentSettingsPanel.tsx:903
 msgid "Publish"
@@ -7986,11 +8160,11 @@ msgstr ""
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:859
-#: packages/admin/src/components/ContentList.tsx:870
+#: packages/admin/src/components/ContentList.tsx:918
+#: packages/admin/src/components/ContentList.tsx:929
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:403
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1242
 msgid "Published"
 msgstr "已發佈"
 
@@ -8125,6 +8299,7 @@ msgstr ""
 msgid "Reading"
 msgstr "閱讀"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:57
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/WordPressImport.tsx:2002
@@ -8281,7 +8456,7 @@ msgstr "移除 {entry}"
 msgid "Remove {label}"
 msgstr "移除 {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:862
+#: packages/admin/src/components/TaxonomySidebar.tsx:865
 msgid "Remove assignment"
 msgstr ""
 
@@ -8566,7 +8741,7 @@ msgstr ""
 msgid "Restore"
 msgstr "還原"
 
-#: packages/admin/src/components/ContentList.tsx:1531
+#: packages/admin/src/components/ContentList.tsx:1590
 msgid "Restore {title}"
 msgstr "還原 {title}"
 
@@ -8592,6 +8767,10 @@ msgstr "要從 {0} 還原此版本嗎？這會將目前內容更新為此修訂�
 msgid "Restoring..."
 msgstr "正在還原..."
 
+#: packages/admin/src/components/BulkTagDialog.tsx:408
+msgid "Results"
+msgstr ""
+
 #: packages/admin/src/components/BlocksField.tsx:360
 #: packages/admin/src/components/FieldEditor.tsx:659
 msgid "Retired"
@@ -8611,7 +8790,7 @@ msgstr ""
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2895
+#: packages/admin/src/router.tsx:2901
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "重試"
@@ -8623,6 +8802,10 @@ msgstr "重試"
 msgid "Retry {0}"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:505
+msgid "Retry cache refresh"
+msgstr ""
+
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:251
 msgid "Retry copy"
@@ -8630,6 +8813,14 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:344
 msgid "Retry failed"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:486
+msgid "Retry failures"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:335
+msgid "Retry loading tags"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
@@ -8649,7 +8840,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "可插入任何內容的可重複使用內容區塊"
 
-#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1289
 msgid "Reverted to published version"
 msgstr "已還原至已發佈版本"
 
@@ -8669,6 +8860,11 @@ msgstr ""
 msgid "Review New Permissions"
 msgstr "檢閱新權限"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:408
+#: packages/admin/src/components/BulkTagDialog.tsx:537
+msgid "Review posts"
+msgstr ""
+
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:51
 msgid "Review proposed changes"
 msgstr ""
@@ -8685,6 +8881,10 @@ msgstr ""
 msgid "Review Verified Update"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:537
+msgid "Reviewing…"
+msgstr ""
+
 #: packages/admin/src/components/RevisionHistory.tsx:129
 msgid "Revision restored"
 msgstr "已還原修訂版本"
@@ -8695,22 +8895,22 @@ msgstr "已還原修訂版本"
 msgid "Revisions"
 msgstr "修訂版本"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:208
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Revoke token"
 msgstr "撤銷權杖"
 
 #. placeholder {0}: token.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Revoke token {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
 msgstr "要撤銷嗎？"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
 msgstr "正在撤銷…"
 
@@ -8873,6 +9073,10 @@ msgstr "已儲存"
 msgid "Saved \"{0}\"."
 msgstr "已儲存「{0}」。"
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:680
+msgid "Saved immediately; term changes do not wait for Publish changes."
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:889
 #: packages/admin/src/components/MediaDetailPanel.tsx:1866
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
@@ -8881,7 +9085,7 @@ msgstr "已儲存「{0}」。"
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:33
-#: packages/admin/src/components/TaxonomyManager.tsx:677
+#: packages/admin/src/components/TaxonomyManager.tsx:888
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
@@ -8923,9 +9127,9 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ContentList.tsx:920
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1328
+#: packages/admin/src/router.tsx:1334
 msgid "Scheduled"
 msgstr "已排程"
 
@@ -8958,8 +9162,8 @@ msgstr "讀取結構描述"
 msgid "Schema Write"
 msgstr "寫入結構描述"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:490
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:366
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:505
 msgid "Scopes"
 msgstr "權限範圍"
 
@@ -9008,12 +9212,12 @@ msgid "Search"
 msgstr "搜尋"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:466
+#: packages/admin/src/components/ContentList.tsx:475
 msgid "Search {0}"
 msgstr "搜尋 {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:465
+#: packages/admin/src/components/ContentList.tsx:474
 msgid "Search {0}..."
 msgstr "搜尋 {0}…"
 
@@ -9134,6 +9338,14 @@ msgstr "搜尋區段..."
 #: packages/admin/src/components/Redirects.tsx:360
 msgid "Search source or destination..."
 msgstr "搜尋來源或目的地..."
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1375
+msgid "Search tags"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1374
+msgid "Search tags…"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
@@ -9269,7 +9481,7 @@ msgstr "選取"
 msgid "Select {label}"
 msgstr "選取 {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1263
+#: packages/admin/src/components/ContentList.tsx:1322
 msgid "Select {title}"
 msgstr "選取 {title}"
 
@@ -9293,7 +9505,7 @@ msgstr ""
 msgid "Select all"
 msgstr "全選"
 
-#: packages/admin/src/components/ContentList.tsx:587
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Select all on this page"
 msgstr "選取這個頁面上的全部項目"
 
@@ -9369,6 +9581,10 @@ msgstr ""
 msgid "Select table"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:554
+msgid "Select up to 50 posts to add a tag."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1748
 msgid "Select which content types to import."
 msgstr "選取要匯入的內容類型。"
@@ -9394,6 +9610,10 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:937
 msgid "Selected media"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:343
+msgid "Selected posts"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:28
@@ -9491,7 +9711,7 @@ msgstr ""
 msgid "Set to 0 to never close comments automatically."
 msgstr "設為 0 即永不自動關閉留言。"
 
-#: packages/admin/src/components/ContentList.tsx:515
+#: packages/admin/src/components/ContentList.tsx:525
 msgid "Set to draft"
 msgstr "設為草稿"
 
@@ -9587,8 +9807,8 @@ msgstr "顯示文章數量"
 msgid "Show thumbnails"
 msgstr "顯示縮圖"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Show token"
 msgstr "顯示權杖"
 
@@ -9676,6 +9896,10 @@ msgstr "單行文字輸入"
 msgid "Site"
 msgstr "網站"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+msgid "Site Export"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:169
 msgid "Site Identity"
 msgstr "網站識別資訊"
@@ -9688,6 +9912,14 @@ msgstr "已套用網站識別資訊 (標題、網站標語及標誌)"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "網站識別、標誌、網站圖示及閱讀偏好"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
+msgid "Site Import"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
+msgid "Site Import Analysis"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
@@ -9744,7 +9976,8 @@ msgstr "已略過"
 #: packages/admin/src/components/FieldEditor.tsx:504
 #: packages/admin/src/components/SectionEditor.tsx:280
 #: packages/admin/src/components/Sections.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:593
+#: packages/admin/src/components/TaxonomyManager.tsx:798
+#: packages/admin/src/components/TaxonomyManager.tsx:802
 #: packages/admin/src/routes/byline-schema.tsx:237
 #: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
@@ -9865,7 +10098,7 @@ msgstr "開始匯入"
 msgid "Start writing, or type '/' for commands"
 msgstr "開始撰寫，或輸入「/」使用命令"
 
-#: packages/admin/src/components/ContentList.tsx:612
+#: packages/admin/src/components/ContentList.tsx:671
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:489
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -9988,6 +10221,11 @@ msgstr ""
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:298
+#: packages/admin/src/components/BulkTagDialog.tsx:399
+msgid "Tag"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:180
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
@@ -10002,6 +10240,14 @@ msgstr "標籤"
 #: packages/admin/src/components/WordPressImport.tsx:1813
 msgid "Tags ({0})"
 msgstr "標籤 ({0})"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:452
+msgid "Tags go live now; draft edits stay unpublished."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:442
+msgid "Tags were saved, but cached pages may still show old tags. Retry the cache refresh."
+msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:54
 #: packages/admin/src/components/EntryLockNotice.tsx:92
@@ -10018,12 +10264,12 @@ msgstr ""
 msgid "Target"
 msgstr "目標"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:371
+#: packages/admin/src/components/TaxonomyManager.tsx:565
 msgid "Target locale"
 msgstr "目標語言地區"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1159
-#: packages/admin/src/components/TaxonomySidebar.tsx:894
+#: packages/admin/src/components/TaxonomySidebar.tsx:897
 msgid "Taxonomies"
 msgstr "分類法"
 
@@ -10031,19 +10277,19 @@ msgstr "分類法"
 msgid "Taxonomies Manage"
 msgstr "管理分類法"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1203
+#: packages/admin/src/components/TaxonomyManager.tsx:1552
 msgid "Taxonomy created"
 msgstr "分類法已建立"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:969
+#: packages/admin/src/components/TaxonomyManager.tsx:1193
 msgid "Taxonomy deleted"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:45
+#: packages/admin/src/components/TaxonomyManager.tsx:66
 msgid "Taxonomy not found: {taxonomyName}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:358
+#: packages/admin/src/components/TaxonomyManager.tsx:552
 msgid "Taxonomy: {taxonomyName}"
 msgstr "分類法: {taxonomyName}"
 
@@ -10055,19 +10301,19 @@ msgstr ""
 msgid "Template:"
 msgstr "範本:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:556
-#: packages/admin/src/components/TaxonomyManager.tsx:557
-#: packages/admin/src/components/TaxonomyManager.tsx:1082
+#: packages/admin/src/components/TaxonomyManager.tsx:754
+#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Term"
 msgstr "分類項目"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:1253
 msgid "Term \"{0}\" created in {1}."
 msgstr "已在 {1} 中建立分類項目「{0}」。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:947
+#: packages/admin/src/components/TaxonomyManager.tsx:1171
 msgid "Term deleted"
 msgstr "分類項目已刪除"
 
@@ -10152,7 +10398,7 @@ msgstr "您的網站名稱，用於頁首及中繼資料"
 msgid "The order controls how block types appear in the picker."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2909
+#: packages/admin/src/router.tsx:2915
 msgid "The page you're looking for doesn't exist."
 msgstr "您要找的頁面不存在。"
 
@@ -10270,7 +10516,7 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:919
-#: packages/admin/src/router.tsx:924
+#: packages/admin/src/router.tsx:930
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
@@ -10484,7 +10730,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "這會將項目移至回收桶。您稍後可以從回收桶還原。"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1173
+#: packages/admin/src/components/TaxonomyManager.tsx:1522
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "這會永久刪除「{0}」並將其從所有內容中移除。"
 
@@ -10522,8 +10768,8 @@ msgstr "時區"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "用於顯示日期的時區 (例如 America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:597
-#: packages/admin/src/components/ContentList.tsx:758
+#: packages/admin/src/components/ContentList.tsx:656
+#: packages/admin/src/components/ContentList.tsx:817
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -10559,11 +10805,11 @@ msgid "Toggle header row"
 msgstr "切換標題列"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "Token created: {0}"
 msgstr "已建立權杖: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:481
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:496
 msgid "Token Name"
 msgstr "權杖名稱"
 
@@ -10592,31 +10838,32 @@ msgstr ""
 msgid "Translatable"
 msgstr "可翻譯"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:283
-#: packages/admin/src/components/TaxonomyManager.tsx:393
+#: packages/admin/src/components/TaxonomyManager.tsx:356
+#: packages/admin/src/components/TaxonomyManager.tsx:477
+#: packages/admin/src/components/TaxonomyManager.tsx:587
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translate"
 msgstr "翻譯"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:355
+#: packages/admin/src/components/TaxonomyManager.tsx:549
 msgid "Translate \"{0}\""
 msgstr "翻譯「{0}」"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:280
+#: packages/admin/src/components/TaxonomyManager.tsx:474
 msgid "Translate {0}"
 msgstr "翻譯 {0}"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:393
+#: packages/admin/src/components/TaxonomyManager.tsx:587
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
 msgstr "正在翻譯..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
-#: packages/admin/src/components/TaxonomyManager.tsx:1028
-#: packages/admin/src/components/TaxonomySidebar.tsx:774
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/components/TaxonomyManager.tsx:1252
+#: packages/admin/src/components/TaxonomySidebar.tsx:777
+#: packages/admin/src/router.tsx:1385
 msgid "Translation created"
 msgstr "翻譯已建立"
 
@@ -10633,11 +10880,11 @@ msgstr "回收桶"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:450
+#: packages/admin/src/components/ContentList.tsx:459
 msgid "Trash"
 msgstr "回收桶"
 
-#: packages/admin/src/components/ContentList.tsx:786
+#: packages/admin/src/components/ContentList.tsx:845
 msgid "Trash is empty"
 msgstr "回收桶是空的"
 
@@ -10819,7 +11066,7 @@ msgstr "未命名的通行金鑰"
 msgid "Unpublish {itemLabel}"
 msgstr "取消發佈 {itemLabel}"
 
-#: packages/admin/src/router.tsx:1260
+#: packages/admin/src/router.tsx:1266
 msgid "Unpublished"
 msgstr "未發佈"
 
@@ -10827,7 +11074,7 @@ msgstr "未發佈"
 msgid "Unregistered Content Tables Found"
 msgstr "發現未註冊的內容資料表"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:840
+#: packages/admin/src/components/TaxonomySidebar.tsx:843
 msgid "Unresolved assignment"
 msgstr ""
 
@@ -10835,7 +11082,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1347
+#: packages/admin/src/router.tsx:1353
 msgid "Unscheduled"
 msgstr "未排程"
 
@@ -10850,7 +11097,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "不支援的小工具元素類型: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:990
+#: packages/admin/src/components/ContentList.tsx:1049
 msgid "Until {0}"
 msgstr ""
 
@@ -10872,7 +11119,7 @@ msgstr "未命名小工具"
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:679
+#: packages/admin/src/components/TaxonomyManager.tsx:890
 msgid "Update"
 msgstr "更新"
 
@@ -10890,7 +11137,7 @@ msgid "Update site settings"
 msgstr "更新網站設定"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:561
+#: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Update the {0} details"
 msgstr "更新 {0} 詳細資料"
 
@@ -10903,7 +11150,7 @@ msgstr "更新此重新導向規則。"
 msgid "Update to v{0}"
 msgstr "更新至 v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:869
+#: packages/admin/src/components/ContentList.tsx:928
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
 #: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
@@ -10982,6 +11229,10 @@ msgstr "上傳媒體"
 #: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
 msgstr "上傳媒體，將可重複使用的素材集中存放。"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
+msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:751
@@ -11093,7 +11344,7 @@ msgstr ""
 msgid "Use another device"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1064
+#: packages/admin/src/components/ContentList.tsx:1123
 msgid "Use as end date"
 msgstr ""
 
@@ -11117,7 +11368,7 @@ msgstr "使用已註冊的通行金鑰安全登入。"
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "當頁面沒有圖片時，用作備用 Open Graph 圖片。建議尺寸: 1200×630。"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:846
+#: packages/admin/src/components/TaxonomyManager.tsx:1056
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作識別碼。僅限小寫字母、數字及底線。"
 
@@ -11251,7 +11502,7 @@ msgstr "檢視電子郵件服務提供者狀態並傳送測試郵件"
 msgid "View mode"
 msgstr "檢視模式"
 
-#: packages/admin/src/components/ContentList.tsx:1335
+#: packages/admin/src/components/ContentList.tsx:1394
 msgid "View published {title}"
 msgstr "檢視已發佈的 {title}"
 
@@ -11392,7 +11643,7 @@ msgstr "項目發佈的時間"
 msgid "Where is it saved?"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:860
+#: packages/admin/src/components/TaxonomyManager.tsx:1070
 msgid "Which content types can use this taxonomy"
 msgstr "可使用此分類法的內容類型"
 
@@ -11518,7 +11769,7 @@ msgstr "WordPress 授權遭拒"
 msgid "WordPress Username"
 msgstr "WordPress 使用者名稱"
 
-#: packages/admin/src/components/ContentList.tsx:493
+#: packages/admin/src/components/ContentList.tsx:502
 msgid "Working on {selectedCount} items…"
 msgstr "正在處理 {selectedCount} 個項目…"
 
@@ -11550,7 +11801,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "每年"
 
-#: packages/admin/src/components/ContentList.tsx:1410
+#: packages/admin/src/components/ContentList.tsx:1469
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -11610,7 +11861,7 @@ msgstr "您需要管理員權限才能管理署名結構描述。"
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2174
+#: packages/admin/src/router.tsx:2180
 msgid "You need Editor permissions to moderate comments."
 msgstr "您需要編輯者權限才能審核留言。"
 

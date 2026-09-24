@@ -12,12 +12,20 @@
  */
 
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, mkdtempSync, rmSync, mkdirSync } from "node:fs";
+import {
+	copyFileSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 
-import { describe, it, expect, beforeAll, afterEach } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -102,11 +110,25 @@ const fixtures = discoverFixtures();
 
 describe("Seed Fixture Smoke Tests", () => {
 	let tempDirs: string[] = [];
+	let migratedDatabaseDir: string;
+	let migratedDatabasePath: string;
 
 	beforeAll(async () => {
-		// Ensure CLI binary is built for CLI-based tests
 		await ensureBuilt();
+		migratedDatabaseDir = mkdtempSync(join(tmpdir(), "emdash-smoke-migrated-"));
+		migratedDatabasePath = join(migratedDatabaseDir, "empty.db");
+		const db = createDatabase({ url: `file:${migratedDatabasePath}` });
+		try {
+			const { applied } = await runMigrations(db);
+			if (applied.length === 0) throw new Error("Smoke database applied no migrations");
+		} finally {
+			await db.destroy();
+		}
 	}, 120_000);
+
+	afterAll(() => {
+		if (migratedDatabaseDir) rmSync(migratedDatabaseDir, { recursive: true, force: true });
+	});
 
 	afterEach(() => {
 		// Clean up any temp directories created during tests
@@ -120,6 +142,12 @@ describe("Seed Fixture Smoke Tests", () => {
 		const dir = mkdtempSync(join(tmpdir(), "emdash-smoke-"));
 		tempDirs.push(dir);
 		return dir;
+	}
+
+	function createMigratedDatabase(tempDir: string): string {
+		const dbPath = join(tempDir, "test.db");
+		copyFileSync(migratedDatabasePath, dbPath);
+		return dbPath;
 	}
 
 	// Sanity check: we actually found fixtures to test
@@ -174,17 +202,13 @@ describe("Seed Fixture Smoke Tests", () => {
 
 			it("applies seed to a fresh database without errors", { timeout: 30_000 }, async () => {
 				const tempDir = createTempDir();
-				const dbPath = join(tempDir, "test.db");
+				const dbPath = createMigratedDatabase(tempDir);
 				const uploadsDir = join(tempDir, "uploads");
 				mkdirSync(uploadsDir, { recursive: true });
 
-				// Create database and run migrations
 				const db = createDatabase({ url: `file:${dbPath}` });
 
 				try {
-					const { applied } = await runMigrations(db);
-					expect(applied.length).toBeGreaterThan(0);
-
 					// Set up local storage for media resolution
 					const storage = new LocalStorage({
 						directory: uploadsDir,
@@ -287,15 +311,13 @@ describe("Seed Fixture Smoke Tests", () => {
 				{ timeout: 30_000 },
 				async () => {
 					const tempDir = createTempDir();
-					const dbPath = join(tempDir, "test.db");
+					const dbPath = createMigratedDatabase(tempDir);
 					const uploadsDir = join(tempDir, "uploads");
 					mkdirSync(uploadsDir, { recursive: true });
 
 					const db = createDatabase({ url: `file:${dbPath}` });
 
 					try {
-						await runMigrations(db);
-
 						const storage = new LocalStorage({
 							directory: uploadsDir,
 							baseUrl: "/_emdash/api/media/file",
