@@ -258,6 +258,27 @@ emdash({
 
 Node.js deployments use the workerd runner module documented in [Plugin Sandbox: Node.js](/deployment/plugin-sandbox/#nodejs).
 
+### `sandboxLimits`
+
+**Optional.** Sets resource limits for each sandboxed plugin hook or route invocation. Omitted values use the runner defaults.
+
+The following example gives each invocation 75 milliseconds of CPU time, 20 subrequests, and 15 seconds of wall time:
+
+```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+	sandboxLimits: {
+		cpuMs: 75,
+		subrequests: 20,
+		wallTimeMs: 15_000,
+	},
+});
+```
+
+Cloudflare Worker Loader enforces `cpuMs`. EmDash and Worker Loader enforce `subrequests`. Both runners enforce `wallTimeMs`. The Node.js runner accepts `cpuMs`, `memoryMb`, and `subrequests` for configuration portability but cannot enforce them. See [Plugin Sandbox: Resource limits](/deployment/plugin-sandbox/#resource-limits) for defaults and platform ceilings.
+
 ### `sandbox`
 
 **Optional.** Controls whether a configured sandbox runner isolates plugins. Sandboxing is enabled when `sandboxRunner` is configured. Set `sandbox: false` only to diagnose whether a problem comes from a plugin or its sandbox runtime:

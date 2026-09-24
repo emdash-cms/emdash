@@ -239,7 +239,7 @@ When a sandbox runner is active, the runtime enforces:
 
 4. **No host bindings.** Sandboxed plugins don't see environment variables, the filesystem, or any platform bindings — even if your host worker has them. The plugin runtime is a clean isolate with only the bridge and the declared capabilities.
 
-5. **Resource limits.** The Cloudflare runner defaults to 50 ms of CPU, 10 subrequests, and 30 seconds of wall time per invocation. Worker Loader enforces CPU and subrequests; the runner enforces wall time. Worker Loader has a platform memory ceiling, but its per-plugin `memoryMb` option is not currently enforceable. The Node.js workerd runner enforces only the 30-second wall-time default; it warns when a site configures CPU, memory, or subrequest limits that standalone workerd cannot enforce. A per-hook `timeout` applies only when the sandboxed-format plugin runs in process.
+5. **Resource limits.** The Cloudflare runner defaults to 50 ms of CPU, 30 subrequests, and 30 seconds of wall time per invocation. EmDash and Worker Loader enforce subrequests; Worker Loader enforces CPU; the runner enforces wall time. Each bridge-backed `ctx` operation spends one subrequest, so use batch storage methods when an invocation handles several records. Worker Loader has a platform memory ceiling, but its per-plugin `memoryMb` option is not currently enforceable. The site operator can override the defaults with `sandboxLimits`. The Node.js workerd runner enforces only the wall-time setting; it warns when a site configures CPU, memory, or subrequest limits that standalone workerd cannot enforce. A per-hook `timeout` applies only when the sandboxed-format plugin runs in process.
 
 </Steps>
 

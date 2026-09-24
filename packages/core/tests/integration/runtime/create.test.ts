@@ -289,7 +289,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 		}
 	});
 
-	it("passes normalized site information to the sandbox runner", async () => {
+	it("passes normalized site information and resource limits to the sandbox runner", async () => {
 		const sqlite = new Database(":memory:");
 		const setupDb = new Kysely<EmDashDatabase>({
 			dialect: new SqliteDialect({ database: sqlite }),
@@ -309,8 +309,17 @@ describe("EmDashRuntime.create — cold boot", () => {
 			terminateAll: vi.fn(),
 		};
 		const createSandboxRunner = vi.fn(() => runner as never);
+		const baseDeps = createDeps();
 		const deps: RuntimeDependencies = {
-			...createDeps(),
+			...baseDeps,
+			config: {
+				...baseDeps.config,
+				sandboxLimits: {
+					cpuMs: 75,
+					subrequests: 20,
+					wallTimeMs: 15_000,
+				},
+			},
 			createDialect: () => new SqliteDialect({ database: sqlite }),
 			sandboxEnabled: true,
 			createSandboxRunner,
@@ -320,6 +329,11 @@ describe("EmDashRuntime.create — cold boot", () => {
 		try {
 			expect(createSandboxRunner).toHaveBeenCalledWith(
 				expect.objectContaining({
+					limits: {
+						cpuMs: 75,
+						subrequests: 20,
+						wallTimeMs: 15_000,
+					},
 					siteInfo: {
 						name: "Example Site",
 						url: "https://example.com",

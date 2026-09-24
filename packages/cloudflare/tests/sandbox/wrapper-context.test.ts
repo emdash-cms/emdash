@@ -8,6 +8,52 @@ import {
 import { generatePluginWrapper } from "../../src/sandbox/wrapper.js";
 
 describe("Cloudflare generated plugin context", () => {
+	it("enforces the configured bridge-call budget for local test hosts", async () => {
+		const source = generatePluginWrapper(
+			{
+				id: "subrequest-budget",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["plugin:activate"],
+				routes: [],
+				admin: {},
+			},
+			{ subrequestLimit: 2 },
+		)
+			.replace('import { WorkerEntrypoint } from "cloudflare:workers";', "")
+			.replace('import pluginModule from "sandbox-plugin.js";', "")
+			.replace("export default class PluginEntrypoint", "return class PluginEntrypoint");
+		class WorkerEntrypoint {
+			constructor(readonly env: Record<string, unknown>) {}
+		}
+		const pluginModule = {
+			hooks: {
+				"plugin:activate": async (_event: unknown, ctx: Record<string, any>) => {
+					await ctx.kv.get("one");
+					await ctx.kv.get("two");
+					return ctx.kv.get("three");
+				},
+			},
+		};
+		const get = vi.fn(async () => null);
+		// eslint-disable-next-line no-implied-eval -- generated worker module is exercised in an isolated function scope
+		const factory = new Function("WorkerEntrypoint", "pluginModule", source);
+		const Entrypoint = factory(WorkerEntrypoint, pluginModule) as new (env: unknown) => {
+			invokeHook(name: string, event: unknown): Promise<unknown>;
+		};
+
+		await expect(
+			new Entrypoint({
+				PLUGIN_ID: "subrequest-budget",
+				PLUGIN_VERSION: "1.0.0",
+				BRIDGE: { kvGet: get },
+			}).invokeHook("plugin:activate", {}),
+		).rejects.toThrow("Plugin exceeded subrequest limit of 2");
+		expect(get).toHaveBeenCalledTimes(2);
+	});
+
 	it("omits content and schema when their capabilities are absent", async () => {
 		const source = generatePluginWrapper({
 			id: "no-discovery",

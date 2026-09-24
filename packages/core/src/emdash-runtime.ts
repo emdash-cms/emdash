@@ -2429,6 +2429,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						limits: deps.config.sandboxLimits,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
@@ -2588,6 +2589,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						limits: deps.config.sandboxLimits,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,

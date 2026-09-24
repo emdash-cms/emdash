@@ -128,7 +128,7 @@ function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
 const DEFAULT_LIMITS = {
 	cpuMs: 50,
 	memoryMb: 128,
-	subrequests: 10,
+	subrequests: 30,
 	wallTimeMs: 30_000,
 } as const;
 

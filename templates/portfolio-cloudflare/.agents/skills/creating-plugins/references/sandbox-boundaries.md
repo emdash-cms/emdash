@@ -7,7 +7,7 @@ Registry plugins run against a capability-gated host API, not the complete trust
 - `ctx.http.fetch()` preserves binary requests and responses across both runners, but complete bodies are buffered and limited to 8 MiB of decoded bytes.
 - Declared plugin route bodies are buffered with a 1 MiB default and 8 MiB author maximum. Raw route responses are buffered to 8 MiB.
 - Media byte reads default to 10 MiB and cannot request more than 16 MiB.
-- Neither test host reproduces deployed CPU, memory, or subrequest limits.
+- The plugin test hosts enforce EmDash's bridge-call subrequest budget. They do not reproduce deployed CPU or memory limits.
 
 ## Trusted-only surfaces
 
