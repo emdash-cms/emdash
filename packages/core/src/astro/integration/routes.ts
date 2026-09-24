@@ -428,6 +428,21 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/schema/collections/index.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types",
+		entrypoint: resolveRoute("api/schema/block-types/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types/[slug]/versions/[version]/activate",
+		entrypoint: resolveRoute("api/schema/block-types/[slug]/versions/[version]/activate.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types/[slug]",
+		entrypoint: resolveRoute("api/schema/block-types/[slug]/index.ts"),
+	});
+
 	// Order matters: the static `reorder` route must precede the dynamic
 	// `[slug]` route so Astro's resolver dispatches POST
 	// /schema/collections/reorder to the reorder handler instead of treating

@@ -21,9 +21,11 @@ import {
 	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	createBlockTypeBody,
 	createCollectionBody,
 	createTaxonomyDefBody,
 	updateCollectionBody,
+	updateBlockTypeBody,
 	updateFieldBody,
 	updateTaxonomyDefBody,
 } from "#api/schemas.js";
@@ -514,8 +516,9 @@ async function getCollectionFields(
 ): Promise<FieldSchema[] | null> {
 	try {
 		const { SchemaRegistry } = await import("../schema/index.js");
+		const { expandCollectionBlockFields } = await import("../schema/block-values.js");
 		const col = await new SchemaRegistry(ec.db).getCollectionWithFields(collection);
-		return col ? col.fields : null;
+		return col ? (await expandCollectionBlockFields(ec.db, col)).fields : null;
 	} catch {
 		return null;
 	}
@@ -984,6 +987,14 @@ export function createMcpServer(
 					.describe(
 						"ID of the content item this is a translation of. Links items in the same translation group.",
 					),
+				migrateBlocks: z
+					.boolean()
+					.optional()
+					.describe("Allow retained blocks to migrate to their type's active version"),
+				replaceBlocks: z
+					.boolean()
+					.optional()
+					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				bylines: z
 					.array(contentBylineInputSchema)
 					.optional()
@@ -1036,6 +1047,8 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					migrateBlocks: args.migrateBlocks,
+					replaceBlocks: args.replaceBlocks,
 					actor,
 				});
 				if (!result.success) return unwrap(result);
@@ -1064,6 +1077,8 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					migrateBlocks: args.migrateBlocks,
+					replaceBlocks: args.replaceBlocks,
 					actor,
 				}),
 				[args.collection],
@@ -1136,6 +1151,14 @@ export function createMcpServer(
 					.describe(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
 					),
+				migrateBlocks: z
+					.boolean()
+					.optional()
+					.describe("Allow existing blocks to migrate to their type's active version"),
+				replaceBlocks: z
+					.boolean()
+					.optional()
+					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 		},
@@ -1194,6 +1217,8 @@ export function createMcpServer(
 						bylines: args.bylines,
 						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
+						migrateBlocks: args.migrateBlocks,
+						replaceBlocks: args.replaceBlocks,
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
@@ -1233,6 +1258,8 @@ export function createMcpServer(
 						bylines: args.bylines,
 						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
+						migrateBlocks: args.migrateBlocks,
+						replaceBlocks: args.replaceBlocks,
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
@@ -1260,6 +1287,8 @@ export function createMcpServer(
 				bylines: args.bylines,
 				taxonomies: args.taxonomies,
 				publishedAt: args.publishedAt,
+				migrateBlocks: args.migrateBlocks,
+				replaceBlocks: args.replaceBlocks,
 				_rev: args._rev,
 			});
 			if (result.liveContentChanged === false) return unwrap(result);
@@ -1925,7 +1954,8 @@ export function createMcpServer(
 				"Get detailed info about a collection including all field definitions. " +
 				"Fields describe the data model: name, type (string, text, number, " +
 				"boolean, datetime, portableText, image, reference, json, select, " +
-				"multiSelect, slug), constraints, and validation rules. Use this to " +
+				"multiSelect, slug, blocks), constraints, and validation rules. Blocks fields " +
+				"include every allowed and retired block type version. Use this to " +
 				"understand what data content_create and content_update expect.",
 			inputSchema: z.object({
 				slug: z
@@ -1941,16 +1971,111 @@ export function createMcpServer(
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const { SchemaRegistry } = await import("../schema/index.js");
+				const { SchemaRegistry, expandCollectionBlockFields } = await import("../schema/index.js");
 				const registry = new SchemaRegistry(ec.db);
 				const collection = await registry.getCollectionWithFields(args.slug);
 				if (!collection) {
 					return respondError("NOT_FOUND", `Collection '${args.slug}' not found`);
 				}
-				return jsonResult(collection);
+				return jsonResult(await expandCollectionBlockFields(ec.db, collection));
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_GET_ERROR");
 			}
+		},
+	);
+
+	server.registerTool(
+		"schema_list_block_types",
+		{
+			title: "List Block Types",
+			description: "List every database-owned block type and all retained versions.",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireScope(extra, "schema:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeList } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeList(ec.db));
+		},
+	);
+
+	server.registerTool(
+		"schema_get_block_type",
+		{
+			title: "Get Block Type",
+			description: "Get one block type, including active, inactive, and historical versions.",
+			inputSchema: z.object({ slug: z.string().describe("Block type slug") }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeGet } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeGet(ec.db, args.slug));
+		},
+	);
+
+	server.registerTool(
+		"schema_create_block_type",
+		{
+			title: "Create Block Type",
+			description: "Create a block type with active version 1.",
+			inputSchema: z.object(createBlockTypeBody.shape),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeCreate } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeCreate(ec.db, args));
+		},
+	);
+
+	server.registerTool(
+		"schema_update_block_type",
+		{
+			title: "Update Block Type",
+			description:
+				"Update presentation or compatible fields in place. Set breaking to create an inactive retained version.",
+			inputSchema: z.object({ slug: z.string(), ...updateBlockTypeBody.shape }),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { slug, ...input } = args;
+			const { handleBlockTypeUpdate } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeUpdate(ec.db, slug, input));
+		},
+	);
+
+	server.registerTool(
+		"schema_activate_block_type_version",
+		{
+			title: "Activate Block Type Version",
+			description: "Make a retained version the active version used by newly created blocks.",
+			inputSchema: z.object({
+				slug: z.string(),
+				version: z.number().int().positive(),
+				expectedFingerprint: z.string().min(1),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeVersionActivate } = await import("../api/handlers/block-types.js");
+			return unwrap(
+				await handleBlockTypeVersionActivate(
+					ec.db,
+					args.slug,
+					args.version,
+					args.expectedFingerprint,
+				),
+			);
 		},
 	);
 
@@ -2084,7 +2209,7 @@ export function createMcpServer(
 				"database table. Field types: string (short text), text (long text), " +
 				"number (decimal), integer, boolean, datetime, select (single choice), " +
 				"multiSelect (multiple), portableText (rich text), image, file, " +
-				"reference (link to another collection), json, slug (URL-safe id). " +
+				"reference (link to another collection), json, slug (URL-safe id), or blocks. " +
 				"For select/multiSelect, provide choices in validation.options array.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug to add the field to"),
@@ -2109,6 +2234,7 @@ export function createMcpServer(
 						"reference",
 						"json",
 						"slug",
+						"blocks",
 					])
 					.describe("Data type for this field"),
 				required: z.boolean().optional().describe("Whether the field is required (default false)"),
@@ -2125,6 +2251,12 @@ export function createMcpServer(
 							.array(z.string())
 							.optional()
 							.describe("Allowed values for select/multiSelect"),
+						allowedTypes: z
+							.array(z.string())
+							.optional()
+							.describe("Ordered block type slugs allowed by a blocks field"),
+						minItems: z.number().int().min(0).optional(),
+						maxItems: z.number().int().min(1).optional(),
 					})
 					.optional()
 					.describe("Validation constraints"),

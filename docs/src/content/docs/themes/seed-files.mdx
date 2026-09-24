@@ -43,6 +43,7 @@ The following example contains every root property:
     "author": "Example Studio"
   },
   "settings": {},
+  "blockTypes": [],
   "collections": [],
   "taxonomies": [],
   "bylines": [],
@@ -61,6 +62,7 @@ The following example contains every root property:
 | `defaultLocale` | No | Locale for locale-bearing rows that omit `locale`; defaults to runtime configuration, then `en` |
 | `meta` | No | Descriptive name, description, and author shown during setup |
 | `settings` | No | Partial site settings |
+| `blockTypes` | No | Versioned definitions used by `blocks` fields |
 | `collections` | No | Collection and field definitions |
 | `taxonomies` | No | Taxonomy definitions and optional terms |
 | `bylines` | No | Optional presentation-credit profiles |
@@ -90,6 +92,61 @@ The setup wizard lets the administrator replace the seeded title and tagline. Th
   }
 }
 ```
+
+## Block types
+
+`blockTypes` defines the versioned shapes used by `blocks` collection fields. EmDash applies these definitions before collections, so a field can name them in `validation.allowedTypes`.
+
+The following seed keeps version 1 for stored content and revisions while making version 2 active for new blocks:
+
+```json title="seed/seed.json"
+{
+  "version": "1",
+  "blockTypes": [
+    {
+      "slug": "hero",
+      "label": "Hero",
+      "category": "Layout",
+      "currentVersion": 2,
+      "versions": [
+        {
+          "version": 1,
+          "fields": [
+            { "slug": "heading", "label": "Heading", "type": "string", "required": true }
+          ]
+        },
+        {
+          "version": 2,
+          "fields": [
+            { "slug": "title", "label": "Title", "type": "string", "required": true },
+            { "slug": "image", "label": "Image", "type": "image" }
+          ]
+        }
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "slug": "pages",
+      "label": "Pages",
+      "fields": [
+        {
+          "slug": "layout",
+          "label": "Layout",
+          "type": "blocks",
+          "validation": { "allowedTypes": ["hero"], "maxItems": 20 }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Version numbers are positive contiguous integers starting at 1. `currentVersion` must name one declared version. Exporting and reapplying a seed preserves the exact version numbers and active pointer; EmDash does not renumber them.
+
+With `onConflict: "update"`, a seed can amend a stored version only when the new definition is compatible. Reusing an existing number for an incompatible definition fails with `BLOCK_TYPE_VERSION_CONFLICT`. Add a new version number for a breaking definition.
+
+Stored block values include `_type`, `_version`, and `_key`. Supply those properties when seed content targets a retained version. The runtime assigns the active version and a key when a newly written block omits them.
 
 ## Collections
 
@@ -171,6 +228,7 @@ Supported field types are:
 - `datetime`.
 - `select` and `multiSelect`.
 - `portableText`, `json`, and `repeater`.
+- `blocks`.
 - `image`, `file`, and `reference`.
 
 Only `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `reference`, and `slug` can set `indexed: true`.
@@ -185,7 +243,10 @@ The generated collection schema recognizes these rules where the field type supp
 | `minLength`, `maxLength`, `pattern` | String-shaped fields |
 | `options` | `select` and `multiSelect` |
 | `subFields`, `minItems`, `maxItems` | `repeater` |
+| `allowedTypes`, `minItems`, `maxItems` | `blocks` |
 | `allowedMimeTypes` | Media fields |
+
+`retiredTypes` on a blocks field is server-managed. Removing a slug from `allowedTypes` retires it so existing stored blocks remain valid while new blocks cannot use it.
 
 `validateSeed()` does not deeply type-check every rule in `validation` or `options`. An invalid rule can therefore pass seed validation and fail later when the collection schema is built or content is written.
 
@@ -499,7 +560,7 @@ Programmatic application defaults `includeContent` to `false`. The setup wizard 
 `onConflict` is not a transaction policy for the entire seed:
 
 - Collections, fields, bylines, content, redirects, and sections support skip, update, and error behavior.
-- Taxonomy definitions and terms honor the applicable conflict mode.
+- Taxonomy definitions and terms honor the applicable conflict mode. The exception is the built-in `category` and `tag` definitions that every new database starts with: until a site edits them, a seed that declares them replaces them in every mode.
 - Settings use per-key conflict handling. `skip` creates missing settings and preserves existing values. `update` overwrites every supplied setting. `error` stops at the first existing setting; settings created earlier in seed order remain applied.
 - Existing menus retain their menu row but replace all items.
 - Existing widget areas retain their area row but replace all widgets.

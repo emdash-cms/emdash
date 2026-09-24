@@ -129,6 +129,15 @@ export {
 	type OrphanedTable,
 	type OrphanedTableListResponse,
 } from "./schema.js";
+export {
+	handleBlockTypeList,
+	handleBlockTypeGet,
+	handleBlockTypeCreate,
+	handleBlockTypeUpdate,
+	handleBlockTypeVersionActivate,
+	type BlockTypeListResponse,
+	type BlockTypeResponse,
+} from "./block-types.js";
 
 // SEO handlers
 export {

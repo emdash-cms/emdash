@@ -134,6 +134,11 @@ The operation ID is stable within the generated contract and is commonly used as
 
 | Method | Path | Operation | Summary |
 | --- | --- | --- | --- |
+| `GET` | `/_emdash/api/schema/block-types` | `listBlockTypes` | List block types |
+| `POST` | `/_emdash/api/schema/block-types` | `createBlockType` | Create a block type |
+| `GET` | `/_emdash/api/schema/block-types/{slug}` | `getBlockType` | Get a block type |
+| `PUT` | `/_emdash/api/schema/block-types/{slug}` | `updateBlockType` | Update a block type |
+| `POST` | `/_emdash/api/schema/block-types/{slug}/versions/{version}/activate` | `activateBlockTypeVersion` | Activate a block type version |
 | `GET` | `/_emdash/api/schema/collections` | `listCollections` | List all collections |
 | `POST` | `/_emdash/api/schema/collections` | `createCollection` | Create a collection |
 | `GET` | `/_emdash/api/schema/collections/{slug}` | `getCollection` | Get a collection |
@@ -379,7 +384,7 @@ Every usage result includes a coverage status:
 | `stale` | The index is older than the content it describes. |
 | `unknown` | The stored state is not recognized by this EmDash version. |
 
-Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, and Portable Text image blocks in EmDash collections. It does not scan application code, rendered HTML, settings, menus, widgets, plugin data, external sites, or provider-only assets.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image blocks, and media declared by retained block versions in EmDash collections. It does not scan application code, rendered HTML, settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
 ### Direct multipart upload
 

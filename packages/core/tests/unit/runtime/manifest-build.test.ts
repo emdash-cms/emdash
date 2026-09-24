@@ -25,6 +25,7 @@ import { setI18nConfig } from "../../../src/i18n/config.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -269,6 +270,48 @@ describe("generateManifest()", () => {
 				path: "type",
 			},
 		});
+	});
+
+	it("includes retained block definitions and changes hash when their contract changes", async () => {
+		const blocks = new BlockTypeRegistry(db);
+		const registry = new SchemaRegistry(db);
+		const hero = await blocks.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "heading", label: "Heading", type: "string", required: true }],
+		});
+		await registry.createCollection({ slug: "landing_pages", label: "Landing pages" });
+		await registry.createField("landing_pages", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["hero"] },
+		});
+
+		const before = await generateManifest({}, {}, { db });
+		expect(before.collections.landing_pages?.fields.layout).toMatchObject({
+			kind: "blocks",
+			blockTypes: [
+				{
+					slug: "hero",
+					currentVersion: 1,
+					versions: [{ version: 1, active: true }],
+				},
+			],
+		});
+		expect(before.collections.landing_pages?.fields.layout?.blockTypeFingerprint).toMatch(
+			/^blocks-field:v1:sha256:/,
+		);
+
+		await blocks.updateBlockType("hero", {
+			expectedFingerprint: hero.versions[0]!.fingerprint,
+			fields: [
+				{ slug: "heading", label: "Heading", type: "string", required: true },
+				{ slug: "eyebrow", label: "Eyebrow", type: "string" },
+			],
+		});
+		const after = await generateManifest({}, {}, { db });
+		expect(after.hash).not.toBe(before.hash);
 	});
 });
 

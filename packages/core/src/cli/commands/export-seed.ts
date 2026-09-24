@@ -22,6 +22,7 @@ import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
+import { BlockTypeRegistry } from "../../schema/block-type-registry.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { FieldType } from "../../schema/types.js";
 import type {
@@ -37,6 +38,7 @@ import type {
 	SeedContentEntry,
 	SeedByline,
 	SeedBylineCredit,
+	SeedBlockType,
 } from "../../seed/types.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
@@ -134,7 +136,10 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// 1. Export settings
 	seed.settings = await exportSettings(db);
 
-	// 2. Export collections and fields
+	// 2. Export block types before collections that reference them
+	seed.blockTypes = await exportBlockTypes(db);
+
+	// 3. Export collections and fields
 	seed.collections = await exportCollections(db);
 
 	// Decide locale-awareness from the data. The runtime sets the i18n config via
@@ -308,6 +313,22 @@ async function exportSettings(db: Kysely<Database>): Promise<SeedFile["settings"
 	}
 
 	return Object.keys(settings).length > 0 ? settings : undefined;
+}
+
+async function exportBlockTypes(db: Kysely<Database>): Promise<SeedBlockType[]> {
+	const blockTypes = await new BlockTypeRegistry(db).listBlockTypes();
+	return blockTypes.map((blockType) => ({
+		slug: blockType.slug,
+		label: blockType.label,
+		description: blockType.description,
+		icon: blockType.icon,
+		category: blockType.category,
+		currentVersion: blockType.currentVersion,
+		versions: blockType.versions.map((version) => ({
+			version: version.version,
+			fields: version.fields,
+		})),
+	}));
 }
 
 /**

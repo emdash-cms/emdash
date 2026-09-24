@@ -1,0 +1,46 @@
+---
+import type {
+	BlockComponent,
+	BlockComponents,
+	BlockValue,
+} from "./blocks.js";
+import { resolveBlockRenderer } from "./blocks.js";
+
+export interface Props<T extends BlockValue = BlockValue> {
+	value?: readonly T[] | null;
+	components?: Partial<BlockComponents<T>>;
+	fallback?: BlockComponent<T>;
+}
+
+const { value, components = {}, fallback } = Astro.props;
+const blocks = Array.isArray(value) ? value : [];
+const entries = blocks.map((block, index) => ({
+	block,
+	index,
+	resolution: resolveBlockRenderer(block, components, fallback, import.meta.env.DEV),
+}));
+
+if (import.meta.env.DEV) {
+	for (const { block, resolution } of entries) {
+		if (resolution.kind === "diagnostic") {
+			console.warn(`[emdash] No component was provided for block type "${block._type}".`);
+		}
+	}
+}
+---
+
+{entries.map(({ block, index, resolution }) => {
+	const props = { value: block, index, blockKey: block._key };
+	if (resolution.kind === "component" || resolution.kind === "fallback") {
+		const Component = resolution.component;
+		return <Component {...props} />;
+	}
+	if (resolution.kind === "diagnostic") {
+		return (
+			<div role="alert" data-emdash-missing-block={block._type}>
+				No component was provided for block type “{block._type}”.
+			</div>
+		);
+	}
+	return null;
+})}

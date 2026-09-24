@@ -489,6 +489,20 @@ function migrationRequiredResponse(): Response {
 	);
 }
 
+function unmigratedDatabaseResponse(): Response {
+	return new Response(
+		'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Site unavailable</title></head><body><p>This site\'s database has not been migrated yet. <a href="/_emdash/admin/setup">Set up EmDash</a></p></body></html>',
+		{
+			status: 503,
+			headers: {
+				"Content-Type": "text/html; charset=utf-8",
+				"Cache-Control": "no-store",
+				"Retry-After": "60",
+			},
+		},
+	);
+}
+
 function runtimeConfigurationErrorResponse(error: unknown, pathname: string): Response | null {
 	if (!pathname.startsWith("/_emdash/api/")) return null;
 	if (error instanceof EmDashConfigurationError) {
@@ -712,13 +726,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// bypasses runtime init and would crash with "no such table: options".
 				// Do a one-time lightweight probe using the same getDb() instance the
 				// page will use: if the migrations table doesn't exist, no migrations
-				// have ever run -- redirect to the setup wizard.
-				// Skip the probe when prerendering: a prerendered route is built to
-				// static HTML, so returning context.redirect("/_emdash/admin/setup")
-				// below would bake that redirect into the page and ship it to
-				// production. The build database is legitimately empty in CI and there
-				// is no live visitor to send to the wizard at build time (session reads
-				// are already skipped for prerender above for the same reason).
+				// have ever run, and the page may only render once runtime init below
+				// has migrated the database.
+				// Skip the probe when prerendering: the build database is legitimately
+				// empty in CI, and a response derived from it would be baked into the
+				// static page (session reads are already skipped for prerender above
+				// for the same reason).
+				let unmigrated = false;
 				if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
@@ -727,17 +741,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						await db.selectFrom("_emdash_migrations").selectAll().limit(1).execute();
 						markSetupVerified();
 					} catch (error) {
-						// Only a genuinely-missing migrations table means a fresh,
-						// un-set-up database — redirect to the setup wizard.
 						if (isMissingTableError(error)) {
-							return context.redirect("/_emdash/admin/setup");
+							unmigrated = true;
+						} else {
+							// Any other failure (transient D1/replica error, timeout, cold-start
+							// race, locked SQLite) must NOT be read as "fresh install". Leave the
+							// flag unset so a later request can re-verify, and fall through to
+							// render the page normally.
+							console.error("Setup probe failed (non-fatal):", error);
 						}
-						// Any other failure (transient D1/replica error, timeout, cold-start
-						// race, locked SQLite) must NOT be read as "fresh install" — doing so
-						// bounces real visitors on a set-up site to /_emdash/admin/setup.
-						// Leave the flag unset so a later request can re-verify, and fall
-						// through to render the page normally.
-						console.error("Setup probe failed (non-fatal):", error);
 					}
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
@@ -791,6 +803,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
 					// rt.sandbox, rt.market, rt.hooks, rt.cron).
 					for (const sub of initSubTimings) timings.push(sub);
+				}
+				if (unmigrated && !locals.emdash) {
+					return finalizeResponse(unmigratedDatabaseResponse(), timings);
 				}
 
 				// Even on the anonymous fast path we ask the adapter for a per-request

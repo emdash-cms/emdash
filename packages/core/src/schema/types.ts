@@ -5,6 +5,8 @@
  * They are the source of truth for all collections and fields.
  */
 
+import type { BlockType } from "./block-types.js";
+
 /**
  * Supported field types
  */
@@ -263,6 +265,8 @@ export interface Field {
 	type: FieldType;
 	/** Raw stored type metadata that this runtime cannot safely interpret. */
 	unsupportedType?: UnsupportedFieldType;
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
 	columnType: ColumnType;
 	required: boolean;
 	unique: boolean;

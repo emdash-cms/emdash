@@ -23,7 +23,44 @@ export type FieldType =
 	| "reference"
 	| "json"
 	| "slug"
-	| "repeater";
+	| "repeater"
+	| "blocks";
+
+export interface BlockFieldDefinition {
+	slug: string;
+	label: string;
+	type: Exclude<FieldType, "reference" | "json" | "slug" | "blocks">;
+	required?: boolean;
+	defaultValue?: unknown;
+	validation?: Record<string, unknown>;
+	options?: { darkVariant?: boolean };
+}
+
+export interface BlockTypeVersion {
+	id: string;
+	blockTypeId: string;
+	version: number;
+	fields: BlockFieldDefinition[];
+	fingerprint: string;
+	active: boolean;
+	unsupportedTypes?: Array<{ type: string; path: string }>;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface BlockType {
+	id: string;
+	slug: string;
+	label: string;
+	description?: string;
+	icon?: string;
+	category?: string;
+	currentVersion: number;
+	source: "user" | "seed";
+	versions: BlockTypeVersion[];
+	createdAt: string;
+	updatedAt: string;
+}
 
 export interface SchemaCollection {
 	id: string;
@@ -80,7 +117,13 @@ export interface SchemaField {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		allowedTypes?: string[];
+		retiredTypes?: string[];
+		minItems?: number;
+		maxItems?: number;
 	};
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
 	widget?: string;
 	options?: Record<string, unknown>;
 	sortOrder: number;
@@ -145,6 +188,10 @@ export interface CreateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		allowedTypes?: string[];
+		retiredTypes?: string[];
+		minItems?: number;
+		maxItems?: number;
 	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
@@ -165,10 +212,91 @@ export interface UpdateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		allowedTypes?: string[];
+		retiredTypes?: string[];
+		minItems?: number;
+		maxItems?: number;
 	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
 	sortOrder?: number;
+}
+
+export interface CreateBlockTypeInput {
+	slug: string;
+	label: string;
+	description?: string;
+	icon?: string;
+	category?: string;
+	fields: BlockFieldDefinition[];
+}
+
+export interface UpdateBlockTypeInput {
+	expectedFingerprint: string;
+	label?: string;
+	description?: string | null;
+	icon?: string | null;
+	category?: string | null;
+	fields?: BlockFieldDefinition[];
+	breaking?: boolean;
+}
+
+export async function fetchBlockTypes(): Promise<BlockType[]> {
+	const response = await apiFetch(`${API_BASE}/schema/block-types`);
+	const data = await parseApiResponse<{ items: BlockType[] }>(
+		response,
+		"Failed to fetch block types",
+	);
+	return data.items;
+}
+
+export async function fetchBlockType(slug: string): Promise<BlockType> {
+	const response = await apiFetch(`${API_BASE}/schema/block-types/${slug}`);
+	const data = await parseApiResponse<{ item: BlockType }>(response, "Failed to fetch block type");
+	return data.item;
+}
+
+export async function createBlockType(input: CreateBlockTypeInput): Promise<BlockType> {
+	const response = await apiFetch(`${API_BASE}/schema/block-types`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	const data = await parseApiResponse<{ item: BlockType }>(response, "Failed to create block type");
+	return data.item;
+}
+
+export async function updateBlockType(
+	slug: string,
+	input: UpdateBlockTypeInput,
+): Promise<BlockType> {
+	const response = await apiFetch(`${API_BASE}/schema/block-types/${slug}`, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	const data = await parseApiResponse<{ item: BlockType }>(response, "Failed to update block type");
+	return data.item;
+}
+
+export async function activateBlockTypeVersion(
+	slug: string,
+	version: number,
+	expectedFingerprint: string,
+): Promise<BlockType> {
+	const response = await apiFetch(
+		`${API_BASE}/schema/block-types/${slug}/versions/${version}/activate`,
+		{
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ expectedFingerprint }),
+		},
+	);
+	const data = await parseApiResponse<{ item: BlockType }>(
+		response,
+		"Failed to activate block type version",
+	);
+	return data.item;
 }
 
 /**
