@@ -478,7 +478,7 @@ The uninstall hook has no return value.
 
 **Capability:** None required
 
-Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`.
+Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`. Cron expressions are evaluated in UTC on every host.
 
 ```ts
 hooks: {

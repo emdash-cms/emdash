@@ -22,6 +22,7 @@ export default defineConfig({
 		// as their `entrypoint`, so the astro integration can statically import
 		// `createPlugin` from it (#1721).
 		"src/plugins/cloudflare-email.ts",
+		"src/plugins/cloudflare-email-env.ts",
 		"src/plugins/ai-search.ts",
 		"src/plugins/ai-search-admin.tsx",
 

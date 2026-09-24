@@ -54,6 +54,9 @@ export const API_TOKEN_SCOPES = {
 	SettingsRead: "settings:read",
 	SettingsManage: "settings:manage",
 	McpTools: "mcp:tools",
+	TransferExport: "transfer:export",
+	TransferAnalyze: "transfer:analyze",
+	TransferExecute: "transfer:execute",
 	Admin: "admin",
 } as const;
 
