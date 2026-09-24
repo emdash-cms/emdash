@@ -432,7 +432,7 @@ export async function handleTaxonomyCreate(
 
 		const id = ulid();
 		const existingStructure = await findTaxonomyStructure(db, input.name);
-		if (existingStructure && !matchesStructure(existingStructure, input)) {
+		if (existingStructure && !(await matchesStructure(db, existingStructure, input))) {
 			return {
 				success: false,
 				error: {
@@ -484,20 +484,23 @@ export async function handleTaxonomyCreate(
 	}
 }
 
-/** Whether the `hierarchical` and `collections` a request sends, if any, equal `structure`. */
-function matchesStructure(
+/**
+ * Whether the `hierarchical` and `collections` a request sends, if any, equal
+ * `structure` as a read returns it, without collections that no longer exist.
+ */
+async function matchesStructure(
+	db: Kysely<Database>,
 	structure: TaxonomyStructure,
 	input: { hierarchical?: boolean; collections?: string[] },
-): boolean {
+): Promise<boolean> {
 	if (input.hierarchical !== undefined && input.hierarchical !== structure.hierarchical) {
 		return false;
 	}
 	if (input.collections === undefined) return true;
+	const existing = await findExistingCollections(db, structure.collections);
+	const visible = structure.collections.filter((collection) => existing.has(collection));
 	const sent = new Set(input.collections);
-	return (
-		sent.size === structure.collections.length &&
-		structure.collections.every((collection) => sent.has(collection))
-	);
+	return sent.size === visible.length && visible.every((collection) => sent.has(collection));
 }
 
 /**

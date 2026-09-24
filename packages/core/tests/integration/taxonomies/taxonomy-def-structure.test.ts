@@ -189,4 +189,19 @@ describeEachDialect("taxonomy structure is shared by every locale", (dialect) =>
 			.execute();
 		expect(rows).toEqual([{ hierarchical: 1, collections: JSON.stringify(["post"]) }]);
 	});
+
+	it("lets a new locale send back the structure a read returns", async () => {
+		const read = await handleTaxonomyGet(ctx.db, "category", { locale: "en" });
+		if (!read.success) throw new Error(read.error.message);
+
+		const created = await handleTaxonomyCreate(ctx.db, {
+			name: "category",
+			label: "Categorías",
+			locale: "es",
+			hierarchical: read.data.taxonomy.hierarchical,
+			collections: read.data.taxonomy.collections,
+		});
+
+		expect(created.success).toBe(true);
+	});
 });
