@@ -27,6 +27,7 @@ interface SiteCase {
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
+const SETUP_REQUEST_TIMEOUT_MS = 30_000;
 const SMOKE_FONT_PROVIDER_IMPORT = pathToFileURL(
 	resolve(import.meta.dirname, "smoke-font-provider.mjs"),
 ).href;
@@ -134,6 +135,13 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 	}
 
 	throw lastError instanceof Error ? lastError : new Error(`Request failed for ${url}`);
+}
+
+function fetchSetupOnce(url: string): Promise<Response> {
+	return fetch(url, {
+		redirect: "manual",
+		signal: AbortSignal.timeout(SETUP_REQUEST_TIMEOUT_MS),
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +324,7 @@ describe.sequential("Site runtime verification", () => {
 				try {
 					let mcpToken: string | undefined;
 					if (setupPath) {
-						const setupRes = await fetchWithRetry(
+						const setupRes = await fetchSetupOnce(
 							`${server.baseUrl}${site.verifyMcp ? "/_emdash/api/setup/dev-bypass?token=1" : setupPath}`,
 						);
 						expect(setupRes.status).toBeLessThan(500);
@@ -456,7 +464,7 @@ describe.sequential("MCP endpoint verification", () => {
 			};
 
 			try {
-				const setupResponse = await fetchWithRetry(
+				const setupResponse = await fetchSetupOnce(
 					`${server.baseUrl}/_emdash/api/setup/dev-bypass?token=1`,
 				);
 				expect(setupResponse.status).toBe(200);

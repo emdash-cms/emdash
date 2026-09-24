@@ -14,6 +14,7 @@ import {
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { promisify, stripVTControlCharacters } from "node:util";
 
@@ -469,18 +470,12 @@ it("retries when an injected route returns a transient server error", async () =
 
 async function stopServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
 	if (serverProcess.exitCode !== null || serverProcess.signalCode !== null) return;
-	serverProcess.kill("SIGTERM");
-	await Promise.race([
-		once(serverProcess, "exit"),
-		new Promise<void>((resolveTimeout) => {
-			setTimeout(() => {
-				if (serverProcess.exitCode === null && serverProcess.signalCode === null) {
-					serverProcess.kill("SIGKILL");
-				}
-				resolveTimeout();
-			}, 5000);
-		}),
-	]);
+	const exited = once(serverProcess, "exit");
+	if (!serverProcess.kill("SIGTERM")) return;
+	const stopped = await Promise.race([exited.then(() => true), delay(5000, false, { ref: false })]);
+	if (stopped) return;
+	serverProcess.kill("SIGKILL");
+	await Promise.race([exited, delay(1000, undefined, { ref: false })]);
 }
 
 describe.sequential("Isolated template installs", () => {
