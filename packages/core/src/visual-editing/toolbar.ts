@@ -1198,8 +1198,9 @@ export function renderToolbar(config: ToolbarConfig): string {
     // Fetch media
     ecFetch("/_emdash/api/media?mimeType=image/&limit=30", { credentials: "same-origin" })
     .then(function(r) { return r.json(); })
-    .then(function(data) {
-      var items = data.items || [];
+    .then(function(body) {
+      if (!body || !body.success) throw new Error((body && body.error && body.error.message) || "Failed to load media");
+      var items = body.data.items || [];
       var loadingEl = browser.querySelector(".emdash-img-loading");
       if (loadingEl) loadingEl.remove();
 
@@ -1367,9 +1368,9 @@ export function renderToolbar(config: ToolbarConfig): string {
       });
     })
     .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.item) throw new Error("Upload failed");
-      var item = data.item;
+    .then(function(body) {
+      var item = body && body.success && body.data && body.data.item;
+      if (!item) throw new Error((body && body.error && body.error.message) || "Upload failed");
       selectMediaItem(item, annotation, element, imgEl);
     })
     .catch(function(err) {
