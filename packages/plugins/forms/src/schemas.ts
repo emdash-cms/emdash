@@ -181,7 +181,6 @@ export type DefinitionInput = z.infer<typeof definitionSchema>;
 /** Upper bound for one uploaded file, applied even when the field sets no `maxFileSize`. */
 export const MAX_SUBMISSION_FILE_BYTES = 10 * 1024 * 1024;
 
-// Kept to a single character-class loop: a repeated group overflows V8's regex stack on multi-megabyte input.
 const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
 
 function decodeBase64(b64: string): Uint8Array<ArrayBuffer> {
