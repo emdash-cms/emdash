@@ -269,7 +269,10 @@ export type {
 	MediaAfterUploadHandler,
 	LifecycleHandler,
 	UninstallHandler,
-
+	BylineAfterSaveEvent,
+	BylineAfterDeleteEvent,
+	BylineAfterSaveHandler,
+	BylineAfterDeleteHandler,
 	// Comment types
 	CommentBeforeCreateEvent,
 	CommentModerateEvent,

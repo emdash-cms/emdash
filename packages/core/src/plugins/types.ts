@@ -1522,6 +1522,34 @@ export type ContentAfterUnscheduleHandler = (
 	ctx: PluginContext,
 ) => Promise<void>;
 
+/**
+ * Event for `byline:afterSave`, fired after a byline profile or one of its
+ * locale translations is created or updated.
+ */
+export interface BylineAfterSaveEvent {
+	byline: BylineInfo;
+	isNew: boolean;
+}
+
+/**
+ * Event for `byline:afterDelete`, fired after a byline row is deleted. When it
+ * was the last locale of its translation group, its credits have already been
+ * removed from every entry.
+ */
+export interface BylineAfterDeleteEvent {
+	byline: BylineInfo;
+}
+
+export type BylineAfterSaveHandler = (
+	event: BylineAfterSaveEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type BylineAfterDeleteHandler = (
+	event: BylineAfterDeleteEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
 export type MediaBeforeUploadHandler = (
 	event: MediaUploadEvent,
 	ctx: PluginContext,
@@ -1737,6 +1765,8 @@ export interface PluginHooks {
 	"comment:moderate"?: HookConfig<CommentModerateHandler> | CommentModerateHandler;
 	"comment:afterCreate"?: HookConfig<CommentAfterCreateHandler> | CommentAfterCreateHandler;
 	"comment:afterModerate"?: HookConfig<CommentAfterModerateHandler> | CommentAfterModerateHandler;
+	"byline:afterSave"?: HookConfig<BylineAfterSaveHandler> | BylineAfterSaveHandler;
+	"byline:afterDelete"?: HookConfig<BylineAfterDeleteHandler> | BylineAfterDeleteHandler;
 
 	// Public page hooks
 	"page:metadata"?: HookConfig<PageMetadataHandler> | PageMetadataHandler;
@@ -2136,6 +2166,8 @@ export interface ResolvedPluginHooks {
 	"comment:moderate"?: ResolvedHook<CommentModerateHandler>;
 	"comment:afterCreate"?: ResolvedHook<CommentAfterCreateHandler>;
 	"comment:afterModerate"?: ResolvedHook<CommentAfterModerateHandler>;
+	"byline:afterSave"?: ResolvedHook<BylineAfterSaveHandler>;
+	"byline:afterDelete"?: ResolvedHook<BylineAfterDeleteHandler>;
 	"page:metadata"?: ResolvedHook<PageMetadataHandler>;
 	"page:fragments"?: ResolvedHook<PageFragmentHandler>;
 }

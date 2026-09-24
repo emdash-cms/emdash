@@ -132,6 +132,8 @@ export const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments",
 ] as const;

@@ -10,7 +10,7 @@ Plugin content APIs are capability-gated and shared by native, Cloudflare Worker
 
 `content:revisions:read` adds `listRevisions()` and `getRevision()`. Revision snapshots can retain field values removed later but omit revision-author identity.
 
-`bylines:read` exposes `ctx.bylines.get()`, `list()`, and `getEntriesBylines()`. Profiles omit the linked user account, guest flag, and custom field values. Credits match what the site renders: explicit editor credits, or the author-linked byline marked `source: "inferred"`. They resolve at the entry's own locale and are empty for trashed or missing entries. `getEntriesBylines()` accepts up to 100 IDs from one collection and returns `{ entryId, bylines }` in input order. It does not grant `content:read`.
+`bylines:read` exposes `ctx.bylines.get()`, `list()`, and `getEntriesBylines()`, and allows the `byline:afterSave` and `byline:afterDelete` hooks. Profiles omit the linked user account, guest flag, and custom field values. Credits match what the site renders: explicit editor credits, or the author-linked byline marked `source: "inferred"`. They resolve at the entry's own locale and are empty for trashed or missing entries. `getEntriesBylines()` accepts up to 100 IDs from one collection and returns `{ entryId, bylines }` in input order. It does not grant `content:read`.
 
 ## Writes and translations
 

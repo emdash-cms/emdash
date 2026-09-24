@@ -841,6 +841,26 @@ describe("HookPipeline", () => {
 		});
 	});
 
+	describe("capability enforcement — byline hooks", () => {
+		it("registers byline hooks only with bylines:read capability", () => {
+			const hooks = {
+				"byline:afterSave": createTestHook("p", vi.fn()),
+				"byline:afterDelete": createTestHook("p", vi.fn()),
+			};
+			const without = new HookPipeline([
+				createTestPlugin({ id: "p", capabilities: ["content:read", "users:read"], hooks }),
+			]);
+			const withCap = new HookPipeline([
+				createTestPlugin({ id: "p", capabilities: ["bylines:read"], hooks }),
+			]);
+
+			expect(without.hasHooks("byline:afterSave")).toBe(false);
+			expect(without.hasHooks("byline:afterDelete")).toBe(false);
+			expect(withCap.hasHooks("byline:afterSave")).toBe(true);
+			expect(withCap.hasHooks("byline:afterDelete")).toBe(true);
+		});
+	});
+
 	describe("capability enforcement — page:fragments", () => {
 		it("skips page:fragments without hooks.page-fragments:register capability", () => {
 			const plugin = createTestPlugin({

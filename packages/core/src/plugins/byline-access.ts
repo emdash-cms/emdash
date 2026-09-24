@@ -27,7 +27,7 @@ interface PublicBylineFields {
 	translationGroup: string | null;
 }
 
-function toBylineInfo(byline: PublicBylineFields): BylineInfo {
+export function toBylineInfo(byline: PublicBylineFields): BylineInfo {
 	return {
 		id: byline.id,
 		slug: byline.slug,

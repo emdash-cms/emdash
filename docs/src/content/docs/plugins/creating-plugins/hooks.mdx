@@ -496,6 +496,8 @@ The in-process hook pipeline defaults to 5,000 ms and accepts a longer `timeout`
 | `comment:moderate`       | Decide comment status         | `{ status, reason? }`                | Yes       |
 | `comment:afterCreate`    | After comment stored          | `void`                               | No        |
 | `comment:afterModerate`  | Admin changes comment status  | `void`                               | No        |
+| `byline:afterSave`       | After byline saved            | `void`                               | No        |
+| `byline:afterDelete`     | After byline deleted          | `void`                               | No        |
 | `page:metadata`          | Page render                   | Contributions or `null`              | No        |
 | `page:fragments`         | Page render (native only)     | Contributions or `null`              | No        |
 

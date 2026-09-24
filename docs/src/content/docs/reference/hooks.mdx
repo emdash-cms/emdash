@@ -35,6 +35,8 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `comment:moderate`      | Decide comment approval status        | Status            | Yes       |
 | `comment:afterCreate`   | After comment is stored               | Nothing           | No        |
 | `comment:afterModerate` | After admin changes comment status    | Nothing           | No        |
+| `byline:afterSave`      | After a byline is created or updated  | Nothing           | No        |
+| `byline:afterDelete`    | After a byline is deleted             | Nothing           | No        |
 | `page:metadata`         | Rendering public page head            | Contribute tags   | No        |
 | `page:fragments`        | Rendering public page body            | Inject scripts    | No        |
 | `plugin:install`        | When plugin is first installed        | Nothing           | No        |
@@ -749,6 +751,59 @@ interface CommentAfterModerateEvent {
 	origin?:
 		| { source: "admin"; userId: string }
 		| { source: "plugin"; pluginId: string };
+}
+```
+
+The hook has no return value.
+
+## Byline hooks
+
+Byline hooks run after the admin API or an MCP tool changes a byline profile. They do not run for seeds or imports. Use them to keep an external copy of author data, such as a search index, current. Hook errors are logged and do not undo the change.
+
+Relinking a byline to a different user can change the credits inferred for that user's entries. No per-entry hook runs for that change.
+
+### `byline:afterSave`
+
+**Capability:** `bylines:read`
+
+Runs after a byline or a byline translation is created or updated.
+
+```ts
+hooks: {
+  "byline:afterSave": async (event, ctx) => {
+    await ctx.storage.authors.put(event.byline.id, {
+      name: event.byline.displayName,
+      slug: event.byline.slug,
+    });
+  },
+}
+```
+
+#### Event
+
+```ts
+interface BylineAfterSaveEvent {
+	byline: BylineInfo;
+	/** `true` when the byline was just created. */
+	isNew: boolean;
+}
+```
+
+`BylineInfo` has the same public fields that `ctx.bylines.get()` returns. It omits the linked user account, guest flag, and custom field values.
+
+The hook has no return value.
+
+### `byline:afterDelete`
+
+**Capability:** `bylines:read`
+
+Runs after a byline is deleted. The event carries the byline as it was before deletion.
+
+#### Event
+
+```ts
+interface BylineAfterDeleteEvent {
+	byline: BylineInfo;
 }
 ```
 

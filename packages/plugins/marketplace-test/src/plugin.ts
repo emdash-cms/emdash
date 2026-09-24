@@ -311,6 +311,10 @@ const plugin: SandboxedPlugin = {
 				}
 			}
 		},
+		"byline:afterSave": async (event, ctx) =>
+			record(ctx, "events", "byline-saved", { bylineId: event.byline.id, isNew: event.isNew }),
+		"byline:afterDelete": async (event, ctx) =>
+			record(ctx, "events", "byline-deleted", { bylineId: event.byline.id }),
 		cron: async (event, ctx) =>
 			record(ctx, "events", "cron", { name: event.name, scheduledAt: event.scheduledAt }),
 		"email:beforeSend": async (event, ctx) => {

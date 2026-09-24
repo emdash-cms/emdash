@@ -23,7 +23,7 @@ The source manifest uses canonical capability names. The generated manifest clos
 | `hooks.content-policy:register`  | Publish, schedule, and unpublish policy for API, MCP, plugin, and scheduler origins              |
 | `taxonomies:read`                | Definitions, terms, and entry assignments                                                        |
 | `taxonomies:write`               | Term creation plus idempotent assignment additions and removals                                  |
-| `bylines:read`                   | ID and paged profile reads plus batched entry credits                                            |
+| `bylines:read`                   | ID and paged profile reads, batched entry credits, and byline save/delete hooks                  |
 | `redirects:read`                 | Cursor listing and versioned reads                                                               |
 | `redirects:write`                | Create, update, delete, conflict, loop validation, and host-owned field denial                   |
 | `media:read`                     | Metadata lookup and listing without storage keys                                                 |
@@ -47,6 +47,7 @@ The fixture declares every name in `HOOK_NAMES`:
 - publication policy and every post-publication state hook;
 - before/after media upload hooks;
 - before-create, initial-moderation, after-create, and after-moderate comment hooks;
+- after-save and after-delete byline hooks;
 - email event and exclusive transport hooks;
 - cron and page metadata hooks; and
 - the trusted-only page-fragment hook, whose sandbox exclusion is tested.

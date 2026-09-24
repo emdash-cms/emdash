@@ -409,6 +409,10 @@ export type {
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
 	PortableTextBlockField,
+	BylineAfterSaveEvent,
+	BylineAfterDeleteEvent,
+	BylineAfterSaveHandler,
+	BylineAfterDeleteHandler,
 	// Comment types
 	CommentBeforeCreateEvent,
 	CommentModerateEvent,

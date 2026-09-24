@@ -40,7 +40,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `taxonomies:write`                  | `ctx.taxonomies.createTerm()`, `ctx.taxonomies.addEntryTerms()`, `ctx.taxonomies.removeEntryTerms()` (implies `taxonomies:read`) |
-| `bylines:read`                      | `ctx.bylines.get()`, `ctx.bylines.list()`, `ctx.bylines.getEntriesBylines()` |
+| `bylines:read`                      | `ctx.bylines.get()`, `ctx.bylines.list()`, `ctx.bylines.getEntriesBylines()`, and the `byline:afterSave` and `byline:afterDelete` hooks |
 | `redirects:read`                    | `ctx.redirects.list()`, `ctx.redirects.get()`                                |
 | `redirects:write`                   | `ctx.redirects.create()`, `ctx.redirects.update()`, `ctx.redirects.delete()` (implies `redirects:read`) |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
