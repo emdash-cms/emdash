@@ -193,4 +193,20 @@ describe("EmailSettings", () => {
 		await expect.element(screen.getByText("Missing SMTP configuration")).toBeInTheDocument();
 		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
 	});
+
+	it("blocks saving SMTP on port 25", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: "emdash-smtp",
+			providers: [{ pluginId: "emdash-smtp" }],
+		});
+		const screen = await renderEmailSettings();
+		await screen.getByLabelText("Host").fill("smtp.example.com");
+		await screen.getByLabelText("Username").fill("mailer");
+		await screen.getByLabelText("Port").fill("25");
+
+		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
+		await expect.element(screen.getByText("Port 25 is not supported")).toBeInTheDocument();
+		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
+	});
 });

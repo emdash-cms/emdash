@@ -25,6 +25,10 @@ import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js"
 
 const SMTP_PROVIDER_ID = "emdash-smtp";
 const CLOUDFLARE_PROVIDER_ID = "emdash-cloudflare-email";
+const PROVIDER_LABELS: Record<string, MessageDescriptor> = {
+	[SMTP_PROVIDER_ID]: msg`SMTP`,
+	[CLOUDFLARE_PROVIDER_ID]: msg`Cloudflare Email`,
+};
 
 // Select values: "none", the two built-ins under stable aliases, or a
 // plugin ID verbatim (plugin providers are listed dynamically).
@@ -177,6 +181,15 @@ export function EmailSettings() {
 				toastManager.add({
 					title: t`Invalid port`,
 					description: t`Port must be between 1 and 65535.`,
+					variant: "error",
+					timeout: 5000,
+				});
+				return;
+			}
+			if (port === 25) {
+				toastManager.add({
+					title: t`Port 25 is not supported`,
+					description: t`Cloudflare blocks outbound port 25. Use 587 (STARTTLS) or 465 (implicit TLS).`,
 					variant: "error",
 					timeout: 5000,
 				});
@@ -517,6 +530,10 @@ export function EmailSettings() {
 
 function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined }) {
 	const { t } = useLingui();
+	const providerLabel = (id: string) => {
+		const label = PROVIDER_LABELS[id];
+		return label ? t(label) : id;
+	};
 
 	if (!settings) return null;
 
@@ -551,7 +568,9 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 						<p className="text-sm leading-5 text-kumo-subtle">
 							{t`Provider:`}{" "}
 							<code className="rounded bg-kumo-tint px-1.5 py-0.5 text-[0.9em] break-all">
-								{settings.selectedProviderId || t`Unknown`}
+								{settings.selectedProviderId
+									? providerLabel(settings.selectedProviderId)
+									: t`Unknown`}
 							</code>
 						</p>
 					</div>
@@ -586,7 +605,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 					<div className="grid gap-1">
 						<p className="text-sm font-medium">{t`Available Providers`}</p>
 						<p className="text-sm leading-5 text-kumo-subtle break-words">
-							{settings.providers.map((provider) => provider.pluginId).join(", ")}
+							{settings.providers.map((provider) => providerLabel(provider.pluginId)).join(", ")}
 						</p>
 					</div>
 				</SettingRow>
