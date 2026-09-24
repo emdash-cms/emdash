@@ -288,6 +288,9 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 	"migrateBlocks",
 	"replaceBlocks",
 ]);
+
+/** Field types whose schema is an array, so a stored blank string can never validate. */
+const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 
@@ -3410,8 +3413,7 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Normalize media fields (fill dimensions, storageKey, etc.)
-		processedData = await this.normalizeMediaFields(
+		processedData = await this.normalizeFieldValues(
 			collection,
 			processedData,
 			collectionInfo,
@@ -3555,8 +3557,7 @@ export class EmDashRuntime {
 				}
 			}
 
-			// Normalize media fields (fill dimensions, storageKey, etc.)
-			processedData = await this.normalizeMediaFields(
+			processedData = await this.normalizeFieldValues(
 				collection,
 				processedData!,
 				collectionInfo,
@@ -3594,7 +3595,7 @@ export class EmDashRuntime {
 							true,
 							resolvedBlockTypes,
 						);
-						processedData = await this.normalizeMediaFields(
+						processedData = await this.normalizeFieldValues(
 							collection,
 							processedData,
 							collectionInfo,
@@ -3653,7 +3654,7 @@ export class EmDashRuntime {
 							true,
 							resolvedBlockTypes,
 						);
-						attemptData = await this.normalizeMediaFields(
+						attemptData = await this.normalizeFieldValues(
 							collection,
 							attemptData,
 							collectionInfo,
@@ -4647,7 +4648,7 @@ export class EmDashRuntime {
 	}
 
 	async handleMediaDelete(id: string) {
-		const result = await handleMediaDelete(this.db, id);
+		const result = await handleMediaDelete(this.db, id, this.storage);
 		// Same reasoning as `handleMediaUpdate`: if the deleted media row
 		// was referenced by a setting, the cached resolved URL now points
 		// at a 404. Invalidation is unconditional on success — cheaper than
@@ -5619,10 +5620,11 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Normalize image/file fields in content data.
-	 * Fills missing dimensions, storageKey, mimeType, and filename from providers.
+	 * Normalize field values in content data before validation.
+	 * Turns a blank string in an array-valued field into `null`, and fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
 	 */
-	private async normalizeMediaFields(
+	private async normalizeFieldValues(
 		collection: string,
 		data: Record<string, unknown>,
 		preloaded?: CollectionWithFields | null,
@@ -5639,6 +5641,14 @@ export class EmDashRuntime {
 		}
 		if (!collectionInfo?.fields) return data;
 
+		const result = { ...data };
+		for (const field of collectionInfo.fields) {
+			const value = result[field.slug];
+			if (ARRAY_FIELD_TYPES.has(field.type) && typeof value === "string" && !value.trim()) {
+				result[field.slug] = null;
+			}
+		}
+
 		const imageFields = collectionInfo.fields.filter(
 			(f) => f.type === "image" || f.type === "file",
 		);
@@ -5652,11 +5662,10 @@ export class EmDashRuntime {
 			? collectionInfo.fields.filter((field) => field.type === "blocks")
 			: [];
 		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
-			return data;
+			return result;
 		}
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
-		const result = { ...data };
 
 		for (const field of imageFields) {
 			const value = result[field.slug];

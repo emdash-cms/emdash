@@ -45,6 +45,7 @@ import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
 import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
+import { MagicLinkConfirmPage } from "./components/MagicLinkConfirmPage";
 import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
@@ -252,6 +253,22 @@ function LoginPageWrapper() {
 	const searchParams = new URLSearchParams(window.location.search);
 	const redirect = sanitizeRedirectUrl(searchParams.get("redirect") || "/_emdash/admin");
 	return <LoginPage redirectUrl={redirect} />;
+}
+
+const magicLinkConfirmRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/login/magic-link",
+	component: MagicLinkConfirmPageWrapper,
+	validateSearch: (search: Record<string, unknown>) => ({
+		token: typeof search.token === "string" ? search.token : undefined,
+		redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+	}),
+});
+
+function MagicLinkConfirmPageWrapper() {
+	const { token, redirect } = useSearch({ from: "/login/magic-link" });
+	const safeRedirect = sanitizeRedirectUrl(redirect || "/_emdash/admin");
+	return <MagicLinkConfirmPage token={token ?? null} redirectUrl={safeRedirect} />;
 }
 
 // Signup route (standalone, no Shell)
@@ -679,6 +696,12 @@ function ContentListPage() {
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			bulkTagEnabled={
+				(currentUser?.role ?? 0) >= ROLE_EDITOR &&
+				manifest.taxonomies.some(
+					(taxonomy) => taxonomy.name === "tag" && taxonomy.collections.includes(collection),
+				)
+			}
 			pluginStates={manifest.plugins}
 			userRole={currentUser?.role ?? 0}
 		/>
@@ -2813,6 +2836,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
+	magicLinkConfirmRoute,
 	signupRoute,
 	inviteAcceptRoute,
 	deviceRoute,

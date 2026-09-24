@@ -1,8 +1,8 @@
-name: PR Triage
+name: PR Maintenance
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened]
 
 permissions:
   contents: read
@@ -10,11 +10,110 @@ permissions:
 
 jobs:
   label:
-    name: Label PR
+    name: Maintain PR
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check PR template
+        if: >-
+          (github.event.action == 'opened' || github.event.action == 'edited') &&
+          github.event.pull_request.user.login != 'dependabot[bot]' &&
+          github.event.pull_request.user.login != 'renovate[bot]' &&
+          github.event.pull_request.user.login != 'emdashbot[bot]' &&
+          github.event.pull_request.user.login != 'ask-bonk[bot]'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const pr = context.payload.pull_request;
+            const association = pr.author_association || '';
+            const isMaintainer = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association);
+            const errors = [];
+            const hasTemplate = body.includes('## What does this PR do?') || body.includes('## Type of change');
+
+            if (!hasTemplate) {
+              errors.push('This PR does not use the required PR template. Please edit the description to use the [PR template](https://github.com/emdash-cms/emdash/blob/main/.github/PULL_REQUEST_TEMPLATE.md). Copy it into your PR description and fill out all sections.');
+            } else {
+              const descriptionSection = body.match(/## What does this PR do\?\s*\n([\s\S]*?)(?=\n## )/);
+              const description = descriptionSection?.[1]?.replace(/<!--[\s\S]*?-->/g, '').trim() || '';
+              if (!description || description === 'Closes #') {
+                errors.push('Fill out the "What does this PR do?" section with a description of your change.');
+              }
+
+              const typeChecks = [
+                /- \[x\] Bug fix/i,
+                /- \[x\] Feature/i,
+                /- \[x\] Refactor/i,
+                /- \[x\] Translation/i,
+                /- \[x\] Documentation/i,
+                /- \[x\] Performance/i,
+                /- \[x\] Tests/i,
+                /- \[x\] Chore/i,
+              ];
+              if (!typeChecks.some(re => re.test(body))) {
+                errors.push('Check at least one "Type of change" checkbox.');
+              }
+
+              const isFeature = /- \[x\] Feature/i.test(body);
+              if (isFeature && !isMaintainer) {
+                const hasDiscussionLink = /github\.com\/emdash-cms\/emdash\/discussions\/\d+/.test(body);
+                if (!hasDiscussionLink) {
+                  errors.push('Feature PRs require a link to an approved Discussion (https://github.com/emdash-cms/emdash/discussions/categories/ideas). Open a Discussion first, get approval, then link it in the PR.');
+                }
+              }
+
+              if (!/- \[x\][^\n]*\bI have read\b[^\n]*CONTRIBUTING/i.test(body)) {
+                errors.push('Check the "I have read CONTRIBUTING.md" checkbox.');
+              }
+            }
+
+            const marker = '<!-- pr-compliance-check -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+            });
+            const existing = comments.find(c =>
+              c.user?.login === 'github-actions[bot]' && c.body?.includes(marker)
+            );
+
+            if (errors.length > 0) {
+              const message = [
+                '## PR template validation failed',
+                '',
+                'Please fix the following issues by editing your PR description:',
+                '',
+                ...errors.map(error => `- ${error}`),
+                '',
+                'See [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) for the full contribution policy.',
+              ].join('\n');
+              const commentBody = `${marker}\n${message}`;
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body: commentBody,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: commentBody,
+                });
+              }
+              core.setFailed(message);
+            } else if (existing) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+              });
+            }
+
       - name: Triage PR
+        if: always() && github.event.action != 'edited'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -26,7 +125,6 @@ jobs:
             if (botLogins.includes(pr.user.login)) {
               labels.add('bot');
             }
-
             // --- Size labels ---
             const { data: files } = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
