@@ -743,9 +743,6 @@ function scheduleBackendWrite(key: string, write: () => void): void {
  * keep their cached values until those expire.
  */
 export async function coalesceObjectCacheWrites<T>(fn: () => Promise<T>): Promise<T> {
-	const outer = writeScopes.getStore();
-	if (outer && !outer.closed) return fn();
-
 	const scope: WriteScope = { held: new Map(), closed: false };
 	try {
 		return await writeScopes.run(scope, fn);
