@@ -252,7 +252,7 @@ Taxonomy definitions describe the classification and the collections it applies 
 
 ## Plugin tools
 
-An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` as `<pluginId>__<localName>` and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
+An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` with an MCP-safe plugin prefix followed by `__<localName>` (for example, `@emdash-cms/plugin-forms` and `submit_form` become `emdash_cms__plugin_forms__submit_form`) and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
 
 Because plugin tools are installation-specific, they are not part of the static inventory above.
 

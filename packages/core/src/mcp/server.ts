@@ -40,6 +40,7 @@ import { decodeCursor, InvalidCursorError } from "../database/repositories/types
 import type { RouteCallerInput } from "../plugins/routes.js";
 import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
+import { pluginToolName } from "./plugin-tool-name.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
@@ -764,7 +765,7 @@ export function createMcpServer(
 	for (const tool of pluginTools) {
 		if (!Object.hasOwn(Permissions, tool.permission)) continue;
 		server.registerTool(
-			`${tool.pluginId}__${tool.name}`,
+			pluginToolName(tool.pluginId, tool.name),
 			{
 				description: tool.description,
 				inputSchema: tool.inputSchema,
