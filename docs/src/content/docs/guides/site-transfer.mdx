@@ -27,7 +27,7 @@ Use a raw database backup to recover a deployment after data loss. Use a site pa
 
 A site package contains:
 
-- collections, fields, taxonomy definitions, relation definitions, and byline field definitions;
+- collections, fields, [block types](/guides/blocks/) with every version, taxonomy definitions, relation definitions, and byline field definitions;
 - every content entry in every locale, including drafts, scheduled entries, trashed entries, revision history, and translation groups;
 - taxonomy terms and term assignments, bylines and credits, content references, and SEO records;
 - menus and menu items, widget areas and widgets, sections, and redirects;
@@ -77,7 +77,7 @@ Import into a site that meets every requirement below. When the target's content
 
 - **An administrator account.** Import runs as a signed-in administrator or with an API token. Create the target's administrator during setup.
 - **A storage backend.** Both the origin and the target need configured [storage](/deployment/storage/). EmDash stages package files in it.
-- **No content.** The target must not hold entries (including trashed entries), revisions, media or media folders, bylines or byline fields, comments, redirects, term assignments, relations, SEO records, sections created in the admin, or collections created after setup. A site set up from any official template qualifies. What setup created is setup scaffold: the seeded collections, taxonomy definitions and their unassigned terms, menus and their items, widget areas and their widgets, and theme sections. The plan lists the scaffold, and the import removes it after you confirm the plan.
+- **No content.** The target must not hold entries (including trashed entries), revisions, media or media folders, bylines or byline fields, comments, redirects, term assignments, relations, SEO records, sections created in the admin, or collections or block types created after setup. A site set up from any official template qualifies. What setup created is setup scaffold: the seeded collections and block types, taxonomy definitions and their unassigned terms, menus and their items, widget areas and their widgets, and theme sections. The plan lists the scaffold, and the import removes it after you confirm the plan.
 - **Every locale the package uses.** Add each of the package's locales to the target's [i18n configuration](/guides/internationalization/#configure-locales). A site without i18n configuration accepts only `en`. Locales are matched without regard to case, and the import writes each locale with the target's configured casing, declared as `locale_recased`.
 - **A large enough upload limit.** Every media file must fit the target's [`maxUploadSize`](/reference/configuration/#maxuploadsize), which defaults to 50 MiB.
 - **Format version `1`.** The target must support the package's format version and every required feature.
@@ -331,7 +331,7 @@ A plan lists at most 500 blockers and warnings. An `issues_truncated` warning re
 | `record_count_mismatch` | The number of records of a kind differs from the manifest. |
 | `record_order_invalid` | Records are out of order, or a parent appears after its child. |
 | `duplicate_id` | Two records of the same kind share an ID. |
-| `dangling_reference` | A record refers to a record that is not in the package. |
+| `dangling_reference` | A record refers to a record that is not in the package. This includes a blocks field that names a block type the package lacks, and a block type whose current version the package lacks. |
 | `reference_cycle` | A term, comment, or menu item is its own parent. |
 | `media_ref_invalid` | Content refers to a media record that is not in the package. |
 | `media_blob_missing` | A media record's file is not in the package. |
@@ -350,6 +350,7 @@ The importer writes records directly, so analysis applies the same checks the ad
 - a redirect whose source or destination is not a path on the site, whose type is not supported, whose source pattern is invalid, or whose destination uses a parameter the source does not capture;
 - a byline website that is not an `http` or `https` URL, a byline field value that does not fit its field's type or choices, or a byline field with more choices than a site supports;
 - a collection URL pattern that is invalid;
+- a block type with a reserved slug, a label that is empty or longer than 200 characters, or field definitions the block type editor would refuse;
 - an SEO canonical URL that is neither an `http` or `https` URL nor a site path; and
 - a menu item URL with a scheme menus do not allow.
 
@@ -397,7 +398,7 @@ Execution runs these stages in order:
 
 1. Reserve the target and check again that it is empty.
 2. Remove the setup scaffold listed in the plan.
-3. Create collections, fields, taxonomy definitions, relation definitions, and byline fields.
+3. Create block types, collections, fields, taxonomy definitions, relation definitions, and byline fields.
 4. Copy media files into the target's storage and create media records.
 5. Write terms and bylines.
 6. Write revisions and entries.

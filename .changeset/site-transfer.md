@@ -2,7 +2,7 @@
 "emdash": minor
 ---
 
-Adds site transfer: export a whole EmDash site as a `.emdash` package and import it into an empty EmDash site, on Cloudflare (D1 and R2) or Node (SQLite or PostgreSQL). A package carries content, revisions, schema, taxonomies, bylines, menus, widgets, redirects, SEO, settings, media files, and comments unless you leave them out. Imports are checked before anything is written, run in bounded steps, and end with a receipt issued only after the imported site is verified against the package.
+Adds site transfer: export a whole EmDash site as a `.emdash` package and import it into an empty EmDash site, on Cloudflare (D1 and R2) or Node (SQLite or PostgreSQL). A package carries content, revisions, schema and block types, taxonomies, bylines, menus, widgets, redirects, SEO, settings, media files, and comments unless you leave them out. Imports are checked before anything is written, run in bounded steps, and end with a receipt issued only after the imported site is verified against the package.
 
 #### From the command line
 
