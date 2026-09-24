@@ -1000,14 +1000,15 @@ function CreateTaxonomyDialog({
 				}
 			}}
 		>
-			<Dialog className="p-6" size="lg">
-				<form onSubmit={handleSubmit}>
-					<div className="flex items-start justify-between gap-4 mb-4">
-						<div className="flex flex-col space-y-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create Taxonomy`}
-							</Dialog.Title>
-							<Dialog.Description className="text-sm text-kumo-subtle">
+			<Dialog
+				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+				size="lg"
+			>
+				<form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+					<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
+						<div className="min-w-0">
+							<Dialog.Title className="text-lg font-semibold">{t`Create Taxonomy`}</Dialog.Title>
+							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
 								{t`Define a new taxonomy for classifying content`}
 							</Dialog.Description>
 						</div>
@@ -1016,19 +1017,17 @@ function CreateTaxonomyDialog({
 							render={(props) => (
 								<Button
 									{...props}
+									type="button"
 									variant="ghost"
 									shape="square"
+									icon={<X className="size-4" aria-hidden="true" />}
 									aria-label={t`Close`}
-									className="absolute end-4 top-4"
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
+								/>
 							)}
 						/>
 					</div>
 
-					<div className="space-y-4 py-4">
+					<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-6 py-6">
 						<Input
 							label={t`Label`}
 							value={label}
@@ -1084,7 +1083,7 @@ function CreateTaxonomyDialog({
 						<DialogError message={error || getMutationError(createMutation.error)} />
 					</div>
 
-					<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+					<div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-kumo-line px-6 py-4">
 						<Button
 							type="button"
 							variant="outline"
@@ -1095,7 +1094,7 @@ function CreateTaxonomyDialog({
 						>
 							{t`Cancel`}
 						</Button>
-						<Button type="submit" disabled={createMutation.isPending}>
+						<Button type="submit" variant="primary" disabled={createMutation.isPending}>
 							{createMutation.isPending ? t`Creating...` : t`Create Taxonomy`}
 						</Button>
 					</div>

@@ -379,6 +379,30 @@ describe("TaxonomyManager", () => {
 			.toBeInTheDocument();
 	});
 
+	it("creates a taxonomy from the dialog footer", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await screen.getByRole("button", { name: "More actions for Tags" }).click();
+		await screen.getByRole("menuitem", { name: "New taxonomy" }).click();
+
+		const dialog = screen.getByRole("dialog");
+		await dialog.getByRole("textbox", { name: "Label" }).fill("Topics");
+		await expect.element(dialog.getByRole("textbox", { name: "Name" })).toHaveValue("topics");
+		await dialog.getByRole("button", { name: "Create Taxonomy" }).click();
+
+		await vi.waitFor(() => {
+			const call = vi
+				.mocked(apiFetch)
+				.mock.calls.find(
+					([url, init]) =>
+						typeof url === "string" && url.endsWith("/taxonomies") && init?.method === "POST",
+				);
+			expect(call).toBeDefined();
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ name: "topics", label: "Topics", hierarchical: false });
+		});
+	});
+
 	it("shows slug guidance beside the label only when requested", async () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
