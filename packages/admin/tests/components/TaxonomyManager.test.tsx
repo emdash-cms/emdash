@@ -335,10 +335,11 @@ describe("TaxonomyManager", () => {
 		const search = screen.getByRole("searchbox", { name: "Search tags" });
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("2 tags").query()).toBeNull();
 		await search.fill("sci");
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
 		expect(screen.getByText("Technology", { exact: true }).query()).toBeNull();
-		await expect.element(screen.getByText("1 of 2 tags")).toBeInTheDocument();
+		expect(screen.getByText("1 of 2 tags").query()).toBeNull();
 		await screen.getByRole("button", { name: "More actions for Science" }).click();
 		expect(screen.getByRole("menuitem", { name: "Move up Science" }).query()).toBeNull();
 		await userEvent.keyboard("{Escape}");
@@ -346,10 +347,12 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
 		expect(screen.getByText("Science", { exact: true }).query()).toBeNull();
 		await search.fill("missing");
-		await expect.element(screen.getByText("No tags match this search.")).toBeInTheDocument();
+		await expect.element(screen.getByRole("table")).toBeInTheDocument();
+		await expect.element(screen.getByText("Name", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("No matching tags")).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Clear search" }).click();
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
-		await expect.element(screen.getByText("2 tags")).toBeInTheDocument();
+		expect(screen.getByText("2 tags").query()).toBeNull();
 	});
 
 	it("keeps tag editing visible and reorders from the row menu", async () => {

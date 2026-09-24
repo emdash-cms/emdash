@@ -16,7 +16,6 @@ import {
 	Table,
 	Toast,
 } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
@@ -25,6 +24,7 @@ import {
 	CaretDown,
 	CaretUp,
 	DotsThree,
+	MagnifyingGlass,
 	Plus,
 	Pencil,
 	StackSimple,
@@ -55,7 +55,7 @@ import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
-import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
+import { TableToolbarSearch } from "./TableToolbar.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
 export function TaxonomyNotFoundMessage({ taxonomyName }: { taxonomyName: string }) {
@@ -1296,37 +1296,18 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 
 			{taxonomyName === "tag" ? (
 				<div className="space-y-3">
-					<TableToolbar
-						className="flex-row flex-nowrap items-center"
-						trailing={
-							<span className="text-sm text-kumo-subtle" aria-live="polite">
-								{search
-									? t`${visibleTags.length} of ${terms.length} tags`
-									: plural(terms.length, { one: "# tag", other: "# tags" })}
-							</span>
-						}
-					>
-						<TableToolbarSearch
-							size="base"
-							className="w-auto flex-1 sm:w-64 sm:flex-none"
-							placeholder={t`Search tags…`}
-							aria-label={t`Search tags`}
-							value={tagSearch}
-							onChange={(event) => setTagSearch(event.target.value)}
-						/>
-					</TableToolbar>
+					<TableToolbarSearch
+						size="base"
+						placeholder={t`Search tags…`}
+						aria-label={t`Search tags`}
+						value={tagSearch}
+						onChange={(event) => setTagSearch(event.target.value)}
+					/>
 					{termsLoading ? (
 						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
 					) : terms.length === 0 ? (
 						<div className="p-8 text-center text-kumo-subtle">
 							{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
-						</div>
-					) : visibleTags.length === 0 ? (
-						<div className="flex flex-col items-center gap-3 py-10 text-center text-kumo-subtle">
-							<p>{t`No tags match this search.`}</p>
-							<Button variant="secondary" onClick={() => setTagSearch("")}>
-								{t`Clear search`}
-							</Button>
 						</div>
 					) : (
 						<div className="overflow-x-auto">
@@ -1341,17 +1322,38 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 									</Table.Row>
 								</Table.Header>
 								<Table.Body>
-									<TermGroup
-										siblings={visibleTags}
-										parentId={null}
-										table
-										searchActive={!!search}
-										onEdit={handleEdit}
-										onDelete={handleDelete}
-										onMove={handleMove}
-										onTranslate={setTranslateTarget}
-										canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-									/>
+									{visibleTags.length === 0 ? (
+										<Table.Row>
+											<Table.Cell colSpan={3}>
+												<div
+													role="status"
+													className="flex flex-col items-center gap-2 py-8 text-center"
+												>
+													<MagnifyingGlass
+														size={32}
+														className="text-kumo-subtle opacity-60"
+														aria-hidden="true"
+													/>
+													<p className="text-base font-medium">{t`No matching tags`}</p>
+													<Button variant="outline" size="sm" onClick={() => setTagSearch("")}>
+														{t`Clear search`}
+													</Button>
+												</div>
+											</Table.Cell>
+										</Table.Row>
+									) : (
+										<TermGroup
+											siblings={visibleTags}
+											parentId={null}
+											table
+											searchActive={!!search}
+											onEdit={handleEdit}
+											onDelete={handleDelete}
+											onMove={handleMove}
+											onTranslate={setTranslateTarget}
+											canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+										/>
+									)}
 								</Table.Body>
 							</Table>
 						</div>
