@@ -18,7 +18,7 @@ import type { CronAccess, CronEvent, CronTaskInfo } from "./types.js";
 /** Stale lock threshold in minutes */
 const STALE_LOCK_MINUTES = 10;
 const ISO_DATETIME_PATTERN =
-	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+	/^\d{4}-\d{2}-\d{2}(?:T| )\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
 
 /**
  * Callback to invoke a plugin's cron hook.
@@ -174,7 +174,24 @@ export class CronExecutor {
 				}
 			} else {
 				// Recurring: compute next run and reset
-				const nextRun = nextCronTime(task.schedule, currentTime);
+				let nextRun: string;
+				try {
+					nextRun = nextCronTime(task.schedule, currentTime);
+				} catch (error) {
+					console.error(
+						`[cron] No future run for recurring ${task.plugin_id}:${task.task_name} (${task.schedule}); disabling`,
+						error,
+					);
+					await sql`
+						UPDATE _emdash_cron_tasks
+						SET status = 'idle',
+							locked_at = NULL,
+							enabled = 0
+						WHERE id = ${task.id}
+					`.execute(this.db);
+					processed++;
+					continue;
+				}
 				await sql`
 					UPDATE _emdash_cron_tasks
 					SET status = 'idle',

@@ -8,6 +8,10 @@ describe("cron schedule classification", () => {
 		expect(isOneShot("2030-01-02T03:04:05")).toBe(true);
 	});
 
+	it("classifies a space-separated ISO datetime as a one-shot", () => {
+		expect(isOneShot("2030-01-02 03:04:05")).toBe(true);
+	});
+
 	it("does not misclassify a cron range as a date", () => {
 		expect(isOneShot("1-5 * * * *")).toBe(false);
 	});
