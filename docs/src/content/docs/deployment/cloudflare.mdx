@@ -297,21 +297,25 @@ The plugin uses the binding named `EMAIL` unless its `binding` option names anot
 
 If you already have SMTP credentials (for example Brevo relay, Office 365, Fastmail, Amazon SES, or a self-hosted Postfix relay), use the SMTP transport built into EmDash instead of Cloudflare Email Sending. It connects through `cloudflare:sockets` on Workers and `node:net`/`node:tls` on Node.
 
-Set these values as Worker secrets or environment variables:
+Configure it under **Settings → Email** in the admin, where the password is stored encrypted with `EMDASH_ENCRYPTION_KEY`, or set these values as Worker secrets or environment variables:
 
-| Variable          | Example                         | Notes                                                    |
-| ----------------- | ------------------------------- | -------------------------------------------------------- |
-| `EMAIL_SMTP_HOST` | `smtp-relay.brevo.com`          | Any SMTP server reachable from your deployment           |
-| `EMAIL_SMTP_PORT` | `587` or `465`                  | 587 uses STARTTLS, 465 uses implicit TLS. Port 25 is refused. |
-| `EMAIL_SMTP_USER` | `you@example.com`               | SMTP auth username                                       |
-| `EMAIL_SMTP_PASS` | `xsmtpsib-…`                    | SMTP auth password (store as a secret)                   |
-| `EMAIL_SMTP_FROM` | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER` |
+| Variable                | Example                         | Notes                                                                       |
+| ----------------------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `EMAIL_SMTP_HOST`       | `smtp-relay.brevo.com`          | Any SMTP server reachable from your deployment                              |
+| `EMAIL_SMTP_PORT`       | `465` or `587`                  | 465 uses implicit TLS (recommended on Workers), 587 uses STARTTLS. Port 25 is refused. |
+| `EMAIL_SMTP_USER`       | `you@example.com`               | SMTP auth username                                                          |
+| `EMAIL_SMTP_PASS`       | `xsmtpsib-…`                    | SMTP auth password (store as a secret)                                      |
+| `EMAIL_SMTP_SECURE`     | `tls` or `starttls`             | Optional; inferred from the port (465 is `tls`, otherwise `starttls`)       |
+| `EMAIL_SMTP_FROM`       | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER`                    |
+| `EMAIL_SMTP_FROM_NAME`  | `My Site`                       | Optional structured alternative to `EMAIL_SMTP_FROM`, with `EMAIL_SMTP_FROM_EMAIL` |
+| `EMAIL_SMTP_FROM_EMAIL` | `noreply@example.com`           | Optional structured alternative to `EMAIL_SMTP_FROM`, with `EMAIL_SMTP_FROM_NAME`  |
+| `EMAIL_SMTP_REPLY_TO`   | `hello@example.com`             | Optional Reply-To header                                                    |
 
 <Aside type="caution">
-	Cloudflare blocks outbound port 25. The transport supports only submission ports 587 (STARTTLS) and 465 (implicit TLS), and always requires TLS before authenticating.
+	Cloudflare blocks outbound port 25. The transport supports only submission ports 465 (implicit TLS) and 587 (STARTTLS), and always requires TLS before authenticating. Prefer port 465 on Workers: STARTTLS upgrades over `cloudflare:sockets` are less reliable than implicit TLS.
 </Aside>
 
-When configured, the SMTP transport registers as a built-in email provider. A plugin provider you select under **Settings → Email** (such as `cloudflareEmail()`) takes precedence; the SMTP provider is used when it is the only provider or when you select it there.
+The SMTP transport registers as a built-in email provider. When these variables are set and no other provider is configured, EmDash selects it automatically; otherwise choose it under **Settings → Email**. An explicitly selected provider, plugin or built-in, always takes precedence.
 
 ## Cloudflare AI Search
 

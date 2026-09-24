@@ -126,7 +126,7 @@ routes: {
 
 Private routes require their declared permission for every HTTP method. They also require the `X-EmDash-Request: 1` CSRF header for cookie-authenticated requests, including `GET` and `HEAD`, because a plugin route can run the same handler for any method. The admin UI sends the header automatically. Token-authenticated requests are exempt from the header but still need the `admin` token scope and the route permission.
 
-To opt a route out of auth and CSRF, mark it `public: true`:
+To opt a route out of authentication, mark it `public: true`:
 
 ```typescript
 routes: {
@@ -147,7 +147,11 @@ routes requires consent. Adding a public route, or changing a private route to p
 consent again when the plugin is updated.
 
 <Aside type="caution">
-	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
+	A public route skips authentication and token scope checks, but not protection against cross-origin
+	browser requests. For requests that can change data, EmDash accepts a matching site `Origin` or the
+	`X-EmDash-Request: 1` header; a different or malformed `Origin` returns 403. Webhooks and other
+	non-browser clients usually omit `Origin` and remain allowed, so anyone can call a public route.
+	Validate all input and verify the service's signature or token when available.
 </Aside>
 
 ### The authenticated caller
