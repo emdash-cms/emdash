@@ -99,6 +99,20 @@ describe("SchemaRegistry", () => {
 			expect(result).toBeDefined();
 		});
 
+		it("rejects creating a collection whose content table is orphaned", async () => {
+			// Simulate an interrupted seed: the ec_* table exists with no
+			// matching _emdash_collections row.
+			await sql`
+				CREATE TABLE ec_orphaned (id TEXT PRIMARY KEY)
+			`.execute(db);
+
+			await expect(
+				registry.createCollection({ slug: "orphaned", label: "Orphaned" }),
+			).rejects.toMatchObject({
+				code: "COLLECTION_TABLE_ORPHANED",
+			});
+		});
+
 		it("should list collections", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 			await registry.createCollection({ slug: "pages", label: "Pages" });

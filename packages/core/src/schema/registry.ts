@@ -496,6 +496,17 @@ export class SchemaRegistry {
 		}
 
 		const proposedId = existing?.id ?? ulid();
+		const tableName = this.getTableName(input.slug);
+
+		// An orphaned content table (one that exists without a registration row)
+		// is usually the result of an interrupted seed on D1; don't try to layer
+		// a new collection on top of it.
+		if (!existing && (await tableExists(this.db, tableName))) {
+			throw new SchemaError(
+				`Collection table "${tableName}" exists but is not registered`,
+				"COLLECTION_TABLE_ORPHANED",
+			);
+		}
 
 		// Default `supports` to drafts + revisions when the caller didn't
 		// specify it. Explicit empty array (`[]`) is preserved as an opt-out

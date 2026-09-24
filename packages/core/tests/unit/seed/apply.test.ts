@@ -16,7 +16,11 @@ import { OptionsRepository } from "../../../src/database/repositories/options.js
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
-import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { activateMediaUsageCapture } from "../../../src/media/usage/activation.js";
+import {
+	SchemaRegistry,
+	buildSeedCollectionCaptureFingerprint,
+} from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -281,6 +285,58 @@ describe("applySeed", () => {
 
 			const registry = new SchemaRegistry(db);
 			expect((await registry.getCollection("contact_submissions"))?.hidden).toBe(true);
+		});
+
+		it("resumes a partially created collection from an orphaned table", async () => {
+			await activateMediaUsageCapture(db, { writersDrained: true });
+
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "pages",
+						label: "Pages",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			const first = await applySeed(db, seed);
+			expect(first.collections.created).toBe(2);
+
+			// Simulate an interrupted seed after `pages` content table was
+			// created but before its registration rows landed.
+			const registry = new SchemaRegistry(db);
+			const pages = await registry.getCollection("pages");
+			expect(pages).not.toBeNull();
+			await db.deleteFrom("_emdash_fields").where("collection_id", "=", pages!.id).execute();
+			await db.deleteFrom("_emdash_collections").where("id", "=", pages!.id).execute();
+			const fingerprint = await buildSeedCollectionCaptureFingerprint(
+				{
+					slug: "pages",
+					label: "Pages",
+					supports: [],
+				},
+				[{ slug: "title", label: "Title", type: "string" }],
+			);
+			await db
+				.updateTable("_emdash_media_usage_index_status")
+				.set({ capture_state: "installing", cursor: fingerprint })
+				.where("collection_id", "=", pages!.id)
+				.execute();
+
+			const resumed = await applySeed(db, seed, { onConflict: "skip" });
+			expect(resumed.collections.created).toBe(1);
+			expect(resumed.collections.skipped).toBe(1);
+
+			const reloaded = await registry.getCollectionWithFields("pages");
+			expect(reloaded).not.toBeNull();
+			expect(reloaded?.fields).toHaveLength(1);
 		});
 
 		it("applies and updates collection routability", async () => {

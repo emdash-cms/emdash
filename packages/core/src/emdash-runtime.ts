@@ -1520,7 +1520,7 @@ export class EmDashRuntime {
 			| undefined;
 		// "Already set up" by default so a read failure (e.g. tables absent on a
 		// pre-migration db) skips seeding rather than seeding a half-built db.
-		let seedGate = { collectionCount: 1, setupDone: true };
+		let seedGate = { seedComplete: true, setupDone: true };
 
 		// Seeding must only touch the configured singleton, never a borrowed
 		// per-request db (playground / DO preview) or the loader-fallback db.
@@ -1615,12 +1615,17 @@ export class EmDashRuntime {
 						// Selecting the slugs instead of COUNT(*) costs the same
 						// round trip and primes the registered-collections cache,
 						// so the first render on this isolate skips its own lookup.
-						const [collectionRows, setupOption] = await Promise.all([
+						const [collectionRows, setupOption, seedCompleteOption] = await Promise.all([
 							readDb.selectFrom("_emdash_collections").select("slug").execute(),
 							readDb
 								.selectFrom("options")
 								.select("value")
 								.where("name", "=", "emdash:setup_complete")
+								.executeTakeFirst(),
+							readDb
+								.selectFrom("options")
+								.select("value")
+								.where("name", "=", "emdash:seed_complete")
 								.executeTakeFirst(),
 						]);
 						primeRegisteredCollections(collectionRows.map((row) => row.slug));
@@ -1631,7 +1636,14 @@ export class EmDashRuntime {
 								return false;
 							}
 						})();
-						seedGate = { collectionCount: collectionRows.length, setupDone };
+						const seedComplete = (() => {
+							try {
+								return !!seedCompleteOption && JSON.parse(seedCompleteOption.value) === true;
+							} catch {
+								return false;
+							}
+						})();
+						seedGate = { seedComplete, setupDone };
 					} catch (error) {
 						captureMissingManualSchema(error);
 						// Leave the "already set up" default so a read failure never
@@ -1665,7 +1677,7 @@ export class EmDashRuntime {
 		// wizard (the wizard and dev-bypass apply seeds explicitly). Run under a
 		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
 		// create() can't apply the seed a second time concurrently.
-		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+		if (!seedGate.seedComplete && !seedGate.setupDone) {
 			try {
 				const activation = await activateMediaUsageCapture(db, { writersDrained: true });
 				if (activation.outcome !== "active") {
@@ -1697,6 +1709,7 @@ export class EmDashRuntime {
 								);
 							}
 						}
+						await new OptionsRepository(db).set("emdash:seed_complete", true);
 						seedHolder.done.add(seedKey);
 						return true;
 					},
