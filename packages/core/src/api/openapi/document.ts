@@ -21,7 +21,12 @@ import {
 	adminCommentListResponseSchema,
 	publicCommentListResponseSchema,
 } from "../schemas/comments.js";
-import { apiErrorSchema, deleteResponseSchema, successEnvelope } from "../schemas/common.js";
+import {
+	apiErrorSchema,
+	deleteResponseSchema,
+	mediaDeleteResponseSchema,
+	successEnvelope,
+} from "../schemas/common.js";
 import {
 	contentCompareResponseSchema,
 	contentAuthorsResponseSchema,
@@ -1060,7 +1065,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				responses: {
 					"200": {
 						description: "Deleted",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaDeleteResponseSchema) } },
 					},
 					...authErrors,
 					...standardErrors(404, 500),

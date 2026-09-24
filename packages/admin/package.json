@@ -21,6 +21,14 @@
       "types": "./dist/locales/server.d.ts",
       "default": "./dist/locales/server.js"
     },
+    "./locales/config": {
+      "types": "./dist/locales/config.d.ts",
+      "default": "./dist/locales/config.js"
+    },
+    "./locales/emails": {
+      "types": "./dist/locales/emails.d.ts",
+      "default": "./dist/locales/emails.js"
+    },
     "./locales/*": "./dist/locales/*",
     "./slugify": {
       "types": "./dist/slugify.d.ts",
@@ -43,7 +51,6 @@
     "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
-    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@cloudflare/kumo": "catalog:",
     "@dnd-kit/core": "^6.3.1",

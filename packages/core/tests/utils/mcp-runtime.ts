@@ -100,8 +100,8 @@ export interface TestRuntimeOptions {
 	plugins?: ResolvedPlugin[];
 	/** Optional partial config override. Default: empty config. */
 	config?: Partial<EmDashConfig>;
-	/** Storage backend for tools that stage or read files. Default: none. */
-	storage?: Storage;
+	/** Optional storage backend for tools that stage or read files. Default: none. */
+	storage?: Storage | null;
 }
 
 /**

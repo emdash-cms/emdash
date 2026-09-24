@@ -535,6 +535,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/taxonomies/bulk-tag",
+		entrypoint: resolveRoute("api/taxonomies/bulk-tag.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/taxonomies/[name]",
 		entrypoint: resolveRoute("api/taxonomies/[name].ts"),
 	});
@@ -634,6 +639,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/registry/artifact",
 		entrypoint: resolveRoute("api/admin/plugins/registry/artifact.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/publisher-handle",
+		entrypoint: resolveRoute("api/admin/plugins/registry/publisher-handle.ts"),
 	});
 
 	injectRoute({

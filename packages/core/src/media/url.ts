@@ -15,6 +15,21 @@ import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 
 /**
+ * Build the internal file route URL for a storage key, encoding each path
+ * segment so `?`, `#` and `%` stay inside the path. A key with an empty, `.` or
+ * `..` segment is encoded whole, because the URL parser would collapse those
+ * segments and move the request off the route. Mirrors the admin's
+ * `localMediaFileUrl`.
+ */
+export function localMediaFileUrl(key: string): string {
+	const segments = key.split("/");
+	if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
+	}
+	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+}
+
+/**
  * Resolve the public URL for a locally stored media key. Returns an empty
  * string when no key is given. When a storage adapter is supplied, defers to
  * `storage.getPublicUrl()`; otherwise returns the internal proxy route.

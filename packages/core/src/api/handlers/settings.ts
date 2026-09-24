@@ -6,7 +6,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { getSiteSettingsWithDb, setSiteSettings } from "../../settings/index.js";
-import type { SiteSettings } from "../../settings/types.js";
+import type { SiteSettings, SiteSettingsUpdate } from "../../settings/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
 
@@ -34,7 +34,7 @@ export async function handleSettingsGet(
 export async function handleSettingsUpdate(
 	db: Kysely<Database>,
 	storage: Storage | null,
-	input: Partial<SiteSettings>,
+	input: SiteSettingsUpdate,
 ): Promise<ApiResult<Partial<SiteSettings>>> {
 	try {
 		await setSiteSettings(input, db);

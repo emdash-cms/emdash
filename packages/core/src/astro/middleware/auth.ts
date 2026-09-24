@@ -354,8 +354,11 @@ async function handleEmDashAuth(
 	const { url, locals } = context;
 	const { emdash } = locals;
 
+	// Pages an anonymous visitor must be able to reach: login itself, and the
+	// two token-bearing pages that emails link to.
 	const isPublicAdminRoute =
 		url.pathname.startsWith("/_emdash/admin/login") ||
+		url.pathname.startsWith("/_emdash/admin/signup") ||
 		url.pathname.startsWith("/_emdash/admin/invite/accept");
 	const isApiRoute = url.pathname.startsWith("/_emdash/api");
 
@@ -705,7 +708,9 @@ async function handlePasskeyAuth(
 				return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 			}
 			const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
-			loginUrl.searchParams.set("redirect", url.pathname);
+			// Keep the query string: a token-bearing link that lands here must
+			// still carry its token after login.
+			loginUrl.searchParams.set("redirect", url.pathname + url.search);
 			return context.redirect(loginUrl.toString());
 		}
 
@@ -776,6 +781,7 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readon
 	// menus:manage are not rejected. content:write implicitly grants these via
 	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
+	["/_emdash/api/taxonomies/bulk-tag", "WRITE", "content:write"],
 	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
 	["/_emdash/api/menus", "WRITE", "menus:manage"],

@@ -275,7 +275,7 @@ Taxonomy definitions identify their target collections. Terms are sample data an
 
 A taxonomy can carry a seed-local `id`, `locale`, and `translationOf`. Terms can also carry those properties. `translationOf` refers to another seed-local ID and must be ordered after its source when applying the seed.
 
-Term `parent` is the parent term's slug in the same locale. A parent on a non-hierarchical taxonomy produces a warning and is ignored.
+Term `parent` is the parent term's slug in the same locale. A parent on a non-hierarchical taxonomy produces a warning and is ignored. A term with `translationOf` and no `parent` takes the parent of the term it translates.
 
 ## Bylines
 
