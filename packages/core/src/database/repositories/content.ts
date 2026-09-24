@@ -1107,7 +1107,7 @@ export class ContentRepository {
 		const item = await this.findById(type, id);
 		if (!item) throw new Error("Content not found");
 
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return { item, revisionId };
 	}
 
@@ -1177,7 +1177,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return revisionId;
 	}
 
@@ -1216,7 +1216,7 @@ export class ContentRepository {
 			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
 		);
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let existing = await this.findById(type, id);
 
 		// A key with no field is rejected unless the entry already stores it: deleting a field
@@ -1439,7 +1439,7 @@ export class ContentRepository {
 		usesRevisions: boolean,
 	): Promise<boolean> {
 		const tableName = getTableName(type);
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let sibling: ContentItem | null = initial;
 
 		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
@@ -2378,7 +2378,7 @@ export class ContentRepository {
 		}
 
 		if (!promoteRevision) {
-			const revisionRepo = new RevisionRepository(this.db);
+			const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 			let provisionalRevisionId: string | null = null;
 			try {
 				let liveRevisionId = existing.liveRevisionId;
@@ -2632,7 +2632,7 @@ export class ContentRepository {
 			return existing;
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
