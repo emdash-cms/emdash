@@ -378,9 +378,7 @@ export function isItemActive(itemPath: string, currentPath: string): boolean {
 	const raw = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
 	const path = stripTrailingSlash(raw);
 	const current = stripTrailingSlash(currentPath);
-	return path === "/"
-		? current === "/"
-		: current === path || current.startsWith(`${path}/`);
+	return path === "/" ? current === "/" : current === path || current.startsWith(`${path}/`);
 }
 
 /**
