@@ -134,7 +134,6 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 			delete(id: string): Promise<boolean>;
 		};
 
-		// Validate every file before uploading any
 		const pending = allFields.flatMap((field) => {
 			const fileData = field.type === "file" ? input.files?.[field.name] : undefined;
 			return fileData ? [{ field, fileData }] : [];
