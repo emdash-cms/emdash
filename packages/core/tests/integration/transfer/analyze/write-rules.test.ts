@@ -6,6 +6,8 @@ import { analyzeImportStep } from "../../../../src/transfer/analyze/step.js";
 import { analysisTargetContext } from "../../../../src/transfer/analyze/target.js";
 import {
 	compareIds,
+	type BlockTypeRecord,
+	type BlockTypeVersionRecord,
 	type BylineFieldRecord,
 	type BylineFieldValueRecord,
 	type RedirectRecord,
@@ -287,6 +289,131 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 					id: selectField,
 				}),
 			]);
+		});
+	});
+
+	describe("block types", () => {
+		function withBlockTypes(
+			types: Array<Partial<BlockTypeRecord> & { id: string; slug: string }>,
+			versions: Array<Partial<BlockTypeVersionRecord> & { id: string; blockTypeId: string }>,
+		) {
+			return {
+				mutate: (records: Parameters<NonNullable<StagePackageOptions["mutate"]>>[0]) => {
+					for (const type of types) {
+						records.block_type.push({
+							...(records.block_type[0] as BlockTypeRecord),
+							currentVersion: 1,
+							...type,
+						});
+					}
+					for (const version of versions) {
+						records.block_type_version.push({
+							...(records.block_type_version[0] as BlockTypeVersionRecord),
+							version: 1,
+							...version,
+						});
+					}
+					records.block_type.sort((a, b) => compareIds(a.id, b.id));
+					records.block_type_version.sort((a, b) => compareIds(a.id, b.id));
+				},
+			};
+		}
+
+		const typeId = (suffix: string) => `${ids.calloutBlock}${suffix}`;
+		const versionId = (suffix: string) => `${ids.calloutV1}${suffix}`;
+
+		it("blocks block types and versions the block type registry would refuse", async () => {
+			const plan = await planFor(
+				withBlockTypes(
+					[
+						{ id: typeId("r"), slug: "status" },
+						{ id: typeId("l"), slug: "blank_label", label: " " },
+						{ id: typeId("s"), slug: "themed", source: SENTINEL },
+						{ id: typeId("f"), slug: "bad_fields" },
+						{ id: typeId("z"), slug: "version_zero", currentVersion: 0 },
+					],
+					[
+						{ id: versionId("r"), blockTypeId: typeId("r") },
+						{ id: versionId("l"), blockTypeId: typeId("l") },
+						{ id: versionId("s"), blockTypeId: typeId("s") },
+						{
+							id: versionId("f"),
+							blockTypeId: typeId("f"),
+							fields: [{ slug: "colour", label: SENTINEL, type: "colour" }],
+						},
+						{ id: versionId("z"), blockTypeId: typeId("z"), version: 0 },
+					],
+				),
+			);
+			const blocked = plan.blockers
+				.filter((blocker) => blocker.code === "value_constraint_violation")
+				.map((blocker) => [blocker.kind, blocker.id, blocker.detail?.property]);
+			expect(blocked).toEqual(
+				expect.arrayContaining([
+					["block_type", typeId("r"), "slug"],
+					["block_type", typeId("l"), "label"],
+					["block_type", typeId("s"), "source"],
+					["block_type_version", versionId("f"), "fields"],
+					["block_type_version", versionId("z"), "version"],
+				]),
+			);
+			expect(blocked).toHaveLength(5);
+			expect(JSON.stringify(plan)).not.toContain(SENTINEL);
+		});
+
+		it("blocks a blocks field or a current version that names nothing in the package", async () => {
+			const plan = await planFor({
+				mutate: (records) => {
+					update(records.field, ids.postBlocks, (field) => ({
+						...field,
+						validation: { allowedTypes: ["callout", "missing"], retiredTypes: ["quote"] },
+					}));
+					update(records.block_type, ids.quoteBlock, (type) => ({
+						...type,
+						currentVersion: 2,
+					}));
+				},
+			});
+			expect(
+				plan.blockers.map((blocker) => [
+					blocker.code,
+					blocker.kind,
+					blocker.id,
+					blocker.detail?.property,
+				]),
+			).toEqual(
+				expect.arrayContaining([
+					["dangling_reference", "field", ids.postBlocks, "validation"],
+					["dangling_reference", "block_type", ids.quoteBlock, "currentVersion"],
+				]),
+			);
+			expect(plan.blockers).toHaveLength(2);
+		});
+
+		it("blocks a repeated block type slug or version", async () => {
+			const plan = await planFor(
+				withBlockTypes(
+					[{ id: typeId("d"), slug: "callout" }],
+					[
+						{ id: versionId("d"), blockTypeId: typeId("d") },
+						{ id: versionId("v"), blockTypeId: ids.calloutBlock, version: 2 },
+					],
+				),
+			);
+			expect(
+				plan.blockers
+					.filter((blocker) => blocker.code === "unique_violation")
+					.map((blocker) => [blocker.kind, blocker.detail?.constraint]),
+			).toEqual([
+				["block_type", "block_type_slug"],
+				["block_type_version", "block_type_version"],
+			]);
+		});
+
+		it("accepts every block type and version in the golden package", async () => {
+			const plan = await planFor({});
+			expect(plan.blockers).toEqual([]);
+			expect(plan.counts).toMatchObject({ block_type: 2, block_type_version: 3 });
 		});
 	});
 

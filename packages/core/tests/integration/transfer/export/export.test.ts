@@ -65,8 +65,10 @@ describeEachDialect("site export", (dialect) => {
 			Object.fromEntries(Object.entries(manifest.records).map(([k, v]) => [k, v.count])),
 		).toEqual({
 			principal: 2,
+			block_type: 2,
+			block_type_version: 3,
 			collection: 2,
-			field: 9,
+			field: 10,
 			taxonomy_def: 3,
 			relation: 1,
 			byline_field: 2,
@@ -126,6 +128,47 @@ describeEachDialect("site export", (dialect) => {
 			id: ids.heroMedia,
 			meta: { storageKey: `emdash-media:${ids.heroMedia}` },
 		});
+		expect(hello.fields.blocks).toEqual([
+			expect.objectContaining({
+				_type: "callout",
+				_version: 2,
+				image: expect.objectContaining({
+					meta: { storageKey: `emdash-media:${ids.inlineMedia}` },
+				}),
+			}),
+			expect.objectContaining({ _type: "callout", _version: 1 }),
+			expect.objectContaining({ _type: "quote", _version: 1 }),
+		]);
+
+		const blockTypes = byId(records.get("block_type"));
+		expect(blockTypes.get(ids.calloutBlock)).toEqual({
+			kind: "block_type",
+			id: ids.calloutBlock,
+			slug: "callout",
+			label: "Callout",
+			description: "A highlighted note",
+			icon: "megaphone",
+			category: "Text",
+			currentVersion: 2,
+			source: "user",
+			createdAt: expect.any(String),
+			updatedAt: expect.any(String),
+		});
+		const versions = records.get("block_type_version") ?? [];
+		expect(
+			versions.map((record) =>
+				record.kind === "block_type_version"
+					? [record.blockTypeId, record.version, Object.hasOwn(record, "fingerprint")]
+					: null,
+			),
+		).toEqual(
+			expect.arrayContaining([
+				[ids.calloutBlock, 1, false],
+				[ids.calloutBlock, 2, false],
+				[ids.quoteBlock, 1, false],
+			]),
+		);
+
 		const bonjour = byId(records.get("entry")).get(ids.bonjour);
 		expect(bonjour?.kind === "entry" && bonjour.fields.featured_image).toBe(
 			`emdash-media:${ids.heroMedia}`,

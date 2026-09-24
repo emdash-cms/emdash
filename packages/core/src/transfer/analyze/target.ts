@@ -55,12 +55,14 @@ const DOMAIN_BLOCKER_MESSAGES: Record<DomainBlocker["code"], string> = {
 	collection_not_seeded: "The site has a collection that was not created by setup",
 	collection_has_entries: "A collection on the site already has entries",
 	taxonomy_def_not_scaffold: "The site has a taxonomy that was not created by setup",
+	block_type_not_seeded: "The site has a block type that was not created by setup",
 };
 
 function domainBlocker(blocker: DomainBlocker): PlanBlocker {
 	const detail: Record<string, string> = { reason: blocker.code };
 	if (blocker.code === "table_not_empty") detail.table = blocker.table;
 	else if (blocker.code === "taxonomy_def_not_scaffold") detail.taxonomy = blocker.name;
+	else if (blocker.code === "block_type_not_seeded") detail.blockType = blocker.slug;
 	else detail.collection = blocker.slug;
 	return {
 		code: "target_not_empty",

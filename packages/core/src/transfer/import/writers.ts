@@ -17,10 +17,12 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import { withTransaction } from "../../database/transaction.js";
+import { fingerprintBlockFields } from "../../schema/block-type-contract.js";
+import type { BlockFieldDefinition } from "../../schema/block-types.js";
 import { TransferError } from "../errors.js";
 import { getPortableTableSpecForKind } from "../format/columns.js";
 import type { ColumnCodec } from "../format/columns.js";
-import type { RecordKind, RecordOfKind } from "../format/kinds.js";
+import type { RecordKind, RecordOfKind, SitePackageRecord } from "../format/kinds.js";
 import { rowsPerInsert } from "../format/limits.js";
 import { DECIDED_SETTING_NAMES } from "../format/settings.js";
 import { applyTransformations } from "../format/transformations.js";
@@ -36,12 +38,24 @@ interface FlatKindConfig {
 	key: readonly string[];
 	conflict?: ConflictAction;
 	/** Columns the importer fills that records do not carry. */
-	derived?: (context: ImportContext, record: { id: string }) => Promise<Row> | Row;
+	derived?: (context: ImportContext, record: SitePackageRecord) => Promise<Row> | Row;
 }
 
 const ID_KEY = ["id"] as const;
 
+async function blockTypeVersionFingerprint(record: SitePackageRecord): Promise<Row> {
+	if (record.kind !== "block_type_version") throw new Error("Expected a block type version");
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- analysis refuses fields that `validateBlockFields` rejects
+	const fields = record.fields as unknown as BlockFieldDefinition[];
+	return { fingerprint: await fingerprintBlockFields(fields) };
+}
+
 const FLAT_KINDS: Readonly<Record<FlatKind, FlatKindConfig>> = {
+	block_type: { key: ID_KEY },
+	block_type_version: {
+		key: ID_KEY,
+		derived: (_context, record) => blockTypeVersionFingerprint(record),
+	},
 	taxonomy_def: { key: ID_KEY },
 	relation: { key: ID_KEY },
 	byline_field: { key: ID_KEY },

@@ -6,6 +6,11 @@ import { ContentRepository } from "../../../../src/database/repositories/content
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
 import { TaxonomyRepository } from "../../../../src/database/repositories/taxonomy.js";
 import { getMenuWithDb } from "../../../../src/menus/index.js";
+import { fingerprintBlockFields } from "../../../../src/schema/block-type-contract.js";
+import { BlockTypeRegistry } from "../../../../src/schema/block-type-registry.js";
+import type { BlockFieldDefinition } from "../../../../src/schema/block-types.js";
+import { expandCollectionBlockFields } from "../../../../src/schema/block-values.js";
+import { SchemaRegistry } from "../../../../src/schema/registry.js";
 import { verifyImportStep } from "../../../../src/transfer/export/verify.js";
 import { inferredCreditId } from "../../../../src/transfer/format/kinds.js";
 import { verifyReceiptDigest } from "../../../../src/transfer/format/receipt.js";
@@ -101,6 +106,32 @@ describeEachDialect("site import of the golden package", (dialect) => {
 			const violations = await sql`PRAGMA foreign_key_check`.execute(ctx.db);
 			expect(violations.rows).toEqual([]);
 		}
+	});
+
+	it("writes block types the registry reads, with fingerprints derived from their fields", async () => {
+		const staged = await stageGoldenImport(ctx.db, storage, dialect);
+		await driveImport(ctx.db, storage, staged.operationId);
+
+		const blockTypes = await new BlockTypeRegistry(ctx.db).listBlockTypes();
+		expect(blockTypes.map((type) => [type.id, type.slug, type.currentVersion])).toEqual([
+			[ids.calloutBlock, "callout", 2],
+			[ids.quoteBlock, "quote", 1],
+		]);
+		for (const record of staged.golden.records.block_type_version) {
+			if (record.kind !== "block_type_version") continue;
+			const stored = blockTypes
+				.flatMap((type) => type.versions)
+				.find((version) => version.id === record.id);
+			expect(stored?.fingerprint).toBe(
+				await fingerprintBlockFields(record.fields as unknown as BlockFieldDefinition[]),
+			);
+		}
+
+		const posts = await new SchemaRegistry(ctx.db).getCollectionWithFields("posts");
+		const expanded = await expandCollectionBlockFields(ctx.db, posts!);
+		expect(
+			expanded.fields.find((field) => field.slug === "blocks")?.blockTypes?.map((t) => t.slug),
+		).toEqual(["callout", "quote"]);
 	});
 
 	it("serves imported content through the normal repositories", async () => {

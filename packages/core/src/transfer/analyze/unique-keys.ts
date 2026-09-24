@@ -20,6 +20,8 @@ import type { SitePackageRecord } from "../format/kinds.js";
 import { rowsPerInsert } from "../format/limits.js";
 
 export const UNIQUE_CONSTRAINTS = [
+	"block_type_slug",
+	"block_type_version",
 	"entry_slug_locale",
 	"entry_active_group_locale",
 	"term_name_slug_locale",
@@ -64,6 +66,10 @@ function lowerLocale(locale: string): string {
 /** Keys a record occupies in the target's unique constraints. */
 export function uniqueKeysOf(record: SitePackageRecord): UniqueKey[] {
 	switch (record.kind) {
+		case "block_type":
+			return [key("block_type_slug", record.slug)];
+		case "block_type_version":
+			return [key("block_type_version", record.blockTypeId, String(record.version))];
 		case "entry": {
 			const keys: UniqueKey[] = [];
 			if (record.slug !== undefined) {

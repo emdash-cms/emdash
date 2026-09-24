@@ -11,9 +11,17 @@ import { coerceFieldValue } from "../../database/repositories/byline.js";
 import { EmDashValidationError } from "../../database/repositories/types.js";
 import { isPattern, validateDestinationParams, validatePattern } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
-import type { BylineFieldType } from "../../schema/types.js";
+import { validateBlockFields } from "../../schema/block-type-contract.js";
+import type { BlockFieldDefinition } from "../../schema/block-types.js";
+import { SchemaError } from "../../schema/registry.js";
+import { RESERVED_FIELD_SLUGS, type BylineFieldType } from "../../schema/types.js";
 import { compileUrlPattern } from "../../schema/url-pattern.js";
-import type { RedirectRecord, SitePackageRecord } from "../format/kinds.js";
+import type {
+	BlockTypeRecord,
+	BlockTypeVersionRecord,
+	RedirectRecord,
+	SitePackageRecord,
+} from "../format/kinds.js";
 import type { ValueIssue } from "./values.js";
 
 /** What the byline field write path checks a value against. */
@@ -125,8 +133,42 @@ function acceptsCanonical(canonical: string): boolean {
 	return true;
 }
 
+const RESERVED_BLOCK_TYPE_SLUGS: ReadonlySet<string> = new Set(RESERVED_FIELD_SLUGS);
+const MAX_BLOCK_TYPE_LABEL = 200;
+
+function blockTypeIssues(record: BlockTypeRecord): ValueIssue[] {
+	const issues: ValueIssue[] = [];
+	if (RESERVED_BLOCK_TYPE_SLUGS.has(record.slug)) {
+		issues.push(rejected("slug", "Block type slug is reserved"));
+	}
+	if (record.label.trim().length === 0 || record.label.length > MAX_BLOCK_TYPE_LABEL) {
+		issues.push(rejected("label", "Block type label is empty or too long"));
+	}
+	if (record.source !== "user" && record.source !== "seed") {
+		issues.push(rejected("source", "Block type source is not supported"));
+	}
+	return issues;
+}
+
+function blockTypeVersionIssues(record: BlockTypeVersionRecord): ValueIssue[] {
+	const issues: ValueIssue[] = [];
+	if (record.version < 1) issues.push(rejected("version", "Block type version is not positive"));
+	try {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validateBlockFields checks every entry's shape
+		validateBlockFields(record.fields as unknown as BlockFieldDefinition[]);
+	} catch (error) {
+		if (!(error instanceof SchemaError)) throw error;
+		issues.push(rejected("fields", "Block type fields are not valid on this site"));
+	}
+	return issues;
+}
+
 export function writeRuleIssues(record: SitePackageRecord, facts: WriteRuleFacts): ValueIssue[] {
 	switch (record.kind) {
+		case "block_type":
+			return blockTypeIssues(record);
+		case "block_type_version":
+			return blockTypeVersionIssues(record);
 		case "redirect":
 			return redirectIssues(record);
 		case "collection":

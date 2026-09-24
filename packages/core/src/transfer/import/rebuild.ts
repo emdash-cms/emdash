@@ -21,6 +21,7 @@ import {
 	invalidateObjectCache,
 } from "../../object-cache/index.js";
 import { resetRegisteredCollectionsCache } from "../../schema/collection-slugs-cache.js";
+import { invalidateSchemaCache } from "../../schema/zod-generator.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import type { SearchTokenizer } from "../../search/types.js";
 import { SEARCH_TOKENIZERS } from "../../search/types.js";
@@ -206,6 +207,7 @@ async function invalidateCaches(context: ImportContext): Promise<void> {
 	for (const namespace of Object.values(CacheNamespace)) invalidateObjectCache(namespace);
 	for (const collection of await collections(context)) {
 		invalidateCollectionCache(collection.slug);
+		invalidateSchemaCache(collection.slug);
 	}
 	invalidateSiteSettingsCache();
 	resetRegisteredCollectionsCache();

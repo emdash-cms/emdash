@@ -643,6 +643,12 @@ function tableConfig(kind: RecordKind): TableReaderConfig {
 
 function configFor(kind: RecordKind): TableReaderConfig {
 	switch (kind) {
+		case "block_type_version":
+			return {
+				...tableConfig(kind),
+				filter: () =>
+					sql<boolean>`_emdash_block_type_versions.block_type_id IN (SELECT id FROM _emdash_block_types)`,
+			};
 		case "field":
 			return {
 				...tableConfig(kind),

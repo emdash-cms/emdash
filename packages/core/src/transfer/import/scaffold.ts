@@ -34,7 +34,7 @@ export type ScaffoldProgress =
 /**
  * Delete declared items from `step` on. Each item is removed only if it is
  * still the scaffold it was when analyzed (an unassigned term, an empty menu,
- * an empty widget area, a theme section); deleting an already-deleted item
+ * an empty widget area, a theme section, a seeded block type); deleting an already-deleted item
  * is a no-op.
  */
 export async function clearScaffold(
@@ -191,6 +191,26 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 				.deleteFrom("_emdash_sections")
 				.where("id", "=", item.id)
 				.where("source", "=", "theme")
+				.execute();
+			return;
+		case "block_type":
+			await db
+				.deleteFrom("_emdash_block_type_versions")
+				.where("block_type_id", "=", item.id)
+				.where((eb) =>
+					eb.exists(
+						eb
+							.selectFrom("_emdash_block_types")
+							.select(sql`1`.as("one"))
+							.where("_emdash_block_types.id", "=", item.id)
+							.where("_emdash_block_types.source", "=", "seed"),
+					),
+				)
+				.execute();
+			await db
+				.deleteFrom("_emdash_block_types")
+				.where("id", "=", item.id)
+				.where("source", "=", "seed")
 				.execute();
 			return;
 		default:

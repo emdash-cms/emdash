@@ -10,8 +10,9 @@
  *    validated, per-kind counts, stream order (topological kinds: each parent
  *    earlier, depth = parent depth + 1), unique ids, and the package index
  *    (`_emdash_transfer_package_index`) filled for reference resolution.
- * - `references`: every `KIND_REFERENCES` entry resolved against the package
- *    index with bounded lookups, media placeholders resolved to `media`
+ * - `references`: every `KIND_REFERENCES` entry, and the block type
+ *    references held inside `blocks` fields and block types, resolved against
+ *    the package index with bounded lookups, media placeholders resolved to `media`
  *    records, every media record's blob staged and verified, and — when a
  *    target is given — values checked against the target's column
  *    constraints.
@@ -35,6 +36,8 @@ import {
 import { SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isTransferError, TransferError } from "../errors.js";
 import {
+	blocksFieldTypeSlugs,
+	blockTypeVersionKey,
 	compareIds,
 	compareStreamOrder,
 	KIND_REFERENCES,
@@ -42,6 +45,7 @@ import {
 	streamOrderOf,
 	TOPOLOGICAL_PARENT_PROPERTY,
 	type RecordKind,
+	type ReferenceKey,
 	type SitePackageRecord,
 	type StreamOrderKey,
 	type TopologicalKind,
@@ -718,8 +722,11 @@ function groupIdOf(record: SitePackageRecord): string {
 }
 
 function nameKeyOf(record: SitePackageRecord): string | null {
-	if (record.kind === "collection") return record.slug;
+	if (record.kind === "collection" || record.kind === "block_type") return record.slug;
 	if (record.kind === "menu") return record.name;
+	if (record.kind === "block_type_version") {
+		return blockTypeVersionKey(record.blockTypeId, record.version);
+	}
 	return null;
 }
 
@@ -1142,6 +1149,7 @@ async function referencesChunk(context: Context, kind: RecordKind): Promise<void
 		}
 	}
 
+	await checkNestedReferences(context, kind, chunk.records, chunk.path);
 	await checkMediaReferences(context, kind, chunk.records, chunk.path);
 	if (kind === "media") await checkMediaBlobs(context, chunk.records, chunk.path);
 
@@ -1156,6 +1164,67 @@ async function referencesChunk(context: Context, kind: RecordKind): Promise<void
 			state.principalBylineLocales.set(record.userPrincipal, locales);
 		}
 		if (context.target) checkTargetValues(context, record, { path: chunk.path, line });
+	}
+}
+
+interface NestedReference {
+	property: string;
+	targets: readonly RecordKind[];
+	by: ReferenceKey;
+	values: (record: SitePackageRecord) => string[];
+}
+
+/**
+ * References that live inside a property rather than being one: the block
+ * types a `blocks` field names in `validation`, and the version a block type
+ * names as current.
+ */
+const NESTED_REFERENCES: Partial<Record<RecordKind, NestedReference>> = {
+	field: {
+		property: "validation",
+		targets: ["block_type"],
+		by: "slug",
+		values: (record) => (record.kind === "field" ? blocksFieldTypeSlugs(record) : []),
+	},
+	block_type: {
+		property: "currentVersion",
+		targets: ["block_type_version"],
+		by: "name",
+		values: (record) =>
+			record.kind === "block_type" ? [blockTypeVersionKey(record.id, record.currentVersion)] : [],
+	},
+};
+
+async function checkNestedReferences(
+	context: Context,
+	kind: RecordKind,
+	records: readonly ChunkRecord[],
+	path: string,
+): Promise<void> {
+	const reference = NESTED_REFERENCES[kind];
+	if (!reference) return;
+	const owners = new Map<string, ChunkRecord[]>();
+	for (const item of records) {
+		for (const value of reference.values(item.record)) {
+			const list = owners.get(value) ?? [];
+			list.push(item);
+			owners.set(value, list);
+		}
+	}
+	if (owners.size === 0) return;
+	const missing = await context.index.findMissing(reference.targets, reference.by, [
+		...owners.keys(),
+	]);
+	for (const value of missing) {
+		for (const item of owners.get(value) ?? []) {
+			addBlocker(context.state.issues, {
+				code: "dangling_reference",
+				message: "Reference does not resolve to a record in the package",
+				kind,
+				id: item.record.id,
+				detail: { property: reference.property, path, line: item.line },
+			});
+		}
 	}
 }
 

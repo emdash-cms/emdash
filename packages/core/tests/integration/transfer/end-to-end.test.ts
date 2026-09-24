@@ -16,6 +16,11 @@ import { setI18nConfig } from "../../../src/i18n/config.js";
 import { emdashLoader } from "../../../src/loader.js";
 import { getMenuWithDb } from "../../../src/menus/index.js";
 import { runWithContext } from "../../../src/request-context.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
+import { expandCollectionBlockFields } from "../../../src/schema/block-values.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
+import { defaultSeed } from "../../../src/seed/default.js";
+import type { SeedFile } from "../../../src/seed/types.js";
 import { getSiteSettingsWithDb } from "../../../src/settings/index.js";
 import { finalizePlan } from "../../../src/transfer/analyze/step.js";
 import { verifyImportStep } from "../../../src/transfer/export/verify.js";
@@ -50,6 +55,35 @@ import {
 } from "./pipeline.js";
 
 const MEDIA_FILE_URL = /\/_emdash\/api\/media\/file\/([^"\\?#]+)/g;
+
+/** The default seed plus a seeded block type, named by a seeded blocks field, whose slug the package reuses. */
+const TARGET_SEED: SeedFile = {
+	...defaultSeed,
+	blockTypes: [
+		{
+			slug: "callout",
+			label: "Seeded callout",
+			currentVersion: 1,
+			versions: [{ version: 1, fields: [{ slug: "note", label: "Note", type: "string" }] }],
+		},
+	],
+	collections: defaultSeed.collections?.map((collection) =>
+		collection.slug === "posts"
+			? {
+					...collection,
+					fields: [
+						...collection.fields,
+						{
+							slug: "blocks",
+							label: "Blocks",
+							type: "blocks",
+							validation: { allowedTypes: ["callout"] },
+						},
+					],
+				}
+			: collection,
+	),
+};
 
 /**
  * Just above the largest per-unit query estimate of any phase (analysis's
@@ -107,7 +141,7 @@ for (const [sourceDialect, targetDialect] of DIALECT_PAIRS) {
 				const targetStorage = createMemoryStorage();
 				const site: OriginSite = await buildOriginSite(source.db, originStorage);
 				const ids = site.ids;
-				await seedTarget(target.db);
+				await seedTarget(target.db, TARGET_SEED);
 				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
 
 				const exportPhase = phase(source.db, ceiling);
@@ -187,6 +221,7 @@ for (const [sourceDialect, targetDialect] of DIALECT_PAIRS) {
 				}
 
 				await expectPublicSite(target.db, targetStorage, site);
+				await expectBlockTypes(target.db, source.db, targetStorage, site);
 				await expectNoForbiddenStrings(target.db, site);
 			});
 		});
@@ -328,6 +363,40 @@ async function expectPublicSite(
 	expect(settings.tagline).toBe("Where it all began");
 	expect(settings.logo?.mediaId).toBe(ids.logoMedia);
 	expect(JSON.stringify(settings.logo)).toContain(keys.get(ids.logoMedia)!);
+}
+
+async function expectBlockTypes(
+	db: Kysely<Database>,
+	origin: Kysely<Database>,
+	storage: MemoryStorage,
+	site: OriginSite,
+): Promise<void> {
+	const blockTypes = await new BlockTypeRegistry(db).listBlockTypes();
+	expect(blockTypes).toEqual(await new BlockTypeRegistry(origin).listBlockTypes());
+	expect(blockTypes.map((type) => [type.slug, type.currentVersion, type.versions.length])).toEqual([
+		["callout", 2, 2],
+		["quote", 1, 1],
+	]);
+
+	const posts = await new SchemaRegistry(db).getCollectionWithFields("posts");
+	const expanded = await expandCollectionBlockFields(db, posts!);
+	const blocksField = expanded.fields.find((field) => field.slug === "blocks");
+	expect(blocksField?.blockTypes?.map((type) => type.slug)).toEqual(["callout", "quote"]);
+
+	const hello = await loadEntry(db, "posts", "hello-world", "en");
+	const blocks: unknown = hello?.data.blocks;
+	expect(blocks).toMatchObject([
+		{ _type: "callout", _version: 2, _key: "c1", heading: "Read this first" },
+		{ _type: "callout", _version: 1, _key: "c2", text: "An older callout" },
+		{ _type: "quote", _version: 1, _key: "q1", quote: "Retired but kept" },
+	]);
+	const { storage_key: inlineKey } = await db
+		.selectFrom("media")
+		.select("storage_key")
+		.where("id", "=", site.ids.inlineMedia)
+		.executeTakeFirstOrThrow();
+	expect(JSON.stringify(blocks)).toContain(`"storageKey":"${inlineKey}"`);
+	expect(await storage.exists(inlineKey)).toBe(true);
 }
 
 async function expectNoForbiddenStrings(db: Kysely<Database>, site: OriginSite): Promise<void> {
