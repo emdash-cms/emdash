@@ -49,27 +49,31 @@ describeEachDialect("blank values in array-valued fields", (dialect) => {
 		expect(row.rows[0]).toEqual({ body: null, tags: null, links: null });
 	});
 
-	it("saves an entry read back with a stored blank body", async () => {
-		const created = await runtime.handleContentCreate("posts", {
-			slug: "p2",
-			data: { title: "p2" },
-		});
-		if (!created.success) throw new Error("setup failed");
-		const { id } = created.data.item;
-		await sql`UPDATE ${sql.ref("ec_posts")} SET body = ${""} WHERE id = ${id}`.execute(ctx.db);
+	// Postgres JSON columns reject a blank string, so only SQLite can hold one.
+	it.skipIf(dialect === "postgres")(
+		"saves an entry read back with a stored blank body",
+		async () => {
+			const created = await runtime.handleContentCreate("posts", {
+				slug: "p2",
+				data: { title: "p2" },
+			});
+			if (!created.success) throw new Error("setup failed");
+			const { id } = created.data.item;
+			await sql`UPDATE ${sql.ref("ec_posts")} SET body = ${""} WHERE id = ${id}`.execute(ctx.db);
 
-		const loaded = await runtime.handleContentGet("posts", id);
-		if (!loaded.success) throw new Error("load failed");
-		expect(loaded.data.item.data.body).toBe("");
+			const loaded = await runtime.handleContentGet("posts", id);
+			if (!loaded.success) throw new Error("load failed");
+			expect(loaded.data.item.data.body).toBe("");
 
-		const updated = await runtime.handleContentUpdate("posts", id, {
-			data: { ...loaded.data.item.data, title: "p2 edited" },
-		});
+			const updated = await runtime.handleContentUpdate("posts", id, {
+				data: { ...loaded.data.item.data, title: "p2 edited" },
+			});
 
-		expect(updated.success).toBe(true);
-		if (!updated.success) return;
-		expect(updated.data.item.data.body).toBeNull();
-	});
+			expect(updated.success).toBe(true);
+			if (!updated.success) return;
+			expect(updated.data.item.data.body).toBeNull();
+		},
+	);
 
 	it("still rejects a blank body on a required field", async () => {
 		const registry = new SchemaRegistry(ctx.db);
