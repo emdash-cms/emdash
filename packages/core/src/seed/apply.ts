@@ -384,8 +384,16 @@ export async function applySeed(
 		for (const taxonomy of seed.taxonomies) {
 			if (taxonomy.id) taxonomiesBySeedId.set(taxonomy.id, taxonomy);
 		}
+		// Entries that declare their taxonomy's structure apply first: a translation's
+		// terms need the structure its source entry may still replace.
+		const declaresOwnStructure = (taxonomy: SeedTaxonomy) =>
+			findTaxonomyStructureSource(taxonomy, taxonomiesBySeedId) === taxonomy;
+		const orderedTaxonomies = [
+			...seed.taxonomies.filter(declaresOwnStructure),
+			...seed.taxonomies.filter((taxonomy) => !declaresOwnStructure(taxonomy)),
+		];
 
-		for (const taxonomy of seed.taxonomies) {
+		for (const taxonomy of orderedTaxonomies) {
 			const defLocale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
 
 			// (name, locale) is the UNIQUE key after migration 036.
@@ -402,18 +410,16 @@ export async function applySeed(
 			const replacesDef = onConflict === "update" || unclaimed;
 
 			// The structure belongs to the taxonomy, not the locale: a translation takes
-			// `hierarchical` and `collections` from the entry its same-name
-			// `translationOf` chain ends at, even when it comes first, and an existing
-			// taxonomy's are rewritten only by a source entry that replaces its definition.
-			const declared = findTaxonomyStructureSource(taxonomy, taxonomiesBySeedId) ?? taxonomy;
+			// the one its source entry left, and an existing taxonomy's is rewritten only
+			// by a source entry that replaces its definition.
 			const existingStructure = await findTaxonomyStructure(db, taxonomy.name);
 			const writesStructure = !existingStructure || (replacesDef && !taxonomy.translationOf);
 			const structure =
 				existingStructure && !writesStructure
 					? existingStructure
 					: {
-							hierarchical: declared.hierarchical ?? existingStructure?.hierarchical ?? false,
-							collections: declared.collections ?? existingStructure?.collections ?? [],
+							hierarchical: taxonomy.hierarchical ?? existingStructure?.hierarchical ?? false,
+							collections: taxonomy.collections ?? existingStructure?.collections ?? [],
 						};
 			const defId = existingDef?.id ?? ulid();
 			const translationGroup = writesStructure

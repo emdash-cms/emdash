@@ -226,6 +226,41 @@ describe("applySeed onConflict modes", () => {
 			expect(structure).toMatchObject({ hierarchical: true, collections: ["posts", "pages"] });
 		});
 
+		it("applies a translation's terms with the structure its source entry writes later in the file", async () => {
+			const seed = createTestSeed({
+				taxonomies: [
+					{
+						name: "tag",
+						label: "Etiquetas",
+						locale: "es",
+						translationOf: "tag:en",
+						terms: [
+							{ slug: "noticias", label: "Noticias" },
+							{ slug: "local", label: "Local", parent: "noticias" },
+						],
+					},
+					{
+						id: "tag:en",
+						name: "tag",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+					},
+				],
+			});
+
+			await applySeed(db, seed, { includeContent: true });
+
+			const terms = await db
+				.selectFrom("taxonomies")
+				.select(["id", "slug", "parent_id"])
+				.where("name", "=", "tag")
+				.where("locale", "=", "es")
+				.execute();
+			const parent = terms.find((term) => term.slug === "noticias");
+			expect(terms.find((term) => term.slug === "local")?.parent_id).toBe(parent?.id);
+		});
+
 		it("skips a built-in taxonomy the site has changed", async () => {
 			await db
 				.updateTable("_emdash_taxonomy_defs")

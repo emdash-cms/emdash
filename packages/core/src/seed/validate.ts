@@ -56,6 +56,21 @@ export function findTaxonomyStructureSource<T extends Pick<SeedTaxonomy, "name" 
 	return undefined;
 }
 
+/** Whether `a` and `b` disagree on `hierarchical` or `collections`, comparing only fields both declare. */
+function declaresDifferentStructure(a: SeedTaxonomy, b: SeedTaxonomy): boolean {
+	if (
+		a.hierarchical !== undefined &&
+		b.hierarchical !== undefined &&
+		a.hierarchical !== b.hierarchical
+	) {
+		return true;
+	}
+	if (!Array.isArray(a.collections) || !Array.isArray(b.collections)) return false;
+	const own = new Set(a.collections);
+	const other = new Set(b.collections);
+	return own.size !== other.size || [...own].some((collection) => !other.has(collection));
+}
+
 /**
  * Validate a seed file
  *
@@ -286,6 +301,7 @@ export function validateSeed(data: unknown): ValidationResult {
 			for (const taxonomy of seed.taxonomies) {
 				if (taxonomy.id) taxonomiesById.set(taxonomy.id, taxonomy);
 			}
+			const structureDeclarations = new Map<string, SeedTaxonomy>();
 
 			for (let i = 0; i < seed.taxonomies.length; i++) {
 				const taxonomy = seed.taxonomies[i];
@@ -342,6 +358,23 @@ export function validateSeed(data: unknown): ValidationResult {
 					warnings.push(
 						`${prefix}.collections: taxonomy "${taxonomy.name}" is not assigned to any collections`,
 					);
+				}
+
+				if (structureSource && structureSource !== taxonomy) {
+					if (declaresDifferentStructure(taxonomy, structureSource)) {
+						warnings.push(
+							`${prefix}: hierarchical and collections come from taxonomies[${seed.taxonomies.indexOf(structureSource)}], so the values declared here are ignored`,
+						);
+					}
+				} else if (structureSource && taxonomy.name) {
+					const declaring = structureDeclarations.get(taxonomy.name);
+					if (!declaring) {
+						structureDeclarations.set(taxonomy.name, taxonomy);
+					} else if (declaresDifferentStructure(taxonomy, declaring)) {
+						warnings.push(
+							`${prefix}: hierarchical and collections differ from taxonomies[${seed.taxonomies.indexOf(declaring)}]; every locale of taxonomy "${taxonomy.name}" shares them, so only one entry's values apply`,
+						);
+					}
 				}
 
 				const hierarchical = (structureSource ?? taxonomy).hierarchical;

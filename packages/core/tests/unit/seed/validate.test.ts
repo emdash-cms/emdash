@@ -511,6 +511,67 @@ describe("validateSeed", () => {
 			]);
 		});
 
+		it("warns when a translation declares a structure other than the one it takes", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "topic:en",
+					},
+				],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([
+				"taxonomies[1]: hierarchical and collections come from taxonomies[0], so the values declared here are ignored",
+			]);
+		});
+
+		it("warns when entries that declare one taxonomy's structure disagree", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts", "pages"],
+						locale: "en",
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "es",
+					},
+					{
+						name: "topic",
+						label: "Sujets",
+						hierarchical: true,
+						collections: ["pages", "posts"],
+						locale: "fr",
+					},
+				],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([
+				'taxonomies[1]: hierarchical and collections differ from taxonomies[0]; every locale of taxonomy "topic" shares them, so only one entry\'s values apply',
+			]);
+		});
+
 		it("should validate term properties", () => {
 			const result = validateSeed({
 				version: "1",
