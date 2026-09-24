@@ -12,6 +12,7 @@ import {
 	DropdownMenu,
 	Input,
 	InputArea,
+	LayerCard,
 	Select,
 	Table,
 	Toast,
@@ -244,7 +245,7 @@ function TagTermRow({
 	const stranded = isStranded(term, parentId);
 	return (
 		<>
-			<Table.Row>
+			<Table.Row className="hover:bg-kumo-tint/25">
 				<Table.Cell>
 					<div className="min-w-0" style={{ paddingInlineStart: `${level * 1.5}rem` }}>
 						<span className="block break-words font-medium">{term.label}</span>
@@ -1295,7 +1296,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 			</div>
 
 			{taxonomyName === "tag" ? (
-				<div className="space-y-3">
+				<div className="flex flex-col gap-3">
 					<TableToolbarSearch
 						size="base"
 						placeholder={t`Search tags…`}
@@ -1310,53 +1311,55 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							{t`No ${taxonomyDef.label.toLowerCase()} yet. Create one to get started.`}
 						</div>
 					) : (
-						<div className="overflow-x-auto">
-							<Table>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head>{t`Name`}</Table.Head>
-										<Table.Head className="w-20">{t`Posts`}</Table.Head>
-										<Table.Head className="w-24 text-end">
-											<span className="sr-only">{t`Actions`}</span>
-										</Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{visibleTags.length === 0 ? (
+						<LayerCard className="p-0">
+							<div className="overflow-x-auto">
+								<Table className="text-start">
+									<Table.Header variant="compact">
 										<Table.Row>
-											<Table.Cell colSpan={3}>
-												<div
-													role="status"
-													className="flex flex-col items-center gap-2 py-8 text-center"
-												>
-													<MagnifyingGlass
-														size={32}
-														className="text-kumo-subtle opacity-60"
-														aria-hidden="true"
-													/>
-													<p className="text-base font-medium">{t`No matching tags`}</p>
-													<Button variant="outline" size="sm" onClick={() => setTagSearch("")}>
-														{t`Clear search`}
-													</Button>
-												</div>
-											</Table.Cell>
+											<Table.Head className="text-start">{t`Name`}</Table.Head>
+											<Table.Head className="w-20 text-start">{t`Posts`}</Table.Head>
+											<Table.Head className="w-24 text-end">
+												<span className="sr-only">{t`Actions`}</span>
+											</Table.Head>
 										</Table.Row>
-									) : (
-										<TermGroup
-											siblings={visibleTags}
-											parentId={null}
-											table
-											searchActive={!!search}
-											onEdit={handleEdit}
-											onDelete={handleDelete}
-											onMove={handleMove}
-											onTranslate={setTranslateTarget}
-											canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
-										/>
-									)}
-								</Table.Body>
-							</Table>
-						</div>
+									</Table.Header>
+									<Table.Body>
+										{visibleTags.length === 0 ? (
+											<Table.Row>
+												<Table.Cell colSpan={3}>
+													<div
+														role="status"
+														className="flex flex-col items-center gap-2 py-8 text-center"
+													>
+														<MagnifyingGlass
+															size={32}
+															className="text-kumo-subtle opacity-60"
+															aria-hidden="true"
+														/>
+														<p className="text-base font-medium">{t`No matching tags`}</p>
+														<Button variant="outline" size="sm" onClick={() => setTagSearch("")}>
+															{t`Clear search`}
+														</Button>
+													</div>
+												</Table.Cell>
+											</Table.Row>
+										) : (
+											<TermGroup
+												siblings={visibleTags}
+												parentId={null}
+												table
+												searchActive={!!search}
+												onEdit={handleEdit}
+												onDelete={handleDelete}
+												onMove={handleMove}
+												onTranslate={setTranslateTarget}
+												canTranslate={!!i18n && !!activeLocale && i18n.locales.length > 1}
+											/>
+										)}
+									</Table.Body>
+								</Table>
+							</div>
+						</LayerCard>
 					)}
 				</div>
 			) : (
