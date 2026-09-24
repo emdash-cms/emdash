@@ -738,7 +738,9 @@ function scheduleBackendWrite(key: string, write: () => void): void {
  *
  * Other isolates see none of these invalidations until `fn` ends, so don't wrap
  * work that purges edge-cached pages part-way through: a page rebuilt after
- * such a purge would still read the old epoch.
+ * such a purge would still read the old epoch. If the invocation is killed
+ * before `fn` settles, the held writes are lost with it, and other isolates
+ * keep their cached values until those expire.
  */
 export async function coalesceObjectCacheWrites<T>(fn: () => Promise<T>): Promise<T> {
 	const outer = writeScopes.getStore();

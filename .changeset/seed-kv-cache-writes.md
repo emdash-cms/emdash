@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes KV rate-limit errors when a seed with sample content is applied on Cloudflare Workers with the KV object cache (`kvCache()`): applying a seed now writes each cache invalidation to KV once instead of once per entry.
+Fixes `kvCache()` rate-limit (429) errors, logged as `[object-cache] epoch bump failed`, when a seed with sample content is applied on Cloudflare Workers, such as through the setup wizard's **Include sample content** option. Applying a seed now writes each invalidated cache key to KV once, when the seed finishes, instead of once per entry.
