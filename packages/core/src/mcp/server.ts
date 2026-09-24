@@ -38,6 +38,7 @@ import { convertDataForRead, convertDataForWrite } from "../client/portable-text
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
+import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -719,20 +720,38 @@ export function createMcpServer(
 	// surface as structured `_meta.code`-bearing tool error envelopes
 	// instead of the SDK's text-only fallback in createToolError().
 	//
+	// The wrapper also applies the site write fence. Every MCP request is a
+	// POST, so the fence middleware leaves the endpoint to this per-tool
+	// check: every tool is fenced unless it is annotated `readOnlyHint: true`.
+	// A tool annotated read-only must never write.
+	//
 	// Type-erased on purpose — the SDK's overloads are too narrow for a
 	// generic wrapper, but the runtime contract (callback returns the tool
 	// result envelope) holds for every registered tool.
 	const originalRegisterTool = server.registerTool.bind(server);
 	(server as { registerTool: typeof server.registerTool }).registerTool = ((
 		name: string,
-		config: unknown,
+		config: { annotations?: { readOnlyHint?: boolean } },
 		callback: (...callbackArgs: unknown[]) => Promise<SuccessEnvelope | ErrorEnvelope>,
 	) => {
+		const fenced = config.annotations?.readOnlyHint !== true;
 		const wrapped = async (
 			...callbackArgs: unknown[]
 		): Promise<SuccessEnvelope | ErrorEnvelope> => {
 			try {
-				return await callback(...callbackArgs);
+				if (!fenced) return await callback(...callbackArgs);
+				// The SDK passes the request extra as the last callback argument.
+				const extra = callbackArgs.at(-1) as { authInfo?: { extra?: Record<string, unknown> } };
+				const { db } = getEmDash(extra);
+				const fence = await readSiteWriteFence(db);
+				if (fence.error) return respondError(fence.error.code, fence.error.message);
+				const result = await callback(...callbackArgs);
+				// Recorded after the write so an export whose fence was captured
+				// while this tool ran still sees it.
+				if (fence.exportRunning && !("isError" in result && result.isError)) {
+					await recordSiteWrite(db);
+				}
+				return result;
 			} catch (error) {
 				return respondHandlerError(error, "INTERNAL_ERROR");
 			}

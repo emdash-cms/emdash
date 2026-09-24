@@ -6,6 +6,8 @@
  * instead of using ad-hoc strings.
  */
 
+import { TransferErrorCode, transferErrorStatus } from "../transfer/errors.js";
+
 export const ErrorCode = {
 	// Shared (used across domains)
 	NOT_FOUND: "NOT_FOUND",
@@ -389,6 +391,9 @@ export const ErrorCode = {
 	NO_DB: "NO_DB",
 	INVALID_REQUEST: "INVALID_REQUEST",
 	UNKNOWN_ACTION: "UNKNOWN_ACTION",
+
+	// Site transfer
+	...TransferErrorCode,
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -417,6 +422,9 @@ export type OAuthErrorCode = (typeof OAuthErrorCode)[keyof typeof OAuthErrorCode
  * defaults to 400 (client error).
  */
 export function mapErrorStatus(code: string | undefined): number {
+	const transferStatus = transferErrorStatus(code);
+	if (transferStatus !== undefined) return transferStatus;
+
 	switch (code) {
 		// 400 Bad Request
 		case ErrorCode.VALIDATION_ERROR:

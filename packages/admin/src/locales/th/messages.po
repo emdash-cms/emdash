@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2153
+#: packages/admin/src/router.tsx:2159
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {อัปเดตความคิดเห็น # รายการ} other {อัปเดตความคิดเห็น # รายการ}}"
 
@@ -136,6 +136,11 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:220
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {# รายการ} other {# รายการ}}"
+
+#. placeholder {0}: tagMatches?.matchCount ?? 0
+#: packages/admin/src/components/TaxonomyManager.tsx:1381
+msgid "{0, plural, one {# matching tag} other {# matching tags}}"
+msgstr ""
 
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:478
@@ -287,7 +292,7 @@ msgid "{0} banner"
 msgstr "แบนเนอร์ {0}"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:245
+#: packages/admin/src/components/TaxonomyManager.tsx:439
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
 msgstr ""
 
@@ -375,7 +380,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr "ระบบ {0} + กำหนดเอง {1} {2}"
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:678
+#: packages/admin/src/components/TaxonomySidebar.tsx:679
 msgid "{0} updated"
 msgstr "อัปเดต {0} แล้ว"
 
@@ -393,6 +398,15 @@ msgstr ""
 #: packages/admin/src/components/SeoPanel.tsx:215
 msgid "{0}/160 characters"
 msgstr "{0}/160 อักขระ"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:391
+msgid "{added} posts tagged"
+msgstr ""
+
+#. placeholder {0}: failed.length
+#: packages/admin/src/components/BulkTagDialog.tsx:388
+msgid "{added} tagged · {0} failed"
+msgstr ""
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:465
@@ -439,7 +453,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1208
+#: packages/admin/src/components/ContentList.tsx:1267
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} รายการ} other {#{1} รายการ}}"
 
@@ -470,7 +484,7 @@ msgstr ""
 msgid "{label} options"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1197
+#: packages/admin/src/components/ContentList.tsx:1256
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, other {# รายการที่ตรงกับ \"{searchQuery}\"}}"
 
@@ -584,6 +598,11 @@ msgstr ""
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
+#. placeholder {0}: results.length
+#: packages/admin/src/components/BulkTagDialog.tsx:403
+msgid "{ready} of {0} ready"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:924
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
 msgstr ""
@@ -604,11 +623,11 @@ msgstr ""
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:494
+#: packages/admin/src/components/ContentList.tsx:503
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:536
+#: packages/admin/src/components/ContentList.tsx:575
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
@@ -616,7 +635,7 @@ msgstr ""
 msgid "{subLabel} ({label}, item {position})"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1203
+#: packages/admin/src/components/ContentList.tsx:1262
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# รายการ} other {# รายการ}}"
 
@@ -676,6 +695,10 @@ msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:74
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:390
+msgid "1 post tagged"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:37
@@ -800,7 +823,7 @@ msgstr ""
 msgid "A short description of your site"
 msgstr "คำอธิบายสั้น ๆ ของเว็บไซต์ของคุณ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:758
+#: packages/admin/src/components/TaxonomySidebar.tsx:761
 msgid "A source and target locale are required"
 msgstr ""
 
@@ -821,6 +844,7 @@ msgid "Accept & Update"
 msgstr "ยอมรับและอัปเดต"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
+#: packages/admin/src/locales/emails.ts:48
 msgid "Accept Invite"
 msgstr "ยอมรับคำเชิญ"
 
@@ -829,7 +853,7 @@ msgstr "ยอมรับคำเชิญ"
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2173
+#: packages/admin/src/router.tsx:2179
 msgid "Access Denied"
 msgstr "การเข้าถึงถูกปฏิเสธ"
 
@@ -859,10 +883,11 @@ msgid "ACF Fields"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:769
+#: packages/admin/src/components/ContentList.tsx:696
+#: packages/admin/src/components/ContentList.tsx:828
 #: packages/admin/src/components/ContentTypeList.tsx:190
-#: packages/admin/src/components/TaxonomyManager.tsx:1113
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1455
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
 msgstr "การดำเนินการ"
@@ -894,8 +919,8 @@ msgstr "เพิ่ม"
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/PortableTextEditor.tsx:2316
-#: packages/admin/src/components/TaxonomyManager.tsx:557
-#: packages/admin/src/components/TaxonomyManager.tsx:1082
+#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Add {0}"
 msgstr "เพิ่ม {0}"
 
@@ -1006,7 +1031,7 @@ msgstr "เพิ่มลิงก์เพื่อสร้างเมนู
 msgid "Add MIME type or extension"
 msgstr "เพิ่มประเภท MIME หรือนามสกุลไฟล์"
 
-#: packages/admin/src/components/ContentList.tsx:432
+#: packages/admin/src/components/ContentList.tsx:441
 msgid "Add New"
 msgstr "เพิ่มใหม่"
 
@@ -1045,6 +1070,27 @@ msgstr "เพิ่มฟิลด์ข้อมูลเมตา SEO (ชื
 msgid "Add Sub-Field"
 msgstr "เพิ่มฟิลด์ย่อย"
 
+#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/TaxonomyManager.tsx:1313
+msgid "Add tag"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:527
+msgid "Add tag to {ready} posts"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:526
+msgid "Add tag to 1 post"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:252
+msgid "Add tag to posts"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
+msgid "Add to posts"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:403
 msgid "Add Widget Area"
 msgstr "เพิ่มพื้นที่วิดเจ็ต"
@@ -1053,10 +1099,18 @@ msgstr "เพิ่มพื้นที่วิดเจ็ต"
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "เพิ่มโปรไฟล์โซเชียลมีเดียของคุณ ข้อมูลเหล่านี้ใช้ได้กับธีมของเว็บไซต์ และสามารถแสดงในส่วนหัว ส่วนท้าย หรือประวัติผู้เขียน"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:59
+msgid "Added"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
 msgstr "กำลังเพิ่ม..."
+
+#: packages/admin/src/components/BulkTagDialog.tsx:524
+msgid "Adding…"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Additional data to import."
@@ -1066,7 +1120,7 @@ msgstr "ข้อมูลเพิ่มเติมที่จะนำเข
 msgid "admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
 #: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -1131,12 +1185,12 @@ msgstr "จัดชิดขวา"
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:444
+#: packages/admin/src/components/ContentList.tsx:453
 msgid "All"
 msgstr "ทั้งหมด"
 
-#: packages/admin/src/components/ContentList.tsx:919
-#: packages/admin/src/components/ContentList.tsx:923
+#: packages/admin/src/components/ContentList.tsx:978
+#: packages/admin/src/components/ContentList.tsx:982
 msgid "All authors"
 msgstr ""
 
@@ -1174,7 +1228,7 @@ msgstr "ทุกบทบาท"
 msgid "All Sources"
 msgstr "ทุกแหล่งที่มา"
 
-#: packages/admin/src/components/ContentList.tsx:858
+#: packages/admin/src/components/ContentList.tsx:917
 #: packages/admin/src/components/Redirects.tsx:391
 msgid "All statuses"
 msgstr "ทุกสถานะ"
@@ -1217,6 +1271,10 @@ msgstr "ประเภทที่อนุญาต"
 #: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
 msgstr "มีบัญชีอยู่แล้ว?"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:61
+msgid "Already tagged or duplicate"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:784
 msgid "Also delete plugin storage data"
@@ -1266,9 +1324,9 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:476
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:232
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:491
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
@@ -1285,27 +1343,27 @@ msgstr ""
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
-#: packages/admin/src/components/TaxonomySidebar.tsx:683
-#: packages/admin/src/components/TaxonomySidebar.tsx:779
+#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:782
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:488
 #: packages/admin/src/router.tsx:503
 #: packages/admin/src/router.tsx:517
 #: packages/admin/src/router.tsx:531
-#: packages/admin/src/router.tsx:759
-#: packages/admin/src/router.tsx:1123
-#: packages/admin/src/router.tsx:1217
-#: packages/admin/src/router.tsx:1242
-#: packages/admin/src/router.tsx:1266
-#: packages/admin/src/router.tsx:1290
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:1355
-#: packages/admin/src/router.tsx:1388
-#: packages/admin/src/router.tsx:1409
-#: packages/admin/src/router.tsx:2118
-#: packages/admin/src/router.tsx:2134
-#: packages/admin/src/router.tsx:2159
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:765
+#: packages/admin/src/router.tsx:1129
+#: packages/admin/src/router.tsx:1223
+#: packages/admin/src/router.tsx:1248
+#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1296
+#: packages/admin/src/router.tsx:1342
+#: packages/admin/src/router.tsx:1361
+#: packages/admin/src/router.tsx:1394
+#: packages/admin/src/router.tsx:1415
+#: packages/admin/src/router.tsx:2124
+#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:2165
+#: packages/admin/src/router.tsx:2680
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1343,8 +1401,8 @@ msgstr "อนุญาตมีเดียทุกประเภท (ขึ�
 
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/Settings.tsx:101
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:333
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:348
 msgid "API Tokens"
 msgstr "API Tokens"
 
@@ -1396,7 +1454,7 @@ msgstr "อนุมัติแล้ว"
 msgid "Arbitrary JSON data"
 msgstr "ข้อมูล JSON ตามต้องการ"
 
-#: packages/admin/src/components/ContentList.tsx:862
+#: packages/admin/src/components/ContentList.tsx:921
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr ""
@@ -1534,7 +1592,7 @@ msgstr "อัตโนมัติ (เปลี่ยน slug)"
 msgid "Auto-approve authenticated users"
 msgstr "อนุมัติผู้ใช้ที่ยืนยันตัวตนแล้วโดยอัตโนมัติ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:603
+#: packages/admin/src/components/TaxonomyManager.tsx:791
 msgid "Auto-generated from name (you can edit)"
 msgstr "สร้างอัตโนมัติจากชื่อ (คุณสามารถแก้ไขได้)"
 
@@ -1552,7 +1610,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1214
+#: packages/admin/src/router.tsx:1220
 msgid "Autosave failed"
 msgstr "บันทึกอัตโนมัติล้มเหลว"
 
@@ -1561,7 +1619,7 @@ msgid "Available bylines"
 msgstr ""
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:842
+#: packages/admin/src/components/TaxonomySidebar.tsx:845
 msgid "Available in {0}"
 msgstr ""
 
@@ -1582,6 +1640,7 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
+#: packages/admin/src/components/BulkTagDialog.tsx:463
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaDetailPanel.tsx:1793
 #: packages/admin/src/components/MediaLibrary.tsx:811
@@ -1819,13 +1878,15 @@ msgstr "สามารถเผยแพร่เนื้อหาของต
 msgid "Can view content"
 msgstr "สามารถดูเนื้อหาได้"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:290
+#: packages/admin/src/components/BulkTagDialog.tsx:468
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1021
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/components/ContentList.tsx:1378
-#: packages/admin/src/components/ContentList.tsx:1560
+#: packages/admin/src/components/ContentList.tsx:584
+#: packages/admin/src/components/ContentList.tsx:1437
+#: packages/admin/src/components/ContentList.tsx:1619
 #: packages/admin/src/components/ContentPickerModal.tsx:240
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
@@ -1850,11 +1911,11 @@ msgstr "สามารถดูเนื้อหาได้"
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/SecuritySettings.tsx:166
-#: packages/admin/src/components/TaxonomyManager.tsx:386
-#: packages/admin/src/components/TaxonomyManager.tsx:673
-#: packages/admin/src/components/TaxonomyManager.tsx:888
+#: packages/admin/src/components/TaxonomyManager.tsx:580
+#: packages/admin/src/components/TaxonomyManager.tsx:880
+#: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1933
@@ -1991,7 +2052,7 @@ msgstr "บันทึกการเปลี่ยนแปลง"
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1282
+#: packages/admin/src/router.tsx:1288
 msgid "Changes discarded"
 msgstr "ละทิ้งการเปลี่ยนแปลงแล้ว"
 
@@ -2076,8 +2137,8 @@ msgstr ""
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1045
-#: packages/admin/src/components/ContentList.tsx:1051
+#: packages/admin/src/components/ContentList.tsx:1104
+#: packages/admin/src/components/ContentList.tsx:1110
 msgid "Choose a date range"
 msgstr ""
 
@@ -2092,6 +2153,14 @@ msgstr ""
 #. placeholder {0}: formatFileFormat(item.mimeType)
 #: packages/admin/src/components/MediaDetailPanel.tsx:907
 msgid "Choose a non-empty {0} image."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:299
+msgid "Choose a tag"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:172
+msgid "Choose a tag and enter between 1 and 50 posts."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:231
@@ -2139,8 +2208,8 @@ msgstr "เลือกภาษาผู้ดูแลระบบที่ค
 msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:571
-#: packages/admin/src/components/ContentList.tsx:1059
+#: packages/admin/src/components/ContentList.tsx:610
+#: packages/admin/src/components/ContentList.tsx:1118
 msgid "Clear"
 msgstr ""
 
@@ -2148,7 +2217,7 @@ msgstr ""
 msgid "Clear completed"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:964
+#: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
@@ -2156,6 +2225,7 @@ msgstr "ล้างตัวกรอง"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/MediaLibrary.tsx:1119
+#: packages/admin/src/components/TaxonomyManager.tsx:1425
 msgid "Clear search"
 msgstr ""
 
@@ -2167,6 +2237,14 @@ msgstr ""
 msgid "Clear stored value for {fieldKey}"
 msgstr ""
 
+#: packages/admin/src/locales/emails.ts:47
+msgid "Click the button below to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:55
+msgid "Click the button below to sign in:"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
 msgstr "คลิกลิงก์ในอีเมลเพื่อตั้งค่าบัญชีของคุณต่อ"
@@ -2175,6 +2253,15 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อตั้
 msgid "Click the link in the email to sign in."
 msgstr "คลิกลิงก์ในอีเมลเพื่อเข้าสู่ระบบ"
 
+#: packages/admin/src/locales/emails.ts:46
+msgid "Click this link to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:54
+msgid "Click this link to sign in to {siteName}:"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:262
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
 #: packages/admin/src/components/BylineFieldEditor.tsx:222
@@ -2217,13 +2304,11 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อเข้
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:337
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:343
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:347
-#: packages/admin/src/components/TaxonomyManager.tsx:363
-#: packages/admin/src/components/TaxonomyManager.tsx:566
-#: packages/admin/src/components/TaxonomyManager.tsx:572
-#: packages/admin/src/components/TaxonomyManager.tsx:576
-#: packages/admin/src/components/TaxonomyManager.tsx:807
-#: packages/admin/src/components/TaxonomyManager.tsx:813
-#: packages/admin/src/components/TaxonomyManager.tsx:817
+#: packages/admin/src/components/TaxonomyManager.tsx:557
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:772
+#: packages/admin/src/components/TaxonomyManager.tsx:1019
+#: packages/admin/src/components/TaxonomyManager.tsx:1027
 #: packages/admin/src/components/TaxonomySidebar.tsx:605
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -2297,7 +2382,7 @@ msgstr "คอลเลกชัน"
 msgid "Collection:"
 msgstr "คอลเลกชัน:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:858
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Collections"
 msgstr "คอลเลกชัน"
 
@@ -2383,7 +2468,7 @@ msgstr "คอมโพเนนต์"
 msgid "Configure Field"
 msgstr "กำหนดค่าฟิลด์"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:431
 msgid "Confirm"
 msgstr "ยืนยัน"
 
@@ -2460,7 +2545,7 @@ msgstr "ข้อผิดพลาดของเนื้อหา ({0})"
 msgid "Content found:"
 msgstr "พบเนื้อหา:"
 
-#: packages/admin/src/router.tsx:1329
+#: packages/admin/src/router.tsx:1335
 msgid "Content has been scheduled for publishing"
 msgstr "กำหนดเวลาเผยแพร่เนื้อหาแล้ว"
 
@@ -2472,7 +2557,7 @@ msgstr "อัปเดตเนื้อหาเป็นรุ่นแก้
 msgid "Content ID:"
 msgstr "ID เนื้อหา:"
 
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1242
 msgid "Content is now live"
 msgstr "เนื้อหาเผยแพร่แล้ว"
 
@@ -2484,11 +2569,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "อ่านเนื้อหา"
 
-#: packages/admin/src/router.tsx:1260
+#: packages/admin/src/router.tsx:1266
 msgid "Content removed from public view"
 msgstr "นำเนื้อหาออกจากมุมมองสาธารณะแล้ว"
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1354
 msgid "Content reverted to draft"
 msgstr "เปลี่ยนเนื้อหากลับเป็นฉบับร่างแล้ว"
 
@@ -2567,7 +2652,7 @@ msgstr "ผู้ร่วมเขียน"
 msgid "Copied"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "คัดลอกไปยังคลิปบอร์ดแล้ว"
@@ -2594,12 +2679,12 @@ msgstr "คัดลอกลิงก์คำเชิญ"
 msgid "Copy slug"
 msgstr "คัดลอก Slug"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:258
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
 msgid "Copy this token now — it won't be shown again."
 msgstr "คัดลอกโทเค็นนี้ตอนนี้ — จะไม่แสดงอีก"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:289
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:296
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
 msgid "Copy token"
 msgstr "คัดลอกโทเค็น"
 
@@ -2609,9 +2694,17 @@ msgstr "คัดลอกโทเค็น"
 msgid "Copy URL"
 msgstr "คัดลอก URL"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:229
+msgid "Could not add tag"
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:136
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "ไม่สามารถคัดลอกโดยอัตโนมัติ โปรดเลือก URL ด้านบนแล้วคัดลอกด้วยตนเอง"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:164
+msgid "Could not create tag"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3712
 msgid "Could not insert section"
@@ -2629,8 +2722,16 @@ msgstr "ไม่สามารถโหลดรูปภาพจาก URL �
 msgid "Could not load media."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:328
+msgid "Could not load tags."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:1202
 msgid "Could not load this folder."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:182
+msgid "Could not review posts"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:816
@@ -2678,7 +2779,8 @@ msgstr ""
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1112
+#: packages/admin/src/components/TaxonomyManager.tsx:1400
+#: packages/admin/src/components/TaxonomyManager.tsx:1454
 msgid "Count"
 msgstr "จำนวน"
 
@@ -2687,7 +2789,7 @@ msgstr "จำนวน"
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/TaxonomyManager.tsx:680
+#: packages/admin/src/components/TaxonomyManager.tsx:891
 #: packages/admin/src/components/Widgets.tsx:454
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
@@ -2708,7 +2810,7 @@ msgid "Create {0}"
 msgstr ""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:856
 msgid "Create {0} translation"
 msgstr ""
 
@@ -2721,7 +2823,7 @@ msgid "Create a bullet list"
 msgstr "สร้างรายการแบบจุด"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:562
+#: packages/admin/src/components/TaxonomyManager.tsx:760
 msgid "Create a new {0}"
 msgstr "สร้าง {0} ใหม่"
 
@@ -2771,7 +2873,11 @@ msgstr "สร้างเมนู"
 msgid "Create New Menu"
 msgstr "สร้างเมนูใหม่"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/BulkTagDialog.tsx:321
+msgid "Create new tag"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
 msgstr "สร้างโทเค็นใหม่"
 
@@ -2784,9 +2890,9 @@ msgid "Create passkey"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:230
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:341
 msgid "Create personal access tokens for programmatic API access"
 msgstr "สร้างโทเค็นการเข้าถึงส่วนบุคคลสำหรับการเข้าถึง API แบบเป็นโปรแกรม"
 
@@ -2816,8 +2922,12 @@ msgstr "สร้างส่วน"
 msgid "Create sections in the Sections library to use them here"
 msgstr "สร้างส่วนในไลบรารีส่วนเพื่อใช้งานที่นี่"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:800
-#: packages/admin/src/components/TaxonomyManager.tsx:891
+#: packages/admin/src/components/BulkTagDialog.tsx:287
+msgid "Create tag"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1013
+#: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Create Taxonomy"
 msgstr "สร้างอนุกรมวิธาน"
 
@@ -2825,8 +2935,8 @@ msgstr "สร้างอนุกรมวิธาน"
 msgid "Create taxonomy terms and change content classifications"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 msgid "Create Token"
 msgstr "สร้างโทเค็น"
 
@@ -2846,7 +2956,7 @@ msgstr ""
 msgid "Create your first navigation menu to get started"
 msgstr "สร้างเมนูนำทางแรกของคุณเพื่อเริ่มต้น"
 
-#: packages/admin/src/components/ContentList.tsx:665
+#: packages/admin/src/components/ContentList.tsx:724
 msgid "Create your first one"
 msgstr "สร้างรายการแรกของคุณ"
 
@@ -2871,9 +2981,9 @@ msgstr "สร้าง อัปเดต และลบเทอมอนุ�
 msgid "Create, update, delete content"
 msgstr "สร้าง อัปเดต ลบเนื้อหา"
 
-#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:927
 #: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "สร้างแล้ว"
@@ -2889,7 +2999,7 @@ msgid "Created {0}"
 msgstr "สร้าง {0} แล้ว"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1380
+#: packages/admin/src/router.tsx:1386
 msgid "Created {0} translation"
 msgstr "สร้างคำแปล {0} แล้ว"
 
@@ -2912,8 +3022,8 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
-#: packages/admin/src/components/TaxonomyManager.tsx:891
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
+#: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Creating..."
 msgstr "กำลังสร้าง..."
 
@@ -3002,7 +3112,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:685
 msgid "Date"
 msgstr "วันที่"
 
@@ -3015,7 +3125,7 @@ msgstr "วันที่และเวลา"
 msgid "Date and time picker"
 msgstr "ตัวเลือกวันที่และเวลา"
 
-#: packages/admin/src/components/ContentList.tsx:941
+#: packages/admin/src/components/ContentList.tsx:1000
 msgid "Date field to filter on"
 msgstr ""
 
@@ -3023,7 +3133,7 @@ msgstr ""
 msgid "Date Format"
 msgstr "รูปแบบวันที่"
 
-#: packages/admin/src/components/ContentList.tsx:991
+#: packages/admin/src/components/ContentList.tsx:1050
 msgid "Date range"
 msgstr ""
 
@@ -3056,7 +3166,7 @@ msgstr "รูปภาพโซเชียลเริ่มต้น"
 msgid "Default Social Image"
 msgstr "รูปภาพโซเชียลเริ่มต้น"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:803
+#: packages/admin/src/components/TaxonomyManager.tsx:1015
 msgid "Define a new taxonomy for classifying content"
 msgstr "กำหนดอนุกรมวิธานใหม่สำหรับการจัดประเภทเนื้อหา"
 
@@ -3087,8 +3197,8 @@ msgstr "กำหนดไว้ในโค้ด"
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
-#: packages/admin/src/components/TaxonomyManager.tsx:1191
+#: packages/admin/src/components/TaxonomyManager.tsx:1524
+#: packages/admin/src/components/TaxonomyManager.tsx:1540
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:588
@@ -3108,7 +3218,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:408
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:312
-#: packages/admin/src/components/TaxonomyManager.tsx:297
+#: packages/admin/src/components/TaxonomyManager.tsx:491
 #: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
@@ -3130,7 +3240,7 @@ msgid "Delete {0} widget area"
 msgstr "ลบพื้นที่วิดเจ็ต {0}"
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:1171
+#: packages/admin/src/components/TaxonomyManager.tsx:1520
 msgid "Delete {0}?"
 msgstr "ลบ {0} หรือไม่?"
 
@@ -3207,11 +3317,11 @@ msgid "Delete permanently"
 msgstr "ลบถาวร"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1571
+#: packages/admin/src/components/ContentList.tsx:1630
 msgid "Delete Permanently"
 msgstr "ลบถาวร"
 
-#: packages/admin/src/components/ContentList.tsx:1551
+#: packages/admin/src/components/ContentList.tsx:1610
 msgid "Delete Permanently?"
 msgstr "ลบถาวรหรือไม่?"
 
@@ -3244,11 +3354,20 @@ msgstr "ลบส่วนหรือไม่?"
 msgid "Delete table"
 msgstr "ลบตาราง"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:365
+msgid "Delete tag"
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+msgid "Delete tag {0}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1362
 msgid "Delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1189
+#: packages/admin/src/components/TaxonomyManager.tsx:1538
 msgid "Delete Taxonomy"
 msgstr ""
 
@@ -3256,12 +3375,12 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr "ลบพื้นที่วิดเจ็ตหรือไม่?"
 
-#: packages/admin/src/components/ContentList.tsx:766
+#: packages/admin/src/components/ContentList.tsx:825
 msgid "Deleted"
 msgstr "ลบแล้ว"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1190
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr ""
 
@@ -3281,8 +3400,8 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:613
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:353
-#: packages/admin/src/components/TaxonomyManager.tsx:1176
-#: packages/admin/src/components/TaxonomyManager.tsx:1192
+#: packages/admin/src/components/TaxonomyManager.tsx:1525
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
 #: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
@@ -3343,7 +3462,7 @@ msgstr "อธิบายว่าส่วนนี้มีไว้เพื
 msgid "Description"
 msgstr "คำอธิบาย"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:635
+#: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Description (optional)"
 msgstr "คำอธิบาย (ไม่บังคับ)"
 
@@ -3459,7 +3578,7 @@ msgid "Discarding..."
 msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:188
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "ปิด"
 
@@ -3559,8 +3678,9 @@ msgstr "อัปเดตโดเมนแล้ว"
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "ยังไม่มีบัญชี? <0>สมัครใช้งาน</0>"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:468
 #: packages/admin/src/components/BylineCreditsEditor.tsx:920
-#: packages/admin/src/components/ContentList.tsx:1067
+#: packages/admin/src/components/ContentList.tsx:1126
 #: packages/admin/src/components/MediaUploadDialog.tsx:353
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2144
@@ -3574,6 +3694,10 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
@@ -3597,7 +3721,7 @@ msgstr "ดาวน์โหลด SBOM"
 msgid "Downloading"
 msgstr "กำลังดาวน์โหลด"
 
-#: packages/admin/src/components/ContentList.tsx:860
+#: packages/admin/src/components/ContentList.tsx:919
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "ฉบับร่าง"
@@ -3692,7 +3816,7 @@ msgstr "วางไฟล์ส่งออก WordPress ของคุณท�
 msgid "Duplicate"
 msgstr "ทำสำเนา"
 
-#: packages/admin/src/components/ContentList.tsx:1351
+#: packages/admin/src/components/ContentList.tsx:1410
 msgid "Duplicate {title}"
 msgstr "ทำสำเนา {title}"
 
@@ -3708,7 +3832,7 @@ msgstr "เช่น application/zip หรือ .pdf"
 msgid "e.g. import, blog"
 msgstr "เช่น import, blog"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:484
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:499
 msgid "e.g., CI/CD Pipeline"
 msgstr "เช่น CI/CD Pipeline"
 
@@ -3732,8 +3856,9 @@ msgstr "แก้ไข"
 #: packages/admin/src/components/ContentTypeList.tsx:332
 #: packages/admin/src/components/PortableTextEditor.tsx:2097
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
-#: packages/admin/src/components/TaxonomyManager.tsx:289
-#: packages/admin/src/components/TaxonomyManager.tsx:556
+#: packages/admin/src/components/TaxonomyManager.tsx:310
+#: packages/admin/src/components/TaxonomyManager.tsx:483
+#: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/routes/byline-schema.tsx:449
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Edit {0}"
@@ -3753,7 +3878,7 @@ msgstr ""
 msgid "Edit {label}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1343
+#: packages/admin/src/components/ContentList.tsx:1402
 msgid "Edit {title}"
 msgstr "แก้ไข {title}"
 
@@ -4070,9 +4195,9 @@ msgstr "ป้อน URL ของเว็บไซต์ WordPress ของ�
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:532
-#: packages/admin/src/components/TaxonomyManager.tsx:982
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2892
+#: packages/admin/src/router.tsx:2898
 msgid "Error"
 msgstr "ข้อผิดพลาด"
 
@@ -4121,6 +4246,10 @@ msgstr ""
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:254
+msgid "Existing tags stay in place."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2026
 msgid "Exists"
 msgstr "มีอยู่"
@@ -4142,8 +4271,8 @@ msgstr ""
 msgid "Expand details"
 msgstr "ขยายรายละเอียด"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:365
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:526
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:380
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:541
 msgid "Expiry"
 msgstr "วันหมดอายุ"
 
@@ -4167,6 +4296,7 @@ msgstr "Facebook"
 msgid "Fail"
 msgstr "ล้มเหลว"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:63
 #: packages/admin/src/components/WordPressImport.tsx:2146
 msgid "Failed"
 msgstr "ล้มเหลว"
@@ -4196,7 +4326,7 @@ msgid "Failed to confirm upload"
 msgstr ""
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:749
+#: packages/admin/src/components/TaxonomySidebar.tsx:752
 msgid "Failed to create {0}"
 msgstr ""
 
@@ -4229,19 +4359,19 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr "สร้างบางคอลเลกชันไม่สำเร็จ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:728
+#: packages/admin/src/components/TaxonomySidebar.tsx:731
 msgid "Failed to create term"
 msgstr "สร้างเทอมไม่สำเร็จ"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1385
+#: packages/admin/src/components/TaxonomySidebar.tsx:781
+#: packages/admin/src/router.tsx:1391
 msgid "Failed to create translation"
 msgstr "สร้างคำแปลไม่สำเร็จ"
 
 #: packages/admin/src/router.tsx:487
 #: packages/admin/src/router.tsx:516
 #: packages/admin/src/router.tsx:599
-#: packages/admin/src/router.tsx:1408
+#: packages/admin/src/router.tsx:1414
 msgid "Failed to delete"
 msgstr "ลบไม่สำเร็จ"
 
@@ -4266,7 +4396,7 @@ msgid "Failed to delete collection"
 msgstr "ลบคอลเลกชันไม่สำเร็จ"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2133
+#: packages/admin/src/router.tsx:2139
 msgid "Failed to delete comment"
 msgstr "ลบความคิดเห็นไม่สำเร็จ"
 
@@ -4311,11 +4441,11 @@ msgstr "ลบการเปลี่ยนเส้นทางไม่สำ
 msgid "Failed to delete section"
 msgstr "ลบส่วนไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/taxonomies.ts:145
+#: packages/admin/src/lib/api/taxonomies.ts:176
 msgid "Failed to delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/lib/api/taxonomies.ts:231
+#: packages/admin/src/lib/api/taxonomies.ts:267
 msgid "Failed to delete term"
 msgstr "ลบเทอมไม่สำเร็จ"
 
@@ -4340,7 +4470,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr "ปิดใช้งานผู้ใช้ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1289
+#: packages/admin/src/router.tsx:1295
 msgid "Failed to discard changes"
 msgstr "ละทิ้งการเปลี่ยนแปลงไม่สำเร็จ"
 
@@ -4472,8 +4602,8 @@ msgstr "ดึงข้อมูลเทอมไม่สำเร็จ"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:998
-#: packages/admin/src/router.tsx:2064
+#: packages/admin/src/router.tsx:1004
+#: packages/admin/src/router.tsx:2070
 msgid "Failed to fetch user"
 msgstr "ดึงข้อมูลผู้ใช้ไม่สำเร็จ"
 
@@ -4588,7 +4718,7 @@ msgstr "โหลดวิดเจ็ตไม่สำเร็จ"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2158
+#: packages/admin/src/router.tsx:2164
 msgid "Failed to perform bulk action"
 msgstr "ดำเนินการแบบกลุ่มไม่สำเร็จ"
 
@@ -4601,7 +4731,7 @@ msgid "Failed to prepare import"
 msgstr "เตรียมการนำเข้าไม่สำเร็จ"
 
 #: packages/admin/src/router.tsx:555
-#: packages/admin/src/router.tsx:1241
+#: packages/admin/src/router.tsx:1247
 msgid "Failed to publish"
 msgstr "เผยแพร่ไม่สำเร็จ"
 
@@ -4664,7 +4794,7 @@ msgstr "กู้คืนเนื้อหาไม่สำเร็จ"
 msgid "Failed to restore revision"
 msgstr "กู้คืนรุ่นแก้ไขไม่สำเร็จ"
 
-#: packages/admin/src/lib/api/api-tokens.ts:99
+#: packages/admin/src/lib/api/api-tokens.ts:102
 msgid "Failed to revoke API token"
 msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 
@@ -4672,9 +4802,9 @@ msgstr "เพิกถอนโทเค็น API ไม่สำเร็จ"
 msgid "Failed to rewrite URLs"
 msgstr "เขียน URL ใหม่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:754
-#: packages/admin/src/router.tsx:1120
-#: packages/admin/src/router.tsx:2673
+#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:1126
+#: packages/admin/src/router.tsx:2679
 msgid "Failed to save"
 msgstr "บันทึกไม่สำเร็จ"
 
@@ -4693,7 +4823,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "บันทึกการตั้งค่าไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1335
+#: packages/admin/src/router.tsx:1341
 msgid "Failed to schedule"
 msgstr "กำหนดเวลาไม่สำเร็จ"
 
@@ -4724,11 +4854,11 @@ msgstr "กำหนดเทอมของรายการไม่สำเ
 msgid "Failed to uninstall plugin"
 msgstr "ถอนการติดตั้งปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1265
+#: packages/admin/src/router.tsx:1271
 msgid "Failed to unpublish"
 msgstr "ยกเลิกการเผยแพร่ไม่สำเร็จ"
 
-#: packages/admin/src/router.tsx:1354
+#: packages/admin/src/router.tsx:1360
 msgid "Failed to unschedule"
 msgstr "ยกเลิกการกำหนดเวลาไม่สำเร็จ"
 
@@ -4737,7 +4867,7 @@ msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:682
+#: packages/admin/src/components/TaxonomySidebar.tsx:685
 msgid "Failed to update {0}"
 msgstr "อัปเดต {0} ไม่สำเร็จ"
 
@@ -4779,7 +4909,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2117
+#: packages/admin/src/router.tsx:2123
 msgid "Failed to update status"
 msgstr "อัปเดตสถานะไม่สำเร็จ"
 
@@ -4896,7 +5026,7 @@ msgstr "ชื่อไฟล์ไม่สามารถเปลี่ยน
 msgid "Files upload as soon as you add them."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:915
+#: packages/admin/src/components/ContentList.tsx:974
 msgid "Filter by author"
 msgstr ""
 
@@ -4912,7 +5042,7 @@ msgstr "กรองตามความสามารถ"
 msgid "Filter by collection"
 msgstr "กรองตามคอลเลกชัน"
 
-#: packages/admin/src/components/ContentList.tsx:1037
+#: packages/admin/src/components/ContentList.tsx:1096
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
@@ -4924,7 +5054,7 @@ msgstr "กรองตามบทบาท"
 msgid "Filter by source"
 msgstr "กรองตามแหล่งที่มา"
 
-#: packages/admin/src/components/ContentList.tsx:897
+#: packages/admin/src/components/ContentList.tsx:956
 #: packages/admin/src/components/Redirects.tsx:392
 msgid "Filter by status"
 msgstr "กรองตามสถานะ"
@@ -4986,7 +5116,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1787
+#: packages/admin/src/router.tsx:1793
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -5043,7 +5173,7 @@ msgid "Freeform"
 msgstr ""
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:988
+#: packages/admin/src/components/ContentList.tsx:1047
 msgid "From {0}"
 msgstr ""
 
@@ -5064,7 +5194,7 @@ msgstr ""
 msgid "Full access"
 msgstr "เข้าถึงได้เต็มรูปแบบ"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:118
 msgid "Full admin access"
 msgstr "สิทธิ์เข้าถึงระดับผู้ดูแลระบบเต็มรูปแบบ"
 
@@ -5090,7 +5220,7 @@ msgstr "การตั้งค่าทั่วไป"
 msgid "Generated automatically."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:828
+#: packages/admin/src/components/TaxonomyManager.tsx:1038
 msgid "Genres"
 msgstr "แนว"
 
@@ -5111,7 +5241,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2912
+#: packages/admin/src/router.tsx:2918
 msgid "Go to Dashboard"
 msgstr "ไปที่แดชบอร์ด"
 
@@ -5236,8 +5366,8 @@ msgstr "hero, banner, cta"
 msgid "Hide from search engines"
 msgstr "ซ่อนจากเครื่องมือค้นหา"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Hide token"
 msgstr "ซ่อนโทเค็น"
 
@@ -5250,7 +5380,7 @@ msgstr ""
 msgid "Hide toolbar"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:851
+#: packages/admin/src/components/TaxonomyManager.tsx:1061
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "แบบลำดับชั้น (เหมือนหมวดหมู่ ที่มีความสัมพันธ์แม่/ลูก)"
 
@@ -5285,6 +5415,10 @@ msgstr ""
 msgid "Hour"
 msgstr ""
 
+#: packages/admin/src/components/TaxonomyManager.tsx:793
+msgid "How is the slug generated?"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1536
 msgid "How to create an Application Password"
 msgstr "วิธีสร้าง Application Password"
@@ -5302,6 +5436,10 @@ msgstr "โค้ด HTML"
 #: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
 msgstr "https://example.com หรือ /about"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:368
+msgid "https://example.com/blog/my-post"
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1121
 msgid "https://example.com/image.jpg"
@@ -5331,6 +5469,10 @@ msgstr "ID"
 #: packages/admin/src/components/LoginPage.tsx:104
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "หากมีบัญชีสำหรับ <0>{email}</0> เราได้ส่งลิงก์เข้าสู่ระบบไปแล้ว"
+
+#: packages/admin/src/locales/emails.ts:58
+msgid "If you didn't request this, you can safely ignore this email."
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 #: packages/admin/src/components/FieldEditor.tsx:803
@@ -5407,6 +5549,10 @@ msgstr "นำเข้า"
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Import {0}"
 msgstr "นำเข้า {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
+msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
@@ -5724,7 +5870,7 @@ msgstr "เชิญสมาชิกทีมคนแรกของคุณ
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
@@ -5831,7 +5977,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:169
-#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:1035
 #: packages/admin/src/components/Widgets.tsx:436
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -5886,7 +6032,7 @@ msgstr "พบครั้งล่าสุด"
 msgid "Last updated"
 msgstr "อัปเดตล่าสุด"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
 #: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "ใช้งานล่าสุด"
@@ -5990,8 +6136,8 @@ msgstr "มุมมองสด"
 msgid "Load more"
 msgstr "โหลดเพิ่มเติม"
 
-#: packages/admin/src/components/ContentList.tsx:745
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:804
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
@@ -6004,7 +6150,7 @@ msgstr "โหลดเพิ่มเติม"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2867
+#: packages/admin/src/router.tsx:2873
 msgid "Loading"
 msgstr ""
 
@@ -6025,8 +6171,8 @@ msgstr "กำลังโหลดคอลเลกชัน..."
 msgid "Loading comments..."
 msgstr "กำลังโหลดความคิดเห็น..."
 
-#: packages/admin/src/router.tsx:2869
-#: packages/admin/src/router.tsx:2881
+#: packages/admin/src/router.tsx:2875
+#: packages/admin/src/router.tsx:2887
 msgid "Loading configuration..."
 msgstr "กำลังโหลดการกำหนดค่า..."
 
@@ -6092,7 +6238,12 @@ msgstr "กำลังโหลดการตั้งค่า..."
 msgid "Loading setup..."
 msgstr "กำลังโหลดการตั้งค่า..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1117
+#: packages/admin/src/components/BulkTagDialog.tsx:325
+msgid "Loading tags…"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
+#: packages/admin/src/components/TaxonomyManager.tsx:1459
 msgid "Loading terms..."
 msgstr "กำลังโหลดเทอม..."
 
@@ -6104,10 +6255,10 @@ msgstr ""
 msgid "Loading widgets..."
 msgstr "กำลังโหลดวิดเจ็ต..."
 
-#: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:745
-#: packages/admin/src/components/ContentList.tsx:779
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:706
+#: packages/admin/src/components/ContentList.tsx:804
+#: packages/admin/src/components/ContentList.tsx:838
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
@@ -6120,11 +6271,11 @@ msgstr "กำลังโหลดวิดเจ็ต..."
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:99
-#: packages/admin/src/components/TaxonomyManager.tsx:1049
+#: packages/admin/src/components/TaxonomyManager.tsx:1273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -6141,8 +6292,8 @@ msgstr ""
 msgid "Local time"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:619
-#: packages/admin/src/components/ContentList.tsx:762
+#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:821
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "ภาษา"
@@ -6194,7 +6345,7 @@ msgstr "ข้อความยาว"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "ใช้ได้เฉพาะตัวอักษรพิมพ์เล็ก ตัวเลข และยัติภังค์เท่านั้น"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:843
+#: packages/admin/src/components/TaxonomyManager.tsx:1053
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "ใช้ได้เฉพาะตัวอักษรพิมพ์เล็ก ตัวเลข และขีดล่างเท่านั้น โดยขึ้นต้นด้วยตัวอักษร"
 
@@ -6217,7 +6368,7 @@ msgstr "จัดการ"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1066
+#: packages/admin/src/components/TaxonomyManager.tsx:1290
 msgid "Manage {0} for {1}"
 msgstr "จัดการ {0} สำหรับ {1}"
 
@@ -6289,11 +6440,11 @@ msgstr ""
 msgid "Marketplace"
 msgstr "Marketplace"
 
-#: packages/admin/src/router.tsx:2399
+#: packages/admin/src/router.tsx:2405
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2374
+#: packages/admin/src/router.tsx:2380
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6551,8 +6702,10 @@ msgstr ""
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: taxonomyDef.label
+#. placeholder {0}: term.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:862
-#: packages/admin/src/components/TaxonomyManager.tsx:1092
+#: packages/admin/src/components/TaxonomyManager.tsx:322
+#: packages/admin/src/components/TaxonomyManager.tsx:1341
 msgid "More actions for {0}"
 msgstr ""
 
@@ -6572,6 +6725,10 @@ msgstr ""
 msgid "More table actions"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:428
+msgid "More than one post matches this link"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
 msgstr "ยอดนิยมที่สุด"
@@ -6586,19 +6743,19 @@ msgstr ""
 msgid "Move \"{0}\" up"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1372
+#: packages/admin/src/components/ContentList.tsx:1431
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "ย้าย \"{title}\" ไปยังถังขยะ? คุณสามารถกู้คืนได้ภายหลัง"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: term.label
 #: packages/admin/src/components/FieldEditor.tsx:692
-#: packages/admin/src/components/TaxonomyManager.tsx:268
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 msgid "Move {0} down"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:267
+#: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
 msgstr ""
 
@@ -6615,22 +6772,28 @@ msgstr ""
 #. placeholder {0}: blockType.label
 #. placeholder {0}: term.label
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/TaxonomyManager.tsx:255
+#: packages/admin/src/components/TaxonomyManager.tsx:449
 msgid "Move {0} up"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:254
+#: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1422
 msgid "Move {title} to trash"
 msgstr "ย้าย {title} ไปยังถังขยะ"
 
 #: packages/admin/src/components/MenuEditor.tsx:537
+#: packages/admin/src/components/TaxonomyManager.tsx:346
 msgid "Move down"
 msgstr "เลื่อนลง"
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:342
+msgid "Move down {0}"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
@@ -6640,26 +6803,32 @@ msgstr ""
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:529
+#: packages/admin/src/components/ContentList.tsx:568
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:556
-#: packages/admin/src/components/ContentList.tsx:1385
+#: packages/admin/src/components/ContentList.tsx:595
+#: packages/admin/src/components/ContentList.tsx:1444
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1297
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1317
 msgid "Move to Trash"
 msgstr "ย้ายไปยังถังขยะ"
 
-#: packages/admin/src/components/ContentList.tsx:534
-#: packages/admin/src/components/ContentList.tsx:1370
+#: packages/admin/src/components/ContentList.tsx:573
+#: packages/admin/src/components/ContentList.tsx:1429
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1302
 msgid "Move to Trash?"
 msgstr "ย้ายไปยังถังขยะ?"
 
 #: packages/admin/src/components/MenuEditor.tsx:528
+#: packages/admin/src/components/TaxonomyManager.tsx:338
 msgid "Move up"
 msgstr "เลื่อนขึ้น"
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:334
+msgid "Move up {0}"
+msgstr ""
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:693
@@ -6719,20 +6888,21 @@ msgstr "My Awesome Blog"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:157
-#: packages/admin/src/components/TaxonomyManager.tsx:584
-#: packages/admin/src/components/TaxonomyManager.tsx:834
-#: packages/admin/src/components/TaxonomyManager.tsx:1111
+#: packages/admin/src/components/TaxonomyManager.tsx:780
+#: packages/admin/src/components/TaxonomyManager.tsx:1044
+#: packages/admin/src/components/TaxonomyManager.tsx:1399
+#: packages/admin/src/components/TaxonomyManager.tsx:1453
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
 msgid "Name"
 msgstr "ชื่อ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:971
 msgid "Name and label are required"
 msgstr "ต้องระบุชื่อและป้ายกำกับ"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:766
+#: packages/admin/src/components/TaxonomyManager.tsx:977
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "ชื่อต้องขึ้นต้นด้วยตัวอักษร และประกอบด้วยตัวอักษรพิมพ์เล็ก ตัวเลข และขีดล่างเท่านั้น"
 
@@ -6761,7 +6931,7 @@ msgstr ""
 msgid "Never"
 msgstr "ไม่เลย"
 
-#: packages/admin/src/router.tsx:1380
+#: packages/admin/src/router.tsx:1386
 msgid "new"
 msgstr "ใหม่"
 
@@ -6823,7 +6993,15 @@ msgstr "ส่วนใหม่"
 msgid "new tab"
 msgstr "แท็บใหม่"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1079
+#: packages/admin/src/components/BulkTagDialog.tsx:275
+msgid "New tag name"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1352
+msgid "New taxonomy"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1326
 msgid "New Taxonomy"
 msgstr "อนุกรมวิธานใหม่"
 
@@ -6839,7 +7017,7 @@ msgstr "หน้าต่างใหม่"
 msgid "Newest"
 msgstr "ใหม่ที่สุด"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:587
+#: packages/admin/src/components/TaxonomyManager.tsx:783
 msgid "News"
 msgstr "ข่าวสาร"
 
@@ -6848,7 +7026,7 @@ msgid "Next"
 msgstr "ถัดไป"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:733
+#: packages/admin/src/components/ContentList.tsx:792
 #: packages/admin/src/components/MediaLibrary.tsx:1316
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
 msgid "Next page"
@@ -6868,7 +7046,7 @@ msgstr ""
 msgid "Next, the browser's passkey window will open"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1408
+#: packages/admin/src/components/ContentList.tsx:1467
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -6879,12 +7057,13 @@ msgid "No (shared across translations)"
 msgstr ""
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:658
+#: packages/admin/src/components/ContentList.tsx:717
 msgid "No {0} yet."
 msgstr "ยังไม่มี{0}"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1120
+#: packages/admin/src/components/TaxonomyManager.tsx:1391
+#: packages/admin/src/components/TaxonomyManager.tsx:1462
 msgid "No {0} yet. Create one to get started."
 msgstr "ยังไม่มี{0} สร้างขึ้นมาเพื่อเริ่มต้นใช้งาน"
 
@@ -6901,7 +7080,7 @@ msgstr "ยังไม่มีการบันทึกข้อผิดพ
 msgid "No alt text"
 msgstr "ไม่มี alt text"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:402
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
 msgid "No API tokens yet. Create one to get started."
 msgstr "ยังไม่มี API token สร้างขึ้นมาเพื่อเริ่มต้นใช้งาน"
 
@@ -6998,6 +7177,10 @@ msgstr "ยังไม่ได้กำหนดค่าผู้ให้บ
 msgid "No EmDash users found"
 msgstr "ไม่พบผู้ใช้ EmDash"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:429
+msgid "No exact match on this site"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "No expiry"
 msgstr "ไม่มีวันหมดอายุ"
@@ -7072,6 +7255,10 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:265
 msgid "No matching passkey found for this account."
 msgstr "ไม่พบ passkey ที่ตรงกับบัญชีนี้"
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+msgid "No matching tags"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:567
 #: packages/admin/src/components/FieldEditor.tsx:597
@@ -7153,8 +7340,8 @@ msgstr "ยังไม่มีการเปลี่ยนเส้นทา
 msgid "No results"
 msgstr "ไม่มีผลลัพธ์"
 
-#: packages/admin/src/components/ContentList.tsx:655
-#: packages/admin/src/components/ContentList.tsx:674
+#: packages/admin/src/components/ContentList.tsx:714
+#: packages/admin/src/components/ContentList.tsx:733
 msgid "No results for \"{activeSearch}\""
 msgstr "ไม่พบผลลัพธ์สำหรับ \"{activeSearch}\""
 
@@ -7221,8 +7408,8 @@ msgstr ""
 msgid "None"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:613
-#: packages/admin/src/components/TaxonomyManager.tsx:622
+#: packages/admin/src/components/TaxonomyManager.tsx:820
+#: packages/admin/src/components/TaxonomyManager.tsx:829
 msgid "None (top level)"
 msgstr "ไม่มี (ระดับบนสุด)"
 
@@ -7230,7 +7417,11 @@ msgstr "ไม่มี (ระดับบนสุด)"
 msgid "Not compatible with this environment"
 msgstr "ไม่รองรับกับสภาพแวดล้อมนี้"
 
-#: packages/admin/src/components/ContentList.tsx:1407
+#: packages/admin/src/components/BulkTagDialog.tsx:64
+msgid "Not matched"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1466
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -7361,7 +7552,7 @@ msgstr "คำบรรยายที่ไม่บังคับแสดง
 msgid "Optional caption for display"
 msgstr "คำบรรยายที่ไม่บังคับสำหรับการแสดงผล"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:638
+#: packages/admin/src/components/TaxonomyManager.tsx:845
 msgid "Optional description"
 msgstr "คำอธิบายที่ไม่บังคับ"
 
@@ -7452,7 +7643,7 @@ msgstr "ความเป็นเจ้าของ"
 msgid "Package"
 msgstr "แพ็กเกจ"
 
-#: packages/admin/src/router.tsx:2907
+#: packages/admin/src/router.tsx:2913
 msgid "Page Not Found"
 msgstr "ไม่พบหน้า"
 
@@ -7484,7 +7675,7 @@ msgid "Paragraph inserted before table"
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/TaxonomyManager.tsx:609
+#: packages/admin/src/components/TaxonomyManager.tsx:816
 msgid "Parent"
 msgstr "รายการแม่"
 
@@ -7620,11 +7811,11 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1554
+#: packages/admin/src/components/ContentList.tsx:1613
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "ลบ \"{title}\" อย่างถาวร? การดำเนินการนี้ไม่สามารถยกเลิกได้"
 
-#: packages/admin/src/components/ContentList.tsx:1543
+#: packages/admin/src/components/ContentList.tsx:1602
 msgid "Permanently delete {title}"
 msgstr "ลบ {title} อย่างถาวร"
 
@@ -7761,8 +7952,8 @@ msgstr "ทะเบียนปลั๊กอิน"
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2334
-#: packages/admin/src/router.tsx:2365
+#: packages/admin/src/router.tsx:2340
+#: packages/admin/src/router.tsx:2371
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -7772,8 +7963,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "ปลั๊กอินตอบกลับด้วย {0}: {text}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:530
 msgid "Plugin tools: {0}"
 msgstr ""
 
@@ -7817,6 +8008,10 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:399
 msgid "Post"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:363
+msgid "Post URLs (one per line)"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:407
@@ -7873,7 +8068,7 @@ msgid "Previous"
 msgstr "ก่อนหน้า"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/ContentList.tsx:780
 #: packages/admin/src/components/MediaLibrary.tsx:1315
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
 msgid "Previous page"
@@ -7931,7 +8126,7 @@ msgstr ""
 msgid "visualEditing.publish"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:505
+#: packages/admin/src/components/ContentList.tsx:514
 #: packages/admin/src/components/ContentSettingsPanel.tsx:900
 #: packages/admin/src/components/ContentSettingsPanel.tsx:903
 msgid "Publish"
@@ -7962,11 +8157,11 @@ msgstr ""
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:859
-#: packages/admin/src/components/ContentList.tsx:870
+#: packages/admin/src/components/ContentList.tsx:918
+#: packages/admin/src/components/ContentList.tsx:929
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:403
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1242
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
 
@@ -8101,6 +8296,7 @@ msgstr ""
 msgid "Reading"
 msgstr "การอ่าน"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:57
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/WordPressImport.tsx:2002
@@ -8257,7 +8453,7 @@ msgstr "นำออก {entry}"
 msgid "Remove {label}"
 msgstr "นำออก {label}"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:862
+#: packages/admin/src/components/TaxonomySidebar.tsx:865
 msgid "Remove assignment"
 msgstr ""
 
@@ -8542,7 +8738,7 @@ msgstr ""
 msgid "Restore"
 msgstr "กู้คืน"
 
-#: packages/admin/src/components/ContentList.tsx:1531
+#: packages/admin/src/components/ContentList.tsx:1590
 msgid "Restore {title}"
 msgstr "กู้คืน {title}"
 
@@ -8568,6 +8764,10 @@ msgstr "กู้คืนเวอร์ชันนี้จาก {0} หร�
 msgid "Restoring..."
 msgstr "กำลังกู้คืน..."
 
+#: packages/admin/src/components/BulkTagDialog.tsx:408
+msgid "Results"
+msgstr ""
+
 #: packages/admin/src/components/BlocksField.tsx:360
 #: packages/admin/src/components/FieldEditor.tsx:659
 msgid "Retired"
@@ -8587,7 +8787,7 @@ msgstr ""
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2895
+#: packages/admin/src/router.tsx:2901
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "ลองใหม่"
@@ -8599,6 +8799,10 @@ msgstr "ลองใหม่"
 msgid "Retry {0}"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:505
+msgid "Retry cache refresh"
+msgstr ""
+
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:251
 msgid "Retry copy"
@@ -8606,6 +8810,14 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:344
 msgid "Retry failed"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:486
+msgid "Retry failures"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:335
+msgid "Retry loading tags"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
@@ -8625,7 +8837,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "บล็อกเนื้อหาที่นำกลับมาใช้ซ้ำได้ ซึ่งคุณสามารถแทรกลงในเนื้อหาใดก็ได้"
 
-#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1289
 msgid "Reverted to published version"
 msgstr "เปลี่ยนกลับเป็นเวอร์ชันที่เผยแพร่แล้ว"
 
@@ -8645,6 +8857,11 @@ msgstr ""
 msgid "Review New Permissions"
 msgstr "ตรวจสอบสิทธิ์ใหม่"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:408
+#: packages/admin/src/components/BulkTagDialog.tsx:537
+msgid "Review posts"
+msgstr ""
+
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:51
 msgid "Review proposed changes"
 msgstr ""
@@ -8661,6 +8878,10 @@ msgstr ""
 msgid "Review Verified Update"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:537
+msgid "Reviewing…"
+msgstr ""
+
 #: packages/admin/src/components/RevisionHistory.tsx:129
 msgid "Revision restored"
 msgstr "กู้คืนรุ่นแก้ไขแล้ว"
@@ -8671,22 +8892,22 @@ msgstr "กู้คืนรุ่นแก้ไขแล้ว"
 msgid "Revisions"
 msgstr "รุ่นแก้ไข"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:208
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Revoke token"
 msgstr "เพิกถอนโทเค็น"
 
 #. placeholder {0}: token.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Revoke token {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
 msgstr "เพิกถอนหรือไม่?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
 msgstr "กำลังเพิกถอน..."
 
@@ -8849,6 +9070,10 @@ msgstr "บันทึกแล้ว"
 msgid "Saved \"{0}\"."
 msgstr ""
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:680
+msgid "Saved immediately; term changes do not wait for Publish changes."
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:889
 #: packages/admin/src/components/MediaDetailPanel.tsx:1866
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
@@ -8857,7 +9082,7 @@ msgstr ""
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:33
-#: packages/admin/src/components/TaxonomyManager.tsx:677
+#: packages/admin/src/components/TaxonomyManager.tsx:888
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
@@ -8899,9 +9124,9 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ContentList.tsx:920
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1328
+#: packages/admin/src/router.tsx:1334
 msgid "Scheduled"
 msgstr "กำหนดเวลา"
 
@@ -8934,8 +9159,8 @@ msgstr "อ่านสคีมา"
 msgid "Schema Write"
 msgstr "เขียนสคีมา"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:490
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:366
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:505
 msgid "Scopes"
 msgstr "ขอบเขต"
 
@@ -8984,12 +9209,12 @@ msgid "Search"
 msgstr "ค้นหา"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:466
+#: packages/admin/src/components/ContentList.tsx:475
 msgid "Search {0}"
 msgstr "ค้นหา {0}"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:465
+#: packages/admin/src/components/ContentList.tsx:474
 msgid "Search {0}..."
 msgstr "ค้นหา {0}..."
 
@@ -9110,6 +9335,14 @@ msgstr "ค้นหาส่วน..."
 #: packages/admin/src/components/Redirects.tsx:360
 msgid "Search source or destination..."
 msgstr "ค้นหาต้นทางหรือปลายทาง..."
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1375
+msgid "Search tags"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1374
+msgid "Search tags…"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
@@ -9245,7 +9478,7 @@ msgstr "เลือก"
 msgid "Select {label}"
 msgstr "เลือก {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1263
+#: packages/admin/src/components/ContentList.tsx:1322
 msgid "Select {title}"
 msgstr ""
 
@@ -9269,7 +9502,7 @@ msgstr ""
 msgid "Select all"
 msgstr "เลือกทั้งหมด"
 
-#: packages/admin/src/components/ContentList.tsx:587
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Select all on this page"
 msgstr ""
 
@@ -9345,6 +9578,10 @@ msgstr ""
 msgid "Select table"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:554
+msgid "Select up to 50 posts to add a tag."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1748
 msgid "Select which content types to import."
 msgstr "เลือกประเภทเนื้อหาที่จะนำเข้า"
@@ -9370,6 +9607,10 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:937
 msgid "Selected media"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:343
+msgid "Selected posts"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:28
@@ -9467,7 +9708,7 @@ msgstr ""
 msgid "Set to 0 to never close comments automatically."
 msgstr "ตั้งค่าเป็น 0 เพื่อไม่ปิดความคิดเห็นโดยอัตโนมัติ"
 
-#: packages/admin/src/components/ContentList.tsx:515
+#: packages/admin/src/components/ContentList.tsx:525
 msgid "Set to draft"
 msgstr ""
 
@@ -9563,8 +9804,8 @@ msgstr ""
 msgid "Show thumbnails"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Show token"
 msgstr "แสดงโทเค็น"
 
@@ -9584,6 +9825,7 @@ msgid "Shown when hovering over the image."
 msgstr "แสดงเมื่อชี้เมาส์เหนือรูปภาพ"
 
 #: packages/admin/src/components/SignupPage.tsx:457
+#: packages/admin/src/locales/emails.ts:56
 msgid "Sign in"
 msgstr "เข้าสู่ระบบ"
 
@@ -9595,6 +9837,10 @@ msgstr "เข้าสู่ระบบ"
 #: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "เข้าสู่ระบบแทน"
+
+#: packages/admin/src/locales/emails.ts:53
+msgid "Sign in to {siteName}"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:234
 msgid "Sign in to your site"
@@ -9647,6 +9893,10 @@ msgstr "ช่องป้อนข้อความบรรทัดเดี
 msgid "Site"
 msgstr "เว็บไซต์"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+msgid "Site Export"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:169
 msgid "Site Identity"
 msgstr "เอกลักษณ์เว็บไซต์"
@@ -9659,6 +9909,14 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "เอกลักษณ์เว็บไซต์ โลโก้ favicon และการตั้งค่าการอ่าน"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
+msgid "Site Import"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
+msgid "Site Import Analysis"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
@@ -9715,7 +9973,8 @@ msgstr "ข้ามแล้ว"
 #: packages/admin/src/components/FieldEditor.tsx:504
 #: packages/admin/src/components/SectionEditor.tsx:280
 #: packages/admin/src/components/Sections.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:593
+#: packages/admin/src/components/TaxonomyManager.tsx:798
+#: packages/admin/src/components/TaxonomyManager.tsx:802
 #: packages/admin/src/routes/byline-schema.tsx:237
 #: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
@@ -9836,7 +10095,7 @@ msgstr "เริ่มการนำเข้า"
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:612
+#: packages/admin/src/components/ContentList.tsx:671
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:489
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -9959,6 +10218,11 @@ msgstr ""
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:298
+#: packages/admin/src/components/BulkTagDialog.tsx:399
+msgid "Tag"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:180
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
@@ -9973,6 +10237,14 @@ msgstr "แท็ก"
 #: packages/admin/src/components/WordPressImport.tsx:1813
 msgid "Tags ({0})"
 msgstr "แท็ก ({0})"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:452
+msgid "Tags go live now; draft edits stay unpublished."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:442
+msgid "Tags were saved, but cached pages may still show old tags. Retry the cache refresh."
+msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:54
 #: packages/admin/src/components/EntryLockNotice.tsx:92
@@ -9989,12 +10261,12 @@ msgstr ""
 msgid "Target"
 msgstr "เป้าหมาย"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:371
+#: packages/admin/src/components/TaxonomyManager.tsx:565
 msgid "Target locale"
 msgstr "ภาษาเป้าหมาย"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1159
-#: packages/admin/src/components/TaxonomySidebar.tsx:894
+#: packages/admin/src/components/TaxonomySidebar.tsx:897
 msgid "Taxonomies"
 msgstr "อนุกรมวิธาน"
 
@@ -10002,19 +10274,19 @@ msgstr "อนุกรมวิธาน"
 msgid "Taxonomies Manage"
 msgstr "จัดการอนุกรมวิธาน"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1203
+#: packages/admin/src/components/TaxonomyManager.tsx:1552
 msgid "Taxonomy created"
 msgstr "สร้างอนุกรมวิธานแล้ว"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:969
+#: packages/admin/src/components/TaxonomyManager.tsx:1193
 msgid "Taxonomy deleted"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:45
+#: packages/admin/src/components/TaxonomyManager.tsx:66
 msgid "Taxonomy not found: {taxonomyName}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:358
+#: packages/admin/src/components/TaxonomyManager.tsx:552
 msgid "Taxonomy: {taxonomyName}"
 msgstr "อนุกรมวิธาน: {taxonomyName}"
 
@@ -10026,19 +10298,19 @@ msgstr ""
 msgid "Template:"
 msgstr "เทมเพลต:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:556
-#: packages/admin/src/components/TaxonomyManager.tsx:557
-#: packages/admin/src/components/TaxonomyManager.tsx:1082
+#: packages/admin/src/components/TaxonomyManager.tsx:754
+#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Term"
 msgstr "เทอม"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:1253
 msgid "Term \"{0}\" created in {1}."
 msgstr "สร้างเทอม \"{0}\" ใน {1} แล้ว"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:947
+#: packages/admin/src/components/TaxonomyManager.tsx:1171
 msgid "Term deleted"
 msgstr "ลบเทอมแล้ว"
 
@@ -10123,7 +10395,7 @@ msgstr "ชื่อเว็บไซต์ของคุณ ใช้ใน�
 msgid "The order controls how block types appear in the picker."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2909
+#: packages/admin/src/router.tsx:2915
 msgid "The page you're looking for doesn't exist."
 msgstr "ไม่พบหน้าที่คุณกำลังค้นหา"
 
@@ -10241,7 +10513,7 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:919
-#: packages/admin/src/router.tsx:924
+#: packages/admin/src/router.tsx:930
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
@@ -10307,9 +10579,17 @@ msgstr "นี่เป็นส่วนที่กำหนดเอง"
 msgid "This is a WordPress site."
 msgstr "นี่เป็นเว็บไซต์ WordPress"
 
+#: packages/admin/src/locales/emails.ts:57
+msgid "This link expires in 15 minutes."
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
 msgstr "ลิงก์นี้หมดอายุใน 7 วันและใช้ได้เพียงครั้งเดียวเท่านั้น"
+
+#: packages/admin/src/locales/emails.ts:49
+msgid "This link expires in 7 days."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:939
 msgid "This may take a while for large exports."
@@ -10447,7 +10727,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "การดำเนินการนี้จะย้ายรายการไปยังถังขยะ คุณสามารถกู้คืนได้ในภายหลังจากถังขยะ"
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1173
+#: packages/admin/src/components/TaxonomyManager.tsx:1522
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "การดำเนินการนี้จะลบ \"{0}\" อย่างถาวรและนำออกจากเนื้อหาทั้งหมด"
 
@@ -10485,8 +10765,8 @@ msgstr "เขตเวลา"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "เขตเวลาสำหรับการแสดงวันที่ (เช่น America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:597
-#: packages/admin/src/components/ContentList.tsx:758
+#: packages/admin/src/components/ContentList.tsx:656
+#: packages/admin/src/components/ContentList.tsx:817
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -10522,11 +10802,11 @@ msgid "Toggle header row"
 msgstr "สลับแถวส่วนหัว"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "Token created: {0}"
 msgstr "สร้างโทเค็นแล้ว: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:481
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:496
 msgid "Token Name"
 msgstr "ชื่อโทเค็น"
 
@@ -10555,31 +10835,32 @@ msgstr ""
 msgid "Translatable"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:283
-#: packages/admin/src/components/TaxonomyManager.tsx:393
+#: packages/admin/src/components/TaxonomyManager.tsx:356
+#: packages/admin/src/components/TaxonomyManager.tsx:477
+#: packages/admin/src/components/TaxonomyManager.tsx:587
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translate"
 msgstr "แปล"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:355
+#: packages/admin/src/components/TaxonomyManager.tsx:549
 msgid "Translate \"{0}\""
 msgstr "แปล \"{0}\""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:280
+#: packages/admin/src/components/TaxonomyManager.tsx:474
 msgid "Translate {0}"
 msgstr "แปล {0}"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:393
+#: packages/admin/src/components/TaxonomyManager.tsx:587
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
 msgstr "กำลังแปล..."
 
 #: packages/admin/src/components/MenuEditor.tsx:143
-#: packages/admin/src/components/TaxonomyManager.tsx:1028
-#: packages/admin/src/components/TaxonomySidebar.tsx:774
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/components/TaxonomyManager.tsx:1252
+#: packages/admin/src/components/TaxonomySidebar.tsx:777
+#: packages/admin/src/router.tsx:1385
 msgid "Translation created"
 msgstr "สร้างคำแปลแล้ว"
 
@@ -10596,11 +10877,11 @@ msgstr "ถังขยะ"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:450
+#: packages/admin/src/components/ContentList.tsx:459
 msgid "Trash"
 msgstr "ถังขยะ"
 
-#: packages/admin/src/components/ContentList.tsx:786
+#: packages/admin/src/components/ContentList.tsx:845
 msgid "Trash is empty"
 msgstr "ถังขยะว่างเปล่า"
 
@@ -10782,7 +11063,7 @@ msgstr "Passkey ที่ไม่มีชื่อ"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1260
+#: packages/admin/src/router.tsx:1266
 msgid "Unpublished"
 msgstr "ยกเลิกการเผยแพร่แล้ว"
 
@@ -10790,7 +11071,7 @@ msgstr "ยกเลิกการเผยแพร่แล้ว"
 msgid "Unregistered Content Tables Found"
 msgstr "พบตารางเนื้อหาที่ยังไม่ได้ลงทะเบียน"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:840
+#: packages/admin/src/components/TaxonomySidebar.tsx:843
 msgid "Unresolved assignment"
 msgstr ""
 
@@ -10798,7 +11079,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1347
+#: packages/admin/src/router.tsx:1353
 msgid "Unscheduled"
 msgstr "ยกเลิกการกำหนดเวลาแล้ว"
 
@@ -10813,7 +11094,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "ประเภทองค์ประกอบวิดเจ็ตที่ไม่รองรับ: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:990
+#: packages/admin/src/components/ContentList.tsx:1049
 msgid "Until {0}"
 msgstr ""
 
@@ -10835,7 +11116,7 @@ msgstr "วิดเจ็ตไม่มีชื่อ"
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:679
+#: packages/admin/src/components/TaxonomyManager.tsx:890
 msgid "Update"
 msgstr "อัปเดต"
 
@@ -10853,7 +11134,7 @@ msgid "Update site settings"
 msgstr "อัปเดตการตั้งค่าเว็บไซต์"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:561
+#: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Update the {0} details"
 msgstr "อัปเดตรายละเอียดของ {0}"
 
@@ -10866,7 +11147,7 @@ msgstr "อัปเดตกฎการเปลี่ยนเส้นทา
 msgid "Update to v{0}"
 msgstr "อัปเดตเป็น v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:869
+#: packages/admin/src/components/ContentList.tsx:928
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
 #: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
@@ -10944,6 +11225,10 @@ msgstr "อัปโหลดมีเดีย"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
+msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
@@ -11056,7 +11341,7 @@ msgstr ""
 msgid "Use another device"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1064
+#: packages/admin/src/components/ContentList.tsx:1123
 msgid "Use as end date"
 msgstr ""
 
@@ -11080,7 +11365,7 @@ msgstr "ใช้ Passkey ที่ลงทะเบียนไว้เพื
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr "ใช้เป็นรูปภาพ Open Graph สำรองเมื่อหน้าไม่มีรูปภาพ ขนาดที่แนะนำ: 1200×630"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:846
+#: packages/admin/src/components/TaxonomyManager.tsx:1056
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "ใช้เป็นตัวระบุ ใช้ได้เฉพาะตัวอักษรพิมพ์เล็ก ตัวเลข และขีดล่างเท่านั้น"
 
@@ -11214,7 +11499,7 @@ msgstr "ดูสถานะผู้ให้บริการอีเมล
 msgid "View mode"
 msgstr "โหมดการแสดงผล"
 
-#: packages/admin/src/components/ContentList.tsx:1335
+#: packages/admin/src/components/ContentList.tsx:1394
 msgid "View published {title}"
 msgstr "ดู {title} ที่เผยแพร่แล้ว"
 
@@ -11355,7 +11640,7 @@ msgstr "เวลาที่เผยแพร่รายการ"
 msgid "Where is it saved?"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:860
+#: packages/admin/src/components/TaxonomyManager.tsx:1070
 msgid "Which content types can use this taxonomy"
 msgstr "ประเภทเนื้อหาใดบ้างที่ใช้อนุกรมวิธานนี้ได้"
 
@@ -11481,7 +11766,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "ชื่อผู้ใช้ WordPress"
 
-#: packages/admin/src/components/ContentList.tsx:493
+#: packages/admin/src/components/ContentList.tsx:502
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -11513,7 +11798,7 @@ msgstr ""
 msgid "Yearly"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1410
+#: packages/admin/src/components/ContentList.tsx:1469
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -11573,7 +11858,7 @@ msgstr ""
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2174
+#: packages/admin/src/router.tsx:2180
 msgid "You need Editor permissions to moderate comments."
 msgstr "คุณต้องมีสิทธิ์ผู้แก้ไขเพื่อกลั่นกรองความคิดเห็น"
 
@@ -11610,6 +11895,14 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "คุณเข้าสู่ระบบผ่าน Cloudflare Access"
+
+#: packages/admin/src/locales/emails.ts:44
+msgid "You've been invited to {siteName}"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:45
+msgid "You've been invited to join {siteName}."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"

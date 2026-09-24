@@ -6,6 +6,7 @@ import {
 	canActOnOwn,
 	requirePermissionOnResource,
 	PermissionError,
+	clampScopes,
 } from "./rbac.js";
 import { Role } from "./types.js";
 
@@ -144,6 +145,24 @@ describe("rbac", () => {
 			const orphanedUser = { role: Role.AUTHOR, id: "" };
 			expect(canActOnOwn(orphanedUser, "", "content:edit_own", "content:edit_any")).toBe(false);
 		});
+	});
+
+	describe("site transfer", () => {
+		const transferScopes = ["transfer:export", "transfer:analyze", "transfer:execute"];
+
+		it("clampScopes keeps transfer scopes for admins", () => {
+			expect(clampScopes(["admin", ...transferScopes], Role.ADMIN)).toEqual([
+				"admin",
+				...transferScopes,
+			]);
+		});
+
+		it.each([Role.SUBSCRIBER, Role.CONTRIBUTOR, Role.AUTHOR, Role.EDITOR])(
+			"clampScopes drops transfer scopes for role %s",
+			(role) => {
+				expect(clampScopes([...transferScopes, "content:read"], role)).toEqual(["content:read"]);
+			},
+		);
 	});
 
 	describe("requirePermissionOnResource", () => {

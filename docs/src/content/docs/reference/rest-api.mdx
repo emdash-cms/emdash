@@ -265,6 +265,34 @@ The operation ID is stable within the generated contract and is commonly used as
 | `PUT` | `/_emdash/api/admin/allowed-domains/{domain}` | `updateAllowedDomain` | Update an allowed domain |
 | `DELETE` | `/_emdash/api/admin/allowed-domains/{domain}` | `deleteAllowedDomain` | Remove an allowed domain |
 
+### Transfer
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/admin/transfer/capabilities` | `getTransferCapabilities` | Get site transfer capabilities |
+| `GET` | `/_emdash/api/admin/transfer/imports` | `listTransferImports` | List site imports |
+| `POST` | `/_emdash/api/admin/transfer/imports` | `createTransferImport` | Create a site import |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}` | `getTransferImport` | Get a site import |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}/missing` | `listTransferImportMissingFiles` | List package files still to upload |
+| `PUT` | `/_emdash/api/admin/transfer/imports/{id}/files/{path}` | `uploadTransferImportFile` | Upload one package file |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/analyze` | `analyzeTransferImport` | Advance import analysis |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}/plan` | `getTransferImportPlan` | Get an import plan |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/cancel` | `cancelTransferImport` | Cancel a site import |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/abandon` | `abandonTransferImport` | Abandon a failed or cancelled import |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/execute` | `executeTransferImport` | Start a planned import |
+| `POST` | `/_emdash/api/admin/transfer/imports/{id}/advance` | `advanceTransferImport` | Advance an executing import |
+| `GET` | `/_emdash/api/admin/transfer/imports/{id}/receipt` | `getTransferImportReceipt` | Get an import receipt |
+| `GET` | `/_emdash/api/admin/transfer/exports` | `listTransferExports` | List site exports |
+| `POST` | `/_emdash/api/admin/transfer/exports` | `createTransferExport` | Start a site export |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}` | `getTransferExport` | Get a site export |
+| `POST` | `/_emdash/api/admin/transfer/exports/{id}/advance` | `advanceTransferExport` | Advance a site export |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}/manifest` | `getTransferExportManifest` | Download an export manifest |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}/files/{path}` | `downloadTransferExportFile` | Download one export file |
+| `GET` | `/_emdash/api/admin/transfer/exports/{id}/archive` | `downloadTransferExportArchive` | Download an export archive |
+| `GET` | `/_emdash/api/admin/transfer/approvals` | `listTransferApprovals` | List transfer approvals |
+| `POST` | `/_emdash/api/admin/transfer/approvals/{id}/approve` | `approveTransferApproval` | Approve a transfer request |
+| `POST` | `/_emdash/api/admin/transfer/approvals/{id}/deny` | `denyTransferApproval` | Deny a transfer request |
+
 {/* rest-endpoint-inventory:end */}
 
 ## Content lifecycle and bylines

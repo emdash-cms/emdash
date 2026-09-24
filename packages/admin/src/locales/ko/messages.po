@@ -96,7 +96,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2153
+#: packages/admin/src/router.tsx:2159
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr ""
 
@@ -136,6 +136,11 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:220
 msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, one {#개 항목} other {#개 항목}}"
+
+#. placeholder {0}: tagMatches?.matchCount ?? 0
+#: packages/admin/src/components/TaxonomyManager.tsx:1381
+msgid "{0, plural, one {# matching tag} other {# matching tags}}"
+msgstr ""
 
 #. placeholder {0}: mcpTools.length
 #: packages/admin/src/components/PluginManager.tsx:478
@@ -287,7 +292,7 @@ msgid "{0} banner"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:245
+#: packages/admin/src/components/TaxonomyManager.tsx:439
 msgid "{0} can't be moved here — its parent has no translation in this locale, so this list isn't the group it belongs to."
 msgstr ""
 
@@ -375,7 +380,7 @@ msgid "{0} system + {1} custom {2}"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label
-#: packages/admin/src/components/TaxonomySidebar.tsx:678
+#: packages/admin/src/components/TaxonomySidebar.tsx:679
 msgid "{0} updated"
 msgstr "{0} 업데이트됨"
 
@@ -393,6 +398,15 @@ msgstr ""
 #: packages/admin/src/components/SeoPanel.tsx:215
 msgid "{0}/160 characters"
 msgstr "{0}/160자"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:391
+msgid "{added} posts tagged"
+msgstr ""
+
+#. placeholder {0}: failed.length
+#: packages/admin/src/components/BulkTagDialog.tsx:388
+msgid "{added} tagged · {0} failed"
+msgstr ""
 
 #. placeholder {0}: allowedHosts.join(", ")
 #: packages/admin/src/lib/api/marketplace.ts:465
@@ -439,7 +453,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1208
+#: packages/admin/src/components/ContentList.tsx:1267
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr ""
 
@@ -470,7 +484,7 @@ msgstr ""
 msgid "{label} options"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1197
+#: packages/admin/src/components/ContentList.tsx:1256
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr ""
 
@@ -584,6 +598,11 @@ msgstr ""
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
+#. placeholder {0}: results.length
+#: packages/admin/src/components/BulkTagDialog.tsx:403
+msgid "{ready} of {0} ready"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:924
 msgid "{rejectedCount, plural, one {# file was not added.} other {# files were not added.}}"
 msgstr ""
@@ -604,11 +623,11 @@ msgstr ""
 msgid "{rows} × {columns} table pasted"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:494
+#: packages/admin/src/components/ContentList.tsx:503
 msgid "{selectedCount, plural, one {# selected} other {# selected}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:536
+#: packages/admin/src/components/ContentList.tsx:575
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
@@ -616,7 +635,7 @@ msgstr ""
 msgid "{subLabel} ({label}, item {position})"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1203
+#: packages/admin/src/components/ContentList.tsx:1262
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr ""
 
@@ -676,6 +695,10 @@ msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:74
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:390
+msgid "1 post tagged"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:37
@@ -800,7 +823,7 @@ msgstr ""
 msgid "A short description of your site"
 msgstr "사이트에 대한 간단한 설명"
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:758
+#: packages/admin/src/components/TaxonomySidebar.tsx:761
 msgid "A source and target locale are required"
 msgstr ""
 
@@ -821,6 +844,7 @@ msgid "Accept & Update"
 msgstr "동의 및 업데이트"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
+#: packages/admin/src/locales/emails.ts:48
 msgid "Accept Invite"
 msgstr ""
 
@@ -829,7 +853,7 @@ msgstr ""
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2173
+#: packages/admin/src/router.tsx:2179
 msgid "Access Denied"
 msgstr ""
 
@@ -859,10 +883,11 @@ msgid "ACF Fields"
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
-#: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:769
+#: packages/admin/src/components/ContentList.tsx:696
+#: packages/admin/src/components/ContentList.tsx:828
 #: packages/admin/src/components/ContentTypeList.tsx:190
-#: packages/admin/src/components/TaxonomyManager.tsx:1113
+#: packages/admin/src/components/TaxonomyManager.tsx:1402
+#: packages/admin/src/components/TaxonomyManager.tsx:1455
 #: packages/admin/src/routes/byline-schema.tsx:249
 msgid "Actions"
 msgstr "기능"
@@ -894,8 +919,8 @@ msgstr "추가"
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/PortableTextEditor.tsx:2316
-#: packages/admin/src/components/TaxonomyManager.tsx:557
-#: packages/admin/src/components/TaxonomyManager.tsx:1082
+#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Add {0}"
 msgstr ""
 
@@ -1006,7 +1031,7 @@ msgstr "탐색 메뉴에 링크를 추가하여 구성하세요."
 msgid "Add MIME type or extension"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:432
+#: packages/admin/src/components/ContentList.tsx:441
 msgid "Add New"
 msgstr "추가"
 
@@ -1045,6 +1070,27 @@ msgstr ""
 msgid "Add Sub-Field"
 msgstr "하위 필드 추가"
 
+#: packages/admin/src/components/ContentList.tsx:549
+#: packages/admin/src/components/TaxonomyManager.tsx:1313
+msgid "Add tag"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:527
+msgid "Add tag to {ready} posts"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:526
+msgid "Add tag to 1 post"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:252
+msgid "Add tag to posts"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1320
+msgid "Add to posts"
+msgstr ""
+
 #: packages/admin/src/components/Widgets.tsx:403
 msgid "Add Widget Area"
 msgstr ""
@@ -1053,10 +1099,18 @@ msgstr ""
 msgid "Add your social media profiles. These are available to your site's theme and can be displayed in headers, footers, or author bios."
 msgstr "소셜 미디어 프로필을 추가하세요. 사이트 테마에서 사용하여 헤더, 푸터 또는 작성자 소개에 표시할 수 있습니다."
 
+#: packages/admin/src/components/BulkTagDialog.tsx:59
+msgid "Added"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:441
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:315
 msgid "Adding..."
 msgstr "추가 중..."
+
+#: packages/admin/src/components/BulkTagDialog.tsx:524
+msgid "Adding…"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Additional data to import."
@@ -1066,7 +1120,7 @@ msgstr "가져올 추가 데이터입니다."
 msgid "admin"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
 #: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -1131,12 +1185,12 @@ msgstr ""
 msgid "Alignment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:444
+#: packages/admin/src/components/ContentList.tsx:453
 msgid "All"
 msgstr "모두"
 
-#: packages/admin/src/components/ContentList.tsx:919
-#: packages/admin/src/components/ContentList.tsx:923
+#: packages/admin/src/components/ContentList.tsx:978
+#: packages/admin/src/components/ContentList.tsx:982
 msgid "All authors"
 msgstr ""
 
@@ -1174,7 +1228,7 @@ msgstr "전체 역할"
 msgid "All Sources"
 msgstr "모든 소스"
 
-#: packages/admin/src/components/ContentList.tsx:858
+#: packages/admin/src/components/ContentList.tsx:917
 #: packages/admin/src/components/Redirects.tsx:391
 msgid "All statuses"
 msgstr "모든 상태"
@@ -1217,6 +1271,10 @@ msgstr ""
 #: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
 msgstr "이미 계정이 있나요?"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:61
+msgid "Already tagged or duplicate"
+msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:784
 msgid "Also delete plugin storage data"
@@ -1266,9 +1324,9 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:476
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:232
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:491
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
@@ -1285,27 +1343,27 @@ msgstr ""
 #: packages/admin/src/components/settings/SocialSettings.tsx:67
 #: packages/admin/src/components/settings/SocialSettings.tsx:111
 #: packages/admin/src/components/settings/SocialSettings.tsx:112
-#: packages/admin/src/components/TaxonomySidebar.tsx:683
-#: packages/admin/src/components/TaxonomySidebar.tsx:779
+#: packages/admin/src/components/TaxonomySidebar.tsx:686
+#: packages/admin/src/components/TaxonomySidebar.tsx:782
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
 #: packages/admin/src/router.tsx:488
 #: packages/admin/src/router.tsx:503
 #: packages/admin/src/router.tsx:517
 #: packages/admin/src/router.tsx:531
-#: packages/admin/src/router.tsx:759
-#: packages/admin/src/router.tsx:1123
-#: packages/admin/src/router.tsx:1217
-#: packages/admin/src/router.tsx:1242
-#: packages/admin/src/router.tsx:1266
-#: packages/admin/src/router.tsx:1290
-#: packages/admin/src/router.tsx:1336
-#: packages/admin/src/router.tsx:1355
-#: packages/admin/src/router.tsx:1388
-#: packages/admin/src/router.tsx:1409
-#: packages/admin/src/router.tsx:2118
-#: packages/admin/src/router.tsx:2134
-#: packages/admin/src/router.tsx:2159
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:765
+#: packages/admin/src/router.tsx:1129
+#: packages/admin/src/router.tsx:1223
+#: packages/admin/src/router.tsx:1248
+#: packages/admin/src/router.tsx:1272
+#: packages/admin/src/router.tsx:1296
+#: packages/admin/src/router.tsx:1342
+#: packages/admin/src/router.tsx:1361
+#: packages/admin/src/router.tsx:1394
+#: packages/admin/src/router.tsx:1415
+#: packages/admin/src/router.tsx:2124
+#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:2165
+#: packages/admin/src/router.tsx:2680
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1343,8 +1401,8 @@ msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/Settings.tsx:101
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:333
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:348
 msgid "API Tokens"
 msgstr "API 토큰"
 
@@ -1396,7 +1454,7 @@ msgstr "승인됨"
 msgid "Arbitrary JSON data"
 msgstr "자유 형식 JSON 데이터"
 
-#: packages/admin/src/components/ContentList.tsx:862
+#: packages/admin/src/components/ContentList.tsx:921
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr ""
@@ -1534,7 +1592,7 @@ msgstr "자동(슬러그 변경)"
 msgid "Auto-approve authenticated users"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:603
+#: packages/admin/src/components/TaxonomyManager.tsx:791
 msgid "Auto-generated from name (you can edit)"
 msgstr "이름에서 자동 생성됨(수정 가능)"
 
@@ -1552,7 +1610,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1214
+#: packages/admin/src/router.tsx:1220
 msgid "Autosave failed"
 msgstr ""
 
@@ -1561,7 +1619,7 @@ msgid "Available bylines"
 msgstr ""
 
 #. placeholder {0}: assignment.availableLocales.map((locale) => locale.toUpperCase()).join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:842
+#: packages/admin/src/components/TaxonomySidebar.tsx:845
 msgid "Available in {0}"
 msgstr ""
 
@@ -1582,6 +1640,7 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
+#: packages/admin/src/components/BulkTagDialog.tsx:463
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaDetailPanel.tsx:1793
 #: packages/admin/src/components/MediaLibrary.tsx:811
@@ -1819,13 +1878,15 @@ msgstr "본인 콘텐츠 게시 가능"
 msgid "Can view content"
 msgstr "콘텐츠 조회 가능"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:290
+#: packages/admin/src/components/BulkTagDialog.tsx:468
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1021
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:348
 #: packages/admin/src/components/ConfirmDialog.tsx:102
-#: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/components/ContentList.tsx:1378
-#: packages/admin/src/components/ContentList.tsx:1560
+#: packages/admin/src/components/ContentList.tsx:584
+#: packages/admin/src/components/ContentList.tsx:1437
+#: packages/admin/src/components/ContentList.tsx:1619
 #: packages/admin/src/components/ContentPickerModal.tsx:240
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
@@ -1850,11 +1911,11 @@ msgstr "콘텐츠 조회 가능"
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/SecuritySettings.tsx:166
-#: packages/admin/src/components/TaxonomyManager.tsx:386
-#: packages/admin/src/components/TaxonomyManager.tsx:673
-#: packages/admin/src/components/TaxonomyManager.tsx:888
+#: packages/admin/src/components/TaxonomyManager.tsx:580
+#: packages/admin/src/components/TaxonomyManager.tsx:880
+#: packages/admin/src/components/TaxonomyManager.tsx:1098
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1933
@@ -1991,7 +2052,7 @@ msgstr ""
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1282
+#: packages/admin/src/router.tsx:1288
 msgid "Changes discarded"
 msgstr ""
 
@@ -2076,8 +2137,8 @@ msgstr ""
 msgid "Choose a credential manager on this device, another device, or a security key."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1045
-#: packages/admin/src/components/ContentList.tsx:1051
+#: packages/admin/src/components/ContentList.tsx:1104
+#: packages/admin/src/components/ContentList.tsx:1110
 msgid "Choose a date range"
 msgstr ""
 
@@ -2092,6 +2153,14 @@ msgstr ""
 #. placeholder {0}: formatFileFormat(item.mimeType)
 #: packages/admin/src/components/MediaDetailPanel.tsx:907
 msgid "Choose a non-empty {0} image."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:299
+msgid "Choose a tag"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:172
+msgid "Choose a tag and enter between 1 and 50 posts."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:231
@@ -2139,8 +2208,8 @@ msgstr "선호하는 관리 언어를 선택하세요"
 msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:571
-#: packages/admin/src/components/ContentList.tsx:1059
+#: packages/admin/src/components/ContentList.tsx:610
+#: packages/admin/src/components/ContentList.tsx:1118
 msgid "Clear"
 msgstr ""
 
@@ -2148,7 +2217,7 @@ msgstr ""
 msgid "Clear completed"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:964
+#: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
@@ -2156,6 +2225,7 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/MediaLibrary.tsx:1119
+#: packages/admin/src/components/TaxonomyManager.tsx:1425
 msgid "Clear search"
 msgstr ""
 
@@ -2167,6 +2237,14 @@ msgstr ""
 msgid "Clear stored value for {fieldKey}"
 msgstr ""
 
+#: packages/admin/src/locales/emails.ts:47
+msgid "Click the button below to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:55
+msgid "Click the button below to sign in:"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
 msgstr "계정 설정을 계속하려면 이메일에 있는 링크를 클릭하세요."
@@ -2175,6 +2253,15 @@ msgstr "계정 설정을 계속하려면 이메일에 있는 링크를 클릭하
 msgid "Click the link in the email to sign in."
 msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 
+#: packages/admin/src/locales/emails.ts:46
+msgid "Click this link to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:54
+msgid "Click this link to sign in to {siteName}:"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:262
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
 #: packages/admin/src/components/BylineFieldEditor.tsx:222
@@ -2217,13 +2304,11 @@ msgstr "이메일에 있는 링크를 클릭하여 로그인하세요."
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:337
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:343
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:347
-#: packages/admin/src/components/TaxonomyManager.tsx:363
-#: packages/admin/src/components/TaxonomyManager.tsx:566
-#: packages/admin/src/components/TaxonomyManager.tsx:572
-#: packages/admin/src/components/TaxonomyManager.tsx:576
-#: packages/admin/src/components/TaxonomyManager.tsx:807
-#: packages/admin/src/components/TaxonomyManager.tsx:813
-#: packages/admin/src/components/TaxonomyManager.tsx:817
+#: packages/admin/src/components/TaxonomyManager.tsx:557
+#: packages/admin/src/components/TaxonomyManager.tsx:764
+#: packages/admin/src/components/TaxonomyManager.tsx:772
+#: packages/admin/src/components/TaxonomyManager.tsx:1019
+#: packages/admin/src/components/TaxonomyManager.tsx:1027
 #: packages/admin/src/components/TaxonomySidebar.tsx:605
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:298
 #: packages/admin/src/components/users/InviteUserModal.tsx:88
@@ -2297,7 +2382,7 @@ msgstr ""
 msgid "Collection:"
 msgstr "컬렉션:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:858
+#: packages/admin/src/components/TaxonomyManager.tsx:1068
 msgid "Collections"
 msgstr "컬렉션"
 
@@ -2383,7 +2468,7 @@ msgstr ""
 msgid "Configure Field"
 msgstr "필드 설정"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:431
 msgid "Confirm"
 msgstr "확인"
 
@@ -2460,7 +2545,7 @@ msgstr "콘텐츠 오류({0})"
 msgid "Content found:"
 msgstr "발견된 콘텐츠:"
 
-#: packages/admin/src/router.tsx:1329
+#: packages/admin/src/router.tsx:1335
 msgid "Content has been scheduled for publishing"
 msgstr ""
 
@@ -2472,7 +2557,7 @@ msgstr "콘텐츠가 선택한 버전으로 업데이트되었습니다."
 msgid "Content ID:"
 msgstr "콘텐츠 ID:"
 
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1242
 msgid "Content is now live"
 msgstr ""
 
@@ -2484,11 +2569,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "콘텐츠 읽기"
 
-#: packages/admin/src/router.tsx:1260
+#: packages/admin/src/router.tsx:1266
 msgid "Content removed from public view"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:1354
 msgid "Content reverted to draft"
 msgstr ""
 
@@ -2567,7 +2652,7 @@ msgstr "기여자"
 msgid "Copied"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "클립보드에 복사됨"
@@ -2594,12 +2679,12 @@ msgstr "초대 링크 복사"
 msgid "Copy slug"
 msgstr "슬러그 복사"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:258
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
 msgid "Copy this token now — it won't be shown again."
 msgstr "지금 이 토큰을 복사하세요. 다시 표시되지 않습니다."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:289
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:296
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
 msgid "Copy token"
 msgstr "토큰 복사"
 
@@ -2609,9 +2694,17 @@ msgstr "토큰 복사"
 msgid "Copy URL"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:229
+msgid "Could not add tag"
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:136
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "자동으로 복사할 수 없습니다. 위의 URL을 선택하고 수동으로 복사하세요."
+
+#: packages/admin/src/components/BulkTagDialog.tsx:164
+msgid "Could not create tag"
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3712
 msgid "Could not insert section"
@@ -2629,8 +2722,16 @@ msgstr "URL에서 이미지를 로드할 수 없습니다."
 msgid "Could not load media."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:328
+msgid "Could not load tags."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:1202
 msgid "Could not load this folder."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:182
+msgid "Could not review posts"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:816
@@ -2678,7 +2779,8 @@ msgstr ""
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1112
+#: packages/admin/src/components/TaxonomyManager.tsx:1400
+#: packages/admin/src/components/TaxonomyManager.tsx:1454
 msgid "Count"
 msgstr "수"
 
@@ -2687,7 +2789,7 @@ msgstr "수"
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:194
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/TaxonomyManager.tsx:680
+#: packages/admin/src/components/TaxonomyManager.tsx:891
 #: packages/admin/src/components/Widgets.tsx:454
 #: packages/admin/src/routes/bylines.tsx:579
 msgid "Create"
@@ -2708,7 +2810,7 @@ msgid "Create {0}"
 msgstr ""
 
 #. placeholder {0}: resolvedEntryLocale.toUpperCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:853
+#: packages/admin/src/components/TaxonomySidebar.tsx:856
 msgid "Create {0} translation"
 msgstr ""
 
@@ -2721,7 +2823,7 @@ msgid "Create a bullet list"
 msgstr "글머리 기호 목록 만들기"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:562
+#: packages/admin/src/components/TaxonomyManager.tsx:760
 msgid "Create a new {0}"
 msgstr "새 {0} 만들기"
 
@@ -2771,7 +2873,11 @@ msgstr "메뉴 만들기"
 msgid "Create New Menu"
 msgstr "새 메뉴 만들기"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/BulkTagDialog.tsx:321
+msgid "Create new tag"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
 msgstr "새 토큰 만들기"
 
@@ -2784,9 +2890,9 @@ msgid "Create passkey"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:230
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:341
 msgid "Create personal access tokens for programmatic API access"
 msgstr "프로그래밍 방식의 API 액세스를 위한 개인 액세스 토큰 만들기"
 
@@ -2816,8 +2922,12 @@ msgstr "섹션 만들기"
 msgid "Create sections in the Sections library to use them here"
 msgstr "여기에서 사용하려면 섹션 라이브러리에 섹션을 만드세요."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:800
-#: packages/admin/src/components/TaxonomyManager.tsx:891
+#: packages/admin/src/components/BulkTagDialog.tsx:287
+msgid "Create tag"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1013
+#: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Create Taxonomy"
 msgstr "분류 만들기"
 
@@ -2825,8 +2935,8 @@ msgstr "분류 만들기"
 msgid "Create taxonomy terms and change content classifications"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 msgid "Create Token"
 msgstr "토큰 만들기"
 
@@ -2846,7 +2956,7 @@ msgstr ""
 msgid "Create your first navigation menu to get started"
 msgstr "시작하려면 첫 번째 탐색 메뉴를 만드세요."
 
-#: packages/admin/src/components/ContentList.tsx:665
+#: packages/admin/src/components/ContentList.tsx:724
 msgid "Create your first one"
 msgstr "처음 만들어 보세요"
 
@@ -2871,9 +2981,9 @@ msgstr "분류 항목 생성, 업데이트, 삭제"
 msgid "Create, update, delete content"
 msgstr "콘텐츠 생성, 업데이트, 삭제"
 
-#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:927
 #: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "생성됨"
@@ -2889,7 +2999,7 @@ msgid "Created {0}"
 msgstr "{0} 생성됨"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1380
+#: packages/admin/src/router.tsx:1386
 msgid "Created {0} translation"
 msgstr ""
 
@@ -2912,8 +3022,8 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
-#: packages/admin/src/components/TaxonomyManager.tsx:891
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
+#: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Creating..."
 msgstr "생성 중..."
 
@@ -3002,7 +3112,7 @@ msgid "Database-owned definitions available to blocks fields."
 msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:334
-#: packages/admin/src/components/ContentList.tsx:626
+#: packages/admin/src/components/ContentList.tsx:685
 msgid "Date"
 msgstr "날짜"
 
@@ -3015,7 +3125,7 @@ msgstr "날짜 및 시간"
 msgid "Date and time picker"
 msgstr "날짜 및 시간 선택기"
 
-#: packages/admin/src/components/ContentList.tsx:941
+#: packages/admin/src/components/ContentList.tsx:1000
 msgid "Date field to filter on"
 msgstr ""
 
@@ -3023,7 +3133,7 @@ msgstr ""
 msgid "Date Format"
 msgstr "날짜 형식"
 
-#: packages/admin/src/components/ContentList.tsx:991
+#: packages/admin/src/components/ContentList.tsx:1050
 msgid "Date range"
 msgstr ""
 
@@ -3056,7 +3166,7 @@ msgstr ""
 msgid "Default Social Image"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:803
+#: packages/admin/src/components/TaxonomyManager.tsx:1015
 msgid "Define a new taxonomy for classifying content"
 msgstr "콘텐츠 분류에 사용할 새 분류를 정의합니다"
 
@@ -3087,8 +3197,8 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:308
 #: packages/admin/src/components/Sections.tsx:407
 #: packages/admin/src/components/settings/BackupSettings.tsx:352
-#: packages/admin/src/components/TaxonomyManager.tsx:1175
-#: packages/admin/src/components/TaxonomyManager.tsx:1191
+#: packages/admin/src/components/TaxonomyManager.tsx:1524
+#: packages/admin/src/components/TaxonomyManager.tsx:1540
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
 #: packages/admin/src/routes/bylines.tsx:588
@@ -3108,7 +3218,7 @@ msgstr ""
 #: packages/admin/src/components/Sections.tsx:408
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:275
 #: packages/admin/src/components/settings/BackupSettings.tsx:312
-#: packages/admin/src/components/TaxonomyManager.tsx:297
+#: packages/admin/src/components/TaxonomyManager.tsx:491
 #: packages/admin/src/components/Widgets.tsx:817
 #: packages/admin/src/routes/byline-schema.tsx:458
 msgid "Delete {0}"
@@ -3130,7 +3240,7 @@ msgid "Delete {0} widget area"
 msgstr ""
 
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
-#: packages/admin/src/components/TaxonomyManager.tsx:1171
+#: packages/admin/src/components/TaxonomyManager.tsx:1520
 msgid "Delete {0}?"
 msgstr "{0}을(를) 삭제하시겠습니까?"
 
@@ -3207,11 +3317,11 @@ msgid "Delete permanently"
 msgstr "완전히 삭제"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1571
+#: packages/admin/src/components/ContentList.tsx:1630
 msgid "Delete Permanently"
 msgstr "완전히 삭제"
 
-#: packages/admin/src/components/ContentList.tsx:1551
+#: packages/admin/src/components/ContentList.tsx:1610
 msgid "Delete Permanently?"
 msgstr "완전히 삭제하시겠습니까?"
 
@@ -3244,11 +3354,20 @@ msgstr "섹션을 삭제하시겠습니까?"
 msgid "Delete table"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1102
+#: packages/admin/src/components/TaxonomyManager.tsx:365
+msgid "Delete tag"
+msgstr ""
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:362
+msgid "Delete tag {0}"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1362
 msgid "Delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1189
+#: packages/admin/src/components/TaxonomyManager.tsx:1538
 msgid "Delete Taxonomy"
 msgstr ""
 
@@ -3256,12 +3375,12 @@ msgstr ""
 msgid "Delete Widget Area?"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:766
+#: packages/admin/src/components/ContentList.tsx:825
 msgid "Deleted"
 msgstr "삭제됨"
 
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1190
+#: packages/admin/src/components/TaxonomyManager.tsx:1539
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
 msgstr ""
 
@@ -3281,8 +3400,8 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:613
 #: packages/admin/src/components/Sections.tsx:309
 #: packages/admin/src/components/settings/BackupSettings.tsx:353
-#: packages/admin/src/components/TaxonomyManager.tsx:1176
-#: packages/admin/src/components/TaxonomyManager.tsx:1192
+#: packages/admin/src/components/TaxonomyManager.tsx:1525
+#: packages/admin/src/components/TaxonomyManager.tsx:1541
 #: packages/admin/src/components/Widgets.tsx:717
 #: packages/admin/src/routes/bylines.tsx:625
 msgid "Deleting..."
@@ -3343,7 +3462,7 @@ msgstr "이 섹션의 용도를 설명하세요."
 msgid "Description"
 msgstr "설명"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:635
+#: packages/admin/src/components/TaxonomyManager.tsx:842
 msgid "Description (optional)"
 msgstr "설명(선택사항)"
 
@@ -3459,7 +3578,7 @@ msgid "Discarding..."
 msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:188
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "무시"
 
@@ -3559,8 +3678,9 @@ msgstr "도메인이 업데이트되었습니다."
 msgid "Don't have an account? <0>Sign up</0>"
 msgstr "계정이 없으신가요? <0>회원가입</0>"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:468
 #: packages/admin/src/components/BylineCreditsEditor.tsx:920
-#: packages/admin/src/components/ContentList.tsx:1067
+#: packages/admin/src/components/ContentList.tsx:1126
 #: packages/admin/src/components/MediaUploadDialog.tsx:353
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2144
@@ -3574,6 +3694,10 @@ msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
@@ -3597,7 +3721,7 @@ msgstr ""
 msgid "Downloading"
 msgstr "다운로드 중"
 
-#: packages/admin/src/components/ContentList.tsx:860
+#: packages/admin/src/components/ContentList.tsx:919
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "초안"
@@ -3692,7 +3816,7 @@ msgstr "WordPress 내보내기 파일을 여기에 드롭하세요."
 msgid "Duplicate"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1351
+#: packages/admin/src/components/ContentList.tsx:1410
 msgid "Duplicate {title}"
 msgstr "{title} 복제"
 
@@ -3708,7 +3832,7 @@ msgstr ""
 msgid "e.g. import, blog"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:484
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:499
 msgid "e.g., CI/CD Pipeline"
 msgstr "예: CI/CD 파이프라인"
 
@@ -3732,8 +3856,9 @@ msgstr "편집"
 #: packages/admin/src/components/ContentTypeList.tsx:332
 #: packages/admin/src/components/PortableTextEditor.tsx:2097
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
-#: packages/admin/src/components/TaxonomyManager.tsx:289
-#: packages/admin/src/components/TaxonomyManager.tsx:556
+#: packages/admin/src/components/TaxonomyManager.tsx:310
+#: packages/admin/src/components/TaxonomyManager.tsx:483
+#: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/routes/byline-schema.tsx:449
 #: packages/admin/src/routes/bylines.tsx:476
 msgid "Edit {0}"
@@ -3753,7 +3878,7 @@ msgstr ""
 msgid "Edit {label}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1343
+#: packages/admin/src/components/ContentList.tsx:1402
 msgid "Edit {title}"
 msgstr "{title} 편집"
 
@@ -4070,9 +4195,9 @@ msgstr "WordPress 사이트 URL을 입력하세요."
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
 #: packages/admin/src/components/SetupWizard.tsx:532
-#: packages/admin/src/components/TaxonomyManager.tsx:982
+#: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2892
+#: packages/admin/src/router.tsx:2898
 msgid "Error"
 msgstr "오류"
 
@@ -4121,6 +4246,10 @@ msgstr ""
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:254
+msgid "Existing tags stay in place."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2026
 msgid "Exists"
 msgstr "존재"
@@ -4142,8 +4271,8 @@ msgstr ""
 msgid "Expand details"
 msgstr "세부정보 펼치기"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:365
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:526
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:380
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:541
 msgid "Expiry"
 msgstr "만료"
 
@@ -4167,6 +4296,7 @@ msgstr "페이스북"
 msgid "Fail"
 msgstr "실패됨"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:63
 #: packages/admin/src/components/WordPressImport.tsx:2146
 msgid "Failed"
 msgstr "실패"
@@ -4196,7 +4326,7 @@ msgid "Failed to confirm upload"
 msgstr ""
 
 #. placeholder {0}: failedLabels.join(", ")
-#: packages/admin/src/components/TaxonomySidebar.tsx:749
+#: packages/admin/src/components/TaxonomySidebar.tsx:752
 msgid "Failed to create {0}"
 msgstr ""
 
@@ -4229,19 +4359,19 @@ msgstr ""
 msgid "Failed to create some collections"
 msgstr "일부 컬렉션을 생성하지 못했습니다."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:728
+#: packages/admin/src/components/TaxonomySidebar.tsx:731
 msgid "Failed to create term"
 msgstr "분류 항목을 생성하지 못했습니다."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:778
-#: packages/admin/src/router.tsx:1385
+#: packages/admin/src/components/TaxonomySidebar.tsx:781
+#: packages/admin/src/router.tsx:1391
 msgid "Failed to create translation"
 msgstr ""
 
 #: packages/admin/src/router.tsx:487
 #: packages/admin/src/router.tsx:516
 #: packages/admin/src/router.tsx:599
-#: packages/admin/src/router.tsx:1408
+#: packages/admin/src/router.tsx:1414
 msgid "Failed to delete"
 msgstr ""
 
@@ -4266,7 +4396,7 @@ msgid "Failed to delete collection"
 msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2133
+#: packages/admin/src/router.tsx:2139
 msgid "Failed to delete comment"
 msgstr ""
 
@@ -4311,11 +4441,11 @@ msgstr ""
 msgid "Failed to delete section"
 msgstr ""
 
-#: packages/admin/src/lib/api/taxonomies.ts:145
+#: packages/admin/src/lib/api/taxonomies.ts:176
 msgid "Failed to delete taxonomy"
 msgstr ""
 
-#: packages/admin/src/lib/api/taxonomies.ts:231
+#: packages/admin/src/lib/api/taxonomies.ts:267
 msgid "Failed to delete term"
 msgstr ""
 
@@ -4340,7 +4470,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1289
+#: packages/admin/src/router.tsx:1295
 msgid "Failed to discard changes"
 msgstr ""
 
@@ -4472,8 +4602,8 @@ msgstr ""
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:998
-#: packages/admin/src/router.tsx:2064
+#: packages/admin/src/router.tsx:1004
+#: packages/admin/src/router.tsx:2070
 msgid "Failed to fetch user"
 msgstr ""
 
@@ -4588,7 +4718,7 @@ msgstr ""
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2158
+#: packages/admin/src/router.tsx:2164
 msgid "Failed to perform bulk action"
 msgstr ""
 
@@ -4601,7 +4731,7 @@ msgid "Failed to prepare import"
 msgstr ""
 
 #: packages/admin/src/router.tsx:555
-#: packages/admin/src/router.tsx:1241
+#: packages/admin/src/router.tsx:1247
 msgid "Failed to publish"
 msgstr ""
 
@@ -4664,7 +4794,7 @@ msgstr ""
 msgid "Failed to restore revision"
 msgstr ""
 
-#: packages/admin/src/lib/api/api-tokens.ts:99
+#: packages/admin/src/lib/api/api-tokens.ts:102
 msgid "Failed to revoke API token"
 msgstr ""
 
@@ -4672,9 +4802,9 @@ msgstr ""
 msgid "Failed to rewrite URLs"
 msgstr ""
 
-#: packages/admin/src/router.tsx:754
-#: packages/admin/src/router.tsx:1120
-#: packages/admin/src/router.tsx:2673
+#: packages/admin/src/router.tsx:760
+#: packages/admin/src/router.tsx:1126
+#: packages/admin/src/router.tsx:2679
 msgid "Failed to save"
 msgstr "저장하지 못했습니다."
 
@@ -4693,7 +4823,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "설정을 저장하지 못했습니다."
 
-#: packages/admin/src/router.tsx:1335
+#: packages/admin/src/router.tsx:1341
 msgid "Failed to schedule"
 msgstr ""
 
@@ -4724,11 +4854,11 @@ msgstr ""
 msgid "Failed to uninstall plugin"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1265
+#: packages/admin/src/router.tsx:1271
 msgid "Failed to unpublish"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1354
+#: packages/admin/src/router.tsx:1360
 msgid "Failed to unschedule"
 msgstr ""
 
@@ -4737,7 +4867,7 @@ msgid "Failed to update"
 msgstr ""
 
 #. placeholder {0}: taxonomy.label.toLowerCase()
-#: packages/admin/src/components/TaxonomySidebar.tsx:682
+#: packages/admin/src/components/TaxonomySidebar.tsx:685
 msgid "Failed to update {0}"
 msgstr "{0}을(를) 업데이트하지 못했습니다."
 
@@ -4779,7 +4909,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2117
+#: packages/admin/src/router.tsx:2123
 msgid "Failed to update status"
 msgstr ""
 
@@ -4896,7 +5026,7 @@ msgstr "업로드 후에는 파일 이름을 변경할 수 없습니다."
 msgid "Files upload as soon as you add them."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:915
+#: packages/admin/src/components/ContentList.tsx:974
 msgid "Filter by author"
 msgstr ""
 
@@ -4912,7 +5042,7 @@ msgstr "기능별로 필터링"
 msgid "Filter by collection"
 msgstr "컬렉션으로 필터링"
 
-#: packages/admin/src/components/ContentList.tsx:1037
+#: packages/admin/src/components/ContentList.tsx:1096
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
@@ -4924,7 +5054,7 @@ msgstr ""
 msgid "Filter by source"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:897
+#: packages/admin/src/components/ContentList.tsx:956
 #: packages/admin/src/components/Redirects.tsx:392
 msgid "Filter by status"
 msgstr ""
@@ -4986,7 +5116,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1787
+#: packages/admin/src/router.tsx:1793
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -5043,7 +5173,7 @@ msgid "Freeform"
 msgstr ""
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:988
+#: packages/admin/src/components/ContentList.tsx:1047
 msgid "From {0}"
 msgstr ""
 
@@ -5064,7 +5194,7 @@ msgstr ""
 msgid "Full access"
 msgstr "전체 권한"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:118
 msgid "Full admin access"
 msgstr "관리자 전체 권한"
 
@@ -5090,7 +5220,7 @@ msgstr "일반 설정"
 msgid "Generated automatically."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:828
+#: packages/admin/src/components/TaxonomyManager.tsx:1038
 msgid "Genres"
 msgstr ""
 
@@ -5111,7 +5241,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2912
+#: packages/admin/src/router.tsx:2918
 msgid "Go to Dashboard"
 msgstr "대시보드로 이동"
 
@@ -5236,8 +5366,8 @@ msgstr ""
 msgid "Hide from search engines"
 msgstr "검색에서 숨기기"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Hide token"
 msgstr "토큰 숨기기"
 
@@ -5250,7 +5380,7 @@ msgstr ""
 msgid "Hide toolbar"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:851
+#: packages/admin/src/components/TaxonomyManager.tsx:1061
 msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "계층형(카테고리처럼 상위/하위 관계 지원)"
 
@@ -5285,6 +5415,10 @@ msgstr ""
 msgid "Hour"
 msgstr ""
 
+#: packages/admin/src/components/TaxonomyManager.tsx:793
+msgid "How is the slug generated?"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1536
 msgid "How to create an Application Password"
 msgstr "애플리케이션 비밀번호를 생성하는 방법"
@@ -5302,6 +5436,10 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:424
 msgid "https://example.com or /about"
 msgstr "https://example.com 또는 /about"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:368
+msgid "https://example.com/blog/my-post"
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1121
 msgid "https://example.com/image.jpg"
@@ -5331,6 +5469,10 @@ msgstr "ID"
 #: packages/admin/src/components/LoginPage.tsx:104
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "<0>{email}</0>에 대한 계정이 존재하는 경우 로그인 링크가 전송되었습니다."
+
+#: packages/admin/src/locales/emails.ts:58
+msgid "If you didn't request this, you can safely ignore this email."
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 #: packages/admin/src/components/FieldEditor.tsx:803
@@ -5407,6 +5549,10 @@ msgstr "가져오기"
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Import {0}"
 msgstr "{0} 가져오기"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
+msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
@@ -5724,7 +5870,7 @@ msgstr ""
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
@@ -5831,7 +5977,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:416
 #: packages/admin/src/components/MenuEditor.tsx:593
 #: packages/admin/src/components/MenuList.tsx:169
-#: packages/admin/src/components/TaxonomyManager.tsx:825
+#: packages/admin/src/components/TaxonomyManager.tsx:1035
 #: packages/admin/src/components/Widgets.tsx:436
 #: packages/admin/src/routes/byline-schema.tsx:234
 msgid "Label"
@@ -5886,7 +6032,7 @@ msgstr "마지막 조회"
 msgid "Last updated"
 msgstr "최근 수정"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
 #: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "마지막으로 사용됨"
@@ -5990,8 +6136,8 @@ msgstr "실시간 미리보기"
 msgid "Load more"
 msgstr "더 보기"
 
-#: packages/admin/src/components/ContentList.tsx:745
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:804
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
@@ -6004,7 +6150,7 @@ msgstr "더 보기"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2867
+#: packages/admin/src/router.tsx:2873
 msgid "Loading"
 msgstr ""
 
@@ -6025,8 +6171,8 @@ msgstr "컬렉션 로드 중..."
 msgid "Loading comments..."
 msgstr "댓글 로드 중..."
 
-#: packages/admin/src/router.tsx:2869
-#: packages/admin/src/router.tsx:2881
+#: packages/admin/src/router.tsx:2875
+#: packages/admin/src/router.tsx:2887
 msgid "Loading configuration..."
 msgstr ""
 
@@ -6092,7 +6238,12 @@ msgstr "설정 로드 중..."
 msgid "Loading setup..."
 msgstr "설정 로드 중..."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1117
+#: packages/admin/src/components/BulkTagDialog.tsx:325
+msgid "Loading tags…"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1388
+#: packages/admin/src/components/TaxonomyManager.tsx:1459
 msgid "Loading terms..."
 msgstr "항목 불러오는 중..."
 
@@ -6104,10 +6255,10 @@ msgstr ""
 msgid "Loading widgets..."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:745
-#: packages/admin/src/components/ContentList.tsx:779
-#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/ContentList.tsx:706
+#: packages/admin/src/components/ContentList.tsx:804
+#: packages/admin/src/components/ContentList.tsx:838
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
@@ -6120,11 +6271,11 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:99
-#: packages/admin/src/components/TaxonomyManager.tsx:1049
+#: packages/admin/src/components/TaxonomyManager.tsx:1273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
@@ -6141,8 +6292,8 @@ msgstr ""
 msgid "Local time"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:619
-#: packages/admin/src/components/ContentList.tsx:762
+#: packages/admin/src/components/ContentList.tsx:678
+#: packages/admin/src/components/ContentList.tsx:821
 #: packages/admin/src/components/LocaleSwitcher.tsx:61
 msgid "Locale"
 msgstr "로케일"
@@ -6194,7 +6345,7 @@ msgstr "긴 텍스트"
 msgid "Lowercase letters, numbers, and hyphens only"
 msgstr "소문자, 숫자, 하이픈만 가능"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:843
+#: packages/admin/src/components/TaxonomyManager.tsx:1053
 msgid "Lowercase letters, numbers, and underscores only, starting with a letter"
 msgstr "문자로 시작하는 소문자, 숫자, 밑줄만 가능"
 
@@ -6217,7 +6368,7 @@ msgstr "관리"
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
 #. placeholder {1}: taxonomyDef.collections.join(", ")
-#: packages/admin/src/components/TaxonomyManager.tsx:1066
+#: packages/admin/src/components/TaxonomyManager.tsx:1290
 msgid "Manage {0} for {1}"
 msgstr "{1}에 대한 {0} 관리"
 
@@ -6289,11 +6440,11 @@ msgstr ""
 msgid "Marketplace"
 msgstr "마켓플레이스"
 
-#: packages/admin/src/router.tsx:2399
+#: packages/admin/src/router.tsx:2405
 msgid "Marketplace browsing is no longer available."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2374
+#: packages/admin/src/router.tsx:2380
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr ""
 
@@ -6551,8 +6702,10 @@ msgstr ""
 
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: taxonomyDef.label
+#. placeholder {0}: term.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:862
-#: packages/admin/src/components/TaxonomyManager.tsx:1092
+#: packages/admin/src/components/TaxonomyManager.tsx:322
+#: packages/admin/src/components/TaxonomyManager.tsx:1341
 msgid "More actions for {0}"
 msgstr ""
 
@@ -6572,6 +6725,10 @@ msgstr ""
 msgid "More table actions"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:428
+msgid "More than one post matches this link"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:42
 msgid "Most Popular"
 msgstr ""
@@ -6586,19 +6743,19 @@ msgstr ""
 msgid "Move \"{0}\" up"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1372
+#: packages/admin/src/components/ContentList.tsx:1431
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "\"{title}\"을(를) 휴지통으로 이동하시겠습니까? 나중에 복원할 수 있습니다."
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: term.label
 #: packages/admin/src/components/FieldEditor.tsx:692
-#: packages/admin/src/components/TaxonomyManager.tsx:268
+#: packages/admin/src/components/TaxonomyManager.tsx:462
 msgid "Move {0} down"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:267
+#: packages/admin/src/components/TaxonomyManager.tsx:461
 msgid "Move {0} down — unavailable, its parent has no translation in this locale"
 msgstr ""
 
@@ -6615,22 +6772,28 @@ msgstr ""
 #. placeholder {0}: blockType.label
 #. placeholder {0}: term.label
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/TaxonomyManager.tsx:255
+#: packages/admin/src/components/TaxonomyManager.tsx:449
 msgid "Move {0} up"
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:254
+#: packages/admin/src/components/TaxonomyManager.tsx:448
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1363
+#: packages/admin/src/components/ContentList.tsx:1422
 msgid "Move {title} to trash"
 msgstr "{title}을(를) 휴지통으로 이동"
 
 #: packages/admin/src/components/MenuEditor.tsx:537
+#: packages/admin/src/components/TaxonomyManager.tsx:346
 msgid "Move down"
 msgstr "아래로 이동"
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:342
+msgid "Move down {0}"
+msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
@@ -6640,26 +6803,32 @@ msgstr ""
 msgid "Move the focal point to choose what stays visible in cropped images."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:529
+#: packages/admin/src/components/ContentList.tsx:568
 msgid "Move to trash"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:556
-#: packages/admin/src/components/ContentList.tsx:1385
+#: packages/admin/src/components/ContentList.tsx:595
+#: packages/admin/src/components/ContentList.tsx:1444
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1297
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1317
 msgid "Move to Trash"
 msgstr "휴지통으로 이동"
 
-#: packages/admin/src/components/ContentList.tsx:534
-#: packages/admin/src/components/ContentList.tsx:1370
+#: packages/admin/src/components/ContentList.tsx:573
+#: packages/admin/src/components/ContentList.tsx:1429
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1302
 msgid "Move to Trash?"
 msgstr "휴지통으로 이동하시겠습니까?"
 
 #: packages/admin/src/components/MenuEditor.tsx:528
+#: packages/admin/src/components/TaxonomyManager.tsx:338
 msgid "Move up"
 msgstr "위로 이동"
+
+#. placeholder {0}: term.label
+#: packages/admin/src/components/TaxonomyManager.tsx:334
+msgid "Move up {0}"
+msgstr ""
 
 #. placeholder {0}: to + 1
 #: packages/admin/src/components/MediaPickerModal.tsx:693
@@ -6719,20 +6888,21 @@ msgstr "내 멋진 블로그"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:45
 #: packages/admin/src/components/MediaFolderDialog.tsx:131
 #: packages/admin/src/components/MenuList.tsx:157
-#: packages/admin/src/components/TaxonomyManager.tsx:584
-#: packages/admin/src/components/TaxonomyManager.tsx:834
-#: packages/admin/src/components/TaxonomyManager.tsx:1111
+#: packages/admin/src/components/TaxonomyManager.tsx:780
+#: packages/admin/src/components/TaxonomyManager.tsx:1044
+#: packages/admin/src/components/TaxonomyManager.tsx:1399
+#: packages/admin/src/components/TaxonomyManager.tsx:1453
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:37
 #: packages/admin/src/components/users/UserDetail.tsx:148
 #: packages/admin/src/components/Widgets.tsx:430
 msgid "Name"
 msgstr "이름"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:760
+#: packages/admin/src/components/TaxonomyManager.tsx:971
 msgid "Name and label are required"
 msgstr "이름과 라벨은 필수 항목입니다."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:766
+#: packages/admin/src/components/TaxonomyManager.tsx:977
 msgid "Name must start with a letter and contain only lowercase letters, numbers, and underscores"
 msgstr "이름은 문자로 시작해야 하며 소문자, 숫자, 밑줄만 포함할 수 있습니다."
 
@@ -6761,7 +6931,7 @@ msgstr ""
 msgid "Never"
 msgstr "없음"
 
-#: packages/admin/src/router.tsx:1380
+#: packages/admin/src/router.tsx:1386
 msgid "new"
 msgstr ""
 
@@ -6823,7 +6993,15 @@ msgstr "새 섹션"
 msgid "new tab"
 msgstr "새 탭"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1079
+#: packages/admin/src/components/BulkTagDialog.tsx:275
+msgid "New tag name"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1352
+msgid "New taxonomy"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1326
 msgid "New Taxonomy"
 msgstr "새 분류"
 
@@ -6839,7 +7017,7 @@ msgstr "새 창"
 msgid "Newest"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:587
+#: packages/admin/src/components/TaxonomyManager.tsx:783
 msgid "News"
 msgstr ""
 
@@ -6848,7 +7026,7 @@ msgid "Next"
 msgstr "다음"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:396
-#: packages/admin/src/components/ContentList.tsx:733
+#: packages/admin/src/components/ContentList.tsx:792
 #: packages/admin/src/components/MediaLibrary.tsx:1316
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
 msgid "Next page"
@@ -6868,7 +7046,7 @@ msgstr ""
 msgid "Next, the browser's passkey window will open"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1408
+#: packages/admin/src/components/ContentList.tsx:1467
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -6879,12 +7057,13 @@ msgid "No (shared across translations)"
 msgstr ""
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:658
+#: packages/admin/src/components/ContentList.tsx:717
 msgid "No {0} yet."
 msgstr "아직 {0}이 없습니다."
 
 #. placeholder {0}: taxonomyDef.label.toLowerCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1120
+#: packages/admin/src/components/TaxonomyManager.tsx:1391
+#: packages/admin/src/components/TaxonomyManager.tsx:1462
 msgid "No {0} yet. Create one to get started."
 msgstr "아직 {0}이(가) 없습니다. 하나를 생성하여 시작하세요."
 
@@ -6901,7 +7080,7 @@ msgstr "아직 404 오류가 기록되지 않았습니다."
 msgid "No alt text"
 msgstr "대체 텍스트 없음"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:402
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
 msgid "No API tokens yet. Create one to get started."
 msgstr "아직 API 토큰이 없습니다. 하나를 생성하여 시작하세요."
 
@@ -6998,6 +7177,10 @@ msgstr "이메일 제공업체가 구성되지 않았습니다. 이 링크를 �
 msgid "No EmDash users found"
 msgstr "EmDash 사용자를 찾을 수 없습니다"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:429
+msgid "No exact match on this site"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:33
 msgid "No expiry"
 msgstr "만료 없음"
@@ -7072,6 +7255,10 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:265
 msgid "No matching passkey found for this account."
 msgstr "이 계정과 일치하는 패스키를 찾을 수 없습니다."
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1416
+msgid "No matching tags"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:567
 #: packages/admin/src/components/FieldEditor.tsx:597
@@ -7153,8 +7340,8 @@ msgstr "아직 리디렉션이 없습니다."
 msgid "No results"
 msgstr "결과 없음"
 
-#: packages/admin/src/components/ContentList.tsx:655
-#: packages/admin/src/components/ContentList.tsx:674
+#: packages/admin/src/components/ContentList.tsx:714
+#: packages/admin/src/components/ContentList.tsx:733
 msgid "No results for \"{activeSearch}\""
 msgstr ""
 
@@ -7221,8 +7408,8 @@ msgstr ""
 msgid "None"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:613
-#: packages/admin/src/components/TaxonomyManager.tsx:622
+#: packages/admin/src/components/TaxonomyManager.tsx:820
+#: packages/admin/src/components/TaxonomyManager.tsx:829
 msgid "None (top level)"
 msgstr "없음(최상위 수준)"
 
@@ -7230,7 +7417,11 @@ msgstr "없음(최상위 수준)"
 msgid "Not compatible with this environment"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1407
+#: packages/admin/src/components/BulkTagDialog.tsx:64
+msgid "Not matched"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1466
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -7358,7 +7549,7 @@ msgstr "이미지 하단에 표시되는 캡션(선택 사항)"
 msgid "Optional caption for display"
 msgstr "표시할 캡션(선택 사항)"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:638
+#: packages/admin/src/components/TaxonomyManager.tsx:845
 msgid "Optional description"
 msgstr "설명(선택 사항)"
 
@@ -7449,7 +7640,7 @@ msgstr "소유권"
 msgid "Package"
 msgstr "패키지"
 
-#: packages/admin/src/router.tsx:2907
+#: packages/admin/src/router.tsx:2913
 msgid "Page Not Found"
 msgstr ""
 
@@ -7481,7 +7672,7 @@ msgid "Paragraph inserted before table"
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/TaxonomyManager.tsx:609
+#: packages/admin/src/components/TaxonomyManager.tsx:816
 msgid "Parent"
 msgstr "상위 항목"
 
@@ -7617,11 +7808,11 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1554
+#: packages/admin/src/components/ContentList.tsx:1613
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "\"{제목}\"을(를) 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
 
-#: packages/admin/src/components/ContentList.tsx:1543
+#: packages/admin/src/components/ContentList.tsx:1602
 msgid "Permanently delete {title}"
 msgstr "{title}을(를) 영구적으로 삭제"
 
@@ -7758,8 +7949,8 @@ msgstr ""
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2334
-#: packages/admin/src/router.tsx:2365
+#: packages/admin/src/router.tsx:2340
+#: packages/admin/src/router.tsx:2371
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -7769,8 +7960,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:530
 msgid "Plugin tools: {0}"
 msgstr ""
 
@@ -7814,6 +8005,10 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:399
 msgid "Post"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:363
+msgid "Post URLs (one per line)"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:407
@@ -7870,7 +8065,7 @@ msgid "Previous"
 msgstr "이전"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:377
-#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/ContentList.tsx:780
 #: packages/admin/src/components/MediaLibrary.tsx:1315
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
 msgid "Previous page"
@@ -7928,7 +8123,7 @@ msgstr ""
 msgid "visualEditing.publish"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:505
+#: packages/admin/src/components/ContentList.tsx:514
 #: packages/admin/src/components/ContentSettingsPanel.tsx:900
 #: packages/admin/src/components/ContentSettingsPanel.tsx:903
 msgid "Publish"
@@ -7959,11 +8154,11 @@ msgstr ""
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:859
-#: packages/admin/src/components/ContentList.tsx:870
+#: packages/admin/src/components/ContentList.tsx:918
+#: packages/admin/src/components/ContentList.tsx:929
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:403
-#: packages/admin/src/router.tsx:1236
+#: packages/admin/src/router.tsx:1242
 msgid "Published"
 msgstr "게시됨"
 
@@ -8098,6 +8293,7 @@ msgstr ""
 msgid "Reading"
 msgstr "읽기 설정"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:57
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/WordPressImport.tsx:2002
@@ -8254,7 +8450,7 @@ msgstr ""
 msgid "Remove {label}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:862
+#: packages/admin/src/components/TaxonomySidebar.tsx:865
 msgid "Remove assignment"
 msgstr ""
 
@@ -8539,7 +8735,7 @@ msgstr ""
 msgid "Restore"
 msgstr "복원"
 
-#: packages/admin/src/components/ContentList.tsx:1531
+#: packages/admin/src/components/ContentList.tsx:1590
 msgid "Restore {title}"
 msgstr "{title} 복원"
 
@@ -8565,6 +8761,10 @@ msgstr "{0}에서 이 버전을 복원하시겠습니까? 그러면 현재 콘�
 msgid "Restoring..."
 msgstr "복원 중..."
 
+#: packages/admin/src/components/BulkTagDialog.tsx:408
+msgid "Results"
+msgstr ""
+
 #: packages/admin/src/components/BlocksField.tsx:360
 #: packages/admin/src/components/FieldEditor.tsx:659
 msgid "Retired"
@@ -8584,7 +8784,7 @@ msgstr ""
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2895
+#: packages/admin/src/router.tsx:2901
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "재시도"
@@ -8596,6 +8796,10 @@ msgstr "재시도"
 msgid "Retry {0}"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:505
+msgid "Retry cache refresh"
+msgstr ""
+
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:244
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:251
 msgid "Retry copy"
@@ -8603,6 +8807,14 @@ msgstr ""
 
 #: packages/admin/src/components/MediaUploadDialog.tsx:344
 msgid "Retry failed"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:486
+msgid "Retry failures"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:335
+msgid "Retry loading tags"
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:417
@@ -8622,7 +8834,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "모든 콘텐츠에 삽입할 수 있는 재사용 가능한 콘텐츠 블록"
 
-#: packages/admin/src/router.tsx:1283
+#: packages/admin/src/router.tsx:1289
 msgid "Reverted to published version"
 msgstr ""
 
@@ -8642,6 +8854,11 @@ msgstr ""
 msgid "Review New Permissions"
 msgstr "새로운 권한 검토"
 
+#: packages/admin/src/components/BulkTagDialog.tsx:408
+#: packages/admin/src/components/BulkTagDialog.tsx:537
+msgid "Review posts"
+msgstr ""
+
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:51
 msgid "Review proposed changes"
 msgstr ""
@@ -8658,6 +8875,10 @@ msgstr ""
 msgid "Review Verified Update"
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:537
+msgid "Reviewing…"
+msgstr ""
+
 #: packages/admin/src/components/RevisionHistory.tsx:129
 msgid "Revision restored"
 msgstr "버전이 복원되었습니다."
@@ -8668,22 +8889,22 @@ msgstr "버전이 복원되었습니다."
 msgid "Revisions"
 msgstr "버전 기록"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:208
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Revoke token"
 msgstr "토큰 취소"
 
 #. placeholder {0}: token.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Revoke token {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
 msgstr "취소?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
 msgstr "취소 중..."
 
@@ -8846,6 +9067,10 @@ msgstr "저장됨"
 msgid "Saved \"{0}\"."
 msgstr ""
 
+#: packages/admin/src/components/TaxonomySidebar.tsx:680
+msgid "Saved immediately; term changes do not wait for Publish changes."
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:889
 #: packages/admin/src/components/MediaDetailPanel.tsx:1866
 #: packages/admin/src/components/MediaFolderDialog.tsx:171
@@ -8854,7 +9079,7 @@ msgstr ""
 #: packages/admin/src/components/PluginSettings.tsx:209
 #: packages/admin/src/components/Redirects.tsx:190
 #: packages/admin/src/components/SaveButton.tsx:33
-#: packages/admin/src/components/TaxonomyManager.tsx:677
+#: packages/admin/src/components/TaxonomyManager.tsx:888
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
 #: packages/admin/src/routes/bylines.tsx:579
@@ -8896,9 +9121,9 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ContentList.tsx:920
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1328
+#: packages/admin/src/router.tsx:1334
 msgid "Scheduled"
 msgstr "예약됨"
 
@@ -8931,8 +9156,8 @@ msgstr "스키마 읽기"
 msgid "Schema Write"
 msgstr "스키마 쓰기"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:490
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:366
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:505
 msgid "Scopes"
 msgstr "권한 범위"
 
@@ -8981,12 +9206,12 @@ msgid "Search"
 msgstr "검색"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:466
+#: packages/admin/src/components/ContentList.tsx:475
 msgid "Search {0}"
 msgstr "{0} 검색"
 
 #. placeholder {0}: collectionLabel.toLowerCase()
-#: packages/admin/src/components/ContentList.tsx:465
+#: packages/admin/src/components/ContentList.tsx:474
 msgid "Search {0}..."
 msgstr "{0} 검색..."
 
@@ -9107,6 +9332,14 @@ msgstr "섹션 검색..."
 #: packages/admin/src/components/Redirects.tsx:360
 msgid "Search source or destination..."
 msgstr "소스 또는 대상 검색..."
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1375
+msgid "Search tags"
+msgstr ""
+
+#: packages/admin/src/components/TaxonomyManager.tsx:1374
+msgid "Search tags…"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:93
 msgid "Search themes"
@@ -9242,7 +9475,7 @@ msgstr "선택"
 msgid "Select {label}"
 msgstr "{label} 선택"
 
-#: packages/admin/src/components/ContentList.tsx:1263
+#: packages/admin/src/components/ContentList.tsx:1322
 msgid "Select {title}"
 msgstr ""
 
@@ -9266,7 +9499,7 @@ msgstr ""
 msgid "Select all"
 msgstr "모두 선택"
 
-#: packages/admin/src/components/ContentList.tsx:587
+#: packages/admin/src/components/ContentList.tsx:646
 msgid "Select all on this page"
 msgstr ""
 
@@ -9342,6 +9575,10 @@ msgstr ""
 msgid "Select table"
 msgstr ""
 
+#: packages/admin/src/components/ContentList.tsx:554
+msgid "Select up to 50 posts to add a tag."
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1748
 msgid "Select which content types to import."
 msgstr "가져올 콘텐츠 유형을 선택하세요."
@@ -9367,6 +9604,10 @@ msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:937
 msgid "Selected media"
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:343
+msgid "Selected posts"
 msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:28
@@ -9464,7 +9705,7 @@ msgstr ""
 msgid "Set to 0 to never close comments automatically."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:515
+#: packages/admin/src/components/ContentList.tsx:525
 msgid "Set to draft"
 msgstr ""
 
@@ -9560,8 +9801,8 @@ msgstr ""
 msgid "Show thumbnails"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Show token"
 msgstr "토큰 표시"
 
@@ -9581,6 +9822,7 @@ msgid "Shown when hovering over the image."
 msgstr "이미지 위로 마우스를 가져가면 표시됩니다."
 
 #: packages/admin/src/components/SignupPage.tsx:457
+#: packages/admin/src/locales/emails.ts:56
 msgid "Sign in"
 msgstr "로그인"
 
@@ -9592,6 +9834,10 @@ msgstr "로그인"
 #: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "대신 로그인하세요"
+
+#: packages/admin/src/locales/emails.ts:53
+msgid "Sign in to {siteName}"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:234
 msgid "Sign in to your site"
@@ -9644,6 +9890,10 @@ msgstr "한 줄 텍스트 입력"
 msgid "Site"
 msgstr "사이트"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+msgid "Site Export"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:169
 msgid "Site Identity"
 msgstr "사이트 기본 정보"
@@ -9656,6 +9906,14 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "사이트 기본 정보, 로고, 파비콘, 읽기 설정"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
+msgid "Site Import"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
+msgid "Site Import Analysis"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
@@ -9712,7 +9970,8 @@ msgstr "건너뜀"
 #: packages/admin/src/components/FieldEditor.tsx:504
 #: packages/admin/src/components/SectionEditor.tsx:280
 #: packages/admin/src/components/Sections.tsx:184
-#: packages/admin/src/components/TaxonomyManager.tsx:593
+#: packages/admin/src/components/TaxonomyManager.tsx:798
+#: packages/admin/src/components/TaxonomyManager.tsx:802
 #: packages/admin/src/routes/byline-schema.tsx:237
 #: packages/admin/src/routes/bylines.tsx:486
 msgid "Slug"
@@ -9833,7 +10092,7 @@ msgstr "가져오기 시작"
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:612
+#: packages/admin/src/components/ContentList.tsx:671
 #: packages/admin/src/components/ContentTypeEditor.tsx:117
 #: packages/admin/src/components/Redirects.tsx:489
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
@@ -9956,6 +10215,11 @@ msgstr ""
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr ""
 
+#: packages/admin/src/components/BulkTagDialog.tsx:298
+#: packages/admin/src/components/BulkTagDialog.tsx:399
+msgid "Tag"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:180
 #: packages/admin/src/components/SetupWizard.tsx:127
 msgid "Tagline"
@@ -9970,6 +10234,14 @@ msgstr "태그"
 #: packages/admin/src/components/WordPressImport.tsx:1813
 msgid "Tags ({0})"
 msgstr "태그({0})"
+
+#: packages/admin/src/components/BulkTagDialog.tsx:452
+msgid "Tags go live now; draft edits stay unpublished."
+msgstr ""
+
+#: packages/admin/src/components/BulkTagDialog.tsx:442
+msgid "Tags were saved, but cached pages may still show old tags. Retry the cache refresh."
+msgstr ""
 
 #: packages/admin/src/components/EntryLockNotice.tsx:54
 #: packages/admin/src/components/EntryLockNotice.tsx:92
@@ -9986,12 +10258,12 @@ msgstr ""
 msgid "Target"
 msgstr "열기 방식"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:371
+#: packages/admin/src/components/TaxonomyManager.tsx:565
 msgid "Target locale"
 msgstr ""
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1159
-#: packages/admin/src/components/TaxonomySidebar.tsx:894
+#: packages/admin/src/components/TaxonomySidebar.tsx:897
 msgid "Taxonomies"
 msgstr "분류"
 
@@ -9999,19 +10271,19 @@ msgstr "분류"
 msgid "Taxonomies Manage"
 msgstr "분류 관리"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:1203
+#: packages/admin/src/components/TaxonomyManager.tsx:1552
 msgid "Taxonomy created"
 msgstr "분류가 생성되었습니다."
 
-#: packages/admin/src/components/TaxonomyManager.tsx:969
+#: packages/admin/src/components/TaxonomyManager.tsx:1193
 msgid "Taxonomy deleted"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:45
+#: packages/admin/src/components/TaxonomyManager.tsx:66
 msgid "Taxonomy not found: {taxonomyName}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:358
+#: packages/admin/src/components/TaxonomyManager.tsx:552
 msgid "Taxonomy: {taxonomyName}"
 msgstr ""
 
@@ -10023,19 +10295,19 @@ msgstr ""
 msgid "Template:"
 msgstr "템플릿:"
 
-#: packages/admin/src/components/TaxonomyManager.tsx:556
-#: packages/admin/src/components/TaxonomyManager.tsx:557
-#: packages/admin/src/components/TaxonomyManager.tsx:1082
+#: packages/admin/src/components/TaxonomyManager.tsx:754
+#: packages/admin/src/components/TaxonomyManager.tsx:755
+#: packages/admin/src/components/TaxonomyManager.tsx:1329
 msgid "Term"
 msgstr "항목"
 
 #. placeholder {0}: term.label
 #. placeholder {1}: term.locale.toUpperCase()
-#: packages/admin/src/components/TaxonomyManager.tsx:1029
+#: packages/admin/src/components/TaxonomyManager.tsx:1253
 msgid "Term \"{0}\" created in {1}."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:947
+#: packages/admin/src/components/TaxonomyManager.tsx:1171
 msgid "Term deleted"
 msgstr "항목이 삭제되었습니다."
 
@@ -10120,7 +10392,7 @@ msgstr "헤더 및 메타데이터에 사용되는 사이트 이름"
 msgid "The order controls how block types appear in the picker."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2909
+#: packages/admin/src/router.tsx:2915
 msgid "The page you're looking for doesn't exist."
 msgstr ""
 
@@ -10238,7 +10510,7 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
 #: packages/admin/src/components/ContentEditor.tsx:919
-#: packages/admin/src/router.tsx:924
+#: packages/admin/src/router.tsx:930
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr ""
 
@@ -10304,9 +10576,17 @@ msgstr "커스텀 섹션입니다."
 msgid "This is a WordPress site."
 msgstr "WordPress 사이트입니다."
 
+#: packages/admin/src/locales/emails.ts:57
+msgid "This link expires in 15 minutes."
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
 msgstr "이 링크는 7일 후에 만료되며 한 번만 사용할 수 있습니다."
+
+#: packages/admin/src/locales/emails.ts:49
+msgid "This link expires in 7 days."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:939
 msgid "This may take a while for large exports."
@@ -10444,7 +10724,7 @@ msgid "This will move the item to trash. You can restore it later from the trash
 msgstr "항목이 휴지통으로 이동됩니다. 나중에 휴지통에서 복원할 수 있습니다."
 
 #. placeholder {0}: deleteTarget?.label
-#: packages/admin/src/components/TaxonomyManager.tsx:1173
+#: packages/admin/src/components/TaxonomyManager.tsx:1522
 msgid "This will permanently delete \"{0}\" and remove it from all content."
 msgstr "이렇게 하면 \"{0}\"이(가) 영구적으로 삭제되고 모든 콘텐츠에서 제거됩니다."
 
@@ -10482,8 +10762,8 @@ msgstr "시간대"
 msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "날짜 표시를 위한 시간대(예: America/New_York)"
 
-#: packages/admin/src/components/ContentList.tsx:597
-#: packages/admin/src/components/ContentList.tsx:758
+#: packages/admin/src/components/ContentList.tsx:656
+#: packages/admin/src/components/ContentList.tsx:817
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -10519,11 +10799,11 @@ msgid "Toggle header row"
 msgstr ""
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "Token created: {0}"
 msgstr "생성된 토큰: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:481
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:496
 msgid "Token Name"
 msgstr "토큰 이름"
 
@@ -10552,31 +10832,32 @@ msgstr ""
 msgid "Translatable"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:283
-#: packages/admin/src/components/TaxonomyManager.tsx:393
+#: packages/admin/src/components/TaxonomyManager.tsx:356
+#: packages/admin/src/components/TaxonomyManager.tsx:477
+#: packages/admin/src/components/TaxonomyManager.tsx:587
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translate"
 msgstr "번역"
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:355
+#: packages/admin/src/components/TaxonomyManager.tsx:549
 msgid "Translate \"{0}\""
 msgstr ""
 
 #. placeholder {0}: term.label
-#: packages/admin/src/components/TaxonomyManager.tsx:280
+#: packages/admin/src/components/TaxonomyManager.tsx:474
 msgid "Translate {0}"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:393
+#: packages/admin/src/components/TaxonomyManager.tsx:587
 #: packages/admin/src/components/TranslationsPanel.tsx:106
 msgid "Translating..."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:143
-#: packages/admin/src/components/TaxonomyManager.tsx:1028
-#: packages/admin/src/components/TaxonomySidebar.tsx:774
-#: packages/admin/src/router.tsx:1379
+#: packages/admin/src/components/TaxonomyManager.tsx:1252
+#: packages/admin/src/components/TaxonomySidebar.tsx:777
+#: packages/admin/src/router.tsx:1385
 msgid "Translation created"
 msgstr ""
 
@@ -10593,11 +10874,11 @@ msgstr "휴지통"
 #: packages/admin/src/components/comments/CommentInbox.tsx:249
 #: packages/admin/src/components/comments/CommentInbox.tsx:290
 #: packages/admin/src/components/comments/CommentInbox.tsx:538
-#: packages/admin/src/components/ContentList.tsx:450
+#: packages/admin/src/components/ContentList.tsx:459
 msgid "Trash"
 msgstr "휴지통"
 
-#: packages/admin/src/components/ContentList.tsx:786
+#: packages/admin/src/components/ContentList.tsx:845
 msgid "Trash is empty"
 msgstr "휴지통이 비어 있습니다."
 
@@ -10779,7 +11060,7 @@ msgstr "이름이 없는 패스키"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1260
+#: packages/admin/src/router.tsx:1266
 msgid "Unpublished"
 msgstr ""
 
@@ -10787,7 +11068,7 @@ msgstr ""
 msgid "Unregistered Content Tables Found"
 msgstr "등록되지 않은 콘텐츠 테이블이 발견되었습니다."
 
-#: packages/admin/src/components/TaxonomySidebar.tsx:840
+#: packages/admin/src/components/TaxonomySidebar.tsx:843
 msgid "Unresolved assignment"
 msgstr ""
 
@@ -10795,7 +11076,7 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1347
+#: packages/admin/src/router.tsx:1353
 msgid "Unscheduled"
 msgstr ""
 
@@ -10810,7 +11091,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr ""
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:990
+#: packages/admin/src/components/ContentList.tsx:1049
 msgid "Until {0}"
 msgstr ""
 
@@ -10832,7 +11113,7 @@ msgstr ""
 msgid "Up to {MAX_SELECTED} bylines can be selected"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:679
+#: packages/admin/src/components/TaxonomyManager.tsx:890
 msgid "Update"
 msgstr "업데이트"
 
@@ -10850,7 +11131,7 @@ msgid "Update site settings"
 msgstr "사이트 설정 업데이트"
 
 #. placeholder {0}: taxonomyDef.labelSingular?.toLowerCase() || "term"
-#: packages/admin/src/components/TaxonomyManager.tsx:561
+#: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Update the {0} details"
 msgstr "{0} 세부정보 업데이트"
 
@@ -10863,7 +11144,7 @@ msgstr "이 리디렉션 규칙을 업데이트하세요."
 msgid "Update to v{0}"
 msgstr "v{0}로 업데이트"
 
-#: packages/admin/src/components/ContentList.tsx:869
+#: packages/admin/src/components/ContentList.tsx:928
 #: packages/admin/src/components/ContentSettingsPanel.tsx:997
 #: packages/admin/src/components/RegistryPluginDetail.tsx:580
 msgid "Updated"
@@ -10941,6 +11222,10 @@ msgstr "미디어 업로드"
 
 #: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
+msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
@@ -11053,7 +11338,7 @@ msgstr ""
 msgid "Use another device"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1064
+#: packages/admin/src/components/ContentList.tsx:1123
 msgid "Use as end date"
 msgstr ""
 
@@ -11077,7 +11362,7 @@ msgstr "등록된 패스키를 사용하여 안전하게 로그인하세요."
 msgid "Used as the fallback Open Graph image when a page has none. Recommended size: 1200×630."
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:846
+#: packages/admin/src/components/TaxonomyManager.tsx:1056
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "식별자로 사용됩니다. 소문자, 숫자, 밑줄만 가능합니다."
 
@@ -11211,7 +11496,7 @@ msgstr "이메일 발송 상태 확인 및 테스트 이메일 전송"
 msgid "View mode"
 msgstr "보기 모드"
 
-#: packages/admin/src/components/ContentList.tsx:1335
+#: packages/admin/src/components/ContentList.tsx:1394
 msgid "View published {title}"
 msgstr "게시된 {title} 보기"
 
@@ -11352,7 +11637,7 @@ msgstr "항목이 게시되었을 때"
 msgid "Where is it saved?"
 msgstr ""
 
-#: packages/admin/src/components/TaxonomyManager.tsx:860
+#: packages/admin/src/components/TaxonomyManager.tsx:1070
 msgid "Which content types can use this taxonomy"
 msgstr "이 분류를 사용할 수 있는 콘텐츠 유형"
 
@@ -11478,7 +11763,7 @@ msgstr ""
 msgid "WordPress Username"
 msgstr "WordPress 사용자 이름"
 
-#: packages/admin/src/components/ContentList.tsx:493
+#: packages/admin/src/components/ContentList.tsx:502
 msgid "Working on {selectedCount} items…"
 msgstr ""
 
@@ -11510,7 +11795,7 @@ msgstr ""
 msgid "Yearly"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1410
+#: packages/admin/src/components/ContentList.tsx:1469
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -11570,7 +11855,7 @@ msgstr ""
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2174
+#: packages/admin/src/router.tsx:2180
 msgid "You need Editor permissions to moderate comments."
 msgstr ""
 
@@ -11607,6 +11892,14 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "Cloudflare Access로 로그인되어 있습니다"
+
+#: packages/admin/src/locales/emails.ts:44
+msgid "You've been invited to {siteName}"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:45
+msgid "You've been invited to join {siteName}."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"
