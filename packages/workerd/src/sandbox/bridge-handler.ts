@@ -181,7 +181,12 @@ export interface BridgeHandlerOptions {
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
-	beforeContentWrite?: () => Promise<void>;
+	/**
+	 * Called immediately before a content write; it throws to refuse the
+	 * write. When it returns a function, that function is called once the
+	 * write has succeeded.
+	 */
+	beforeContentWrite?: () => Promise<void | (() => Promise<void>)>;
 	contentCreate?: SandboxContentCreateCallback;
 	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	taxonomyWrite?: TaxonomyAccessWithWrite;
@@ -522,47 +527,50 @@ async function dispatch(
 					code: "VALIDATION_ERROR",
 				});
 			}
-			await opts.beforeContentWrite?.();
-			const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
-			if (runtimeContentCreate) {
-				const originHookValue = optionalString(body, "originHook");
-				const originHook =
-					originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
-						? originHookValue
-						: undefined;
-				return runtimeContentCreate(
-					pluginId,
+			return guardedContentWrite(opts, () => {
+				const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
+				if (runtimeContentCreate) {
+					const originHookValue = optionalString(body, "originHook");
+					const originHook =
+						originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
+							? originHookValue
+							: undefined;
+					return runtimeContentCreate(
+						pluginId,
+						requireString(body, "collection"),
+						requireRecord(body, "data"),
+						{
+							locale,
+							translationOf: createOptions
+								? optionalString(createOptions, "translationOf")
+								: undefined,
+							originHook,
+							sandboxOrigin: true,
+						},
+					);
+				}
+				return contentCreate(
+					db,
 					requireString(body, "collection"),
 					requireRecord(body, "data"),
-					{
-						locale,
-						translationOf: createOptions
-							? optionalString(createOptions, "translationOf")
-							: undefined,
-						originHook,
-						sandboxOrigin: true,
-					},
+					locale,
 				);
-			}
-			return contentCreate(
-				db,
-				requireString(body, "collection"),
-				requireRecord(body, "data"),
-				locale,
-			);
+			});
 		case "content/update":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentUpdate(
-				db,
-				requireString(body, "collection"),
-				requireString(body, "id"),
-				requireRecord(body, "data"),
+			return guardedContentWrite(opts, () =>
+				contentUpdate(
+					db,
+					requireString(body, "collection"),
+					requireString(body, "id"),
+					requireRecord(body, "data"),
+				),
 			);
 		case "content/delete":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
+			return guardedContentWrite(opts, () =>
+				contentDelete(db, requireString(body, "collection"), requireString(body, "id")),
+			);
 		case "content/getVersioned":
 			requireCapability(opts, "content:publish");
 			return requireContentActions(opts).getVersioned(
@@ -628,28 +636,27 @@ async function dispatch(
 		case "content/createMany":
 			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
-			await opts.beforeContentWrite?.();
-			return contentCreateMany(
-				db,
-				requireString(body, "collection"),
-				requireRecordArray(body, "items"),
-				createManyLocale,
+			return guardedContentWrite(opts, () =>
+				contentCreateMany(
+					db,
+					requireString(body, "collection"),
+					requireRecordArray(body, "items"),
+					createManyLocale,
+				),
 			);
 		case "content/updateMany":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentUpdateMany(
-				db,
-				requireString(body, "collection"),
-				requireUpdateManyItems(body, "items"),
+			return guardedContentWrite(opts, () =>
+				contentUpdateMany(
+					db,
+					requireString(body, "collection"),
+					requireUpdateManyItems(body, "items"),
+				),
 			);
 		case "content/deleteMany":
 			requireCapability(opts, "content:write");
-			await opts.beforeContentWrite?.();
-			return contentDeleteMany(
-				db,
-				requireString(body, "collection"),
-				requireStringArray(body, "ids"),
+			return guardedContentWrite(opts, () =>
+				contentDeleteMany(db, requireString(body, "collection"), requireStringArray(body, "ids")),
 			);
 
 		// ── Comments ────────────────────────────────────────────────────
@@ -1282,6 +1289,16 @@ function requireCapability(opts: BridgeHandlerOptions, capability: string): void
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
 	}
+}
+
+async function guardedContentWrite<T>(
+	opts: BridgeHandlerOptions,
+	write: () => Promise<T>,
+): Promise<T> {
+	const recordWrite = await opts.beforeContentWrite?.();
+	const result = await write();
+	if (typeof recordWrite === "function") await recordWrite();
+	return result;
 }
 
 function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {

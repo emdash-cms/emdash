@@ -28,8 +28,12 @@ import { getPublicOrigin } from "../../api/public-url.js";
 const MW_CACHE_HEADERS = {
 	"Cache-Control": "private, no-store",
 } as const;
-import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-tokens.js";
-import { hasScope } from "../../auth/api-tokens.js";
+import {
+	resolveApiToken,
+	resolveOAuthToken,
+	type ResolvedBearerToken,
+} from "../../api/handlers/api-tokens.js";
+import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
@@ -43,6 +47,8 @@ declare global {
 			user?: User;
 			/** Token scopes when authenticated via API token or OAuth token. Undefined for session auth. */
 			tokenScopes?: string[];
+			/** Id of the API or OAuth token the request authenticated with. Undefined for session auth. */
+			tokenId?: string;
 			emdash?: EmDashHandlers;
 		}
 		interface SessionData {
@@ -655,7 +661,7 @@ async function handleBearerAuth(
 	if (!emdash?.db) return "none";
 
 	// Resolve token based on prefix
-	let resolved: { userId: string; scopes: string[] } | null = null;
+	let resolved: ResolvedBearerToken | null = null;
 
 	if (token.startsWith("ec_pat_")) {
 		resolved = await resolveApiToken(emdash.db, token);
@@ -677,6 +683,7 @@ async function handleBearerAuth(
 	// Set user and scopes on locals
 	locals.user = user;
 	locals.tokenScopes = resolved.scopes;
+	locals.tokenId = resolved.tokenId;
 
 	return "authenticated";
 }
@@ -750,10 +757,11 @@ async function handlePasskeyAuth(
 /**
  * Scope rules: ordered list of (pathPrefix, method, requiredScope) tuples.
  * First matching rule wins. Methods: "*" = any, "WRITE" = POST/PUT/PATCH/DELETE.
+ * A list of scopes is satisfied by holding any one of them.
  *
  * Routes not matched by any rule default to "admin" scope (fail-closed).
  */
-const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
+const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readonly string[]]> = [
 	// Content routes
 	["/_emdash/api/content", "GET", "content:read"],
 	["/_emdash/api/content", "WRITE", "content:write"],
@@ -787,6 +795,10 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// Search
 	["/_emdash/api/search", "GET", "content:read"],
 	["/_emdash/api/search", "WRITE", "admin"],
+
+	// Site transfer — must precede the generic /admin rule so a token holding
+	// only a transfer scope reaches the route, which requires its specific one.
+	["/_emdash/api/admin/transfer", "*", TRANSFER_SCOPES],
 
 	// Import, admin, plugins — all require admin scope
 	["/_emdash/api/import", "*", "admin"],
@@ -832,9 +844,14 @@ function enforceTokenScope(
 
 		// Check method match
 		if (ruleMethod === "*" || (ruleMethod === "WRITE" && isWrite) || ruleMethod === method) {
-			if (hasScope(tokenScopes, scope)) return null;
+			const anyOf = typeof scope === "string" ? [scope] : scope;
+			if (anyOf.some((required) => hasScope(tokenScopes, required))) return null;
 
-			return apiError("INSUFFICIENT_SCOPE", `Token lacks required scope: ${scope}`, 403);
+			return apiError(
+				"INSUFFICIENT_SCOPE",
+				`Token lacks required scope: ${anyOf.join(" or ")}`,
+				403,
+			);
 		}
 	}
 

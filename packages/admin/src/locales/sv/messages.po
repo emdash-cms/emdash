@@ -1120,7 +1120,7 @@ msgstr "Ytterligare data att importera."
 msgid "admin"
 msgstr "admin"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
 #: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -1324,9 +1324,9 @@ msgstr ""
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:476
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:232
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:491
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
@@ -1401,8 +1401,8 @@ msgstr "Alla mediatyper tillåtna (med förbehåll för globala gränser)."
 
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/Settings.tsx:101
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:333
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:348
 msgid "API Tokens"
 msgstr "API-tokens"
 
@@ -1911,7 +1911,7 @@ msgstr "Kan visa innehåll"
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/SecuritySettings.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:580
 #: packages/admin/src/components/TaxonomyManager.tsx:880
@@ -2468,7 +2468,7 @@ msgstr "Komponent"
 msgid "Configure Field"
 msgstr "Konfigurera fält"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:431
 msgid "Confirm"
 msgstr "Bekräfta"
 
@@ -2652,7 +2652,7 @@ msgstr "Bidragsgivare"
 msgid "Copied"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "Kopierat till urklipp"
@@ -2679,12 +2679,12 @@ msgstr "Kopiera inbjudningslänk"
 msgid "Copy slug"
 msgstr "Kopiera slug"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:258
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
 msgid "Copy this token now — it won't be shown again."
 msgstr "Kopiera denna token nu — den visas inte igen."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:289
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:296
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
 msgid "Copy token"
 msgstr "Kopiera token"
 
@@ -2877,7 +2877,7 @@ msgstr "Skapa ny meny"
 msgid "Create new tag"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
 msgstr "Skapa ny token"
 
@@ -2890,9 +2890,9 @@ msgid "Create passkey"
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:230
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:341
 msgid "Create personal access tokens for programmatic API access"
 msgstr "Skapa personliga åtkomsttoken för programmatisk API-åtkomst"
 
@@ -2935,8 +2935,8 @@ msgstr "Skapa taxonomi"
 msgid "Create taxonomy terms and change content classifications"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 msgid "Create Token"
 msgstr "Skapa token"
 
@@ -2983,7 +2983,7 @@ msgstr "Skapa, uppdatera, ta bort innehåll"
 
 #: packages/admin/src/components/ContentList.tsx:927
 #: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "Skapad"
@@ -3022,7 +3022,7 @@ msgstr ""
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 #: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Creating..."
 msgstr "Skapar …"
@@ -3578,7 +3578,7 @@ msgid "Discarding..."
 msgstr "Kasserar …"
 
 #: packages/admin/src/components/Dashboard.tsx:188
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "Stäng"
 
@@ -3695,6 +3695,10 @@ msgstr "Ladda ner {0}"
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
 msgstr "Ladda ner en fullständig säkerhetskopia av din webbplats: allt innehåll (inklusive utkast och papperskorg), samlingar, taxonomier, menyer, widgetar, mediemetadata och webbplatsinställningar. Användarkonton och hemligheter ingår aldrig."
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
@@ -3828,7 +3832,7 @@ msgstr "t.ex. application/zip eller .pdf"
 msgid "e.g. import, blog"
 msgstr "t.ex. import, blogg"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:484
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:499
 msgid "e.g., CI/CD Pipeline"
 msgstr "t.ex. CI/CD-pipeline"
 
@@ -4270,8 +4274,8 @@ msgstr ""
 msgid "Expand details"
 msgstr "Visa detaljer"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:365
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:526
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:380
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:541
 msgid "Expiry"
 msgstr "Utgångsdatum"
 
@@ -4636,7 +4640,7 @@ msgid "Failed to import media"
 msgstr "Det gick inte att importera media"
 
 #: packages/admin/src/lib/api/marketplace.ts:344
-#: packages/admin/src/lib/api/registry.ts:825
+#: packages/admin/src/lib/api/registry.ts:789
 msgid "Failed to install plugin"
 msgstr "Det gick inte att installera tillägget"
 
@@ -4793,7 +4797,7 @@ msgstr "Det gick inte att återställa innehållet"
 msgid "Failed to restore revision"
 msgstr "Det gick inte att återställa revisionen"
 
-#: packages/admin/src/lib/api/api-tokens.ts:99
+#: packages/admin/src/lib/api/api-tokens.ts:102
 msgid "Failed to revoke API token"
 msgstr "Det gick inte att återkalla API-token"
 
@@ -4849,7 +4853,7 @@ msgid "Failed to set entry terms"
 msgstr "Det gick inte att ange termer för posten"
 
 #: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/registry.ts:1039
+#: packages/admin/src/lib/api/registry.ts:1003
 msgid "Failed to uninstall plugin"
 msgstr "Det gick inte att avinstallera tillägget"
 
@@ -4888,7 +4892,7 @@ msgstr "Det gick inte att uppdatera media"
 
 #: packages/admin/src/components/PluginManager.tsx:314
 #: packages/admin/src/lib/api/marketplace.ts:370
-#: packages/admin/src/lib/api/registry.ts:914
+#: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
 msgstr "Det gick inte att uppdatera tillägget"
 
@@ -4928,7 +4932,7 @@ msgstr "Det gick inte att ladda upp till leverantören"
 msgid "Failed to verify authentication"
 msgstr "Det gick inte att verifiera autentiseringen"
 
-#: packages/admin/src/lib/api/registry.ts:770
+#: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
 msgstr ""
 
@@ -5193,7 +5197,7 @@ msgstr "Full"
 msgid "Full access"
 msgstr "Full åtkomst"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:118
 msgid "Full admin access"
 msgstr "Full administratörsåtkomst"
 
@@ -5278,7 +5282,7 @@ msgstr "Gäst-byline"
 msgid "Guest only"
 msgstr "Endast gäst"
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:92
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
 msgstr ""
 
@@ -5365,8 +5369,8 @@ msgstr "hero, banner, cta"
 msgid "Hide from search engines"
 msgstr "Dölj för sökmotorer"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Hide token"
 msgstr "Dölj token"
 
@@ -5548,6 +5552,10 @@ msgstr "Importera"
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Import {0}"
 msgstr "Importera {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
+msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
@@ -5865,7 +5873,7 @@ msgstr "Bjud in din första teammedlem"
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
@@ -6027,7 +6035,7 @@ msgstr "Senast sedd"
 msgid "Last updated"
 msgstr "Senast uppdaterad"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
 #: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "Senast använd"
@@ -6266,7 +6274,7 @@ msgstr "Läser in widgetar …"
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:99
@@ -7075,7 +7083,7 @@ msgstr "Inga 404-fel registrerade ännu."
 msgid "No alt text"
 msgstr "Ingen alt-text"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:402
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
 msgid "No API tokens yet. Create one to get started."
 msgstr "Inga API-token ännu. Skapa en för att komma igång."
 
@@ -7958,8 +7966,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "Tillägget svarade med {0}: {text}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:530
 msgid "Plugin tools: {0}"
 msgstr ""
 
@@ -7968,7 +7976,7 @@ msgid "Plugin uninstalled"
 msgstr "Tillägg avinstallerat"
 
 #: packages/admin/src/lib/api/marketplace.ts:232
-#: packages/admin/src/lib/api/registry.ts:954
+#: packages/admin/src/lib/api/registry.ts:918
 msgid "Plugin update requires re-consent"
 msgstr "Uppdatering av tillägg kräver nytt samtycke"
 
@@ -8721,7 +8729,7 @@ msgstr ""
 msgid "Resize settings panel"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:94
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
 msgstr ""
 
@@ -8887,22 +8895,22 @@ msgstr "Revision återställd"
 msgid "Revisions"
 msgstr "Revisioner"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:208
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Revoke token"
 msgstr "Återkalla token"
 
 #. placeholder {0}: token.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Revoke token {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
 msgstr "Återkalla?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
 msgstr "Återkallar …"
 
@@ -9154,8 +9162,8 @@ msgstr "Läsa schema"
 msgid "Schema Write"
 msgstr "Redigera schema"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:490
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:366
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:505
 msgid "Scopes"
 msgstr "Omfattning"
 
@@ -9799,8 +9807,8 @@ msgstr "Visa antal inlägg"
 msgid "Show thumbnails"
 msgstr "Visa miniatyrer"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Show token"
 msgstr "Visa token"
 
@@ -9888,6 +9896,10 @@ msgstr "Enradig textinmatning"
 msgid "Site"
 msgstr "Webbplats"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+msgid "Site Export"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:169
 msgid "Site Identity"
 msgstr "Webbplatsidentitet"
@@ -9900,6 +9912,14 @@ msgstr "webbplatsidentitet tillämpad (titel, slogan, logotyp)"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Webbplatsidentitet, logotyp, favicon och läsinställningar"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
+msgid "Site Import"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
+msgid "Site Import Analysis"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
@@ -10600,15 +10620,15 @@ msgstr ""
 msgid "This permanently deletes {0} from storage."
 msgstr "Detta tar bort {0} permanent från lagringen."
 
-#: packages/admin/src/lib/api/registry.ts:784
+#: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
 msgstr ""
 
-#: packages/admin/src/lib/api/registry.ts:792
+#: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
 msgstr ""
 
-#: packages/admin/src/lib/api/registry.ts:796
+#: packages/admin/src/lib/api/registry.ts:760
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
 msgstr ""
 
@@ -10785,11 +10805,11 @@ msgid "Toggle header row"
 msgstr "Växla rubrikrad"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "Token created: {0}"
 msgstr "Token skapad: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:481
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:496
 msgid "Token Name"
 msgstr "Tokennamn"
 
@@ -11209,6 +11229,10 @@ msgstr "Ladda upp media"
 #: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
 msgstr "Ladda upp media för att samla återanvändbara resurser på ett ställe."
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
+msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:751

@@ -1120,7 +1120,7 @@ msgstr "დამატებითი მონაცემები იმპ�
 msgid "admin"
 msgstr "admin"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
 #: packages/admin/src/components/Sidebar.tsx:604
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
@@ -1324,9 +1324,9 @@ msgstr "დაშიფრული ციფრული გასაღებ�
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:125
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:217
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:218
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:476
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:232
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:233
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:491
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 #: packages/admin/src/components/settings/BackupSettings.tsx:123
 #: packages/admin/src/components/settings/BackupSettings.tsx:166
@@ -1401,8 +1401,8 @@ msgstr "ნებადართულია ნებისმიერი მ�
 
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/Settings.tsx:101
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:195
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:333
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:348
 msgid "API Tokens"
 msgstr "API ტოკენები"
 
@@ -1911,7 +1911,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/SectionPickerModal.tsx:131
 #: packages/admin/src/components/Sections.tsx:209
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:216
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:234
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:249
 #: packages/admin/src/components/settings/SecuritySettings.tsx:166
 #: packages/admin/src/components/TaxonomyManager.tsx:580
 #: packages/admin/src/components/TaxonomyManager.tsx:880
@@ -2468,7 +2468,7 @@ msgstr "კომპონენტი"
 msgid "Configure Field"
 msgstr "ველის კონფიგურაცია"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:431
 msgid "Confirm"
 msgstr "დადასტურება"
 
@@ -2652,7 +2652,7 @@ msgstr "კონტრიბუტორი"
 msgid "Copied"
 msgstr "დაკოპირებულია"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:305
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:320
 #: packages/admin/src/components/users/InviteUserModal.tsx:133
 msgid "Copied to clipboard"
 msgstr "დაკოპირებულია ბუფერში"
@@ -2679,12 +2679,12 @@ msgstr "მოწვევის ბმულის კოპირება"
 msgid "Copy slug"
 msgstr "სლაგის კოპირება"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:258
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:273
 msgid "Copy this token now — it won't be shown again."
 msgstr "დააკოპირეთ ეს ტოკენი ახლავე — ის აღარ გამოჩნდება."
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:289
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:296
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:304
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:311
 msgid "Copy token"
 msgstr "ტოკენის კოპირება"
 
@@ -2877,7 +2877,7 @@ msgstr "ახალი მენიუს შექმნა"
 msgid "Create new tag"
 msgstr ""
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:229
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:244
 msgid "Create New Token"
 msgstr "ახალი ტოკენის შექმნა"
 
@@ -2890,9 +2890,9 @@ msgid "Create passkey"
 msgstr "პასკის შექმნა"
 
 #: packages/admin/src/components/Settings.tsx:102
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:230
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:326
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:211
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:245
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:341
 msgid "Create personal access tokens for programmatic API access"
 msgstr "პირადი წვდომის ტოკენების შექმნა API-ზე პროგრამული წვდომისთვის"
 
@@ -2935,8 +2935,8 @@ msgstr "ტაქსონომიის შექმნა"
 msgid "Create taxonomy terms and change content classifications"
 msgstr "ტაქსონომიის ტერმინების შექმნა და შიგთავსის კლასიფიკაციის შეცვლა"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:253
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 msgid "Create Token"
 msgstr "ტოკენის შექმნა"
 
@@ -2983,7 +2983,7 @@ msgstr "შიგთავსის შექმნა, განახლებ
 
 #: packages/admin/src/components/ContentList.tsx:927
 #: packages/admin/src/components/ContentSettingsPanel.tsx:990
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
 #: packages/admin/src/components/users/UserDetail.tsx:219
 msgid "Created"
 msgstr "შექმნილია"
@@ -3022,7 +3022,7 @@ msgstr "იქმნება მოჭრილი ასლი..."
 #: packages/admin/src/components/MenuList.tsx:178
 #: packages/admin/src/components/Redirects.tsx:191
 #: packages/admin/src/components/Sections.tsx:212
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:555
 #: packages/admin/src/components/TaxonomyManager.tsx:1101
 msgid "Creating..."
 msgstr "იქმნება..."
@@ -3578,7 +3578,7 @@ msgid "Discarding..."
 msgstr "მიმდინარეობს უარყოფა..."
 
 #: packages/admin/src/components/Dashboard.tsx:188
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:267
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "დახურვა"
 
@@ -3695,6 +3695,10 @@ msgstr "{0}-ის გადმოწერა"
 #: packages/admin/src/components/settings/BackupSettings.tsx:191
 msgid "Download a complete backup of your site: all content (including drafts and trash), collections, taxonomies, menus, widgets, media metadata, and site settings. User accounts and secrets are never included."
 msgstr "გადმოწერეთ საიტის სრული სარეზერვო ასლი: მთელი შიგთავსი (მონახაზებისა და წაშლილის ჩათვლით), კოლექციები, ტაქსონომიები, მენიუები, ვიჯეტები, მედიის მეტამონაცემები და საიტის პარამეტრები. მომხმარებლის ანგარიშები და საიდუმლო მონაცემები არასოდეს შედის."
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+msgid "Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:195
 msgid "Download backup"
@@ -3828,7 +3832,7 @@ msgstr "მაგ.: application/zip ან .pdf"
 msgid "e.g. import, blog"
 msgstr "მაგ.: import, blog"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:484
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:499
 msgid "e.g., CI/CD Pipeline"
 msgstr "მაგ.: CI/CD Pipeline"
 
@@ -4270,8 +4274,8 @@ msgstr ""
 msgid "Expand details"
 msgstr "დეტალების გაშლა"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:365
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:526
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:380
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:541
 msgid "Expiry"
 msgstr "ვადის გასვლა"
 
@@ -4636,7 +4640,7 @@ msgid "Failed to import media"
 msgstr "მედიის იმპორტი ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/marketplace.ts:344
-#: packages/admin/src/lib/api/registry.ts:825
+#: packages/admin/src/lib/api/registry.ts:789
 msgid "Failed to install plugin"
 msgstr "პლაგინის დაყენება ვერ მოხერხდა"
 
@@ -4793,7 +4797,7 @@ msgstr "შიგთავსის აღდგენა ვერ მოხე
 msgid "Failed to restore revision"
 msgstr "რევიზიის აღდგენა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/api-tokens.ts:99
+#: packages/admin/src/lib/api/api-tokens.ts:102
 msgid "Failed to revoke API token"
 msgstr "API ტოკენის გაუქმება ვერ მოხერხდა"
 
@@ -4849,7 +4853,7 @@ msgid "Failed to set entry terms"
 msgstr "ჩანაწერის ტერმინების დაყენება ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/registry.ts:1039
+#: packages/admin/src/lib/api/registry.ts:1003
 msgid "Failed to uninstall plugin"
 msgstr "პლაგინის დეინსტალაცია ვერ მოხერხდა"
 
@@ -4888,7 +4892,7 @@ msgstr "მედიის განახლება ვერ მოხერ
 
 #: packages/admin/src/components/PluginManager.tsx:314
 #: packages/admin/src/lib/api/marketplace.ts:370
-#: packages/admin/src/lib/api/registry.ts:914
+#: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
 msgstr "პლაგინის განახლება ვერ მოხერხდა"
 
@@ -4928,7 +4932,7 @@ msgstr "პროვაიდერზე ატვირთვა ვერ მ
 msgid "Failed to verify authentication"
 msgstr "ავტორიზაციის დადასტურება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/registry.ts:770
+#: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
 msgstr "პლაგინის დადასტურება ვერ მოხერხდა"
 
@@ -5193,7 +5197,7 @@ msgstr "სრული"
 msgid "Full access"
 msgstr "სრული წვდომა"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:103
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:118
 msgid "Full admin access"
 msgstr "სრული ადმინისტრატორული წვდომა"
 
@@ -5278,7 +5282,7 @@ msgstr "სტუმრის ბაილაინი"
 msgid "Guest only"
 msgstr "მხოლოდ სტუმრები"
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:92
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
 msgstr "ჰენდლი მიუწვდომელია"
 
@@ -5365,8 +5369,8 @@ msgstr "hero, banner, cta"
 msgid "Hide from search engines"
 msgstr "საძიებო სისტემებისგან დამალვა"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Hide token"
 msgstr "ტოკენის დამალვა"
 
@@ -5548,6 +5552,10 @@ msgstr "იმპორტი"
 #: packages/admin/src/components/WordPressImport.tsx:1974
 msgid "Import {0}"
 msgstr "იმპორტი: {0}"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:113
+msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1382
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
@@ -5865,7 +5873,7 @@ msgstr "მოიწვიეთ გუნდის პირველი წე
 msgid "Invoke MCP tools from all enabled plugins"
 msgstr "ყველა ჩართული პლაგინის MCP ხელსაწყოების გამოძახება"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:532
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr "მხოლოდ ამ პლაგინის ჩართული MCP ხელსაწყოების გამოძახება"
 
@@ -6027,7 +6035,7 @@ msgstr "ბოლოს ნანახი"
 msgid "Last updated"
 msgstr "ბოლო განახლება"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:373
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:388
 #: packages/admin/src/components/settings/PasskeyItem.tsx:154
 msgid "Last used"
 msgstr "ბოლო გამოყენება"
@@ -6266,7 +6274,7 @@ msgstr "ვიჯეტები იტვირთება..."
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:221
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
 #: packages/admin/src/components/settings/EmailSettings.tsx:69
 #: packages/admin/src/components/settings/SecuritySettings.tsx:99
@@ -7075,7 +7083,7 @@ msgstr "404 შეცდომები ჯერ არ დაფიქსი�
 msgid "No alt text"
 msgstr "ალტ-ტექსტი არ არის"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:402
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
 msgid "No API tokens yet. Create one to get started."
 msgstr "API ტოკენები ჯერ არ არის. დასაწყებად შექმენით ერთი."
 
@@ -7958,8 +7966,8 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "პლაგინმა უპასუხა {0}: {text}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:512
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:515
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:527
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:530
 msgid "Plugin tools: {0}"
 msgstr "პლაგინის ინსტრუმენტები: {0}"
 
@@ -7968,7 +7976,7 @@ msgid "Plugin uninstalled"
 msgstr "პლაგინი წაიშალა"
 
 #: packages/admin/src/lib/api/marketplace.ts:232
-#: packages/admin/src/lib/api/registry.ts:954
+#: packages/admin/src/lib/api/registry.ts:918
 msgid "Plugin update requires re-consent"
 msgstr "პლაგინის განახლება მოითხოვს ხელახალ თანხმობას"
 
@@ -8721,7 +8729,7 @@ msgstr "მოჭრის ზომის შეცვლა ზედა მ�
 msgid "Resize settings panel"
 msgstr "პარამეტრების პანელის ზომის შეცვლა"
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:94
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
 msgstr "გამომცემლის სახელის დადგენა..."
 
@@ -8887,22 +8895,22 @@ msgstr "რევიზია აღდგა"
 msgid "Revisions"
 msgstr "რევიზიები"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:190
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:193
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:205
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:208
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:409
 msgid "Revoke token"
 msgstr "ტოკენის გაუქმება"
 
 #. placeholder {0}: token.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:392
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:407
 msgid "Revoke token {0}"
 msgstr "{0} ტოკენის გაუქმება"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:414
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:429
 msgid "Revoke?"
 msgstr "გავაუქმოთ?"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:417
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:432
 msgid "Revoking..."
 msgstr "გაუქმება..."
 
@@ -9154,8 +9162,8 @@ msgstr "სქემის კითხვა"
 msgid "Schema Write"
 msgstr "სქემის ჩაწერა"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:490
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:366
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:505
 msgid "Scopes"
 msgstr "სქოუპები"
 
@@ -9799,8 +9807,8 @@ msgstr "პოსტების რაოდენობის ჩვენე�
 msgid "Show thumbnails"
 msgstr "მინიატურების ჩვენება"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:276
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:283
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:291
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:298
 msgid "Show token"
 msgstr "ტოკენის ჩვენება"
 
@@ -9888,6 +9896,10 @@ msgstr "ერთსტრიქონიანი ტექსტის შე�
 msgid "Site"
 msgstr "საიტი"
 
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
+msgid "Site Export"
+msgstr ""
+
 #: packages/admin/src/components/settings/GeneralSettings.tsx:169
 msgid "Site Identity"
 msgstr "საიტის იდენტობა"
@@ -9900,6 +9912,14 @@ msgstr "საიტის იდენტობა გამოყენებ�
 #: packages/admin/src/components/settings/GeneralSettings.tsx:126
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "საიტის იდენტობა, ლოგო, ფავიკონი და კითხვის პარამეტრები"
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:112
+msgid "Site Import"
+msgstr ""
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:107
+msgid "Site Import Analysis"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
@@ -10600,15 +10620,15 @@ msgstr "ეს ჩასმა ძალიან დიდია. ერთდ�
 msgid "This permanently deletes {0} from storage."
 msgstr "ეს სამუდამოდ შლის {0}-ს საცავიდან."
 
-#: packages/admin/src/lib/api/registry.ts:784
+#: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან მისი გამომცემლის პროფილს აკლია დადასტურების სწორი მეტამონაცემები. სთხოვეთ გამომცემელს, ხელახლა გამოაქვეყნოს ის EmDash-ის პლაგინის უახლესი CLI-ით."
 
-#: packages/admin/src/lib/api/registry.ts:792
+#: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან რელიზის წარმომავლობის დადასტურება ვერ მოხერხდა. სთხოვეთ გამომცემელს, გამოაქვეყნოს ახალი დადასტურებული რელიზი."
 
-#: packages/admin/src/lib/api/registry.ts:796
+#: packages/admin/src/lib/api/registry.ts:760
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან გამომცემლის ხელმოწერილი ჩანაწერები ვერ გადამოწმდა. სთხოვეთ გამომცემელს, გამოაქვეყნოს შესწორებული რელიზი."
 
@@ -10785,11 +10805,11 @@ msgid "Toggle header row"
 msgstr "სათაურის მწკრივის გადართვა"
 
 #. placeholder {0}: newToken.info.name
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:270
 msgid "Token created: {0}"
 msgstr "ტოკენი შეიქმნა: {0}"
 
-#: packages/admin/src/components/settings/ApiTokenSettings.tsx:481
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:496
 msgid "Token Name"
 msgstr "ტოკენის სახელი"
 
@@ -11209,6 +11229,10 @@ msgstr "მედიის ატვირთვა"
 #: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
 msgstr "ატვირთეთ მედია, რომ მრავალჯერადად გამოყენებადი რესურსები ერთ ადგილას შეინახოთ."
+
+#: packages/admin/src/components/settings/ApiTokenSettings.tsx:108
+msgid "Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access."
+msgstr ""
 
 #. placeholder {0}: activeProviderInfo?.name || t`Library`
 #: packages/admin/src/components/MediaLibrary.tsx:751
