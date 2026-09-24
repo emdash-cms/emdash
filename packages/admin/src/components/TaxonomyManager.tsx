@@ -1218,7 +1218,11 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 						{t`Manage ${taxonomyDef.label.toLowerCase()} for ${taxonomyDef.collections.join(", ")}`}
 					</p>
 				</div>
-				<div className="flex flex-wrap items-center gap-2">
+				<div
+					className={
+						taxonomyName === "tag" ? "flex flex-wrap items-center gap-2" : "flex items-center gap-2"
+					}
+				>
 					{i18n && activeLocale ? (
 						<LocaleSwitcher
 							locales={i18n.locales}
