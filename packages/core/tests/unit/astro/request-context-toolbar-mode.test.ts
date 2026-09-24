@@ -34,6 +34,7 @@ function buildContext(opts: {
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
+	playground?: boolean;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -46,7 +47,7 @@ function buildContext(opts: {
 			),
 			set: vi.fn(),
 		},
-		locals: { user: opts.user ?? null },
+		locals: { user: opts.user ?? null, __playgroundDb: opts.playground ? {} : undefined },
 	};
 }
 
@@ -56,6 +57,8 @@ const htmlResponse = () =>
 	});
 
 const EDITOR = { id: "u1", role: 30 };
+
+const HIDDEN_EDIT_TOOLBAR = /<div id="emdash-toolbar" data-edit-mode="true"[^>]* hidden>/;
 
 describe("toolbar: server (default)", () => {
 	it("injects the toolbar for editors and leaves anonymous HTML untouched", async () => {
@@ -281,5 +284,39 @@ describe("toolbar: false", () => {
 			expect(html).not.toContain("emdash-toolbar");
 			expect(res.headers.get("Cache-Control")).toBeNull();
 		}
+	});
+
+	it("does not add the toolbar in the Playground either", async () => {
+		const onRequest = await loadMiddleware(false);
+		const context = buildContext({ user: EDITOR, playground: true, editCookie: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).not.toContain("emdash-toolbar");
+		expect(res.headers.get("Cache-Control")).toBeNull();
+	});
+});
+
+describe("toolbar: Playground", () => {
+	it("adds the toolbar hidden, for inline editing, while edit mode is on", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ user: EDITOR, playground: true, editCookie: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).toMatch(HIDDEN_EDIT_TOOLBAR);
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(context.cache.set).toHaveBeenCalledWith(false);
+	});
+
+	it("leaves the page untouched while edit mode is off", async () => {
+		const onRequest = await loadMiddleware(undefined);
+		const context = buildContext({ user: EDITOR, playground: true });
+
+		const res = await onRequest(context, async () => htmlResponse());
+
+		expect(await res.text()).not.toContain("emdash-toolbar");
+		expect(res.headers.get("Cache-Control")).toBeNull();
+		expect(context.cache.set).not.toHaveBeenCalled();
 	});
 });
