@@ -716,7 +716,7 @@ interface CommentModerateEvent {
 
 #### Active moderator
 
-EmDash includes a built-in moderator that applies the collection's comment settings. When exactly one plugin provides `comment:moderate`, that plugin replaces the built-in moderator. When several plugins provide it, EmDash selects none of them and new comments wait for review. A stored moderator choice is kept. Earlier EmDash releases stored the built-in moderator as the choice, so a site that has run one keeps the built-in moderator.
+EmDash includes a built-in moderator that applies the collection's comment settings. When exactly one plugin provides `comment:moderate`, EmDash selects that plugin instead of the built-in moderator and stores the choice. When several plugins provide it and no choice is stored, EmDash selects none of them and new comments wait for review. A stored choice, including one of the built-in moderator, stays in effect while the selected moderator is enabled.
 
 ### `comment:afterCreate`
 
