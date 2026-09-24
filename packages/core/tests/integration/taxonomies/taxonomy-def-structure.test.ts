@@ -7,6 +7,10 @@ import {
 	handleTaxonomyGet,
 	handleTaxonomyUpdate,
 } from "../../../src/api/handlers/taxonomies.js";
+import {
+	findTaxonomyStructure,
+	saveTaxonomyStructure,
+} from "../../../src/database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { runWithContext } from "../../../src/request-context.js";
@@ -142,5 +146,47 @@ describeEachDialect("taxonomy structure is shared by every locale", (dialect) =>
 			getTaxonomyTerms("topic", { locale: "ja", includeCounts: false }),
 		);
 		expect(listed.map((term) => term.slug)).toEqual(["ai"]);
+	});
+
+	it("changes only the structure fields a write names", async () => {
+		await createTopic();
+		const read = await findTaxonomyStructure(ctx.db, "topic");
+		if (!read) throw new Error("topic has no structure");
+		await handleTaxonomyUpdate(ctx.db, "topic", { collections: ["page"] });
+
+		await saveTaxonomyStructure(
+			ctx.db,
+			"topic",
+			read.id,
+			{ hierarchical: false, collections: read.collections },
+			{ hierarchical: false },
+		);
+
+		expect(await findTaxonomyStructure(ctx.db, "topic")).toMatchObject({
+			hierarchical: false,
+			collections: ["page"],
+		});
+	});
+
+	it("keeps an existing taxonomy's structure when a write names no field", async () => {
+		await createTopic();
+		await saveTaxonomyStructure(
+			ctx.db,
+			"topic",
+			"other-group",
+			{ hierarchical: false, collections: ["page"] },
+			{},
+		);
+
+		expect(await findTaxonomyStructure(ctx.db, "topic")).toMatchObject({
+			hierarchical: true,
+			collections: ["post"],
+		});
+		const rows = await ctx.db
+			.selectFrom("_emdash_taxonomy_defs")
+			.select(["hierarchical", "collections"])
+			.where("name", "=", "topic")
+			.execute();
+		expect(rows).toEqual([{ hierarchical: 1, collections: JSON.stringify(["post"]) }]);
 	});
 });

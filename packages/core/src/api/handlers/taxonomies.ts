@@ -445,13 +445,8 @@ export async function handleTaxonomyCreate(
 			hierarchical: input.hierarchical ?? false,
 			collections: [...new Set(input.collections ?? [])],
 		};
+		const groupId = existingStructure?.id ?? id;
 		await withTransaction(db, async (trx) => {
-			const translationGroup = await saveTaxonomyStructure(
-				trx,
-				input.name,
-				existingStructure?.id ?? id,
-				structure,
-			);
 			await trx
 				.insertInto("_emdash_taxonomy_defs")
 				.values({
@@ -462,9 +457,11 @@ export async function handleTaxonomyCreate(
 					hierarchical: structure.hierarchical ? 1 : 0,
 					collections: JSON.stringify(structure.collections),
 					locale,
-					translation_group: translationGroup,
+					translation_group: groupId,
 				})
 				.execute();
+			// A group another request created since the read above keeps its structure.
+			await saveTaxonomyStructure(trx, input.name, groupId, structure, {});
 		});
 
 		// A new def changes which taxonomies exist — drop the isolate-wide
@@ -551,10 +548,16 @@ export async function handleTaxonomyUpdate(
 						.execute();
 				}
 				if (structureChanged) {
-					await saveTaxonomyStructure(trx, name, def.translation_group ?? def.id, {
-						hierarchical: input.hierarchical ?? def.hierarchical === 1,
-						collections: collections ?? parseTaxonomyCollections(def.collections),
-					});
+					await saveTaxonomyStructure(
+						trx,
+						name,
+						def.translation_group ?? def.id,
+						{
+							hierarchical: input.hierarchical ?? def.hierarchical === 1,
+							collections: collections ?? parseTaxonomyCollections(def.collections),
+						},
+						{ hierarchical: input.hierarchical, collections },
+					);
 				}
 			});
 			invalidateTaxonomyDefsCache();
