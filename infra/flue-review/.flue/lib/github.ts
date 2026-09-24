@@ -21,6 +21,7 @@ const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
 const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
 const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
 const INLINE_PERMIT_WAIT_MS = 5_000;
+export const POST_MODEL_PERMIT_WAIT_MS = REVIEW_RATE_LIMIT_MAX_DELAY_MS;
 const RATE_LIMIT_ERROR = /\brate limit\b/i;
 const AUTO_FORMAT_MESSAGE = "style: format";
 const EMDASH_BOT_LOGIN = "emdashbot[bot]";
@@ -105,7 +106,12 @@ export function githubRateLimitGate(env: Env): GitHubRateLimitGate {
 
 export type GitHubToken =
 	| string
-	| { readonly token: string; readonly gate: GitHubRateLimitGate; readonly consumer: string };
+	| {
+			readonly token: string;
+			readonly gate: GitHubRateLimitGate;
+			readonly consumer: string;
+			readonly maxPermitWaitMs?: number;
+	  };
 
 function tokenValue(token: GitHubToken): string {
 	return typeof token === "string" ? token : token.token;
@@ -139,8 +145,13 @@ function responseMetadata(response: Response, now = Date.now()) {
 	};
 }
 
-async function acquireGitHubPermit(gate: GitHubRateLimitGate, category: string, consumer: string) {
-	const deadline = Date.now() + INLINE_PERMIT_WAIT_MS;
+async function acquireGitHubPermit(
+	gate: GitHubRateLimitGate,
+	category: string,
+	consumer: string,
+	maxWaitMs = INLINE_PERMIT_WAIT_MS,
+) {
+	const deadline = Date.now() + maxWaitMs;
 	for (;;) {
 		const permit = await gate.permit(category, consumer);
 		if (permit.allowed) return permit;
@@ -158,7 +169,12 @@ async function githubFetch(
 	const coordinated = token && typeof token !== "string" ? token : null;
 	const category = new URL(input).pathname === "/graphql" ? "graphql" : "review-rest";
 	if (coordinated) {
-		const permit = await acquireGitHubPermit(coordinated.gate, category, coordinated.consumer);
+		const permit = await acquireGitHubPermit(
+			coordinated.gate,
+			category,
+			coordinated.consumer,
+			coordinated.maxPermitWaitMs,
+		);
 		if (!permit.allowed) {
 			throw new GitHubRateLimitError(
 				`GitHub request suppressed until ${new Date(permit.retryAt).toISOString()}`,
