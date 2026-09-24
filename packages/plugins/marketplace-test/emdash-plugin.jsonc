@@ -17,6 +17,8 @@
 		"comments:read",
 		"comments:moderate",
 		"schema:read",
+		"admin.editor-draft:read",
+		"admin.editor-draft:patch",
 		"hooks.content-policy:register",
 		"taxonomies:read",
 		"taxonomies:write",
@@ -57,6 +59,10 @@
 				"route": "entry-context",
 				"collections": ["posts"],
 				"order": 10,
+				"draft": {
+					"read": { "fields": ["title", "excerpt"] },
+					"patch": { "fields": ["title", "excerpt"] },
+				},
 			},
 		],
 		"editorActions": [
@@ -80,7 +86,7 @@
 				"label": "Invalid action",
 				"route": "invalid-action",
 				"placement": "overflow",
-				"collections": ["posts"],
+				"collections": ["plugin_test_invalid"],
 			},
 		],
 		"settingsSchema": {

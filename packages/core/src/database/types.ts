@@ -478,6 +478,29 @@ export interface FieldTable {
 	created_at: Generated<string>;
 }
 
+export interface BlockTypeTable {
+	id: string;
+	slug: string;
+	label: string;
+	description: string | null;
+	icon: string | null;
+	category: string | null;
+	current_version: number;
+	source: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BlockTypeVersionTable {
+	id: string;
+	block_type_id: string;
+	version: number;
+	fields: string;
+	fingerprint: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 // Plugin Storage Tables
 
 export interface PluginStorageTable {
@@ -631,6 +654,92 @@ export interface SectionTable {
 	updated_at: Generated<string>;
 }
 
+// Site transfer (migration 084)
+
+export interface TransferOperationTable {
+	id: string;
+	kind: string; // 'export' | 'import'
+	state: string;
+	stage: string | null;
+	cursor: string | null; // JSON
+	progress: string | null; // JSON
+	options: string | null; // JSON
+	idempotency_key: string | null;
+	package_digest: string | null;
+	plan_digest: string | null;
+	origin_site_id: string | null;
+	staging_secret: string;
+	receipt: string | null; // JSON
+	error_code: string | null;
+	error_detail: string | null; // JSON
+	write_epoch: Generated<number>;
+	attempt_count: Generated<number>;
+	lease_token: string | null;
+	lease_expires_at: string | null;
+	runtime_generation: Generated<number>;
+	cancel_requested_at: string | null;
+	mutation_started_at: string | null;
+	created_by: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+	completed_at: string | null;
+	expires_at: string | null;
+	staging_collected_at: string | null;
+}
+
+export interface TransferIdentityMapTable {
+	origin_site_id: string;
+	entity_kind: string;
+	portable_id: string;
+	target_id: string;
+	operation_id: string;
+	created_at: Generated<string>;
+}
+
+export interface TransferStagedFileTable {
+	operation_id: string;
+	path: string;
+	bytes: number | string; // bigint: Postgres returns a string
+	sha256: string;
+	state: Generated<string>; // 'declared' | 'verified'
+	verified_at: string | null;
+	logical_sha256: string | null; // verification: logical hash of a record chunk's target records
+}
+
+export interface TransferPackageIndexTable {
+	operation_id: string;
+	kind: string;
+	id: string;
+	group_id: string | null;
+	parent_id: string | null;
+	name_key: string | null;
+	depth: Generated<number>;
+}
+
+export interface TransferMediaBlobTable {
+	operation_id: string;
+	media_id: string;
+	sha256: string;
+	bytes: number | string; // bigint: Postgres returns a string
+}
+
+export interface TransferApprovalTable {
+	id: string;
+	status: Generated<string>; // 'pending' | 'approved' | 'denied' | 'consumed' | 'expired'
+	action: string; // 'export' | 'import'
+	user_id: string;
+	requested_by_token_id: string | null;
+	approved_by: string | null;
+	operation_id: string | null;
+	params_digest: string | null;
+	package_digest: string | null;
+	plan_digest: string | null;
+	expires_at: string;
+	created_at: Generated<string>;
+	decided_at: string | null;
+	consumed_at: string | null;
+}
+
 // Database schema
 // Note: ec_* content tables are dynamic and not part of this type
 export interface Database {
@@ -663,6 +772,8 @@ export interface Database {
 	_emdash_migrations: MigrationTable;
 	_emdash_collections: CollectionTable;
 	_emdash_fields: FieldTable;
+	_emdash_block_types: BlockTypeTable;
+	_emdash_block_type_versions: BlockTypeVersionTable;
 	_plugin_storage: PluginStorageTable;
 	_plugin_state: PluginStateTable;
 	_plugin_indexes: PluginIndexTable;
@@ -692,6 +803,12 @@ export interface Database {
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 	_emdash_entry_locks: EntryLockTable;
+	_emdash_transfer_operations: TransferOperationTable;
+	_emdash_transfer_identity_map: TransferIdentityMapTable;
+	_emdash_transfer_staged_files: TransferStagedFileTable;
+	_emdash_transfer_package_index: TransferPackageIndexTable;
+	_emdash_transfer_media_blobs: TransferMediaBlobTable;
+	_emdash_transfer_approvals: TransferApprovalTable;
 }
 
 export type MediaRow = {

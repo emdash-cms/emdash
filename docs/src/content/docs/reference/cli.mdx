@@ -671,6 +671,11 @@ npx emdash plugin logout
 
 Export database schema and content as a seed file. Works directly on a local SQLite file.
 
+The database must have every migration known to the installed EmDash version. If the command
+reports pending migrations, run `npx emdash migrate`, then export again. If the database was
+migrated by a newer EmDash version, upgrade the installed version before exporting. The export
+opens the database read-only and never applies migrations itself.
+
 ```bash
 npx emdash export-seed [options] > seed.json
 ```
@@ -690,6 +695,7 @@ The exported seed file includes:
 
 - **Settings**: Site title, tagline, social links
 - **Collections**: All collection definitions with fields
+- **Block types**: Every retained version and each type's active version pointer
 - **Taxonomies**: Taxonomy definitions and terms
 - **Menus**: Navigation menus with items
 - **Widget Areas**: Widget areas and widgets

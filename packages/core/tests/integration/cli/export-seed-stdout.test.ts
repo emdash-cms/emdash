@@ -1,12 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDatabase } from "../../../src/database/connection.js";
-import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { MIGRATION_NAMES, runMigrations } from "../../../src/database/migrations/runner.js";
 import { ensureBuilt } from "../server.js";
 
 const CLI_BIN = resolve(import.meta.dirname, "../../../dist/cli/index.mjs");
@@ -51,7 +51,11 @@ describe("export-seed stdout is the seed document alone (#2774)", () => {
 	});
 
 	function run(...args: string[]): CliResult {
-		const result = spawnSync("node", [CLI_BIN, "export-seed", "-d", dbPath, ...args], {
+		return runDatabase(dbPath, ...args);
+	}
+
+	function runDatabase(databasePath: string, ...args: string[]): CliResult {
+		const result = spawnSync("node", [CLI_BIN, "export-seed", "-d", databasePath, ...args], {
 			cwd: projectRoot,
 			encoding: "utf8",
 			env: { ...process.env, NO_COLOR: "1" },
@@ -78,5 +82,51 @@ describe("export-seed stdout is the seed document alone (#2774)", () => {
 		const result = run();
 
 		expect(result.stdout).not.toContain("deprecated");
+	});
+
+	it("rejects an unmigrated database without changing it", async () => {
+		const emptyPath = join(projectRoot, "empty.db");
+		await writeFile(emptyPath, "");
+
+		const result = runDatabase(emptyPath);
+
+		expect(result.code).toBe(1);
+		expect(result.stderr).toContain("Run `emdash migrate` before exporting it.");
+		expect(await readFile(emptyPath)).toHaveLength(0);
+	});
+
+	it("rejects an outdated database without applying its pending migration", async () => {
+		const outdatedPath = join(projectRoot, "outdated.db");
+		const outdatedDb = createDatabase({ url: `file:${outdatedPath}` });
+		await runMigrations(outdatedDb);
+		const pending = MIGRATION_NAMES.at(-1);
+		if (!pending) throw new Error("Expected at least one registered migration");
+		await outdatedDb.deleteFrom("_emdash_migrations").where("name", "=", pending).execute();
+		await outdatedDb.destroy();
+		const before = await readFile(outdatedPath);
+
+		const result = runDatabase(outdatedPath);
+
+		expect(result.code).toBe(1);
+		expect(result.stderr).toContain("1 pending migration");
+		expect(await readFile(outdatedPath)).toEqual(before);
+	});
+
+	it("rejects a database migrated by a newer EmDash version", async () => {
+		const newerPath = join(projectRoot, "newer.db");
+		const newerDb = createDatabase({ url: `file:${newerPath}` });
+		await runMigrations(newerDb);
+		await newerDb
+			.insertInto("_emdash_migrations")
+			.values({ name: "999_future", timestamp: new Date().toISOString() })
+			.execute();
+		await newerDb.destroy();
+		const before = await readFile(newerPath);
+
+		const result = runDatabase(newerPath);
+
+		expect(result.code).toBe(1);
+		expect(result.stderr).toContain("Upgrade EmDash before exporting it.");
+		expect(await readFile(newerPath)).toEqual(before);
 	});
 });

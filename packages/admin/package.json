@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/admin",
-  "version": "0.38.0",
+  "version": "0.39.1",
   "description": "Admin UI for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",
@@ -20,6 +20,14 @@
     "./locales/server": {
       "types": "./dist/locales/server.d.ts",
       "default": "./dist/locales/server.js"
+    },
+    "./locales/config": {
+      "types": "./dist/locales/config.d.ts",
+      "default": "./dist/locales/config.js"
+    },
+    "./locales/emails": {
+      "types": "./dist/locales/emails.d.ts",
+      "default": "./dist/locales/emails.js"
     },
     "./locales/*": "./dist/locales/*",
     "./slugify": {

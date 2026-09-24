@@ -170,6 +170,79 @@ describe("dashboard reconciliation", () => {
 });
 
 describe("orchestrator alarm recovery", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("cleans up an idle orchestrator instead of rearming label reconciliation", async () => {
+		const stub = env.Orchestrator.getByName(`issue-idle-${crypto.randomUUID()}`);
+		const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "needs_attention",
+				"o:kind": "bug",
+				"o:prNumber": 99,
+				"o:labelReconcileNextAt": Date.now() - 1_000,
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeNull();
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"message":"orchestrator self-cleanup completed"'),
+		);
+		expect(log).toHaveBeenCalledWith(expect.stringContaining('"anchorNumber":42'));
+	});
+
+	test("sleeps until reporter expiry without periodic label reconciliation", async () => {
+		const stub = env.Orchestrator.getByName(`issue-reporter-${crypto.randomUUID()}`);
+		const now = Date.now();
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "awaiting_reporter",
+				"o:kind": "bug",
+				"o:awaitingReporterSince": now,
+				"o:labelReconcileNextAt": now + 15 * 60_000,
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThan(now + 13 * 24 * 60 * 60_000);
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
+	});
+
+	test("cleans up terminal state even when stale retries remain", async () => {
+		const stub = env.Orchestrator.getByName(`issue-terminal-${crypto.randomUUID()}`);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:state": "done",
+				"o:publicationRetryAt": Date.now() + 60 * 60_000,
+				"o:recoveryRetry": {
+					path: "publication",
+					attempts: 1,
+					nextAt: Date.now() + 60 * 60_000,
+				},
+			});
+			await state.storage.setAlarm(Date.now() + 60_000);
+		});
+
+		expect(await runDurableObjectAlarm(stub)).toBe(true);
+		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({
+			retry: null,
+			alarmAt: null,
+		});
+	});
+
 	test("persists exponential recovery instead of rearming an overdue stale run every second", async () => {
 		const stub = env.Orchestrator.getByName("issue-alarm-backoff");
 		await stub.debugSetStaleRun(

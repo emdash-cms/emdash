@@ -132,10 +132,10 @@ export class IngestError extends Error {
 	}
 }
 
-export type ProfileInstallabilityError = "PROFILE_EXTENSION_MISSING" | "PROFILE_EXTENSION_INVALID";
+export type ProfileInstallabilityError = "PROFILE_EXTENSION_INVALID";
 
 export type ProfileInstallability =
-	| { status: "valid"; extension: string; error: null }
+	| { status: "valid"; extension: string | null; error: null }
 	| { status: "invalid"; extension: null; error: ProfileInstallabilityError };
 
 export async function processBatch(
@@ -394,11 +394,7 @@ export async function ingestPackageProfile(
 			);
 		}
 	}
-	let installability: ProfileInstallability = {
-		status: "invalid",
-		extension: null,
-		error: "PROFILE_EXTENSION_MISSING",
-	};
+	let installability: ProfileInstallability = { status: "valid", extension: null, error: null };
 	if (
 		isPlainObject(record.extensions) &&
 		record.extensions[NSID.packageProfileExtension] !== undefined

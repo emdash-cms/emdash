@@ -194,6 +194,10 @@ The following manifest adds a panel for posts and a confirmed repair action:
 			"title": "Content health",
 			"route": "editor/content-health",
 			"collections": ["posts"],
+			"draft": {
+				"read": { "translatable": true },
+				"patch": { "fields": ["title", "excerpt", "body"] },
+			},
 		},
 	],
 	"editorActions": [
@@ -216,11 +220,30 @@ The following manifest adds a panel for posts and a confirmed repair action:
 
 Each referenced route must be private. Its `permission` controls which editors can invoke the extension. The host also reloads the saved entry and checks its owner before calling the plugin.
 
-Editor extension routes receive an attested `routeCtx.ui` value. For `content-editor-panel` and `content-editor-action` surfaces, `routeCtx.ui.entry` contains the collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the selected declaration. The context does not contain field values or unsaved editor state. Use `ctx.content` with the `content:read` capability when the plugin needs the saved content.
+Editor extension routes receive an attested `routeCtx.ui` value. For `content-editor-panel` and `content-editor-action` surfaces, `routeCtx.ui.entry` contains the collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the selected declaration. Use `ctx.content` with the `content:read` capability when the plugin needs saved content.
 
-A panel receives `{ type: "panel_load" }` when it opens. Its later button and form interactions use the usual `block_action` and `form_submit` shapes. Return a validated `BlockResponse` from every panel interaction.
+A panel receives `{ type: "panel_load" }` when it opens. Panel load never includes draft data. Its later button and form interactions use the usual `block_action` and `form_submit` shapes. When the plugin declares `admin.editor-draft:read` and the extension narrows `draft.read`, an explicit interaction also receives `routeCtx.input.draft`. The snapshot contains only selected current values, sanitized field definitions, saved identity, and the persisted base revision. Use `fields` for explicit slugs, `translatable: true` for the collection's translatable fields, or both. Draft access requires an explicit `collections` list.
 
-Editor actions are disabled while the form has unsaved changes or a save is running. After the saved state is current, an action receives `{ type: "editor_action" }`. Return an object containing an optional toast and at most one terminal effect:
+`admin.editor-draft:patch` is independent of read access. It permits a route to return a whole-field patch after an explicit interaction:
+
+```typescript title="src/plugin.ts"
+const draft = routeCtx.input.draft;
+
+return {
+	blocks: [],
+	patch: {
+		type: "editor-draft-patch",
+		operations: [
+			{ op: "set", field: "title", value: translate(draft.fields.title) },
+			{ op: "clear", field: "excerpt" },
+		],
+	},
+};
+```
+
+EmDash validates every operation together against the current server schema, capability, collection, field selector, locale, base revision, ownership, count limits, and byte limits. The browser repeats identity, generation, and field checks before showing a host-rendered preview. Applying the preview marks the form dirty and does not save, create a revision, or run hooks. Any edit made while the plugin is working rejects the complete result.
+
+Saved-only editor actions remain disabled while the form has unsaved changes. Draft-aware actions can run against the unsaved form. An action receives `{ type: "editor_action" }` and, when declared, the same bounded draft snapshot. Return an object containing an optional toast and at most one terminal effect:
 
 ```typescript title="src/plugin.ts"
 return {
@@ -229,7 +252,7 @@ return {
 };
 ```
 
-Use `refresh: true` to reload the entry or `navigate` with a structured link target. A response cannot request both. EmDash rejects unknown commands, unsafe navigation, and responses over the Block Kit limits before applying an effect.
+Use `refresh: true` to reload the entry, `navigate` with a structured link target, or `patch` to propose unsaved field changes. A response cannot combine terminal effects. EmDash rejects unknown commands, unsafe navigation, invalid or stale patches, and responses over the Block Kit limits before applying an effect.
 
 ## Block types
 

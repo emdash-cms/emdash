@@ -166,6 +166,8 @@ export interface Snapshot {
  * Content tables (ec_*) are discovered dynamically.
  */
 const SYSTEM_TABLES = [
+	"_emdash_block_types",
+	"_emdash_block_type_versions",
 	"_emdash_collections",
 	"_emdash_fields",
 	"_emdash_taxonomy_defs",
@@ -192,6 +194,7 @@ const EXCLUDED_PREFIXES = [
 	"_emdash_authorization_codes",
 	"_emdash_device_codes",
 	"_emdash_migrations_lock",
+	"_emdash_transfer_",
 	"_plugin_",
 	"users",
 	"sessions",
@@ -266,6 +269,8 @@ export interface GenerateSnapshotOptions {
 	 * `emdash:passkey_pending:`) — the output may be user-downloadable.
 	 */
 	optionPrefixes?: string[];
+	/** Exact options-table keys to include in addition to `optionPrefixes`. */
+	optionKeys?: string[];
 }
 
 /**
@@ -281,6 +286,7 @@ export async function generateSnapshot(
 	const includeDrafts = options?.includeDrafts ?? false;
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
+	const optionKeys = new Set(options?.optionKeys);
 
 	const contentTables = await listTablesLike(db, "ec_%");
 
@@ -340,7 +346,7 @@ export async function generateSnapshot(
 				`.execute(db)
 			).rows.filter((row) => {
 				const name = typeof row.name === "string" ? row.name : "";
-				return optionPrefixes.some((prefix) => name.startsWith(prefix));
+				return optionKeys.has(name) || optionPrefixes.some((prefix) => name.startsWith(prefix));
 			});
 		} else {
 			rows = (

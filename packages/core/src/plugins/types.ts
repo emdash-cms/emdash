@@ -33,6 +33,8 @@ import {
 	type ManifestRouteEntry,
 	type PluginMcpManifestConfig,
 	type PluginCapability,
+	type PluginEditorDraftAccess,
+	type PluginEditorDraftFieldSelector,
 	type PluginFormData,
 	type PluginRouteBodyMode,
 	type PluginRouteQuery,
@@ -73,6 +75,8 @@ export {
 	type ManifestRouteEntry,
 	type PluginMcpManifestConfig,
 	type PluginCapability,
+	type PluginEditorDraftAccess,
+	type PluginEditorDraftFieldSelector,
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 };
@@ -1077,6 +1081,10 @@ export interface EmailAccess {
  */
 export interface EmailMessage {
 	to: string;
+	/** Additional visible recipients. */
+	cc?: string[];
+	/** Address that replies go to instead of the sender. */
+	replyTo?: string;
 	subject: string;
 	text: string;
 	html?: string;
@@ -1840,6 +1848,7 @@ export interface PluginEditorPanel {
 	route: string;
 	collections?: string[];
 	order?: number;
+	draft?: PluginEditorDraftAccess;
 }
 
 export interface PluginEditorAction {
@@ -1850,6 +1859,7 @@ export interface PluginEditorAction {
 	collections?: string[];
 	style?: "default" | "danger";
 	confirm?: ConfirmDialog;
+	draft?: PluginEditorDraftAccess;
 }
 
 /**

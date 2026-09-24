@@ -65,6 +65,24 @@ export const createTermBody = z
 	})
 	.meta({ id: "CreateTermBody" });
 
+export const bulkTagBody = z
+	.object({
+		termId: z.string().min(1),
+		apply: z.boolean().default(false),
+		refreshOnly: z.boolean().optional(),
+		items: z
+			.array(
+				z.union([
+					z.object({ collection: collectionSlug, id: z.string().min(1) }).strict(),
+					z.object({ url: z.string().min(1).max(2048) }).strict(),
+				]),
+			)
+			.min(1)
+			.max(50),
+	})
+	.strict()
+	.meta({ id: "BulkTagBody" });
+
 export const updateTermBody = z
 	.object({
 		slug: z.string().min(1).optional(),

@@ -139,7 +139,7 @@ describe("ingestPackageProfile", () => {
 		expect(row).toMatchObject({ did: DID_A, slug: "demo", license: "MIT" });
 	});
 
-	it("stages a profile that cannot pass install verification as unavailable", async () => {
+	it("accepts a profile without the optional repository extension", async () => {
 		const { extensions: _extensions, ...missingExtension } = validRecord;
 		await ingestPackageProfile(
 			testEnv.DB,
@@ -158,8 +158,41 @@ describe("ingestPackageProfile", () => {
 				installability_error: string | null;
 			}>();
 		expect(row?.emdash_extension).toBeNull();
-		expect(row?.installability_status).toBe("invalid");
-		expect(row?.installability_error).toBe("PROFILE_EXTENSION_MISSING");
+		expect(row?.installability_status).toBe("valid");
+		expect(row?.installability_error).toBeNull();
+	});
+
+	it("accepts later revisions of an extensionless profile", async () => {
+		const { extensions: _extensions, ...record } = validRecord;
+		delete (record as { extensions?: unknown }).extensions;
+		const job = jobFor(DID_A, NSID.packageProfile, "demo", {
+			operation: "update",
+		});
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: "bafy-extensionless-first" },
+			NOW,
+		);
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: "bafy-extensionless-second" },
+			new Date(NOW.getTime() + 1_000),
+		);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "demo")
+				.first(),
+		).toEqual({
+			emdash_extension: null,
+			installability_status: "valid",
+			installability_error: null,
+		});
 	});
 
 	it("records a stable reason for a malformed install-verification extension", async () => {
@@ -196,12 +229,22 @@ describe("ingestPackageProfile", () => {
 	});
 
 	it("restores visibility when an invalid publisher republishes a valid profile", async () => {
-		const { extensions: _extensions, ...missingExtension } = validRecord;
 		const job = jobFor(DID_A, NSID.packageProfile, "demo", { operation: "update" });
 		await ingestPackageProfile(
 			testEnv.DB,
 			job,
-			{ ...fakeVerified(missingExtension), cid: "bafy-invalid-profile" },
+			{
+				...fakeVerified({
+					...validRecord,
+					extensions: {
+						[NSID.packageProfileExtension]: {
+							$type: NSID.packageProfileExtension,
+							repository: "http://github.com/example/demo",
+						},
+					},
+				}),
+				cid: "bafy-invalid-profile",
+			},
 			NOW,
 		);
 		const unavailable = await SELF.fetch(

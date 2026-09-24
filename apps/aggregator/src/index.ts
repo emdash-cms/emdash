@@ -30,10 +30,6 @@ import {
 } from "./label-source-policy.js";
 import { isCurrentSubject, listCurrentSubjects } from "./labeler-reconciliation-service.js";
 import { getListingPolicy } from "./listing-policy.js";
-import {
-	createProfileInstallabilityReconciliationDeps,
-	reconcileProfileInstallability,
-} from "./profile-installability-reconciliation.js";
 import { enforceConfiguredProjection } from "./projection-enforcement.js";
 import { publicHealth } from "./public-health.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
@@ -76,7 +72,6 @@ const BACKFILL_PATH = "/_admin/backfill";
 const STATUS_PATH = "/_admin/status";
 const RECONCILIATION_SUBJECTS_PATH = "/_internal/labeler/subjects";
 const RECONCILIATION_CURRENT_PATH = "/_internal/labeler/current";
-const PROFILE_INSTALLABILITY_RECONCILIATION_PATH = "/_internal/reconcile/profile-installability";
 const LABEL_REPLAY_PATH = "/_admin/labels/replay";
 const HEALTH_PATH = "/health";
 const PLUGIN_DIRECTORY_URL = "https://plugins.emdashcms.com/";
@@ -100,6 +95,7 @@ const PLUGIN_DIRECTORY_URL = "https://plugins.emdashcms.com/";
 const MAX_BACKFILL_DIDS = 100;
 
 const tokenEncoder = new TextEncoder();
+const BEARER_SCHEME_PREFIX = "bearer ";
 
 /**
  * Constant-time string equality via workerd's audited
@@ -110,6 +106,17 @@ function timingSafeEqual(a: string, b: string): boolean {
 	const bBuf = tokenEncoder.encode(b);
 	if (aBuf.byteLength !== bBuf.byteLength) return false;
 	return crypto.subtle.timingSafeEqual(aBuf, bBuf);
+}
+
+function bearerToken(authorization: string | null): string | null {
+	if (
+		!authorization ||
+		authorization.length < BEARER_SCHEME_PREFIX.length ||
+		authorization.slice(0, BEARER_SCHEME_PREFIX.length).toLowerCase() !== BEARER_SCHEME_PREFIX
+	) {
+		return null;
+	}
+	return authorization.slice(BEARER_SCHEME_PREFIX.length);
 }
 
 /**
@@ -127,23 +134,17 @@ function requireAdminAuth(request: Request, env: Env): Response | null {
 		// Misconfigured production or unset dev — closed by default.
 		return new Response("admin endpoints not configured", { status: 503 });
 	}
-	const auth = request.headers.get("authorization");
-	const SCHEME_PREFIX = "bearer ";
+	const token = bearerToken(request.headers.get("authorization"));
 	// RFC 6750 §2.1: the auth scheme is case-insensitive. `curl -H
 	// "authorization: bearer ..."` and SDKs that don't canonicalise the
 	// scheme would otherwise fail with a confusing 401 even though the
 	// token is correct.
-	if (
-		!auth ||
-		auth.length < SCHEME_PREFIX.length ||
-		auth.slice(0, SCHEME_PREFIX.length).toLowerCase() !== SCHEME_PREFIX
-	) {
+	if (token === null) {
 		return new Response("unauthorized", {
 			status: 401,
 			headers: { "www-authenticate": "Bearer" },
 		});
 	}
-	const token = auth.slice(SCHEME_PREFIX.length);
 	if (!timingSafeEqual(token, expected)) {
 		return new Response("unauthorized", {
 			status: 401,
@@ -158,9 +159,8 @@ function requireReconciliationAuth(request: Request, env: Env): Response | null 
 	if (!expected || expected.trim().length === 0) {
 		return new Response("reconciliation endpoint not configured", { status: 503 });
 	}
-	const auth = request.headers.get("authorization");
-	const prefix = "Bearer ";
-	if (!auth?.startsWith(prefix) || !timingSafeEqual(auth.slice(prefix.length), expected)) {
+	const token = bearerToken(request.headers.get("authorization"));
+	if (token === null || !timingSafeEqual(token, expected)) {
 		return new Response("unauthorized", { status: 401 });
 	}
 	return null;
@@ -231,23 +231,6 @@ export default {
 				{ current: await isCurrentSubject(env.DB, uri, cid) },
 				{ headers: { "cache-control": "private, no-store" } },
 			);
-		}
-		if (url.pathname === PROFILE_INSTALLABILITY_RECONCILIATION_PATH) {
-			if (request.method !== "POST") {
-				return new Response("method not allowed", {
-					status: 405,
-					headers: { allow: "POST" },
-				});
-			}
-			const denied = requireReconciliationAuth(request, env);
-			if (denied) return denied;
-			const result = await reconcileProfileInstallability(
-				createProfileInstallabilityReconciliationDeps(env),
-			);
-			return Response.json(result, {
-				status: result.status === "complete" ? 200 : 503,
-				headers: { "cache-control": "private, no-store" },
-			});
 		}
 		if (url.pathname === BOOTSTRAP_PATH) {
 			if (request.method !== "POST") {

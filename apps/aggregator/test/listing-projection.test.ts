@@ -91,6 +91,7 @@ beforeAll(async () => {
 		"0010_clear_duplicate_handles.sql",
 		"0011_unique_publisher_handle.sql",
 		"0012_profile_installability.sql",
+		"0013_extensionless_profiles.sql",
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(0, 2));
 	await testEnv.DB.prepare(
@@ -178,7 +179,32 @@ beforeAll(async () => {
 			NOW.toISOString(),
 		)
 		.run();
-	await applyD1Migrations(testEnv.DB, migrations.slice(11));
+	await applyD1Migrations(testEnv.DB, migrations.slice(11, 12));
+	await testEnv.DB.batch([
+		testEnv.DB.prepare(
+			`UPDATE packages
+			 SET installability_status = 'invalid',
+			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
+		),
+		testEnv.DB.prepare(
+			`UPDATE public_packages
+			 SET installability_status = 'invalid',
+			     installability_error = 'PROFILE_EXTENSION_MISSING'`,
+		),
+		testEnv.DB.prepare(
+			`UPDATE profile_installability_reconciliation
+			 SET status = 'complete', completed_at = ? WHERE id = 1`,
+		).bind(NOW.toISOString()),
+	]);
+	await applyD1Migrations(testEnv.DB, migrations.slice(12));
+	const removedInstallabilityArtifacts = await testEnv.DB.prepare(
+		`SELECT COUNT(*) AS count FROM sqlite_master
+		 WHERE name IN (
+		   'idx_package_profile_revisions_installability',
+		   'profile_installability_reconciliation'
+		 )`,
+	).first<{ count: number }>();
+	expect(removedInstallabilityArtifacts?.count).toBe(0);
 
 	const projectionMigration = migrations[2];
 	if (!projectionMigration) throw new Error("projection migration fixture missing");
@@ -331,9 +357,9 @@ describe("revision migration and ingest", () => {
 			releaseCount: 1,
 			publicPackageCount: 1,
 			publicReleaseCount: 1,
-			packageInstallability: "pending",
-			revisionInstallability: "pending",
-			publicPackageInstallability: "pending",
+			packageInstallability: "valid",
+			revisionInstallability: "valid",
+			publicPackageInstallability: "valid",
 		});
 	});
 
@@ -383,12 +409,41 @@ describe("revision migration and ingest", () => {
 });
 
 describe("projection policy", () => {
+	it("projects a profile without the optional repository extension", async () => {
+		await seedProfile({
+			did: DID_A,
+			slug: "extensionless",
+			cid: PROFILE_CID_1,
+			name: "Extensionless plugin",
+			at: NOW,
+			extension: "missing",
+		});
+		await seedRelease({
+			did: DID_A,
+			slug: "extensionless",
+			cid: RELEASE_CID_1,
+			version: "1.0.0",
+			at: NOW,
+		});
+
+		await rebuild("open");
+
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status
+				 FROM public_packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "extensionless")
+				.first(),
+		).toEqual({ emdash_extension: null, installability_status: "valid" });
+	});
+
 	it("keeps an approved but uninstallable profile out of public discovery", async () => {
 		await seedProfile({
 			cid: PROFILE_CID_1,
 			name: "Incomplete profile",
 			at: NOW,
-			installable: false,
+			extension: "invalid",
 		});
 		await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
 		await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-passed");
@@ -1679,7 +1734,7 @@ interface SeedProfileOptions {
 	at: Date;
 	did?: string;
 	slug?: string;
-	installable?: boolean;
+	extension?: "valid" | "missing" | "invalid";
 }
 
 async function seedProfile(options: SeedProfileOptions): Promise<void> {
@@ -1697,13 +1752,16 @@ async function seedProfile(options: SeedProfileOptions): Promise<void> {
 			license: "MIT",
 			authors: [{ name: "Publisher" }],
 			security: [{ email: "security@example.test" }],
-			...(options.installable === false
+			...(options.extension === "missing"
 				? {}
 				: {
 						extensions: {
 							[NSID.packageProfileExtension]: {
 								$type: NSID.packageProfileExtension,
-								repository: "https://github.com/example/demo",
+								repository:
+									options.extension === "invalid"
+										? "http://github.com/example/demo"
+										: "https://github.com/example/demo",
 							},
 						},
 					}),

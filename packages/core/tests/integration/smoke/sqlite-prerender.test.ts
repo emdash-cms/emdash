@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -13,6 +14,15 @@ const FIXTURE_DIR = resolve(import.meta.dirname, "../fixture");
 const SERVERS_BASE = resolve(import.meta.dirname, "../.servers");
 const DONOR_NODE_MODULES = resolve(WORKSPACE_ROOT, "demos/simple/node_modules");
 const CLI_BIN = resolve(import.meta.dirname, "../../../dist/cli/index.mjs");
+const SMOKE_FONT_PROVIDER_IMPORT = pathToFileURL(
+	resolve(import.meta.dirname, "smoke-font-provider.mjs"),
+).href;
+
+function nodeOptionsWithSmokeFontProvider(): string {
+	return [process.env.NODE_OPTIONS, `--import=${SMOKE_FONT_PROVIDER_IMPORT}`]
+		.filter(Boolean)
+		.join(" ");
+}
 
 describe("SQLite static prerender", () => {
 	let workDir: string | undefined;
@@ -56,6 +66,7 @@ describe("SQLite static prerender", () => {
 			env: {
 				...process.env,
 				CI: "true",
+				NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
 				EMDASH_TEST_DB: `file:${databasePath}`,
 				EMDASH_TEST_UPLOADS: join(workDir, "uploads"),
 				EMDASH_TEST_VITE_CACHE: join(workDir, ".vite-cache"),

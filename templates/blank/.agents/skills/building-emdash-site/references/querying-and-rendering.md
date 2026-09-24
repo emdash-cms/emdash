@@ -127,6 +127,30 @@ const customTypes = {
 
 Each custom component receives the block data as props.
 
+## Rendering a blocks field
+
+Use `Blocks` for an ordered composition stored in a `blocks` collection field. Map each generated `_type` to an Astro component at the call site.
+
+```astro
+---
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import type { PageLayoutBlock } from "../../emdash-env";
+import Hero from "../components/blocks/Hero.astro";
+import FeatureGrid from "../components/blocks/FeatureGrid.astro";
+
+const components = defineBlockComponents<PageLayoutBlock>({
+	hero: Hero,
+	feature_grid: FeatureGrid,
+});
+---
+
+<Blocks value={page.data.layout} components={components} />
+```
+
+Each component receives `{ value, index, blockKey }`. The value retains `_version`, so a renderer can narrow old and active shapes. `Blocks` performs no database or network queries.
+
+An unmapped type produces a visible development placeholder. In production it renders the optional `fallback` component or no output. Ship renderer support before activating a new breaking block version.
+
 ## Image Component
 
 **Always use the EmDash Image component for CMS images.** Image fields are objects, not strings.

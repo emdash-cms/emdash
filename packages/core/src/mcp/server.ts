@@ -21,9 +21,11 @@ import {
 	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	createBlockTypeBody,
 	createCollectionBody,
 	createTaxonomyDefBody,
 	updateCollectionBody,
+	updateBlockTypeBody,
 	updateFieldBody,
 	updateTaxonomyDefBody,
 } from "#api/schemas.js";
@@ -36,6 +38,7 @@ import { convertDataForRead, convertDataForWrite } from "../client/portable-text
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
+import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -97,8 +100,9 @@ const settingsSeoSchema = z.object({
 		.optional()
 		.describe("Separator between page title and site title (e.g. ' | ')"),
 	defaultOgImage: settingsMediaReferenceSchema
+		.nullable()
 		.optional()
-		.describe("Default Open Graph image when content has none"),
+		.describe("Default Open Graph image when content has none; null removes it"),
 	robotsTxt: z
 		.string()
 		.max(5000)
@@ -514,8 +518,9 @@ async function getCollectionFields(
 ): Promise<FieldSchema[] | null> {
 	try {
 		const { SchemaRegistry } = await import("../schema/index.js");
+		const { expandCollectionBlockFields } = await import("../schema/block-values.js");
 		const col = await new SchemaRegistry(ec.db).getCollectionWithFields(collection);
-		return col ? col.fields : null;
+		return col ? (await expandCollectionBlockFields(ec.db, col)).fields : null;
 	} catch {
 		return null;
 	}
@@ -715,20 +720,38 @@ export function createMcpServer(
 	// surface as structured `_meta.code`-bearing tool error envelopes
 	// instead of the SDK's text-only fallback in createToolError().
 	//
+	// The wrapper also applies the site write fence. Every MCP request is a
+	// POST, so the fence middleware leaves the endpoint to this per-tool
+	// check: every tool is fenced unless it is annotated `readOnlyHint: true`.
+	// A tool annotated read-only must never write.
+	//
 	// Type-erased on purpose — the SDK's overloads are too narrow for a
 	// generic wrapper, but the runtime contract (callback returns the tool
 	// result envelope) holds for every registered tool.
 	const originalRegisterTool = server.registerTool.bind(server);
 	(server as { registerTool: typeof server.registerTool }).registerTool = ((
 		name: string,
-		config: unknown,
+		config: { annotations?: { readOnlyHint?: boolean } },
 		callback: (...callbackArgs: unknown[]) => Promise<SuccessEnvelope | ErrorEnvelope>,
 	) => {
+		const fenced = config.annotations?.readOnlyHint !== true;
 		const wrapped = async (
 			...callbackArgs: unknown[]
 		): Promise<SuccessEnvelope | ErrorEnvelope> => {
 			try {
-				return await callback(...callbackArgs);
+				if (!fenced) return await callback(...callbackArgs);
+				// The SDK passes the request extra as the last callback argument.
+				const extra = callbackArgs.at(-1) as { authInfo?: { extra?: Record<string, unknown> } };
+				const { db } = getEmDash(extra);
+				const fence = await readSiteWriteFence(db);
+				if (fence.error) return respondError(fence.error.code, fence.error.message);
+				const result = await callback(...callbackArgs);
+				// Recorded after the write so an export whose fence was captured
+				// while this tool ran still sees it.
+				if (fence.exportRunning && !("isError" in result && result.isError)) {
+					await recordSiteWrite(db);
+				}
+				return result;
 			} catch (error) {
 				return respondHandlerError(error, "INTERNAL_ERROR");
 			}
@@ -984,6 +1007,14 @@ export function createMcpServer(
 					.describe(
 						"ID of the content item this is a translation of. Links items in the same translation group.",
 					),
+				migrateBlocks: z
+					.boolean()
+					.optional()
+					.describe("Allow retained blocks to migrate to their type's active version"),
+				replaceBlocks: z
+					.boolean()
+					.optional()
+					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				bylines: z
 					.array(contentBylineInputSchema)
 					.optional()
@@ -1036,6 +1067,8 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					migrateBlocks: args.migrateBlocks,
+					replaceBlocks: args.replaceBlocks,
 					actor,
 				});
 				if (!result.success) return unwrap(result);
@@ -1064,6 +1097,8 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					migrateBlocks: args.migrateBlocks,
+					replaceBlocks: args.replaceBlocks,
 					actor,
 				}),
 				[args.collection],
@@ -1136,6 +1171,14 @@ export function createMcpServer(
 					.describe(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
 					),
+				migrateBlocks: z
+					.boolean()
+					.optional()
+					.describe("Allow existing blocks to migrate to their type's active version"),
+				replaceBlocks: z
+					.boolean()
+					.optional()
+					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 		},
@@ -1194,6 +1237,8 @@ export function createMcpServer(
 						bylines: args.bylines,
 						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
+						migrateBlocks: args.migrateBlocks,
+						replaceBlocks: args.replaceBlocks,
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
@@ -1233,6 +1278,8 @@ export function createMcpServer(
 						bylines: args.bylines,
 						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
+						migrateBlocks: args.migrateBlocks,
+						replaceBlocks: args.replaceBlocks,
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
@@ -1260,6 +1307,8 @@ export function createMcpServer(
 				bylines: args.bylines,
 				taxonomies: args.taxonomies,
 				publishedAt: args.publishedAt,
+				migrateBlocks: args.migrateBlocks,
+				replaceBlocks: args.replaceBlocks,
 				_rev: args._rev,
 			});
 			if (result.liveContentChanged === false) return unwrap(result);
@@ -1310,7 +1359,9 @@ export function createMcpServer(
 		"content_restore",
 		{
 			title: "Restore Content",
-			description: "Restore a soft-deleted content item from the trash back to its previous state.",
+			description:
+				"Restore a soft-deleted content item from the trash. It comes back as a draft " +
+				"with no schedule, even if it was published or scheduled before it was trashed.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1435,7 +1486,8 @@ export function createMcpServer(
 			title: "Unpublish Content",
 			description:
 				"Unpublish a content item, reverting it to draft status. It will no " +
-				"longer be visible on the live site, but its content and publication date are preserved.",
+				"longer be visible on the live site, but its content and publication date are preserved. " +
+				"Any pending schedule is cancelled.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1524,9 +1576,9 @@ export function createMcpServer(
 		{
 			title: "Cancel Scheduled Publication",
 			description:
-				"Cancel a previously scheduled publication. The item remains in its current " +
-				"status (typically 'draft' or 'scheduled'); only the scheduledAt timestamp is " +
-				"cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+				"Cancel a previously scheduled publication. Scheduled drafts return to draft status; " +
+				"published items stay published. The scheduledAt timestamp is cleared. Idempotent — " +
+				"calling on an item that isn't scheduled is a no-op.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1584,8 +1636,8 @@ export function createMcpServer(
 		{
 			title: "Discard Draft",
 			description:
-				"Discard the current draft changes and revert to the last published " +
-				"version. Only works on items that have been published at least once.",
+				"Discard the current draft revision. Published content reverts to its live " +
+				"version; an item without a pending draft is unchanged.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1922,7 +1974,8 @@ export function createMcpServer(
 				"Get detailed info about a collection including all field definitions. " +
 				"Fields describe the data model: name, type (string, text, number, " +
 				"boolean, datetime, portableText, image, reference, json, select, " +
-				"multiSelect, slug), constraints, and validation rules. Use this to " +
+				"multiSelect, slug, blocks), constraints, and validation rules. Blocks fields " +
+				"include every allowed and retired block type version. Use this to " +
 				"understand what data content_create and content_update expect.",
 			inputSchema: z.object({
 				slug: z
@@ -1938,16 +1991,111 @@ export function createMcpServer(
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const { SchemaRegistry } = await import("../schema/index.js");
+				const { SchemaRegistry, expandCollectionBlockFields } = await import("../schema/index.js");
 				const registry = new SchemaRegistry(ec.db);
 				const collection = await registry.getCollectionWithFields(args.slug);
 				if (!collection) {
 					return respondError("NOT_FOUND", `Collection '${args.slug}' not found`);
 				}
-				return jsonResult(collection);
+				return jsonResult(await expandCollectionBlockFields(ec.db, collection));
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_GET_ERROR");
 			}
+		},
+	);
+
+	server.registerTool(
+		"schema_list_block_types",
+		{
+			title: "List Block Types",
+			description: "List every database-owned block type and all retained versions.",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireScope(extra, "schema:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeList } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeList(ec.db));
+		},
+	);
+
+	server.registerTool(
+		"schema_get_block_type",
+		{
+			title: "Get Block Type",
+			description: "Get one block type, including active, inactive, and historical versions.",
+			inputSchema: z.object({ slug: z.string().describe("Block type slug") }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeGet } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeGet(ec.db, args.slug));
+		},
+	);
+
+	server.registerTool(
+		"schema_create_block_type",
+		{
+			title: "Create Block Type",
+			description: "Create a block type with active version 1.",
+			inputSchema: z.object(createBlockTypeBody.shape),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeCreate } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeCreate(ec.db, args));
+		},
+	);
+
+	server.registerTool(
+		"schema_update_block_type",
+		{
+			title: "Update Block Type",
+			description:
+				"Update presentation or compatible fields in place. Set breaking to create an inactive retained version.",
+			inputSchema: z.object({ slug: z.string(), ...updateBlockTypeBody.shape }),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { slug, ...input } = args;
+			const { handleBlockTypeUpdate } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeUpdate(ec.db, slug, input));
+		},
+	);
+
+	server.registerTool(
+		"schema_activate_block_type_version",
+		{
+			title: "Activate Block Type Version",
+			description: "Make a retained version the active version used by newly created blocks.",
+			inputSchema: z.object({
+				slug: z.string(),
+				version: z.number().int().positive(),
+				expectedFingerprint: z.string().min(1),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeVersionActivate } = await import("../api/handlers/block-types.js");
+			return unwrap(
+				await handleBlockTypeVersionActivate(
+					ec.db,
+					args.slug,
+					args.version,
+					args.expectedFingerprint,
+				),
+			);
 		},
 	);
 
@@ -2081,7 +2229,7 @@ export function createMcpServer(
 				"database table. Field types: string (short text), text (long text), " +
 				"number (decimal), integer, boolean, datetime, select (single choice), " +
 				"multiSelect (multiple), portableText (rich text), image, file, " +
-				"reference (link to another collection), json, slug (URL-safe id). " +
+				"reference (link to another collection), json, slug (URL-safe id), or blocks. " +
 				"For select/multiSelect, provide choices in validation.options array.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug to add the field to"),
@@ -2106,6 +2254,7 @@ export function createMcpServer(
 						"reference",
 						"json",
 						"slug",
+						"blocks",
 					])
 					.describe("Data type for this field"),
 				required: z.boolean().optional().describe("Whether the field is required (default false)"),
@@ -2122,6 +2271,12 @@ export function createMcpServer(
 							.array(z.string())
 							.optional()
 							.describe("Allowed values for select/multiSelect"),
+						allowedTypes: z
+							.array(z.string())
+							.optional()
+							.describe("Ordered block type slugs allowed by a blocks field"),
+						minItems: z.number().int().min(0).optional(),
+						maxItems: z.number().int().min(1).optional(),
 					})
 					.optional()
 					.describe("Validation constraints"),
@@ -2860,7 +3015,9 @@ export function createMcpServer(
 				translationOf: z
 					.string()
 					.optional()
-					.describe("Term id to join as a translation (same translation_group)"),
+					.describe(
+						"Term id to join as a translation (same translation_group). The new term takes that term's parent and position; a different parentId moves the term in every locale",
+					),
 			}),
 		},
 		async (args, extra) => {
@@ -2898,7 +3055,9 @@ export function createMcpServer(
 				"parent must exist, belong to the same taxonomy, and not introduce a cycle " +
 				"(a term cannot be its own ancestor). The new parent's ancestor chain must " +
 				"not exceed 100 levels — reparenting under a chain of 100+ ancestors is " +
-				"rejected.",
+				"rejected. Translations of a term can share a slug: pass `locale` to " +
+				"update a specific translation; otherwise the lowest matching locale is " +
+				"updated.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				termSlug: z.string().describe("Current slug of the term to update"),
@@ -2906,6 +3065,7 @@ export function createMcpServer(
 				label: z.string().optional().describe("New display name"),
 				parentId: z.string().nullable().optional().describe("New parent term ID; null to detach"),
 				description: z.string().optional().describe("New description"),
+				locale: z.string().optional().describe("Locale of the term to update (e.g. 'fr')"),
 			}),
 		},
 		async (args, extra) => {
@@ -2916,12 +3076,18 @@ export function createMcpServer(
 				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
 				return unwrapAndInvalidate(
 					extra,
-					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
-						slug: args.slug,
-						label: args.label,
-						parentId: args.parentId,
-						description: args.description,
-					}),
+					await handleTermUpdate(
+						ec.db,
+						args.taxonomy,
+						args.termSlug,
+						{
+							slug: args.slug,
+							label: args.label,
+							parentId: args.parentId,
+							description: args.description,
+						},
+						{ locale: args.locale },
+					),
 					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
@@ -2937,10 +3103,13 @@ export function createMcpServer(
 			description:
 				"Permanently delete a term from a taxonomy. Any content tagged with this " +
 				"term loses the association. Cannot delete a term that has children — " +
-				"delete children first.",
+				"delete children first. Translations of a term can share a slug: pass " +
+				"`locale` to delete a specific translation; otherwise the lowest matching " +
+				"locale is deleted.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name"),
 				termSlug: z.string().describe("Slug of the term to delete"),
+				locale: z.string().optional().describe("Locale of the term to delete (e.g. 'fr')"),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -2952,7 +3121,7 @@ export function createMcpServer(
 				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
 				return unwrapAndInvalidate(
 					extra,
-					await handleTermDelete(ec.db, args.taxonomy, args.termSlug),
+					await handleTermDelete(ec.db, args.taxonomy, args.termSlug, { locale: args.locale }),
 					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
@@ -3352,16 +3521,18 @@ export function createMcpServer(
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +
-				"media_create first).",
+				"media_create first), or pass null to remove it.",
 			inputSchema: z.object({
 				title: z.string().optional().describe("Site title"),
 				tagline: z.string().optional().describe("Site tagline / short description"),
 				logo: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Logo media reference ({ mediaId, alt? })"),
+					.describe("Logo media reference ({ mediaId, alt? }); null removes it"),
 				favicon: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Favicon media reference ({ mediaId, alt? })"),
+					.describe("Favicon media reference ({ mediaId, alt? }); null removes it"),
 				url: z
 					.union([
 						z.url().refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),

@@ -106,7 +106,7 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 						repository: "https://github.com/example/demo",
 					}),
 			opts.installable === false ? "invalid" : "valid",
-			opts.installable === false ? "PROFILE_EXTENSION_MISSING" : null,
+			opts.installable === false ? "PROFILE_EXTENSION_INVALID" : null,
 			NOW.toISOString(),
 			opts.latestVersion ?? null,
 			null,

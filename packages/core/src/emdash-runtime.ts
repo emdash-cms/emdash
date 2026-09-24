@@ -28,7 +28,6 @@ import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
-import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import { getSiteBaseUrl } from "./api/site-url.js";
 import type {
@@ -82,7 +81,7 @@ import {
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
-import type { ContentActionCallbacks } from "./plugins/context.js";
+import type { ContentActionCallbacks, ContentWriteGuard } from "./plugins/context.js";
 import type { PluginContentCacheInvalidator } from "./plugins/routes.js";
 import {
 	createSandboxedPluginProxy,
@@ -233,6 +232,9 @@ import {
 	handleRevisionGet,
 	handleRevisionRestore,
 	SchemaRegistry,
+	SchemaError,
+	normalizeBlocksData,
+	resolveBlockTypes,
 	type Database,
 	type Storage,
 } from "./index.js";
@@ -275,8 +277,20 @@ import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
+import { assertSiteWriteAllowed } from "./transfer/fence.js";
 
-const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision", "actor"]);
+const DRAFT_ONLY_UPDATE_KEYS = new Set([
+	"data",
+	"slug",
+	"locale",
+	"skipRevision",
+	"actor",
+	"migrateBlocks",
+	"replaceBlocks",
+]);
+
+/** Field types whose schema is an array, so a stored blank string can never validate. */
+const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 
@@ -349,11 +363,13 @@ export type ResolvedPluginEditorExtension =
 			kind: "panel";
 			extension: PluginEditorPanel;
 			policy: BlockValidationPolicy;
+			capabilities: readonly PluginCapability[];
 	  }
 	| {
 			kind: "action";
 			extension: PluginEditorAction;
 			policy: BlockValidationPolicy;
+			capabilities: readonly PluginCapability[];
 	  };
 
 export interface PluginEditorExtensionDispatch {
@@ -481,7 +497,7 @@ export interface EmDashRuntimeParts {
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: ContentWriteGuard;
 		contentCreate?: PluginContentCreateCallback;
 		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
@@ -768,7 +784,7 @@ export class EmDashRuntime {
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: ContentWriteGuard;
 		contentCreate?: PluginContentCreateCallback;
 		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
@@ -864,9 +880,9 @@ export class EmDashRuntime {
 	private async publishScheduledWithFence(
 		onPublished?: (refs: PublishedRef[]) => Promise<void>,
 	): Promise<PublishedRef[]> {
-		await assertMediaUsageActivationWriteAllowed(this.db);
+		const recordWrite = await assertSiteWriteAllowed(this.db);
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
-		return publishDueContent(this.db, {
+		const published = await publishDueContent(this.db, {
 			publish: (collection, id, options) =>
 				this.handleContentPublish(collection, id, {
 					...options,
@@ -875,6 +891,8 @@ export class EmDashRuntime {
 			onPublished,
 			currentTime,
 		});
+		if (published.length > 0) await recordWrite();
+		return published;
 	}
 
 	/**
@@ -1671,8 +1689,13 @@ export class EmDashRuntime {
 						const seed = await loadSeed();
 						const validation = validateSeed(seed);
 						if (validation.valid) {
-							await applySeed(db, seed, { onConflict: "skip" });
+							const seedResult = await applySeed(db, seed, { onConflict: "skip" });
 							console.log("Auto-seeded default collections");
+							if (seedResult.taxonomies.skipped > 0) {
+								console.warn(
+									`[auto-seed] Kept ${seedResult.taxonomies.skipped} existing taxonomy definition(s) instead of the seed's. Edit them in the admin, or run \`emdash seed <file> --on-conflict update\` to replace them (this also overwrites other seeded records).`,
+								);
+							}
 						}
 						seedHolder.done.add(seedKey);
 						return true;
@@ -1943,7 +1966,7 @@ export class EmDashRuntime {
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
-			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			beforeContentWrite: () => assertSiteWriteAllowed(resolveDb()),
 			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
@@ -2067,8 +2090,8 @@ export class EmDashRuntime {
 							if (runtime) {
 								await runtime.publishScheduled();
 							} else {
-								await assertMediaUsageActivationWriteAllowed(db);
-								await publishDueContent(db);
+								const recordWrite = await assertSiteWriteAllowed(db);
+								if ((await publishDueContent(db)).length > 0) await recordWrite();
 							}
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
@@ -2429,7 +2452,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
-						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
 						mediaStorage: mediaStorage
@@ -2588,7 +2611,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
-						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						beforeContentWrite: () => assertSiteWriteAllowed(db),
 						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
 						mediaStorage: {
@@ -3277,6 +3300,8 @@ export class EmDashRuntime {
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
 			actor?: ActorInfo;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 		},
 		options: { skipSaveHooks?: boolean; excludeAfterSavePluginId?: string } = {},
 	) {
@@ -3357,9 +3382,43 @@ export class EmDashRuntime {
 				}
 			}
 		}
+		const collectionInfo = await this.schemaRegistry
+			.getCollectionWithFields(collection)
+			.catch(() => null);
+		const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
+			? await resolveBlockTypes(this.db)
+			: undefined;
+		if (collectionInfo) {
+			try {
+				processedData = await normalizeBlocksData(
+					this.db,
+					collectionInfo,
+					processedData,
+					translationSource?.data,
+					{
+						migrateBlocks: body.migrateBlocks,
+						replaceBlocks: body.replaceBlocks,
+					},
+					false,
+					resolvedBlockTypes,
+				);
+			} catch (error) {
+				if (error instanceof SchemaError) {
+					return {
+						success: false as const,
+						error: { code: error.code, message: error.message, details: error.details },
+					};
+				}
+				throw error;
+			}
+		}
 
-		// Normalize media fields (fill dimensions, storageKey, etc.)
-		processedData = await this.normalizeMediaFields(collection, processedData);
+		processedData = await this.normalizeFieldValues(
+			collection,
+			processedData,
+			collectionInfo,
+			resolvedBlockTypes,
+		);
 
 		// Validate against the collection schema. Hook output is validated
 		// rather than `body.data` so plugins that mutate field values can't
@@ -3376,8 +3435,14 @@ export class EmDashRuntime {
 		}
 
 		// Create the content
+		const {
+			actor: _discardedActor,
+			migrateBlocks: _discardedMigrateBlocks,
+			replaceBlocks: _discardedReplaceBlocks,
+			...contentBody
+		} = body;
 		const result = await handleContentCreate(this.db, collection, {
-			...body,
+			...contentBody,
 			data: processedData,
 			locale,
 			authorId: body.authorId,
@@ -3428,6 +3493,8 @@ export class EmDashRuntime {
 			 * passed to content hooks; never changes entry ownership.
 			 */
 			actor?: ActorInfo;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 		},
 	) {
 		const actor = body.actor ? { ...body.actor } : undefined;
@@ -3455,7 +3522,14 @@ export class EmDashRuntime {
 				};
 			}
 		}
-		const { _rev: _discardedRev, actor: _discardedActor, ...bodyWithoutRev } = body;
+		const {
+			_rev: _discardedRev,
+			actor: _discardedActor,
+			migrateBlocks,
+			replaceBlocks,
+			...bodyWithoutRev
+		} = body;
+		const blockWriteOptions = { migrateBlocks, replaceBlocks };
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
@@ -3466,6 +3540,7 @@ export class EmDashRuntime {
 
 		// Run beforeSave hooks if data is provided
 		let processedData = bodyWithoutRev.data;
+		let resolvedBlockTypes: Awaited<ReturnType<typeof resolveBlockTypes>> | undefined;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
 				try {
@@ -3482,8 +3557,13 @@ export class EmDashRuntime {
 				}
 			}
 
-			// Normalize media fields (fill dimensions, storageKey, etc.)
-			processedData = await this.normalizeMediaFields(collection, processedData!, collectionInfo);
+			processedData = await this.normalizeFieldValues(
+				collection,
+				processedData!,
+				collectionInfo,
+				undefined,
+				false,
+			);
 
 			// Drop unknown field keys the entry already stores (e.g. a deleted field
 			// stranded in a draft revision) before validation, while still rejecting
@@ -3495,18 +3575,52 @@ export class EmDashRuntime {
 					knownFieldSlugs,
 				);
 			}
+			if (
+				collectionInfo?.fields.some(
+					(field) => field.type === "blocks" && Object.hasOwn(processedData!, field.slug),
+				)
+			) {
+				resolvedBlockTypes = await resolveBlockTypes(this.db);
+			}
 
-			// Validate field-level shape BEFORE the draft-revision write so
-			// invalid updates can't silently land in revision history.
-			const { validateContentData } = await import("./api/handlers/validation.js");
-			const validation = await validateContentData(this.db, collection, processedData, {
-				partial: true,
-			});
-			if (!validation.ok) {
-				return {
-					success: false as const,
-					error: validation.error,
-				};
+			if (!collectionInfo?.supports?.includes("revisions")) {
+				if (collectionInfo) {
+					try {
+						processedData = await normalizeBlocksData(
+							this.db,
+							collectionInfo,
+							processedData,
+							resolvedItem?.data,
+							blockWriteOptions,
+							true,
+							resolvedBlockTypes,
+						);
+						processedData = await this.normalizeFieldValues(
+							collection,
+							processedData,
+							collectionInfo,
+							resolvedBlockTypes,
+						);
+					} catch (error) {
+						if (error instanceof SchemaError) {
+							return {
+								success: false as const,
+								error: { code: error.code, message: error.message, details: error.details },
+							};
+						}
+						throw error;
+					}
+				}
+				const { validateContentData } = await import("./api/handlers/validation.js");
+				const validation = await validateContentData(this.db, collection, processedData, {
+					partial: true,
+				});
+				if (!validation.ok) {
+					return {
+						success: false as const,
+						error: validation.error,
+					};
+				}
 			}
 		}
 
@@ -3529,13 +3643,46 @@ export class EmDashRuntime {
 					} else {
 						baseData = existing.data;
 					}
+					let attemptData = processedData;
+					try {
+						attemptData = await normalizeBlocksData(
+							this.db,
+							collectionInfo,
+							processedData,
+							baseData,
+							blockWriteOptions,
+							true,
+							resolvedBlockTypes,
+						);
+						attemptData = await this.normalizeFieldValues(
+							collection,
+							attemptData,
+							collectionInfo,
+							resolvedBlockTypes,
+						);
+					} catch (error) {
+						if (error instanceof SchemaError) {
+							return {
+								success: false as const,
+								error: { code: error.code, message: error.message, details: error.details },
+							};
+						}
+						throw error;
+					}
+					const { validateContentData } = await import("./api/handlers/validation.js");
+					const validation = await validateContentData(this.db, collection, attemptData, {
+						partial: true,
+					});
+					if (!validation.ok) {
+						return { success: false as const, error: validation.error };
+					}
 
 					// Written without the keys the collection has no field for, so an entry
 					// carrying a deleted field's value sheds it on its next save instead of
 					// carrying it through every revision that follows.
 					const mergedData = collectionInfo?.fields
-						? keepKnownFields({ ...baseData, ...processedData }, knownFieldSlugs)
-						: { ...baseData, ...processedData };
+						? keepKnownFields({ ...baseData, ...attemptData }, knownFieldSlugs)
+						: { ...baseData, ...attemptData };
 					if (bodyWithoutRev.slug !== undefined) {
 						mergedData._slug = bodyWithoutRev.slug;
 					}
@@ -3583,6 +3730,7 @@ export class EmDashRuntime {
 					}
 
 					draftStorageChanged = true;
+					processedData = attemptData;
 
 					if (bodyWithoutRev.skipRevision && existing.draftRevisionId) {
 						try {
@@ -3810,7 +3958,7 @@ export class EmDashRuntime {
 			}
 			invocationInvalidator = this.pluginInvocationCacheInvalidators.get(invocationKey);
 		}
-		await assertMediaUsageActivationWriteAllowed(this.db);
+		const recordWrite = await assertSiteWriteAllowed(this.db);
 		const repo = new ContentRepository(this.db);
 		const item =
 			action === "restore"
@@ -3826,6 +3974,7 @@ export class EmDashRuntime {
 		this.retainPluginContentAction(key);
 		try {
 			const result = await fn(resolvedId);
+			await recordWrite();
 			const invalidator =
 				invalidateContentCache ?? invocationInvalidator ?? this.pluginContentCacheInvalidator;
 			if (invalidator) {
@@ -4499,7 +4648,7 @@ export class EmDashRuntime {
 	}
 
 	async handleMediaDelete(id: string) {
-		const result = await handleMediaDelete(this.db, id);
+		const result = await handleMediaDelete(this.db, id, this.storage);
 		// Same reasoning as `handleMediaUpdate`: if the deleted media row
 		// was referenced by a setting, the cached resolved URL now points
 		// at a 404. Invalidation is unconditional on success — cheaper than
@@ -4718,8 +4867,13 @@ export class EmDashRuntime {
 		// live, matching the documented tool contract.
 		try {
 			const contentRepo = new ContentRepository(this.db);
-			const existing = await contentRepo.findById(revision.collection, revision.entryId);
-			if (!existing) {
+			const newDraftId = await contentRepo.restoreDraftRevision(
+				revision.collection,
+				revision.entryId,
+				revision.data,
+				callerUserId,
+			);
+			if (!newDraftId) {
 				return {
 					success: false as const,
 					error: {
@@ -4729,43 +4883,12 @@ export class EmDashRuntime {
 				};
 			}
 
-			const newDraft = await revisionRepo.create({
-				collection: revision.collection,
-				entryId: revision.entryId,
-				data: revision.data,
-				authorId: callerUserId,
-			});
-
-			try {
-				const staged = await contentRepo.replaceDraftRevision(
-					revision.collection,
-					revision.entryId,
-					newDraft.id,
-					existing,
-				);
-				if (!staged) throw new ContentMutationConflictError();
-			} catch (error) {
-				try {
-					await revisionRepo.deleteIfUnreferenced(
-						revision.collection,
-						revision.entryId,
-						newDraft.id,
-					);
-				} catch (cleanupError) {
-					console.error(
-						`[emdash] Failed to clean up unrestored revision ${newDraft.id}:`,
-						cleanupError,
-					);
-				}
-				throw error;
-			}
-
 			after(async () => {
 				try {
 					await revisionRepo.pruneQueuedEntry(
 						revision.collection,
 						revision.entryId,
-						newDraft.id,
+						newDraftId,
 						50,
 					);
 				} catch (error) {
@@ -5021,6 +5144,7 @@ export class EmDashRuntime {
 			}
 		}
 
+		const normalizedCapabilities = normalizePluginCapabilities(capabilities);
 		const policy = {
 			pluginPagePaths: pages,
 			allowedImageHosts: allowedBrowserImageHosts(capabilities, allowedHosts),
@@ -5035,7 +5159,7 @@ export class EmDashRuntime {
 			) {
 				return null;
 			}
-			return { kind, extension, policy };
+			return { kind, extension, policy, capabilities: normalizedCapabilities };
 		}
 		const matches = actions?.filter((action) => action.id === extensionId) ?? [];
 		const extension = matches[0];
@@ -5047,7 +5171,11 @@ export class EmDashRuntime {
 		) {
 			return null;
 		}
-		return { kind, extension, policy };
+		return { kind, extension, policy, capabilities: normalizedCapabilities };
+	}
+
+	async getPluginEditorDraftSchema(collection: string) {
+		return this.schemaRegistry.getCollectionWithFields(collection);
 	}
 
 	private validatePluginEditorExtensionResponse(
@@ -5492,13 +5620,16 @@ export class EmDashRuntime {
 	}
 
 	/**
-	 * Normalize image/file fields in content data.
-	 * Fills missing dimensions, storageKey, mimeType, and filename from providers.
+	 * Normalize field values in content data before validation.
+	 * Turns a blank string in an array-valued field into `null`, and fills
+	 * missing image/file dimensions, storageKey, mimeType, and filename from providers.
 	 */
-	private async normalizeMediaFields(
+	private async normalizeFieldValues(
 		collection: string,
 		data: Record<string, unknown>,
 		preloaded?: CollectionWithFields | null,
+		preloadedBlockTypes?: Awaited<ReturnType<typeof resolveBlockTypes>>,
+		includeBlocks = true,
 	): Promise<Record<string, unknown>> {
 		let collectionInfo = preloaded;
 		if (collectionInfo === undefined) {
@@ -5510,6 +5641,14 @@ export class EmDashRuntime {
 		}
 		if (!collectionInfo?.fields) return data;
 
+		const result = { ...data };
+		for (const field of collectionInfo.fields) {
+			const value = result[field.slug];
+			if (ARRAY_FIELD_TYPES.has(field.type) && typeof value === "string" && !value.trim()) {
+				result[field.slug] = null;
+			}
+		}
+
 		const imageFields = collectionInfo.fields.filter(
 			(f) => f.type === "image" || f.type === "file",
 		);
@@ -5519,10 +5658,14 @@ export class EmDashRuntime {
 		const repeaterFields = collectionInfo.fields.filter(
 			(f) => f.type === "repeater" && Array.isArray(f.validation?.subFields),
 		);
-		if (imageFields.length === 0 && repeaterFields.length === 0) return data;
+		const blockFields = includeBlocks
+			? collectionInfo.fields.filter((field) => field.type === "blocks")
+			: [];
+		if (imageFields.length === 0 && repeaterFields.length === 0 && blockFields.length === 0) {
+			return result;
+		}
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
-		const result = { ...data };
 
 		for (const field of imageFields) {
 			const value = result[field.slug];
@@ -5571,6 +5714,63 @@ export class EmDashRuntime {
 					return normalizedItem;
 				}),
 			);
+		}
+
+		if (blockFields.length > 0) {
+			const blockTypes = preloadedBlockTypes ?? (await resolveBlockTypes(this.db));
+			for (const field of blockFields) {
+				const value = result[field.slug];
+				if (!Array.isArray(value)) continue;
+				result[field.slug] = await Promise.all(
+					value.map(async (block) => {
+						if (!isRecord(block) || typeof block._type !== "string") return block;
+						const type = blockTypes.get(block._type);
+						const version = type?.versions.find(
+							(candidate) => candidate.version === block._version,
+						);
+						if (!version || version.unsupportedTypes?.length) return block;
+						const normalizedBlock: Record<string, unknown> = { ...block };
+						for (const nestedField of version.fields) {
+							const nestedValue = normalizedBlock[nestedField.slug];
+							if (nestedValue == null) continue;
+							try {
+								if (nestedField.type === "image") {
+									const normalized = await normalizeImageValue(nestedValue, getProvider);
+									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "file") {
+									const normalized = await normalizeMediaValue(nestedValue, getProvider);
+									if (normalized) normalizedBlock[nestedField.slug] = normalized;
+								} else if (nestedField.type === "repeater" && Array.isArray(nestedValue)) {
+									const imageSlugs = (nestedField.validation?.subFields ?? [])
+										.filter((subField) => subField.type === "image")
+										.map((subField) => subField.slug);
+									normalizedBlock[nestedField.slug] = await Promise.all(
+										nestedValue.map(async (item) => {
+											if (!isRecord(item)) return item;
+											const normalizedItem = { ...item };
+											for (const slug of imageSlugs) {
+												try {
+													const normalized = await normalizeImageValue(
+														normalizedItem[slug],
+														getProvider,
+													);
+													if (normalized) normalizedItem[slug] = normalized;
+												} catch {
+													continue;
+												}
+											}
+											return normalizedItem;
+										}),
+									);
+								}
+							} catch {
+								continue;
+							}
+						}
+						return normalizedBlock;
+					}),
+				);
+			}
 		}
 
 		return result;

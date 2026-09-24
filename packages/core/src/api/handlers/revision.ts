@@ -7,7 +7,7 @@ import type { Kysely } from "kysely";
 import { after } from "../../after.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
-import { withTransaction } from "../../database/transaction.js";
+import { ContentMutationConflictError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { encodeRev } from "../rev.js";
 import type { ApiResult, ContentResponse } from "../types.js";
@@ -111,30 +111,12 @@ export async function handleRevisionRestore(
 			};
 		}
 
-		// Extract _slug from revision data (stored as metadata, not a real column)
-		const { _slug, ...fieldData } = revision.data;
-
-		// Atomically update content and create a new revision to record the restore.
-		// If either operation fails, neither is committed (on engines that support
-		// transactions; on D1, withTransaction falls back to sequential execution).
-		const { item, queuedRevisionId } = await withTransaction(db, async (trx) => {
-			const trxContentRepo = new ContentRepository(trx);
-			const trxRevisionRepo = new RevisionRepository(trx);
-
-			const updated = await trxContentRepo.update(revision.collection, revision.entryId, {
-				data: fieldData,
-				slug: typeof _slug === "string" ? _slug : undefined,
-			});
-
-			const queuedRevision = await trxRevisionRepo.create({
-				collection: revision.collection,
-				entryId: revision.entryId,
-				data: revision.data,
-				authorId: callerUserId,
-			});
-
-			return { item: updated, queuedRevisionId: queuedRevision.id };
-		});
+		const { item, revisionId: queuedRevisionId } = await new ContentRepository(db).restoreRevision(
+			revision.collection,
+			revision.entryId,
+			revision.data,
+			callerUserId,
+		);
 
 		const pruneRepo = new RevisionRepository(db);
 		after(async () => {
@@ -157,7 +139,13 @@ export async function handleRevisionRestore(
 			success: true,
 			data: { item, _rev: encodeRev(item) },
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		return {
 			success: false,
 			error: {

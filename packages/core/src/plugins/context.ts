@@ -8,6 +8,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { handleMediaDelete } from "../api/handlers/media.js";
 import {
 	handleRedirectCreate,
 	handleRedirectDelete,
@@ -746,6 +747,17 @@ export function createTaxonomyAccessWithWrite(db: Kysely<Database>): TaxonomyAcc
 }
 
 /**
+ * Called immediately before a plugin content write; it throws to refuse the
+ * write. When it returns a function, that function is called once the write
+ * has succeeded.
+ */
+export type ContentWriteGuard = () => Promise<void | (() => Promise<void>)>;
+
+async function afterContentWrite(recordWrite: void | (() => Promise<void>)): Promise<void> {
+	if (typeof recordWrite === "function") await recordWrite();
+}
+
+/**
  * Create full content access with write operations.
  *
  * `create` and `update` accept a reserved `seo` key in their `data`
@@ -756,7 +768,7 @@ export function createTaxonomyAccessWithWrite(db: Kysely<Database>): TaxonomyAcc
  */
 export function createContentAccessWithWrite(
 	db: Kysely<Database>,
-	beforeContentWrite?: () => Promise<void>,
+	beforeContentWrite?: ContentWriteGuard,
 	accessOptions?: { site?: SiteInfo; revisions?: boolean },
 	contentCreate?: (data: {
 		collection: string;
@@ -775,13 +787,15 @@ export function createContentAccessWithWrite(
 			options?: ContentCreateOptions,
 		): Promise<ContentItem> {
 			const locale = resolveContentCreateLocale(options?.locale);
-			await beforeContentWrite?.();
+			const recordWrite = await beforeContentWrite?.();
 			if (contentCreate) {
-				return contentCreate({
+				const created = await contentCreate({
 					collection,
 					input: data,
 					options: { ...options, locale },
 				});
+				await afterContentWrite(recordWrite);
+				return created;
 			}
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
@@ -824,6 +838,7 @@ export function createContentAccessWithWrite(
 					return result;
 				});
 				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				await afterContentWrite(recordWrite);
 				return created;
 			} catch (error) {
 				if (contentMutated) {
@@ -834,7 +849,7 @@ export function createContentAccessWithWrite(
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
-			await beforeContentWrite?.();
+			const recordWrite = await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			const hasFieldUpdates = Object.keys(fields).length > 0;
 			let contentMutated = false;
@@ -885,6 +900,7 @@ export function createContentAccessWithWrite(
 				if (hasFieldUpdates) {
 					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 				}
+				await afterContentWrite(recordWrite);
 				return updated;
 			} catch (error) {
 				if (contentMutated) {
@@ -895,7 +911,7 @@ export function createContentAccessWithWrite(
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
-			await beforeContentWrite?.();
+			const recordWrite = await beforeContentWrite?.();
 			const contentRepo = new ContentRepository(db);
 			const deleted = await contentRepo.delete(collection, id);
 			if (deleted) {
@@ -903,6 +919,7 @@ export function createContentAccessWithWrite(
 				// release the lease itself. Mirrors handleContentDelete.
 				await new EntryLockRepository(db).releaseEntry(collection, id);
 				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				await afterContentWrite(recordWrite);
 			}
 			return deleted;
 		},
@@ -1064,16 +1081,18 @@ export function createMediaAccessWithWrite(
 		},
 
 		async delete(id: string): Promise<boolean> {
-			const deleted = await mediaRepo.delete(id);
+			const result = await handleMediaDelete(db, id, storage);
+			if (!result.success) {
+				if (result.error.code === "NOT_FOUND") return false;
+				throw new Error(result.error.message);
+			}
 			// Plugins can delete media that's referenced by site settings
 			// (`logo`, `favicon`, `seo.defaultOgImage`); the worker-scoped
 			// resolved-URL cache must be dropped or it will keep serving
 			// 404s. Matches the invalidation in
 			// `EmDashRuntime.handleMediaDelete`.
-			if (deleted) {
-				invalidateSiteSettingsCache();
-			}
-			return deleted;
+			invalidateSiteSettingsCache();
+			return true;
 		},
 	};
 }
@@ -1455,7 +1474,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
-	beforeContentWrite?: () => Promise<void>;
+	beforeContentWrite?: ContentWriteGuard;
 	contentCreate?: PluginContentCreateCallback;
 	contentActions?: ContentActionCallbacks;
 	/**
@@ -1581,7 +1600,7 @@ export interface ContentActionCallbacks {
  */
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
-	private beforeContentWrite?: () => Promise<void>;
+	private beforeContentWrite?: ContentWriteGuard;
 	private contentCreate?: PluginContentCreateCallback;
 	private contentActions?: ContentActionCallbacks;
 	private storage?: Storage;

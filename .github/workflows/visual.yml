@@ -19,8 +19,13 @@ on:
     branches: [main]
     paths:
       - "packages/admin/**"
+      - "!packages/admin/tests/**"
       - "packages/core/**"
+      - "!packages/core/tests/**"
       - "e2e/**"
+      - "!e2e/tests/**"
+      - "e2e/tests/visual-regression.spec.ts"
+      - "e2e/tests/visual-regression.spec.ts-snapshots/**"
       - "playwright.config.ts"
       - ".github/workflows/visual.yml"
       - "pnpm-lock.yaml"
@@ -29,9 +34,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   measure:
-    name: Measure
+    name: Visual Regression
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

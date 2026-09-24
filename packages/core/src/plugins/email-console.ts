@@ -69,6 +69,8 @@ export async function devConsoleEmailDeliver(
 		`\n📧 [dev-email] Email sent\n` +
 			`   From: ${source}\n` +
 			`   To: ${message.to}\n` +
+			(message.cc?.length ? `   Cc: ${message.cc.join(", ")}\n` : "") +
+			(message.replyTo ? `   Reply-To: ${message.replyTo}\n` : "") +
 			`   Subject: ${message.subject}\n` +
 			`   Text: ${message.text.slice(0, 200)}${message.text.length > 200 ? "..." : ""}\n`,
 	);

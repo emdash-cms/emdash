@@ -52,7 +52,7 @@ describe("setupReleaseWorkflow", () => {
 			"EmDash releases currently require a public GitHub repository because private and internal repository attestations cannot yet be verified.",
 		);
 		expect(workflow).toContain(
-			"uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7",
+			"uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0",
 		);
 		expect(workflow).toContain(
 			"uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4",

@@ -98,6 +98,21 @@ const API_TOKEN_SCOPE_VALUES: {
 		description: msg`Invoke MCP tools from all enabled plugins`,
 	},
 	{
+		scope: API_TOKEN_SCOPES.TransferExport,
+		label: msg`Site Export`,
+		description: msg`Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access.`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.TransferAnalyze,
+		label: msg`Site Import Analysis`,
+		description: msg`Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access.`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.TransferExecute,
+		label: msg`Site Import`,
+		description: msg`Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access.`,
+	},
+	{
 		scope: API_TOKEN_SCOPES.Admin,
 		label: msg`Admin`,
 		description: msg`Full admin access`,
