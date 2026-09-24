@@ -1695,6 +1695,14 @@
       "created_at": "2026-09-22T20:27:23Z",
       "repoId": 1198246700,
       "pullRequestNo": 3293
+    },
+    {
+      "name": "simone-coelho",
+      "id": 30843637,
+      "comment_id": 5814393328,
+      "created_at": "2026-09-24T12:46:23Z",
+      "repoId": 1198246700,
+      "pullRequestNo": 2674
     }
   ]
 }
