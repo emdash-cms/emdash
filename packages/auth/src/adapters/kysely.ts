@@ -448,6 +448,17 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 			return row ? rowToAuthToken(row) : null;
 		},
 
+		async consumeToken(hash: string, type: TokenType): Promise<AuthToken | null> {
+			const row = await kdb
+				.deleteFrom("auth_tokens")
+				.where("hash", "=", hash)
+				.where("type", "=", type)
+				.returningAll()
+				.executeTakeFirst();
+
+			return row ? rowToAuthToken(row) : null;
+		},
+
 		async deleteToken(hash: string): Promise<void> {
 			await kdb.deleteFrom("auth_tokens").where("hash", "=", hash).execute();
 		},
