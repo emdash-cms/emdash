@@ -1478,9 +1478,6 @@ importers:
 
   packages/admin:
     dependencies:
-      '@atcute/identity-resolver':
-        specifier: 'catalog:'
-        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.0.0
@@ -2038,6 +2035,9 @@ importers:
       '@atcute/client':
         specifier: 'catalog:'
         version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.0.0

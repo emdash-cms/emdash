@@ -43,7 +43,6 @@
     "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
-    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@cloudflare/kumo": "catalog:",
     "@dnd-kit/core": "^6.3.1",
