@@ -123,6 +123,7 @@ import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { CodeMarkExtension } from "./editor/CodeMarkExtension";
+import { defaultLinkOptions } from "./editor/defaultLinkOptions.js";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
@@ -3037,13 +3038,7 @@ export function PortableTextEditor({
 				code: false,
 				orderedList: false,
 				// StarterKit v3 includes Link and Underline
-				link: {
-					openOnClick: false,
-					enableClickSelection: true,
-					HTMLAttributes: {
-						class: "text-kumo-link underline",
-					},
-				},
+				link: defaultLinkOptions,
 				underline: {},
 			}),
 			EmDashOrderedList,
