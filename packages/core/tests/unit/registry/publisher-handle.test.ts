@@ -196,6 +196,34 @@ describe("resolvePublisherHandle", () => {
 		await expect(resolvePublisherHandle(did)).resolves.toEqual({ status: "invalid" });
 	});
 
+	it("marks a claimed handle whose domain no longer exists as invalid", async () => {
+		const did = "did:plc:aaaaaaaaaaaaaaaaaaaaaaal";
+		servePlc(did, ["at://lapsed.example.org"]);
+		serveDns("lapsed.example.org", "nxdomain");
+
+		await expect(resolvePublisherHandle(did)).resolves.toEqual({ status: "invalid" });
+		expect(requested).not.toContain("https://lapsed.example.org/.well-known/atproto-did");
+	});
+
+	it("treats a failed address lookup for the handle host as indeterminate", async () => {
+		const did = "did:plc:aaaaaaaaaaaaaaaaaaaaaaam";
+		servePlc(did, ["at://outage.example.org"]);
+		serveDns("outage.example.org", "nxdomain");
+		setDefaultDnsResolver(async () => {
+			throw new Error("DoH A lookup failed: rcode=2");
+		});
+
+		await expect(resolvePublisherHandle(did)).resolves.toBeNull();
+		expect(requested).not.toContain("https://outage.example.org/.well-known/atproto-did");
+	});
+
+	it("reports no handle for a did:web host that no longer exists", async () => {
+		const did = "did:web:gone.example.org";
+
+		await expect(resolvePublisherHandle(did)).resolves.toEqual({ status: "missing" });
+		expect(requested).not.toContain("https://gone.example.org/.well-known/did.json");
+	});
+
 	it("reports no handle when the DID document claims none", async () => {
 		const did = "did:plc:aaaaaaaaaaaaaaaaaaaaaaad";
 		servePlc(did);

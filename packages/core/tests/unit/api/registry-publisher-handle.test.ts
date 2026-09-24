@@ -159,6 +159,17 @@ describe("registry publisher handle route", () => {
 		expect(JSON.stringify(body)).not.toContain(HANDLE);
 	});
 
+	it("reports a handle whose domain no longer resolves as invalid", async () => {
+		const publisher = "did:plc:juoj6qmxkdbbino76mobq2on";
+		servePublisher(publisher, publisher);
+		setDefaultDnsResolver(async () => []);
+
+		const res = await GET(makeContext(publisher));
+
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ success: true, data: { status: "invalid" } });
+	});
+
 	it("reports an indeterminate lookup as a retryable failure", async () => {
 		const res = await GET(makeContext("did:plc:nna4pfpnegfsgaym44xqhawf"));
 

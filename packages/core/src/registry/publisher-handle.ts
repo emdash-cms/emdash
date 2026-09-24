@@ -18,7 +18,7 @@
 import type { HandleResolver } from "@atcute/identity-resolver";
 import { isHandle, type Did, type Handle } from "@atcute/lexicons/syntax";
 
-import { resolveAndValidateExternalUrl } from "../security/ssrf.js";
+import { resolveAndValidateExternalUrl, SsrfError } from "../security/ssrf.js";
 
 export type PublisherHandleResolution =
 	| { status: "ok"; handle: string }
@@ -37,6 +37,12 @@ const HANDLE_URI_PREFIX = "at://";
 const LOOKUP_TIMEOUT_MS = 8_000;
 /** Far above any legitimate DID document, DoH answer, or well-known body. */
 const MAX_RESPONSE_BYTES = 64 * 1024;
+/**
+ * What `resolveAndValidateExternalUrl` throws when DNS returns no A or AAAA
+ * records, NXDOMAIN included. It is the only `SsrfError` that describes the
+ * host rather than a refusal to contact it.
+ */
+const NO_ADDRESSES_MESSAGE = "Hostname resolved to no addresses";
 
 /**
  * Conclusive results are shared across requests in this isolate. The admin
@@ -210,6 +216,11 @@ function resolveHandleDid(
  * `fetch` for the atcute resolvers: HTTPS only, no credentials, no redirects,
  * a shared deadline, and a response size cap. Only the `accept` header the
  * resolvers set is forwarded.
+ *
+ * A publisher host with no DNS addresses answers as a 404, which atcute reads
+ * as "no DID here" (a lapsed handle domain, a did:web host that is gone). A
+ * host the SSRF policy refuses still throws: it was never asked, so the
+ * lookup stays indeterminate.
  */
 function boundedFetch(deadline: AbortSignal): typeof fetch {
 	return async (input, init) => {
@@ -217,7 +228,16 @@ function boundedFetch(deadline: AbortSignal): typeof fetch {
 		if (url.protocol !== "https:" || url.username || url.password) {
 			throw new TypeError("Identity lookups require an HTTPS URL without credentials");
 		}
-		if (!DIRECTORY_ORIGINS.has(url.origin)) await resolveAndValidateExternalUrl(url.href);
+		if (!DIRECTORY_ORIGINS.has(url.origin)) {
+			try {
+				await resolveAndValidateExternalUrl(url.href);
+			} catch (error) {
+				if (error instanceof SsrfError && error.message === NO_ADDRESSES_MESSAGE) {
+					return new Response(null, { status: 404 });
+				}
+				throw error;
+			}
+		}
 
 		const accept = new Headers(init?.headers).get("accept");
 		const response = await globalThis.fetch(url, {
