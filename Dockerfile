@@ -50,8 +50,11 @@ FROM node:22-slim
 WORKDIR /app
 COPY --from=build /deploy .
 
+# A site built with postgres() imports pg from the bundled server by bare name,
+# but the legacy deploy leaves pg only under .pnpm/node_modules.
 RUN mkdir -p data uploads \
-    && ln -s /app/node_modules/.pnpm/node_modules/kysely /app/node_modules/kysely
+    && ln -s /app/node_modules/.pnpm/node_modules/kysely /app/node_modules/kysely \
+    && ln -s /app/node_modules/.pnpm/node_modules/pg /app/node_modules/pg
 
 ENV HOST=0.0.0.0
 ENV PORT=4321
