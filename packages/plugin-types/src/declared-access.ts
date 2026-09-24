@@ -32,6 +32,7 @@ export interface CanonicalDeclaredAccess {
 		read?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
+	readonly bylines?: Readonly<{ read?: CanonicalAccessConstraints }>;
 	readonly email?: Readonly<{
 		events?: CanonicalAccessConstraints;
 		send?: CanonicalAccessConstraints;

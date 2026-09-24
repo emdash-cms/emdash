@@ -43,6 +43,7 @@ import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/conte
 import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
+import { createBylineAccess } from "./byline-access.js";
 import { assertStorageKey } from "./conditional-storage.js";
 import { createContentAccess } from "./content-access.js";
 import { CronAccessImpl } from "./cron.js";
@@ -1713,6 +1714,8 @@ export class PluginContextFactory {
 			taxonomies = createTaxonomyAccess(db);
 		}
 
+		const bylines = capabilities.has("bylines:read") ? createBylineAccess(db) : undefined;
+
 		let redirects: RedirectAccess | RedirectAccessWithWrite | undefined;
 		if (capabilities.has("redirects:write")) {
 			redirects = createRedirectAccess(db, true);
@@ -1809,6 +1812,7 @@ export class PluginContextFactory {
 			content,
 			schema,
 			taxonomies,
+			bylines,
 			redirects,
 			media,
 			http,

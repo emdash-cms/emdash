@@ -3,6 +3,7 @@ export { OptionsRepository } from "../database/repositories/options.js";
 export { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 export { resolvePluginEncryptionKeys } from "../config/secrets.js";
 export { resolveContentCreateLocale } from "../i18n/config.js";
+export { createBylineAccess } from "./byline-access.js";
 export { createCommentAccess } from "./context.js";
 export { createContentAccess } from "./content-access.js";
 export { createMediaAccess } from "./context.js";

@@ -438,6 +438,7 @@ describe("CAPABILITY_LABELS", () => {
 			"hooks.content-policy:register",
 			"taxonomies:read",
 			"taxonomies:write",
+			"bylines:read",
 			"redirects:read",
 			"redirects:write",
 			"media:read",

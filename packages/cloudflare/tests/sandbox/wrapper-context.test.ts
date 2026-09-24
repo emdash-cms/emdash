@@ -30,6 +30,7 @@ describe("Cloudflare generated plugin context", () => {
 				"plugin:activate": async (_event: unknown, ctx: Record<string, unknown>) => ({
 					content: ctx.content,
 					schema: ctx.schema,
+					bylines: ctx.bylines,
 				}),
 			},
 		};
@@ -44,7 +45,7 @@ describe("Cloudflare generated plugin context", () => {
 				"plugin:activate",
 				{},
 			),
-		).resolves.toEqual({ content: undefined, schema: undefined });
+		).resolves.toEqual({ content: undefined, schema: undefined, bylines: undefined });
 	});
 
 	it("exposes schema discovery and separately gated revision methods", async () => {

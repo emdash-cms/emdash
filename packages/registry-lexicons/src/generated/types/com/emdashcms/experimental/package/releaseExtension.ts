@@ -34,6 +34,26 @@ const _adminEditorDraftReadConstraintsSchema = /*#__PURE__*/ v.object({
 		),
 	),
 });
+const _bylinesAccessSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#bylinesAccess",
+		),
+	),
+	/**
+	 * Plugin may read public byline profiles and the bylines credited on content entries.
+	 */
+	get read() {
+		return /*#__PURE__*/ v.optional(bylinesReadConstraintsSchema);
+	},
+});
+const _bylinesReadConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#bylinesReadConstraints",
+		),
+	),
+});
 const _commentsAccessSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
@@ -163,6 +183,12 @@ const _declaredAccessSchema = /*#__PURE__*/ v.object({
 	 */
 	get admin() {
 		return /*#__PURE__*/ v.optional(adminAccessSchema);
+	},
+	/**
+	 * Read access to public byline profiles and the bylines credited on content entries.
+	 */
+	get bylines() {
+		return /*#__PURE__*/ v.optional(bylinesAccessSchema);
 	},
 	/**
 	 * Access to comment text, author contact and request metadata, and moderation state.
@@ -555,6 +581,8 @@ type adminEditorDraftPatchConstraints$schematype =
 	typeof _adminEditorDraftPatchConstraintsSchema;
 type adminEditorDraftReadConstraints$schematype =
 	typeof _adminEditorDraftReadConstraintsSchema;
+type bylinesAccess$schematype = typeof _bylinesAccessSchema;
+type bylinesReadConstraints$schematype = typeof _bylinesReadConstraintsSchema;
 type commentsAccess$schematype = typeof _commentsAccessSchema;
 type commentsModerateConstraints$schematype =
 	typeof _commentsModerateConstraintsSchema;
@@ -609,6 +637,8 @@ type usersReadConstraints$schematype = typeof _usersReadConstraintsSchema;
 export interface adminAccessSchema extends adminAccess$schematype {}
 export interface adminEditorDraftPatchConstraintsSchema extends adminEditorDraftPatchConstraints$schematype {}
 export interface adminEditorDraftReadConstraintsSchema extends adminEditorDraftReadConstraints$schematype {}
+export interface bylinesAccessSchema extends bylinesAccess$schematype {}
+export interface bylinesReadConstraintsSchema extends bylinesReadConstraints$schematype {}
 export interface commentsAccessSchema extends commentsAccess$schematype {}
 export interface commentsModerateConstraintsSchema extends commentsModerateConstraints$schematype {}
 export interface commentsReadConstraintsSchema extends commentsReadConstraints$schematype {}
@@ -651,6 +681,9 @@ export const adminEditorDraftPatchConstraintsSchema =
 	_adminEditorDraftPatchConstraintsSchema as adminEditorDraftPatchConstraintsSchema;
 export const adminEditorDraftReadConstraintsSchema =
 	_adminEditorDraftReadConstraintsSchema as adminEditorDraftReadConstraintsSchema;
+export const bylinesAccessSchema = _bylinesAccessSchema as bylinesAccessSchema;
+export const bylinesReadConstraintsSchema =
+	_bylinesReadConstraintsSchema as bylinesReadConstraintsSchema;
 export const commentsAccessSchema =
 	_commentsAccessSchema as commentsAccessSchema;
 export const commentsModerateConstraintsSchema =
@@ -721,6 +754,12 @@ export interface AdminEditorDraftPatchConstraints extends v.InferInput<
 > {}
 export interface AdminEditorDraftReadConstraints extends v.InferInput<
 	typeof adminEditorDraftReadConstraintsSchema
+> {}
+export interface BylinesAccess extends v.InferInput<
+	typeof bylinesAccessSchema
+> {}
+export interface BylinesReadConstraints extends v.InferInput<
+	typeof bylinesReadConstraintsSchema
 > {}
 export interface CommentsAccess extends v.InferInput<
 	typeof commentsAccessSchema

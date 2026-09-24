@@ -25,6 +25,7 @@ type ContextApiRoutes = {
 	content: Record<MethodKeys<NonNullable<PluginContext["content"]>>, string | null>;
 	schema: Record<MethodKeys<NonNullable<PluginContext["schema"]>>, string | null>;
 	taxonomies: Record<MethodKeys<NonNullable<PluginContext["taxonomies"]>>, string | null>;
+	bylines: Record<MethodKeys<NonNullable<PluginContext["bylines"]>>, string | null>;
 	redirects: Record<MethodKeys<NonNullable<PluginContext["redirects"]>>, string | null>;
 	media: Record<MethodKeys<NonNullable<PluginContext["media"]>>, string | null>;
 	http: Record<MethodKeys<NonNullable<PluginContext["http"]>>, string | null>;
@@ -66,6 +67,7 @@ const CONTEXT_API_ROUTES = {
 		addEntryTerms: "taxonomy-add",
 		removeEntryTerms: "taxonomy-remove",
 	},
+	bylines: { get: "byline-read", list: "byline-read", getEntriesBylines: "byline-read" },
 	redirects: {
 		list: "redirects",
 		get: "redirects",
@@ -446,6 +448,25 @@ describe("registry fixture capability inventory", () => {
 		await expect(
 			invoke("taxonomy-remove", { entryId: createdContent.id, termIds: [createdTerm.id] }),
 		).resolves.toEqual([]);
+		const byline = await runtimeHost.fixtures.byline({
+			slug: "fixture-byline",
+			displayName: "Ada",
+		});
+		const credited = await runtimeHost.actions.content.create("posts", {
+			data: { title: "Credited" },
+			bylines: [{ bylineId: byline.id, roleLabel: "Writer" }],
+		});
+		if (!credited.success) throw new Error(credited.error.message);
+		await expect(invoke("byline-read", { entryId: credited.data.item.id })).resolves.toMatchObject({
+			page: { items: [expect.objectContaining({ id: byline.id })] },
+			byId: { id: byline.id, displayName: "Ada" },
+			credits: [
+				{
+					entryId: credited.data.item.id,
+					bylines: [{ byline: { id: byline.id }, roleLabel: "Writer", source: "explicit" }],
+				},
+			],
+		});
 		const upload = (await invoke("media-exercise", { operation: "upload" })) as {
 			mediaId: string;
 		};
@@ -496,6 +517,7 @@ describe("registry fixture capability inventory", () => {
 				content: true,
 				schema: true,
 				taxonomies: true,
+				bylines: true,
 				redirects: true,
 				media: true,
 				http: true,

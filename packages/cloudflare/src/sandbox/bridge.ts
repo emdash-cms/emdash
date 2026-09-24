@@ -1442,6 +1442,33 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
+	// =========================================================================
+	// Byline Operations - capability-gated
+	// =========================================================================
+
+	private async bylineAccess() {
+		this.requireCapability("bylines:read");
+		const { createBylineAccess } = await loadBridgeRuntime();
+		return createBylineAccess(await this.db());
+	}
+
+	async bylineGet(id: string) {
+		return (await this.bylineAccess()).get(id);
+	}
+
+	async bylineList(opts: { locale?: string; limit?: number; cursor?: string } = {}) {
+		return (await this.bylineAccess()).list(opts);
+	}
+
+	async bylineEntriesBylines(collection: string, entryIds: string[]) {
+		const access = await this.bylineAccess();
+		this.validateCollection(collection);
+		if (!Array.isArray(entryIds) || !entryIds.every((id) => typeof id === "string")) {
+			throw new Error("entryIds must be an array of strings");
+		}
+		return access.getEntriesBylines(collection, entryIds);
+	}
+
 	async taxonomyCreateTerm(
 		taxonomy: string,
 		input: Parameters<TaxonomyAccessWithWrite["createTerm"]>[1],

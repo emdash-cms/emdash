@@ -15,7 +15,7 @@ import {
 	RevisionRepository,
 	SchemaRegistry,
 } from "emdash";
-import type { RuntimeDependencies } from "emdash/plugin-test-runtime";
+import { BylineRepository, type RuntimeDependencies } from "emdash/plugin-test-runtime";
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
@@ -414,7 +414,8 @@ export default {
 				item: await ctx.content.get("posts", route.input.id),
 				translations: await ctx.content.getTranslations("posts", route.input.id),
 				publicUrl: await ctx.content.getPublicUrl("posts", route.input.id),
-				revisions: await ctx.content.listRevisions("posts", route.input.id)
+				revisions: await ctx.content.listRevisions("posts", route.input.id),
+				credits: await ctx.bylines.getEntriesBylines("posts", [route.input.id])
 			})
 		},
 		"revisions": {
@@ -976,7 +977,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					version: "1.0.0",
 					options: {},
 					code: CONTENT_DISCOVERY_PLUGIN,
-					capabilities: ["schema:read", "content:read", "content:revisions:read"],
+					capabilities: ["schema:read", "content:read", "content:revisions:read", "bylines:read"],
 					allowedHosts: [],
 					storage: {},
 					hooks: [],
@@ -1013,6 +1014,13 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				authorId: "author-1",
 				data: { title: "Hello" },
 			});
+			const byline = await new BylineRepository(runtime.db).create({
+				slug: "ada",
+				displayName: "Ada",
+			});
+			await new BylineRepository(runtime.db).setContentBylines("posts", post.id, [
+				{ bylineId: byline.id },
+			]);
 			const revision = await new RevisionRepository(runtime.db).create({
 				collection: "posts",
 				entryId: post.id,
@@ -1036,6 +1044,12 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					item: { id: post.id, authorId: "author-1", version: 1 },
 					publicUrl: "https://example.test/journal/hello/",
 					revisions: [{ data: { title: "Retained" } }],
+					credits: [
+						{
+							entryId: post.id,
+							bylines: [{ byline: { id: byline.id, displayName: "Ada" }, source: "explicit" }],
+						},
+					],
 				},
 			});
 			await new ContentRepository(runtime.db).delete("posts", post.id);

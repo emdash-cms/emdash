@@ -1304,6 +1304,19 @@ const plugin: SandboxedPlugin = {
 				};
 			},
 		},
+		"byline-read": {
+			permission: "content:read",
+			handler: async (route, ctx) => {
+				const input = isRecord(route.input) ? route.input : {};
+				const entryId = typeof input.entryId === "string" ? input.entryId : "missing";
+				const page = await ctx.bylines.list({ limit: 2 });
+				return {
+					page,
+					byId: page.items[0] ? await ctx.bylines.get(page.items[0].id) : null,
+					credits: await ctx.bylines.getEntriesBylines("posts", [entryId]),
+				};
+			},
+		},
 		"content-crud": {
 			permission: "content:edit_any",
 			handler: async (route, ctx) => {
@@ -1373,6 +1386,7 @@ const plugin: SandboxedPlugin = {
 					content: ctx.content !== undefined,
 					schema: ctx.schema !== undefined,
 					taxonomies: ctx.taxonomies !== undefined,
+					bylines: ctx.bylines !== undefined,
 					redirects: ctx.redirects !== undefined,
 					media: ctx.media !== undefined,
 					http: ctx.http !== undefined,

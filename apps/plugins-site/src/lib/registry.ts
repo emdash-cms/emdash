@@ -72,6 +72,10 @@ const PERMISSION_COPY: Record<string, { label: string; description: string }> = 
 		label: "Read taxonomies",
 		description: "Read taxonomy definitions, terms, and content assignments.",
 	},
+	"bylines:read": {
+		label: "Read bylines",
+		description: "Read public byline profiles and the bylines credited on content entries.",
+	},
 	"media:read": {
 		label: "Read media",
 		description: "Read media metadata and files from your library.",
