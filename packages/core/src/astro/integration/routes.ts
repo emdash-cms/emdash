@@ -529,6 +529,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/taxonomies/bulk-tag",
+		entrypoint: resolveRoute("api/taxonomies/bulk-tag.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/taxonomies/[name]",
 		entrypoint: resolveRoute("api/taxonomies/[name].ts"),
 	});

@@ -821,6 +821,7 @@ msgid "Accept & Update"
 msgstr "Accept & Update"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
+#: packages/admin/src/locales/emails.ts:48
 msgid "Accept Invite"
 msgstr "Accept Invite"
 
@@ -2167,6 +2168,14 @@ msgstr "Clear stored value"
 msgid "Clear stored value for {fieldKey}"
 msgstr "Clear stored value for {fieldKey}"
 
+#: packages/admin/src/locales/emails.ts:47
+msgid "Click the button below to create your account:"
+msgstr "Click the button below to create your account:"
+
+#: packages/admin/src/locales/emails.ts:55
+msgid "Click the button below to sign in:"
+msgstr "Click the button below to sign in:"
+
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
 msgstr "Click the link in the email to continue setting up your account."
@@ -2174,6 +2183,14 @@ msgstr "Click the link in the email to continue setting up your account."
 #: packages/admin/src/components/LoginPage.tsx:113
 msgid "Click the link in the email to sign in."
 msgstr "Click the link in the email to sign in."
+
+#: packages/admin/src/locales/emails.ts:46
+msgid "Click this link to create your account:"
+msgstr "Click this link to create your account:"
+
+#: packages/admin/src/locales/emails.ts:54
+msgid "Click this link to sign in to {siteName}:"
+msgstr "Click this link to sign in to {siteName}:"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
@@ -5334,6 +5351,10 @@ msgstr "ID"
 #: packages/admin/src/components/LoginPage.tsx:104
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "If an account exists for <0>{email}</0>, we've sent a sign-in link."
+
+#: packages/admin/src/locales/emails.ts:58
+msgid "If you didn't request this, you can safely ignore this email."
+msgstr "If you didn't request this, you can safely ignore this email."
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 #: packages/admin/src/components/FieldEditor.tsx:803
@@ -9587,6 +9608,7 @@ msgid "Shown when hovering over the image."
 msgstr "Shown when hovering over the image."
 
 #: packages/admin/src/components/SignupPage.tsx:457
+#: packages/admin/src/locales/emails.ts:56
 msgid "Sign in"
 msgstr "Sign in"
 
@@ -9598,6 +9620,10 @@ msgstr "Sign In"
 #: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "Sign in instead"
+
+#: packages/admin/src/locales/emails.ts:53
+msgid "Sign in to {siteName}"
+msgstr "Sign in to {siteName}"
 
 #: packages/admin/src/components/LoginPage.tsx:234
 msgid "Sign in to your site"
@@ -10310,9 +10336,17 @@ msgstr "This is a custom section."
 msgid "This is a WordPress site."
 msgstr "This is a WordPress site."
 
+#: packages/admin/src/locales/emails.ts:57
+msgid "This link expires in 15 minutes."
+msgstr "This link expires in 15 minutes."
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
 msgstr "This link expires in 7 days and can only be used once."
+
+#: packages/admin/src/locales/emails.ts:49
+msgid "This link expires in 7 days."
+msgstr "This link expires in 7 days."
 
 #: packages/admin/src/components/WordPressImport.tsx:939
 msgid "This may take a while for large exports."
@@ -11613,6 +11647,14 @@ msgstr "You'll be signing up as <0>{roleName}</0>"
 #: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "You're signed in via Cloudflare Access"
+
+#: packages/admin/src/locales/emails.ts:44
+msgid "You've been invited to {siteName}"
+msgstr "You've been invited to {siteName}"
+
+#: packages/admin/src/locales/emails.ts:45
+msgid "You've been invited to join {siteName}."
+msgstr "You've been invited to join {siteName}."
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"

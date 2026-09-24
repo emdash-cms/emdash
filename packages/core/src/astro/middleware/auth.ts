@@ -773,6 +773,7 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string]> = [
 	// menus:manage are not rejected. content:write implicitly grants these via
 	// IMPLICIT_SCOPE_GRANTS in @emdash-cms/auth.
 	["/_emdash/api/taxonomies", "GET", "content:read"],
+	["/_emdash/api/taxonomies/bulk-tag", "WRITE", "content:write"],
 	["/_emdash/api/taxonomies", "WRITE", "taxonomies:manage"],
 	["/_emdash/api/menus", "GET", "content:read"],
 	["/_emdash/api/menus", "WRITE", "menus:manage"],

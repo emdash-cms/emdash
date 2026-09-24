@@ -821,6 +821,7 @@ msgid "Accept & Update"
 msgstr "Prihvati i ažuriraj"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
+#: packages/admin/src/locales/emails.ts:48
 msgid "Accept Invite"
 msgstr "Prihvati pozivnicu"
 
@@ -2167,6 +2168,14 @@ msgstr ""
 msgid "Clear stored value for {fieldKey}"
 msgstr ""
 
+#: packages/admin/src/locales/emails.ts:47
+msgid "Click the button below to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:55
+msgid "Click the button below to sign in:"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
 msgstr "Kliknite na link u email-u da nastavite podešavanje naloga."
@@ -2174,6 +2183,14 @@ msgstr "Kliknite na link u email-u da nastavite podešavanje naloga."
 #: packages/admin/src/components/LoginPage.tsx:113
 msgid "Click the link in the email to sign in."
 msgstr "Kliknite na link u email-u da se prijavite."
+
+#: packages/admin/src/locales/emails.ts:46
+msgid "Click this link to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:54
+msgid "Click this link to sign in to {siteName}:"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
@@ -5334,6 +5351,10 @@ msgstr "ID"
 #: packages/admin/src/components/LoginPage.tsx:104
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "Ako nalog postoji za <0>{email}</0>, poslali smo link za prijavu."
+
+#: packages/admin/src/locales/emails.ts:58
+msgid "If you didn't request this, you can safely ignore this email."
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 #: packages/admin/src/components/FieldEditor.tsx:803
@@ -9587,6 +9608,7 @@ msgid "Shown when hovering over the image."
 msgstr "Prikazuje se pri prelasku miša preko slike."
 
 #: packages/admin/src/components/SignupPage.tsx:457
+#: packages/admin/src/locales/emails.ts:56
 msgid "Sign in"
 msgstr "Prijavi se"
 
@@ -9598,6 +9620,10 @@ msgstr "Prijavi se"
 #: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "Prijavi se umesto toga"
+
+#: packages/admin/src/locales/emails.ts:53
+msgid "Sign in to {siteName}"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:234
 msgid "Sign in to your site"
@@ -10310,9 +10336,17 @@ msgstr "Ovo je prilagođena sekcija."
 msgid "This is a WordPress site."
 msgstr "Ovo je WordPress sajt."
 
+#: packages/admin/src/locales/emails.ts:57
+msgid "This link expires in 15 minutes."
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
 msgstr "Ovaj link ističe za 7 dana i može se koristiti samo jednom."
+
+#: packages/admin/src/locales/emails.ts:49
+msgid "This link expires in 7 days."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:939
 msgid "This may take a while for large exports."
@@ -11613,6 +11647,14 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "Prijavljen si putem Cloudflare Access"
+
+#: packages/admin/src/locales/emails.ts:44
+msgid "You've been invited to {siteName}"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:45
+msgid "You've been invited to join {siteName}."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"

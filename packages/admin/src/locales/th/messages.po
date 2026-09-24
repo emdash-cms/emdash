@@ -821,6 +821,7 @@ msgid "Accept & Update"
 msgstr "ยอมรับและอัปเดต"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:239
+#: packages/admin/src/locales/emails.ts:48
 msgid "Accept Invite"
 msgstr "ยอมรับคำเชิญ"
 
@@ -2167,6 +2168,14 @@ msgstr ""
 msgid "Clear stored value for {fieldKey}"
 msgstr ""
 
+#: packages/admin/src/locales/emails.ts:47
+msgid "Click the button below to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:55
+msgid "Click the button below to sign in:"
+msgstr ""
+
 #: packages/admin/src/components/SignupPage.tsx:155
 msgid "Click the link in the email to continue setting up your account."
 msgstr "คลิกลิงก์ในอีเมลเพื่อตั้งค่าบัญชีของคุณต่อ"
@@ -2174,6 +2183,14 @@ msgstr "คลิกลิงก์ในอีเมลเพื่อตั้
 #: packages/admin/src/components/LoginPage.tsx:113
 msgid "Click the link in the email to sign in."
 msgstr "คลิกลิงก์ในอีเมลเพื่อเข้าสู่ระบบ"
+
+#: packages/admin/src/locales/emails.ts:46
+msgid "Click this link to create your account:"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:54
+msgid "Click this link to sign in to {siteName}:"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:212
 #: packages/admin/src/components/BylineFieldEditor.tsx:218
@@ -5331,6 +5348,10 @@ msgstr "ID"
 #: packages/admin/src/components/LoginPage.tsx:104
 msgid "If an account exists for <0>{email}</0>, we've sent a sign-in link."
 msgstr "หากมีบัญชีสำหรับ <0>{email}</0> เราได้ส่งลิงก์เข้าสู่ระบบไปแล้ว"
+
+#: packages/admin/src/locales/emails.ts:58
+msgid "If you didn't request this, you can safely ignore this email."
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:264
 #: packages/admin/src/components/FieldEditor.tsx:803
@@ -9584,6 +9605,7 @@ msgid "Shown when hovering over the image."
 msgstr "แสดงเมื่อชี้เมาส์เหนือรูปภาพ"
 
 #: packages/admin/src/components/SignupPage.tsx:457
+#: packages/admin/src/locales/emails.ts:56
 msgid "Sign in"
 msgstr "เข้าสู่ระบบ"
 
@@ -9595,6 +9617,10 @@ msgstr "เข้าสู่ระบบ"
 #: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "เข้าสู่ระบบแทน"
+
+#: packages/admin/src/locales/emails.ts:53
+msgid "Sign in to {siteName}"
+msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:234
 msgid "Sign in to your site"
@@ -10307,9 +10333,17 @@ msgstr "นี่เป็นส่วนที่กำหนดเอง"
 msgid "This is a WordPress site."
 msgstr "นี่เป็นเว็บไซต์ WordPress"
 
+#: packages/admin/src/locales/emails.ts:57
+msgid "This link expires in 15 minutes."
+msgstr ""
+
 #: packages/admin/src/components/users/InviteUserModal.tsx:112
 msgid "This link expires in 7 days and can only be used once."
 msgstr "ลิงก์นี้หมดอายุใน 7 วันและใช้ได้เพียงครั้งเดียวเท่านั้น"
+
+#: packages/admin/src/locales/emails.ts:49
+msgid "This link expires in 7 days."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:939
 msgid "This may take a while for large exports."
@@ -11610,6 +11644,14 @@ msgstr ""
 #: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "คุณเข้าสู่ระบบผ่าน Cloudflare Access"
+
+#: packages/admin/src/locales/emails.ts:44
+msgid "You've been invited to {siteName}"
+msgstr ""
+
+#: packages/admin/src/locales/emails.ts:45
+msgid "You've been invited to join {siteName}."
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"
