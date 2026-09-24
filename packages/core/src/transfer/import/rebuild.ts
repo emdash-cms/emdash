@@ -42,7 +42,7 @@ const FTS_SETUP_STATEMENTS = 20;
 const FTS_POPULATE_STATEMENTS = 4;
 const STALE_STATEMENTS = 4;
 const OPTION_STATEMENTS = 4;
-const TAXONOMY_STATEMENTS = 3;
+const TAXONOMY_STATEMENTS = 4;
 /** Cache invalidation runs no queries; its checkpoint does. */
 const CACHE_STATEMENTS = 1;
 
