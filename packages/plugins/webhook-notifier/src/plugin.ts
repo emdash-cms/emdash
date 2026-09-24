@@ -206,11 +206,9 @@ async function recordDelivery(ctx: PluginContext, record: DeliveryRecord): Promi
 	const deliveries = ctx.storage.deliveries!;
 	await deliveries.put(crypto.randomUUID(), record);
 
-	// query() caps a page at 100 rows, so a backlog past that needs more than
-	// one round to clear, and a delete can race a concurrent insert and still
-	// leave the count over the cap. Looping and re-counting after every batch
-	// catches both instead of trusting a single count-then-delete to have
-	// caught up.
+	// query() caps a page at 100 rows, and a delete can race a concurrent
+	// insert. Re-counting after every batch keeps pruning until the log is
+	// actually at or below the cap, past a single page or a race.
 	for (;;) {
 		const excess = (await deliveries.count()) - MAX_DELIVERY_RECORDS;
 		if (excess <= 0) return;
