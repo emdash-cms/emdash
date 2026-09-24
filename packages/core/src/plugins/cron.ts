@@ -327,7 +327,7 @@ export async function setCronTasksEnabled(
 // ─── Cron utilities ────────────────────────────────────────────────────────
 
 /**
- * Compute the next fire time for a cron expression.
+ * Compute the next fire time for a cron expression, resolved in UTC.
  * Supports standard cron (5-field), extended (6-field with seconds), and
  * aliases like @daily, @weekly, @hourly, @monthly, @yearly.
  */
