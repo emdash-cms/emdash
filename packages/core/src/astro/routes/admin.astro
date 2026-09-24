@@ -16,14 +16,27 @@ import { Font } from "astro:assets";
 
 export const prerender = false;
 
-import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
+import {
+	resolveLocale,
+	loadMessages,
+	getLocaleDir,
+	DEFAULT_LOCALE,
+} from "@emdash-cms/admin/locales";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
-const resolvedLocale = resolveLocale(Astro.request);
+const adminConfig = Astro.locals.emdash?.config?.admin;
+
+// Honour the build-time locale allowlist when deciding the shell's SSR
+// direction and language so it matches what the client will render after the
+// admin package filters its supported locales at runtime.
+const rawLocale = resolveLocale(Astro.request);
+const allowedLocales = adminConfig?.locales;
+const resolvedLocale =
+	allowedLocales && allowedLocales.length > 0 && !allowedLocales.includes(rawLocale)
+		? DEFAULT_LOCALE
+		: rawLocale;
 const resolvedDir = getLocaleDir(resolvedLocale);
 const messages = await loadMessages(resolvedLocale);
-
-const adminConfig = Astro.locals.emdash?.config?.admin;
 const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
 
 // The admin shell must never be stored by a shared cache. Without an explicit
@@ -83,6 +96,7 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 				document.documentElement.setAttribute("data-mode", mode);
 			})();
 		</script>
+		<script is:inline set:html={`window.__EMDASH_ADMIN_LOCALES__ = ${JSON.stringify(adminConfig?.locales ?? null)};`}></script>
 		<link rel="stylesheet" href={adminStylesUrl} />
 		<Font cssVariable="--font-emdash" />
 		{favicon ? (
