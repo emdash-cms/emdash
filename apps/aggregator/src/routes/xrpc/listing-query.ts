@@ -68,6 +68,7 @@ export async function lookupPackage(
 			`SELECT ${packageColumns("p.")}, ${RELEASE_HISTORY_COLUMNS_SQL}
 			 FROM packages p
 			 WHERE p.did = ? AND p.slug = ?
+			   AND p.installability_status = 'valid'
 			   AND ${ACTIVE_PROFILE_SQL}
 			   AND ${ACTIVE_PROFILE_REDACTION_SQL}`,
 		)

@@ -17,6 +17,8 @@ import type { CronAccess, CronEvent, CronTaskInfo } from "./types.js";
 
 /** Stale lock threshold in minutes */
 const STALE_LOCK_MINUTES = 10;
+const ISO_DATETIME_PATTERN =
+	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
 
 /**
  * Callback to invoke a plugin's cron hook.
@@ -52,6 +54,7 @@ export class CronExecutor {
 	constructor(
 		db: Kysely<Database> | (() => Kysely<Database>),
 		private invokeCronHook: InvokeCronHookFn,
+		private readonly now: () => Date = () => new Date(),
 	) {
 		this.resolveDb = typeof db === "function" ? db : () => db;
 	}
@@ -69,7 +72,8 @@ export class CronExecutor {
 	 * 4. On failure: reset to idle (retry on next tick).
 	 */
 	async tick(): Promise<number> {
-		const now = new Date().toISOString();
+		const currentTime = this.now();
+		const now = currentTime.toISOString();
 		let processed = 0;
 
 		// Claim overdue tasks atomically
@@ -151,7 +155,7 @@ export class CronExecutor {
 					} else {
 						// Retry with exponential backoff: 1m, 2m, 4m, 8m, 16m
 						const backoffMs = 60_000 * Math.pow(2, retryCount);
-						const retryAt = new Date(Date.now() + backoffMs).toISOString();
+						const retryAt = new Date(currentTime.getTime() + backoffMs).toISOString();
 						const updatedData = JSON.stringify({
 							...parsedData,
 							__emdash: { ...meta, retryCount: retryCount + 1 },
@@ -170,7 +174,7 @@ export class CronExecutor {
 				}
 			} else {
 				// Recurring: compute next run and reset
-				const nextRun = nextCronTime(task.schedule);
+				const nextRun = nextCronTime(task.schedule, currentTime);
 				await sql`
 					UPDATE _emdash_cron_tasks
 					SET status = 'idle',
@@ -192,7 +196,7 @@ export class CronExecutor {
 	 * These likely crashed mid-execution.
 	 */
 	async recoverStaleLocks(): Promise<number> {
-		const cutoff = new Date(Date.now() - STALE_LOCK_MINUTES * 60 * 1000).toISOString();
+		const cutoff = new Date(this.now().getTime() - STALE_LOCK_MINUTES * 60 * 1000).toISOString();
 
 		const result = await sql`
 			UPDATE _emdash_cron_tasks
@@ -230,6 +234,7 @@ export class CronAccessImpl implements CronAccess {
 		private db: Kysely<Database>,
 		private pluginId: string,
 		private reschedule: RescheduleFn,
+		private readonly now: () => Date = () => new Date(),
 	) {}
 
 	async schedule(
@@ -240,7 +245,7 @@ export class CronAccessImpl implements CronAccess {
 		validateSchedule(opts.schedule);
 
 		const oneshot = isOneShot(opts.schedule);
-		const nextRun = oneshot ? opts.schedule : nextCronTime(opts.schedule);
+		const nextRun = oneshot ? opts.schedule : nextCronTime(opts.schedule, this.now());
 		const dataJson = opts.data ? JSON.stringify(opts.data) : null;
 		const id = ulid();
 
@@ -323,9 +328,9 @@ export async function setCronTasksEnabled(
  * Supports standard cron (5-field), extended (6-field with seconds), and
  * aliases like @daily, @weekly, @hourly, @monthly, @yearly.
  */
-export function nextCronTime(expression: string): string {
+export function nextCronTime(expression: string, currentTime: Date = new Date()): string {
 	const job = new Cron(expression);
-	const next = job.nextRun();
+	const next = job.nextRun(currentTime);
 	if (!next) {
 		throw new Error(`Invalid cron expression or no future run: "${expression}"`);
 	}
@@ -350,12 +355,15 @@ function isCronExpression(schedule: string): boolean {
  * Check if a schedule string is a one-shot (ISO 8601 datetime) rather than
  * a recurring cron expression.
  *
- * Tries to parse as a cron expression first. Only if that fails does it
- * attempt Date.parse. This avoids misclassifying cron range expressions
- * like "1-5 * * * *" which Date.parse accepts as valid dates.
+ * Recognizes the supported ISO date-time shape before consulting the cron
+ * parser, which also accepts ISO timestamps. Other values are parsed as cron
+ * first so expressions like "1-5 * * * *" are not misclassified as dates.
  */
 export function isOneShot(schedule: string): boolean {
 	if (schedule.startsWith("@")) return false;
+	if (ISO_DATETIME_PATTERN.test(schedule)) {
+		return !isNaN(Date.parse(schedule));
+	}
 	if (isCronExpression(schedule)) return false;
 	return !isNaN(Date.parse(schedule));
 }

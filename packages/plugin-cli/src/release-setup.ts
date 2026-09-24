@@ -11,7 +11,6 @@ import { resolveSources } from "./build/pipeline.js";
 import { runProfileSetup } from "./commands/profile.js";
 import { resolveHandleToDid } from "./manifest/publisher.js";
 import { installedCliVersion } from "./package-version.js";
-import { PackageProfileSetupError } from "./profile/setup.js";
 import { findRepositoryRoot } from "./release-prepare.js";
 
 export const DEFAULT_RELEASE_SERVICE_URL = "https://releases.emdashcms.com";
@@ -358,7 +357,7 @@ jobs:
           exit 1
 
       - name: "Check out repository"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
@@ -438,7 +437,7 @@ jobs:
       selectors: \${{ steps.changesets.outputs.selectors || steps.manual.outputs.selectors }}
     steps:
       - name: "Check out repository"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -494,7 +493,7 @@ jobs:
           exit 1
 
       - name: "Check out repository"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
@@ -570,7 +569,11 @@ export const releaseSetupCommand = defineCommand({
 		},
 		repository: {
 			type: "string",
-			description: "Canonical HTTPS GitHub repository URL (defaults to manifest repo)",
+			description: "Canonical HTTPS GitHub repository URL (defaults to manifest or Git origin)",
+		},
+		provenance: {
+			type: "string",
+			description: "Provenance policy: required or optional",
 		},
 		confirmation: {
 			type: "string",
@@ -579,7 +582,7 @@ export const releaseSetupCommand = defineCommand({
 		yes: {
 			type: "boolean",
 			alias: "y",
-			description: "Accept the default package-profile approval policy without prompting",
+			description: "Accept the default package-profile policies without prompting",
 			default: false,
 		},
 	},
@@ -621,8 +624,10 @@ export const releaseSetupCommand = defineCommand({
 					runProfileSetup({
 						dir: args.dir,
 						repository: args.repository,
+						provenance: args.provenance,
 						confirmation: args.confirmation,
 						yes: args.yes,
+						nextSteps: false,
 					}),
 			});
 			for (const warning of result.warnings) consola.warn(warning);
@@ -641,11 +646,8 @@ export const releaseSetupCommand = defineCommand({
 			);
 			consola.info("The first run links this repository workflow in the release dashboard.");
 		} catch (error) {
-			if (error instanceof ReleaseSetupError || error instanceof PackageProfileSetupError) {
-				consola.error(error.message);
-				process.exit(1);
-			}
-			throw error;
+			consola.error(error instanceof Error ? error.message : "Release setup failed.");
+			process.exit(1);
 		}
 	},
 });

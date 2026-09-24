@@ -102,7 +102,7 @@ test.describe("Comments Moderation", () => {
 		await admin.waitForLoading();
 
 		// The "Pending" tab is active by default -- should show empty message
-		await expect(page.locator("td").filter({ hasText: PENDING_EMPTY_PATTERN })).toBeVisible({
+		await expect(page.getByText(PENDING_EMPTY_PATTERN)).toBeVisible({
 			timeout: 10000,
 		});
 	});

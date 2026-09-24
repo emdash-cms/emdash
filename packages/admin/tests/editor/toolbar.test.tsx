@@ -11,6 +11,8 @@ import {
 import type { MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
+import "../../src/styles.css";
+
 // ---------------------------------------------------------------------------
 // Mocks — heavy components that need network / Astro context
 // ---------------------------------------------------------------------------
@@ -317,6 +319,36 @@ describe("Toolbar Presence and Structure", () => {
 				"Heading 6",
 			]),
 		);
+	});
+
+	it("uses the light interaction surface for highlighted heading choices", async () => {
+		const root = document.documentElement;
+		const previousMode = root.getAttribute("data-mode");
+		const previousTheme = root.getAttribute("data-theme");
+		root.dataset.mode = "light";
+		root.dataset.theme = "classic";
+
+		try {
+			const { screen } = await renderEditor();
+			const { item } = await getHeadingMenuItem(screen, "Heading 1");
+			await userEvent.hover(item.element());
+
+			const tintReference = document.createElement("div");
+			tintReference.style.backgroundColor = "var(--color-kumo-tint)";
+			document.body.append(tintReference);
+			const expectedColor = getComputedStyle(tintReference).backgroundColor;
+			tintReference.remove();
+
+			await vi.waitFor(() => {
+				expect(item.element().hasAttribute("data-highlighted")).toBe(true);
+				expect(getComputedStyle(item.element()).backgroundColor).toBe(expectedColor);
+			});
+		} finally {
+			if (previousMode === null) root.removeAttribute("data-mode");
+			else root.setAttribute("data-mode", previousMode);
+			if (previousTheme === null) root.removeAttribute("data-theme");
+			else root.setAttribute("data-theme", previousTheme);
+		}
 	});
 
 	it("has all list buttons", async () => {
@@ -641,7 +673,9 @@ describe("Toolbar Presence and Structure", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			const input = document.querySelector<HTMLInputElement>('input[placeholder="https://..."]');
+			const input = document.querySelector<HTMLInputElement>(
+				'input[aria-label="Search or type a URL"]',
+			);
 			expect(input).toBeTruthy();
 			expect(toolbar.contains(input)).toBe(false);
 		});
@@ -1655,7 +1689,7 @@ describe("Link Insertion", () => {
 		linkBtn.element().click();
 
 		await vi.waitFor(() => {
-			const input = document.querySelector('input[type="url"]');
+			const input = document.querySelector('input[aria-label="Search or type a URL"]');
 			expect(input).toBeTruthy();
 		});
 	});
@@ -1679,10 +1713,12 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = document.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = document.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		// Focus input and type URL
 		input.focus();
 		// Use native input value setter to trigger React's onChange
@@ -1711,13 +1747,13 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeTruthy();
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		screen.getByRole("button", { name: "Cancel" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(document.querySelector('input[type="url"]')).toBeNull();
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeNull();
 		});
 	});
 

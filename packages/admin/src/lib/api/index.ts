@@ -105,6 +105,7 @@ export {
 	type UpdateCollectionInput,
 	type CreateFieldInput,
 	type UpdateFieldInput,
+	type BlockType,
 	type OrphanedTable,
 	fetchCollections,
 	fetchCollection,
@@ -119,6 +120,7 @@ export {
 	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
+	fetchBlockTypes,
 } from "./schema.js";
 
 // Plugins

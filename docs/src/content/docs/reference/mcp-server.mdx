@@ -117,6 +117,11 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | --- | --- | --- |
 | `schema_list_collections` | List Collections | `schema:read` |
 | `schema_get_collection` | Get Collection Schema | `schema:read` |
+| `schema_list_block_types` | List Block Types | `schema:read` |
+| `schema_get_block_type` | Get Block Type | `schema:read` |
+| `schema_create_block_type` | Create Block Type | `schema:write` |
+| `schema_update_block_type` | Update Block Type | `schema:write` |
+| `schema_activate_block_type_version` | Activate Block Type Version | `schema:write` |
 | `schema_create_collection` | Create Collection | `schema:write` |
 | `schema_delete_collection` | Delete Collection | `schema:write` |
 | `schema_update_collection` | Update Collection | `schema:write` |
@@ -212,7 +217,10 @@ The result is returned as JSON text in the first content block. A tool with an o
 
 ## Content lifecycle and bylines
 
-`content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
+The [content lifecycle reference](/reference/content-lifecycle/) defines the state, revision,
+permission, conflict, and hook behavior shared by MCP, REST, the CLI, and the admin panel.
+
+`content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, `content_schedule`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
 
 `content_update` is a partial update: omitted fields keep their current values. Updating a published item stages a draft while the live version remains unchanged. Use `content_compare` to review the live and draft values, then call `content_publish` to make the draft live or `content_discard_draft` to remove it. `content_delete` moves an item to trash; only `content_permanent_delete` removes a trashed item permanently.
 
@@ -232,7 +240,7 @@ Schema tools change the database structure. Use `schema_get_collection` before c
 
 Use `media_upload` to send base64-encoded bytes or fetch a public HTTP or HTTPS URL. URL uploads reject private-network destinations and re-check redirects. Use `media_create` only when the file already exists at the supplied storage key and you need to register its metadata. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
 
-Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. A term with children must have those children removed or moved before deletion.
+Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. Creating or updating a term with `parentId` in a non-hierarchical taxonomy returns `VALIDATION_ERROR`. A term with children must have those children removed or moved before deletion.
 
 `menu_set_items` replaces a menu's complete item list in one atomic operation. The array order becomes the menu order. A nested item's `parentIndex` points to an earlier item in the same array, so place every parent before its children.
 

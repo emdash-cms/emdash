@@ -26,7 +26,7 @@ import { P256PrivateKeyExportable } from "@atcute/crypto";
 import type { DidDocument } from "@atcute/identity";
 import type { Did } from "@atcute/lexicons/syntax";
 import { NSID } from "@emdash-cms/registry-lexicons";
-import { applyD1Migrations, env } from "cloudflare:test";
+import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -121,6 +121,12 @@ describe("ingestPackageProfile", () => {
 		license: "MIT",
 		authors: [{ name: "Tester" }],
 		security: [{ email: "x@y.test" }],
+		extensions: {
+			[NSID.packageProfileExtension]: {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/demo",
+			},
+		},
 	};
 
 	it("inserts a row on first call", async () => {
@@ -131,6 +137,140 @@ describe("ingestPackageProfile", () => {
 			.bind(DID_A)
 			.first<{ did: string; slug: string; license: string }>();
 		expect(row).toMatchObject({ did: DID_A, slug: "demo", license: "MIT" });
+	});
+
+	it("accepts a profile without the optional repository extension", async () => {
+		const { extensions: _extensions, ...missingExtension } = validRecord;
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified(missingExtension),
+			NOW,
+		);
+		const row = await testEnv.DB.prepare(
+			`SELECT emdash_extension, installability_status, installability_error
+			 FROM packages WHERE did = ? AND slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				emdash_extension: string | null;
+				installability_status: string;
+				installability_error: string | null;
+			}>();
+		expect(row?.emdash_extension).toBeNull();
+		expect(row?.installability_status).toBe("valid");
+		expect(row?.installability_error).toBeNull();
+	});
+
+	it("accepts later revisions of an extensionless profile", async () => {
+		const { extensions: _extensions, ...record } = validRecord;
+		delete (record as { extensions?: unknown }).extensions;
+		const job = jobFor(DID_A, NSID.packageProfile, "demo", {
+			operation: "update",
+		});
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: "bafy-extensionless-first" },
+			NOW,
+		);
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(record), cid: "bafy-extensionless-second" },
+			new Date(NOW.getTime() + 1_000),
+		);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT emdash_extension, installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "demo")
+				.first(),
+		).toEqual({
+			emdash_extension: null,
+			installability_status: "valid",
+			installability_error: null,
+		});
+	});
+
+	it("records a stable reason for a malformed install-verification extension", async () => {
+		await ingestPackageProfile(
+			testEnv.DB,
+			jobFor(DID_A, NSID.packageProfile, "demo"),
+			fakeVerified({
+				...validRecord,
+				extensions: {
+					[NSID.packageProfileExtension]: {
+						$type: NSID.packageProfileExtension,
+						repository: "http://github.com/example/demo",
+					},
+				},
+			}),
+			NOW,
+		);
+
+		const row = await testEnv.DB.prepare(
+			`SELECT emdash_extension, installability_status, installability_error
+			 FROM package_profile_revisions WHERE did = ? AND slug = ?`,
+		)
+			.bind(DID_A, "demo")
+			.first<{
+				emdash_extension: string | null;
+				installability_status: string;
+				installability_error: string | null;
+			}>();
+		expect(row).toEqual({
+			emdash_extension: null,
+			installability_status: "invalid",
+			installability_error: "PROFILE_EXTENSION_INVALID",
+		});
+	});
+
+	it("restores visibility when an invalid publisher republishes a valid profile", async () => {
+		const job = jobFor(DID_A, NSID.packageProfile, "demo", { operation: "update" });
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{
+				...fakeVerified({
+					...validRecord,
+					extensions: {
+						[NSID.packageProfileExtension]: {
+							$type: NSID.packageProfileExtension,
+							repository: "http://github.com/example/demo",
+						},
+					},
+				}),
+				cid: "bafy-invalid-profile",
+			},
+			NOW,
+		);
+		const unavailable = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(unavailable.status).toBe(404);
+
+		await ingestPackageProfile(
+			testEnv.DB,
+			job,
+			{ ...fakeVerified(validRecord), cid: "bafy-corrected-profile" },
+			new Date(NOW.getTime() + 1_000),
+		);
+
+		const restored = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+		expect(restored.status).toBe(200);
+		expect(
+			await testEnv.DB.prepare(
+				`SELECT installability_status, installability_error
+				 FROM packages WHERE did = ? AND slug = ?`,
+			)
+				.bind(DID_A, "demo")
+				.first(),
+		).toEqual({ installability_status: "valid", installability_error: null });
 	});
 
 	it("upserts on second call with edited record", async () => {

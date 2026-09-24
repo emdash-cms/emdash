@@ -68,6 +68,8 @@ emdash-plugin publish
 
 `publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your personal data server (PDS), uploads any declared listing images, and writes the release record.
 
+When a canonical HTTPS repository is available, the command adds it to the package profile with optional provenance. Profiles without repository metadata also permit releases without provenance. If `profile setup` configured the package to require provenance, publish through the generated GitHub Actions workflow instead.
+
 ## Bundle
 
 `bundle` runs [`build`](/plugins/creating-plugins/cli/#build), validates, collects assets, and creates a tarball. Inside the tarball, `plugin.mjs` is packed as `backend.js` (the filename the registry expects).
@@ -149,6 +151,8 @@ What `publish` does:
 5. Creates the package profile on first publish and writes the immutable release record.
 
 </Steps>
+
+The CLI identifies the published package as `@<publisher-handle>/<slug>`, prints the public page that becomes available after approval, and gives an `emdash-plugin info … --version <version> --watch` command. That command reads the labeler's current checks directly; unapproved package metadata remains absent from aggregator responses and the public plugin site.
 
 If an existing login predates blob publishing, `publish` reports `MISSING_BLOB_SCOPE`. Run `emdash-plugin logout`, then log in again to approve the new scopes.
 

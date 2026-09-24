@@ -27,6 +27,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
@@ -44,8 +45,6 @@ import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
 import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
-import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
-import { MarketplacePluginDetail } from "./components/MarketplacePluginDetail";
 import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
@@ -71,8 +70,6 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
-import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
-import { ThemeMarketplaceDetail } from "./components/ThemeMarketplaceDetail";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
 import {
@@ -90,6 +87,7 @@ import {
 	updateMedia,
 	uploadMedia,
 	fetchCollections,
+	fetchBlockTypes,
 	fetchCollection,
 	createCollection,
 	updateCollection,
@@ -124,6 +122,7 @@ import {
 	ApiResponseError,
 	isTerminalRequestError,
 	useCurrentUser,
+	type AdminManifest,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -142,6 +141,7 @@ import {
 	type CommentStatus,
 } from "./lib/api/comments";
 import { runBulkAction } from "./lib/bulk";
+import { describeContentValidationError } from "./lib/content-validation-errors";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
@@ -735,7 +735,11 @@ function ContentNewPage() {
 		onError: (error) => {
 			toastManager.add({
 				title: t`Failed to save`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(
+						error,
+						manifest?.collections[collection]?.fields ?? EMPTY_FIELDS,
+					) ?? (error instanceof Error ? error.message : t`An error occurred`),
 				variant: "error",
 			});
 		},
@@ -822,6 +826,7 @@ function ContentNewPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
+			timezone={manifest.timezone ?? "UTC"}
 		/>
 	);
 }
@@ -842,6 +847,8 @@ const contentEditRoute = createRoute({
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
+const EMPTY_FIELDS: AdminManifest["collections"][string]["fields"] = {};
+
 function ContentEditPage() {
 	const { t } = useLingui();
 	const { collection, id } = useParams({
@@ -861,6 +868,7 @@ function ContentEditPage() {
 
 	const i18n = manifest?.i18n;
 	const activeLocale = i18n ? (searchParams.locale ?? i18n.defaultLocale) : undefined;
+	const collectionFields = manifest?.collections[collection]?.fields ?? EMPTY_FIELDS;
 
 	const { data: rawItem, isLoading } = useQuery({
 		queryKey: ["content", collection, id, { locale: activeLocale }],
@@ -884,14 +892,31 @@ function ContentEditPage() {
 	}
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
 	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
-	const serializeEditorSave = React.useCallback(<T,>(operation: () => Promise<T>) => {
-		const result = editorSaveQueueRef.current.then(operation);
-		editorSaveQueueRef.current = result.then(
-			() => undefined,
-			() => undefined,
-		);
-		return result;
-	}, []);
+	// Written together with the conflict state rather than on render, so a save
+	// that runs before the next render still sees the conflict.
+	const conflictedEntryIdRef = React.useRef("");
+	const serializeEditorSave = React.useCallback(
+		<T,>(operation: () => Promise<T>, { explicitSave = false } = {}) => {
+			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
+			const result = editorSaveQueueRef.current.then(() => {
+				// The token the recovery fetched is only for a save the writer starts
+				// while the conflict shows; anything else would write over a version
+				// they have not seen.
+				if (!savesOverConflict && conflictedEntryIdRef.current === id) {
+					throw new Error(
+						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
+					);
+				}
+				return operation();
+			});
+			editorSaveQueueRef.current = result.then(
+				() => undefined,
+				() => undefined,
+			);
+			return result;
+		},
+		[id, t],
+	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
 	React.useEffect(() => {
@@ -998,7 +1023,12 @@ function ContentEditPage() {
 		autosaveRejectionSequenceRef.current += 1;
 		setAutosaveRejection({ entryId, token: autosaveRejectionSequenceRef.current });
 	}, []);
-	const [conflictedEntryId, setConflictedEntryId] = React.useState("");
+	const [conflictedEntryId, setConflictedEntryIdState] = React.useState("");
+	const setConflictedEntryId = React.useCallback((next: React.SetStateAction<string>) => {
+		conflictedEntryIdRef.current =
+			typeof next === "function" ? next(conflictedEntryIdRef.current) : next;
+		setConflictedEntryIdState(conflictedEntryIdRef.current);
+	}, []);
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
 		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
@@ -1071,11 +1101,13 @@ function ContentEditPage() {
 			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to save`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(error, collectionFields) ??
+					(error instanceof Error ? error.message : t`An error occurred`),
 				type: "error",
 			});
 		},
-		[entryLock.reportWriteError, t, toastManager],
+		[collectionFields, entryLock.reportWriteError, t, toastManager],
 	);
 
 	const updateMutation = useMutation({
@@ -1095,7 +1127,12 @@ function ContentEditPage() {
 			}
 		},
 		onSuccess: (_, variables) => {
-			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+			// Only a save the writer started resolves the conflict. An author or SEO
+			// write carries the recovered token too, and clearing the notice for one
+			// would hand the editor's stale copy a token the server accepts.
+			if (variables.source === "editor") {
+				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+			}
 			handleContentUpdateSuccess(variables.targetId);
 		},
 		onError: async (error, variables) => {
@@ -1158,7 +1195,9 @@ function ContentEditPage() {
 			if (entryLock.reportWriteError(err, variables.targetId)) return;
 			toastManager.add({
 				title: t`Autosave failed`,
-				description: err instanceof Error ? err.message : t`An error occurred`,
+				description:
+					describeContentValidationError(err, collectionFields) ??
+					(err instanceof Error ? err.message : t`An error occurred`),
 				type: "error",
 			});
 		},
@@ -1327,7 +1366,9 @@ function ContentEditPage() {
 		onError: (error) => {
 			toastManager.add({
 				title: t`Failed to create translation`,
-				description: error instanceof Error ? error.message : t`An error occurred`,
+				description:
+					describeContentValidationError(error, collectionFields) ??
+					(error instanceof Error ? error.message : t`An error occurred`),
 				type: "error",
 			});
 		},
@@ -1362,13 +1403,15 @@ function ContentEditPage() {
 	// are referentially stable.
 	const handleSave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
-			void serializeEditorSave(() =>
-				updateMutation.mutateAsync({
-					targetId: id,
-					targetLocale: rawItem?.locale ?? activeLocale,
-					source: "editor",
-					changes: payload,
-				}),
+			void serializeEditorSave(
+				() =>
+					updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					}),
+				{ explicitSave: true },
 			).catch(() => undefined);
 		},
 		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
@@ -1594,6 +1637,13 @@ function ContentEditPage() {
 		},
 		[id],
 	);
+	const handlePluginEntryRefresh = React.useCallback(async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
+			queryClient.invalidateQueries({ queryKey: ["translations", collection, id] }),
+		]);
+	}, [collection, id, queryClient]);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -1614,6 +1664,7 @@ function ContentEditPage() {
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
+			timezone={manifest.timezone ?? "UTC"}
 			fields={collectionConfig.fields}
 			isSaving={
 				updateMutation.isPending || publishedAtMutation.isPending || publishMutation.isPending
@@ -1657,6 +1708,7 @@ function ContentEditPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
+			onEntryRefresh={handlePluginEntryRefresh}
 			readOnly={entryLock.readOnly}
 			notice={
 				<EntryLockNotice
@@ -2223,14 +2275,14 @@ function PluginManagerPage() {
 	return <PluginManager manifest={manifest} />;
 }
 
-// Marketplace browse route
-const marketplaceBrowseRoute = createRoute({
+const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
-	path: "/plugins/marketplace",
-	component: MarketplaceBrowsePage,
+	path: "/plugins/registry",
+	component: RegistryBrowsePage,
 });
 
-function MarketplaceBrowsePage() {
+function RegistryBrowsePage() {
+	const { t } = useLingui();
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
@@ -2242,17 +2294,10 @@ function MarketplaceBrowsePage() {
 			const { fetchPlugins } = await import("./lib/api/plugins.js");
 			return fetchPlugins();
 		},
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
 	});
 
-	const installedIds = React.useMemo(() => {
-		if (!plugins) return new Set<string>();
-		return new Set(plugins.map((p) => p.id));
-	}, [plugins]);
-
-	// When `experimental.registry` is configured, the registry browse
-	// replaces the centralized marketplace browse on this route. Existing
-	// sidebar / deep links stay valid; users see the registry without any
-	// path change.
 	if (manifest?.registry) {
 		// Map installed registry plugins to their AT URIs for the
 		// "Installed" badge on browse cards.
@@ -2269,8 +2314,14 @@ function MarketplaceBrowsePage() {
 		);
 	}
 
-	return <MarketplaceBrowse installedPluginIds={installedIds} />;
+	return <NotFoundPage message={t`Plugin registry is not configured.`} />;
 }
+
+const marketplaceBrowseRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins/marketplace",
+	component: MarketplaceUnavailablePage,
+});
 
 // Marketplace plugin detail route
 const marketplaceDetailRoute = createRoute({
@@ -2299,45 +2350,20 @@ function RegistryDetailPage() {
 }
 
 function MarketplaceDetailPage() {
-	const { pluginId } = useParams({ from: "/_admin/plugins/marketplace/$pluginId" });
+	const { t } = useLingui();
 
-	const { data: manifest } = useQuery({
-		queryKey: ["manifest"],
-		queryFn: fetchManifest,
-	});
-
-	const { data: plugins } = useQuery({
-		queryKey: ["plugins"],
-		queryFn: async () => {
-			const { fetchPlugins } = await import("./lib/api/plugins.js");
-			return fetchPlugins();
-		},
-	});
-
-	const installedIds = React.useMemo(() => {
-		if (!plugins) return new Set<string>();
-		return new Set(plugins.map((p) => p.id));
-	}, [plugins]);
-
-	// Discriminate by param shape, not by the manifest flag. A registry
-	// pluginId is always `${handle}/${slug}` and contains exactly one `/`;
-	// a marketplace pluginId is a single segment with no `/`. This keeps
-	// deep links to marketplace-installed plugins working on sites that
-	// later opt into the registry, instead of unconditionally routing
-	// every visit to RegistryPluginDetail.
-	const looksLikeRegistryId = pluginId.includes("/");
-	if (manifest?.registry && looksLikeRegistryId) {
-		return <RegistryPluginDetail pluginId={pluginId} config={manifest.registry} />;
-	}
-
-	return <MarketplacePluginDetail pluginId={pluginId} installedPluginIds={installedIds} />;
+	return (
+		<NotFoundPage
+			message={t`Marketplace browsing is no longer available. Manage installed plugins from Plugins.`}
+		/>
+	);
 }
 
 // Theme marketplace browse route
 const themeMarketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace",
-	component: ThemeMarketplaceBrowse,
+	component: MarketplaceUnavailablePage,
 });
 
 // Theme marketplace detail route
@@ -2348,8 +2374,12 @@ const themeMarketplaceDetailRoute = createRoute({
 });
 
 function ThemeDetailPage() {
-	const { themeId } = useParams({ from: "/_admin/themes/marketplace/$themeId" });
-	return <ThemeMarketplaceDetail themeId={themeId} />;
+	return <MarketplaceUnavailablePage />;
+}
+
+function MarketplaceUnavailablePage() {
+	const { t } = useLingui();
+	return <NotFoundPage message={t`Marketplace browsing is no longer available.`} />;
 }
 
 // WordPress import route
@@ -2386,7 +2416,8 @@ const taxonomyRoute = createRoute({
 
 function TaxonomyPage() {
 	const { taxonomy } = useParams({ from: "/_admin/taxonomies/$taxonomy" });
-	return <TaxonomyManager taxonomyName={taxonomy} />;
+	const navigate = useNavigate();
+	return <TaxonomyManager taxonomyName={taxonomy} onDeleted={() => void navigate({ to: "/" })} />;
 }
 
 // Widgets route
@@ -2480,6 +2511,14 @@ function ContentTypesListPage() {
 		queryKey: ["schema", "orphans"],
 		queryFn: fetchOrphanedTables,
 	});
+	const {
+		data: blockTypes,
+		isLoading: blockTypesLoading,
+		error: blockTypesError,
+	} = useQuery({
+		queryKey: ["schema", "block-types"],
+		queryFn: fetchBlockTypes,
+	});
 
 	const deleteMutation = useMutation({
 		mutationFn: (slug: string) => deleteCollection(slug, true),
@@ -2508,20 +2547,23 @@ function ContentTypesListPage() {
 		},
 	});
 
-	const error = collectionsError || orphansError;
+	const error = collectionsError || orphansError || blockTypesError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
 
 	return (
-		<ContentTypeList
-			collections={collections ?? []}
-			orphanedTables={orphanedTables}
-			isLoading={collectionsLoading || orphansLoading}
-			onDelete={(slug) => deleteMutation.mutate(slug)}
-			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
-			onReorder={(slugs) => reorderMutation.mutate(slugs)}
-		/>
+		<div className="space-y-6">
+			<ContentTypeList
+				collections={collections ?? []}
+				orphanedTables={orphanedTables}
+				isLoading={collectionsLoading || orphansLoading}
+				onDelete={(slug) => deleteMutation.mutate(slug)}
+				onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+				onReorder={(slugs) => reorderMutation.mutate(slugs)}
+			/>
+			<BlockTypeList blockTypes={blockTypes ?? []} isLoading={blockTypesLoading} />
+		</div>
 	);
 }
 
@@ -2740,6 +2782,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	pluginManagerRoute,
 	pluginSettingsRoute,
 	marketplaceDetailRoute,
+	registryBrowseRoute,
 	registryDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,

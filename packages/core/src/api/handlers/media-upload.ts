@@ -48,6 +48,14 @@ export type MediaUploadResult = ApiResult<{
 	deduplicated?: boolean;
 }>;
 
+export interface MediaUploadHooks {
+	beforeUpload?(file: {
+		name: string;
+		type: string;
+		size: number;
+	}): Promise<{ name: string; type: string; size: number }>;
+}
+
 function fail(code: string, message: string): MediaUploadResult {
 	return { success: false, error: { code, message } };
 }
@@ -136,6 +144,7 @@ export async function handleMediaUpload(
 	db: Kysely<Database>,
 	storage: Storage,
 	input: MediaUploadInput,
+	hooks: MediaUploadHooks = {},
 ): Promise<MediaUploadResult> {
 	if (!input.base64 === !input.url) {
 		return fail("VALIDATION_ERROR", "Provide exactly one of 'base64' or 'url'");
@@ -158,7 +167,9 @@ export async function handleMediaUpload(
 	if (!CONTENT_TYPE_RE.test(acquired.mimeType)) {
 		return fail("VALIDATION_ERROR", "Invalid content type");
 	}
-	const mimeType = normalizeMime(acquired.mimeType);
+	let filename = input.filename;
+	let mimeType = normalizeMime(acquired.mimeType);
+	let size = bytes.byteLength;
 
 	if (!matchesMimeAllowlist(mimeType, GLOBAL_UPLOAD_ALLOWLIST)) {
 		return fail("INVALID_TYPE", "File type not allowed");
@@ -168,6 +179,22 @@ export async function handleMediaUpload(
 	}
 
 	try {
+		if (hooks.beforeUpload) {
+			const processed = await hooks.beforeUpload({
+				name: filename,
+				type: mimeType,
+				size: bytes.byteLength,
+			});
+			filename = processed.name;
+			mimeType = normalizeMime(processed.type);
+			size = processed.size;
+			if (!CONTENT_TYPE_RE.test(processed.type)) {
+				return fail("VALIDATION_ERROR", "Invalid content type");
+			}
+			if (!matchesMimeAllowlist(mimeType, GLOBAL_UPLOAD_ALLOWLIST)) {
+				return fail("INVALID_TYPE", "File type not allowed");
+			}
+		}
 		const contentHash = await computeContentHash(bytes);
 		const repo = new MediaRepository(db);
 
@@ -176,15 +203,15 @@ export async function handleMediaUpload(
 			return { success: true, data: { item: withUrl(existing), deduplicated: true } };
 		}
 
-		const storageKey = `${ulid()}${path.extname(input.filename)}`;
+		const storageKey = `${ulid()}${path.extname(filename)}`;
 		await storage.upload({ key: storageKey, body: bytes, contentType: mimeType });
 
 		try {
 			const enriched = await enrichImageMetadata(bytes, mimeType);
 			const item = await repo.create({
-				filename: input.filename,
+				filename,
 				mimeType,
-				size: bytes.byteLength,
+				size,
 				width: enriched.width,
 				height: enriched.height,
 				alt: input.alt,

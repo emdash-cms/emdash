@@ -17,6 +17,7 @@
  */
 
 import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
+import { isHandle } from "@atcute/lexicons/syntax";
 import { safeParse } from "@atcute/lexicons/validations";
 import {
 	type AggregatorDefs,
@@ -31,6 +32,7 @@ import { isPlainObject, parseSignatureMetadataCid } from "../../utils.js";
  * exactly these columns keeps the SQL query auditable and cheap. */
 export interface PackageRow {
 	did: string;
+	handle: string | null;
 	slug: string;
 	type: string;
 	name: string | null;
@@ -40,6 +42,7 @@ export interface PackageRow {
 	security: string; // JSON array
 	keywords: string | null; // JSON array
 	sections: string | null; // JSON map
+	emdash_extension: string | null; // JSON of validated profileExtension contents
 	last_updated: string | null;
 	latest_version: string | null;
 	signature_metadata: string | null;
@@ -80,6 +83,7 @@ const PACKAGE_VIEW_COLUMN_NAMES = [
 	"security",
 	"keywords",
 	"sections",
+	"emdash_extension",
 	"last_updated",
 	"latest_version",
 	"signature_metadata",
@@ -108,7 +112,10 @@ const RELEASE_VIEW_COLUMN_NAMES = [
  * `"p.did, p.slug, ..."`. No prefix is unambiguous when only one table is
  * in scope. */
 export function packageColumns(prefix = ""): string {
-	return PACKAGE_VIEW_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(", ");
+	return `${PACKAGE_VIEW_COLUMN_NAMES.map((c) => `${prefix}${c}`).join(", ")},
+		(SELECT publisher_identity.handle
+		   FROM known_publishers publisher_identity
+		  WHERE publisher_identity.did = ${prefix}did) AS handle`;
 }
 
 /** SELECT-clause string for `ReleaseRow`, optionally prefixed for JOINs. */
@@ -140,6 +147,9 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 		indexedAt: row.indexed_at ?? row.verified_at,
 		labels: parseHydratedLabels(row.labels_json ?? "[]"),
 	};
+	if (row.handle !== null && isHandle(row.handle)) {
+		view.handle = row.handle;
+	}
 	if (row.latest_version !== null) {
 		view.latestVersion = row.latest_version;
 	}
@@ -207,6 +217,10 @@ function synthesizePackageProfile(row: PackageRow, uri: string): Record<string, 
 	if (row.sections !== null) {
 		const sections = parseJsonObject(row.sections);
 		if (sections) profile["sections"] = sections;
+	}
+	if (row.emdash_extension !== null) {
+		const extension = parseJsonObject(row.emdash_extension);
+		if (extension) profile["extensions"] = { [NSID.packageProfileExtension]: extension };
 	}
 	if (row.last_updated !== null) profile["lastUpdated"] = row.last_updated;
 	// `slug` in the record is optional but, when present, must equal the

@@ -23,8 +23,13 @@ const {
 	MOCK_RUNTIME,
 	PUBLIC_PLUGIN_RESULT,
 	mockGetPluginRouteMeta,
+	mockHandleMediaUpload,
 	mockHandlePluginApiRoute,
 	mockGetPublicUrl,
+	mockGetRuntimePluginSettingsSchema,
+	mockRunPluginActivateLifecycle,
+	mockRunPluginInstallLifecycle,
+	mockRunPluginUninstallLifecycle,
 } = vi.hoisted(() => {
 	const publicPluginResult = { success: true, data: { ok: true } };
 	const ok = async () => ({ success: true });
@@ -36,6 +41,11 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
+	const handleMediaUpload = vi.fn(ok);
+	const runPluginInstallLifecycle = vi.fn(async () => undefined);
+	const runPluginActivateLifecycle = vi.fn(async () => undefined);
+	const runPluginUninstallLifecycle = vi.fn(async () => undefined);
+	const getRuntimePluginSettingsSchema = vi.fn(() => ({ apiKey: { type: "secret" } }));
 	return {
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl },
@@ -65,6 +75,7 @@ const {
 			handleContentTranslations: ok,
 			handleMediaList: ok,
 			handleMediaGet: ok,
+			handleMediaUpload,
 			handleMediaCreate: ok,
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
@@ -72,6 +83,8 @@ const {
 			handleRevisionGet: ok,
 			handleRevisionRestore: ok,
 			getPluginRouteMeta,
+			getPluginEditorExtension: () => null,
+			getPluginEditorDraftSchema: async () => null,
 			handlePluginApiRoute,
 			getPluginMcpTools: async () => [],
 			getEnabledPluginMcpTools: async () => [],
@@ -88,12 +101,21 @@ const {
 			isSandboxBypassed: () => false,
 			syncMarketplacePlugins: async () => undefined,
 			syncRegistryPlugins: async () => undefined,
+			runPluginInstallLifecycle,
+			runPluginActivateLifecycle,
+			runPluginUninstallLifecycle,
+			getRuntimePluginSettingsSchema,
 			setPluginStatus: async () => undefined,
 		},
 		PUBLIC_PLUGIN_RESULT: publicPluginResult,
 		mockGetPluginRouteMeta: getPluginRouteMeta,
+		mockHandleMediaUpload: handleMediaUpload,
 		mockHandlePluginApiRoute: handlePluginApiRoute,
 		mockGetPublicUrl: getPublicUrl,
+		mockGetRuntimePluginSettingsSchema: getRuntimePluginSettingsSchema,
+		mockRunPluginActivateLifecycle: runPluginActivateLifecycle,
+		mockRunPluginInstallLifecycle: runPluginInstallLifecycle,
+		mockRunPluginUninstallLifecycle: runPluginUninstallLifecycle,
 	};
 });
 
@@ -180,6 +202,11 @@ function resetSetupVerified() {
 beforeEach(() => {
 	resetSetupVerified();
 	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
+	mockGetRuntimePluginSettingsSchema.mockClear();
+	mockHandleMediaUpload.mockClear();
+	mockRunPluginActivateLifecycle.mockClear();
+	mockRunPluginInstallLifecycle.mockClear();
+	mockRunPluginUninstallLifecycle.mockClear();
 });
 
 /** A getDb stub whose migrations-probe query throws `error`. */
@@ -340,6 +367,8 @@ describe("astro middleware prerendered routes", () => {
 		expect(response.status).toBe(200);
 		const emdash = locals.emdash as Record<string, unknown>;
 		expect(typeof emdash.handlePluginApiRoute).toBe("function");
+		expect(typeof emdash.getPluginEditorExtension).toBe("function");
+		expect(typeof emdash.getPluginEditorDraftSchema).toBe("function");
 		expect(typeof emdash.handlePublicPluginApiRoute).toBe("function");
 		// Regression for #1462: the author filter route reads
 		// `locals.emdash.handleContentAuthors`; it must be wired onto the
@@ -542,6 +571,59 @@ describe("astro middleware anonymous session reads", () => {
 
 		expect(response.status).toBe(200);
 		expect(sessionGet).toHaveBeenCalledWith("user");
+	});
+
+	it("exposes plugin install lifecycle through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/admin/plugins/registry/install",
+			method: "POST",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		expect(typeof emdash.runPluginInstallLifecycle).toBe("function");
+		expect(typeof emdash.runPluginActivateLifecycle).toBe("function");
+		expect(typeof emdash.runPluginUninstallLifecycle).toBe("function");
+		expect(typeof emdash.getRuntimePluginSettingsSchema).toBe("function");
+		await (emdash.runPluginInstallLifecycle as (pluginId: string) => Promise<void>)("gallery");
+		await (emdash.runPluginActivateLifecycle as (pluginId: string) => Promise<void>)("gallery");
+		await (
+			emdash.runPluginUninstallLifecycle as (pluginId: string, deleteData: boolean) => Promise<void>
+		)("gallery", true);
+		expect(
+			(emdash.getRuntimePluginSettingsSchema as (pluginId: string) => Record<string, unknown>)(
+				"gallery",
+			),
+		).toEqual({ apiKey: { type: "secret" } });
+		expect(mockRunPluginInstallLifecycle).toHaveBeenCalledWith("gallery");
+		expect(mockRunPluginActivateLifecycle).toHaveBeenCalledWith("gallery");
+		expect(mockRunPluginUninstallLifecycle).toHaveBeenCalledWith("gallery", true);
+		expect(mockGetRuntimePluginSettingsSchema).toHaveBeenCalledWith("gallery");
+	});
+
+	it("exposes media upload through authenticated locals", async () => {
+		const locals: Record<string, unknown> = {};
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/media",
+			method: "POST",
+			cookieValues: { "astro-session": "session-id" },
+			sessionUser: { id: "admin-id" },
+			locals,
+		});
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => new Response("ok"));
+
+		const emdash = locals.emdash as Record<string, unknown>;
+		const input = { filename: "photo.jpg", base64: "cGhvdG8=" };
+		await (emdash.handleMediaUpload as (value: typeof input) => Promise<{ success: boolean }>)(
+			input,
+		);
+		expect(mockHandleMediaUpload).toHaveBeenCalledWith(input);
 	});
 });
 
@@ -782,7 +864,7 @@ describe("astro middleware setup probe", () => {
 		};
 	}
 
-	it("redirects to setup when the migrations table is genuinely missing", async () => {
+	it("migrates and renders a public page when the migrations table is genuinely missing", async () => {
 		// Fresh, un-migrated database: the probe query reports a missing table.
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
@@ -793,10 +875,28 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(redirect).toHaveBeenCalledWith("/_emdash/admin/setup");
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/_emdash/admin/setup");
+		expect(redirect).not.toHaveBeenCalled();
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("answers with an uncached 503 when an un-migrated database cannot be initialized", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+		mockCreateRuntime.mockRejectedValue(new Error("migration 001 failed"));
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
 		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(503);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect(await response.text()).toContain('href="/_emdash/admin/setup"');
 	});
 
 	it("does NOT redirect to setup on a transient DB error (regression)", async () => {

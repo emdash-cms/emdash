@@ -15,6 +15,8 @@ import { NSID } from "@emdash-cms/registry-lexicons";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { searchPackages } from "../src/routes/xrpc/searchPackages.js";
+
 interface TestEnv {
 	DB: D1Database;
 	TEST_MIGRATIONS: Parameters<typeof applyD1Migrations>[1];
@@ -45,7 +47,18 @@ beforeEach(async () => {
 	await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
 	await testEnv.DB.prepare("DELETE FROM publishers").run();
 	await testEnv.DB.prepare("DELETE FROM publisher_verifications").run();
+	await testEnv.DB.prepare("DELETE FROM known_publishers").run();
 });
+
+async function seedPublisherHandle(did: string, handle: string): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO known_publishers
+		   (did, handle, handle_resolved_at, first_seen_at, last_seen_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+	)
+		.bind(did, handle, NOW.toISOString(), NOW.toISOString(), NOW.toISOString())
+		.run();
+}
 
 interface SeedPackageOpts {
 	did?: string;
@@ -60,6 +73,7 @@ interface SeedPackageOpts {
 	indexedAt?: string;
 	verifiedAt?: string;
 	carBytes?: Uint8Array;
+	installable?: boolean;
 }
 
 async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
@@ -69,9 +83,10 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 	await testEnv.DB.prepare(
 		`INSERT INTO packages
 		   (did, slug, type, name, description, license, authors, security, keywords,
-		    sections, last_updated, latest_version, capabilities, record_blob,
-		    signature_metadata, verified_at, indexed_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		    sections, emdash_extension, installability_status, installability_error,
+		    last_updated, latest_version, capabilities, record_blob, signature_metadata,
+		    verified_at, indexed_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			did,
@@ -84,6 +99,14 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 			JSON.stringify([{ email: "x@y.test" }]),
 			opts.keywords === null ? null : JSON.stringify(opts.keywords ?? ["demo"]),
 			null,
+			opts.installable === false
+				? null
+				: JSON.stringify({
+						$type: NSID.packageProfileExtension,
+						repository: "https://github.com/example/demo",
+					}),
+			opts.installable === false ? "invalid" : "valid",
+			opts.installable === false ? "PROFILE_EXTENSION_INVALID" : null,
 			NOW.toISOString(),
 			opts.latestVersion ?? null,
 			null,
@@ -182,6 +205,17 @@ function defaultVersionSort(version: string): string {
 }
 
 describe("getPackage", () => {
+	it("includes the cached verified publisher handle", async () => {
+		await seedPackage({ slug: "demo" });
+		await seedPublisherHandle(DID_A, "publisher.example");
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		await expect(res.json()).resolves.toMatchObject({ handle: "publisher.example" });
+	});
+
 	it("returns the packageView envelope for an indexed package", async () => {
 		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
 
@@ -206,6 +240,22 @@ describe("getPackage", () => {
 		expect(profile["id"]).toBe(`at://${DID_A}/${NSID.packageProfile}/demo`);
 		expect(profile["license"]).toBe("MIT");
 		expect(profile["slug"]).toBe("demo");
+		expect(profile["extensions"]).toEqual({
+			[NSID.packageProfileExtension]: {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/demo",
+			},
+		});
+	});
+
+	it("does not expose a profile that cannot pass install verification", async () => {
+		await seedPackage({ slug: "demo", installable: false });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		expect(res.status).toBe(404);
 	});
 
 	it("returns 404 NotFound when no row matches", async () => {
@@ -457,6 +507,67 @@ describe("getLatestRelease", () => {
 });
 
 describe("searchPackages", () => {
+	it.each(["publisher.example", "@publisher.example"])(
+		"searches all packages by publisher handle: %s",
+		async (query) => {
+			await seedPackage({ slug: "gallery" });
+			await seedPackage({ slug: "forms" });
+
+			const res = await searchPackages(
+				env,
+				{ q: query },
+				{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+			);
+			const body = (await res.json()) as {
+				packages: Array<{ handle?: string; slug: string }>;
+			};
+
+			expect(body.packages.map((pkg) => pkg.slug).toSorted()).toEqual(["forms", "gallery"]);
+			expect(body.packages.every((pkg) => pkg.handle === "publisher.example")).toBe(true);
+		},
+	);
+
+	it.each(["publisher.example/gallery", "@publisher.example/gallery"])(
+		"searches an exact handle and slug: %s",
+		async (query) => {
+			await seedPackage({ slug: "gallery" });
+			await seedPackage({ slug: "forms" });
+
+			const res = await searchPackages(
+				env,
+				{ q: query },
+				{ resolvePublisher: async () => ({ did: DID_A, handle: "publisher.example" }) },
+			);
+			const body = (await res.json()) as { packages: Array<{ slug: string }> };
+
+			expect(body.packages.map((pkg) => pkg.slug)).toEqual(["gallery"]);
+		},
+	);
+
+	it("does not cache a resolved identity with no indexed packages", async () => {
+		const res = await searchPackages(
+			env,
+			{ q: "unknown.example" },
+			{ resolvePublisher: async () => ({ did: DID_B, handle: "unknown.example" }) },
+		);
+
+		await expect(res.json()).resolves.toEqual({ packages: [] });
+		const cached = await testEnv.DB.prepare("SELECT did FROM known_publishers").all();
+		expect(cached.results).toEqual([]);
+	});
+
+	it("searches by DID when identity enrichment is unavailable", async () => {
+		await seedPackage({ slug: "gallery" });
+		const res = await searchPackages(
+			env,
+			{ q: `${DID_A}/gallery` },
+			{ resolvePublisher: () => Promise.reject(new Error("identity unavailable")) },
+		);
+		const body = (await res.json()) as { packages: Array<{ did: string; slug: string }> };
+
+		expect(body.packages).toMatchObject([{ did: DID_A, slug: "gallery" }]);
+	});
+
 	it("returns FTS-matched packages", async () => {
 		await seedPackage({ slug: "gallery", name: "Gallery Plugin", description: "image gallery" });
 		await seedPackage({ slug: "form", name: "Form Plugin", description: "form builder" });

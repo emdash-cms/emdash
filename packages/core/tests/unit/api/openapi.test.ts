@@ -266,6 +266,9 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/schema/collections/{slug}");
 		expect(paths).toContain("/_emdash/api/schema/collections/{slug}/fields");
 		expect(paths).toContain("/_emdash/api/schema/collections/{slug}/fields/{fieldSlug}");
+		expect(paths).toContain("/_emdash/api/schema/block-types");
+		expect(paths).toContain("/_emdash/api/schema/block-types/{slug}");
+		expect(paths).toContain("/_emdash/api/schema/block-types/{slug}/versions/{version}/activate");
 		expect(paths).toContain("/_emdash/api/schema/orphans");
 	});
 

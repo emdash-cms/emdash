@@ -67,12 +67,16 @@ export interface ManifestFieldDescriptor extends FieldDescriptor {
 	id?: string;
 	widget?: string;
 	validation?: Record<string, unknown>;
+	unsupportedType?: { type: string; path: string };
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
 }
 
 export interface FieldDescriptor {
 	kind: string;
 	label?: string;
 	required?: boolean;
+	translatable?: boolean;
 	/**
 	 * For `select` / `multiSelect`: the list of enum choices.
 	 * For `json` fields driven by a plugin `widget`: arbitrary widget config.
@@ -106,3 +110,4 @@ export interface ApiContext {
 	userId?: string;
 	userRole?: string;
 }
+import type { BlockType } from "../schema/block-types.js";

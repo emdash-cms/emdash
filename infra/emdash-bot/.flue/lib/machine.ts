@@ -55,7 +55,7 @@ export type RunMode =
 	| "implement"
 	| "diagnose"
 	| "fix";
-export type RunStatus = "running" | "succeeded" | "failed" | "timed_out" | "cancelled";
+export type RunStatus = "running" | "paused" | "succeeded" | "failed" | "timed_out" | "cancelled";
 
 const RUN_PLANS = {
 	triage: ["prepare", "diagnose", "report"],
@@ -75,7 +75,7 @@ export function runPlan(mode: RunMode): RunPhaseId[] {
 export function runMachineSnapshot() {
 	return {
 		phases: RUN_PHASES,
-		statuses: ["running", "succeeded", "failed", "timed_out", "cancelled"] as const,
+		statuses: ["running", "paused", "succeeded", "failed", "timed_out", "cancelled"] as const,
 		plans: {
 			triage: runPlan("triage"),
 			investigate: runPlan("investigate"),
@@ -570,7 +570,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	},
 	resume: {
 		description: "Continue the saved conversation and workspace from a timed-out run.",
-		actors: ["maintainer"],
+		actors: ["maintainer", "system"],
 		arg: "directive",
 		legacy: true,
 	},
@@ -871,6 +871,7 @@ export const TRANSITIONS: Transition[] = [
 	},
 	{ from: "working", event: "agent.revised", to: "in_review" },
 	{ from: "working", event: "agent.failed", to: "needs_attention" },
+	{ from: "working", event: "resume", to: "working", action: "investigate.resume" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
 	{ from: "blocked", event: "triage", to: "triaging", action: "investigate.triage" },
@@ -936,6 +937,7 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "in_review", event: "pr.green", to: "in_review" },
 	{ from: "in_review", event: "agent.revised", to: "in_review" },
 	{ from: "in_review", event: "agent.failed", to: "needs_attention" },
+	{ from: "in_review", event: "resume", to: "in_review", action: "investigate.resume" },
 	{ from: "in_review", event: "pr.merged", to: "done" },
 	// A bot PR can be merged from non-review states too. Keep pr.merged terminal
 	// from every state where the PR may still be open: bot:working (during a
@@ -1107,6 +1109,7 @@ export const TRANSITIONS: Transition[] = [
 	// =======================================================================
 	{ from: "fixing", event: "agent.fix_ready", to: "preview_building" },
 	{ from: "fixing", event: "agent.failed", to: "needs_attention" },
+	{ from: "fixing", event: "resume", to: "fixing", action: "investigate.resume" },
 	{
 		from: "fixing",
 		event: "agent.by_design",

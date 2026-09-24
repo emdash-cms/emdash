@@ -5,6 +5,7 @@
 	"description": "EmDash plugin registry aggregator. Indexes com.emdashcms.experimental.package.* records via Jetstream + PDS-verified ingest, exposes XRPC reads.",
 	"type": "module",
 	"scripts": {
+		"prebuild": "node scripts/build-workspace-dependencies.mjs",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -32,7 +33,8 @@
 		"@atcute/xrpc-server": "catalog:",
 		"@atcute/xrpc-server-cloudflare": "catalog:",
 		"@emdash-cms/registry-lexicons": "workspace:*",
-		"@emdash-cms/registry-moderation": "workspace:*"
+		"@emdash-cms/registry-moderation": "workspace:*",
+		"@emdash-cms/registry-verification": "workspace:*"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",

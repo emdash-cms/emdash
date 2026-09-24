@@ -61,6 +61,80 @@ describe("OpenAPI spec validation", () => {
 		});
 	});
 
+	it("documents lifecycle inputs and the restored item response", async () => {
+		const dereferenced = await SwaggerParser.dereference(
+			structuredClone(generateOpenApiDocument()),
+		);
+		const paths = (dereferenced as { paths?: Record<string, Record<string, unknown>> }).paths ?? {};
+		const operation = (path: string, method: string) =>
+			paths[path]?.[method] as
+				| {
+						requestBody?: {
+							content?: Record<
+								string,
+								{
+									schema?: {
+										properties?: Record<string, Record<string, unknown>>;
+										required?: string[];
+									};
+								}
+							>;
+						};
+						responses?: Record<
+							string,
+							{
+								content?: Record<
+									string,
+									{
+										schema?: {
+											properties?: Record<string, Record<string, unknown>>;
+										};
+									}
+								>;
+							}
+						>;
+				  }
+				| undefined;
+		const requestSchema = (path: string) =>
+			operation(path, "post")?.requestBody?.content?.["application/json"]?.schema;
+
+		const publish = requestSchema("/_emdash/api/content/{collection}/{id}/publish");
+		expect(publish?.properties?._rev).toMatchObject({ type: "string" });
+		expect(publish?.properties?.overrideLock).toMatchObject({ type: "boolean" });
+		const publishedAt = publish?.properties?.publishedAt;
+		const publishedAtOptions = Array.isArray(publishedAt?.anyOf)
+			? (publishedAt.anyOf as Array<Record<string, unknown>>)
+			: [];
+		expect([publishedAt, ...publishedAtOptions].some((schema) => schema?.type === "string")).toBe(
+			true,
+		);
+		expect(publish?.required ?? []).not.toContain("_rev");
+
+		for (const path of [
+			"/_emdash/api/content/{collection}/{id}/unpublish",
+			"/_emdash/api/content/{collection}/{id}/discard-draft",
+		]) {
+			const schema = requestSchema(path);
+			expect(schema?.properties?._rev).toMatchObject({ type: "string" });
+			expect(schema?.properties?.overrideLock).toMatchObject({ type: "boolean" });
+			expect(schema?.required ?? []).not.toContain("_rev");
+		}
+
+		const restoreEnvelope = operation("/_emdash/api/content/{collection}/{id}/restore", "post")
+			?.responses?.["200"]?.content?.["application/json"]?.schema;
+		const restoreData = restoreEnvelope?.properties?.data as
+			| { properties?: Record<string, unknown>; required?: string[] }
+			| undefined;
+		expect(restoreData?.properties).toEqual(
+			expect.objectContaining({
+				restored: expect.any(Object),
+				item: expect.any(Object),
+				_rev: expect.any(Object),
+			}),
+		);
+		expect(restoreData?.required).toEqual(expect.arrayContaining(["restored", "item", "_rev"]));
+	});
+
 	it("resolves all $ref pointers without errors", async () => {
 		const doc = generateOpenApiDocument();
 

@@ -313,6 +313,8 @@ describe("Zod Generator", () => {
 				height: 800,
 				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
 				dominantColor: "#d9d2c5",
+				focalX: 0.25,
+				focalY: 0.75,
 				meta: { storageKey: "photo.webp" },
 			};
 			expect(schema.parse(validImage)).toEqual(validImage);
@@ -633,7 +635,7 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
 			expect(ts).toContain(
-				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
+				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
 			);
 			// Hydrated by getEmDashCollection/getEmDashEntry
 			expect(ts).toContain("bylines?: ContentBylineCredit[];");
@@ -726,11 +728,99 @@ describe("Zod Generator", () => {
 		});
 	});
 
+	describe("blocks fields in generated types", () => {
+		it("emits retained version, per-type, and field unions", () => {
+			const now = new Date().toISOString();
+			const collection: CollectionWithFields = {
+				id: "pages",
+				slug: "pages",
+				label: "Pages",
+				supports: [],
+				createdAt: now,
+				updatedAt: now,
+				fields: [
+					{
+						id: "layout",
+						collectionId: "pages",
+						slug: "layout",
+						label: "Layout",
+						type: "blocks",
+						columnType: "JSON",
+						required: false,
+						unique: false,
+						searchable: false,
+						indexed: false,
+						translatable: true,
+						sortOrder: 0,
+						createdAt: now,
+						blockTypeFingerprint: "blocks-field:v1:sha256:test",
+						blockTypes: [
+							{
+								id: "hero",
+								slug: "hero",
+								label: "Hero",
+								currentVersion: 2,
+								source: "user",
+								createdAt: now,
+								updatedAt: now,
+								versions: [
+									{
+										id: "hero-v1",
+										blockTypeId: "hero",
+										version: 1,
+										fingerprint: "v1",
+										active: false,
+										createdAt: now,
+										updatedAt: now,
+										fields: [{ slug: "heading", label: "Heading", type: "string", required: true }],
+									},
+									{
+										id: "hero-v2",
+										blockTypeId: "hero",
+										version: 2,
+										fingerprint: "v2",
+										active: true,
+										createdAt: now,
+										updatedAt: now,
+										fields: [
+											{ slug: "title", label: "Title", type: "string", required: true },
+											{ slug: "body", label: "Body", type: "portableText" },
+										],
+									},
+								],
+							},
+						],
+					},
+				],
+			};
+
+			const generated = generateTypesFile([collection]);
+			const parsed = tsc.createSourceFile(
+				"emdash-env.d.ts",
+				generated,
+				tsc.ScriptTarget.Latest,
+				false,
+			);
+			const diagnostics = (parsed as unknown as { parseDiagnostics: readonly tsc.Diagnostic[] })
+				.parseDiagnostics;
+
+			expect(diagnostics).toEqual([]);
+			expect(generated).toContain("export interface PageLayoutHeroV1Block");
+			expect(generated).toContain("export interface PageLayoutHeroV2Block");
+			expect(generated).toContain(
+				"export type PageLayoutHeroBlock = PageLayoutHeroV1Block | PageLayoutHeroV2Block;",
+			);
+			expect(generated).toContain("export type PageLayoutBlock = PageLayoutHeroBlock;");
+			expect(generated).toContain("layout?: PageLayoutBlock[];");
+			expect(generated).toContain("PortableTextBlock");
+		});
+	});
+
 	describe("repeater fields in generated types", () => {
 		// The literal the top-level `image` case emits. An `image` sub-field must
 		// emit the same shape.
 		const MEDIA_LITERAL =
-			"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }";
+			"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }";
 
 		// A collection with a single `specs` repeater. Passing `undefined` omits
 		// `validation` entirely, which is how a repeater with no declared rows

@@ -642,10 +642,9 @@ describe("Bubble Menu", () => {
 			expect(applyBtn).toBeTruthy();
 		});
 
-		// Should have a URL input with placeholder
-		const input = menu.querySelector('input[type="url"]');
+		// Should have a link destination input
+		const input = menu.querySelector('input[aria-label="Search or type a URL"]');
 		expect(input).toBeTruthy();
-		expect(input?.getAttribute("aria-label")).toBe("URL");
 	});
 
 	it("applies link URL when Apply button is clicked", async () => {
@@ -657,11 +656,13 @@ describe("Bubble Menu", () => {
 		linkBtn.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		// Type a URL into the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		// Use native value setter + input event for React controlled input
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -692,10 +693,12 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,
@@ -795,10 +798,12 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 
 		// Press Escape
@@ -835,11 +840,13 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Edit link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		// Clear the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,

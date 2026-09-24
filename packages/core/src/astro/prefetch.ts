@@ -25,14 +25,14 @@
 
 import { getDb } from "../loader.js";
 import { getMenu } from "../menus/index.js";
-import { setRequestCacheEntry } from "../request-cache.js";
+import { requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getSiteSettings } from "../settings/index.js";
 import { getTaxonomyDefs, getTaxonomyTerms } from "../taxonomies/index.js";
 import { getWidgetAreas } from "../widgets/index.js";
 
 /** Warm widget areas: one bulk load, primed under each per-area cache key. */
 async function prefetchWidgetAreas(): Promise<void> {
-	const areas = await getWidgetAreas();
+	const areas = await requestCached("widget-areas", getWidgetAreas);
 	// getWidgetArea(name) caches under `widget-area:${name}` and returns the same
 	// WidgetArea shape getWidgetAreas yields, so priming here makes those calls hit.
 	for (const area of areas) {

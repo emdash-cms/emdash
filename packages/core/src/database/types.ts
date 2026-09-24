@@ -478,6 +478,29 @@ export interface FieldTable {
 	created_at: Generated<string>;
 }
 
+export interface BlockTypeTable {
+	id: string;
+	slug: string;
+	label: string;
+	description: string | null;
+	icon: string | null;
+	category: string | null;
+	current_version: number;
+	source: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BlockTypeVersionTable {
+	id: string;
+	block_type_id: string;
+	version: number;
+	fields: string;
+	fingerprint: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 // Plugin Storage Tables
 
 export interface PluginStorageTable {
@@ -663,6 +686,8 @@ export interface Database {
 	_emdash_migrations: MigrationTable;
 	_emdash_collections: CollectionTable;
 	_emdash_fields: FieldTable;
+	_emdash_block_types: BlockTypeTable;
+	_emdash_block_type_versions: BlockTypeVersionTable;
 	_plugin_storage: PluginStorageTable;
 	_plugin_state: PluginStateTable;
 	_plugin_indexes: PluginIndexTable;
@@ -681,6 +706,7 @@ export interface Database {
 	_emdash_comments: CommentTable;
 	_emdash_comment_reactions: CommentReactionTable;
 	_emdash_redirects: RedirectTable;
+	_emdash_redirect_write_lock: RedirectWriteLockTable;
 	_emdash_404_log: NotFoundLogTable;
 	_emdash_bylines: BylineTable;
 	_emdash_content_bylines: ContentBylineTable;
@@ -725,8 +751,18 @@ export interface RedirectTable {
 	last_hit_at: string | null;
 	group_name: string | null;
 	auto: number; // boolean: system-generated from slug change
+	config_revision: string;
+	source_guard: number;
+	write_generation: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface RedirectWriteLockTable {
+	id: number;
+	token: string;
+	expires_at: number;
+	generation: number;
 }
 
 export interface NotFoundLogTable {

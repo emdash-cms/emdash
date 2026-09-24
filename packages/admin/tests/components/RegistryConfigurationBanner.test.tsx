@@ -4,6 +4,23 @@ import { RegistryConfigurationBanner } from "../../src/components/RegistryConfig
 import { render } from "../utils/render.tsx";
 
 describe("RegistryConfigurationBanner", () => {
+	it("directs administrators to an invalid top-level registry setting", async () => {
+		const screen = await render(
+			<RegistryConfigurationBanner
+				error={{
+					code: "REGISTRY_AGGREGATOR_URL_INVALID",
+					field: "registry.aggregatorUrl",
+				}}
+			/>,
+		);
+
+		await expect
+			.element(
+				screen.getByText("Check registry.aggregatorUrl in astro.config.mjs, then restart EmDash."),
+			)
+			.toBeInTheDocument();
+	});
+
 	it("directs administrators to the invalid aggregator URL setting", async () => {
 		const screen = await render(
 			<RegistryConfigurationBanner
