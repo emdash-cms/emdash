@@ -39,10 +39,13 @@ const spamComment = {
 };
 
 describe("ai-moderation plugin", () => {
-	let runtime: EmDashRuntime | undefined;
+	const runtimes: EmDashRuntime[] = [];
 
-	async function boot(sqlite = new Database(":memory:")): Promise<EmDashRuntime> {
-		runtime = await EmDashRuntime.create({
+	async function boot(
+		sqlite = new Database(":memory:"),
+		plugins = [createPlugin()],
+	): Promise<EmDashRuntime> {
+		const runtime = await EmDashRuntime.create({
 			config: {
 				database: {
 					entrypoint: `test-ai-moderation-${randomUUID()}`,
@@ -52,11 +55,12 @@ describe("ai-moderation plugin", () => {
 			},
 			createDialect: () => new SqliteDialect({ database: sqlite }),
 			createStorage: null,
-			plugins: [createPlugin()],
+			plugins,
 			sandboxEnabled: false,
 			sandboxedPluginEntries: [],
 			createSandboxRunner: null,
 		});
+		runtimes.push(runtime);
 		return runtime;
 	}
 
@@ -66,8 +70,7 @@ describe("ai-moderation plugin", () => {
 	});
 
 	afterEach(async () => {
-		await runtime?.stopCron();
-		runtime = undefined;
+		for (const runtime of runtimes.splice(0)) await runtime.stopCron();
 	});
 
 	it("registers its comment hooks", async () => {
@@ -89,6 +92,32 @@ describe("ai-moderation plugin", () => {
 		expect(aiRun).toHaveBeenCalledOnce();
 		expect(result?.decision).toEqual({ status: "spam", reason: "AI flagged: C1" });
 		expect(result?.comment.status).toBe("spam");
+		expect(site.hooks.getExclusiveSelection("comment:moderate")).toBe("ai-moderation");
+	});
+
+	it("takes over on a site that started without a moderation plugin", async () => {
+		const sqlite = new Database(":memory:");
+		await boot(sqlite, []);
+		const site = await boot(sqlite);
+
+		const result = await site.handleCommentCreate(spamComment, settings);
+
+		expect(result?.decision).toEqual({ status: "spam", reason: "AI flagged: C1" });
+		expect(site.hooks.getExclusiveSelection("comment:moderate")).toBe("ai-moderation");
+	});
+
+	it("takes over again when it is disabled and enabled", async () => {
+		const site = await boot();
+
+		await site.handlePluginDisable("ai-moderation");
+		expect(site.hooks.getExclusiveSelection("comment:moderate")).toBe(
+			DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
+		);
+		await site.handlePluginEnable("ai-moderation");
+
+		const result = await site.handleCommentCreate(spamComment, settings);
+
+		expect(result?.decision).toEqual({ status: "spam", reason: "AI flagged: C1" });
 		expect(site.hooks.getExclusiveSelection("comment:moderate")).toBe("ai-moderation");
 	});
 

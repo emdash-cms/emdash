@@ -2848,8 +2848,6 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
-			// The dev console email provider must not be a fallback: a configured
-			// transport would then be selected and send real mail in development.
 			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
 		});
 	}

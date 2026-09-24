@@ -1485,7 +1485,8 @@ export interface ExclusiveHookResolutionOptions {
 	/**
 	 * Plugin IDs of built-in providers that give way to a plugin. When no
 	 * selection is stored, a fallback is auto-selected only if no other
-	 * provider of the hook is active.
+	 * provider of the hook is active, and that selection is not stored, so a
+	 * plugin provider that becomes active later is selected in its place.
 	 */
 	fallbackProviders?: ReadonlySet<string>;
 }
@@ -1501,7 +1502,8 @@ const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * 2. If DB selection is stale (plugin inactive/gone) → clear it.
  * 3. If no selection and only one active provider → auto-select it. Fallback
  *    providers are not counted when another provider is active, so a single
- *    plugin provider is selected over a built-in fallback.
+ *    plugin provider is selected over a built-in fallback. A fallback
+ *    selection is kept in memory only.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
@@ -1576,10 +1578,12 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 				: [...activeProviderIds];
 		if (candidates.length === 1) {
 			const [onlyProvider] = candidates;
-			try {
-				await setOption(key, onlyProvider);
-			} catch {
-				// Non-fatal
+			if (!fallbackProviders?.has(onlyProvider)) {
+				try {
+					await setOption(key, onlyProvider);
+				} catch {
+					// Non-fatal
+				}
 			}
 			pipeline.setExclusiveSelection(hookName, onlyProvider);
 			continue;

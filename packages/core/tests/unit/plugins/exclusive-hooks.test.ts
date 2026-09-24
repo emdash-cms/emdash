@@ -641,12 +641,14 @@ describe("resolveExclusiveHooks — shared function", () => {
 			});
 		}
 
-		it("selects the fallback when it is the only provider", async () => {
+		it("selects the fallback when it is the only provider without storing it", async () => {
 			const pipeline = providerPipeline("built-in");
+			const store = new Map<string, string>();
 
-			await resolveWithFallback(pipeline, new Map());
+			await resolveWithFallback(pipeline, store);
 
 			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
+			expect(store.size).toBe(0);
 		});
 
 		it("selects the one other provider over the fallback and stores it", async () => {
