@@ -17,6 +17,8 @@ The upgrade migration merges existing definitions of each taxonomy name into one
 
 #### What should I do?
 
-If your site defines different `hierarchical` or `collections` values per locale on purpose, check them after upgrading and set the values you want once. Code that writes the `hierarchical` or `collections` columns of `_emdash_taxonomy_defs` directly with SQL no longer changes what EmDash reads, and only sandboxed plugins, which still read those columns, see the new values; use the taxonomy API, MCP tools or a seed file instead. Those columns keep holding the taxonomy's values for code that reads them.
+If your site defines different `hierarchical` or `collections` values per locale on purpose, check them after upgrading and set the values you want once.
+
+If your code changes `hierarchical` or `collections` by writing to `_emdash_taxonomy_defs` with SQL, use the taxonomy API, the MCP `taxonomy_update` tool or a seed file instead. A direct write no longer changes what EmDash reads, only what sandboxed plugins see. EmDash still updates those columns whenever a taxonomy changes, for code that reads them.
 
 `@emdash-cms/plugin-test`: `runtimeHost.fixtures.taxonomyDefinition()` sets `hierarchical` and `collections` for every locale of the taxonomy.
