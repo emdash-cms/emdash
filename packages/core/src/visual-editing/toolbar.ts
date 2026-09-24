@@ -841,7 +841,8 @@ export function renderToolbar(config: ToolbarConfig): string {
     fetchManifest();
   }
 
-  // Save a single field value
+  // Save a single field value. Never rejects: resolves to whether the save
+  // succeeded, after the save badge already shows the outcome.
   function saveField(collection, id, field, value) {
     setSaveState("saving");
     return ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id), {
@@ -855,14 +856,16 @@ export function renderToolbar(config: ToolbarConfig): string {
         setSaveState("saved");
         // A save creates/updates a draft — show unpublished changes
         showUnpublishedChanges(collection, id);
-      } else {
-        setSaveState("error");
-        console.error("Save failed:", res.status);
+        return true;
       }
+      setSaveState("error");
+      console.error("Save failed:", res.status);
+      return false;
     })
     .catch(function(err) {
       setSaveState("error");
       console.error("Save failed:", err);
+      return false;
     });
   }
 
@@ -1093,14 +1096,14 @@ export function renderToolbar(config: ToolbarConfig): string {
     var uploadInput = popover.querySelector("#emdash-img-upload");
     uploadInput.addEventListener("change", function(e) {
       var file = e.target.files && e.target.files[0];
-      if (file) handleImageUpload(file, popover, annotation, element, imgEl);
+      if (file) handleImageUpload(file, popover, annotation, currentValue, element, imgEl);
     });
 
     var removeBtn = popover.querySelector('[data-action="remove"]');
     if (removeBtn) {
       removeBtn.addEventListener("click", function() {
-        saveField(collection, id, field, null).then(function() {
-          if (imgEl) {
+        saveField(collection, id, field, null).then(function(saved) {
+          if (saved && imgEl) {
             imgEl.style.display = "none";
           }
           closeImagePopover();
@@ -1117,8 +1120,9 @@ export function renderToolbar(config: ToolbarConfig): string {
         var newAlt = altInput.value;
         if (currentValue) {
           var updated = Object.assign({}, currentValue, { alt: newAlt });
-          saveField(collection, id, field, updated);
-          if (imgEl) imgEl.alt = newAlt;
+          saveField(collection, id, field, updated).then(function(saved) {
+            if (saved && imgEl) imgEl.alt = newAlt;
+          });
         }
       }, 500);
     });
@@ -1137,7 +1141,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       body.classList.remove("emdash-img-drop");
       var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (file && file.type.startsWith("image/")) {
-        handleImageUpload(file, popover, annotation, element, imgEl);
+        handleImageUpload(file, popover, annotation, currentValue, element, imgEl);
       }
     });
   }
@@ -1227,7 +1231,7 @@ export function renderToolbar(config: ToolbarConfig): string {
         thumb.innerHTML = '<img src="' + escapeAttr(thumbUrl) + '" alt="' + escapeAttr(item.alt || item.filename || "") + '" loading="lazy" />';
 
         thumb.addEventListener("click", function() {
-          selectMediaItem(item, annotation, element, imgEl);
+          selectMediaItem(item, annotation, currentValue, element, imgEl);
         });
 
         grid.appendChild(thumb);
@@ -1242,7 +1246,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     });
   }
 
-  function selectMediaItem(item, annotation, element, imgEl) {
+  function selectMediaItem(item, annotation, currentValue, element, imgEl) {
     var collection = annotation.collection;
     var id = annotation.id;
     var field = annotation.field;
@@ -1258,7 +1262,11 @@ export function renderToolbar(config: ToolbarConfig): string {
       alt: item.alt || "",
       width: item.width,
       height: item.height,
-      meta: item.meta
+      focalX: item.focalX == null ? undefined : item.focalX,
+      focalY: item.focalY == null ? undefined : item.focalY,
+      meta: item.meta,
+      // The save replaces the whole field, so a dark variant not sent is deleted.
+      darkVariant: currentValue ? currentValue.darkVariant : undefined
     };
 
     // Clean undefined fields
@@ -1266,9 +1274,9 @@ export function renderToolbar(config: ToolbarConfig): string {
       if (newValue[k] === undefined) delete newValue[k];
     });
 
-    saveField(collection, id, field, newValue).then(function() {
+    saveField(collection, id, field, newValue).then(function(saved) {
       // Update the image in the DOM
-      if (imgEl) {
+      if (saved && imgEl) {
         replacePageImageSource(imgEl, itemUrl);
         imgEl.alt = item.alt || "";
         imgEl.style.display = "";
@@ -1293,7 +1301,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     img.src = url;
   }
 
-  function handleImageUpload(file, popover, annotation, element, imgEl) {
+  function handleImageUpload(file, popover, annotation, currentValue, element, imgEl) {
     var collection = annotation.collection;
     var id = annotation.id;
     var field = annotation.field;
@@ -1389,7 +1397,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     .then(function(body) {
       var item = body && body.success && body.data && body.data.item;
       if (!item) throw new Error((body && body.error && body.error.message) || "Upload failed");
-      selectMediaItem(item, annotation, element, imgEl);
+      selectMediaItem(item, annotation, currentValue, element, imgEl);
     })
     .catch(function(err) {
       console.error("Upload error:", err);

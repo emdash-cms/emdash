@@ -66,6 +66,17 @@ const STORED_HERO = {
 	meta: { storageKey: "01HEROORIGINAL.jpg" },
 };
 
+const DARK_HERO = {
+	provider: "local",
+	id: "01HERODARK",
+	alt: "Harbour at night",
+	width: 1200,
+	height: 800,
+	mimeType: "image/jpeg",
+	filename: "hero-dark.jpg",
+	meta: { storageKey: "01HERODARK.jpg" },
+};
+
 function entryRoutesWith(featuredImage: unknown): Routes {
 	return {
 		"GET /_emdash/api/manifest": () =>
@@ -209,6 +220,56 @@ function savedImage(requests: RecordedRequest[]): unknown {
 	return JSON.parse(save.body).data.featured_image;
 }
 
+const LIBRARY_URL = "/_emdash/api/media?mimeType=image/&limit=30";
+const UPLOADED = mediaItem("01UPLOADED", "new-hero.png");
+const PICKED = mediaItem("01LIBRARYPICK", "picked.png");
+const NEW_ALT = "Fishing boats in the harbour at dawn";
+
+const replacementRoutes: Routes = {
+	"POST /_emdash/api/media": () => apiSuccess({ item: UPLOADED }, 201),
+	[`GET ${LIBRARY_URL}`]: () => apiSuccess({ items: [PICKED], totalCount: 1 }),
+};
+
+async function uploadReplacement(popover: HTMLElement): Promise<void> {
+	chooseFileToUpload(popover, pngFile(UPLOADED.filename));
+}
+
+async function pickReplacement(popover: HTMLElement): Promise<void> {
+	popover.querySelector<HTMLButtonElement>('[data-action="browse"]')!.click();
+	const thumbnail = await vi.waitFor(() => {
+		const item = popover.querySelector<HTMLElement>(".emdash-img-grid-item");
+		if (!item) throw new Error("Media library did not render");
+		return item;
+	});
+	thumbnail.click();
+}
+
+async function removeImage(popover: HTMLElement): Promise<void> {
+	popover.querySelector<HTMLButtonElement>('[data-action="remove"]')!.click();
+}
+
+async function editAltText(popover: HTMLElement): Promise<void> {
+	const altInput = popover.querySelector<HTMLInputElement>("#emdash-img-alt")!;
+	altInput.value = NEW_ALT;
+	altInput.dispatchEvent(new Event("input"));
+}
+
+const REPLACEMENTS = [
+	["an upload", uploadReplacement, UPLOADED],
+	["a library pick", pickReplacement, PICKED],
+] as const;
+
+function pageImageState(page: ReturnType<typeof mountEditablePage>) {
+	const img = page.heroImg;
+	return {
+		src: img.getAttribute("src"),
+		srcset: img.getAttribute("srcset"),
+		sizes: img.getAttribute("sizes"),
+		alt: img.getAttribute("alt"),
+		hidden: img.style.display === "none",
+	};
+}
+
 describe("toolbar image popover", () => {
 	it("puts an uploaded image into the field", async () => {
 		const uploaded = mediaItem("01UPLOADED", "new-hero.png");
@@ -278,19 +339,13 @@ describe("toolbar image popover", () => {
 		const page = mountEditablePage(entryRoutes);
 		const popover = await openImagePopover(page);
 
-		const altInput = popover.querySelector<HTMLInputElement>("#emdash-img-alt")!;
-		altInput.value = "Fishing boats in the harbour at dawn";
-		altInput.dispatchEvent(new Event("input"));
+		await editAltText(popover);
 
 		await vi.waitFor(
-			() =>
-				expect(savedImage(page.requests)).toEqual({
-					...STORED_HERO,
-					alt: "Fishing boats in the harbour at dawn",
-				}),
+			() => expect(savedImage(page.requests)).toEqual({ ...STORED_HERO, alt: NEW_ALT }),
 			{ timeout: 2000 },
 		);
-		expect(page.heroImg.getAttribute("alt")).toBe("Fishing boats in the harbour at dawn");
+		await vi.waitFor(() => expect(page.heroImg.getAttribute("alt")).toBe(NEW_ALT));
 	});
 
 	it("highlights the field's current image in the media library", async () => {
@@ -354,42 +409,87 @@ describe("toolbar image popover", () => {
 			return Array.from(page.hero.querySelectorAll("[srcset], [sizes]"), (el) => el.outerHTML);
 		}
 
-		it("displays an uploaded image instead of the previous one", async () => {
-			const uploaded = mediaItem("01UPLOADED", "new-hero.png");
-			const page = mountEditablePage(
-				{ ...entryRoutes, "POST /_emdash/api/media": () => apiSuccess({ item: uploaded }, 201) },
-				{ responsive },
-			);
-			const popover = await openImagePopover(page);
+		it.each(REPLACEMENTS)(
+			"displays the image from %s instead of the previous one",
+			async (_action, replace, replacement) => {
+				const page = mountEditablePage({ ...entryRoutes, ...replacementRoutes }, { responsive });
+				const popover = await openImagePopover(page);
 
-			chooseFileToUpload(popover, pngFile("new-hero.png"));
+				await replace(popover);
 
-			await vi.waitFor(() => expect(page.heroImg.getAttribute("src")).toBe(uploaded.url));
-			expect(responsiveCandidates(page)).toEqual([]);
-		});
+				await vi.waitFor(() => expect(page.heroImg.getAttribute("src")).toBe(replacement.url));
+				expect(responsiveCandidates(page)).toEqual([]);
+			},
+		);
+	});
 
-		it("displays an image picked from the library instead of the previous one", async () => {
-			const picked = mediaItem("01LIBRARYPICK", "picked.png");
-			const page = mountEditablePage(
-				{
-					...entryRoutes,
-					"GET /_emdash/api/media?mimeType=image/&limit=30": () =>
-						apiSuccess({ items: [picked], totalCount: 1 }),
-				},
-				{ responsive },
-			);
-			const popover = await openImagePopover(page);
-
-			popover.querySelector<HTMLButtonElement>('[data-action="browse"]')!.click();
-			const thumbnail = await vi.waitFor(() => {
-				const item = popover.querySelector<HTMLElement>(".emdash-img-grid-item");
-				if (!item) throw new Error("Media library did not render");
-				return item;
+	it.each(REPLACEMENTS)(
+		"keeps the dark variant when the image is replaced by %s",
+		async (_action, replace, replacement) => {
+			const page = mountEditablePage({
+				...entryRoutesWith({ ...STORED_HERO, darkVariant: DARK_HERO }),
+				...replacementRoutes,
 			});
-			thumbnail.click();
+			const popover = await openImagePopover(page);
 
-			await vi.waitFor(() => expect(page.heroImg.getAttribute("src")).toBe(picked.url));
-			expect(responsiveCandidates(page)).toEqual([]);
+			await replace(popover);
+
+			await vi.waitFor(() => expect(savedImage(page.requests)).toBeDefined());
+			expect(savedImage(page.requests)).toEqual(
+				expect.objectContaining({ id: replacement.id, darkVariant: DARK_HERO }),
+			);
+		},
+	);
+
+	it("clears the field and hides the page image when the image is removed", async () => {
+		const page = mountEditablePage(entryRoutes);
+		const popover = await openImagePopover(page);
+
+		await removeImage(popover);
+
+		await vi.waitFor(() => expect(page.heroImg.style.display).toBe("none"));
+		expect(savedImage(page.requests)).toBeNull();
+	});
+
+	it("saves the picked image's default focal point", async () => {
+		const focused = { ...mediaItem("01LIBRARYFOCUS", "focus.png"), focalX: 0.25, focalY: 0.75 };
+		const page = mountEditablePage({
+			...entryRoutes,
+			[`GET ${LIBRARY_URL}`]: () => apiSuccess({ items: [focused], totalCount: 1 }),
 		});
+		const popover = await openImagePopover(page);
+
+		await pickReplacement(popover);
+
+		await vi.waitFor(() => expect(savedImage(page.requests)).toBeDefined());
+		expect(savedImage(page.requests)).toEqual(
+			expect.objectContaining({ id: focused.id, focalX: 0.25, focalY: 0.75 }),
+		);
+	});
+
+	it.each([
+		["an uploaded image", uploadReplacement],
+		["a library pick", pickReplacement],
+		["a removal", removeImage],
+		["an alt text edit", editAltText],
+	] as const)("leaves the page image unchanged when saving %s fails", async (_action, act) => {
+		const page = mountEditablePage(
+			{
+				...entryRoutes,
+				...replacementRoutes,
+				[`PUT ${ENTRY_URL}`]: () =>
+					apiError("FORBIDDEN", "You can only edit your own content", 403),
+			},
+			{ responsive: "srcset" },
+		);
+		const before = pageImageState(page);
+		const popover = await openImagePopover(page);
+
+		await act(popover);
+
+		const saveStatus = page.doc.getElementById("emdash-tb-save-status")!;
+		await vi.waitFor(() => expect(saveStatus.textContent).toBe("Save failed"), { timeout: 2000 });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(pageImageState(page)).toEqual(before);
 	});
 });
