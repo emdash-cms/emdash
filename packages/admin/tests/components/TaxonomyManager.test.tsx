@@ -28,6 +28,21 @@ const taxonomyResponse = JSON.stringify({
 	},
 });
 
+const tagTaxonomyResponse = JSON.stringify({
+	data: {
+		taxonomies: [
+			{
+				id: "tag",
+				name: "tag",
+				label: "Tags",
+				labelSingular: "Tag",
+				hierarchical: false,
+				collections: ["posts"],
+			},
+		],
+	},
+});
+
 const termsResponse = JSON.stringify({
 	data: {
 		terms: [
@@ -232,7 +247,11 @@ function deferReorders() {
 	};
 }
 
-function mockApiFetch(overrideTerms?: string, defer?: ReturnType<typeof deferReorders>) {
+function mockApiFetch(
+	overrideTerms?: string,
+	defer?: ReturnType<typeof deferReorders>,
+	overrideTaxonomies?: string,
+) {
 	vi.mocked(apiFetch).mockImplementation((url: string, init?: RequestInit) => {
 		const urlStr = typeof url === "string" ? url : "";
 		if (defer && urlStr.includes("/reorder")) return defer.hold();
@@ -246,7 +265,7 @@ function mockApiFetch(overrideTerms?: string, defer?: ReturnType<typeof deferReo
 		}
 		if (urlStr.includes("/taxonomies") && (!init || !init.method || init.method === "GET")) {
 			return Promise.resolve(
-				new Response(taxonomyResponse, {
+				new Response(overrideTaxonomies ?? taxonomyResponse, {
 					status: 200,
 					headers: { "Content-Type": "application/json" },
 				}),
@@ -292,6 +311,69 @@ describe("TaxonomyManager", () => {
 		});
 
 		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
+	});
+
+	it("keeps the two tag actions together and moves taxonomy creation into More", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Add to posts" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "New Taxonomy" }).query()).toBeNull();
+
+		await screen.getByRole("button", { name: "More actions for Tags" }).click();
+		await screen.getByRole("menuitem", { name: "New taxonomy" }).click();
+		await expect.element(screen.getByRole("dialog")).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "Create Taxonomy" }))
+			.toBeInTheDocument();
+	});
+
+	it("filters tags by label or slug without changing their stored order", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		const search = screen.getByRole("searchbox", { name: "Search tags" });
+
+		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+		await search.fill("sci");
+		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Technology", { exact: true }).query()).toBeNull();
+		await expect.element(screen.getByText("1 of 2 tags")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "More actions for Science" }).click();
+		expect(screen.getByRole("menuitem", { name: "Move up Science" }).query()).toBeNull();
+		await userEvent.keyboard("{Escape}");
+		await search.fill("tech");
+		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Science", { exact: true }).query()).toBeNull();
+		await search.fill("missing");
+		await expect.element(screen.getByText("No tags match this search.")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Clear search" }).click();
+		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("2 tags")).toBeInTheDocument();
+	});
+
+	it("keeps tag editing visible and reorders from the row menu", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await expect
+			.element(screen.getByRole("button", { name: "Edit Technology" }))
+			.toBeInTheDocument();
+		await screen.getByRole("button", { name: "More actions for Technology" }).click();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Move up Technology" }))
+			.toBeDisabled();
+		await screen.getByRole("menuitem", { name: "Move down Technology" }).click();
+		expect(reorderRequestBody()).toEqual({ parentId: null, ids: ["2", "1"] });
+	});
+
+	it("keeps deleting a tag behind its confirmation dialog", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "More actions for Technology" }).click();
+		await screen.getByRole("menuitem", { name: "Delete tag Technology" }).click();
+		await expect.element(screen.getByText(DELETE_TECHNOLOGY_DESC_REGEX)).toBeInTheDocument();
 	});
 
 	it("shows list of terms with labels", async () => {
