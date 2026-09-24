@@ -388,6 +388,8 @@ The setup wizard lets a user omit seeded entries, bylines, and taxonomy terms. S
 
 ## Add custom Portable Text blocks
 
+Use a [`blocks` field](/guides/blocks/) when the page itself is an ordered composition of typed sections. Use a custom Portable Text block when the object belongs inside a rich-text document and participates in its paragraph flow.
+
 If a theme needs a custom public renderer, add the block shape to seeded Portable Text and map its `_type` to an Astro component in the template. A seed does not register an editor UI for a new block type.
 
 The marketing template uses namespaced values such as `marketing.hero`. Its wrapper maps those values to Astro components:

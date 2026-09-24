@@ -69,6 +69,10 @@ export const ErrorCode = {
 	SCHEMA_FIELD_UPDATE_ERROR: "SCHEMA_FIELD_UPDATE_ERROR",
 	SCHEMA_FIELD_DELETE_ERROR: "SCHEMA_FIELD_DELETE_ERROR",
 	SCHEMA_FIELD_REORDER_ERROR: "SCHEMA_FIELD_REORDER_ERROR",
+	BLOCK_TYPE_NOT_FOUND: "BLOCK_TYPE_NOT_FOUND",
+	BLOCK_TYPE_EXISTS: "BLOCK_TYPE_EXISTS",
+	BLOCK_TYPE_BREAKING_CHANGE: "BLOCK_TYPE_BREAKING_CHANGE",
+	BLOCK_TYPE_VERSION_CONFLICT: "BLOCK_TYPE_VERSION_CONFLICT",
 	// Byline schema (Discussion #1174). Reuses RESERVED_SLUG, INVALID_SLUG,
 	// INVALID_TYPE, FIELD_EXISTS, NOT_FOUND, VALIDATION_ERROR where the
 	// semantics match; the two below are byline-domain specific:
@@ -477,6 +481,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.FILE_NOT_FOUND:
 		case ErrorCode.NO_VERSION:
 		case ErrorCode.AGGREGATOR_NOT_FOUND:
+		case ErrorCode.BLOCK_TYPE_NOT_FOUND:
 			return 404;
 
 		// 409 Conflict
@@ -496,6 +501,9 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.WORK_LEASE_ACTIVE:
 		case ErrorCode.WORK_CHANGED:
 		case ErrorCode.ENTRY_LOCKED:
+		case ErrorCode.BLOCK_TYPE_EXISTS:
+		case ErrorCode.BLOCK_TYPE_BREAKING_CHANGE:
+		case ErrorCode.BLOCK_TYPE_VERSION_CONFLICT:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_BUSY:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_CONFLICT:

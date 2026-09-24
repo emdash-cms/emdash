@@ -5,6 +5,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import { expandCollectionBlockFields } from "../../schema/block-values.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
 import type { Field, FieldType } from "../../schema/types.js";
@@ -51,6 +52,7 @@ const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	reference: "reference",
 	json: "json",
 	repeater: "repeater",
+	blocks: "blocks",
 };
 
 // Collection definition shape for manifest generation
@@ -130,7 +132,10 @@ export async function buildManifestCollections(
 
 	try {
 		const registry = new SchemaRegistry(db);
-		const dbCollections = await registry.listCollectionsWithFields();
+		const storedCollections = await registry.listCollectionsWithFields();
+		const dbCollections = await Promise.all(
+			storedCollections.map((collection) => expandCollectionBlockFields(db, collection)),
+		);
 		for (const collection of dbCollections) {
 			if (manifestCollections[collection.slug]) continue;
 
@@ -277,6 +282,8 @@ function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 		id: field.id,
 	};
 	if (field.unsupportedType) entry.unsupportedType = field.unsupportedType;
+	if (field.blockTypes) entry.blockTypes = field.blockTypes;
+	if (field.blockTypeFingerprint) entry.blockTypeFingerprint = field.blockTypeFingerprint;
 
 	if (field.widget) entry.widget = field.widget;
 	if (field.options) entry.options = field.options;

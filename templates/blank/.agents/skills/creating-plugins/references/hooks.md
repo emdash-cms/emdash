@@ -345,7 +345,13 @@ Implements email transport (e.g. Resend, SMTP, SES). Selected by the admin in Se
 		await ctx.http!.fetch("https://api.resend.com/emails", {
 			method: "POST",
 			headers: { Authorization: `Bearer ${apiKey}` },
-			body: JSON.stringify({ to: message.to, subject: message.subject, text: message.text }),
+			body: JSON.stringify({
+				to: message.to,
+				cc: message.cc,
+				reply_to: message.replyTo,
+				subject: message.subject,
+				text: message.text,
+			}),
 		});
 	},
 },

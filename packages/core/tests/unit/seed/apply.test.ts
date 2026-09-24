@@ -1737,5 +1737,49 @@ describe("applySeed", () => {
 			expect(terms[1]?.slug).toBe("tecnologia");
 			expect(terms[0]?.translation_group).toBe(terms[1]?.translation_group);
 		});
+
+		it("keeps a term translation that names no parent under its term's parent", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+						terms: [
+							{ id: "term:news:en", slug: "news", label: "News", locale: "en" },
+							{ id: "term:local:en", slug: "local", label: "Local", parent: "news", locale: "en" },
+						],
+					},
+					{
+						id: "tax:topics:es",
+						name: "topics",
+						label: "Temas",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "tax:topics:en",
+						terms: [
+							{
+								slug: "local-es",
+								label: "Local ES",
+								locale: "es",
+								translationOf: "term:local:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed, { includeContent: true });
+
+			const repo = new TaxonomyRepository(db);
+			const news = await repo.findBySlug("topics", "news", "en");
+			const localEs = await repo.findBySlug("topics", "local-es", "es");
+			expect(localEs?.parentId).toBe(news?.translationGroup);
+		});
 	});
 });

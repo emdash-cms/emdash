@@ -494,6 +494,44 @@ describe("EmailPipeline", () => {
 		);
 	});
 
+	it("delivers cc and replyTo and rejects malformed values", async () => {
+		const deliverHandler = vi.fn(async () => {}) as unknown as EmailDeliverHandler;
+		const provider = createTestPlugin({
+			id: "provider",
+			capabilities: ["hooks.email-transport:register"],
+			hooks: {
+				"email:deliver": createTestHook("provider", deliverHandler, { exclusive: true }),
+			},
+		});
+		const hookPipeline = new HookPipeline([provider], { db });
+		hookPipeline.setExclusiveSelection("email:deliver", "provider");
+		const emailPipeline = new EmailPipeline(hookPipeline);
+
+		await emailPipeline.send(
+			{ ...createTestMessage(), cc: ["team@example.com"], replyTo: "visitor@example.com" },
+			"forms",
+		);
+		expect(deliverHandler).toHaveBeenCalledWith(
+			expect.objectContaining({
+				message: expect.objectContaining({
+					cc: ["team@example.com"],
+					replyTo: "visitor@example.com",
+				}),
+			}),
+			expect.anything(),
+		);
+
+		await expect(
+			emailPipeline.send(
+				{ ...createTestMessage(), cc: "team@example.com" as unknown as string[] },
+				"forms",
+			),
+		).rejects.toThrow("'cc' must be an array of strings");
+		await expect(
+			emailPipeline.send({ ...createTestMessage(), replyTo: 42 as unknown as string }, "forms"),
+		).rejects.toThrow("'replyTo' must be a string");
+	});
+
 	it("afterSend errors do not propagate to caller", async () => {
 		const deliverHandler: EmailDeliverHandler = async () => {};
 		const afterSendHandler: EmailAfterSendHandler = async () => {

@@ -136,7 +136,7 @@ npx wrangler d1 execute my-recovery-database --remote --file=backup.sql
 
 ## SQLite backup and recovery
 
-For an offline SQLite backup, stop every process that writes the database and copy the database file. For a consistent online backup, use SQLite's backup command:
+For an offline SQLite backup, stop every process that writes the database and copy the database file together with any `-wal` and `-shm` files next to it. The `-wal` file can hold committed changes that are not yet in the main file. For a consistent online backup, use SQLite's backup command:
 
 ```bash
 sqlite3 emdash.db ".backup backup.db"

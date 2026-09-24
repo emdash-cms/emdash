@@ -17,6 +17,7 @@ import {
 	type CreateFieldInput,
 	type UpdateFieldInput,
 	type CollectionWithFields,
+	expandCollectionBlockFields,
 } from "../../schema/index.js";
 import type { ApiResult } from "../types.js";
 
@@ -82,7 +83,8 @@ export async function handleSchemaCollectionGet(
 		const registry = new SchemaRegistry(db);
 
 		if (options?.includeFields) {
-			const item = await registry.getCollectionWithFields(slug);
+			const stored = await registry.getCollectionWithFields(slug);
+			const item = stored ? await expandCollectionBlockFields(db, stored) : null;
 			if (!item) {
 				return {
 					success: false,
@@ -113,7 +115,13 @@ export async function handleSchemaCollectionGet(
 			success: true,
 			data: { item },
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof SchemaError) {
+			return {
+				success: false,
+				error: { code: error.code, message: error.message, details: error.details },
+			};
+		}
 		return {
 			success: false,
 			error: {
@@ -244,9 +252,9 @@ export async function handleSchemaFieldList(
 ): Promise<ApiResult<FieldListResponse>> {
 	try {
 		const registry = new SchemaRegistry(db);
-		const collection = await registry.getCollection(collectionSlug);
+		const stored = await registry.getCollectionWithFields(collectionSlug);
 
-		if (!collection) {
+		if (!stored) {
 			return {
 				success: false,
 				error: {
@@ -256,13 +264,19 @@ export async function handleSchemaFieldList(
 			};
 		}
 
-		const items = await registry.listFields(collection.id);
+		const items = (await expandCollectionBlockFields(db, stored)).fields;
 
 		return {
 			success: true,
 			data: { items },
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof SchemaError) {
+			return {
+				success: false,
+				error: { code: error.code, message: error.message, details: error.details },
+			};
+		}
 		return {
 			success: false,
 			error: {
@@ -283,7 +297,12 @@ export async function handleSchemaFieldGet(
 ): Promise<ApiResult<FieldResponse>> {
 	try {
 		const registry = new SchemaRegistry(db);
-		const item = await registry.getField(collectionSlug, fieldSlug);
+		const collection = await registry.getCollectionWithFields(collectionSlug);
+		const item = collection
+			? (await expandCollectionBlockFields(db, collection)).fields.find(
+					(field) => field.slug === fieldSlug,
+				)
+			: null;
 
 		if (!item) {
 			return {
@@ -299,7 +318,13 @@ export async function handleSchemaFieldGet(
 			success: true,
 			data: { item },
 		};
-	} catch {
+	} catch (error) {
+		if (error instanceof SchemaError) {
+			return {
+				success: false,
+				error: { code: error.code, message: error.message, details: error.details },
+			};
+		}
 		return {
 			success: false,
 			error: {

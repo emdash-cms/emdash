@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 import mime from "mime/lite";
 import { ulid } from "ulidx";
 
+import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -23,6 +24,8 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { BlockTypeRegistry } from "../schema/block-type-registry.js";
+import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.js";
@@ -103,6 +106,36 @@ const SANITIZE_PATTERN = /[^a-zA-Z0-9_-]/g;
 /** Pattern to collapse multiple hyphens */
 const MULTIPLE_HYPHENS_PATTERN = /-+/g;
 
+/** The `category` and `tag` defs that migrations insert on every new database. */
+const BUILT_IN_TAXONOMY_DEFS = new Map([
+	[
+		"taxdef_category",
+		{ label: "Categories", label_singular: "Category", hierarchical: 1, collections: '["posts"]' },
+	],
+	[
+		"taxdef_tag",
+		{ label: "Tags", label_singular: "Tag", hierarchical: 0, collections: '["posts"]' },
+	],
+]);
+
+/** Whether `def` is a built-in `category`/`tag` definition still holding its migration defaults. */
+function isUntouchedBuiltInTaxonomyDef(def: {
+	id: string;
+	label: string;
+	label_singular: string | null;
+	hierarchical: number | null;
+	collections: string | null;
+}): boolean {
+	const builtIn = BUILT_IN_TAXONOMY_DEFS.get(def.id);
+	return (
+		builtIn !== undefined &&
+		def.label === builtIn.label &&
+		def.label_singular === builtIn.label_singular &&
+		def.hierarchical === builtIn.hierarchical &&
+		def.collections === builtIn.collections
+	);
+}
+
 /**
  * Apply a seed file to the database
  *
@@ -133,9 +166,10 @@ export async function applySeed(
 
 	// Result counters
 	const result: SeedApplyResult = {
+		blockTypes: { created: 0, skipped: 0, updated: 0 },
 		collections: { created: 0, skipped: 0, updated: 0 },
 		fields: { created: 0, skipped: 0, updated: 0 },
-		taxonomies: { created: 0, terms: 0 },
+		taxonomies: { created: 0, skipped: 0, terms: 0 },
 		bylines: { created: 0, skipped: 0, updated: 0 },
 		menus: { created: 0, items: 0 },
 		redirects: { created: 0, skipped: 0, updated: 0 },
@@ -206,6 +240,17 @@ export async function applySeed(
 	// 1. Site settings
 	if (seed.settings) {
 		await applySiteSettings(db, seed.settings, onConflict, result);
+	}
+
+	if (seed.blockTypes) {
+		const registry = new BlockTypeRegistry(db);
+		for (const blockType of seed.blockTypes) {
+			const existing = await registry.getBlockType(blockType.slug);
+			await registry.applySeedBlockType(blockType, onConflict);
+			if (!existing) result.blockTypes.created++;
+			else if (onConflict === "update") result.blockTypes.updated++;
+			else result.blockTypes.skipped++;
+		}
 	}
 
 	// 2-3. Collections and Fields
@@ -350,10 +395,13 @@ export async function applySeed(
 			if (existingDef) {
 				defId = existingDef.id;
 				defTranslationGroup = existingDef.translation_group ?? existingDef.id;
-				if (onConflict === "error") {
+				const unclaimed = isUntouchedBuiltInTaxonomyDef(existingDef);
+				if (onConflict === "error" && !unclaimed) {
 					throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
 				}
-				if (onConflict === "update") {
+				if (onConflict === "skip" && !unclaimed) {
+					result.taxonomies.skipped++;
+				} else {
 					await db
 						.updateTable("_emdash_taxonomy_defs")
 						.set({
@@ -532,8 +580,11 @@ export async function applySeed(
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
-				const collectionRoutable =
-					(await schemaRegistry.getCollection(collectionSlug))?.routable !== false;
+				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
+				const collectionRoutable = collectionInfo?.routable !== false;
+				const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
+					? await resolveBlockTypes(db)
+					: undefined;
 				for (const entry of entries) {
 					const entrySlug =
 						typeof entry.slug === "string" && entry.slug.trim().length > 0 ? entry.slug : null;
@@ -557,12 +608,23 @@ export async function applySeed(
 
 						if (onConflict === "update") {
 							// Resolve $ref and $media in data
-							const resolvedData = await resolveReferences(
+							let resolvedData = await resolveReferences(
 								entry.data,
 								seedIdMap,
 								mediaContext,
 								result,
 							);
+							if (collectionInfo) {
+								resolvedData = await normalizeBlocksData(
+									db,
+									collectionInfo,
+									resolvedData,
+									existing.data,
+									{ restoreBlocks: true },
+									false,
+									resolvedBlockTypes,
+								);
+							}
 
 							// Update content + bylines + taxonomies atomically
 							const status = entry.status || "published";
@@ -648,7 +710,18 @@ export async function applySeed(
 					}
 
 					// Resolve $ref and $media in data
-					const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					let resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					if (collectionInfo) {
+						resolvedData = await normalizeBlocksData(
+							db,
+							collectionInfo,
+							resolvedData,
+							{},
+							{ restoreBlocks: true },
+							false,
+							resolvedBlockTypes,
+						);
+					}
 
 					// Resolve translationOf: map from seed-local ID to real EmDash ID
 					let translationOf: string | undefined;
@@ -1331,6 +1404,10 @@ async function resolveValue(
 		const resolved: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(value)) {
 			resolved[k] = await resolveValue(v, seedIdMap, mediaContext, result);
+		}
+		// Gallery renderers read `asset._ref`/`asset.url`, not the MediaValue that `$media` yields.
+		if (resolved._type === "gallery" && Array.isArray(resolved.images)) {
+			resolved.images = sanitizeGalleryImages(resolved.images, ulid);
 		}
 		return resolved;
 	}

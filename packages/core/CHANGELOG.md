@@ -1,5 +1,16 @@
 # emdash
 
+## 0.39.1
+
+### Patch Changes
+
+- [#3311](https://github.com/emdash-cms/emdash/pull/3311) [`2787dab`](https://github.com/emdash-cms/emdash/commit/2787dabad9b88db109cd0a4ff2bd06af050fc81a) Thanks [@DavidPivert](https://github.com/DavidPivert)! - Fixes `emdash migrate` failing on Cloudflare D1 with `incomplete input: SQLITE_ERROR (migration: 081_redirect_write_guards)`. The redirect loop triggers no longer contain an inner `CASE ... END;`, which the D1 HTTP API treated as the end of the `CREATE TRIGGER` statement. Loop detection is unchanged. Sites where 081 stopped partway can run `emdash migrate` again: the migration resumes safely.
+- Updated dependencies [[`4ffc631`](https://github.com/emdash-cms/emdash/commit/4ffc631c71a4df1f0f8c4d8c22335dfad4bbccf6)]:
+  - @emdash-cms/admin@0.39.1
+  - @emdash-cms/auth@0.39.1
+  - @emdash-cms/blocks@0.39.1
+  - @emdash-cms/gutenberg-to-portable-text@0.39.1
+
 ## 0.39.0
 
 ### Minor Changes

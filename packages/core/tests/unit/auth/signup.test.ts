@@ -98,9 +98,10 @@ describe("Self-Signup", () => {
 		it("should send verification email for allowed domain", async () => {
 			await adapter.createAllowedDomain("allowed.com", Role.AUTHOR);
 
+			// The route passes getSiteBaseUrl(), which is the origin plus /_emdash.
 			await requestSignup(
 				{
-					baseUrl: "https://example.com",
+					baseUrl: "https://example.com/_emdash",
 					email: mockEmailSend,
 					siteName: "Test Site",
 				},
@@ -111,9 +112,7 @@ describe("Self-Signup", () => {
 			expect(mockEmailSend).toHaveBeenCalledTimes(1);
 			expect(sentEmails[0]!.to).toBe("newuser@allowed.com");
 			expect(sentEmails[0]!.subject).toContain("Test Site");
-			expect(sentEmails[0]!.text).toContain(
-				"https://example.com/_emdash/api/auth/signup/verify?token=",
-			);
+			expect(sentEmails[0]!.text).toContain("https://example.com/_emdash/admin/signup?token=");
 			expect(sentEmails[0]!.text).toContain("verify");
 		});
 

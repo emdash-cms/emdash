@@ -90,6 +90,7 @@ import * as m079 from "./079_datetime_normalization.js";
 import * as m080 from "./080_content_translation_locale_unique.js";
 import * as m081 from "./081_redirect_write_guards.js";
 import * as m082 from "./082_taxonomy_translation_locale_unique.js";
+import * as m083 from "./083_block_types.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -173,6 +174,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"080_content_translation_locale_unique": m080,
 	"081_redirect_write_guards": m081,
 	"082_taxonomy_translation_locale_unique": m082,
+	"083_block_types": m083,
 });
 
 /** Ordered names from the statically registered migration set. */

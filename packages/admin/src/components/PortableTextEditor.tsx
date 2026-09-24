@@ -104,7 +104,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
-import { canonicalMediaProviderId } from "../lib/media-utils.js";
+import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -255,20 +255,32 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		const asset = record.asset;
 		if (typeof asset !== "object" || asset === null) continue;
 		const assetRecord = asset as Record<string, unknown>;
+		// Seeded `$media` resolves to a MediaValue (`id`, `src`, `meta.storageKey`, dimensions)
+		// instead of a reference. The media id is not a storage key, so local files need `url`.
+		const storageKey = isRecord(assetRecord.meta)
+			? attrStr(assetRecord.meta.storageKey)
+			: undefined;
+		const url =
+			attrStr(assetRecord.url) ??
+			attrStr(assetRecord.src) ??
+			(storageKey ? localMediaFileUrl(storageKey) : undefined);
+		const alt = attrStr(record.alt) ?? attrStr(assetRecord.alt);
+		const width = typeof record.width === "number" ? record.width : assetRecord.width;
+		const height = typeof record.height === "number" ? record.height : assetRecord.height;
 		const image: GalleryImage = {
 			_type: "image",
 			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
 			asset: {
 				_type: "reference",
-				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
-				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
+				_ref: attrStr(assetRecord._ref) ?? attrStr(assetRecord.id) ?? "",
+				...(url ? { url } : {}),
 				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
 			},
 		};
-		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (alt) image.alt = alt;
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
-		if (typeof record.width === "number") image.width = record.width;
-		if (typeof record.height === "number") image.height = record.height;
+		if (typeof width === "number") image.width = width;
+		if (typeof height === "number") image.height = height;
 		if (typeof record.focalX === "number") image.focalX = record.focalX;
 		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
@@ -829,9 +841,9 @@ function convertPMNode(
 				_type: blockType,
 				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
 			};
-			const identityField = originalBlock
-				? (customBlockIdentityField(originalBlock) ?? (pluginId ? "id" : undefined))
-				: "id";
+			const identityField =
+				(originalBlock ? customBlockIdentityField(originalBlock) : undefined) ??
+				(pluginId ? "id" : undefined);
 			if (identityField) result[identityField] = pluginId;
 			return result as PortableTextBlock;
 		}

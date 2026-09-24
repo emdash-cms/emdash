@@ -478,6 +478,29 @@ export interface FieldTable {
 	created_at: Generated<string>;
 }
 
+export interface BlockTypeTable {
+	id: string;
+	slug: string;
+	label: string;
+	description: string | null;
+	icon: string | null;
+	category: string | null;
+	current_version: number;
+	source: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BlockTypeVersionTable {
+	id: string;
+	block_type_id: string;
+	version: number;
+	fields: string;
+	fingerprint: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 // Plugin Storage Tables
 
 export interface PluginStorageTable {
@@ -663,6 +686,8 @@ export interface Database {
 	_emdash_migrations: MigrationTable;
 	_emdash_collections: CollectionTable;
 	_emdash_fields: FieldTable;
+	_emdash_block_types: BlockTypeTable;
+	_emdash_block_type_versions: BlockTypeVersionTable;
 	_plugin_storage: PluginStorageTable;
 	_plugin_state: PluginStateTable;
 	_plugin_indexes: PluginIndexTable;
