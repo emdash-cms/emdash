@@ -1,4 +1,5 @@
 import type {
+	CompiledQuery,
 	Kysely,
 	KyselyPlugin,
 	PluginTransformQueryArgs,
@@ -7,7 +8,7 @@ import type {
 	RootOperationNode,
 	UnknownRow,
 } from "kysely";
-import { sql } from "kysely";
+import { SqliteQueryCompiler, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
@@ -26,6 +27,20 @@ class QueryCountingPlugin implements KyselyPlugin {
 
 	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
 		this.count += 1;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+}
+
+class SqlRecordingPlugin implements KyselyPlugin {
+	readonly queries: CompiledQuery[] = [];
+	readonly #compiler = new SqliteQueryCompiler();
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.queries.push(this.#compiler.compileQuery(args.node, args.queryId));
 		return args.node;
 	}
 
@@ -1311,6 +1326,101 @@ describe("applySeed", () => {
 				.execute();
 
 			expect(assignments).toHaveLength(2);
+		});
+
+		it("reads the site timezone and field definitions as often for ten entries as for one", async () => {
+			const lookupsFor = async (entriesPerCollection: number) => {
+				const target = await setupTestDatabase();
+				const recorder = new SqlRecordingPlugin();
+				const collections = ["pages", "posts"];
+				const seed: SeedFile = {
+					version: "1",
+					collections: collections.map((slug) => ({
+						slug,
+						label: slug,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					})),
+					content: Object.fromEntries(
+						collections.map((slug) => [
+							slug,
+							Array.from({ length: entriesPerCollection }, (_, i) => ({
+								id: `${slug}-${i}`,
+								slug: `${slug}-${i}`,
+								data: { title: `${slug} ${i}` },
+							})),
+						]),
+					),
+				};
+				try {
+					await applySeed(target.withPlugin(recorder), seed, { includeContent: true });
+					await applySeed(target.withPlugin(recorder), seed, {
+						includeContent: true,
+						onConflict: "update",
+					});
+				} finally {
+					await teardownTestDatabase(target);
+				}
+				return {
+					timezone: recorder.queries.filter((query) => query.parameters.includes("site:timezone"))
+						.length,
+					fields: recorder.queries.filter((query) => query.sql.includes('from "_emdash_fields"'))
+						.length,
+				};
+			};
+
+			const single = await lookupsFor(1);
+
+			expect(single.timezone).toBeGreaterThan(0);
+			expect(await lookupsFor(10)).toEqual(single);
+		});
+
+		it("resolves seeded datetimes in the timezone and fields of the seed being applied", async () => {
+			await applySeed(
+				db,
+				{
+					version: "1",
+					collections: [
+						{
+							slug: "events",
+							label: "Events",
+							fields: [{ slug: "title", label: "Title", type: "string" }],
+						},
+					],
+					content: { events: [{ id: "first", slug: "first", data: { title: "First" } }] },
+				},
+				{ includeContent: true },
+			);
+
+			await applySeed(
+				db,
+				{
+					version: "1",
+					settings: { timezone: "Asia/Tokyo" },
+					collections: [
+						{
+							slug: "events",
+							label: "Events",
+							fields: [
+								{ slug: "title", label: "Title", type: "string" },
+								{ slug: "starts_at", label: "Starts at", type: "datetime" },
+							],
+						},
+					],
+					content: {
+						events: [
+							{
+								id: "second",
+								slug: "second",
+								data: { title: "Second", starts_at: "2026-03-01T09:00" },
+							},
+						],
+					},
+				},
+				{ includeContent: true, onConflict: "update" },
+			);
+
+			const entry = await new ContentRepository(db).findBySlug("events", "second");
+			expect(entry?.data.starts_at).toBe("2026-03-01T00:00:00.000Z");
 		});
 	});
 

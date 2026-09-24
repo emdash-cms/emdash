@@ -1,7 +1,7 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
@@ -42,8 +42,11 @@ export function normalizeRevisionLimit(value: unknown): number {
 export class RevisionRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**

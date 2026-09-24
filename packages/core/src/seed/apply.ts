@@ -11,6 +11,7 @@ import mime from "mime/lite";
 import { ulid } from "ulidx";
 
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
+import type { DatetimeContextCache } from "../database/content-datetime.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -576,6 +577,9 @@ export async function applySeed(
 	if (includeContent && seed.content) {
 		const contentRepo = new ContentRepository(db);
 		const schemaRegistry = new SchemaRegistry(db);
+		// Settings and fields are all written above, so every entry can share the
+		// timezone and datetime fields read for its collection.
+		const datetimeContexts: DatetimeContextCache = new Map();
 
 		try {
 			// Create content entries
@@ -631,9 +635,9 @@ export async function applySeed(
 							let contentMutated = false;
 							try {
 								await withTransaction(db, async (trx) => {
-									const trxContentRepo = new ContentRepository(trx);
+									const trxContentRepo = new ContentRepository(trx, datetimeContexts);
 									const trxBylineRepo = new BylineRepository(trx);
-									const trxRevisionRepo = new RevisionRepository(trx);
+									const trxRevisionRepo = new RevisionRepository(trx, datetimeContexts);
 
 									await trxContentRepo.update(collectionSlug, existing.id, {
 										status,
@@ -742,7 +746,7 @@ export async function applySeed(
 					let created: Awaited<ReturnType<ContentRepository["create"]>>;
 					try {
 						created = await withTransaction(db, async (trx) => {
-							const trxContentRepo = new ContentRepository(trx);
+							const trxContentRepo = new ContentRepository(trx, datetimeContexts);
 							const trxBylineRepo = new BylineRepository(trx);
 
 							const item = await trxContentRepo.create({

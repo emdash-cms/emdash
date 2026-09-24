@@ -10,7 +10,7 @@ import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js"
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
@@ -323,8 +323,11 @@ function escapeRegExp(s: string): string {
 export class ContentRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		private readonly datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**
@@ -2468,7 +2471,7 @@ export class ContentRepository {
 			}
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
@@ -2701,7 +2704,7 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		const revision = await revisionRepo.findById(revisionId);
 		if (!revision) {
 			throw new EmDashValidationError("Revision not found");
