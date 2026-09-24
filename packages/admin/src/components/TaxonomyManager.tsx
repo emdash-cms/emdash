@@ -789,6 +789,7 @@ function TermFormDialog({
 								helpLabel={t`How is the slug generated?`}
 								side="right"
 								buttonSize="sm"
+								openOnPress
 							>
 								{t`Slug`}
 							</FieldHelpLabel>

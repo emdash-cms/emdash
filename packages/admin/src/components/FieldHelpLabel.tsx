@@ -1,6 +1,6 @@
 import { Button, Label, Tooltip } from "@cloudflare/kumo";
 import { Info } from "@phosphor-icons/react";
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 
 export function FieldHelpLabel({
 	children,
@@ -10,6 +10,7 @@ export function FieldHelpLabel({
 	labelClassName = "text-base font-medium text-kumo-default",
 	side,
 	buttonSize = "xs",
+	openOnPress = false,
 }: {
 	children: ReactNode;
 	help: ReactNode;
@@ -18,7 +19,9 @@ export function FieldHelpLabel({
 	labelClassName?: string;
 	side?: ComponentProps<typeof Tooltip>["side"];
 	buttonSize?: ComponentProps<typeof Button>["size"];
+	openOnPress?: boolean;
 }) {
+	const [tooltipOpen, setTooltipOpen] = useState(false);
 	return (
 		<div className="flex items-center gap-1.5">
 			<Label htmlFor={htmlFor} className={labelClassName}>
@@ -27,6 +30,8 @@ export function FieldHelpLabel({
 			<Tooltip
 				content={help}
 				side={side}
+				open={openOnPress ? tooltipOpen : undefined}
+				onOpenChange={openOnPress ? setTooltipOpen : undefined}
 				delay={0}
 				closeDelay={0}
 				render={
@@ -38,6 +43,7 @@ export function FieldHelpLabel({
 						icon={<Info aria-hidden="true" />}
 						className="text-kumo-subtle hover:text-kumo-default"
 						aria-label={helpLabel}
+						onClick={openOnPress ? () => setTooltipOpen((open) => !open) : undefined}
 					/>
 				}
 			/>
