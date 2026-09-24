@@ -1120,6 +1120,8 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	adminAccessSchema: () => adminAccessSchema,
 	adminEditorDraftPatchConstraintsSchema: () => adminEditorDraftPatchConstraintsSchema,
 	adminEditorDraftReadConstraintsSchema: () => adminEditorDraftReadConstraintsSchema,
+	bylinesAccessSchema: () => bylinesAccessSchema,
+	bylinesReadConstraintsSchema: () => bylinesReadConstraintsSchema,
 	commentsAccessSchema: () => commentsAccessSchema,
 	commentsModerateConstraintsSchema: () => commentsModerateConstraintsSchema,
 	commentsReadConstraintsSchema: () => commentsReadConstraintsSchema,
@@ -1168,6 +1170,13 @@ const _adminAccessSchema = /* @__PURE__ */ object$1({
 });
 const _adminEditorDraftPatchConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminEditorDraftPatchConstraints")) });
 const _adminEditorDraftReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminEditorDraftReadConstraints")) });
+const _bylinesAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#bylinesAccess")),
+	get read() {
+		return /* @__PURE__ */ optional$1(bylinesReadConstraintsSchema);
+	}
+});
+const _bylinesReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#bylinesReadConstraints")) });
 const _commentsAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsAccess")),
 	get moderate() {
@@ -1210,6 +1219,9 @@ const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
 	get admin() {
 		return /* @__PURE__ */ optional$1(adminAccessSchema);
+	},
+	get bylines() {
+		return /* @__PURE__ */ optional$1(bylinesAccessSchema);
 	},
 	get comments() {
 		return /* @__PURE__ */ optional$1(commentsAccessSchema);
@@ -1349,6 +1361,8 @@ const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE
 const adminAccessSchema = _adminAccessSchema;
 const adminEditorDraftPatchConstraintsSchema = _adminEditorDraftPatchConstraintsSchema;
 const adminEditorDraftReadConstraintsSchema = _adminEditorDraftReadConstraintsSchema;
+const bylinesAccessSchema = _bylinesAccessSchema;
+const bylinesReadConstraintsSchema = _bylinesReadConstraintsSchema;
 const commentsAccessSchema = _commentsAccessSchema;
 const commentsModerateConstraintsSchema = _commentsModerateConstraintsSchema;
 const commentsReadConstraintsSchema = _commentsReadConstraintsSchema;
@@ -7990,6 +8004,7 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -8073,6 +8088,8 @@ const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments"
 ];
@@ -8286,6 +8303,7 @@ const declaredAccessSchema = object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional()
 	}).optional(),
+	bylines: object({ read: accessConstraints.optional() }).optional(),
 	redirects: object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional()
@@ -8501,6 +8519,7 @@ function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 		out.taxonomies = { read: {} };
 		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
 	}
+	if (caps.has("bylines:read")) out.bylines = { read: {} };
 	if (caps.has("redirects:read") || caps.has("redirects:write")) {
 		out.redirects = { read: {} };
 		if (caps.has("redirects:write")) out.redirects.write = {};
@@ -8559,6 +8578,7 @@ function declaredAccessToCapabilities(declaredAccess) {
 		caps.add("taxonomies:write");
 		caps.add("taxonomies:read");
 	}
+	if (declaredAccess.bylines?.read) caps.add("bylines:read");
 	if (declaredAccess.redirects?.read) caps.add("redirects:read");
 	if (declaredAccess.redirects?.write) {
 		caps.add("redirects:write");
