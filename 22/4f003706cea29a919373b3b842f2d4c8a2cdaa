@@ -1,0 +1,19 @@
+packages/admin/src/components/TaxonomyManager.tsx
+  s_99f0b7dad1b463::t_ce7edb4e133e16 326-329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "224f003706cea29a919373b3b842f2d4c8a2cdaa",
+  "prompts": {},
+  "sessions": {
+    "s_99f0b7dad1b463": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d2df-fa46-74d3-ac8e-80c34bded95b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
