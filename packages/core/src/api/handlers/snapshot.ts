@@ -194,6 +194,7 @@ const EXCLUDED_PREFIXES = [
 	"_emdash_authorization_codes",
 	"_emdash_device_codes",
 	"_emdash_migrations_lock",
+	"_emdash_transfer_",
 	"_plugin_",
 	"users",
 	"sessions",

@@ -395,6 +395,8 @@ Use `$media` in content data to download a URL, upload it with the supplied stor
 }
 ```
 
+In a Portable Text `image` block or a `gallery` image, `$media` in `asset` becomes a media reference (`_type: "reference"`, `_ref`, `url`, `provider`), and the media's alt text and dimensions fill the image's own `alt`, `width`, and `height` when they are missing.
+
 Within one apply call, repeated references to the same URL reuse the resolved media value. Seed media references do not accept a local `file` property. `mediaBasePath` remains in the public `SeedApplyOptions` type but the current apply engine does not read it.
 
 When no storage adapter is supplied, `$media` references are skipped and resolve to `null`. With `skipMediaDownload: true`, they become external media values and no storage adapter is required.

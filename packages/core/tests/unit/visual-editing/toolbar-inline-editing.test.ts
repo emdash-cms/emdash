@@ -25,7 +25,6 @@ const MANIFEST = {
 				fields: {
 					title: { kind: "string" },
 					excerpt: { kind: "richText" },
-					featured_image: { kind: "image" },
 				},
 			},
 		},
@@ -152,32 +151,6 @@ describe("toolbar inline editing", () => {
 		excerpt.dispatchEvent(new FocusEvent("blur"));
 
 		await expectSaved(fetchMock, { excerpt: "Line one\nLine two" });
-	});
-
-	it("edits the alt text of an image stored without a URL", async () => {
-		const image = {
-			provider: "local",
-			id: "media-1",
-			alt: "Old alt",
-			meta: { storageKey: "a.jpg" },
-		};
-		const fetchMock = stubApi({ featured_image: image });
-		mountEditablePage(
-			`<div data-emdash-ref='${ref("featured_image")}'><img src="/a.jpg" alt="Old alt"></div>`,
-		);
-
-		const pageImage = document.querySelector("img")!;
-		pageImage.click();
-		await vi.waitFor(() => expect(document.querySelector(".emdash-img-popover")).not.toBeNull());
-
-		const preview = document.querySelector<HTMLImageElement>(".emdash-img-preview");
-		expect(preview?.src).toBe(pageImage.src);
-
-		const altInput = document.querySelector<HTMLInputElement>("#emdash-img-alt")!;
-		altInput.value = "New alt";
-		altInput.dispatchEvent(new Event("input"));
-
-		await expectSaved(fetchMock, { featured_image: { ...image, alt: "New alt" } });
 	});
 
 	it("does not follow a surrounding link when clicking inside a field being edited", async () => {

@@ -241,6 +241,40 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+type ImageMedia = Pick<GalleryImage, "asset" | "alt" | "width" | "height">;
+
+/**
+ * Read an image's media reference, alt text, and dimensions from the reference
+ * shape or the MediaValue that seeded `$media` stores instead. Keep in sync with
+ * `resolveImageMedia` in core's content converters.
+ */
+function resolveImageMedia(image: unknown): ImageMedia {
+	const record: Record<string, unknown> = isRecord(image) ? image : {};
+	const asset: Record<string, unknown> = isRecord(record.asset) ? record.asset : {};
+	// The media id is not a storage key, so local files need `url`.
+	const storageKey = isRecord(asset.meta) ? attrStr(asset.meta.storageKey) : undefined;
+	const url =
+		attrStr(asset.url) ??
+		attrStr(asset.src) ??
+		(storageKey ? localMediaFileUrl(storageKey) : undefined);
+	const provider = attrStr(asset.provider);
+	const alt = attrStr(record.alt) ?? attrStr(asset.alt);
+	const width = typeof record.width === "number" ? record.width : asset.width;
+	const height = typeof record.height === "number" ? record.height : asset.height;
+	const media: ImageMedia = {
+		asset: {
+			_type: "reference",
+			_ref: attrStr(asset._ref) ?? attrStr(asset.id) ?? "",
+			...(url ? { url } : {}),
+			...(provider ? { provider } : {}),
+		},
+	};
+	if (alt) media.alt = alt;
+	if (typeof width === "number") media.width = width;
+	if (typeof height === "number") media.height = height;
+	return media;
+}
+
 /**
  * Normalize an untrusted gallery `images` value into well-formed entries.
  * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
@@ -254,33 +288,16 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		const record = entry as Record<string, unknown>;
 		const asset = record.asset;
 		if (typeof asset !== "object" || asset === null) continue;
-		const assetRecord = asset as Record<string, unknown>;
-		// Seeded `$media` resolves to a MediaValue (`id`, `src`, `meta.storageKey`, dimensions)
-		// instead of a reference. The media id is not a storage key, so local files need `url`.
-		const storageKey = isRecord(assetRecord.meta)
-			? attrStr(assetRecord.meta.storageKey)
-			: undefined;
-		const url =
-			attrStr(assetRecord.url) ??
-			attrStr(assetRecord.src) ??
-			(storageKey ? localMediaFileUrl(storageKey) : undefined);
-		const alt = attrStr(record.alt) ?? attrStr(assetRecord.alt);
-		const width = typeof record.width === "number" ? record.width : assetRecord.width;
-		const height = typeof record.height === "number" ? record.height : assetRecord.height;
+		const { asset: reference, alt, width, height } = resolveImageMedia(record);
 		const image: GalleryImage = {
 			_type: "image",
 			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
-			asset: {
-				_type: "reference",
-				_ref: attrStr(assetRecord._ref) ?? attrStr(assetRecord.id) ?? "",
-				...(url ? { url } : {}),
-				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
-			},
+			asset: reference,
 		};
 		if (alt) image.alt = alt;
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
-		if (typeof width === "number") image.width = width;
-		if (typeof height === "number") image.height = height;
+		if (width !== undefined) image.width = width;
+		if (height !== undefined) image.height = height;
 		if (typeof record.focalX === "number") image.focalX = record.focalX;
 		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
@@ -1207,6 +1224,7 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
 			const meta = imageBlock.asset.meta;
+			const { asset, alt, width, height } = resolveImageMedia(imageBlock);
 			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
 			// snapshots persisted before LQIP was promoted out of the provider meta bag.
 			const blurhash =
@@ -1225,14 +1243,14 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 				type: "image",
 				attrs: attrsWithPortableTextKey(
 					{
-						src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
-						alt: imageBlock.alt || "",
+						src: asset.url || `/_emdash/api/media/file/${asset._ref}`,
+						alt: alt || "",
 						title: imageBlock.caption || "",
 						caption: imageBlock.caption || "",
-						mediaId: imageBlock.asset._ref,
-						provider: canonicalMediaProviderId(imageBlock.asset.provider),
-						width: imageBlock.width,
-						height: imageBlock.height,
+						mediaId: asset._ref,
+						provider: canonicalMediaProviderId(asset.provider),
+						width,
+						height,
 						blurhash,
 						dominantColor,
 						displayWidth: imageBlock.displayWidth,
