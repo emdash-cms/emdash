@@ -38,7 +38,7 @@ describe("GET /_emdash/api/admin/hooks/exclusive", () => {
 	});
 
 	afterEach(async () => {
-		await runtime.stopCron();
+		await runtime?.shutdown();
 	});
 
 	it("reports the built-in comment moderator as selected when it is the only one", async () => {

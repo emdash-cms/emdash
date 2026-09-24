@@ -70,7 +70,7 @@ describe("ai-moderation plugin", () => {
 	});
 
 	afterEach(async () => {
-		for (const runtime of runtimes.splice(0)) await runtime.stopCron();
+		for (const runtime of runtimes.splice(0)) await runtime.shutdown();
 	});
 
 	it("registers its comment hooks", async () => {
@@ -97,7 +97,8 @@ describe("ai-moderation plugin", () => {
 
 	it("takes over on a site that started without a moderation plugin", async () => {
 		const sqlite = new Database(":memory:");
-		await boot(sqlite, []);
+		const firstSite = await boot(sqlite, []);
+		await firstSite.shutdown();
 		const site = await boot(sqlite);
 
 		const result = await site.handleCommentCreate(spamComment, settings);
