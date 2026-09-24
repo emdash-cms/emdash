@@ -1,6 +1,6 @@
 ---
 title: Block Kit
-description: Declarative UI blocks for sandboxed plugin pages, widgets, and saved-entry extensions.
+description: Declarative UI blocks for plugin pages, widgets, and saved-entry extensions.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -8,7 +8,7 @@ import { Aside } from "@astrojs/starlight/components";
 EmDash's Block Kit lets sandboxed plugins describe their admin UI as JSON. The host renders the blocks — no plugin-supplied JavaScript ever runs in the browser.
 
 <Aside>
-	Native plugins can ship their own React components for admin pages. Block Kit is the admin UI system for sandboxed plugins, where shipping React would break sandbox isolation.
+	Native plugins can ship their own React components for admin pages. Block Kit is the admin UI system for sandboxed plugins, where shipping React would break sandbox isolation. Native plugins can use Block Kit too: see [Block Kit in native plugins](#block-kit-in-native-plugins).
 </Aside>
 
 <Aside type="tip">
@@ -113,7 +113,7 @@ export default plugin;
 
 The `admin` route is private by default. EmDash sends the correct CSRF header when the admin calls it. The handler still validates `routeCtx.input` because its TypeScript type is `unknown` and a caller can invoke a private plugin route outside the Block Kit page.
 
-EmDash validates every page and widget response before the admin renders it. An invalid block, unsafe URL, link to an undeclared plugin page, or response over the Block Kit limits fails the request instead of reaching the browser. A response can contain up to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string.
+EmDash validates every sandboxed page and widget response before the admin renders it. An invalid block, unsafe URL, link to an undeclared plugin page, or response over the Block Kit limits fails the request instead of reaching the browser. A response can contain up to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string.
 
 ## UI locale and direction
 
@@ -253,6 +253,39 @@ return {
 ```
 
 Use `refresh: true` to reload the entry, `navigate` with a structured link target, or `patch` to propose unsaved field changes. A response cannot combine terminal effects. EmDash rejects unknown commands, unsafe navigation, invalid or stale patches, and responses over the Block Kit limits before applying an effect.
+
+## Block Kit in native plugins
+
+A native plugin can render Block Kit pages and widgets without shipping React. Declare `admin.pages` or `admin.widgets` in `definePlugin()`, leave `admin.entry` unset, and add a route named `admin`:
+
+```typescript title="src/index.ts"
+import { definePlugin } from "emdash";
+
+export function createPlugin() {
+	return definePlugin({
+		id: "plugin-status",
+		version: "0.1.0",
+		routes: {
+			admin: {
+				handler: async (ctx) => {
+					// Validate ctx.input as in the sandboxed example above.
+					return { blocks: [{ type: "header", text: "Status" }] };
+				},
+			},
+		},
+		admin: {
+			pages: [{ path: "/status", label: "Status", icon: "gauge" }],
+		},
+	});
+}
+```
+
+A native plugin uses Block Kit when it declares pages, widgets, or editor extensions and no `admin.entry`. Setting `admin.entry` switches it to [React admin pages](/plugins/creating-native-plugins/react-admin/). Declare the `admin` route explicitly: the implicit `admin` route exists only for older sandboxed bundles. A native handler receives a single `RouteContext`, so the interaction arrives as `ctx.input`.
+
+Two behaviors described above currently apply only to sandboxed plugins on admin pages and dashboard widgets:
+
+- `ctx.ui` is `undefined` on a native plugin's page or widget, so the route cannot read the admin locale or text direction from it. Native editor panels and actions do receive `ctx.ui`.
+- EmDash does not validate a native plugin's page or widget response before the admin renders it. Keep native responses within the same block types, limits, and link and image rules, because the same renderer draws them.
 
 ## Block types
 
