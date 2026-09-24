@@ -323,7 +323,10 @@ function TagTermRow({
 									/>
 								}
 							/>
-							<DropdownMenu.Content align="end">
+							<DropdownMenu.Content
+								align="end"
+								className="origin-(--transform-origin) transition-[scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-instant:duration-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none"
+							>
 								{!searchActive && (
 									<>
 										<DropdownMenu.Item
