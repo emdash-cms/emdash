@@ -37,8 +37,9 @@ function isValidRedirectPath(path: string): boolean {
 }
 
 /**
- * The entry that declares `taxonomy`'s `hierarchical` and `collections`: where its
- * `translationOf` chain leaves the taxonomy's name, or undefined when the chain loops.
+ * The entry that declares `taxonomy`'s `hierarchical` and `collections`: the last
+ * entry of its `translationOf` chain within the taxonomy's name, or undefined when
+ * the chain loops.
  */
 export function findTaxonomyStructureSource<T extends Pick<SeedTaxonomy, "name" | "translationOf">>(
 	taxonomy: T,
