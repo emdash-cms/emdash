@@ -373,16 +373,20 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 }
 
 /**
- * Core dynamically imports Workers built-ins such as `cloudflare:sockets`
- * behind a runtime fallback. Outside workerd nothing resolves them, and Rollup
- * fails the server build on an unresolved import, so leave them to the runtime.
+ * Workers built-ins that core imports dynamically behind a runtime fallback.
+ * Outside workerd nothing resolves them, and Rollup fails the server build on
+ * an unresolved import, so they are left to the runtime. List only core's own
+ * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
+ * still fail the build instead of failing at runtime.
  */
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+
 function createWorkersBuiltinsExternalPlugin(): Plugin {
 	return {
 		name: "emdash-workers-builtins-external",
 		apply: "build",
 		resolveId(id) {
-			if (id.startsWith("cloudflare:") && this.environment.config.consumer === "server") {
+			if (CORE_WORKERS_BUILTINS.has(id) && this.environment.config.consumer === "server") {
 				return { id, external: true };
 			}
 		},
