@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { handleTaxonomyGet, handleTaxonomyUpdate } from "../../../src/api/handlers/taxonomies.js";
-import * as migration084 from "../../../src/database/migrations/084_taxonomy_def_groups.js";
+import * as migration085 from "../../../src/database/migrations/085_taxonomy_def_groups.js";
 import { createMigrator } from "../../../src/database/migrations/runner.js";
 import {
 	createForDialect,
@@ -76,7 +76,7 @@ describeEachDialect("taxonomy definition groups migration", (dialect) => {
 			.execute();
 
 		await runMigrationsForDialect(ctx);
-		await expect(migration084.up(ctx.db)).resolves.toBeUndefined();
+		await expect(migration085.up(ctx.db)).resolves.toBeUndefined();
 
 		const groups = await ctx.db
 			.selectFrom("_emdash_taxonomy_def_groups")
@@ -139,7 +139,7 @@ describeEachDialect("taxonomy definition groups migration", (dialect) => {
 			.execute();
 
 		await runMigrationsForDialect(ctx);
-		await expect(migration084.up(ctx.db)).resolves.toBeUndefined();
+		await expect(migration085.up(ctx.db)).resolves.toBeUndefined();
 
 		const groups = await ctx.db
 			.selectFrom("_emdash_taxonomy_def_groups")
@@ -210,7 +210,7 @@ describeEachDialect("taxonomy definition groups migration", (dialect) => {
 			.where("id", "=", "gattung-de")
 			.execute();
 
-		await migration084.up(ctx.db);
+		await migration085.up(ctx.db);
 
 		const groups = await ctx.db
 			.selectFrom("_emdash_taxonomy_def_groups")
