@@ -17,6 +17,7 @@ import {
 	Table,
 	Toast,
 } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
@@ -80,6 +81,38 @@ const TAXONOMY_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
  */
 function flattenTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
 	return terms.flatMap((t) => [t, ...flattenTerms(t.children)]);
+}
+
+function canonicalSearchLocale(locale: string): string {
+	try {
+		return Intl.getCanonicalLocales(locale)[0] ?? "en";
+	} catch {
+		return "en";
+	}
+}
+
+function findMatchingTagIds(
+	terms: TaxonomyTerm[],
+	labelSearch: string,
+	slugSearch: string,
+	locale: string,
+) {
+	const visibleIds = new Set<string>();
+	let matchCount = 0;
+	const visit = (term: TaxonomyTerm): boolean => {
+		let hasMatchingChild = false;
+		for (const child of term.children) {
+			if (visit(child)) hasMatchingChild = true;
+		}
+		const matches =
+			term.label.toLocaleLowerCase(locale).includes(labelSearch) ||
+			term.slug.toLowerCase().includes(slugSearch);
+		if (matches) matchCount++;
+		if (matches || hasMatchingChild) visibleIds.add(term.id);
+		return matches || hasMatchingChild;
+	};
+	for (const term of terms) visit(term);
+	return { visibleIds, matchCount };
 }
 
 /**
@@ -187,6 +220,7 @@ function TermGroup({
 	level = 0,
 	table = false,
 	searchActive = false,
+	visibleIds,
 	...callbacks
 }: {
 	siblings: TaxonomyTerm[];
@@ -194,27 +228,35 @@ function TermGroup({
 	level?: number;
 	table?: boolean;
 	searchActive?: boolean;
+	visibleIds?: Set<string>;
 } & TermRowCallbacks) {
 	const movable = siblings.filter((sibling) => !isStranded(sibling, parentId));
 	const places = new Map(movable.map((term, index) => [term, index]));
 	return (
 		<>
-			{siblings.map((term) => {
-				const props = {
-					term,
-					siblings,
-					movable,
-					place: places.get(term) ?? -1,
-					parentId,
-					level,
-					...callbacks,
-				};
-				return table ? (
-					<TagTermRow key={term.id} {...props} searchActive={searchActive} />
-				) : (
-					<TermRow key={term.id} {...props} />
-				);
-			})}
+			{siblings
+				.filter((term) => !visibleIds || visibleIds.has(term.id))
+				.map((term) => {
+					const props = {
+						term,
+						siblings,
+						movable,
+						place: places.get(term) ?? -1,
+						parentId,
+						level,
+						...callbacks,
+					};
+					return table ? (
+						<TagTermRow
+							key={term.id}
+							{...props}
+							searchActive={searchActive}
+							visibleIds={visibleIds}
+						/>
+					) : (
+						<TermRow key={term.id} {...props} />
+					);
+				})}
 		</>
 	);
 }
@@ -227,6 +269,7 @@ function TagTermRow({
 	parentId,
 	level = 0,
 	searchActive,
+	visibleIds,
 	onEdit,
 	onDelete,
 	onMove,
@@ -240,6 +283,7 @@ function TagTermRow({
 	parentId: string | null;
 	level?: number;
 	searchActive: boolean;
+	visibleIds?: Set<string>;
 } & TermRowCallbacks) {
 	const { t } = useLingui();
 	const stranded = isStranded(term, parentId);
@@ -249,7 +293,9 @@ function TagTermRow({
 				<Table.Cell>
 					<div className="min-w-0" style={{ paddingInlineStart: `${level * 1.5}rem` }}>
 						<span className="block break-words font-medium">{term.label}</span>
-						<span className="block text-xs text-kumo-subtle">/{term.slug}</span>
+						<bdi dir="ltr" className="inline-block text-xs text-kumo-subtle">
+							/{term.slug}
+						</bdi>
 					</div>
 				</Table.Cell>
 				<Table.Cell className="w-20 text-sm tabular-nums">{term.count ?? 0}</Table.Cell>
@@ -325,6 +371,7 @@ function TagTermRow({
 				level={level + 1}
 				table
 				searchActive={searchActive}
+				visibleIds={visibleIds}
 				onEdit={onEdit}
 				onDelete={onDelete}
 				onMove={onMove}
@@ -1054,6 +1101,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 	const [deleteTaxonomyOpen, setDeleteTaxonomyOpen] = React.useState(false);
 	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
 	const [tagSearch, setTagSearch] = React.useState("");
+	const tagSearchRef = React.useRef<HTMLInputElement>(null);
 	const [translateTarget, setTranslateTarget] = React.useState<TaxonomyTerm | null>(null);
 
 	const { data: manifest } = useQuery({
@@ -1082,14 +1130,17 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 		queryKey: termsQueryKey,
 		queryFn: () => fetchTerms(taxonomyName, { locale: activeLocale }),
 	});
-	const search = tagSearch.trim().toLocaleLowerCase();
-	const visibleTags = search
-		? terms.filter(
-				(term) =>
-					term.label.toLocaleLowerCase().includes(search) ||
-					term.slug.toLocaleLowerCase().includes(search),
-			)
-		: terms;
+	const searchLocale = canonicalSearchLocale(activeLocale ?? i18n?.defaultLocale ?? "en");
+	const rawSearch = tagSearch.trim();
+	const tagMatches =
+		taxonomyName === "tag" && rawSearch
+			? findMatchingTagIds(
+					terms,
+					rawSearch.toLocaleLowerCase(searchLocale),
+					rawSearch.toLowerCase(),
+					searchLocale,
+				)
+			: null;
 
 	const deleteMutation = useMutation({
 		mutationFn: (term: TaxonomyTerm) =>
@@ -1299,11 +1350,20 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 				<div className="flex flex-col gap-3">
 					<TableToolbarSearch
 						size="base"
+						inputRef={tagSearchRef}
 						placeholder={t`Search tags…`}
 						aria-label={t`Search tags`}
 						value={tagSearch}
 						onChange={(event) => setTagSearch(event.target.value)}
 					/>
+					<span role="status" className="sr-only">
+						{rawSearch
+							? plural(tagMatches?.matchCount ?? 0, {
+									one: "# matching tag",
+									other: "# matching tags",
+								})
+							: ""}
+					</span>
 					{termsLoading ? (
 						<div className="p-8 text-center text-kumo-subtle">{t`Loading terms...`}</div>
 					) : terms.length === 0 ? (
@@ -1317,27 +1377,31 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 									<Table.Header variant="compact">
 										<Table.Row>
 											<Table.Head className="text-start">{t`Name`}</Table.Head>
-											<Table.Head className="w-20 text-start">{t`Posts`}</Table.Head>
+											<Table.Head className="w-20 text-start">{t`Count`}</Table.Head>
 											<Table.Head className="w-24 text-end">
 												<span className="sr-only">{t`Actions`}</span>
 											</Table.Head>
 										</Table.Row>
 									</Table.Header>
 									<Table.Body>
-										{visibleTags.length === 0 ? (
+										{tagMatches?.visibleIds.size === 0 ? (
 											<Table.Row>
 												<Table.Cell colSpan={3}>
-													<div
-														role="status"
-														className="flex flex-col items-center gap-2 py-8 text-center"
-													>
+													<div className="flex flex-col items-center gap-2 py-8 text-center">
 														<MagnifyingGlass
 															size={32}
 															className="text-kumo-subtle opacity-60"
 															aria-hidden="true"
 														/>
 														<p className="text-base font-medium">{t`No matching tags`}</p>
-														<Button variant="outline" size="sm" onClick={() => setTagSearch("")}>
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => {
+																setTagSearch("");
+																tagSearchRef.current?.focus();
+															}}
+														>
 															{t`Clear search`}
 														</Button>
 													</div>
@@ -1345,10 +1409,11 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 											</Table.Row>
 										) : (
 											<TermGroup
-												siblings={visibleTags}
+												siblings={terms}
 												parentId={null}
 												table
-												searchActive={!!search}
+												searchActive={!!rawSearch}
+												visibleIds={tagMatches?.visibleIds}
 												onEdit={handleEdit}
 												onDelete={handleDelete}
 												onMove={handleMove}

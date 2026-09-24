@@ -37,7 +37,53 @@ const tagTaxonomyResponse = JSON.stringify({
 				label: "Tags",
 				labelSingular: "Tag",
 				hierarchical: false,
+				collections: ["posts", "pages"],
+			},
+		],
+	},
+});
+
+const hierarchicalTagTaxonomyResponse = JSON.stringify({
+	data: {
+		taxonomies: [
+			{
+				id: "tag",
+				name: "tag",
+				label: "Tags",
+				labelSingular: "Tag",
+				hierarchical: true,
 				collections: ["posts"],
+			},
+		],
+	},
+});
+
+let manifestI18n: { defaultLocale: string; locales: string[] } | undefined;
+
+const turkishTermsResponse = JSON.stringify({
+	data: {
+		terms: [
+			{
+				id: "permission",
+				name: "permission",
+				slug: "permission",
+				label: "İzin",
+				parentId: null,
+				locale: "tr",
+				translationGroup: "permission",
+				children: [],
+				count: 1,
+			},
+			{
+				id: "music",
+				name: "music",
+				slug: "INDIE",
+				label: "Music",
+				parentId: null,
+				locale: "tr",
+				translationGroup: "music",
+				children: [],
+				count: 1,
 			},
 		],
 	},
@@ -213,6 +259,7 @@ vi.mock("../../src/lib/api/client.js", async () => {
 	return {
 		...actual,
 		apiFetch: vi.fn(),
+		fetchManifest: vi.fn(async () => ({ collections: {}, i18n: manifestI18n })),
 	};
 });
 
@@ -302,6 +349,7 @@ const DELETE_TECHNOLOGY_DESC_REGEX = /permanently delete "Technology"/;
 describe("TaxonomyManager", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		manifestI18n = undefined;
 		mockApiFetch();
 	});
 
@@ -333,8 +381,15 @@ describe("TaxonomyManager", () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
 		const search = screen.getByRole("searchbox", { name: "Search tags" });
+		const visibleOrder = () =>
+			Array.from(
+				document.querySelectorAll("tbody tr"),
+				(row) => row.querySelector("td span")?.textContent,
+			);
 
 		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Count", { exact: true })).toBeInTheDocument();
+		expect(visibleOrder()).toEqual(["Technology", "Science"]);
 		expect(screen.getByText("2 tags").query()).toBeNull();
 		await search.fill("sci");
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
@@ -350,9 +405,74 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByRole("table")).toBeInTheDocument();
 		await expect.element(screen.getByText("Name", { exact: true })).toBeInTheDocument();
 		await expect.element(screen.getByText("No matching tags")).toBeInTheDocument();
-		await screen.getByRole("button", { name: "Clear search" }).click();
+		screen.getByRole("button", { name: "Clear search" }).element().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(search).toHaveFocus();
 		await expect.element(screen.getByText("Science", { exact: true })).toBeInTheDocument();
+		expect(visibleOrder()).toEqual(["Technology", "Science"]);
 		expect(screen.getByText("2 tags").query()).toBeNull();
+	});
+
+	it("finds nested tags without showing unrelated siblings or losing ancestors", async () => {
+		mockApiFetch(hierarchicalTermsResponse, undefined, hierarchicalTagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		const search = screen.getByRole("searchbox", { name: "Search tags" });
+
+		await search.fill("Test child");
+		await expect.element(screen.getByText("Design", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Test", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Test child", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Development", { exact: true }).query()).toBeNull();
+
+		await search.fill("Design");
+		await expect.element(screen.getByText("Design", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Test", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Test child", { exact: true }).query()).toBeNull();
+	});
+
+	it("searches labels using the active content locale and announces result counts", async () => {
+		manifestI18n = {
+			defaultLocale: "tr",
+			locales: ["tr", "en"],
+		};
+		mockApiFetch(turkishTermsResponse, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		const search = screen.getByRole("searchbox", { name: "Search tags" });
+		const status = screen.getByRole("status");
+		await expect.element(screen.getByRole("combobox", { name: "Locale" })).toHaveValue("tr");
+		await expect.element(screen.getByText("İzin", { exact: true })).toBeInTheDocument();
+		await search.fill("izin");
+		await expect.element(screen.getByText("İzin", { exact: true })).toBeInTheDocument();
+		await expect.element(status).toHaveTextContent("1 matching tag");
+		await search.fill("indie");
+		await expect.element(screen.getByText("Music", { exact: true })).toBeInTheDocument();
+		await expect.element(status).toHaveTextContent("1 matching tag");
+		await search.fill("missing");
+		await expect.element(status).toHaveTextContent("0 matching tags");
+	});
+
+	it("does not crash on a configured locale that Intl cannot canonicalize", async () => {
+		manifestI18n = { defaultLocale: "en-US-US", locales: ["en-US-US", "en"] };
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("searchbox", { name: "Search tags" }).fill("tech");
+		await expect.element(screen.getByText("Technology", { exact: true })).toBeInTheDocument();
+	});
+
+	it("keeps the leading slash of a tag slug in RTL", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const previousDirection = document.documentElement.dir;
+		document.documentElement.dir = "rtl";
+		try {
+			const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+			await expect.element(screen.getByText("/tech", { exact: true })).toBeInTheDocument();
+			expect(getComputedStyle(screen.getByText("/tech", { exact: true }).element()).direction).toBe(
+				"ltr",
+			);
+		} finally {
+			document.documentElement.dir = previousDirection;
+		}
 	});
 
 	it("keeps tag editing visible and reorders from the row menu", async () => {
