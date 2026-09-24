@@ -403,8 +403,9 @@ async function exportTaxonomies(
 	const result: SeedTaxonomy[] = [];
 	const termRepo = new TaxonomyRepository(db);
 
-	// translation_group -> seed-local id of first def we emitted in that group.
-	const defGroupToSeedId = new Map<string, string>();
+	// Taxonomy name -> seed-local id of the first def emitted for it. Every locale
+	// of a name is one taxonomy, whatever translation_group its rows carry.
+	const anchorByName = new Map<string, string>();
 
 	for (const def of defs) {
 		const defSeedId =
@@ -461,11 +462,9 @@ async function exportTaxonomies(
 
 		if (i18nEnabled && def.locale) {
 			taxonomy.locale = def.locale;
-			if (def.translation_group) {
-				const anchor = defGroupToSeedId.get(def.translation_group);
-				if (anchor) taxonomy.translationOf = anchor;
-				else defGroupToSeedId.set(def.translation_group, defSeedId);
-			}
+			const anchor = anchorByName.get(def.name);
+			if (anchor) taxonomy.translationOf = anchor;
+			else anchorByName.set(def.name, defSeedId);
 		}
 
 		// The structure is the taxonomy's, so only the entry translations point at carries it.

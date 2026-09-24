@@ -187,6 +187,23 @@ describe("exportSeed: CLI (no runtime i18n config) stays locale-aware (#1330)", 
 		expect(validateSeed(seed).errors).toEqual([]);
 	});
 
+	it("writes each taxonomy's structure when two taxonomies share a translation group", async () => {
+		db = await setupTestDatabase();
+		const group = ulid();
+		await insertTaxonomyDef(db, { id: group, name: "genre", label: "Genres", locale: "en", group });
+		await insertTaxonomyDef(db, {
+			id: ulid(),
+			name: "mood",
+			label: "Estados",
+			locale: "es",
+			group,
+		});
+
+		const seed = await exportSeed(db);
+
+		expect(validateSeed(seed).errors).toEqual([]);
+	});
+
 	it("suffixes menu ids per locale instead of colliding", async () => {
 		db = await setupTestDatabase();
 
