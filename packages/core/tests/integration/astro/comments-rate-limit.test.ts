@@ -150,6 +150,7 @@ describe("POST /comments rate limit", () => {
 			}),
 		);
 		expect(limitedRes.status).toBe(429);
+		expect(limitedRes.headers.get("Retry-After")).toBe("600");
 	});
 
 	it("enforces the limit for concurrent submissions", async () => {

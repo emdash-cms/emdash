@@ -897,7 +897,7 @@ export interface ContentReferenceTable {
 // Rate Limits
 
 export interface RateLimitTable {
-	key: string; // {ip}:{endpoint}
+	key: string; // {ip or IP hash}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
 }

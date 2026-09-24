@@ -124,7 +124,9 @@ export async function submitPublicComment(
 			600,
 		);
 		if (!rateLimit.allowed) {
-			return apiError("RATE_LIMITED", "Too many comments. Please try again later.", 429);
+			const response = apiError("RATE_LIMITED", "Too many comments. Please try again later.", 429);
+			response.headers.set("Retry-After", "600");
+			return response;
 		}
 
 		const settings: CollectionCommentSettings = {
