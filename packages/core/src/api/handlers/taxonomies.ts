@@ -816,7 +816,8 @@ export async function handleTermReorder(
  *   - reject a parent in the term's own translation_group (self-parent),
  *     including the create path: a translation inherits its source's group, so
  *     `selfGroup` carries that prospective group when `termId` is absent.
- *   - on update, walk up the parent chain to detect cycles.
+ *   - walk up the parent chain to detect cycles, on create against `selfGroup`,
+ *     since a translation under another parent moves the existing term.
  */
 async function validateParentTerm(
 	repo: TaxonomyRepository,
@@ -858,9 +859,9 @@ async function validateParentTerm(
 	}
 
 	// Walk up the parent chain. Two checks fold into one walk:
-	//   - Cycle detection (only on update — a non-existent term-being-
-	//     created can't be its own ancestor): if the walk revisits termId
-	//     the proposed parent makes the term a descendant of itself.
+	//   - Cycle detection: if the walk reaches the term's group, the
+	//     proposed parent makes the term a descendant of itself. A new term
+	//     without `selfGroup` has no group to reach.
 	//   - Depth bound: refuse to extend a chain past MAX_DEPTH ancestors.
 	//     Runs on both create and update so a malicious or buggy caller
 	//     can't grow the tree without limit.
@@ -981,8 +982,8 @@ export async function handleTermCreate(
 			}
 		}
 
-		// Validate parentId: must exist AND belong to the same taxonomy.
-		// (Cycle check is N/A on create — the term doesn't exist yet.)
+		// Validate parentId: must exist AND belong to the same taxonomy, and must
+		// not sit under the term a translation joins.
 		const parentError = await validateParentTerm(
 			repo,
 			taxonomyName,

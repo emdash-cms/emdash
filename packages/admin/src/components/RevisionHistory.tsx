@@ -164,10 +164,12 @@ export function RevisionHistory({
 					}
 				>
 					<span className="flex items-center gap-1.5">
-						<Text bold as="span">
+						<Text as="span" DANGEROUS_className="font-semibold">
 							{t`Revisions`}
 						</Text>
-						{total > 0 && <span className="font-normal text-kumo-subtle">({total})</span>}
+						{total > 0 && (
+							<span className="text-xs font-normal leading-4 text-kumo-subtle">({total})</span>
+						)}
 					</span>
 					<CaretDown
 						className={cn(
@@ -194,11 +196,13 @@ export function RevisionHistory({
 								<Loader />
 							</div>
 						) : error ? (
-							<div className="py-4 text-center text-sm text-kumo-danger">
+							<div className="py-4 text-center text-xs leading-4 text-kumo-danger">
 								{t`Failed to load revisions`}
 							</div>
 						) : revisions.length === 0 ? (
-							<div className="py-4 text-center text-sm text-kumo-subtle">{t`No revisions yet`}</div>
+							<div className="py-4 text-center text-xs leading-4 text-kumo-subtle">
+								{t`No revisions yet`}
+							</div>
 						) : (
 							<div className="space-y-1 pt-2">
 								{revisions.map((revision, index) => (
@@ -278,7 +282,7 @@ function RevisionItem({
 			<div className="flex items-start justify-between gap-2">
 				<button type="button" onClick={onSelect} className="flex-1 text-start">
 					<div className="flex items-center gap-2">
-						<span className="text-sm font-medium">{formatRelativeTime(revision.createdAt)}</span>
+						<span className="text-base font-medium">{formatRelativeTime(revision.createdAt)}</span>
 						{isLatest && <Badge variant="outline">{t`Current`}</Badge>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-0.5">

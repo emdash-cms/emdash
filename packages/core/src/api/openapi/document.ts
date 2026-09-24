@@ -21,7 +21,12 @@ import {
 	adminCommentListResponseSchema,
 	publicCommentListResponseSchema,
 } from "../schemas/comments.js";
-import { apiErrorSchema, deleteResponseSchema, successEnvelope } from "../schemas/common.js";
+import {
+	apiErrorSchema,
+	deleteResponseSchema,
+	mediaDeleteResponseSchema,
+	successEnvelope,
+} from "../schemas/common.js";
 import {
 	contentCompareResponseSchema,
 	contentAuthorsResponseSchema,
@@ -29,6 +34,9 @@ import {
 	contentItemSchema,
 	contentListQuery,
 	contentListResponseSchema,
+	contentPublishBody,
+	contentRestoreResponseSchema,
+	contentRevisionConditionBody,
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
@@ -40,7 +48,7 @@ import {
 } from "../schemas/content.js";
 import {
 	entryLockAcquireBody,
-	entryLockConflictSchema,
+	entryMutationConflictSchema,
 	entryLockReleaseResponseSchema,
 	entryLockStatusSchema,
 } from "../schemas/entry-lock.js";
@@ -126,6 +134,11 @@ import {
 	orphanRegisterBody,
 	updateCollectionBody,
 	updateFieldBody,
+	activateBlockTypeVersionBody,
+	blockTypeListResponseSchema,
+	blockTypeResponseSchema,
+	createBlockTypeBody,
+	updateBlockTypeBody,
 } from "../schemas/schema.js";
 import {
 	searchEnableBody,
@@ -221,11 +234,13 @@ const entryPathParams = z.object({
 	id: z.string().meta({ description: "Content ID or slug" }),
 });
 
-/** 409 that carries the edit lock's holder in `error.details` */
-const entryLockConflict = {
+/** 409 for optimistic-concurrency or edit-lock conflicts. */
+const entryMutationConflict = {
 	"409": {
-		description: "Another editor holds the entry's edit lock",
-		content: { [JSON_CONTENT]: { schema: entryLockConflictSchema } },
+		description: "The content changed or another editor holds its edit lock",
+		content: {
+			[JSON_CONTENT]: { schema: entryMutationConflictSchema },
+		},
 	},
 };
 
@@ -368,7 +383,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -377,12 +392,17 @@ const contentPaths = {
 		post: {
 			operationId: "publishContent",
 			summary: "Publish a content item",
+			description:
+				"Promotes the current draft to live content and clears any pending schedule. An optional revision token rejects stale publication attempts.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentPublishBody } },
 			},
 			responses: {
 				"200": {
@@ -394,8 +414,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -412,6 +432,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Unpublished content item",
@@ -422,8 +445,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -453,13 +476,14 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(400, 404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 		delete: {
 			operationId: "unscheduleContent",
 			summary: "Cancel scheduled publishing",
-			description: "Reverts a scheduled item to draft status.",
+			description:
+				"Clears the scheduled publication time. A scheduled draft returns to draft status; a published item stays published.",
 			tags: ["Content"],
 			requestParams: {
 				path: entryPathParams,
@@ -481,7 +505,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -528,12 +552,12 @@ const contentPaths = {
 					description: "Restored",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ restored: z.literal(true) })),
+							schema: successEnvelope(contentRestoreResponseSchema),
 						},
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
+				...standardErrors(404, 409, 500),
 			},
 		},
 	},
@@ -603,6 +627,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Content item reverted to live version",
@@ -613,8 +640,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -1014,7 +1041,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				responses: {
 					"200": {
 						description: "Deleted",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaDeleteResponseSchema) } },
 					},
 					...authErrors,
 					...standardErrors(404, 500),
@@ -1357,6 +1384,87 @@ function buildMediaPaths(maxUploadSize: number) {
 // ---------------------------------------------------------------------------
 
 const schemaPaths = {
+	"/_emdash/api/schema/block-types": {
+		get: {
+			operationId: "listBlockTypes",
+			summary: "List block types",
+			tags: ["Schema"],
+			responses: {
+				"200": {
+					description: "Block type list",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeListResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+		post: {
+			operationId: "createBlockType",
+			summary: "Create a block type",
+			tags: ["Schema"],
+			requestBody: { content: { [JSON_CONTENT]: { schema: createBlockTypeBody } } },
+			responses: {
+				"201": {
+					description: "Created block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/block-types/{slug}": {
+		get: {
+			operationId: "getBlockType",
+			summary: "Get a block type",
+			tags: ["Schema"],
+			requestParams: { path: z.object({ slug: z.string() }) },
+			responses: {
+				"200": {
+					description: "Block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		put: {
+			operationId: "updateBlockType",
+			summary: "Update a block type",
+			tags: ["Schema"],
+			requestParams: { path: z.object({ slug: z.string() }) },
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateBlockTypeBody } } },
+			responses: {
+				"200": {
+					description: "Updated block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/block-types/{slug}/versions/{version}/activate": {
+		post: {
+			operationId: "activateBlockTypeVersion",
+			summary: "Activate a block type version",
+			tags: ["Schema"],
+			requestParams: {
+				path: z.object({ slug: z.string(), version: z.coerce.number().int().positive() }),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: activateBlockTypeVersionBody } },
+			},
+			responses: {
+				"200": {
+					description: "Activated block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
 	"/_emdash/api/schema/collections": {
 		get: {
 			operationId: "listCollections",

@@ -2063,9 +2063,20 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 	});
 
-	test("cleanupOnClose is a no-op without live credentials", async () => {
+	test("cleanupOnClose clears idle scheduling state without live credentials", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:state": "needs_attention",
+				"o:labelReconcileNextAt": Date.now() + 15 * 60_000,
+			});
+			await state.storage.setAlarm(Date.now() + 15 * 60_000);
+		});
 		const outcome = await stub.cleanupOnClose(42);
 		expect(outcome.kind).toBe("skipped");
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeNull();
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
 	});
 });

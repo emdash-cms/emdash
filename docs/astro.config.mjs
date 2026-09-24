@@ -7,6 +7,7 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
 	site: "https://docs.emdashcms.com",
 	redirects: {
+		"/": "/getting-started/",
 		"/introduction": "/why-emdash",
 	},
 	session: false,
@@ -75,6 +76,7 @@ export default defineConfig({
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
 						{ label: "Page Layouts", slug: "guides/page-layouts" },
+						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
 						{ label: "Authentication", slug: "guides/authentication" },
@@ -256,6 +258,7 @@ export default defineConfig({
 					items: [
 						{ label: "Configuration", slug: "reference/configuration" },
 						{ label: "CLI Commands", slug: "reference/cli" },
+						{ label: "Content Lifecycle", slug: "reference/content-lifecycle" },
 						{ label: "API Reference", slug: "reference/api" },
 						{ label: "Field Types", slug: "reference/field-types" },
 						{ label: "Hook Reference", slug: "reference/hooks" },

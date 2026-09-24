@@ -1214,9 +1214,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.ctx.storage.put(STORAGE.anchorNumber, anchorNumber);
 		const creds = readAppCreds(this.env);
 		const repo = readRepoContext(this.env);
-		if (!creds || !repo) return { kind: "skipped", reason: "credentials or repository missing" };
-		const error = await this.runReapBranch(creds, repo, anchorNumber);
-		return error ? { kind: "error", error } : { kind: "reaped" };
+		let outcome: CleanupOutcome;
+		if (!creds || !repo) {
+			outcome = { kind: "skipped", reason: "credentials or repository missing" };
+		} else {
+			const error = await this.runReapBranch(creds, repo, anchorNumber);
+			outcome = error ? { kind: "error", error } : { kind: "reaped" };
+		}
+		await this.armAlarm(false, "issue-closed");
+		return outcome;
 	}
 
 	/**
@@ -1770,8 +1776,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		return true;
 	}
 
-	/** DO alarm handler. Self-rearms. */
+	/** DO alarm handler. Self-rearms while durable work remains. */
 	override async alarm(): Promise<void> {
+		if (!(await this.armAlarm())) return;
 		try {
 			await this.tick();
 		} catch (err) {
@@ -1780,9 +1787,43 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.armAlarm();
 	}
 
-	private async armAlarm(force = false): Promise<void> {
+	private async cleanupSchedulingState(reason: string): Promise<void> {
+		const [anchorNumber, state, prNumber, alarmAt] = await Promise.all([
+			this.ctx.storage.get<number>(STORAGE.anchorNumber),
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<number>(STORAGE.prNumber),
+			this.ctx.storage.getAlarm(),
+		]);
+		await this.ctx.storage.transaction(async (transaction) => {
+			await Promise.all([
+				transaction.delete(STORAGE.awaitingReporterSince),
+				transaction.delete(STORAGE.deadlineWarningRetryAt),
+				transaction.delete(STORAGE.previewBuildDeadline),
+				transaction.delete(STORAGE.previewPollNextAt),
+				transaction.delete(STORAGE.prPollNextAt),
+				transaction.delete(STORAGE.githubRetryAt),
+				transaction.delete(STORAGE.publicationRetryAt),
+				transaction.delete(STORAGE.recoveryRetry),
+				transaction.delete(STORAGE.labelReconcileNextAt),
+				transaction.deleteAlarm(),
+			]);
+		});
+		console.info(
+			JSON.stringify({
+				message: "orchestrator self-cleanup completed",
+				anchorNumber: anchorNumber ?? null,
+				state: state ?? null,
+				prNumber: prNumber ?? null,
+				reason,
+				alarmAt,
+			}),
+		);
+	}
+
+	private async armAlarm(force = false, idleReason = "idle"): Promise<boolean> {
 		const [
 			current,
+			state,
 			run,
 			legacyRunStartedAt,
 			legacyRunMode,
@@ -1790,10 +1831,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			warningRetryAt,
 			currentRunId,
 			inbox,
+			pendingDispatch,
 			pendingSideEffects,
 			workComments,
 			pendingResume,
+			awaitingReporterSince,
+			previewBuildDeadline,
 			previewPollNextAt,
+			prNumber,
 			prPollNextAt,
 			githubRetryAt,
 			publicationRetryAt,
@@ -1803,6 +1848,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			anchorTerminal,
 		] = await Promise.all([
 			this.ctx.storage.getAlarm(),
+			this.ctx.storage.get<StateId>(STORAGE.state),
 			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
 			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
@@ -1810,10 +1856,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<number>(STORAGE.deadlineWarningRetryAt),
 			this.ctx.storage.get<string>(STORAGE.currentRunId),
 			this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox),
+			this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch),
 			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
 			this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments),
 			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
+			this.ctx.storage.get<number>(STORAGE.awaitingReporterSince),
+			this.ctx.storage.get<number>(STORAGE.previewBuildDeadline),
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
+			this.ctx.storage.get<number>(STORAGE.prNumber),
 			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
 			this.ctx.storage.get<number>(STORAGE.githubRetryAt),
 			this.ctx.storage.get<number>(STORAGE.publicationRetryAt),
@@ -1824,8 +1874,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 		]);
 		const now = Date.now();
 		if (recoveryTerminal || anchorTerminal) {
-			if (current !== null) await this.ctx.storage.deleteAlarm();
-			return;
+			await this.cleanupSchedulingState(
+				recoveryTerminal ? "recovery-exhausted" : "anchor-terminal",
+			);
+			return false;
 		}
 		const activeRun = run?.status === "running" ? run : null;
 		const runStartedAt = activeRun?.startedAt ?? legacyRunStartedAt;
@@ -1837,35 +1889,85 @@ export class OrchestratorDO extends DurableObject<Env> {
 			scheduledRunAlarm !== null && warningSentRunId !== currentRunId && warningRetryAt
 				? Math.max(scheduledRunAlarm, warningRetryAt)
 				: scheduledRunAlarm;
-		let desired = now + TICK_INTERVAL_MS;
-		if (
+		const hasImmediateWork = Boolean(
 			inbox?.length ||
+			pendingDispatch ||
 			pendingSideEffects?.length ||
 			workComments?.some((comment) => comment.pending) ||
-			pendingResume
-		) {
+			pendingResume,
+		);
+		const hasPreviewWork = state === "preview_building" && previewBuildDeadline !== undefined;
+		const hasPullRequestWork =
+			prNumber !== undefined &&
+			prPollNextAt !== undefined &&
+			(state === "in_review" || state === "needs_attention");
+		const reporterExpiryAt =
+			state === "awaiting_reporter" && awaitingReporterSince !== undefined
+				? awaitingReporterSince + REPORTER_SILENCE_WINDOW_MS
+				: null;
+		const hasAutomationWork =
+			hasImmediateWork ||
+			runAlarmAt !== null ||
+			hasPreviewWork ||
+			hasPullRequestWork ||
+			reporterExpiryAt !== null ||
+			publicationRetryAt !== undefined;
+		const hasRecoveryWork = recoveryRetry !== undefined && recoveryRetry.path !== "labels";
+		const terminalAtRest =
+			state !== undefined && STATES[state].terminal && !hasImmediateWork && runAlarmAt === null;
+		if (terminalAtRest || (!hasAutomationWork && !hasRecoveryWork)) {
+			const reason = state && STATES[state].terminal ? `terminal:${state}` : idleReason;
+			await this.cleanupSchedulingState(reason);
+			return false;
+		}
+		const reconcileLabels =
+			hasImmediateWork || runAlarmAt !== null || hasPreviewWork || hasPullRequestWork;
+		if (!reconcileLabels && labelReconcileNextAt !== undefined) {
+			await this.ctx.storage.delete(STORAGE.labelReconcileNextAt);
+		}
+		const needsPeriodicTick =
+			hasImmediateWork ||
+			runAlarmAt !== null ||
+			hasPreviewWork ||
+			hasPullRequestWork ||
+			publicationRetryAt !== undefined ||
+			hasRecoveryWork;
+		let desired = needsPeriodicTick
+			? now + TICK_INTERVAL_MS
+			: Math.max(now + 1_000, reporterExpiryAt ?? now + TICK_INTERVAL_MS);
+		if (hasImmediateWork) {
 			desired = Math.min(desired, now + INBOX_RETRY_MS);
 		}
 		if (runAlarmAt !== null) {
 			desired = Math.min(desired, Math.max(now + 1_000, runAlarmAt));
 		}
-		if (previewPollNextAt !== undefined) {
-			desired = Math.min(desired, Math.max(now + 1_000, previewPollNextAt));
+		if (hasPreviewWork) {
+			desired = Math.min(desired, Math.max(now + 1_000, previewPollNextAt ?? previewBuildDeadline));
 		}
-		if (prPollNextAt !== undefined) {
+		if (hasPullRequestWork) {
 			desired = Math.min(desired, Math.max(now + 1_000, prPollNextAt));
 		}
-		if (labelReconcileNextAt !== undefined) {
+		if (reconcileLabels && labelReconcileNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, labelReconcileNextAt));
+		}
+		if (reporterExpiryAt !== null) {
+			desired = Math.min(desired, Math.max(now + 1_000, reporterExpiryAt));
 		}
 		if (publicationRetryAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, publicationRetryAt));
 		}
 		const retryAt = Math.max(githubRetryAt ?? 0, recoveryRetry?.nextAt ?? 0);
 		if (retryAt > now) desired = Math.max(desired, retryAt);
-		if (force || current === null || current <= now || current > desired) {
+		if (
+			force ||
+			current === null ||
+			current <= now ||
+			current > desired ||
+			(retryAt > now && current < retryAt)
+		) {
 			await this.ctx.storage.setAlarm(desired);
 		}
+		return true;
 	}
 
 	private async sendDeadlineWarningIfDue(now: number): Promise<boolean> {
@@ -2132,11 +2234,42 @@ export class OrchestratorDO extends DurableObject<Env> {
 	}
 
 	private async reconcileLabels(now: number): Promise<{ added: number; removed: number } | null> {
-		const [pendingDispatch, pendingSideEffects, nextAt] = await Promise.all([
+		const [
+			pendingDispatch,
+			pendingSideEffects,
+			nextAt,
+			state,
+			run,
+			legacyRunStartedAt,
+			currentRunId,
+			prNumber,
+			prPollNextAt,
+			previewBuildDeadline,
+		] = await Promise.all([
 			this.ctx.storage.get<PendingDispatch>(STORAGE.pendingDispatch),
 			this.ctx.storage.get<PendingSideEffect[]>(STORAGE.pendingSideEffects),
 			this.ctx.storage.get<number>(STORAGE.labelReconcileNextAt),
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+			this.ctx.storage.get<number>(STORAGE.prNumber),
+			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
+			this.ctx.storage.get<number>(STORAGE.previewBuildDeadline),
 		]);
+		const activeRun =
+			run?.status === "running" || (currentRunId && legacyRunStartedAt !== undefined);
+		const activeAutomation = Boolean(
+			activeRun ||
+			(state === "preview_building" && previewBuildDeadline !== undefined) ||
+			(prNumber !== undefined &&
+				prPollNextAt !== undefined &&
+				(state === "in_review" || state === "needs_attention")),
+		);
+		if (!activeAutomation) {
+			if (nextAt !== undefined) await this.ctx.storage.delete(STORAGE.labelReconcileNextAt);
+			return null;
+		}
 		if (pendingDispatch || pendingSideEffects?.length || (nextAt !== undefined && now < nextAt)) {
 			return null;
 		}
@@ -2146,7 +2279,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 		if (!creds || !repo) return null;
 		const anchorNumber = await this.ctx.storage.get<number>(STORAGE.anchorNumber);
 		if (anchorNumber === undefined) return null;
-		const state = await this.ctx.storage.get<StateId>(STORAGE.state);
 		const kind = await this.ctx.storage.get<Kind>(STORAGE.kind);
 		if (!state) return null;
 

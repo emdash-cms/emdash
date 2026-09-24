@@ -756,4 +756,27 @@ describe("ReviewWatchdog terminal arbitration", () => {
 		expect(github.removePullRequestLabel).toHaveBeenCalled();
 		expect(storage.alarm).toBeGreaterThan(Date.now());
 	});
+
+	it("logs when terminal retention expires and the watchdog cleans itself up", async () => {
+		const { attempt, storage, watchdog } = setup();
+		const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+		await storage.put("attempt", {
+			...attempt,
+			terminal: { conclusion: "success", summary: "complete" },
+			terminalReportedAt: Date.now() - 8 * 24 * 60 * 60_000,
+		});
+		await storage.setAlarm(Date.now());
+
+		await watchdog.alarm();
+
+		expect(storage.values.size).toBe(0);
+		expect(storage.alarm).toBeUndefined();
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"message":"review watchdog self-cleanup completed"'),
+		);
+		expect(log).toHaveBeenCalledWith(
+			expect.stringContaining('"reason":"terminal-retention-expired"'),
+		);
+		expect(log).toHaveBeenCalledWith(expect.stringContaining('"attemptId":"attempt-1"'));
+	});
 });

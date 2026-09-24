@@ -17,6 +17,7 @@ export interface NodeSqliteCompatStatement {
 
 export interface NodeSqliteOpenOptions {
 	journalMode?: "wal";
+	readOnly?: boolean;
 }
 
 type SqliteBinding = null | number | bigint | string | Uint8Array;
@@ -25,14 +26,14 @@ export function openNodeSqliteDatabase(
 	path: string,
 	options: NodeSqliteOpenOptions = {},
 ): NodeSqliteCompatDatabase {
-	const database = new DatabaseSync(path);
+	const database = new DatabaseSync(path, { readOnly: options.readOnly });
 
 	try {
 		database.exec("PRAGMA busy_timeout = 5000");
 		database.exec("PRAGMA foreign_keys = ON");
 		// Negative cache_size values are kibibytes.
 		database.exec("PRAGMA cache_size = -16000");
-		if (options.journalMode === "wal") {
+		if (options.journalMode === "wal" && !options.readOnly) {
 			database.exec("PRAGMA journal_mode = WAL");
 		}
 		const journalMode = database.prepare("PRAGMA journal_mode").get()?.["journal_mode"];

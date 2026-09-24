@@ -1743,7 +1743,7 @@ describe("Code block copy action", () => {
 		}
 	});
 
-	it("preserves alias, free-form, apply, and cancel behavior", async () => {
+	it("preserves alias, free-form, and cancel behavior", async () => {
 		const { screen, editor } = await renderAndGetEditor({
 			value: [
 				{
@@ -1756,27 +1756,89 @@ describe("Code block copy action", () => {
 		});
 		const storedLanguage = () =>
 			editor.getJSON().content?.find((item) => item.type === "codeBlock")?.attrs?.language;
-		const clickPickerAction = (label: "Apply language" | "Cancel") => {
-			const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
-			expect(button).not.toBeNull();
-			button?.click();
-		};
 		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
-		await screen.getByPlaceholder("Language").fill("js");
-		clickPickerAction("Apply language");
+		await screen.getByPlaceholder("Search for a language…").fill("js");
+		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("javascript"));
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
-		await screen.getByPlaceholder("Language").fill("Discarded Language");
-		const cancelButton = document.querySelector<HTMLButtonElement>('button[aria-label="Cancel"]');
-		expect(cancelButton).not.toBeNull();
-		cancelButton?.focus();
-		await userEvent.keyboard("{Enter}");
+		const discardedInput = screen.getByPlaceholder("Search for a language…");
+		await discardedInput.fill("Discarded Language");
+		const discardedInputElement = discardedInput.element() as HTMLInputElement;
+		await userEvent.keyboard("{Escape}");
+		expect(discardedInputElement.value).toBe("Discarded Language");
 		expect(storedLanguage()).toBe("javascript");
 
 		await screen.getByRole("button", { name: "Set language (current: JavaScript)" }).click();
-		await screen.getByPlaceholder("Language").fill("Custom Language");
-		clickPickerAction("Apply language");
+		await screen.getByRole("combobox", { name: "Language" }).fill("Custom Language");
+		await expect
+			.element(screen.getByText("No matches. Press Enter to use “custom-language”."))
+			.toBeVisible();
+		await userEvent.keyboard("{Enter}");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
+
+		await screen.getByRole("button", { name: "Set language (current: custom-language)" }).click();
+		await userEvent.keyboard("{ArrowDown}{Enter}");
+		await vi.waitFor(() => expect(storedLanguage()).toBe("astro"));
+	});
+
+	it("keeps language suggestions available while typing over the current language", async () => {
+		const { screen, editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: 'const greeting = "hello";',
+					language: "plaintext",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: Plain text)" }).click();
+
+		const input = screen.getByPlaceholder("Search for a language…");
+		await expect.element(input).toHaveValue("");
+		expect(
+			screen
+				.getByRole("option")
+				.elements()
+				.slice(0, 3)
+				.map((option) => option.textContent?.trim()),
+		).toEqual(["Astro", "Bash", "C"]);
+		const emptyStatus = document.querySelector<HTMLElement>('.kumo-popover-popup [role="status"]');
+		expect(emptyStatus).not.toBeNull();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill(" js ");
+		await expect.element(screen.getByRole("option", { name: "JavaScript" })).toBeVisible();
+		expect(emptyStatus?.offsetHeight).toBe(0);
+		await input.fill("");
+		await userEvent.keyboard("Java");
+
+		await expect.element(input).toHaveValue("Java");
+		await screen.getByRole("option", { name: "JavaScript" }).click();
+
+		await vi.waitFor(() => {
+			const codeBlock = editor.getJSON().content?.find((item) => item.type === "codeBlock");
+			expect(codeBlock?.attrs?.language).toBe("javascript");
+			expect(codeBlock?.content?.[0]?.text).toBe('const greeting = "hello";');
+		});
+	});
+
+	it("identifies the search and marks the stored language", async () => {
+		const { screen } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "code",
+					_key: "code",
+					code: "Console.WriteLine();",
+					language: "csharp",
+				},
+			],
+		});
+		await screen.getByRole("button", { name: "Set language (current: C#)" }).click();
+
+		await expect.element(screen.getByRole("combobox", { name: "Language" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("option", { name: "C#" }))
+			.toHaveAttribute("aria-selected", "true");
 	});
 
 	it("prevents block formatting that cannot survive inside a table cell", async () => {

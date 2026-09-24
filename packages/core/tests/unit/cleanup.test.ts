@@ -215,6 +215,31 @@ describe("Scheduled system cleanup", () => {
 	});
 });
 
+describe("Media upload-attempt cleanup", () => {
+	it("moves failed keys behind the rest of the cleanup batch", async () => {
+		vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z") });
+		const db = await setupTestDatabase();
+		const repo = new MediaRepository(db);
+		try {
+			for (let i = 0; i < 3; i++) {
+				await repo.trackStorageKeyForCleanup(`media-${i}`, `failed-${i}.png`);
+			}
+			vi.advanceTimersByTime(1_000);
+			await repo.trackStorageKeyForCleanup("media-new", "newer.png");
+			vi.advanceTimersByTime(1_000);
+
+			for (let i = 0; i < 3; i++) {
+				await repo.deferUploadAttemptCleanup(`failed-${i}.png`);
+			}
+
+			expect(await repo.findUploadAttemptsForCleanup(0, 1)).toEqual(["newer.png"]);
+		} finally {
+			vi.useRealTimers();
+			await db.destroy();
+		}
+	});
+});
+
 describe("MediaRepository.cleanupPendingUploads", () => {
 	let db: Kysely<Database>;
 	let mediaRepo: MediaRepository;

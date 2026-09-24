@@ -25,6 +25,7 @@ import {
 import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import type { PluginState } from "../../plugins/state.js";
 import {
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
@@ -54,6 +55,11 @@ export interface MarketplaceUpdateResult {
 	routeVisibilityChanges?: {
 		newlyPublic: string[];
 	};
+}
+
+export interface PluginUpdateRollbackResult {
+	pluginId: string;
+	version: string;
 }
 
 export interface MarketplaceUpdateCheck {
@@ -311,6 +317,55 @@ export async function deleteBundleFromR2(
 		} catch {
 			// Ignore missing files
 		}
+	}
+}
+
+export async function rollbackPluginUpdate(
+	db: Kysely<Database>,
+	storage: Storage | null,
+	previousState: PluginState,
+	failedVersion: string,
+	source: PluginBundleSource,
+): Promise<ApiResult<PluginUpdateRollbackResult>> {
+	if (!storage) {
+		return {
+			success: false,
+			error: { code: "STORAGE_NOT_CONFIGURED", message: "Storage is required" },
+		};
+	}
+	if (previousState.source !== source) {
+		return {
+			success: false,
+			error: { code: "UPDATE_ROLLBACK_CONFLICT", message: "Plugin source changed during update" },
+		};
+	}
+
+	try {
+		const restored = await new PluginStateRepository(db).restoreIfVersion(
+			failedVersion,
+			previousState,
+		);
+		if (!restored) {
+			return {
+				success: false,
+				error: {
+					code: "UPDATE_ROLLBACK_CONFLICT",
+					message: "Plugin state changed before the failed update could be rolled back",
+				},
+			};
+		}
+
+		await deleteBundleFromR2(storage, previousState.pluginId, failedVersion, source);
+		return {
+			success: true,
+			data: { pluginId: previousState.pluginId, version: previousState.version },
+		};
+	} catch (error) {
+		console.error("Failed to roll back plugin update:", error);
+		return {
+			success: false,
+			error: { code: "UPDATE_ROLLBACK_FAILED", message: "Failed to roll back plugin update" },
+		};
 	}
 }
 
@@ -814,11 +869,6 @@ export async function handleMarketplaceUninstall(
 		const version = existing.marketplaceVersion ?? existing.version;
 		await opts?.beforeDelete?.();
 
-		// Delete bundle from site R2
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version);
-		}
-
 		// Optionally delete plugin storage data
 		let dataDeleted = false;
 		if (opts?.deleteData) {
@@ -838,6 +888,12 @@ export async function handleMarketplaceUninstall(
 
 		// Delete state row
 		await stateRepo.delete(pluginId);
+
+		// Delete the bundle after database state. A failed external cleanup can
+		// leave an inert orphan, but never an active row pointing at missing bytes.
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version);
+		}
 
 		return {
 			success: true,

@@ -102,7 +102,7 @@ describe("content restore hooks", () => {
 			expect.objectContaining({
 				id: item.id,
 				slug: "restored-post",
-				status: "published",
+				status: "draft",
 			}),
 		);
 		expect(afterRestore).toHaveBeenCalledTimes(1);
@@ -112,7 +112,7 @@ describe("content restore hooks", () => {
 				content: expect.objectContaining({
 					id: item.id,
 					slug: "restored-post",
-					status: "published",
+					status: "draft",
 				}),
 			}),
 		);

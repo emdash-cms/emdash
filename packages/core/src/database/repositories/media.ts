@@ -201,6 +201,28 @@ export class MediaRepository {
 			.execute();
 	}
 
+	/**
+	 * Register a stored object for cleanup before its media row is removed,
+	 * so a failed storage delete is retried by the cleanup sweep instead of
+	 * leaving the object unreferenced and unreachable.
+	 */
+	async trackStorageKeyForCleanup(mediaId: string, storageKey: string): Promise<void> {
+		const now = new Date().toISOString();
+		await this.db
+			.insertInto("_emdash_media_upload_attempts")
+			.values({
+				media_id: mediaId,
+				storage_key: storageKey,
+				status: "cleanup",
+				created_at: now,
+				updated_at: now,
+			})
+			.onConflict((oc) =>
+				oc.column("storage_key").doUpdateSet({ status: "cleanup", updated_at: now }),
+			)
+			.execute();
+	}
+
 	async hasUploadAttempt(storageKey: string): Promise<boolean> {
 		const row = await this.db
 			.selectFrom("_emdash_media_upload_attempts")
@@ -237,9 +259,18 @@ export class MediaRepository {
 			.execute();
 	}
 
+	async deferUploadAttemptCleanup(storageKey: string): Promise<void> {
+		await this.db
+			.updateTable("_emdash_media_upload_attempts")
+			.set({ updated_at: new Date().toISOString() })
+			.where("storage_key", "=", storageKey)
+			.execute();
+	}
+
 	async deleteCompletedUploadAttempts(): Promise<number> {
 		const result = await this.db
 			.deleteFrom("_emdash_media_upload_attempts")
+			.where("status", "=", "active")
 			.where((eb) =>
 				eb.exists(
 					eb
@@ -273,7 +304,7 @@ export class MediaRepository {
 					),
 				),
 			)
-			.orderBy("created_at", "asc")
+			.orderBy("updated_at", "asc")
 			.limit(limit)
 			.execute();
 

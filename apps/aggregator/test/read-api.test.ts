@@ -73,6 +73,7 @@ interface SeedPackageOpts {
 	indexedAt?: string;
 	verifiedAt?: string;
 	carBytes?: Uint8Array;
+	installable?: boolean;
 }
 
 async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
@@ -82,9 +83,10 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 	await testEnv.DB.prepare(
 		`INSERT INTO packages
 		   (did, slug, type, name, description, license, authors, security, keywords,
-		    sections, last_updated, latest_version, capabilities, record_blob,
-		    signature_metadata, verified_at, indexed_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		    sections, emdash_extension, installability_status, installability_error,
+		    last_updated, latest_version, capabilities, record_blob, signature_metadata,
+		    verified_at, indexed_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 	)
 		.bind(
 			did,
@@ -97,6 +99,14 @@ async function seedPackage(opts: SeedPackageOpts = {}): Promise<void> {
 			JSON.stringify([{ email: "x@y.test" }]),
 			opts.keywords === null ? null : JSON.stringify(opts.keywords ?? ["demo"]),
 			null,
+			opts.installable === false
+				? null
+				: JSON.stringify({
+						$type: NSID.packageProfileExtension,
+						repository: "https://github.com/example/demo",
+					}),
+			opts.installable === false ? "invalid" : "valid",
+			opts.installable === false ? "PROFILE_EXTENSION_INVALID" : null,
 			NOW.toISOString(),
 			opts.latestVersion ?? null,
 			null,
@@ -230,6 +240,22 @@ describe("getPackage", () => {
 		expect(profile["id"]).toBe(`at://${DID_A}/${NSID.packageProfile}/demo`);
 		expect(profile["license"]).toBe("MIT");
 		expect(profile["slug"]).toBe("demo");
+		expect(profile["extensions"]).toEqual({
+			[NSID.packageProfileExtension]: {
+				$type: NSID.packageProfileExtension,
+				repository: "https://github.com/example/demo",
+			},
+		});
+	});
+
+	it("does not expose a profile that cannot pass install verification", async () => {
+		await seedPackage({ slug: "demo", installable: false });
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		expect(res.status).toBe(404);
 	});
 
 	it("returns 404 NotFound when no row matches", async () => {

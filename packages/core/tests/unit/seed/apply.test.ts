@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
@@ -66,7 +67,7 @@ describe("applySeed", () => {
 			const seed: SeedFile = {
 				version: "1",
 				settings: {
-					siteTitle: "Test Site",
+					title: "Test Site",
 					tagline: "A test site",
 				},
 			};
@@ -75,14 +76,88 @@ describe("applySeed", () => {
 
 			expect(result.settings.applied).toBe(2);
 
-			// Verify settings were saved
+			// Verify settings were saved under the real site:* keys
 			const row = await db
 				.selectFrom("options")
 				.selectAll()
-				.where("name", "=", "site:siteTitle")
+				.where("name", "=", "site:title")
 				.executeTakeFirst();
 
 			expect(row?.value).toBe('"Test Site"');
+		});
+
+		it("should skip existing settings and create missing ones in skip mode", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.settings.applied).toBe(1);
+			expect(await options.get("site:title")).toBe("Admin Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should apply each setting independently when a later key conflicts", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					tagline: "A seeded tagline",
+					title: "Seed Title",
+				},
+			};
+
+			const result = await applySeed(db, seed);
+
+			expect(result.settings.applied).toBe(1);
+			expect(await options.get("site:title")).toBe("Admin Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should overwrite settings in update mode", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			const result = await applySeed(db, seed, { onConflict: "update" });
+
+			expect(result.settings.applied).toBe(2);
+			expect(await options.get("site:title")).toBe("Seed Title");
+			expect(await options.get("site:tagline")).toBe("A seeded tagline");
+		});
+
+		it("should throw in error mode when a seeded setting already exists", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("site:title", "Admin Title");
+
+			const seed: SeedFile = {
+				version: "1",
+				settings: {
+					title: "Seed Title",
+					tagline: "A seeded tagline",
+				},
+			};
+
+			await expect(applySeed(db, seed, { onConflict: "error" })).rejects.toThrow(
+				'Conflict: site setting "site:title" already exists',
+			);
 		});
 	});
 
@@ -1661,6 +1736,50 @@ describe("applySeed", () => {
 			expect(terms[0]?.slug).toBe("tech");
 			expect(terms[1]?.slug).toBe("tecnologia");
 			expect(terms[0]?.translation_group).toBe(terms[1]?.translation_group);
+		});
+
+		it("keeps a term translation that names no parent under its term's parent", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				taxonomies: [
+					{
+						id: "tax:topics:en",
+						name: "topics",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+						terms: [
+							{ id: "term:news:en", slug: "news", label: "News", locale: "en" },
+							{ id: "term:local:en", slug: "local", label: "Local", parent: "news", locale: "en" },
+						],
+					},
+					{
+						id: "tax:topics:es",
+						name: "topics",
+						label: "Temas",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "tax:topics:en",
+						terms: [
+							{
+								slug: "local-es",
+								label: "Local ES",
+								locale: "es",
+								translationOf: "term:local:en",
+							},
+						],
+					},
+				],
+			};
+
+			await applySeed(db, seed, { includeContent: true });
+
+			const repo = new TaxonomyRepository(db);
+			const news = await repo.findBySlug("topics", "news", "en");
+			const localEs = await repo.findBySlug("topics", "local-es", "es");
+			expect(localEs?.parentId).toBe(news?.translationGroup);
 		});
 	});
 });

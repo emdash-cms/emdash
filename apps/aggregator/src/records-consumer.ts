@@ -33,11 +33,13 @@ import { safeParse } from "@atcute/lexicons/validations";
 import {
 	NSID,
 	PackageProfile,
+	PackageProfileExtension,
 	PackageRelease,
 	PackageReleaseExtension,
 	PublisherProfile,
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification/repository";
 
 import { createProductionDidResolver, DidResolver } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
@@ -129,6 +131,12 @@ export class IngestError extends Error {
 		super(message);
 	}
 }
+
+export type ProfileInstallabilityError = "PROFILE_EXTENSION_INVALID";
+
+export type ProfileInstallability =
+	| { status: "valid"; extension: string | null; error: null }
+	| { status: "invalid"; extension: null; error: ProfileInstallabilityError };
 
 export async function processBatch(
 	batch: MessageBatchLike<RecordsJob>,
@@ -319,7 +327,8 @@ async function verifyAndIngest(job: RecordsJob, deps: ConsumerDeps): Promise<voi
 
 	switch (job.collection) {
 		case NSID.packageProfile:
-			return ingestPackageProfile(deps.db, job, verified, now);
+			await ingestPackageProfile(deps.db, job, verified, now);
+			return;
 		case NSID.packageRelease:
 			return ingestPackageRelease(deps.db, job, verified, now);
 		case NSID.publisherProfile:
@@ -342,7 +351,7 @@ export async function ingestPackageProfile(
 	job: RecordsJob,
 	verified: VerifiedPdsRecord,
 	now: Date,
-): Promise<void> {
+): Promise<ProfileInstallability> {
 	const validation = safeParse(PackageProfile.mainSchema, verified.record);
 	if (!validation.ok) {
 		throw new IngestError(
@@ -385,6 +394,38 @@ export async function ingestPackageProfile(
 			);
 		}
 	}
+	let installability: ProfileInstallability = { status: "valid", extension: null, error: null };
+	if (
+		isPlainObject(record.extensions) &&
+		record.extensions[NSID.packageProfileExtension] !== undefined
+	) {
+		installability = {
+			status: "invalid",
+			extension: null,
+			error: "PROFILE_EXTENSION_INVALID",
+		};
+		const rawExtension = record.extensions[NSID.packageProfileExtension];
+		const extensionValidation = safeParse(PackageProfileExtension.mainSchema, rawExtension);
+		if (extensionValidation.ok) {
+			const extension = extensionValidation.value;
+			const repository = canonicalizeRepositoryUrl(extension.repository);
+			const confirmation = extension.releasePolicy?.confirmation;
+			const approvers = extension.releasePolicy?.approvers ?? [];
+			if (
+				repository === extension.repository &&
+				(confirmation === undefined ||
+					confirmation === "always" ||
+					confirmation === "escalation-only") &&
+				new Set(approvers).size === approvers.length
+			) {
+				installability = {
+					status: "valid",
+					extension: JSON.stringify(extension),
+					error: null,
+				};
+			}
+		}
+	}
 	const slug = record.slug ?? job.rkey;
 	const sigMeta = JSON.stringify({ cid: verified.cid });
 	const nowIso = now.toISOString();
@@ -392,10 +433,14 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO package_profile_revisions
 			   (did, slug, cid, type, name, description, license, authors, security,
-			    keywords, sections, last_updated, record_blob, signature_metadata,
-			    observed_at, last_verified_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    keywords, sections, last_updated, emdash_extension, installability_status,
+			    installability_error, record_blob, signature_metadata, observed_at,
+			    last_verified_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug, cid) DO UPDATE SET
+			   emdash_extension = excluded.emdash_extension,
+			   installability_status = excluded.installability_status,
+			   installability_error = excluded.installability_error,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   last_verified_at = excluded.last_verified_at`,
@@ -413,6 +458,9 @@ export async function ingestPackageProfile(
 			record.keywords ? JSON.stringify(record.keywords) : null,
 			record.sections ? JSON.stringify(record.sections) : null,
 			record.lastUpdated ?? null,
+			installability.extension,
+			installability.status,
+			installability.error,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -422,8 +470,9 @@ export async function ingestPackageProfile(
 		.prepare(
 			`INSERT INTO packages
 			   (did, slug, type, name, description, license, authors, security, keywords, sections,
-			    last_updated, latest_version, capabilities, record_blob, signature_metadata, verified_at, indexed_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			    last_updated, latest_version, capabilities, emdash_extension, installability_status,
+			    installability_error, record_blob, signature_metadata, verified_at, indexed_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT(did, slug) DO UPDATE SET
 			   type = excluded.type,
 			   name = excluded.name,
@@ -434,6 +483,9 @@ export async function ingestPackageProfile(
 			   keywords = excluded.keywords,
 			   sections = excluded.sections,
 			   last_updated = excluded.last_updated,
+			   emdash_extension = excluded.emdash_extension,
+			   installability_status = excluded.installability_status,
+			   installability_error = excluded.installability_error,
 			   record_blob = excluded.record_blob,
 			   signature_metadata = excluded.signature_metadata,
 			   verified_at = excluded.verified_at`,
@@ -456,6 +508,9 @@ export async function ingestPackageProfile(
 			record.lastUpdated ?? null,
 			null, // latest_version — populated by release writer, not the profile writer
 			null, // capabilities — populated by release writer
+			installability.extension,
+			installability.status,
+			installability.error,
 			verified.carBytes,
 			sigMeta,
 			nowIso,
@@ -491,6 +546,7 @@ export async function ingestPackageProfile(
 	// transactional, so a failure leaves both the old pointer and old mutable
 	// compatibility row intact.
 	await db.batch([retainRevision, updateCurrentPackage, retainReleaseHistory, moveCurrentPointer]);
+	return installability;
 }
 
 export async function ingestPackageRelease(

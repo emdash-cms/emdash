@@ -2,6 +2,7 @@
 	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
 	"slug": "marketplace-test",
 	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6",
+	"repo": "https://github.com/emdash-cms/emdash",
 	"license": "MIT",
 	"author": { "name": "EmDash" },
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
@@ -16,6 +17,8 @@
 		"comments:read",
 		"comments:moderate",
 		"schema:read",
+		"admin.editor-draft:read",
+		"admin.editor-draft:patch",
 		"hooks.content-policy:register",
 		"taxonomies:read",
 		"taxonomies:write",
@@ -56,6 +59,10 @@
 				"route": "entry-context",
 				"collections": ["posts"],
 				"order": 10,
+				"draft": {
+					"read": { "fields": ["title", "excerpt"] },
+					"patch": { "fields": ["title", "excerpt"] },
+				},
 			},
 		],
 		"editorActions": [
@@ -79,7 +86,7 @@
 				"label": "Invalid action",
 				"route": "invalid-action",
 				"placement": "overflow",
-				"collections": ["posts"],
+				"collections": ["plugin_test_invalid"],
 			},
 		],
 		"settingsSchema": {

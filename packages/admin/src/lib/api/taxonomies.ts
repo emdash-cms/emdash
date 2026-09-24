@@ -136,6 +136,16 @@ export async function createTaxonomy(input: CreateTaxonomyInput): Promise<Taxono
 }
 
 /**
+ * Delete a taxonomy definition, its terms, and their content assignments.
+ *
+ * Takes no locale — the route removes the taxonomy in every language.
+ */
+export async function deleteTaxonomy(name: string): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/${name}`, { method: "DELETE" });
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete taxonomy`));
+}
+
+/**
  * Fetch terms for a taxonomy
  */
 export async function fetchTerms(

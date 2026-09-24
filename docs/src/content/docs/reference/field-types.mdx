@@ -5,7 +5,7 @@ description: Complete reference for all EmDash field types.
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash supports 16 field types for defining content schemas. Each type maps to a SQLite column type and provides appropriate admin UI.
+EmDash supports 17 field types for defining content schemas. Each type maps to a SQLite column type and provides appropriate admin UI.
 
 ## Overview
 
@@ -29,6 +29,7 @@ The following table lists every field type and its SQLite column:
 | `json`         | JSON          | Arbitrary JSON data        |
 | `slug`         | TEXT          | URL-safe identifier        |
 | `repeater`     | JSON          | Repeating group of fields  |
+| `blocks`       | JSON          | Typed page composition     |
 
 ## Text types
 
@@ -473,6 +474,48 @@ Repeater validation accepts these properties:
 - `minItems` — Minimum number of rows. Must be zero or greater.
 - `maxItems` — Maximum number of rows. Must be one or greater and cannot be less than `minItems`.
 
+### `blocks`
+
+An ordered list of typed content blocks. Each block type has its own fields and retained numbered versions. Define block types through the schema API, MCP, or a seed file before adding them to a collection field.
+
+The following field allows editors to compose a page from hero and call-to-action blocks:
+
+```ts
+{
+  slug: "layout",
+  label: "Layout",
+  type: "blocks",
+  validation: {
+    allowedTypes: ["hero", "call_to_action"],
+    maxItems: 20,
+  },
+}
+```
+
+Every stored block carries its type, version, and stable key alongside the fields declared by that version:
+
+```json
+[
+	{
+		"_type": "hero",
+		"_version": 1,
+		"_key": "01K5AB3F7M9QZ2X8W4V6T1R0YH",
+		"heading": "Bread made slowly, by hand."
+	}
+]
+```
+
+Blocks validation accepts these properties:
+
+- `allowedTypes` — Ordered block type slugs available for new blocks.
+- `retiredTypes` — Server-managed block types retained for stored content but unavailable for new blocks.
+- `minItems` — Minimum number of blocks. Raising it above zero on a populated collection requires a content migration.
+- `maxItems` — Maximum number of blocks, up to 100.
+
+A blocks field is optional and defaults to an empty array. It cannot be required, unique, searchable, indexed, or rendered by a custom field widget. Block definitions can use scalar, text, selection, Portable Text, image, file, and repeater fields. They cannot contain references, JSON, slugs, or nested blocks.
+
+Render the stored array with `<Blocks value components fallback>` from `emdash/ui`. See [Build pages with blocks](/guides/blocks/) for seed, component-map, missing-renderer, activation, and migration examples.
+
 ## Field properties
 
 All fields support these common properties:
@@ -499,6 +542,8 @@ field or used in `fieldFilters` in content list queries. Avoid indexing fields t
 for sorting or filtering because every index adds storage and write overhead.
 
 `searchable` adds the field's text to the collection's full-text search index. Set `translatable: false` for identifiers, prices, flags, and other values that must stay the same across every translation of an entry; when one locale changes a non-translatable field, EmDash synchronizes the value to its translated entries.
+
+The `blocks` type uses only `slug`, `label`, `type`, `translatable`, `validation`, and `sortOrder` from this common set. Its array is never column-required and always defaults to `[]`.
 
 ## Reserved field slugs
 
@@ -545,5 +590,6 @@ const fieldTypes: FieldType[] = [
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ];
 ```

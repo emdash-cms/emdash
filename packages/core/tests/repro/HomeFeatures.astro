@@ -1,0 +1,22 @@
+---
+interface Props {
+	value: {
+		heading?: string;
+		items: Array<{ title: string; description: string }>;
+	};
+}
+
+const { value } = Astro.props;
+---
+
+<section data-home-block="features">
+	{value.heading && <h2>{value.heading}</h2>}
+	<ul>
+		{value.items.map((item) => (
+			<li>
+				<h3>{item.title}</h3>
+				<p>{item.description}</p>
+			</li>
+		))}
+	</ul>
+</section>

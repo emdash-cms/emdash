@@ -11,6 +11,7 @@
 
 import type { Kysely } from "kysely";
 
+import { handleMediaDelete } from "../api/handlers/media.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import type { Database } from "../database/types.js";
 import type { Storage } from "../index.js";
@@ -128,25 +129,11 @@ export const createMediaProvider: CreateMediaProviderFn<LocalMediaRuntimeConfig>
 		},
 
 		async delete(id: string) {
-			const repoInstance = repo();
-			const item = await repoInstance.findById(id);
-			if (!item) return;
-
-			// Delete from storage if available
-			if (storage) {
-				try {
-					await storage.delete(item.storageKey);
-				} catch {
-					// Ignore storage deletion errors
-				}
+			const result = await handleMediaDelete(resolveDb(), id, storage);
+			if (!result.success) {
+				if (result.error.code === "NOT_FOUND") return;
+				throw new Error(result.error.message);
 			}
-
-			await repoInstance.delete(id);
-
-			// If this row was referenced by `logo`, `favicon`, or
-			// `seo.defaultOgImage`, the worker-scoped settings cache now
-			// holds a stale URL. The provider routes (and any future caller)
-			// bypass `handleMediaDelete`, so we invalidate here too.
 			invalidateSiteSettingsCache();
 		},
 

@@ -85,6 +85,7 @@ describe("registry fixture artifact round trip", () => {
 			manifest: persistedManifest,
 			checksum: bundle.sha256!,
 			url: "https://registry.example.test/marketplace-test.tgz",
+			repo: "https://github.com/emdash-cms/emdash",
 			profile: {
 				license: "MIT",
 				authorName: "EmDash",

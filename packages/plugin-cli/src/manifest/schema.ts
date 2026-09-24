@@ -353,6 +353,8 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"comments:read",
 	"comments:moderate",
 	"schema:read",
+	"admin.editor-draft:read",
+	"admin.editor-draft:patch",
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
@@ -578,16 +580,65 @@ const editorCollectionsSchema = z
 	.refine((collections) => new Set(collections).size === collections.length, {
 		message: "editor extension collections must be unique",
 	});
+const editorDraftFieldsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "invalid editor draft field slug"),
+	)
+	.min(1)
+	.max(32)
+	.refine((fields) => new Set(fields).size === fields.length, {
+		message: "editor draft fields must be unique",
+	});
+const EditorDraftFieldSelectorSchema = z.union([
+	z.object({ fields: editorDraftFieldsSchema, translatable: z.literal(true).optional() }).strict(),
+	z.object({ fields: editorDraftFieldsSchema.optional(), translatable: z.literal(true) }).strict(),
+]);
+const EditorDraftAccessSchema = z.union([
+	z
+		.object({
+			read: EditorDraftFieldSelectorSchema,
+			patch: EditorDraftFieldSelectorSchema.optional(),
+		})
+		.strict(),
+	z
+		.object({
+			read: EditorDraftFieldSelectorSchema.optional(),
+			patch: EditorDraftFieldSelectorSchema,
+		})
+		.strict(),
+]);
+const editorDraftCollectionsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "editor extension collection must be a collection slug"),
+	)
+	.min(1)
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "editor extension collections must be unique",
+	});
+const editorPanelBase = {
+	id: editorExtensionIdSchema,
+	title: z.string().min(1).max(128),
+	route: editorRouteSchema,
+	order: z.number().int().min(-1_000).max(1_000).optional(),
+};
 
-export const EditorPanelSchema = z
-	.object({
-		id: editorExtensionIdSchema,
-		title: z.string().min(1).max(128),
-		route: editorRouteSchema,
-		collections: editorCollectionsSchema.optional(),
-		order: z.number().int().min(-1_000).max(1_000).optional(),
-	})
-	.strict();
+export const EditorPanelSchema = z.union([
+	z.object({ ...editorPanelBase, collections: editorCollectionsSchema.optional() }).strict(),
+	z
+		.object({
+			...editorPanelBase,
+			collections: editorDraftCollectionsSchema,
+			draft: EditorDraftAccessSchema,
+		})
+		.strict(),
+]);
 
 const EditorActionConfirmSchema = z
 	.object({
@@ -599,17 +650,26 @@ const EditorActionConfirmSchema = z
 	})
 	.strict();
 
+const editorActionBase = {
+	id: editorExtensionIdSchema,
+	label: z.string().min(1).max(128),
+	route: editorRouteSchema,
+	placement: z.enum(["toolbar", "overflow"]),
+	style: z.enum(["default", "danger"]).optional(),
+	confirm: EditorActionConfirmSchema.optional(),
+};
+
 export const EditorActionSchema = z
-	.object({
-		id: editorExtensionIdSchema,
-		label: z.string().min(1).max(128),
-		route: editorRouteSchema,
-		placement: z.enum(["toolbar", "overflow"]),
-		collections: editorCollectionsSchema.optional(),
-		style: z.enum(["default", "danger"]).optional(),
-		confirm: EditorActionConfirmSchema.optional(),
-	})
-	.strict()
+	.union([
+		z.object({ ...editorActionBase, collections: editorCollectionsSchema.optional() }).strict(),
+		z
+			.object({
+				...editorActionBase,
+				collections: editorDraftCollectionsSchema,
+				draft: EditorDraftAccessSchema,
+			})
+			.strict(),
+	])
 	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
 		message: "danger editor actions require confirmation",
 		path: ["confirm"],

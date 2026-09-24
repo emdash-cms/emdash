@@ -18,9 +18,10 @@ import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
-import { handleRegistryInstall } from "#api/index.js";
+import { handleRegistryInstall, handleRegistryUninstall } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseBody } from "#api/parse.js";
+import { finalizePluginInstall } from "#plugins/install-finalization.js";
 
 import { getRegistryConfigInput } from "../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../version.js";
@@ -115,9 +116,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		if (!result.success) return unwrapResult(result);
 
-		// Sync runtime so the new plugin becomes active without a worker restart.
-		await emdash.syncRegistryPlugins();
-		await emdash.runPluginInstallLifecycle(result.data.pluginId);
+		await finalizePluginInstall({
+			pluginId: result.data.pluginId,
+			syncRuntime: () => emdash.syncRegistryPlugins(),
+			runLifecycle: () => emdash.runPluginInstallLifecycle(result.data.pluginId),
+			rollback: () =>
+				handleRegistryUninstall(emdash.db, emdash.storage, result.data.pluginId, {
+					deleteData: true,
+				}),
+		});
 
 		return unwrapResult(result, 201);
 	} catch (error) {

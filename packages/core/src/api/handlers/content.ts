@@ -1471,6 +1471,7 @@ export async function handleContentPermanentDelete(
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
 				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
+				await new BylineRepository(trx).deleteContentBylines(collection, resolvedId);
 				// Term assignments are keyed by translation_group, so they belong to the
 				// group rather than to this row. They go only once no row of the group is
 				// left, trashed ones included, since a trashed row can still be restored.

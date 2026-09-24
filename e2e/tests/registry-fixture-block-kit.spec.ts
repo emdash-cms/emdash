@@ -89,6 +89,7 @@ test.describe("Registry fixture Block Kit", () => {
 		expect(panelRequests).toBe(1);
 
 		await page.getByRole("button", { name: "Plugin actions" }).click();
+		await expect(page.getByRole("menuitem", { name: "Invalid action" })).toHaveCount(0);
 		await page.getByRole("menuitem", { name: "Refresh entry" }).click();
 		const dialog = page.getByRole("alertdialog", { name: "Refresh entry?" });
 		await expect(dialog).toBeVisible();

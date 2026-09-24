@@ -26,7 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchManifest } from "../lib/api/client.js";
+import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
 import {
 	PluginMcpConsentRequiredError,
 	type PluginMcpConsentTool,
@@ -42,6 +42,7 @@ import {
 	installRegistryPlugin,
 	listRegistryReleases,
 	presentSections,
+	registryVerificationErrorMessage,
 	registryQueryPolicyKey,
 	releasePassesPolicy,
 	resolveRegistryPackageStatus,
@@ -86,6 +87,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			const { fetchPlugins } = await import("../lib/api/plugins.js");
 			return fetchPlugins();
 		},
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
 	});
 
 	// Host environment versions (`env:emdash`, `env:astro`) — used to evaluate
@@ -436,6 +439,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 			void queryClient.invalidateQueries({ queryKey: ["registry"] });
 		},
 		onError: (error) => {
+			if (error instanceof ApiResponseError && error.code === "ALREADY_INSTALLED") {
+				setShowConsent(false);
+				setMcpConsentTools([]);
+				setVerificationPreview(null);
+				verificationMutation.reset();
+				void queryClient.invalidateQueries({ queryKey: ["plugins"] });
+				return;
+			}
 			if (error instanceof PluginMcpConsentRequiredError) {
 				setMcpConsentTools(error.tools);
 				setShowConsent(true);
@@ -632,7 +643,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					className="rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-sm text-kumo-error"
 					role="alert"
 				>
-					{getMutationError(verificationMutation.error)}
+					{registryVerificationErrorMessage(verificationMutation.error) ??
+						getMutationError(verificationMutation.error)}
 				</div>
 			) : null}
 
@@ -860,7 +872,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 					newlyPublicRoutes={activeVerification.publicRoutes}
 					verification={activeVerification.verification}
 					isPending={installMutation.isPending}
-					error={getMutationError(installMutation.error)}
+					error={
+						registryVerificationErrorMessage(installMutation.error) ??
+						getMutationError(installMutation.error)
+					}
 					onConfirm={() => installMutation.mutate()}
 					onCancel={() => {
 						setShowConsent(false);

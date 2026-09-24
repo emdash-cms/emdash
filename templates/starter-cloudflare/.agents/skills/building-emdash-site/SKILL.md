@@ -101,6 +101,8 @@ import { getByline, getBylineBySlug } from "emdash";
 // UI components
 import {
 	PortableText,
+	Blocks,
+	defineBlockComponents,
 	Image,
 	WidgetArea,
 	EmDashHead,

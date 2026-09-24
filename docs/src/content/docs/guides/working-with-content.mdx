@@ -120,7 +120,8 @@ Publishing and scheduling use separate controls:
 - **Schedule** sets when a new entry or pending changes become live.
 - **Change schedule** updates an existing schedule.
 - **Remove schedule** cancels an existing schedule.
-- **Unpublish** removes the live revision from public queries and keeps an editable draft.
+- **Unpublish** removes the live revision from public queries, cancels any schedule, and keeps an
+  editable draft.
 
 To schedule an entry, save it first, select **Schedule** below the publishing summary, and choose a
 future date and time. The editor displays the time zone used for the schedule. Until that time, the
@@ -163,7 +164,8 @@ Open an entry's actions or select one or more rows on the collection page, then 
 Trash**. Trashed entries stop appearing in ordinary content queries but remain available on the
 collection's **Trash** tab.
 
-From **Trash**, select **Restore** to return an entry to the collection.
+From **Trash**, select **Restore** to return an entry to the collection. A restored entry comes back as
+a draft with no schedule. Publish it to make it public.
 
 <Aside type="caution">
 	An administrator can select **Delete Permanently** in Trash. Permanent deletion removes the entry
@@ -177,9 +179,10 @@ inside the request's `data` object. An update saves a draft revision; publishing
 Pass the latest `_rev` value when updating or publishing so the server rejects a stale write instead
 of replacing newer work.
 
-Use the [REST API reference](/reference/rest-api/#content-endpoints) for request bodies, permissions,
-lock overrides, publishing, scheduling, restoring, and permanent deletion. Use the
-[CLI reference](/reference/cli/#emdash-content) for equivalent terminal commands.
+Use the [content lifecycle reference](/reference/content-lifecycle/) for state transitions,
+permissions, conflicts, and hooks. The [REST API reference](/reference/rest-api/) defines request and
+response bodies, and the [CLI reference](/reference/cli/#emdash-content) covers equivalent terminal
+commands.
 
 Continue with [Querying Content](/guides/querying-content/) to render published entries in an Astro
 site, or [Media Library](/guides/media-library/) to add and manage reusable files.

@@ -126,6 +126,7 @@ export default defineConfig({
 		// `emdash/plugin` — sandboxed authoring types and lightweight helpers.
 		"src/plugin-types.ts",
 		"src/plugin-test-runtime.ts",
+		"src/registry/testing.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)
 		"src/plugins/adapt-sandbox-entry.ts",
 		// Platform adapter runtime used behind lazy sandbox bridges.

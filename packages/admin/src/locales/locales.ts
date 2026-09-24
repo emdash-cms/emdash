@@ -42,6 +42,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "en-GB", label: "English (UK)", enabled: true }, // English (United Kingdom)
 	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl" }, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
+	{ code: "ka", label: "ქართული", enabled: true }, // Georgian
 	{ code: "de", label: "Deutsch", enabled: true }, // German
 	{ code: "hi", label: "हिन्दी", enabled: true }, // Hindi
 	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian

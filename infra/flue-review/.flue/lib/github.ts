@@ -20,6 +20,7 @@ const REVIEW_RATE_LIMIT_RETRIES = 3;
 const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
 const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
 const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
+const INLINE_PERMIT_WAIT_MS = 5_000;
 const RATE_LIMIT_ERROR = /\brate limit\b/i;
 const AUTO_FORMAT_MESSAGE = "style: format";
 const EMDASH_BOT_LOGIN = "emdashbot[bot]";
@@ -138,6 +139,17 @@ function responseMetadata(response: Response, now = Date.now()) {
 	};
 }
 
+async function acquireGitHubPermit(gate: GitHubRateLimitGate, category: string, consumer: string) {
+	const deadline = Date.now() + INLINE_PERMIT_WAIT_MS;
+	for (;;) {
+		const permit = await gate.permit(category, consumer);
+		if (permit.allowed) return permit;
+		const now = Date.now();
+		if (now >= deadline || permit.retryAt > deadline) return permit;
+		await sleep(Math.max(1, permit.retryAt - now));
+	}
+}
+
 async function githubFetch(
 	input: string,
 	init: RequestInit = {},
@@ -146,7 +158,7 @@ async function githubFetch(
 	const coordinated = token && typeof token !== "string" ? token : null;
 	const category = new URL(input).pathname === "/graphql" ? "graphql" : "review-rest";
 	if (coordinated) {
-		const permit = await coordinated.gate.permit(category, coordinated.consumer);
+		const permit = await acquireGitHubPermit(coordinated.gate, category, coordinated.consumer);
 		if (!permit.allowed) {
 			throw new GitHubRateLimitError(
 				`GitHub request suppressed until ${new Date(permit.retryAt).toISOString()}`,
