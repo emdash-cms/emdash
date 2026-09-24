@@ -14,6 +14,9 @@ on:
     branches: [main]
     paths:
       - "packages/**"
+      - "!packages/**/test/**"
+      - "!packages/**/tests/**"
+      - "!packages/**/__tests__/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"

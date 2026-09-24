@@ -441,7 +441,14 @@ export interface PluginBridgeBinding {
 	// Network
 	httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire>;
 	// Email
-	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
+	emailSend(message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	}): Promise<void>;
 	// Cron
 	cronSchedule(
 		name: string,

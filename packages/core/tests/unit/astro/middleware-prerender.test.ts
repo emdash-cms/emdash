@@ -917,6 +917,61 @@ describe("astro middleware setup probe", () => {
 		expect(response.status).toBe(200);
 	});
 
+	it("does not initialize the runtime after the probe failed to reach the database", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+
+		const { context } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(mockCreateRuntime).not.toHaveBeenCalled();
+		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("still uses an already-running runtime when the probe fails", async () => {
+		vi.mocked(getDb).mockResolvedValueOnce({
+			selectFrom: () => ({
+				selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+			}),
+		} as never);
+		const first = anonymousCategoryPageContext();
+		await onRequest(first.context as Parameters<typeof onRequest>[0], async () => new Response());
+		delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+
+		const second = anonymousCategoryPageContext();
+		await onRequest(second.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
+	it("initializes the runtime on the next request once the probe succeeds", async () => {
+		vi.mocked(getDb).mockResolvedValueOnce(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+		const first = anonymousCategoryPageContext();
+		await onRequest(first.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		vi.mocked(getDb).mockResolvedValue({
+			selectFrom: () => ({
+				selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+			}),
+		} as never);
+		const second = anonymousCategoryPageContext();
+		await onRequest(second.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
 	it("does NOT redirect to setup during prerender even when migrations are missing (regression)", async () => {
 		// A prerendered route is built to static HTML. If the setup probe ran at
 		// build time it would see CI's legitimately-empty database, report a

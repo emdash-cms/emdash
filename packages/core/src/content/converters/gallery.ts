@@ -3,6 +3,7 @@
  * the editor round-trip and the stored shape stay in lockstep.
  */
 
+import { localMediaFileUrl } from "../../media/url.js";
 import type { PortableTextGalleryImage } from "./types.js";
 
 /**
@@ -24,6 +25,18 @@ export function sanitizeGalleryImages(
 		const asset = record.asset;
 		if (!isRecord(asset)) continue;
 		const assetRecord = asset;
+		// Seeded `$media` resolves to a MediaValue (`id`, `src`, `meta.storageKey`, dimensions)
+		// instead of a reference. The media id is not a storage key, so local files need `url`.
+		const storageKey = isRecord(assetRecord.meta)
+			? nonEmptyString(assetRecord.meta.storageKey)
+			: undefined;
+		const url =
+			nonEmptyString(assetRecord.url) ??
+			nonEmptyString(assetRecord.src) ??
+			(storageKey ? localMediaFileUrl(storageKey) : undefined);
+		const alt = nonEmptyString(record.alt) ?? nonEmptyString(assetRecord.alt);
+		const width = typeof record.width === "number" ? record.width : assetRecord.width;
+		const height = typeof record.height === "number" ? record.height : assetRecord.height;
 
 		const image: PortableTextGalleryImage = {
 			_type: "image",
@@ -35,17 +48,17 @@ export function sanitizeGalleryImages(
 						: "",
 			asset: {
 				_type: "reference",
-				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
-				...(typeof assetRecord.url === "string" && assetRecord.url ? { url: assetRecord.url } : {}),
+				_ref: nonEmptyString(assetRecord._ref) ?? nonEmptyString(assetRecord.id) ?? "",
+				...(url ? { url } : {}),
 				...(typeof assetRecord.provider === "string" && assetRecord.provider
 					? { provider: assetRecord.provider }
 					: {}),
 			},
 		};
-		if (typeof record.alt === "string" && record.alt) image.alt = record.alt;
+		if (alt) image.alt = alt;
 		if (typeof record.caption === "string" && record.caption) image.caption = record.caption;
-		if (typeof record.width === "number") image.width = record.width;
-		if (typeof record.height === "number") image.height = record.height;
+		if (typeof width === "number") image.width = width;
+		if (typeof height === "number") image.height = height;
 		if (typeof record.focalX === "number") image.focalX = record.focalX;
 		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (typeof record.blurhash === "string" && record.blurhash) image.blurhash = record.blurhash;
@@ -56,6 +69,10 @@ export function sanitizeGalleryImages(
 	}
 
 	return images;
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+	return typeof value === "string" && value ? value : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

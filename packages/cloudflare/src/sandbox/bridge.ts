@@ -1891,6 +1891,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async emailSend(message: {
 		to: string;
+		cc?: string[];
+		replyTo?: string;
 		subject: string;
 		text: string;
 		html?: string;

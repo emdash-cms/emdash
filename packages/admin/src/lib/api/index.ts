@@ -137,7 +137,12 @@ export {
 } from "./plugins.js";
 
 // Settings
-export { type SiteSettings, fetchSettings, updateSettings } from "./settings.js";
+export {
+	type SiteSettings,
+	type SiteSettingsUpdate,
+	fetchSettings,
+	updateSettings,
+} from "./settings.js";
 
 // Users, passkeys, allowed domains
 export {

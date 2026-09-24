@@ -80,5 +80,20 @@ export interface SiteSettings {
 	seo?: SeoSettings;
 }
 
+/** Partial SEO update. `null` removes the configured default image. */
+export interface SeoSettingsUpdate extends Omit<SeoSettings, "defaultOgImage"> {
+	defaultOgImage?: MediaReference | null;
+}
+
+/** Site-settings write shape. `null` removes media references; omitted fields are unchanged. */
+export interface SiteSettingsUpdate extends Omit<
+	Partial<SiteSettings>,
+	"logo" | "favicon" | "seo"
+> {
+	logo?: MediaReference | null;
+	favicon?: MediaReference | null;
+	seo?: SeoSettingsUpdate;
+}
+
 /** Keys that are valid site settings */
 export type SiteSettingKey = keyof SiteSettings;

@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 import mime from "mime/lite";
 import { ulid } from "ulidx";
 
+import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -1403,6 +1404,10 @@ async function resolveValue(
 		const resolved: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(value)) {
 			resolved[k] = await resolveValue(v, seedIdMap, mediaContext, result);
+		}
+		// Gallery renderers read `asset._ref`/`asset.url`, not the MediaValue that `$media` yields.
+		if (resolved._type === "gallery" && Array.isArray(resolved.images)) {
+			resolved.images = sanitizeGalleryImages(resolved.images, ulid);
 		}
 		return resolved;
 	}

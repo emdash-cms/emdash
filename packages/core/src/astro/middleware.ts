@@ -733,6 +733,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// static page (session reads are already skipped for prerender above
 				// for the same reason).
 				let unmigrated = false;
+				let probeFailed = false;
 				if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
 					const t0 = performance.now();
 					try {
@@ -747,7 +748,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// Any other failure (transient D1/replica error, timeout, cold-start
 							// race, locked SQLite) must NOT be read as "fresh install". Leave the
 							// flag unset so a later request can re-verify, and fall through to
-							// render the page normally.
+							// render the page normally. Unless a runtime is already running,
+							// skip runtime init for this request: it would connect to the same
+							// database again and make the visitor wait through a second timeout.
+							probeFailed = !getRuntimeHolder().instance;
 							console.error("Setup probe failed (non-fatal):", error);
 						}
 					}
@@ -757,8 +761,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Initialize the runtime for page:metadata and page:fragments hooks.
 				// The runtime is a cached singleton — after the first request,
 				// getRuntime() is just a null-check. This enables SEO plugins to
-				// contribute meta tags for all visitors, not just logged-in editors.
-				if (config) {
+				// contribute meta tags for all visitors, not just logged-in editors,
+				// except on a request whose setup probe just failed.
+				if (config && !probeFailed) {
 					// Sub-phase timings are populated only on the cold init. Warm
 					// requests hit the cached runtime and leave this empty.
 					const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
