@@ -396,6 +396,29 @@ describe("TaxonomyManager", () => {
 		await expect.element(slugInput).toHaveFocus();
 	});
 
+	it("creates a tag from the dialog footer", async () => {
+		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
+		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });
+		await screen.getByRole("button", { name: "Add tag" }).click();
+		await screen.getByRole("textbox", { name: "Name" }).fill("Internship Experience");
+		await screen.getByRole("dialog").getByRole("button", { name: "Create" }).click();
+
+		await vi.waitFor(() => {
+			const call = vi
+				.mocked(apiFetch)
+				.mock.calls.find(
+					([url, init]) =>
+						typeof url === "string" &&
+						url.endsWith("/taxonomies/tag/terms") &&
+						init?.method === "POST",
+				);
+			expect(call).toBeDefined();
+			const body = typeof call?.[1]?.body === "string" ? JSON.parse(call[1].body) : undefined;
+			expect(body).toMatchObject({ label: "Internship Experience" });
+			expect(body).not.toHaveProperty("slug");
+		});
+	});
+
 	it("filters tags by label or slug without changing their stored order", async () => {
 		mockApiFetch(undefined, undefined, tagTaxonomyResponse);
 		const screen = await render(<TaxonomyManager taxonomyName="tag" />, { wrapper: Wrapper });

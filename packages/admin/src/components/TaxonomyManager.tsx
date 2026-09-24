@@ -739,16 +739,19 @@ function TermFormDialog({
 				}
 			}}
 		>
-			<Dialog className="p-7 max-h-[85vh] flex flex-col" size="lg">
-				<form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-					<div className="flex items-start justify-between gap-4">
-						<div className="flex flex-col space-y-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-none">
+			<Dialog
+				className="flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+				size="lg"
+			>
+				<form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+					<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
+						<div className="min-w-0">
+							<Dialog.Title className="text-lg font-semibold">
 								{term
 									? t`Edit ${taxonomyDef.labelSingular || t`Term`}`
 									: t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 							</Dialog.Title>
-							<Dialog.Description className="text-sm text-kumo-subtle">
+							<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
 								{term
 									? t`Update the ${taxonomyDef.labelSingular?.toLowerCase() || "term"} details`
 									: t`Create a new ${taxonomyDef.labelSingular?.toLowerCase() || "term"}`}
@@ -759,19 +762,17 @@ function TermFormDialog({
 							render={(props) => (
 								<Button
 									{...props}
+									type="button"
 									variant="ghost"
 									shape="square"
+									icon={<X className="size-4" aria-hidden="true" />}
 									aria-label={t`Close`}
-									className="absolute end-4 top-4"
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">{t`Close`}</span>
-								</Button>
+								/>
 							)}
 						/>
 					</div>
 
-					<div className="space-y-4 pt-5 pb-4 flex-1 overflow-y-auto -mx-1 px-1 min-h-0">
+					<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-6 py-6">
 						<Input
 							label={t`Name`}
 							value={label}
@@ -871,11 +872,15 @@ function TermFormDialog({
 						) : null}
 					</div>
 
-					<div className="flex flex-wrap justify-end gap-2">
+					<div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-kumo-line px-6 py-4">
 						<Button type="button" variant="outline" onClick={onClose}>
 							{t`Cancel`}
 						</Button>
-						<Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+						<Button
+							type="submit"
+							variant="primary"
+							disabled={createMutation.isPending || updateMutation.isPending}
+						>
 							{createMutation.isPending || updateMutation.isPending
 								? t`Saving...`
 								: term
