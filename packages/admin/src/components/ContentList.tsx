@@ -24,6 +24,8 @@ import {
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
+	CircleDashed,
+	Tag,
 	Upload,
 	X,
 } from "@phosphor-icons/react";
@@ -518,6 +520,7 @@ export function ContentList({
 										variant="secondary"
 										disabled={bulkBusy}
 										onClick={() => runBulk(onBulkUnpublish)}
+										icon={<CircleDashed aria-hidden="true" />}
 									>
 										{t`Set to draft`}
 									</Button>
@@ -527,6 +530,7 @@ export function ContentList({
 										size="sm"
 										variant="secondary"
 										disabled={bulkBusy || selectedCount > 50}
+										icon={<Tag aria-hidden="true" />}
 										onClick={() => {
 											setBulkTagSelection(
 												Array.from(selectedIds, (id) => {
