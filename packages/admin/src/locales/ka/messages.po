@@ -4640,7 +4640,7 @@ msgid "Failed to import media"
 msgstr "მედიის იმპორტი ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/marketplace.ts:344
-#: packages/admin/src/lib/api/registry.ts:825
+#: packages/admin/src/lib/api/registry.ts:789
 msgid "Failed to install plugin"
 msgstr "პლაგინის დაყენება ვერ მოხერხდა"
 
@@ -4853,7 +4853,7 @@ msgid "Failed to set entry terms"
 msgstr "ჩანაწერის ტერმინების დაყენება ვერ მოხერხდა"
 
 #: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/registry.ts:1039
+#: packages/admin/src/lib/api/registry.ts:1003
 msgid "Failed to uninstall plugin"
 msgstr "პლაგინის დეინსტალაცია ვერ მოხერხდა"
 
@@ -4892,7 +4892,7 @@ msgstr "მედიის განახლება ვერ მოხერ
 
 #: packages/admin/src/components/PluginManager.tsx:314
 #: packages/admin/src/lib/api/marketplace.ts:370
-#: packages/admin/src/lib/api/registry.ts:914
+#: packages/admin/src/lib/api/registry.ts:878
 msgid "Failed to update plugin"
 msgstr "პლაგინის განახლება ვერ მოხერხდა"
 
@@ -4932,7 +4932,7 @@ msgstr "პროვაიდერზე ატვირთვა ვერ მ
 msgid "Failed to verify authentication"
 msgstr "ავტორიზაციის დადასტურება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/registry.ts:770
+#: packages/admin/src/lib/api/registry.ts:734
 msgid "Failed to verify plugin"
 msgstr "პლაგინის დადასტურება ვერ მოხერხდა"
 
@@ -5282,7 +5282,7 @@ msgstr "სტუმრის ბაილაინი"
 msgid "Guest only"
 msgstr "მხოლოდ სტუმრები"
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:92
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:98
 msgid "Handle unavailable"
 msgstr "ჰენდლი მიუწვდომელია"
 
@@ -7976,7 +7976,7 @@ msgid "Plugin uninstalled"
 msgstr "პლაგინი წაიშალა"
 
 #: packages/admin/src/lib/api/marketplace.ts:232
-#: packages/admin/src/lib/api/registry.ts:954
+#: packages/admin/src/lib/api/registry.ts:918
 msgid "Plugin update requires re-consent"
 msgstr "პლაგინის განახლება მოითხოვს ხელახალ თანხმობას"
 
@@ -8729,7 +8729,7 @@ msgstr "მოჭრის ზომის შეცვლა ზედა მ�
 msgid "Resize settings panel"
 msgstr "პარამეტრების პანელის ზომის შეცვლა"
 
-#: packages/admin/src/components/RegistryPluginIdentity.tsx:94
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
 msgstr "გამომცემლის სახელის დადგენა..."
 
@@ -10620,15 +10620,15 @@ msgstr "ეს ჩასმა ძალიან დიდია. ერთდ�
 msgid "This permanently deletes {0} from storage."
 msgstr "ეს სამუდამოდ შლის {0}-ს საცავიდან."
 
-#: packages/admin/src/lib/api/registry.ts:784
+#: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან მისი გამომცემლის პროფილს აკლია დადასტურების სწორი მეტამონაცემები. სთხოვეთ გამომცემელს, ხელახლა გამოაქვეყნოს ის EmDash-ის პლაგინის უახლესი CLI-ით."
 
-#: packages/admin/src/lib/api/registry.ts:792
+#: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან რელიზის წარმომავლობის დადასტურება ვერ მოხერხდა. სთხოვეთ გამომცემელს, გამოაქვეყნოს ახალი დადასტურებული რელიზი."
 
-#: packages/admin/src/lib/api/registry.ts:796
+#: packages/admin/src/lib/api/registry.ts:760
 msgid "This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release."
 msgstr "ამ პლაგინის დაყენება შეუძლებელია, რადგან გამომცემლის ხელმოწერილი ჩანაწერები ვერ გადამოწმდა. სთხოვეთ გამომცემელს, გამოაქვეყნოს შესწორებული რელიზი."
 
