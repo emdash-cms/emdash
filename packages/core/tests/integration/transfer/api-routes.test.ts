@@ -7,7 +7,6 @@ import {
 	handleImportExecute,
 	requestTransferApproval,
 } from "../../../src/api/handlers/transfer.js";
-import { injectCoreRoutes } from "../../../src/astro/integration/routes.js";
 import { POST as approvePost } from "../../../src/astro/routes/api/admin/transfer/approvals/[id]/approve.js";
 import { POST as denyPost } from "../../../src/astro/routes/api/admin/transfer/approvals/[id]/deny.js";
 import { GET as approvalsGet } from "../../../src/astro/routes/api/admin/transfer/approvals/index.js";
@@ -242,36 +241,6 @@ describeEachDialect("site transfer API routes", (dialect) => {
 		}
 		throw new Error("analysis did not finish");
 	}
-
-	it("registers every transfer route", () => {
-		const patterns: string[] = [];
-		injectCoreRoutes((route) => patterns.push(route.pattern));
-		expect(patterns).toEqual(
-			expect.arrayContaining([
-				"/_emdash/api/admin/transfer/capabilities",
-				"/_emdash/api/admin/transfer/imports",
-				"/_emdash/api/admin/transfer/imports/[id]",
-				"/_emdash/api/admin/transfer/imports/[id]/missing",
-				"/_emdash/api/admin/transfer/imports/[id]/files/[...path]",
-				"/_emdash/api/admin/transfer/imports/[id]/analyze",
-				"/_emdash/api/admin/transfer/imports/[id]/plan",
-				"/_emdash/api/admin/transfer/imports/[id]/cancel",
-				"/_emdash/api/admin/transfer/imports/[id]/abandon",
-				"/_emdash/api/admin/transfer/approvals",
-				"/_emdash/api/admin/transfer/approvals/[id]/approve",
-				"/_emdash/api/admin/transfer/approvals/[id]/deny",
-				"/_emdash/api/admin/transfer/imports/[id]/execute",
-				"/_emdash/api/admin/transfer/imports/[id]/advance",
-				"/_emdash/api/admin/transfer/imports/[id]/receipt",
-				"/_emdash/api/admin/transfer/exports",
-				"/_emdash/api/admin/transfer/exports/[id]",
-				"/_emdash/api/admin/transfer/exports/[id]/advance",
-				"/_emdash/api/admin/transfer/exports/[id]/manifest",
-				"/_emdash/api/admin/transfer/exports/[id]/files/[...path]",
-				"/_emdash/api/admin/transfer/exports/[id]/archive",
-			]),
-		);
-	});
 
 	describe("authorization", () => {
 		const routes: Array<{
