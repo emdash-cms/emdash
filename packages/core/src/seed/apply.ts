@@ -24,6 +24,7 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { coalesceObjectCacheWrites } from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaRegistry } from "../schema/registry.js";
@@ -150,6 +151,14 @@ export async function applySeed(
 	db: Kysely<Database>,
 	seed: SeedFile,
 	options: SeedApplyOptions = {},
+): Promise<SeedApplyResult> {
+	return coalesceObjectCacheWrites(() => applySeedWrites(db, seed, options));
+}
+
+async function applySeedWrites(
+	db: Kysely<Database>,
+	seed: SeedFile,
+	options: SeedApplyOptions,
 ): Promise<SeedApplyResult> {
 	// Validate seed first
 	const validation = validateSeed(seed);
