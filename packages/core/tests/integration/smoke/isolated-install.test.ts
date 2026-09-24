@@ -325,6 +325,15 @@ async function waitForReady(
 	);
 }
 
+async function fetchWithServerOutput(url: string, readOutput: () => string): Promise<Response> {
+	try {
+		return await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(15_000) });
+	} catch (error) {
+		const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+		throw new Error(`Request to ${url} failed (${reason}):\n${readOutput()}`, { cause: error });
+	}
+}
+
 async function waitForInjectedRoute(
 	url: string,
 	readOutput: () => string,
@@ -542,19 +551,19 @@ describe.sequential("Isolated template installs", () => {
 						const setupBody = await setup.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${setupBody}`).toContain(setup.status);
 
-						const frontend = await fetch(`http://localhost:${platform.port}/`, {
-							redirect: "manual",
-							signal: AbortSignal.timeout(15_000),
-						});
+						const frontend = await fetchWithServerOutput(
+							`http://localhost:${platform.port}/`,
+							readOutput,
+						);
 						const frontendBody = await frontend.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${frontendBody}`).toContain(
 							frontend.status,
 						);
 
-						const admin = await fetch(`http://localhost:${platform.port}/_emdash/admin/`, {
-							redirect: "manual",
-							signal: AbortSignal.timeout(15_000),
-						});
+						const admin = await fetchWithServerOutput(
+							`http://localhost:${platform.port}/_emdash/admin/`,
+							readOutput,
+						);
 						const adminBody = await admin.text();
 						expect(admin.status, `${readOutput()}\n${adminBody}`).toBeLessThan(500);
 
