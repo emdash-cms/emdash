@@ -22,7 +22,6 @@ import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowDown,
 	ArrowUp,
-	Article,
 	CaretDown,
 	CaretUp,
 	DotsThree,
@@ -53,6 +52,7 @@ import {
 	deleteTerm,
 } from "../lib/api/taxonomies.js";
 import { slugify } from "../lib/utils";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { BulkTagDialog } from "./BulkTagDialog.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
@@ -1307,7 +1307,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							</Button>
 							<Button
 								variant="secondary"
-								icon={<Article aria-hidden="true" />}
+								icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
 								onClick={() => setBulkTagOpen(true)}
 							>
 								{t`Add to posts`}
