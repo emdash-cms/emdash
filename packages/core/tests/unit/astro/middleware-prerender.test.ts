@@ -928,6 +928,7 @@ describe("astro middleware setup probe", () => {
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
 		expect(mockCreateRuntime).not.toHaveBeenCalled();
+		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
 	});
