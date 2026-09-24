@@ -1,7 +1,7 @@
 import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { userEvent, type Locator } from "vitest/browser";
 
 import {
 	ContentEditor,
@@ -2664,6 +2664,100 @@ describe("ContentEditor", () => {
 		});
 
 		expect(portableTextProps.current?.editable).toBe(true);
+	});
+
+	describe("stored value that is not a list", () => {
+		type Screen = Awaited<ReturnType<typeof renderEditor>>;
+		const repeaterField: FieldDescriptor = {
+			kind: "repeater",
+			label: "Highlights",
+			validation: { subFields: [{ slug: "caption", type: "string", label: "Caption" }] },
+		};
+		const addFirstItem = (s: Screen) =>
+			s.getByRole("button", { name: "Add First Item", exact: true });
+		const cases: Array<{ kind: string; field: FieldDescriptor; widget: (s: Screen) => Locator }> = [
+			{ kind: "repeater", field: repeaterField, widget: addFirstItem },
+			{
+				kind: "portableText",
+				field: { kind: "portableText", label: "Highlights" },
+				widget: (s) => s.getByTestId("portable-text-editor"),
+			},
+			{
+				kind: "multiSelect",
+				field: {
+					kind: "multiSelect",
+					label: "Highlights",
+					options: [{ value: "news", label: "News" }],
+				},
+				widget: (s) => s.getByRole("checkbox", { name: "News" }),
+			},
+			{
+				kind: "blocks",
+				field: { kind: "blocks", label: "Highlights", blockTypes: [] },
+				widget: (s) => s.getByText("No blocks yet"),
+			},
+		];
+
+		function renderWithStoredValue(field: FieldDescriptor, stored: unknown, onSave = vi.fn()) {
+			return renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "My Post", highlights: stored } }),
+				fields: { title: { kind: "string", label: "Title" }, highlights: field },
+				onSave,
+			});
+		}
+
+		it.each(cases)(
+			"keeps a $kind field's stored value through an unrelated edit and save",
+			async ({ field, widget }) => {
+				const onSave = vi.fn();
+				const screen = await renderWithStoredValue(field, "First\nSecond", onSave);
+
+				await expect.element(screen.getByLabelText("Highlights")).toHaveValue("First\nSecond");
+				expect(widget(screen).query()).toBeNull();
+
+				await screen.getByLabelText("Title").fill("Changed title");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ title: "Changed title", highlights: "First\nSecond" }),
+					}),
+				);
+			},
+		);
+
+		it.each(cases)(
+			"replaces a $kind field's stored value only through the replace action",
+			async ({ field, widget }) => {
+				const onSave = vi.fn();
+				const screen = await renderWithStoredValue(field, "First\nSecond", onSave);
+
+				await screen.getByRole("button", { name: "Replace with empty list" }).click();
+				await expect.element(widget(screen)).toBeVisible();
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({ data: expect.objectContaining({ highlights: [] }) }),
+				);
+			},
+		);
+
+		it("shows a stored object read-only as JSON", async () => {
+			const screen = await renderWithStoredValue(repeaterField, { caption: "First" });
+
+			await expect
+				.element(screen.getByLabelText("Highlights"))
+				.toHaveValue('{\n  "caption": "First"\n}');
+			expect(addFirstItem(screen).query()).toBeNull();
+		});
+
+		it("opens a blank stored string as an empty list", async () => {
+			const screen = await renderWithStoredValue(repeaterField, "  ");
+
+			await expect.element(addFirstItem(screen)).toBeVisible();
+			expect(screen.getByRole("button", { name: "Replace with empty list" }).query()).toBeNull();
+		});
 	});
 
 	describe("autosave race with repeater sub-field", () => {
