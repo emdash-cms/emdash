@@ -89,7 +89,7 @@ export const magicLinkVerifyBody = z
 
 export const passkeyOptionsBody = z
 	.object({
-		email: z.email().optional(),
+		email: z.email().optional().describe("Ignored. Accepted for compatibility with older clients."),
 	})
 	.meta({ id: "PasskeyOptionsBody" });
 

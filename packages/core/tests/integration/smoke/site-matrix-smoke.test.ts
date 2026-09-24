@@ -1,6 +1,8 @@
 import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -20,10 +22,12 @@ interface SiteCase {
 	frontendPath?: string;
 	frontendStatuses?: number[];
 	requireDoctype?: boolean;
+	verifyMcp?: boolean;
 }
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
+const SETUP_REQUEST_TIMEOUT_MS = 30_000;
 const SMOKE_FONT_PROVIDER_IMPORT = pathToFileURL(
 	resolve(import.meta.dirname, "smoke-font-provider.mjs"),
 ).href;
@@ -51,6 +55,7 @@ const SITE_MATRIX: SiteCase[] = [
 		dir: resolve(WORKSPACE_ROOT, "templates/blog"),
 		port: 4612,
 		startupTimeoutMs: 60_000,
+		verifyMcp: true,
 	},
 	{
 		name: "templates/blog-cloudflare",
@@ -87,6 +92,7 @@ const SITE_MATRIX: SiteCase[] = [
 		dir: resolve(WORKSPACE_ROOT, "templates/starter-cloudflare"),
 		port: 4618,
 		startupTimeoutMs: 120_000,
+		verifyMcp: true,
 	},
 ];
 
@@ -129,6 +135,13 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 	}
 
 	throw lastError instanceof Error ? lastError : new Error(`Request failed for ${url}`);
+}
+
+function fetchSetupOnce(url: string): Promise<Response> {
+	return fetch(url, {
+		redirect: "manual",
+		signal: AbortSignal.timeout(SETUP_REQUEST_TIMEOUT_MS),
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -225,16 +238,69 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 	};
 }
 
-function killServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
-	serverProcess.kill("SIGTERM");
-	return new Promise((done) => {
-		setTimeout(() => {
-			if (!serverProcess.killed) {
-				serverProcess.kill("SIGKILL");
-			}
-			setTimeout(done, 500);
-		}, 1200);
+async function killServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
+	if (serverProcess.exitCode !== null || serverProcess.signalCode !== null) return;
+	const exited = once(serverProcess, "exit");
+	if (!serverProcess.kill("SIGTERM")) return;
+	const stopped = await Promise.race([exited.then(() => true), delay(5000, false, { ref: false })]);
+	if (stopped) return;
+	serverProcess.kill("SIGKILL");
+	await Promise.race([exited, delay(1000, undefined, { ref: false })]);
+}
+
+async function verifyCoreMcp(baseUrl: string, token: string): Promise<void> {
+	const headers = {
+		"Content-Type": "application/json",
+		Accept: "application/json, text/event-stream",
+		Authorization: `Bearer ${token}`,
+	};
+	const initRes = await fetch(`${baseUrl}/_emdash/api/mcp`, {
+		method: "POST",
+		headers,
+		body: JSON.stringify({
+			jsonrpc: "2.0",
+			method: "initialize",
+			params: {
+				protocolVersion: "2025-03-26",
+				capabilities: {},
+				clientInfo: { name: "smoke-test", version: "1.0" },
+			},
+			id: 1,
+		}),
 	});
+	expect(initRes.status).toBe(200);
+	expect(parseSSE(await initRes.text())).toHaveProperty("result.serverInfo.name", "emdash");
+
+	const listBody = (id: number) =>
+		JSON.stringify([
+			{ jsonrpc: "2.0", method: "notifications/initialized" },
+			{ jsonrpc: "2.0", method: "tools/list", params: {}, id },
+		]);
+	const listRes = await fetch(`${baseUrl}/_emdash/api/mcp`, {
+		method: "POST",
+		headers,
+		body: listBody(2),
+	});
+	expect(listRes.status).toBe(200);
+	const listData = parseSSE(await listRes.text());
+	expect(listData).toHaveProperty("result.tools");
+	const tools = (listData as { result: { tools: Array<{ name: string }> } }).result.tools;
+	expect(tools.map((tool) => tool.name)).toEqual(
+		expect.arrayContaining(["content_list", "schema_list_collections"]),
+	);
+
+	const concurrentResponses = await Promise.all(
+		Array.from({ length: 14 }, (_, index) =>
+			fetch(`${baseUrl}/_emdash/api/mcp`, {
+				method: "POST",
+				headers,
+				body: listBody(100 + index),
+			}),
+		),
+	);
+	expect(concurrentResponses.map((response) => response.status)).toEqual(
+		Array.from({ length: 14 }).fill(200),
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -250,15 +316,23 @@ describe.sequential("Site runtime verification", () => {
 		const requireDoctype = site.requireDoctype ?? true;
 
 		it(
-			`${site.name} boots and serves admin + frontend`,
+			`${site.name} boots and serves admin + frontend${site.verifyMcp ? " + MCP" : ""}`,
 			{ timeout: site.startupTimeoutMs + 120_000 },
 			async () => {
 				const server = await bootSite(site);
 
 				try {
+					let mcpToken: string | undefined;
 					if (setupPath) {
-						const setupRes = await fetchWithRetry(`${server.baseUrl}${setupPath}`);
+						const setupRes = await fetchSetupOnce(
+							`${server.baseUrl}${site.verifyMcp ? "/_emdash/api/setup/dev-bypass?token=1" : setupPath}`,
+						);
 						expect(setupRes.status).toBeLessThan(500);
+						if (site.verifyMcp) {
+							const setup = (await setupRes.json()) as { data?: { token?: string } };
+							mcpToken = setup.data?.token;
+							expect(mcpToken).toBeTruthy();
+						}
 					}
 
 					const adminRes = await fetchWithRetry(`${server.baseUrl}/_emdash/admin/`);
@@ -270,6 +344,9 @@ describe.sequential("Site runtime verification", () => {
 					const body = await frontendRes.text();
 					if (requireDoctype) {
 						expect(body).toContain("<!DOCTYPE html>");
+					}
+					if (site.verifyMcp && mcpToken) {
+						await verifyCoreMcp(server.baseUrl, mcpToken);
 					}
 				} catch (error) {
 					throw new Error(
@@ -334,13 +411,8 @@ describe.sequential("Cloudflare dependency optimizer", () => {
 });
 
 // ---------------------------------------------------------------------------
-// MCP endpoint verification — boots one Node and one Cloudflare site, gets a
-// bearer token, and verifies the MCP server responds to tools/list.
+// MCP endpoint verification for plugin-provided tools.
 // ---------------------------------------------------------------------------
-
-const MCP_SITES: SiteCase[] = SITE_MATRIX.filter(
-	(s) => s.name === "templates/blog" || s.name === "templates/starter-cloudflare",
-);
 
 const PLUGIN_MCP_SITE: SiteCase = {
 	name: "demos/simple",
@@ -350,135 +422,6 @@ const PLUGIN_MCP_SITE: SiteCase = {
 };
 
 describe.sequential("MCP endpoint verification", () => {
-	for (const site of MCP_SITES) {
-		it(
-			`${site.name} MCP tools/list responds with tools`,
-			{ timeout: site.startupTimeoutMs + 120_000 },
-			async () => {
-				const server = await bootSite(site);
-
-				try {
-					// Run dev-bypass with ?token=1 to get a bearer token
-					const setupRes = await fetchWithRetry(
-						`${server.baseUrl}/_emdash/api/setup/dev-bypass?token=1`,
-					);
-					expect(setupRes.status).toBeLessThan(500);
-
-					const setupBody = (await setupRes.json()) as {
-						data?: { token?: string };
-					};
-					const token = setupBody.data?.token;
-					expect(token).toBeTruthy();
-
-					// Send MCP initialize
-					const initRes = await fetch(`${server.baseUrl}/_emdash/api/mcp`, {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Accept: "application/json, text/event-stream",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify({
-							jsonrpc: "2.0",
-							method: "initialize",
-							params: {
-								protocolVersion: "2025-03-26",
-								capabilities: {},
-								clientInfo: { name: "smoke-test", version: "1.0" },
-							},
-							id: 1,
-						}),
-					});
-					expect(initRes.status).toBe(200);
-
-					// Parse SSE response to extract JSON
-					const initText = await initRes.text();
-					const initData = parseSSE(initText);
-					expect(initData).toHaveProperty("result.serverInfo.name", "emdash");
-
-					// Send initialized notification + tools/list in one request
-					// (stateless mode — each request is independent, so we send
-					// the full sequence: notifications/initialized then tools/list)
-					const listRes = await fetch(`${server.baseUrl}/_emdash/api/mcp`, {
-						method: "POST",
-						headers: {
-							"Content-Type": "application/json",
-							Accept: "application/json, text/event-stream",
-							Authorization: `Bearer ${token}`,
-						},
-						body: JSON.stringify([
-							{
-								jsonrpc: "2.0",
-								method: "notifications/initialized",
-							},
-							{
-								jsonrpc: "2.0",
-								method: "tools/list",
-								params: {},
-								id: 2,
-							},
-						]),
-					});
-					expect(listRes.status).toBe(200);
-
-					const listText = await listRes.text();
-					const listData = parseSSE(listText);
-					expect(listData).toHaveProperty("result.tools");
-					const tools = (listData as { result: { tools: unknown[] } }).result.tools;
-					expect(tools.length).toBeGreaterThan(0);
-
-					// Verify some expected tools exist
-					const toolNames = tools.map((t: unknown) => (t as { name: string }).name);
-					expect(toolNames).toContain("content_list");
-					expect(toolNames).toContain("schema_list_collections");
-
-					// Send 14 concurrent tools/list calls and verify all succeed —
-					// guards against an auth-middleware race observed in production
-					// where parallel requests on the same authenticated session
-					// occasionally returned spurious 401s. The InMemoryTransport
-					// integration test cannot reach this code path; only a live
-					// HTTP server exercises the auth middleware that's racy.
-					const concurrentResponses = await Promise.all(
-						Array.from({ length: 14 }, (_, i) =>
-							fetch(`${server.baseUrl}/_emdash/api/mcp`, {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-									Accept: "application/json, text/event-stream",
-									Authorization: `Bearer ${token}`,
-								},
-								body: JSON.stringify([
-									{ jsonrpc: "2.0", method: "notifications/initialized" },
-									{
-										jsonrpc: "2.0",
-										method: "tools/list",
-										params: {},
-										id: 100 + i,
-									},
-								]),
-							}),
-						),
-					);
-
-					const statusCodes = concurrentResponses.map((r) => r.status);
-					const failedStatuses = statusCodes.filter((s) => s !== 200);
-					expect(
-						failedStatuses,
-						`expected all 14 concurrent calls to return 200; got: ${statusCodes.join(",")}`,
-					).toEqual([]);
-				} catch (error) {
-					throw new Error(
-						`${site.name} MCP smoke failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
-							server.output.slice(-3000),
-						{ cause: error },
-					);
-				} finally {
-					await killServer(server.process);
-				}
-			},
-		);
-	}
-
 	it(
 		"plugin MCP enablement, scoped invocation, and auditing work end to end",
 		{ timeout: PLUGIN_MCP_SITE.startupTimeoutMs + 120_000 },
@@ -521,7 +464,7 @@ describe.sequential("MCP endpoint verification", () => {
 			};
 
 			try {
-				const setupResponse = await fetchWithRetry(
+				const setupResponse = await fetchSetupOnce(
 					`${server.baseUrl}/_emdash/api/setup/dev-bypass?token=1`,
 				);
 				expect(setupResponse.status).toBe(200);

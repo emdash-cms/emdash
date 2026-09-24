@@ -11,16 +11,20 @@ import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
+import { taxonomyTag } from "#cache/chrome-tags.js";
 import { ContentRepository } from "#db/repositories/content.js";
 import {
 	TaxonomyRepository,
 	type TaxonomyAssignmentResolution,
 } from "#db/repositories/taxonomy.js";
 import { invalidateTermCache } from "#taxonomies/index.js";
+import { chunks } from "#utils/chunks.js";
 
 import { getI18nConfig } from "../../../../../../../i18n/config.js";
 
 export const prerender = false;
+
+const MAX_CACHE_PURGE_TAGS = 100;
 
 function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLocale: string) {
 	const config = getI18nConfig();
@@ -97,7 +101,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 /**
  * Set terms for an entry (replaces existing)
  */
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
@@ -178,6 +182,17 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// Term assignments changed — invalidate the hasAnyTermAssignments cache
 		// so hydration on subsequent reads issues a fresh query.
 		invalidateTermCache();
+		if (cache?.enabled) {
+			const translationGroup = existingItem?.translationGroup;
+			const siblingIds =
+				typeof translationGroup === "string"
+					? await new ContentRepository(emdash.db).findTranslationIds(collection, translationGroup)
+					: [];
+			const tags = [collection, ...new Set([canonicalId, ...siblingIds]), taxonomyTag(taxonomy)];
+			for (const tagBatch of chunks(tags, MAX_CACHE_PURGE_TAGS)) {
+				await cache.invalidate({ tags: tagBatch });
+			}
+		}
 
 		// Get the updated terms using the canonical ID, scoped to the entry locale
 		const assignments = await repo.getTermAssignmentsForEntry(

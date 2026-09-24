@@ -15,7 +15,16 @@ export type AuditAction =
 	| "password_change"
 	| "settings_update"
 	| "schema_change"
-	| "plugin_tool_invoke";
+	| "plugin_tool_invoke"
+	| "transfer_export_create"
+	| "transfer_import_create"
+	| "transfer_import_execute"
+	| "transfer_import_cancel"
+	| "transfer_import_abandon"
+	| "transfer_import_complete"
+	| "transfer_import_fail"
+	| "transfer_approval_approve"
+	| "transfer_approval_deny";
 
 export type AuditStatus = "success" | "failure" | "denied";
 
