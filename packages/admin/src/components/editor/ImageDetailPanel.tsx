@@ -338,7 +338,7 @@ export function ImageDetailPanel({
 				{/* Header */}
 				<div className="flex items-center justify-between border-b px-4 py-3">
 					<div className="flex items-center gap-2">
-						<Text bold as="h3">
+						<Text as="h3" DANGEROUS_className="font-semibold">
 							{t`Image settings`}
 						</Text>
 					</div>
@@ -358,14 +358,14 @@ export function ImageDetailPanel({
 					</div>
 					{imageActions}
 					{assetEditor.error && (
-						<p role="alert" className="mt-2 text-sm text-kumo-danger">
+						<p role="alert" className="mt-2 text-xs leading-4 text-kumo-danger">
 							{assetEditor.error}
 						</p>
 					)}
 
 					{/* Original dimensions */}
 					{(asset.width || asset.height) && (
-						<Text size="sm" variant="secondary" DANGEROUS_className="mt-3 flex items-center gap-2">
+						<Text size="xs" variant="secondary" DANGEROUS_className="mt-3 flex items-center gap-2">
 							<Ruler className="size-4" aria-hidden="true" />
 							<span className="text-kumo-subtle">{t`Original:`}</span>
 							<span className="tabular-nums text-kumo-default">
@@ -500,7 +500,7 @@ export function ImageDetailPanel({
 									aria-label={t`Source`}
 									value={asset.src}
 									readOnly
-									className="min-w-0 flex-1 font-mono text-xs"
+									className="min-w-0 flex-1 font-mono text-base"
 								/>
 								<LinkButton
 									variant="outline"
@@ -554,7 +554,7 @@ export function ImageDetailPanel({
 			<div className="flex items-center justify-between border-b p-4">
 				<div className="flex items-center gap-2">
 					<SlidersHorizontal className="h-4 w-4 text-kumo-subtle" />
-					<h2 className="font-semibold">{t`Image Settings`}</h2>
+					<h2 className="text-base font-semibold">{t`Image Settings`}</h2>
 				</div>
 				<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
 					<X className="h-4 w-4" />
@@ -575,7 +575,7 @@ export function ImageDetailPanel({
 					</div>
 					{imageActions}
 					{assetEditor.error && (
-						<p role="alert" className="mt-2 text-sm text-kumo-danger">
+						<p role="alert" className="mt-2 text-xs leading-4 text-kumo-danger">
 							{assetEditor.error}
 						</p>
 					)}
@@ -584,7 +584,7 @@ export function ImageDetailPanel({
 				{/* Image Info - original dimensions */}
 				{(asset.width || asset.height) && (
 					<div className="p-4 border-b">
-						<div className="flex items-center gap-2 text-sm">
+						<div className="flex items-center gap-2 text-xs leading-4">
 							<Ruler className="h-4 w-4 text-kumo-subtle" />
 							<span className="text-kumo-subtle">{t`Original:`}</span>
 							<span>
@@ -703,7 +703,7 @@ export function ImageDetailPanel({
 						<div>
 							<Label>{t`Source`}</Label>
 							<div className="mt-1.5 flex min-w-0 gap-2">
-								<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-xs" />
+								<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-base" />
 								<LinkButton
 									variant="outline"
 									shape="square"

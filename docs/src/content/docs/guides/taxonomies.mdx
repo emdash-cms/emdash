@@ -231,6 +231,8 @@ Taxonomy definitions and terms have one row per locale. EmDash records which row
 
 Use the locale switcher on a taxonomy page to manage terms in each configured locale. Open a term's edit dialog and use its **Translations** panel to add or open another locale. A translated term can use a different slug and label.
 
+A term's parent and position are shared by every locale. A translation created without a parent takes its term's parent and position. Creating a translation under a different parent, or changing the parent through any locale, moves the term in every locale.
+
 The query helpers use an explicit locale when supplied. Otherwise they use the current request locale, then the configured default. Single-term lookups follow the configured fallback chain when the requested translation is absent.
 
 <Aside type="tip">

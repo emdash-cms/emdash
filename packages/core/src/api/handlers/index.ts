@@ -129,6 +129,15 @@ export {
 	type OrphanedTable,
 	type OrphanedTableListResponse,
 } from "./schema.js";
+export {
+	handleBlockTypeList,
+	handleBlockTypeGet,
+	handleBlockTypeCreate,
+	handleBlockTypeUpdate,
+	handleBlockTypeVersionActivate,
+	type BlockTypeListResponse,
+	type BlockTypeResponse,
+} from "./block-types.js";
 
 // SEO handlers
 export {
@@ -215,6 +224,7 @@ export {
 export {
 	handleMarketplaceInstall,
 	handleMarketplaceUpdate,
+	rollbackPluginUpdate,
 	handleMarketplaceUninstall,
 	handleMarketplaceUpdateCheck,
 	handleMarketplaceSearch,
@@ -224,6 +234,7 @@ export {
 	loadBundleFromR2,
 	type MarketplaceInstallResult,
 	type MarketplaceUpdateResult,
+	type PluginUpdateRollbackResult,
 	type MarketplaceUpdateCheck,
 	type MarketplaceUninstallResult,
 } from "./marketplace.js";

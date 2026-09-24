@@ -18,12 +18,17 @@ import { Upload, WarningCircle, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type MediaItem, type SiteSettings } from "../../lib/api";
+import {
+	fetchSettings,
+	updateSettings,
+	type MediaItem,
+	type SiteSettingsUpdate,
+} from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-function seoSettingsSnapshot(settings: Partial<SiteSettings>) {
+function seoSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
 		titleSeparator: settings.seo?.titleSeparator || "|",
 		defaultOgImage: settings.seo?.defaultOgImage ?? null,
@@ -48,8 +53,8 @@ export function SeoSettings() {
 		staleTime: Infinity,
 	});
 
-	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
+	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
+	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [ogImagePickerOpen, setOgImagePickerOpen] = React.useState(false);
 
 	React.useEffect(() => {
@@ -65,7 +70,7 @@ export function SeoSettings() {
 	);
 
 	const saveMutation = useMutation({
-		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
+		mutationFn: (data: SiteSettingsUpdate) => updateSettings(data),
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -110,7 +115,7 @@ export function SeoSettings() {
 	const handleDefaultOgImageRemove = () => {
 		setFormData((prev) => ({
 			...prev,
-			seo: { ...prev.seo, defaultOgImage: undefined },
+			seo: { ...prev.seo, defaultOgImage: null },
 		}));
 	};
 

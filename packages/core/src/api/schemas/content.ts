@@ -196,6 +196,8 @@ export const contentCreateBody = z
 		}),
 		publishedAt: contentDateOverride,
 		createdAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentCreateBody" });
 
@@ -218,6 +220,8 @@ export const contentUpdateBody = z
 				"Replace taxonomy assignments as { taxonomyName: [termSlug, ...] }. Only named taxonomies are touched; pass an empty array to clear a taxonomy.",
 		}),
 		publishedAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentUpdateBody" });
 

@@ -81,6 +81,12 @@ export const magicLinkSendBody = z
 	})
 	.meta({ id: "MagicLinkSendBody" });
 
+export const magicLinkVerifyBody = z
+	.object({
+		token: z.string().min(1),
+	})
+	.meta({ id: "MagicLinkVerifyBody" });
+
 export const passkeyOptionsBody = z
 	.object({
 		email: z.email().optional(),

@@ -1,4 +1,13 @@
-import { Button, Dialog, Input, InputArea, Select, Switch } from "@cloudflare/kumo";
+import {
+	Badge,
+	Button,
+	Checkbox,
+	Dialog,
+	Input,
+	InputArea,
+	Select,
+	Switch,
+} from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	TextT,
@@ -19,10 +28,14 @@ import {
 	Plus,
 	Trash,
 	X,
+	ArrowUp,
+	ArrowDown,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import type { FieldType, CreateFieldInput, SchemaField } from "../lib/api";
+import { fetchBlockTypes } from "../lib/api/schema.js";
 import { cn } from "../lib/utils";
 import { AllowedTypesEditor } from "./AllowedTypesEditor";
 
@@ -105,6 +118,8 @@ interface FieldFormState {
 	maxItems: string;
 	allowedMimeTypes: string[];
 	darkVariant: boolean;
+	allowedTypes: string[];
+	retiredTypes: string[];
 }
 
 function getInitialFormState(field?: SchemaField): FieldFormState {
@@ -131,6 +146,8 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
 			allowedMimeTypes: field.validation?.allowedMimeTypes ?? [],
 			darkVariant: field.options?.darkVariant === true,
+			allowedTypes: field.validation?.allowedTypes ?? [],
+			retiredTypes: field.validation?.retiredTypes ?? [],
 		};
 	}
 	return {
@@ -153,6 +170,8 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		maxItems: "",
 		allowedMimeTypes: [],
 		darkVariant: false,
+		allowedTypes: [],
+		retiredTypes: [],
 	};
 }
 
@@ -174,6 +193,15 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 	const { minLength, maxLength, min, max, pattern, options } = formState;
 	const setField = <K extends keyof FieldFormState>(key: K, value: FieldFormState[K]) =>
 		setFormState((prev) => ({ ...prev, [key]: value }));
+	const {
+		data: blockTypes = [],
+		isLoading: blockTypesLoading,
+		error: blockTypesError,
+	} = useQuery({
+		queryKey: ["schema", "block-types"],
+		queryFn: fetchBlockTypes,
+		enabled: open && selectedType === "blocks",
+	});
 
 	// Build field types inside the component so t`` works
 	const FIELD_TYPES: FieldTypeConfig[] = [
@@ -273,6 +301,12 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			description: t`Repeating group of fields`,
 			icon: Rows,
 		},
+		{
+			type: "blocks",
+			label: t`Blocks`,
+			description: t`Ordered page-building blocks`,
+			icon: Rows,
+		},
 	];
 
 	// Auto-generate slug from label
@@ -291,7 +325,14 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 	};
 
 	const handleTypeSelect = (type: FieldType) => {
-		setFormState((prev) => ({ ...prev, selectedType: type, step: "config" }));
+		setFormState((prev) => ({
+			...prev,
+			selectedType: type,
+			step: "config",
+			...(type === "blocks"
+				? { required: false, unique: false, searchable: false, indexed: false }
+				: {}),
+		}));
 	};
 
 	const handleSave = () => {
@@ -334,6 +375,12 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 				(validation as Record<string, unknown>).minItems = parseInt(formState.minItems, 10);
 			if (formState.maxItems)
 				(validation as Record<string, unknown>).maxItems = parseInt(formState.maxItems, 10);
+		}
+
+		if (selectedType === "blocks") {
+			validation.allowedTypes = formState.allowedTypes;
+			if (formState.minItems) validation.minItems = parseInt(formState.minItems, 10);
+			if (formState.maxItems) validation.maxItems = parseInt(formState.maxItems, 10);
 		}
 
 		if (
@@ -470,16 +517,20 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 
 						{/* Toggles */}
 						<div className="flex items-center space-x-6">
-							<Switch
-								checked={required}
-								onCheckedChange={(checked) => setField("required", checked)}
-								label={<span className="text-sm">{t`Required`}</span>}
-							/>
-							<Switch
-								checked={unique}
-								onCheckedChange={(checked) => setField("unique", checked)}
-								label={<span className="text-sm">{t`Unique`}</span>}
-							/>
+							{selectedType !== "blocks" && (
+								<>
+									<Switch
+										checked={required}
+										onCheckedChange={(checked) => setField("required", checked)}
+										label={<span className="text-sm">{t`Required`}</span>}
+									/>
+									<Switch
+										checked={unique}
+										onCheckedChange={(checked) => setField("unique", checked)}
+										label={<span className="text-sm">{t`Unique`}</span>}
+									/>
+								</>
+							)}
 							{isSearchableFieldType(selectedType) && (
 								<Switch
 									checked={searchable}
@@ -557,6 +608,129 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								placeholder={t`Option 1\nOption 2\nOption 3`}
 								rows={5}
 							/>
+						)}
+
+						{selectedType === "blocks" && (
+							<div className="space-y-4">
+								<div>
+									<h4 className="font-medium text-sm">{t`Allowed block types`}</h4>
+									<p className="text-xs text-kumo-subtle">
+										{t`The order controls how block types appear in the picker.`}
+									</p>
+								</div>
+								{blockTypesLoading ? (
+									<p className="text-sm text-kumo-subtle">{t`Loading block types…`}</p>
+								) : blockTypesError ? (
+									<p className="rounded-lg border border-kumo-danger/50 p-4 text-sm text-kumo-danger">
+										{t`Block types could not be loaded.`}
+									</p>
+								) : blockTypes.length === 0 ? (
+									<p className="rounded-lg border border-dashed p-4 text-sm text-kumo-subtle">
+										{t`Create a block type before adding a blocks field.`}
+									</p>
+								) : (
+									<div className="space-y-2">
+										{blockTypes.map((blockType) => {
+											const selectedIndex = formState.allowedTypes.indexOf(blockType.slug);
+											const selected = selectedIndex !== -1;
+											const retired = formState.retiredTypes.includes(blockType.slug);
+											return (
+												<div
+													key={blockType.slug}
+													className="rounded-lg border border-kumo-line p-3"
+												>
+													<div className="flex items-center gap-2">
+														<Checkbox
+															label={blockType.label}
+															checked={selected}
+															disabled={retired && !selected}
+															onCheckedChange={(checked) => {
+																setField(
+																	"allowedTypes",
+																	checked
+																		? [...formState.allowedTypes, blockType.slug]
+																		: formState.allowedTypes.filter(
+																				(candidateSlug) => candidateSlug !== blockType.slug,
+																			),
+																);
+															}}
+														/>
+														<code className="text-xs text-kumo-subtle">{blockType.slug}</code>
+														{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+														{selected && (
+															<div className="ms-auto flex gap-1">
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={selectedIndex === 0}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex - 1], next[selectedIndex]] = [
+																			next[selectedIndex]!,
+																			next[selectedIndex - 1]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} up`}
+																>
+																	<ArrowUp className="h-4 w-4" />
+																</Button>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={selectedIndex === formState.allowedTypes.length - 1}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex], next[selectedIndex + 1]] = [
+																			next[selectedIndex + 1]!,
+																			next[selectedIndex]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} down`}
+																>
+																	<ArrowDown className="h-4 w-4" />
+																</Button>
+															</div>
+														)}
+													</div>
+													<div className="mt-2 flex flex-wrap gap-2">
+														{blockType.versions.map((version) => (
+															<span key={version.version} className="text-xs text-kumo-subtle">
+																{version.active
+																	? t`Active v${version.version}`
+																	: t`v${version.version}`}{" "}
+																· <code>{version.fingerprint.slice(-8)}</code>
+															</span>
+														))}
+													</div>
+												</div>
+											);
+										})}
+									</div>
+								)}
+								<div className="grid grid-cols-2 gap-4">
+									<Input
+										label={t`Minimum blocks`}
+										type="number"
+										min={0}
+										value={formState.minItems}
+										onChange={(event) => setField("minItems", event.target.value)}
+										placeholder="0"
+									/>
+									<Input
+										label={t`Maximum blocks`}
+										type="number"
+										min={1}
+										max={100}
+										value={formState.maxItems}
+										onChange={(event) => setField("maxItems", event.target.value)}
+										placeholder="100"
+									/>
+								</div>
+							</div>
 						)}
 
 						{selectedType === "repeater" && (

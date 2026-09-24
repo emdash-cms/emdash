@@ -5,6 +5,7 @@
  */
 
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { validateBlockFields } from "../schema/block-type-contract.js";
 import {
 	FIELD_TYPES,
 	isIndexableFieldType,
@@ -78,6 +79,49 @@ export function validateSeed(data: unknown): ValidationResult {
 			errors.push(
 				"defaultLocale: must be a non-empty string with no leading or trailing whitespace",
 			);
+		}
+	}
+
+	if (seed.blockTypes !== undefined) {
+		if (!Array.isArray(seed.blockTypes)) {
+			errors.push("blockTypes must be an array");
+		} else {
+			const slugs = new Set<string>();
+			for (const [index, blockType] of seed.blockTypes.entries()) {
+				const prefix = `blockTypes[${index}]`;
+				if (!blockType.slug || !COLLECTION_FIELD_SLUG_PATTERN.test(blockType.slug)) {
+					errors.push(`${prefix}.slug: must be a valid block type slug`);
+				} else if (slugs.has(blockType.slug)) {
+					errors.push(`${prefix}.slug: duplicate block type slug "${blockType.slug}"`);
+				} else {
+					slugs.add(blockType.slug);
+				}
+				if (!blockType.label) errors.push(`${prefix}.label: is required`);
+				if (!Array.isArray(blockType.versions) || blockType.versions.length === 0) {
+					errors.push(`${prefix}.versions: must be a non-empty array`);
+					continue;
+				}
+				const numbers = blockType.versions.map((version) => version.version);
+				const sorted = [...numbers].toSorted((left, right) => left - right);
+				if (
+					sorted[0] !== 1 ||
+					sorted.some((version, versionIndex) => version !== versionIndex + 1)
+				) {
+					errors.push(`${prefix}.versions: numbers must be contiguous and start at 1`);
+				}
+				if (!numbers.includes(blockType.currentVersion)) {
+					errors.push(`${prefix}.currentVersion: must name a declared version`);
+				}
+				for (const [versionIndex, version] of blockType.versions.entries()) {
+					try {
+						validateBlockFields(version.fields);
+					} catch (error) {
+						errors.push(
+							`${prefix}.versions[${versionIndex}].${error instanceof Error ? error.message : "invalid fields"}`,
+						);
+					}
+				}
+			}
 		}
 	}
 

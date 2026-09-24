@@ -24,6 +24,7 @@ import {
 	handleMarketplaceSearch,
 	handleMarketplaceGetPlugin,
 	diffCapabilities,
+	rollbackPluginUpdate,
 } from "../../../src/api/handlers/marketplace.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -635,6 +636,63 @@ describe("Marketplace handlers", () => {
 	// ── Update ─────────────────────────────────────────────────────
 
 	describe("handleMarketplaceUpdate", () => {
+		it("restores the previous state and removes the failed update bundle", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+				displayName: "Old name",
+				mcpToolsEnabled: true,
+				mcpToolsConsent: "old-consent",
+			});
+			const previousState = (await repo.get("test-seo"))!;
+			await repo.upsert("test-seo", "2.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "2.0.0",
+				displayName: "New name",
+				mcpToolsEnabled: false,
+				mcpToolsConsent: null,
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/2.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
+
+			await expect(
+				rollbackPluginUpdate(db, storage, previousState, "2.0.0", "marketplace"),
+			).resolves.toMatchObject({ success: true });
+			await expect(repo.get("test-seo")).resolves.toMatchObject({
+				version: "1.0.0",
+				marketplaceVersion: "1.0.0",
+				displayName: "Old name",
+				mcpToolsEnabled: true,
+				mcpToolsConsent: "old-consent",
+			});
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(false);
+		});
+
+		it("does not overwrite a newer concurrent update during rollback", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			const previousState = (await repo.get("test-seo"))!;
+			await repo.upsert("test-seo", "3.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "3.0.0",
+			});
+
+			await expect(
+				rollbackPluginUpdate(db, storage, previousState, "2.0.0", "marketplace"),
+			).resolves.toMatchObject({
+				success: false,
+				error: { code: "UPDATE_ROLLBACK_CONFLICT" },
+			});
+			await expect(repo.get("test-seo")).resolves.toMatchObject({ version: "3.0.0" });
+		});
+
 		it("returns error when plugin not found", async () => {
 			const result = await handleMarketplaceUpdate(
 				db,

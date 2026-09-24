@@ -461,7 +461,15 @@ export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plug
 export type { PluginDescriptor } from "./astro/integration/runtime.js";
 
 // Schema registry
-export { SchemaRegistry, SchemaError, getCollectionInfo } from "./schema/index.js";
+export {
+	SchemaRegistry,
+	SchemaError,
+	BlockTypeRegistry,
+	expandCollectionBlockFields,
+	normalizeBlocksData,
+	resolveBlockTypes,
+	getCollectionInfo,
+} from "./schema/index.js";
 export type {
 	FieldType,
 	ColumnType,
@@ -477,6 +485,21 @@ export type {
 	CreateFieldInput,
 	UpdateFieldInput,
 	CollectionWithFields,
+	BlockFieldDefinition,
+	BlockFieldOptions,
+	BlockFieldType,
+	BlockType,
+	BlockTypeCompatibility,
+	BlockTypeDifference,
+	BlockTypeSource,
+	BlockTypeVersion,
+	CreateBlockTypeInput,
+	UpdateBlockTypeInput,
+	ApplySeedBlockTypeInput,
+	SeedBlockTypeVersionInput,
+	BlockWriteOptions,
+	ResolvedBlockTypes,
+	StoredBlockValue,
 } from "./schema/index.js";
 export {
 	FIELD_TYPE_TO_COLUMN,
@@ -551,9 +574,11 @@ export {
 } from "./settings/index.js";
 export type {
 	SiteSettings,
+	SiteSettingsUpdate,
 	SiteSettingKey,
 	MediaReference,
 	SeoSettings,
+	SeoSettingsUpdate,
 } from "./settings/types.js";
 
 // SEO

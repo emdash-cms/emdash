@@ -82,4 +82,66 @@ describe("Gallery conversion (admin converters): PortableText ↔ ProseMirror", 
 		// block and image-field paths.
 		expect(second?.asset).not.toHaveProperty("provider");
 	});
+
+	it("encodes a seeded storage key into the file route like core does", () => {
+		const seeded = [
+			{
+				_type: "gallery",
+				_key: "seedgal",
+				images: [
+					{
+						_type: "image",
+						_key: "img1",
+						asset: { provider: "local", id: "01M", meta: { storageKey: "uploads/a b#1.jpg" } },
+					},
+				],
+			},
+		];
+
+		const pt = _prosemirrorToPortableText(_portableTextToProsemirror(seeded));
+		const restored = pt[0] as { images: Array<{ asset: { url?: string } }> };
+		expect(restored.images[0]?.asset.url).toBe("/_emdash/api/media/file/uploads/a%20b%231.jpg");
+	});
+
+	it("keeps the media reference of a seeded $media asset", () => {
+		const seeded = [
+			{
+				_type: "gallery",
+				_key: "seedgal",
+				images: [
+					{
+						_type: "image",
+						_key: "img1",
+						asset: {
+							provider: "local",
+							id: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+							meta: { storageKey: "01M2QZRZR8HDNT3039QNQ95B9D.jpg" },
+						},
+					},
+					{
+						_type: "image",
+						_key: "img2",
+						asset: { provider: "external", id: "01EXT", src: "https://example.com/photo.jpg" },
+					},
+				],
+			},
+		];
+
+		const pt = _prosemirrorToPortableText(_portableTextToProsemirror(seeded));
+		const restored = pt[0] as { images: Array<{ asset: Record<string, unknown> }> };
+		expect(restored.images.map((image) => image.asset)).toEqual([
+			{
+				_type: "reference",
+				_ref: "01M2QZRZTZPBJ2WV8A3B61ZZX7",
+				url: "/_emdash/api/media/file/01M2QZRZR8HDNT3039QNQ95B9D.jpg",
+				provider: "local",
+			},
+			{
+				_type: "reference",
+				_ref: "01EXT",
+				url: "https://example.com/photo.jpg",
+				provider: "external",
+			},
+		]);
+	});
 });

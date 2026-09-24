@@ -29,9 +29,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   measure:
-    name: Measure
+    name: Visual Regression
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

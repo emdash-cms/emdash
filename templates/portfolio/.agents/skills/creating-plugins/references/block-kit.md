@@ -348,9 +348,21 @@ For pie charts, gauges, or any ECharts visualization:
 }
 ```
 
-### Unsupported `tab` block
+### Tabs
 
-The package exports a `TabBlock` type and `blocks.tab()` builder, and the React renderer has a tab component. The production `validateBlocks()` allowlist does not include `tab`, so an admin response containing one is rejected. Do not emit `tab` until the validator accepts it.
+Use `tab` to group related blocks into labelled panels:
+
+```json
+{
+	"type": "tab",
+	"panels": [
+		{
+			"label": "General",
+			"blocks": [{ "type": "context", "text": "General settings" }]
+		}
+	]
+}
+```
 
 ### Accordion
 
@@ -523,12 +535,13 @@ return {
 	toast?: { message: string; type: "success" | "error" | "info" };
 	refresh?: true;
 	navigate?: LinkTarget;
+	patch?: EditorDraftPatchEffect;
 }
 ```
 
-Use either `refresh` or `navigate`, not both. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
+Use only one of `refresh`, `navigate`, or `patch`. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
 
-For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Saved field values and unsaved editor state are not included.
+For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Ordinary panel load contains no draft. An explicit interaction includes selected unsaved fields only when the plugin has `admin.editor-draft:read` and the extension declares bounded `draft.read` access. `admin.editor-draft:patch` separately permits atomic whole-field `set` and `clear` proposals for fields in `draft.patch`; the host previews accepted changes without saving them.
 
 ## Links and admin locale
 

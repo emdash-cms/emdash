@@ -56,6 +56,8 @@ export interface PluginCodeStorage {
  */
 export interface SandboxEmailMessage {
 	to: string;
+	cc?: string[];
+	replyTo?: string;
 	subject: string;
 	text: string;
 	html?: string;
