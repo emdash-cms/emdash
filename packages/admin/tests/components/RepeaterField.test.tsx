@@ -136,11 +136,7 @@ describe("RepeaterField sub-field types", () => {
 	});
 });
 
-/**
- * Bulk collapse (discussion #2380): a populated repeater collapses and expands
- * every row from its header, so a long form reaches its row summaries without
- * one click per row. Each row's own header keeps working independently.
- */
+describe("RepeaterField bulk collapse", () => {
 describe("RepeaterField bulk collapse", () => {
 	const captionSubFields = [{ slug: "caption", type: "string", label: "Caption" }];
 
