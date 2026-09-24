@@ -1,0 +1,23 @@
+.changeset/tags-screen-polish.md
+  s_0c2371b7147544::t_2f1bf96ff6f234 1-5
+packages/admin/src/components/TaxonomyManager.tsx
+  s_0c2371b7147544::t_4b374148a6bbca 16,19,21-35,58,187-188,194-195,201-332,1055,1084-1091,1221,1230-1255,1262,1270-1280,1293-1311,1313-1361,1363-1384
+packages/admin/tests/components/TaxonomyManager.test.tsx
+  s_0c2371b7147544::t_675664c17a7e89 31-45,250-254,268,316-378
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6068ba2e37c7ed44a6d99c4516e6e855f875d603",
+  "prompts": {},
+  "sessions": {
+    "s_0c2371b7147544": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf17-f1ce-7f80-b2c8-ad8640381c3f",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
