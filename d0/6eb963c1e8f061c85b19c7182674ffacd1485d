@@ -1,0 +1,21 @@
+e2e/tests/byline-fields.spec.ts
+  s_e2fcafcb645317::t_cfbe2bbd6754ec 99-103,106,120
+e2e/tests/bylines.spec.ts
+  s_e2fcafcb645317::t_6d3bcce43ca4b5 41-42,44,48-50,90,230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d06eb963c1e8f061c85b19c7182674ffacd1485d",
+  "prompts": {},
+  "sessions": {
+    "s_e2fcafcb645317": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da40-6d7c-78c2-8db9-0a79b698cb37",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
