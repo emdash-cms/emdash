@@ -39,7 +39,6 @@ if (Astro.cache?.enabled) {
 	description={`Posts tagged ${term.label}`}
 >
 	<h1>Tag: {term.label}</h1>
-	<p>{posts.length} {posts.length === 1 ? "post" : "posts"}</p>
 
 	{
 		posts.length === 0 ? (

@@ -36,7 +36,6 @@ if (Astro.cache?.enabled) {
 
 <Base title={`${term.label} posts`} description={`Posts in ${term.label}`}>
 	<h1>{term.label}</h1>
-	<p>{posts.length} {posts.length === 1 ? "post" : "posts"}</p>
 
 	{
 		posts.length === 0 ? (
