@@ -1,4 +1,5 @@
 import { apiError } from "#api/error.js";
+import { ErrorCode } from "#api/errors.js";
 
 import { after } from "../after.js";
 
@@ -66,5 +67,5 @@ export const SESSION_UNAVAILABLE_MESSAGE =
  * Check before consuming tokens so a failed sign-in can be retried.
  */
 export function sessionUnavailableError(): Response {
-	return apiError("SESSION_UNAVAILABLE", SESSION_UNAVAILABLE_MESSAGE, 500);
+	return apiError(ErrorCode.SESSION_UNAVAILABLE, SESSION_UNAVAILABLE_MESSAGE, 500);
 }
