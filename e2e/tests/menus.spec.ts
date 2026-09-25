@@ -31,6 +31,20 @@ test.describe("Menus", () => {
 			// Should show empty state message
 			await expect(admin.page.locator("text=No menus yet")).toBeVisible();
 		});
+
+		test("opens a menu editor by clicking its title", async ({ admin, page }) => {
+			await admin.goToMenus();
+			await admin.waitForLoading();
+
+			const menuName = `title-link-${Date.now()}`;
+			const menuLabel = "Title Link Menu";
+			await admin.createMenu(menuName, menuLabel);
+			await admin.goToMenus();
+			await admin.waitForLoading();
+
+			await page.getByRole("heading", { name: menuLabel }).click();
+			await expect(page).toHaveURL(new RegExp(`/menus/${menuName}(\\?|$)`));
+		});
 	});
 
 	test.describe("Create Menu", () => {
@@ -165,9 +179,8 @@ test.describe("Menus", () => {
 			// Menu should be in list
 			await expect(page.locator(`text=${menuLabel}`).first()).toBeVisible();
 
-			// Click trash icon on the menu card (last button in the card row)
-			const menuCard = page.locator(".rounded-lg").filter({ hasText: menuLabel }).first();
-			await menuCard.getByRole("button").last().click();
+			const menuCard = page.getByRole("listitem").filter({ hasText: menuLabel });
+			await menuCard.getByRole("button", { name: `Delete ${menuName} menu` }).click();
 
 			// Confirm deletion in alert dialog
 			await page.getByRole("button", { name: "Delete" }).click();
@@ -190,9 +203,8 @@ test.describe("Menus", () => {
 			await admin.goToMenus();
 			await admin.waitForLoading();
 
-			// Click trash icon
-			const menuCard = page.locator(".rounded-lg").filter({ hasText: menuLabel }).first();
-			await menuCard.getByRole("button").last().click();
+			const menuCard = page.getByRole("listitem").filter({ hasText: menuLabel });
+			await menuCard.getByRole("button", { name: `Delete ${menuName} menu` }).click();
 
 			// Cancel deletion
 			await page.getByRole("button", { name: "Cancel" }).click();
