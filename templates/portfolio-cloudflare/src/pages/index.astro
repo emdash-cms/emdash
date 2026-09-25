@@ -17,9 +17,10 @@ if (projectsResult.error) {
 	return new Response("Could not load the portfolio", { status: 500 });
 }
 const { entries: featuredProjects, cacheHint } = projectsResult;
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
-<Base {cacheHint}>
+<Base>
 	<section class="hero">
 		<h1 class="hero-title">{settings?.title || "Studio"}</h1>
 		<p class="hero-tagline">{settings?.tagline || "Design & Development"}</p>

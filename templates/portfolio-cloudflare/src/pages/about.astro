@@ -10,6 +10,7 @@ const {
 } = await getEmDashEntry("pages", "about");
 if (error) return new Response("Could not load the page", { status: 500 });
 if (!page) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const seo = getSeoMeta(page, {
 	siteUrl: Astro.url.origin,
@@ -26,7 +27,6 @@ const seo = getSeoMeta(page, {
 	canonical={seo.canonical}
 	robots={seo.robots}
 	content={{ collection: "pages", id: page.data.id, slug: "about" }}
-	{cacheHint}
 >
 	<div class="about-page">
 		<header class="about-header">

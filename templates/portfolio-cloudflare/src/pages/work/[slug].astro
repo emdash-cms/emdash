@@ -8,7 +8,6 @@ import {
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
-import { mergeCacheHints } from "../../utils/cache-hints";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -41,7 +40,10 @@ const { entries: relatedProjects, cacheHint: relatedCacheHint } = relatedResult;
 const otherProjects = relatedProjects
 	.filter((p) => p.id !== project.id)
 	.slice(0, 2);
-const cacheHint = mergeCacheHints(projectCacheHint, relatedCacheHint);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(projectCacheHint);
+	Astro.cache.set(relatedCacheHint);
+}
 
 const gallery = project.data.gallery;
 
@@ -75,7 +77,6 @@ const seo = getSeoMeta(project, {
 	robots={seo.robots}
 	type="article"
 	content={{ collection: "projects", id: project.data.id, slug }}
-	{cacheHint}
 >
 	<article class="project">
 		<header class="project-header">

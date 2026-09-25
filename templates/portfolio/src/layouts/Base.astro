@@ -1,10 +1,8 @@
 ---
-import type { CacheHint } from "emdash";
 import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
-import { mergeCacheHints } from "../utils/cache-hints";
 import "../styles/tokens.css";
 import "../styles/theme.css";
 
@@ -17,7 +15,6 @@ interface Props {
 	robots?: string | null;
 	type?: "website" | "article";
 	content?: { collection: string; id: string; slug?: string | null };
-	cacheHint?: CacheHint;
 }
 
 const {
@@ -29,7 +26,6 @@ const {
 	robots,
 	type = "website",
 	content,
-	cacheHint,
 } = Astro.props;
 const [settingsResult, menuResult] = await Promise.all([
 	getSiteSettingsWithCacheHint(),
@@ -38,9 +34,8 @@ const [settingsResult, menuResult] = await Promise.all([
 const settings = settingsResult.data;
 const menu = menuResult.data;
 if (Astro.cache?.enabled) {
-	Astro.cache.set(
-		mergeCacheHints(cacheHint, settingsResult.cacheHint, menuResult.cacheHint),
-	);
+	Astro.cache.set(settingsResult.cacheHint);
+	Astro.cache.set(menuResult.cacheHint);
 }
 
 const siteTitle = settings?.title || "Studio";

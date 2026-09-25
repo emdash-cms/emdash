@@ -8,7 +8,6 @@ import {
 } from "emdash";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
-import { mergeCacheHints } from "../../utils/cache-hints";
 
 // Get filter from query param. When set, push the filter down to the
 // database via `where` instead of loading every project and filtering
@@ -32,10 +31,10 @@ if (projectsResult.error) {
 
 const { entries: sortedProjects, nextCursor } = projectsResult;
 const tags = tagsResult.data;
-const cacheHint = mergeCacheHints(
-	projectsResult.cacheHint,
-	tagsResult.cacheHint,
-);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(projectsResult.cacheHint);
+	Astro.cache.set(tagsResult.cacheHint);
+}
 
 // Single batched JOIN for the tag pills shown on each card, instead of
 // one getEntryTerms() round-trip per card.
@@ -60,7 +59,6 @@ function workUrl(next: string): string {
 	title={activeTag
 		? `${tags.find((t) => t.slug === activeTag)?.label || activeTag} — Work`
 		: "Work"}
-	{cacheHint}
 >
 	<section class="work-header">
 		<h1>Work</h1>
