@@ -3,8 +3,10 @@ import { Kysely, sql } from "kysely";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
+import { normalizeDatetimeStorage } from "../../src/database/datetime-storage.js";
 import { up as up016 } from "../../src/database/migrations/016_api_tokens.js";
 import { up as up036 } from "../../src/database/migrations/036_i18n_menus_and_taxonomies.js";
+import { up as up078 } from "../../src/database/migrations/078_menu_item_translation_groups.js";
 import {
 	MIGRATION_COUNT,
 	MIGRATION_NAMES,
@@ -12,7 +14,9 @@ import {
 	getExactMigrationStatus,
 	runMigrations,
 } from "../../src/database/migrations/runner.js";
+import { OptionsRepository } from "../../src/database/repositories/options.js";
 import type { Database } from "../../src/database/types.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import { seedPreI18nSchema } from "../utils/pre-i18n-schema.js";
 import {
 	listColumns,
@@ -66,6 +70,50 @@ describe("core migrations on D1", () => {
 		expect(applied).toEqual([]);
 		const rows = await db.selectFrom("_emdash_migrations").selectAll().execute();
 		expect(rows).toHaveLength(MIGRATION_COUNT);
+	});
+
+	it("normalizes legacy content and revision datetimes", async () => {
+		await runMigrations(db);
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "events", label: "Events" });
+		await registry.createField("events", {
+			slug: "starts_at",
+			label: "Starts at",
+			type: "datetime",
+		});
+		await new OptionsRepository(db).set("site:timezone", "Asia/Tokyo");
+		await sql`
+			INSERT INTO ec_events (
+				id, slug, status, created_at, updated_at, version, locale, translation_group, starts_at
+			) VALUES (
+				'event-1', 'event-1', 'draft', '2026-01-01T00:00:00.000Z',
+				'2026-01-01T00:00:00.000Z', 1, 'en', 'event-1', '2026-08-22T01:00'
+			)
+		`.execute(db);
+		await db
+			.insertInto("revisions")
+			.values({
+				id: "revision-1",
+				collection: "events",
+				entry_id: "event-1",
+				data: JSON.stringify({ starts_at: "2026-08-22T01:00" }),
+				author_id: null,
+				created_at: "2026-01-01T00:00:00.000Z",
+			})
+			.execute();
+
+		await normalizeDatetimeStorage(db);
+
+		const content = await sql<{ starts_at: string }>`
+			SELECT starts_at FROM ec_events WHERE id = 'event-1'
+		`.execute(db);
+		expect(content.rows[0]?.starts_at).toBe("2026-08-21T16:00:00.000Z");
+		const revision = await db
+			.selectFrom("revisions")
+			.select("data")
+			.where("id", "=", "revision-1")
+			.executeTakeFirstOrThrow();
+		expect(JSON.parse(revision.data)).toEqual({ starts_at: "2026-08-21T16:00:00.000Z" });
 	});
 });
 
@@ -212,6 +260,32 @@ describe("040 byline rebuild on D1", () => {
 		const columns = await listColumns(db, "_emdash_bylines");
 		expect(columns).toContain("locale");
 		expect(columns).toContain("translation_group");
+	});
+});
+
+describe("078 menu item translation groups on D1", () => {
+	it("backfills only null translation groups and can be replayed", async () => {
+		await runMigrations(db);
+		await sql`
+			INSERT INTO _emdash_menu_items (
+				id, menu_id, sort_order, type, custom_url, label, translation_group
+			) VALUES
+				('legacy-null', 'main', 0, 'custom', '/', 'Home', NULL),
+				('translated-item', 'main', 1, 'custom', '/about', 'About', 'shared-about')
+		`.execute(db);
+
+		await up078(db);
+		await up078(db);
+
+		const rows = await sql<{ id: string; translation_group: string }>`
+			SELECT id, translation_group
+			FROM _emdash_menu_items
+			ORDER BY sort_order
+		`.execute(db);
+		expect(rows.rows).toEqual([
+			{ id: "legacy-null", translation_group: "legacy-null" },
+			{ id: "translated-item", translation_group: "shared-about" },
+		]);
 	});
 });
 

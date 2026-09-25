@@ -9,7 +9,33 @@ import type { APIRoute } from "astro";
 import { apiError, handleError } from "#api/error.js";
 import { IMMUTABLE_IMAGE_CACHE, MUTABLE_MEDIA_CACHE_CONTROL } from "#media/image-endpoint.js";
 
+import { isRefusedStorageKey } from "../../../../../transfer/staging/keys.js";
+
 export const prerender = false;
+
+const MAX_KEY_DECODES = 3;
+
+/**
+ * Whether a key is, or percent-decodes to, a key this route must refuse.
+ * Every decoding layer is checked because storage backends differ in whether
+ * they decode keys; a key that is still encoded after the last layer, or
+ * does not decode, is refused.
+ */
+function isPrivateMediaKey(key: string): boolean {
+	let candidate = key;
+	for (let layer = 0; layer <= MAX_KEY_DECODES; layer++) {
+		if (isRefusedStorageKey(candidate)) return true;
+		let decoded: string;
+		try {
+			decoded = decodeURIComponent(candidate);
+		} catch {
+			return true;
+		}
+		if (decoded === candidate) return false;
+		candidate = decoded;
+	}
+	return true;
+}
 
 /**
  * Content types that are safe to display inline (simple raster/vector images, video, audio).
@@ -37,11 +63,10 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		return apiError("NOT_FOUND", "File not found", 404);
 	}
 
-	// Backup archives share the storage bucket but hold the site's full
-	// content export — they must never be reachable through the public,
-	// unauthenticated media route. Admins download them via the
-	// authenticated backups API.
-	if (key.startsWith("backups/")) {
+	// Backup archives and transfer staging share the storage bucket but hold
+	// whole-site content; they must never be reachable through this public,
+	// unauthenticated route.
+	if (isPrivateMediaKey(key)) {
 		return apiError("NOT_FOUND", "File not found", 404);
 	}
 

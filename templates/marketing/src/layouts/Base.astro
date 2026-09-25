@@ -1,7 +1,7 @@
 ---
-import { getMenu, getSiteSettings } from "emdash";
+import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import { createPublicPageContext } from "emdash/page";
-import { EmDashHead } from "emdash/ui";
+import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { Font } from "astro:assets";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
@@ -10,26 +10,48 @@ import "../styles/theme.css";
 
 interface Props {
 	title?: string;
-	description?: string;
-	image?: string;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	robots?: string | null;
+	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image } = Astro.props;
-const settings = await getSiteSettings();
+const { title, pageTitle, description, image, canonical, robots, content } = Astro.props;
+const [settingsResult, menuResult, footerProductResult, footerCompanyResult, footerSupportResult] =
+	await Promise.all([
+		getSiteSettingsWithCacheHint(),
+		getMenuWithCacheHint("primary"),
+		getMenuWithCacheHint("footer_product"),
+		getMenuWithCacheHint("footer_company"),
+		getMenuWithCacheHint("footer_support"),
+	]);
+
+if (Astro.cache?.enabled) {
+	for (const result of [
+		settingsResult,
+		menuResult,
+		footerProductResult,
+		footerCompanyResult,
+		footerSupportResult,
+	]) {
+		Astro.cache.set(result.cacheHint);
+	}
+}
+
+const settings = settingsResult.data;
 const siteTitle = settings?.title || "Acme";
-const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
+const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} — ${siteTitle}`) : siteTitle;
 const siteDescription =
 	settings?.tagline || "Build products people actually want";
-const siteLogo = (settings?.logo as any)?.url
-	? (settings.logo as { mediaId: string; alt?: string; url: string })
+const siteLogo = settings.logo?.url
+	? { url: settings.logo.url, alt: settings.logo.alt }
 	: null;
-
-const [menu, footerProduct, footerCompany, footerSupport] = await Promise.all([
-	getMenu("primary"),
-	getMenu("footer_product"),
-	getMenu("footer_company"),
-	getMenu("footer_support"),
-]);
+const menu = menuResult.data;
+const footerProduct = footerProductResult.data;
+const footerCompany = footerCompanyResult.data;
+const footerSupport = footerSupportResult.data;
 
 const footerColumns = [
 	{ heading: "Product", menu: footerProduct },
@@ -43,14 +65,15 @@ const footerColumns = [
 
 const pageCtx = createPublicPageContext({
 	Astro,
-	kind: "custom",
+	kind: content ? "content" : "custom",
 	pageType: "website",
 	title: fullTitle,
-	pageTitle: title ?? siteTitle,
+	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || siteDescription,
-	canonical: Astro.url.href,
+	canonical: canonical ?? `${Astro.url.origin}${Astro.url.pathname}`,
 	image,
-	seo: { ogImage: image },
+	content,
+	seo: { ogImage: image, robots },
 	siteName: siteTitle,
 });
 ---
@@ -80,6 +103,7 @@ const pageCtx = createPublicPageContext({
 		</script>
 	</head>
 	<body>
+		<EmDashBodyStart page={pageCtx} />
 		<SiteHeader
 			siteTitle={siteTitle}
 			siteLogo={siteLogo}
@@ -96,6 +120,7 @@ const pageCtx = createPublicPageContext({
 			tagline={settings?.tagline || "Build something amazing"}
 			footerColumns={footerColumns}
 		/>
+		<EmDashBodyEnd page={pageCtx} />
 
 		<script>
 			const THEME_REGEX = /(?:^|;\s*)theme=([^;]+)/;

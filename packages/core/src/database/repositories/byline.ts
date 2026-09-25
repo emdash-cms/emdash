@@ -174,7 +174,10 @@ function assignCustomFieldValue(
  * toggle but the backend accepts missing values; design pass needed
  * on the enforcement model.
  */
-function coerceFieldValue(field: BylineFieldDefinition, raw: unknown): CustomFieldValue {
+export function coerceFieldValue(
+	field: Pick<BylineFieldDefinition, "slug" | "type" | "validation">,
+	raw: unknown,
+): CustomFieldValue {
 	if (raw === null) return null;
 
 	switch (field.type) {
@@ -1409,5 +1412,14 @@ export class BylineRepository {
 		invalidateCollectionCache(collectionSlug);
 
 		return await this.getContentBylines(collectionSlug, contentId);
+	}
+
+	async deleteContentBylines(collectionSlug: string, contentId: string): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_content_bylines")
+			.where("collection_slug", "=", collectionSlug)
+			.where("content_id", "=", contentId)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
 	}
 }

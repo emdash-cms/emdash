@@ -21,7 +21,12 @@ import {
 	adminCommentListResponseSchema,
 	publicCommentListResponseSchema,
 } from "../schemas/comments.js";
-import { apiErrorSchema, deleteResponseSchema, successEnvelope } from "../schemas/common.js";
+import {
+	apiErrorSchema,
+	deleteResponseSchema,
+	mediaDeleteResponseSchema,
+	successEnvelope,
+} from "../schemas/common.js";
 import {
 	contentCompareResponseSchema,
 	contentAuthorsResponseSchema,
@@ -29,6 +34,9 @@ import {
 	contentItemSchema,
 	contentListQuery,
 	contentListResponseSchema,
+	contentPublishBody,
+	contentRestoreResponseSchema,
+	contentRevisionConditionBody,
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
@@ -40,7 +48,7 @@ import {
 } from "../schemas/content.js";
 import {
 	entryLockAcquireBody,
-	entryLockConflictSchema,
+	entryMutationConflictSchema,
 	entryLockReleaseResponseSchema,
 	entryLockStatusSchema,
 } from "../schemas/entry-lock.js";
@@ -126,6 +134,11 @@ import {
 	orphanRegisterBody,
 	updateCollectionBody,
 	updateFieldBody,
+	activateBlockTypeVersionBody,
+	blockTypeListResponseSchema,
+	blockTypeResponseSchema,
+	createBlockTypeBody,
+	updateBlockTypeBody,
 } from "../schemas/schema.js";
 import {
 	searchEnableBody,
@@ -156,6 +169,27 @@ import {
 	updateTaxonomyDefBody,
 	updateTermBody,
 } from "../schemas/taxonomies.js";
+import {
+	transferApprovalListQuery,
+	transferApprovalListResponseSchema,
+	transferApprovalResponseSchema,
+	transferCapabilitiesSchema,
+	transferFileUploadResponseSchema,
+	transferImportAnalyzeBody,
+	transferImportAnalyzeResponseSchema,
+	transferImportCreateResponseSchema,
+	transferImportPlanResponseSchema,
+	transferImportStatusResponseSchema,
+	transferMissingFilesResponseSchema,
+	transferOperationListResponseSchema,
+	transferOperationResponseSchema,
+	transferPaginationQuery,
+	transferAdvanceResponseSchema,
+	transferExportCreateBody,
+	transferExportCreateResponseSchema,
+	transferImportExecuteBody,
+	transferImportReceiptResponseSchema,
+} from "../schemas/transfer.js";
 import {
 	allowedDomainCreateBody,
 	allowedDomainUpdateBody,
@@ -200,9 +234,12 @@ function standardErrors(
 		403: "Forbidden",
 		404: "Not Found",
 		409: "Conflict",
+		410: "Gone",
+		411: "Length Required",
 		413: "Payload Too Large",
 		422: "Unprocessable Entity",
 		500: "Internal Server Error",
+		503: "Service Unavailable",
 	};
 	for (const code of codes) {
 		responses[String(code)] = {
@@ -221,11 +258,13 @@ const entryPathParams = z.object({
 	id: z.string().meta({ description: "Content ID or slug" }),
 });
 
-/** 409 that carries the edit lock's holder in `error.details` */
-const entryLockConflict = {
+/** 409 for optimistic-concurrency or edit-lock conflicts. */
+const entryMutationConflict = {
 	"409": {
-		description: "Another editor holds the entry's edit lock",
-		content: { [JSON_CONTENT]: { schema: entryLockConflictSchema } },
+		description: "The content changed or another editor holds its edit lock",
+		content: {
+			[JSON_CONTENT]: { schema: entryMutationConflictSchema },
+		},
 	},
 };
 
@@ -368,7 +407,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -377,12 +416,17 @@ const contentPaths = {
 		post: {
 			operationId: "publishContent",
 			summary: "Publish a content item",
+			description:
+				"Promotes the current draft to live content and clears any pending schedule. An optional revision token rejects stale publication attempts.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentPublishBody } },
 			},
 			responses: {
 				"200": {
@@ -394,8 +438,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -412,6 +456,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Unpublished content item",
@@ -422,8 +469,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -453,13 +500,14 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(400, 404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 		delete: {
 			operationId: "unscheduleContent",
 			summary: "Cancel scheduled publishing",
-			description: "Reverts a scheduled item to draft status.",
+			description:
+				"Clears the scheduled publication time. A scheduled draft returns to draft status; a published item stays published.",
 			tags: ["Content"],
 			requestParams: {
 				path: entryPathParams,
@@ -481,7 +529,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
-				...entryLockConflict,
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -528,12 +576,12 @@ const contentPaths = {
 					description: "Restored",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ restored: z.literal(true) })),
+							schema: successEnvelope(contentRestoreResponseSchema),
 						},
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
+				...standardErrors(404, 409, 500),
 			},
 		},
 	},
@@ -603,6 +651,9 @@ const contentPaths = {
 					id: z.string().meta({ description: "Content ID or slug" }),
 				}),
 			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: contentRevisionConditionBody } },
+			},
 			responses: {
 				"200": {
 					description: "Content item reverted to live version",
@@ -613,8 +664,8 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(404, 500),
-				...entryLockConflict,
+				...standardErrors(400, 404, 500),
+				...entryMutationConflict,
 			},
 		},
 	},
@@ -1014,7 +1065,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				responses: {
 					"200": {
 						description: "Deleted",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaDeleteResponseSchema) } },
 					},
 					...authErrors,
 					...standardErrors(404, 500),
@@ -1026,7 +1077,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				operationId: "getMediaUsage",
 				summary: "Get media usage details",
 				description:
-					"Returns paginated content entry groups whose current indexed sources reference a local media item. Results include aggregate coverage and are advisory during concurrent writes. Requires media read and draft-content read permission; token-authenticated callers also require admin scope.",
+					"Returns paginated content entry groups whose current indexed sources reference a local media item, and the site settings that select it. Results include aggregate coverage and are advisory during concurrent writes. Requires media read and draft-content read permission; token-authenticated callers also require admin scope.",
 				tags: ["Media"],
 				requestParams: {
 					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
@@ -1357,6 +1408,87 @@ function buildMediaPaths(maxUploadSize: number) {
 // ---------------------------------------------------------------------------
 
 const schemaPaths = {
+	"/_emdash/api/schema/block-types": {
+		get: {
+			operationId: "listBlockTypes",
+			summary: "List block types",
+			tags: ["Schema"],
+			responses: {
+				"200": {
+					description: "Block type list",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeListResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+		post: {
+			operationId: "createBlockType",
+			summary: "Create a block type",
+			tags: ["Schema"],
+			requestBody: { content: { [JSON_CONTENT]: { schema: createBlockTypeBody } } },
+			responses: {
+				"201": {
+					description: "Created block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/block-types/{slug}": {
+		get: {
+			operationId: "getBlockType",
+			summary: "Get a block type",
+			tags: ["Schema"],
+			requestParams: { path: z.object({ slug: z.string() }) },
+			responses: {
+				"200": {
+					description: "Block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		put: {
+			operationId: "updateBlockType",
+			summary: "Update a block type",
+			tags: ["Schema"],
+			requestParams: { path: z.object({ slug: z.string() }) },
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateBlockTypeBody } } },
+			responses: {
+				"200": {
+					description: "Updated block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/block-types/{slug}/versions/{version}/activate": {
+		post: {
+			operationId: "activateBlockTypeVersion",
+			summary: "Activate a block type version",
+			tags: ["Schema"],
+			requestParams: {
+				path: z.object({ slug: z.string(), version: z.coerce.number().int().positive() }),
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: activateBlockTypeVersionBody } },
+			},
+			responses: {
+				"200": {
+					description: "Activated block type",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(blockTypeResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500),
+			},
+		},
+	},
 	"/_emdash/api/schema/collections": {
 		get: {
 			operationId: "listCollections",
@@ -1854,7 +1986,7 @@ const taxonomyPaths = {
 			operationId: "updateTaxonomy",
 			summary: "Update a taxonomy definition",
 			description:
-				"Writes the single definition `name` + `locale` resolves to. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
+				"Writes `label` and `labelSingular` to the single definition `name` + `locale` resolves to. `hierarchical` and `collections` belong to the taxonomy and change for every locale. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
@@ -3004,6 +3136,495 @@ const userPaths = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Site transfer routes
+// ---------------------------------------------------------------------------
+
+const TRANSFER_AUTH =
+	"Session users need the `transfer:import` permission (admins); bearer tokens need `admin` or the scope named here.";
+
+const importPathParams = z.object({
+	id: z.string().meta({ description: "Import operation ID" }),
+});
+
+const exportPathParams = z.object({
+	id: z.string().meta({ description: "Export operation ID" }),
+});
+
+const EXPORT_AUTH =
+	"Session users need the `transfer:export` permission (admins); bearer tokens need the `transfer:export` scope. Any holder of both can read any export.";
+
+const approvalPathParams = z.object({
+	id: z.string().meta({ description: "Approval ID" }),
+});
+
+const transferPaths = {
+	"/_emdash/api/admin/transfer/capabilities": {
+		get: {
+			operationId: "getTransferCapabilities",
+			summary: "Get site transfer capabilities",
+			description:
+				"Returns the supported package format versions, features, and limits, and whether this site can receive an import (`portableDomain`, with the reasons it cannot). Session users need `transfer:export` or `transfer:import`; bearer tokens need any transfer scope.",
+			tags: ["Transfer"],
+			responses: {
+				"200": {
+					description: "Transfer capabilities",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(transferCapabilitiesSchema) } },
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports": {
+		get: {
+			operationId: "listTransferImports",
+			summary: "List site imports",
+			description: `Returns imports newest first. ${TRANSFER_AUTH} Scope: \`transfer:analyze\` or \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { query: transferPaginationQuery },
+			responses: {
+				"200": {
+					description: "One page of imports",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferOperationListResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 500),
+			},
+		},
+		post: {
+			operationId: "createTransferImport",
+			summary: "Create a site import",
+			description: `The request body is the package's \`manifest.json\`, byte for byte (at most 8 MiB). An optional \`Idempotency-Key\` header returns the existing operation on retry; reusing a key with a different manifest fails with \`TRANSFER_IDEMPOTENCY_CONFLICT\`. The response lists the first files to upload. ${TRANSFER_AUTH} Scope: \`transfer:analyze\`.`,
+			tags: ["Transfer"],
+			requestBody: {
+				required: true,
+				content: { [JSON_CONTENT]: { schema: z.string().meta({ format: "binary" }) } },
+			},
+			responses: {
+				"200": {
+					description: "Existing import for this idempotency key",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferImportCreateResponseSchema) },
+					},
+				},
+				"201": {
+					description: "Import created",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferImportCreateResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 409, 413, 422, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}": {
+		get: {
+			operationId: "getTransferImport",
+			summary: "Get a site import",
+			description: `Returns the import and how many of its files are uploaded. ${TRANSFER_AUTH} Scope: \`transfer:analyze\` or \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			responses: {
+				"200": {
+					description: "Import status",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferImportStatusResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/missing": {
+		get: {
+			operationId: "listTransferImportMissingFiles",
+			summary: "List package files still to upload",
+			description: `Returns declared files that are not uploaded yet, in path order. Uploading an index chunk declares the files it lists, so list again after each round of uploads until the list is empty. ${TRANSFER_AUTH} Scope: \`transfer:analyze\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams, query: transferPaginationQuery },
+			responses: {
+				"200": {
+					description: "One page of missing files",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferMissingFilesResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/files/{path}": {
+		put: {
+			operationId: "uploadTransferImportFile",
+			summary: "Upload one package file",
+			description: `Streams one declared package file (\`index/…\`, \`records/…\`, or \`media/…\`; the path keeps its slashes). \`Content-Length\` is required and must equal the declared size, and the bytes must match the declared SHA-256. Media files may not exceed the site's \`maxUploadSize\`. ${TRANSFER_AUTH} Scope: \`transfer:analyze\`.`,
+			tags: ["Transfer"],
+			requestParams: {
+				path: importPathParams.extend({
+					path: z.string().meta({ description: "Package file path" }),
+				}),
+			},
+			requestBody: {
+				required: true,
+				content: { "application/octet-stream": { schema: z.string().meta({ format: "binary" }) } },
+			},
+			responses: {
+				"200": {
+					description: "File stored and verified",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferFileUploadResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 411, 413, 422, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/analyze": {
+		post: {
+			operationId: "analyzeTransferImport",
+			summary: "Advance import analysis",
+			description: `Runs one bounded analysis step once every file is uploaded. Call again after \`nextRequestInMs\` until it is null; the response then includes the plan and its digest. Submitted decisions are applied once the import is planned. ${TRANSFER_AUTH} Scope: \`transfer:analyze\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			requestBody: {
+				required: false,
+				content: { [JSON_CONTENT]: { schema: transferImportAnalyzeBody } },
+			},
+			responses: {
+				"200": {
+					description: "Analysis progress, or the plan",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferImportAnalyzeResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 422, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/plan": {
+		get: {
+			operationId: "getTransferImportPlan",
+			summary: "Get an import plan",
+			description: `${TRANSFER_AUTH} Scope: \`transfer:analyze\` or \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			responses: {
+				"200": {
+					description: "The plan and its digest",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferImportPlanResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/cancel": {
+		post: {
+			operationId: "cancelTransferImport",
+			summary: "Cancel a site import",
+			description: `A step in progress stops after its current batch. ${TRANSFER_AUTH} Scope: \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			responses: {
+				"200": {
+					description: "The cancelled import",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferOperationResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/abandon": {
+		post: {
+			operationId: "abandonTransferImport",
+			summary: "Abandon a failed or cancelled import",
+			description: `Lifts the site write fence after an import failed or was cancelled. Data the import already wrote stays in place. ${TRANSFER_AUTH} Scope: \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			responses: {
+				"200": {
+					description: "The abandoned import",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferOperationResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/execute": {
+		post: {
+			operationId: "executeTransferImport",
+			summary: "Start a planned import",
+			description: `Starts a planned import once the reviewed package and plan digests match. The plan must have no blockers. Then call \`advance\` until \`nextRequestInMs\` is null. ${TRANSFER_AUTH} Scope: \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			requestBody: {
+				required: true,
+				content: { [JSON_CONTENT]: { schema: transferImportExecuteBody } },
+			},
+			responses: {
+				"200": {
+					description: "The import, marked for execution",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferOperationResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 409, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/advance": {
+		post: {
+			operationId: "advanceTransferImport",
+			summary: "Advance an executing import",
+			description: `Runs one bounded import step. Retryable failures are recorded on the import and delay \`nextRequestInMs\`; it is null once the import has ended. While the import runs, and after it fails or is cancelled until it is abandoned, other site writes return 503 \`TRANSFER_IMPORT_IN_PROGRESS\`. ${TRANSFER_AUTH} Scope: \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			responses: {
+				"200": {
+					description: "The import after one step",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(transferAdvanceResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/imports/{id}/receipt": {
+		get: {
+			operationId: "getTransferImportReceipt",
+			summary: "Get an import receipt",
+			description: `The verified receipt of a complete import; its \`receiptDigest\` covers every other field. ${TRANSFER_AUTH} Scope: \`transfer:analyze\` or \`transfer:execute\`.`,
+			tags: ["Transfer"],
+			requestParams: { path: importPathParams },
+			responses: {
+				"200": {
+					description: "The receipt",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferImportReceiptResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports": {
+		get: {
+			operationId: "listTransferExports",
+			summary: "List site exports",
+			description: `Returns exports newest first. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: { query: transferPaginationQuery },
+			responses: {
+				"200": {
+					description: "One page of exports",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferOperationListResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 500),
+			},
+		},
+		post: {
+			operationId: "createTransferExport",
+			summary: "Start a site export",
+			description: `Creates an export; call \`advance\` until \`nextRequestInMs\` is null. An optional \`Idempotency-Key\` header returns the existing export on retry. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestBody: {
+				required: false,
+				content: { [JSON_CONTENT]: { schema: transferExportCreateBody } },
+			},
+			responses: {
+				"200": {
+					description: "Existing export for this idempotency key",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferExportCreateResponseSchema) },
+					},
+				},
+				"201": {
+					description: "Export created",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferExportCreateResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 409, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports/{id}": {
+		get: {
+			operationId: "getTransferExport",
+			summary: "Get a site export",
+			description: EXPORT_AUTH,
+			tags: ["Transfer"],
+			requestParams: { path: exportPathParams },
+			responses: {
+				"200": {
+					description: "Export status",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferOperationResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports/{id}/advance": {
+		post: {
+			operationId: "advanceTransferExport",
+			summary: "Advance a site export",
+			description: `Runs one bounded export step; \`nextRequestInMs\` is null once the export has ended. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: { path: exportPathParams },
+			responses: {
+				"200": {
+					description: "The export after one step",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(transferAdvanceResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 409, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports/{id}/manifest": {
+		get: {
+			operationId: "getTransferExportManifest",
+			summary: "Download an export manifest",
+			description: `The complete export's \`manifest.json\`, byte for byte; its SHA-256 is the package digest. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: { path: exportPathParams },
+			responses: {
+				"200": {
+					description: "The manifest",
+					content: { [JSON_CONTENT]: { schema: z.string().meta({ format: "binary" }) } },
+				},
+				...authErrors,
+				...standardErrors(404, 409, 410, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports/{id}/files/{path}": {
+		get: {
+			operationId: "downloadTransferExportFile",
+			summary: "Download one export file",
+			description: `Streams one index chunk, record chunk, or media blob listed by the export (the path keeps its slashes). \`Content-Length\` and the \`ETag\` (hex SHA-256) describe the file; the stream fails partway if the stored bytes no longer match. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: {
+				path: exportPathParams.extend({
+					path: z.string().meta({ description: "Package file path" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "The file",
+					content: {
+						"application/octet-stream": { schema: z.string().meta({ format: "binary" }) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 409, 410, 422, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/exports/{id}/archive": {
+		get: {
+			operationId: "downloadTransferExportArchive",
+			summary: "Download an export archive",
+			description: `Streams the complete export as one \`.emdash\` tar archive, manifest first. On Workers the whole archive streams within one request; large sites should download files individually. ${EXPORT_AUTH}`,
+			tags: ["Transfer"],
+			requestParams: { path: exportPathParams },
+			responses: {
+				"200": {
+					description: "The archive",
+					content: { "application/x-tar": { schema: z.string().meta({ format: "binary" }) } },
+				},
+				...authErrors,
+				...standardErrors(404, 409, 410, 500, 503),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/approvals": {
+		get: {
+			operationId: "listTransferApprovals",
+			summary: "List transfer approvals",
+			description:
+				"Approval grants requested by MCP callers, newest first. Signed-in sessions only (`transfer:export` or `transfer:import`); bearer tokens are refused.",
+			tags: ["Transfer"],
+			requestParams: { query: transferApprovalListQuery },
+			responses: {
+				"200": {
+					description: "One page of approvals",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferApprovalListResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/approvals/{id}/approve": {
+		post: {
+			operationId: "approveTransferApproval",
+			summary: "Approve a transfer request",
+			description:
+				"Approves a pending grant; the requester can use it once within 15 minutes. Signed-in sessions only, with the permission for the grant's action; bearer tokens are refused.",
+			tags: ["Transfer"],
+			requestParams: { path: approvalPathParams },
+			responses: {
+				"200": {
+					description: "The approved grant",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferApprovalResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+	},
+	"/_emdash/api/admin/transfer/approvals/{id}/deny": {
+		post: {
+			operationId: "denyTransferApproval",
+			summary: "Deny a transfer request",
+			description:
+				"Denies a pending grant. Signed-in sessions only, with the permission for the grant's action; bearer tokens are refused.",
+			tags: ["Transfer"],
+			requestParams: { path: approvalPathParams },
+			responses: {
+				"200": {
+					description: "The denied grant",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(transferApprovalResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(500),
+			},
+		},
+	},
+} as const;
+
+// ---------------------------------------------------------------------------
 // Merge all paths
 // ---------------------------------------------------------------------------
 
@@ -3021,6 +3642,7 @@ function buildAllPaths(maxUploadSize: number) {
 		...searchPaths,
 		...redirectPaths,
 		...userPaths,
+		...transferPaths,
 	} as const;
 }
 
@@ -3032,7 +3654,7 @@ function buildAllPaths(maxUploadSize: number) {
  * Generate the OpenAPI 3.1 document for the EmDash CMS API.
  *
  * Covers: Content, Media, Schema, Comments, Taxonomies, Menus,
- * Sections, Widgets, Settings, Search, Redirects, Users.
+ * Sections, Widgets, Settings, Search, Redirects, Users, Transfer.
  */
 export function generateOpenApiDocument(
 	options: { maxUploadSize?: number } = {},
@@ -3107,6 +3729,10 @@ export function generateOpenApiDocument(
 			{
 				name: "Users",
 				description: "User management and access control",
+			},
+			{
+				name: "Transfer",
+				description: "Whole-site export and import (site packages)",
 			},
 		],
 		components: {

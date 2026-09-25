@@ -1,3 +1,6 @@
+import type { ClientRequest, IncomingMessage } from "node:http";
+import type { RequestOptions } from "node:https";
+
 import { resolveAndValidateExternalUrlTarget, SsrfError } from "../security/ssrf.js";
 
 const TRAILING_DOT = /\.+$/;
@@ -215,8 +218,15 @@ export function createWorkersRegistryArtifactTransport(
 	};
 }
 
-async function createNodeRegistryArtifactTransport(): Promise<RegistryArtifactTransport> {
-	const { request } = await import("node:https");
+export type RegistryArtifactNodeRequest = (
+	options: RequestOptions,
+	callback: (response: IncomingMessage) => void,
+) => ClientRequest;
+
+export async function createNodeRegistryArtifactTransport(
+	nodeRequest?: RegistryArtifactNodeRequest,
+): Promise<RegistryArtifactTransport> {
+	const request = nodeRequest ?? (await import("node:https")).request;
 	return {
 		async fetch(input) {
 			let lastError: unknown;
@@ -240,8 +250,11 @@ async function createNodeRegistryArtifactTransport(): Promise<RegistryArtifactTr
 									Connection: "close",
 									"Accept-Encoding": "identity",
 								},
-								lookup: (_hostname, _options, callback) => {
-									callback(null, address, address.includes(":") ? 6 : 4);
+								lookup: (_hostname, options, callback) => {
+									const family = address.includes(":") ? 6 : 4;
+									// Node's default autoSelectFamily asks with `all: true` and expects a list.
+									if (options.all) callback(null, [{ address, family }]);
+									else callback(null, address, family);
 								},
 								signal: input.signal,
 							},

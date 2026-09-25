@@ -150,7 +150,7 @@ describe("getAllTermsForEntries", () => {
 		// apply to the `post` collection used in these tests. Without this,
 		// the primer wouldn't seed the "tag" key for entries with no tags.
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["posts", "post"]) })
 			.where("name", "=", "tag")
 			.execute();
@@ -195,7 +195,7 @@ describe("getAllTermsForEntries", () => {
 
 	it("does not leak primed entries across requests", async () => {
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["posts", "post"]) })
 			.where("name", "=", "tag")
 			.execute();
@@ -229,7 +229,7 @@ describe("getAllTermsForEntries", () => {
 
 	it("getTermsForEntries serves primed entries from cache without re-querying", async () => {
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["posts", "post"]) })
 			.where("name", "=", "tag")
 			.execute();
@@ -257,7 +257,7 @@ describe("getAllTermsForEntries", () => {
 
 	it("getTermsForEntries returns private copies that can't poison the cache", async () => {
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["posts", "post"]) })
 			.where("name", "=", "tag")
 			.execute();

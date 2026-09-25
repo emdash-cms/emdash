@@ -1,27 +1,19 @@
 ---
 import { sanitizeHref } from "emdash";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-interface Props {
-	node: {
-		_key?: string;
-		mutedHeadline?: string;
-		headline?: string;
-		body?: string;
-		primaryCtaLabel?: string;
-		primaryCtaUrl?: string;
-		secondaryCtaLabel?: string;
-		secondaryCtaUrl?: string;
-	};
-}
+type CallToActionBlock = Extract<PageContentBlock, { _type: "marketing_cta" }>;
+type Props = BlockComponentProps<CallToActionBlock>;
 
-const { node } = Astro.props;
-const mutedHeadline = node.mutedHeadline?.trim();
-const headline = node.headline?.trim();
-const body = node.body?.trim();
+const { value } = Astro.props;
+const mutedHeadline = value.muted_headline?.trim();
+const headline = value.headline?.trim();
+const body = value.body?.trim();
 const hasHeading = Boolean(mutedHeadline || headline);
-const headingId = node._key ? `${node._key}-heading` : undefined;
+const headingId = `${value._key}-heading`;
 
-function getCta(label?: string, url?: string) {
+function getCta(label?: string | null, url?: string | null) {
 	const trimmedLabel = label?.trim();
 	const trimmedUrl = url?.trim();
 
@@ -33,13 +25,13 @@ function getCta(label?: string, url?: string) {
 		: null;
 }
 
-const primaryCta = getCta(node.primaryCtaLabel, node.primaryCtaUrl);
-const secondaryCta = getCta(node.secondaryCtaLabel, node.secondaryCtaUrl);
+const primaryCta = getCta(value.primary_cta_label, value.primary_cta_url);
+const secondaryCta = getCta(value.secondary_cta_label, value.secondary_cta_url);
 ---
 
 <section
 	class="call-to-action section"
-	id={node._key}
+	id={value.anchor_id || undefined}
 	aria-labelledby={hasHeading ? headingId : undefined}
 >
 	<div class="cta-container">

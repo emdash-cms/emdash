@@ -8,7 +8,7 @@
  */
 
 import { useLingui } from "@lingui/react/macro";
-import { GlobeSimple } from "@phosphor-icons/react";
+import { CaretDown, GlobeSimple } from "@phosphor-icons/react";
 import React from "react";
 
 import { cn } from "../lib/utils.js";
@@ -54,25 +54,35 @@ export function LocaleSwitcher({
 				className={cn("text-kumo-subtle shrink-0", size === "sm" ? "size-3.5" : "size-4")}
 				weight="bold"
 			/>
-			<select
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				aria-label={t`Locale`}
-				className={cn(
-					"rounded-md border bg-transparent font-medium transition-colors",
-					"focus:ring-kumo-ring focus:outline-none focus:ring-2 focus:ring-offset-1",
-					"hover:bg-kumo-tint/50 cursor-pointer",
-					size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm",
+			<div className="relative flex items-center">
+				<select
+					value={value}
+					onChange={(e) => onChange(e.target.value)}
+					aria-label={t`Locale`}
+					className={cn(
+						"rounded-md border bg-transparent font-medium transition-colors",
+						"focus:ring-kumo-ring focus:outline-none focus:ring-2 focus:ring-offset-1",
+						"hover:bg-kumo-tint/50 cursor-pointer",
+						size === "sm"
+							? "px-1.5 py-0.5 text-xs"
+							: "h-9 appearance-none rounded-lg ps-3 pe-9 text-base",
+					)}
+				>
+					{showAll && <option value="">{t`All locales`}</option>}
+					{locales.map((locale) => (
+						<option key={locale} value={locale}>
+							{locale.toUpperCase()}
+							{locale === defaultLocale ? t` (default)` : ""}
+						</option>
+					))}
+				</select>
+				{size !== "sm" && (
+					<CaretDown
+						className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-kumo-subtle"
+						aria-hidden="true"
+					/>
 				)}
-			>
-				{showAll && <option value="">{t`All locales`}</option>}
-				{locales.map((locale) => (
-					<option key={locale} value={locale}>
-						{locale.toUpperCase()}
-						{locale === defaultLocale ? t` (default)` : ""}
-					</option>
-				))}
-			</select>
+			</div>
 		</div>
 	);
 }

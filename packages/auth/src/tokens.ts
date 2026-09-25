@@ -28,6 +28,20 @@ export const TOKEN_PREFIXES = {
 // Scopes
 // ---------------------------------------------------------------------------
 
+/**
+ * Site transfer scopes. `admin` grants all three; each transfer scope grants
+ * only itself, so a token can be limited to one transfer action.
+ */
+export const TRANSFER_SCOPES = ["transfer:export", "transfer:analyze", "transfer:execute"] as const;
+
+export type TransferScope = (typeof TRANSFER_SCOPES)[number];
+
+const TRANSFER_SCOPE_PREFIX = "transfer:";
+
+export function isTransferScope(scope: string): boolean {
+	return scope.startsWith(TRANSFER_SCOPE_PREFIX);
+}
+
 /** All valid API token scopes */
 export const VALID_SCOPES = [
 	"content:read",
@@ -41,6 +55,7 @@ export const VALID_SCOPES = [
 	"settings:read",
 	"settings:manage",
 	"mcp:tools",
+	...TRANSFER_SCOPES,
 	"admin",
 ] as const;
 
@@ -116,7 +131,14 @@ export function generateToken(): string {
  * We never store raw tokens - only their SHA-256 hash
  */
 export function hashToken(token: string): string {
-	const bytes = decodeBase64urlIgnorePadding(token);
+	// Malformed input can't match an issued token, so hash its raw bytes and
+	// let the lookup miss.
+	let bytes: Uint8Array;
+	try {
+		bytes = decodeBase64urlIgnorePadding(token);
+	} catch {
+		bytes = new TextEncoder().encode(token);
+	}
 	const hash = sha256(bytes);
 	return encodeBase64urlNoPadding(hash);
 }

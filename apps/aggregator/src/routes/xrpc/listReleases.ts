@@ -16,6 +16,8 @@ import { type AggregatorDefs, type AggregatorListReleases } from "@emdash-cms/re
 import {
 	ACTIVE_PROJECTION_JOINS_SQL,
 	ACTIVE_PROJECTION_POLICY_SQL,
+	ACTIVE_PROFILE_REDACTION_SQL,
+	ACTIVE_PROFILE_SQL,
 	ACTIVE_PUBLIC_RELEASE_SQL,
 	ACTIVE_RELEASE_REDACTION_SQL,
 	activeProjectionPolicyBindings,
@@ -115,8 +117,13 @@ function listReleasesSql(policy: ListingPolicyConfig, hasCursor: boolean): strin
 			LIMIT ?`;
 	}
 	return `SELECT ${releaseColumns("r.")}, r.version_sort
-		FROM releases r
-		WHERE r.did = ? AND r.package = ? AND r.tombstoned_at IS NULL
+		FROM packages p
+		JOIN releases r ON r.did = p.did AND r.package = p.slug
+		WHERE r.did = ? AND r.package = ?
+		  AND p.installability_status = 'valid'
+		  AND ${ACTIVE_PROFILE_SQL}
+		  AND ${ACTIVE_PROFILE_REDACTION_SQL}
+		  AND r.tombstoned_at IS NULL
 		  AND ${ACTIVE_RELEASE_REDACTION_SQL}
 		${hasCursor ? "AND (r.version_sort < ? OR (r.version_sort = ? AND r.version < ?))" : ""}
 		ORDER BY r.version_sort DESC, r.version DESC

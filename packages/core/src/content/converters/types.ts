@@ -4,6 +4,15 @@
  * Defines the structure of Portable Text blocks used in EmDash.
  */
 
+import type { PortableTextTableBlock } from "@emdash-cms/admin/portable-text-table";
+
+export type {
+	PortableTextTableAlignment,
+	PortableTextTableBlock,
+	PortableTextTableCell,
+	PortableTextTableRow,
+} from "@emdash-cms/admin/portable-text-table";
+
 /**
  * Base span (inline text)
  */
@@ -71,6 +80,23 @@ export interface PortableTextImageBlock {
 	/** Display height for this instance (overrides original) */
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/**
+	 * Optional link. When set, the image is rendered inside an `<a>` using
+	 * `sanitizeHref`-validated `href`. Mirrors `PortableTextLinkMark`.
+	 *
+	 * The bare string form is legacy: `gutenberg-to-portable-text` emits
+	 * `link: "https://…"` for linked images, so WordPress-imported content
+	 * carries it. Read the field through `normalizeImageLink()`.
+	 */
+	link?: string | PortableTextImageLink;
+}
+
+/**
+ * Canonical link shape on a Portable Text image block.
+ */
+export interface PortableTextImageLink {
+	href: string;
+	blank?: boolean;
 }
 
 /**
@@ -148,6 +174,7 @@ export type PortableTextBlock =
 	| PortableTextGalleryBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextTableBlock
 	| PortableTextUnknownBlock;
 
 /**

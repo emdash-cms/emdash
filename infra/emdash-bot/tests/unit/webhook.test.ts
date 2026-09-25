@@ -312,6 +312,54 @@ describe("normalizeWebhook", () => {
 			});
 		});
 
+		test.each([
+			["opened", "OWNER"],
+			["opened", "MEMBER"],
+			["opened", "COLLABORATOR"],
+			["reopened", "MEMBER"],
+		])("%s issue with author association %s waits for a triage command", (action, association) => {
+			const payload: IssuesEvent = {
+				action,
+				issue: {
+					number: 7,
+					user: { login: "alice" },
+					labels: [],
+					author_association: association,
+				},
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("skip");
+		});
+
+		test.each(["CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR", "NONE"])(
+			"opened issue with author association %s starts triage",
+			(association) => {
+				const payload: IssuesEvent = {
+					action: "opened",
+					issue: {
+						number: 7,
+						user: { login: "alice" },
+						labels: [],
+						author_association: association,
+					},
+					sender: { login: "alice" },
+				};
+				const r = normalizeWebhook({ eventType: "issues", payload });
+				expect(r).toMatchObject({ kind: "dispatch", event: { event: "triage" } });
+			},
+		);
+
+		test("closed reaps the fix-loop branches on a member's issue", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, author_association: "MEMBER" },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r).toMatchObject({ kind: "cleanup", anchor: "issue-7" });
+		});
+
 		test("labeled is not handled (DO is the source of truth, not labels)", () => {
 			const payload: IssuesEvent = {
 				action: "labeled",
@@ -426,6 +474,23 @@ describe("normalizeWebhook", () => {
 	});
 
 	describe("pull_request_review", () => {
+		test("dismissed review coalesces a readiness refresh", () => {
+			const payload: PullRequestReviewEvent = {
+				action: "dismissed",
+				review: { state: "dismissed", author_association: "MEMBER", user: { login: "alice" } },
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
+				},
+			};
+			expect(normalizeWebhook({ eventType: "pull_request_review", payload })).toMatchObject({
+				kind: "dispatch",
+				anchor: "issue-99",
+				event: { event: "pr.updated", pullRequestNumber: 99 },
+			});
+		});
+
 		test("approved → pr.approved with system actor", () => {
 			const payload: PullRequestReviewEvent = {
 				action: "submitted",
@@ -477,6 +542,76 @@ describe("normalizeWebhook", () => {
 			};
 			const r = normalizeWebhook({ eventType: "pull_request_review", payload });
 			expect(r.kind).toBe("skip");
+		});
+
+		const forkPullRequest = {
+			number: 120,
+			state: "open",
+			draft: false,
+			user: { login: "contributor", type: "User" },
+			head: { ref: "fix/gallery-media-usage", repo: { full_name: "contributor/emdash" } },
+			base: { repo: { full_name: "emdash-cms/emdash" } },
+		};
+
+		test.each(["submitted", "dismissed"])(
+			"%s on a fork PR the bot did not open refreshes its review label",
+			(action) => {
+				const payload: PullRequestReviewEvent = {
+					action,
+					review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
+					pull_request: forkPullRequest,
+					sender: { login: "alice" },
+				};
+				expect(normalizeWebhook({ eventType: "pull_request_review", payload })).toEqual({
+					kind: "review_state",
+					pullRequestNumber: 120,
+					authorLogin: "contributor",
+					draft: false,
+				});
+			},
+		);
+
+		test("a review on a bot-authored, closed or same-repo PR changes no review label", () => {
+			const review = { state: "approved", author_association: "MEMBER", user: { login: "alice" } };
+			for (const pullRequest of [
+				{ ...forkPullRequest, user: { login: "dependabot[bot]", type: "Bot" } },
+				{ ...forkPullRequest, state: "closed" },
+				{
+					...forkPullRequest,
+					head: { ref: "fix/in-repo", repo: { full_name: "emdash-cms/emdash" } },
+				},
+			]) {
+				const payload: PullRequestReviewEvent = {
+					action: "submitted",
+					review,
+					pull_request: pullRequest,
+				};
+				expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
+			}
+		});
+	});
+
+	describe("PR readiness webhooks", () => {
+		test.each(["check_run", "check_suite"])("%s refreshes the attached bot PR", (eventType) => {
+			const suite = { head_branch: "bot/fix-42", pull_requests: [{ number: 3215 }] };
+			const payload =
+				eventType === "check_run"
+					? { action: "completed", check_run: { check_suite: suite } }
+					: { action: "completed", check_suite: suite };
+			expect(normalizeWebhook({ eventType, deliveryId: "delivery-1", payload })).toMatchObject({
+				kind: "dispatch",
+				anchor: "issue-42",
+				event: { event: "pr.updated", pullRequestNumber: 3215, deliveryId: "delivery-1" },
+			});
+		});
+
+		test("commit status refreshes by the bot branch without needing another GitHub lookup", () => {
+			expect(
+				normalizeWebhook({
+					eventType: "status",
+					payload: { state: "success", branches: [{ name: "bot/fix-2693" }] },
+				}),
+			).toMatchObject({ kind: "dispatch", anchor: "issue-2693", event: { event: "pr.updated" } });
 		});
 	});
 

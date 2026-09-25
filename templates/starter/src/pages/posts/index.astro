@@ -3,8 +3,15 @@ import { getEmDashCollection, getTermsForEntries } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
-const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+const cursor = Astro.url.searchParams.get("cursor") || undefined;
+const {
+	entries: posts,
+	cacheHint,
+	nextCursor,
+} = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
+	limit: 20,
+	cursor,
 });
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
@@ -33,11 +40,11 @@ const postsWithTags = posts.map((post) => ({
 					<li>
 						<a href={`/posts/${post.id}`}>
 							{post.data.featured_image && (
-								<Image image={post.data.featured_image} />
+								<div {...post.edit.featured_image}><Image image={post.data.featured_image} /></div>
 							)}
-							<h2>{post.data.title}</h2>
+							<h2 {...post.edit.title}>{post.data.title}</h2>
 						</a>
-						{post.data.excerpt && <p>{post.data.excerpt}</p>}
+						{post.data.excerpt && <p {...post.edit.excerpt}>{post.data.excerpt}</p>}
 						{tags.length > 0 && (
 							<div>
 								{tags.map((t) => (
@@ -50,4 +57,14 @@ const postsWithTags = posts.map((post) => ({
 			</ul>
 		)
 	}
+	<nav aria-label="Pagination">
+		{cursor && <a href="/posts">First page</a>}
+		{
+			nextCursor && (
+				<a href={`/posts?cursor=${encodeURIComponent(nextCursor)}`}>
+					Next page
+				</a>
+			)
+		}
+	</nav>
 </Base>

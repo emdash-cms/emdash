@@ -10,75 +10,6 @@
 		"title": "Acme",
 		"tagline": "Build products people actually want"
 	},
-	"collections": [
-		{
-			"slug": "pages",
-			"label": "Pages",
-			"labelSingular": "Page",
-			"supports": ["drafts", "revisions", "seo"],
-			"fields": [
-				{
-					"slug": "title",
-					"label": "Title",
-					"type": "string",
-					"required": true
-				},
-				{
-					"slug": "content",
-					"label": "Content",
-					"type": "portableText"
-				}
-			]
-		},
-		{
-			"slug": "posts",
-			"label": "Posts",
-			"labelSingular": "Post",
-			"supports": ["drafts", "revisions", "search", "seo"],
-			"fields": [
-				{
-					"slug": "title",
-					"label": "Title",
-					"type": "string",
-					"required": true,
-					"searchable": true
-				},
-				{
-					"slug": "excerpt",
-					"label": "Excerpt",
-					"type": "text",
-					"searchable": true
-				},
-				{
-					"slug": "category",
-					"label": "Category",
-					"type": "string",
-					"searchable": true
-				},
-				{
-					"slug": "featured",
-					"label": "Featured",
-					"type": "boolean"
-				},
-				{
-					"slug": "featured_image",
-					"label": "Featured Image",
-					"type": "image"
-				},
-				{
-					"slug": "cover_style",
-					"label": "Cover Style",
-					"type": "string"
-				},
-				{
-					"slug": "content",
-					"label": "Content",
-					"type": "portableText",
-					"searchable": true
-				}
-			]
-		}
-	],
 	"bylines": [
 		{
 			"id": "author-maya-chen",
@@ -122,27 +53,63 @@
 			"name": "footer_product",
 			"label": "Footer: Product",
 			"items": [
-				{ "type": "custom", "label": "Features", "url": "/#features" },
-				{ "type": "custom", "label": "Pricing", "url": "/#pricing" },
-				{ "type": "custom", "label": "Changelog", "url": "/changelog" }
+				{
+					"type": "custom",
+					"label": "Features",
+					"url": "/#features"
+				},
+				{
+					"type": "custom",
+					"label": "Pricing",
+					"url": "/#pricing"
+				},
+				{
+					"type": "custom",
+					"label": "Contact",
+					"url": "/contact"
+				}
 			]
 		},
 		{
 			"name": "footer_company",
 			"label": "Footer: Company",
 			"items": [
-				{ "type": "custom", "label": "About", "url": "/about" },
-				{ "type": "custom", "label": "Blog", "url": "/blog" },
-				{ "type": "custom", "label": "Careers", "url": "/careers" }
+				{
+					"type": "custom",
+					"label": "Home",
+					"url": "/"
+				},
+				{
+					"type": "custom",
+					"label": "Blog",
+					"url": "/blog"
+				},
+				{
+					"type": "custom",
+					"label": "Contact",
+					"url": "/contact"
+				}
 			]
 		},
 		{
 			"name": "footer_support",
 			"label": "Footer: Support",
 			"items": [
-				{ "type": "custom", "label": "Documentation", "url": "/docs" },
-				{ "type": "custom", "label": "Contact", "url": "/contact" },
-				{ "type": "custom", "label": "Status", "url": "/status" }
+				{
+					"type": "custom",
+					"label": "Pricing",
+					"url": "/#pricing"
+				},
+				{
+					"type": "custom",
+					"label": "Contact",
+					"url": "/contact"
+				},
+				{
+					"type": "custom",
+					"label": "Email",
+					"url": "mailto:hello@acme.example"
+				}
 			]
 		}
 	],
@@ -257,7 +224,12 @@
 						}
 					]
 				},
-				"bylines": [{ "byline": "author-maya-chen", "roleLabel": "Product lead" }]
+				"bylines": [
+					{
+						"byline": "author-maya-chen",
+						"roleLabel": "Product lead"
+					}
+				]
 			},
 			{
 				"id": "post-trusted-workspace",
@@ -355,7 +327,12 @@
 						}
 					]
 				},
-				"bylines": [{ "byline": "author-theo-grant", "roleLabel": "Design lead" }]
+				"bylines": [
+					{
+						"byline": "author-theo-grant",
+						"roleLabel": "Design lead"
+					}
+				]
 			},
 			{
 				"id": "post-customer-conversations",
@@ -453,7 +430,12 @@
 						}
 					]
 				},
-				"bylines": [{ "byline": "author-nina-patel", "roleLabel": "Co-founder" }]
+				"bylines": [
+					{
+						"byline": "author-nina-patel",
+						"roleLabel": "Co-founder"
+					}
+				]
 			}
 		],
 		"pages": [
@@ -465,17 +447,19 @@
 					"title": "Home",
 					"content": [
 						{
-							"_type": "marketing.hero",
+							"_type": "marketing_hero",
+							"_version": 1,
 							"_key": "hero",
 							"headline": "Build products people actually want",
 							"subheadline": "The all-in-one platform for modern teams. Ship faster, collaborate better, and focus on what matters.",
-							"primaryCtaLabel": "Start Free Trial",
-							"primaryCtaUrl": "/signup",
-							"secondaryCtaLabel": "Watch Demo",
-							"secondaryCtaUrl": "/demo"
+							"primary_cta_label": "See Pricing",
+							"primary_cta_url": "/#pricing",
+							"secondary_cta_label": "Talk to Us",
+							"secondary_cta_url": "/contact"
 						},
 						{
-							"_type": "marketing.features",
+							"_type": "marketing_features",
+							"_version": 1,
 							"_key": "features",
 							"headline": "Everything you need to ship",
 							"subheadline": "Powerful features that help your team move faster without sacrificing quality.",
@@ -510,10 +494,12 @@
 									"title": "Global Scale",
 									"description": "Deployed to edge locations worldwide. Fast for everyone, everywhere."
 								}
-							]
+							],
+							"anchor_id": "features"
 						},
 						{
-							"_type": "marketing.testimonials",
+							"_type": "marketing_testimonials",
+							"_version": 1,
 							"_key": "testimonials",
 							"headline": "Trusted by teams everywhere",
 							"testimonials": [
@@ -535,10 +521,12 @@
 									"role": "VP Engineering",
 									"company": "Nexus"
 								}
-							]
+							],
+							"anchor_id": "testimonials"
 						},
 						{
-							"_type": "marketing.pricing",
+							"_type": "marketing_pricing",
+							"_version": 1,
 							"_key": "pricing",
 							"headline": "Simple, transparent pricing",
 							"subheadline": "No hidden fees. No surprises. Start free and scale as you grow.",
@@ -549,8 +537,8 @@
 									"period": "/month",
 									"description": "Perfect for trying things out",
 									"features": "Up to 3 team members\n5 projects\nBasic analytics\nCommunity support\n1GB storage",
-									"ctaLabel": "Get Started",
-									"ctaUrl": "/signup"
+									"cta_label": "Contact Us",
+									"cta_url": "/contact"
 								},
 								{
 									"name": "Pro",
@@ -558,22 +546,24 @@
 									"period": "/user/month",
 									"description": "For growing teams",
 									"features": "Unlimited team members\nUnlimited projects\nAdvanced analytics\nPriority support\n100GB storage\nCustom integrations\nAPI access",
-									"ctaLabel": "Start Free Trial",
-									"ctaUrl": "/signup?plan=pro",
-									"highlighted": true
+									"highlighted": true,
+									"cta_label": "Contact Sales",
+									"cta_url": "/contact"
 								},
 								{
 									"name": "Enterprise",
 									"price": "Custom",
 									"description": "For large organizations",
 									"features": "Everything in Pro\nDedicated support\nCustom contracts\nSLA guarantee\nUnlimited storage",
-									"ctaLabel": "Contact Sales",
-									"ctaUrl": "/contact"
+									"cta_label": "Contact Sales",
+									"cta_url": "/contact"
 								}
-							]
+							],
+							"anchor_id": "pricing"
 						},
 						{
-							"_type": "marketing.faq",
+							"_type": "marketing_faq",
+							"_version": 1,
 							"_key": "faq",
 							"headline": "Frequently asked questions",
 							"items": [
@@ -593,18 +583,21 @@
 									"question": "Is there a free trial?",
 									"answer": "Yes, all plans come with a 14-day free trial. No credit card required. You can upgrade, downgrade, or cancel at any time."
 								}
-							]
+							],
+							"anchor_id": "faq"
 						},
 						{
-							"_type": "marketing.cta",
+							"_type": "marketing_cta",
+							"_version": 1,
 							"_key": "cta",
-							"mutedHeadline": "Ready to build what matters?",
 							"headline": "Start shipping today.",
 							"body": "Bring your team together, move faster, and stay focused from first idea to launch.",
-							"primaryCtaLabel": "Start Free Trial",
-							"primaryCtaUrl": "/#pricing",
-							"secondaryCtaLabel": "Request a Demo",
-							"secondaryCtaUrl": "/contact"
+							"anchor_id": "cta",
+							"primary_cta_label": "View Plans",
+							"primary_cta_url": "/#pricing",
+							"secondary_cta_label": "Request a Demo",
+							"secondary_cta_url": "/contact",
+							"muted_headline": "Ready to build what matters?"
 						}
 					]
 				}
@@ -617,7 +610,8 @@
 					"title": "Contact",
 					"content": [
 						{
-							"_type": "marketing.hero",
+							"_type": "marketing_hero",
+							"_version": 1,
 							"_key": "contact-hero",
 							"headline": "Get in touch",
 							"subheadline": "Have questions? Want a demo? We'd love to hear from you.",
@@ -627,5 +621,502 @@
 				}
 			}
 		]
-	}
+	},
+	"blockTypes": [
+		{
+			"slug": "marketing_hero",
+			"label": "Hero",
+			"description": "A prominent page introduction with optional calls to action and media",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|[a-z][a-z0-9_-]*)$"
+							}
+						},
+						{
+							"slug": "headline",
+							"label": "Headline",
+							"type": "string",
+							"required": true
+						},
+						{
+							"slug": "subheadline",
+							"label": "Subheadline",
+							"type": "text"
+						},
+						{
+							"slug": "primary_cta_label",
+							"label": "Primary CTA label",
+							"type": "string"
+						},
+						{
+							"slug": "primary_cta_url",
+							"label": "Primary CTA URL",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$"
+							}
+						},
+						{
+							"slug": "secondary_cta_label",
+							"label": "Secondary CTA label",
+							"type": "string"
+						},
+						{
+							"slug": "secondary_cta_url",
+							"label": "Secondary CTA URL",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$"
+							}
+						},
+						{
+							"slug": "image",
+							"label": "Image",
+							"type": "image"
+						},
+						{
+							"slug": "centered",
+							"label": "Center the layout",
+							"type": "boolean",
+							"defaultValue": false
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_features",
+			"label": "Features",
+			"description": "A grid of product or service features",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|[a-z][a-z0-9_-]*)$"
+							}
+						},
+						{
+							"slug": "headline",
+							"label": "Headline",
+							"type": "string",
+							"required": true
+						},
+						{
+							"slug": "subheadline",
+							"label": "Subheadline",
+							"type": "text"
+						},
+						{
+							"slug": "features",
+							"label": "Features",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 12,
+								"subFields": [
+									{
+										"slug": "icon",
+										"label": "Icon",
+										"type": "select",
+										"required": true,
+										"options": [
+											"zap",
+											"shield",
+											"users",
+											"chart",
+											"code",
+											"globe",
+											"heart",
+											"star",
+											"check",
+											"lock",
+											"clock",
+											"cloud"
+										]
+									},
+									{
+										"slug": "title",
+										"label": "Title",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "description",
+										"label": "Description",
+										"type": "text",
+										"required": true
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_testimonials",
+			"label": "Testimonials",
+			"description": "Customer quotes and attribution",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|[a-z][a-z0-9_-]*)$"
+							}
+						},
+						{
+							"slug": "headline",
+							"label": "Headline",
+							"type": "string"
+						},
+						{
+							"slug": "testimonials",
+							"label": "Testimonials",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 12,
+								"subFields": [
+									{
+										"slug": "quote",
+										"label": "Quote",
+										"type": "text",
+										"required": true
+									},
+									{
+										"slug": "author",
+										"label": "Author name",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "role",
+										"label": "Role or title",
+										"type": "string"
+									},
+									{
+										"slug": "company",
+										"label": "Company",
+										"type": "string"
+									},
+									{
+										"slug": "avatar",
+										"label": "Avatar",
+										"type": "image"
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_pricing",
+			"label": "Pricing",
+			"description": "A comparison of up to three pricing plans",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|[a-z][a-z0-9_-]*)$"
+							}
+						},
+						{
+							"slug": "headline",
+							"label": "Headline",
+							"type": "string"
+						},
+						{
+							"slug": "subheadline",
+							"label": "Subheadline",
+							"type": "text"
+						},
+						{
+							"slug": "plans",
+							"label": "Plans",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 3,
+								"subFields": [
+									{
+										"slug": "name",
+										"label": "Plan name",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "price",
+										"label": "Price",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "period",
+										"label": "Period",
+										"type": "string"
+									},
+									{
+										"slug": "description",
+										"label": "Description",
+										"type": "text"
+									},
+									{
+										"slug": "features",
+										"label": "Features, one per line",
+										"type": "text"
+									},
+									{
+										"slug": "cta_label",
+										"label": "CTA label",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "cta_url",
+										"label": "CTA URL",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "highlighted",
+										"label": "Highlight this plan",
+										"type": "boolean"
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_faq",
+			"label": "FAQ",
+			"description": "A list of frequently asked questions",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|[a-z][a-z0-9_-]*)$"
+							}
+						},
+						{
+							"slug": "headline",
+							"label": "Headline",
+							"type": "string"
+						},
+						{
+							"slug": "items",
+							"label": "Questions",
+							"type": "repeater",
+							"required": true,
+							"validation": {
+								"minItems": 1,
+								"maxItems": 12,
+								"subFields": [
+									{
+										"slug": "question",
+										"label": "Question",
+										"type": "string",
+										"required": true
+									},
+									{
+										"slug": "answer",
+										"label": "Answer",
+										"type": "text",
+										"required": true
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"slug": "marketing_cta",
+			"label": "Call to action",
+			"description": "Closing call to action with two optional links",
+			"category": "Marketing",
+			"currentVersion": 1,
+			"versions": [
+				{
+					"version": 1,
+					"fields": [
+						{
+							"slug": "anchor_id",
+							"label": "Anchor ID",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|[a-z][a-z0-9_-]*)$"
+							}
+						},
+						{
+							"slug": "muted_headline",
+							"label": "Muted headline",
+							"type": "string"
+						},
+						{
+							"slug": "headline",
+							"label": "Headline",
+							"type": "string"
+						},
+						{
+							"slug": "body",
+							"label": "Body",
+							"type": "text"
+						},
+						{
+							"slug": "primary_cta_label",
+							"label": "Primary CTA label",
+							"type": "string"
+						},
+						{
+							"slug": "primary_cta_url",
+							"label": "Primary CTA URL",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$"
+							}
+						},
+						{
+							"slug": "secondary_cta_label",
+							"label": "Secondary CTA label",
+							"type": "string"
+						},
+						{
+							"slug": "secondary_cta_url",
+							"label": "Secondary CTA URL",
+							"type": "string",
+							"validation": {
+								"pattern": "^(?:$|(?:https?://|mailto:|tel:|/(?!/)|#).+)$"
+							}
+						}
+					]
+				}
+			]
+		}
+	],
+	"collections": [
+		{
+			"slug": "pages",
+			"label": "Pages",
+			"labelSingular": "Page",
+			"supports": ["drafts", "revisions", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "blocks",
+					"validation": {
+						"allowedTypes": [
+							"marketing_hero",
+							"marketing_features",
+							"marketing_testimonials",
+							"marketing_pricing",
+							"marketing_faq",
+							"marketing_cta"
+						],
+						"maxItems": 20
+					}
+				}
+			]
+		},
+		{
+			"slug": "posts",
+			"label": "Posts",
+			"labelSingular": "Post",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "excerpt",
+					"label": "Excerpt",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "category",
+					"label": "Category",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "featured",
+					"label": "Featured",
+					"type": "boolean"
+				},
+				{
+					"slug": "featured_image",
+					"label": "Featured Image",
+					"type": "image"
+				},
+				{
+					"slug": "cover_style",
+					"label": "Cover Style",
+					"type": "string"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		}
+	]
 }

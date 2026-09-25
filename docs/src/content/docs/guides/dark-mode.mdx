@@ -59,7 +59,7 @@ In the admin, open **Content Types**, edit the image field, and switch on **Dark
 
 In a seed file, set the `darkVariant` widget option on the field:
 
-```json title="seed/seed.json"
+```json title=".emdash/seed.json"
 {
 	"slug": "featured_image",
 	"label": "Featured Image",
@@ -88,13 +88,23 @@ The `Image` component renders both images when the value carries a `darkVariant`
 
 ```astro title="src/pages/posts/[slug].astro"
 ---
+import { decodeSlug, getEmDashEntry } from "emdash";
 import { Image } from "emdash/ui";
-import { getEmDashEntry } from "emdash";
 
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+  return Astro.redirect("/404");
+}
+
+const { entry: post } = await getEmDashEntry("posts", slug);
+
+if (!post) {
+  return Astro.redirect("/404");
+}
 ---
 
-{post?.data.featured_image && <Image image={post.data.featured_image} priority />}
+{post.data.featured_image && <Image image={post.data.featured_image} priority />}
 ```
 
 The output contains two `<img>` elements. The primary image gets the class `emdash-image--light` and the variant gets `emdash-image--dark`. Both use the primary image's `alt` text, width and height overrides, and loading attributes. Each keeps its own placeholder color.

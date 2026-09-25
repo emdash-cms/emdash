@@ -11,25 +11,61 @@ on:
         type: boolean
         default: false
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A cancelled publish can leave only part of the release on npm.
+  cancel-in-progress: false
 
-# Default-deny at the workflow level. Each job scopes its own permissions:
-# - `release` declares contents/id-token/pull-requests below.
-# - `sync-templates` calls a reusable workflow whose own job-level
-#   permissions block (contents: read) takes precedence over the caller's
-#   inherited permissions.
+# Default-deny at the workflow level. Each job scopes its own permissions.
 permissions: {}
 
 jobs:
-  release:
-    name: Release
+  select:
+    name: Select release mode
     runs-on: ubuntu-latest
     outputs:
-      published: ${{ steps.changesets.outputs.published }}
+      mode: ${{ inputs.publish-only && 'publish' || steps.changesets.outputs.mode }}
+      publish-plan-artifact-id: ${{ steps.changesets.outputs.publish-plan-artifact-id }}
     permissions:
-      contents: write
-      id-token: write
-      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Block 1.x releases (we are in 0.x)
+        run: node .github/scripts/check-no-major.mjs
+
+      - name: Select release mode
+        if: ${{ !inputs.publish-only }}
+        id: changesets
+        uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+
+      - name: Build packages
+        if: ${{ steps.changesets.outputs.mode == 'version' }}
+        run: pnpm build
+
+  version:
+    name: Create release pull request
+    needs: select
+    if: ${{ needs.select.outputs.mode == 'version' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Generate token
         id: app-token
@@ -37,9 +73,6 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          # changesets/action pushes release commits/tags and opens the
-          # release PR (contents + pull-requests). npm publish auth is the
-          # separate NODE_AUTH_TOKEN; OIDC provenance is the job's id-token.
           permission-contents: write
           permission-pull-requests: write
 
@@ -48,9 +81,92 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
-          # Intentional: changesets/action pushes the release PR / tags
-          # using this credential.
-          persist-credentials: true
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create or update release pull request
+        uses: changesets/action/version@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: node .github/scripts/release.mjs version
+          commit-message: "ci: release"
+          pr-title: "ci: release"
+
+  pack:
+    name: Pack release
+    needs: select
+    if: ${{ needs.select.outputs.mode == 'publish' }}
+    runs-on: ubuntu-latest
+    outputs:
+      pack-dir-artifact-id: ${{ steps.changesets.outputs.pack-dir-artifact-id }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Pack packages
+        id: changesets
+        uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        with:
+          publish-plan-artifact-id: ${{ needs.select.outputs.publish-plan-artifact-id }}
+
+  publish:
+    name: Publish release
+    needs:
+      - select
+      - pack
+    if: ${{ needs.select.outputs.mode == 'publish' }}
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing
+    steps:
+      - name: Generate token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
@@ -65,47 +181,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages
-        run: pnpm build
-
-      - name: Block 1.x releases (we are in 0.x)
-        run: node .github/scripts/check-no-major.mjs
-
-      - name: Create Release Pull Request or Publish
-        if: ${{ !inputs.publish-only }}
+      - name: Publish packages
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          version: node .github/scripts/release.mjs version
-          publish: node .github/scripts/release.mjs publish
-          commit: "ci: release"
-          title: "ci: release"
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-
-      # Attach sandboxed-plugin tarballs to the releases changesets just
-      # created, so the decentralized registry has a stable public URL to
-      # point each release record at. See the script header for details.
-      # Only the changesets path is covered: the publish-only recovery path
-      # below neither runs changesets/action nor creates GitHub releases, so
-      # assets for that path must be backfilled manually.
-      - name: Attach plugin tarballs to releases
-        if: ${{ steps.changesets.outputs.published == 'true' }}
-        run: node .github/scripts/attach-plugin-tarballs.mjs
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
-
-      - name: Publish (manual)
-        if: ${{ inputs.publish-only }}
-        run: node .github/scripts/release.mjs publish
+          github-token: ${{ steps.app-token.outputs.token }}
+          pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}
 
   sync-templates:
     name: Sync Templates
-    needs: release
+    needs: publish
     if: >-
-      needs.release.outputs.published == 'true' ||
+      needs.publish.outputs.published == 'true' ||
       inputs.publish-only
     permissions:
       contents: read

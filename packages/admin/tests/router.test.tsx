@@ -1248,6 +1248,59 @@ describe("ContentNewPage – create failure surfaces the server's error", () => 
 		// And the failed create must not navigate anywhere.
 		expect(router.state.location.pathname).toContain("/content/posts/new");
 	});
+
+	it("names a field the server rejected by its label", async () => {
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", {
+				data: {
+					...MANIFEST,
+					collections: {
+						posts: {
+							...MANIFEST.collections.posts,
+							fields: { title: { kind: "string", label: "Headline" } },
+						},
+					},
+				},
+			})
+			.on(
+				"POST",
+				"/_emdash/api/content/posts",
+				{
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: "title: Invalid input: expected string, received undefined",
+						details: {
+							issues: [
+								{
+									path: "title",
+									code: "required",
+									message: "Invalid input: expected string, received undefined",
+								},
+							],
+						},
+					},
+				},
+				400,
+			);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/new",
+			params: { collection: "posts" },
+			search: { locale: undefined },
+		});
+		const screen = await render(<TestApp />);
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }))
+			.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+
+		await expect.element(screen.getByText("Headline is required.")).toBeInTheDocument();
+		expect(screen.getByText("expected string, received undefined", { exact: false }).query()).toBe(
+			null,
+		);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -1762,6 +1815,62 @@ describe("ContentEditPage – autosave cache patching", () => {
 		});
 		expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
 		expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+	});
+
+	it("names a field the server rejected by its label in the autosave toast", async () => {
+		mockFetch
+			.on("GET", "/_emdash/api/manifest", {
+				data: {
+					...MANIFEST,
+					i18n: undefined,
+					collections: {
+						posts: {
+							...MANIFEST.collections.posts,
+							supports: ["drafts", "revisions"],
+							fields: { title: { kind: "string", label: "Headline" } },
+						},
+					},
+				},
+			})
+			.on(
+				"PUT",
+				"/_emdash/api/content/posts/post_1?locale=en",
+				{
+					error: {
+						code: "VALIDATION_ERROR",
+						message: "title: Too big: expected string to have <=5 characters",
+						details: {
+							issues: [
+								{
+									path: "title",
+									code: "too_big",
+									origin: "string",
+									maximum: 5,
+									message: "Too big: expected string to have <=5 characters",
+								},
+							],
+						},
+					},
+				},
+				400,
+			);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await expect.element(screen.getByText("Autosave failed")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Headline can have at most 5 characters."))
+			.toBeInTheDocument();
+		expect(screen.getByText("Too big", { exact: false }).query()).toBe(null);
 	});
 
 	it("does not signal a rejection for a server error", async () => {

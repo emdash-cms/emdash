@@ -1,36 +1,17 @@
 ---
 import { sanitizeHref } from "emdash";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-interface RawPlan {
-	name: string;
-	price: string;
-	period?: string;
-	description?: string;
-	// Features are stored as a newline-separated string (Block Kit has no
-	// list-of-strings element, so a multiline text input is the closest fit).
-	features?: string;
-	// CTAs are flattened to sibling fields because Block Kit has no
-	// object-group element.
-	ctaLabel?: string;
-	ctaUrl?: string;
-	highlighted?: boolean;
-}
+type PricingBlock = Extract<PageContentBlock, { _type: "marketing_pricing" }>;
+type Props = BlockComponentProps<PricingBlock>;
 
-interface Props {
-	node: {
-		_key?: string;
-		headline?: string;
-		subheadline?: string;
-		plans: RawPlan[];
-	};
-}
-
-const { node } = Astro.props;
-const { _key, headline, subheadline, plans: rawPlans } = node;
-const headingId = _key ? `${_key}-heading` : undefined;
+const { value } = Astro.props;
+const { anchor_id, headline, subheadline, plans: rawPlans } = value;
+const headingId = `${value._key}-heading`;
 
 const plans = rawPlans.map((plan) => {
-	const ctaLabel = plan.ctaLabel?.trim();
+	const ctaLabel = plan.cta_label?.trim();
 
 	return {
 		...plan,
@@ -41,7 +22,7 @@ const plans = rawPlans.map((plan) => {
 		cta: ctaLabel
 			? {
 					label: ctaLabel,
-					url: sanitizeHref(plan.ctaUrl?.trim()),
+					url: sanitizeHref(plan.cta_url?.trim()),
 				}
 			: null,
 	};
@@ -50,7 +31,7 @@ const plans = rawPlans.map((plan) => {
 
 <section
 	class:list={["pricing", "section", { "pricing-with-header": headline }]}
-	id={_key}
+	id={anchor_id || undefined}
 	aria-labelledby={headline ? headingId : undefined}
 >
 	<div class="pricing-container">

@@ -2,6 +2,8 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import { BlockTypeRegistry } from "../../schema/block-type-registry.js";
+import type { BlockType } from "../../schema/block-types.js";
 import { buildCanonicalSha256Fingerprint } from "./projection-fingerprint.js";
 import type { MediaUsageExtractionField, MediaUsageExtractionSubField } from "./types.js";
 import { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
@@ -20,6 +22,18 @@ export async function buildContentMediaUsageFieldFingerprint(
 		.map((field) => ({
 			slug: field.slug,
 			type: field.type,
+			...(field.type === "blocks"
+				? {
+						blockTypes: (field.blockTypes ?? []).map((type) => ({
+							slug: type.slug,
+							currentVersion: type.currentVersion,
+							versions: type.versions.map((version) => ({
+								version: version.version,
+								fingerprint: version.fingerprint,
+							})),
+						})),
+					}
+				: {}),
 			...(field.type === "repeater"
 				? {
 						subFields: (field.validation?.subFields ?? [])
@@ -41,7 +55,10 @@ export async function buildContentMediaUsageFieldFingerprint(
 export class MediaUsageFieldDiscoveryError extends Error {
 	constructor(
 		message: string,
-		public code: "INVALID_REPEATER_VALIDATION",
+		public code:
+			| "INVALID_REPEATER_VALIDATION"
+			| "INVALID_BLOCK_VALIDATION"
+			| "UNSUPPORTED_BLOCK_DEFINITION",
 	) {
 		super(message);
 		this.name = "MediaUsageFieldDiscoveryError";
@@ -76,6 +93,9 @@ export async function loadContentMediaUsageFields(
 
 	const extractionFields: ContentMediaUsageField[] = [];
 	const rowBySlug = new Map<string, FieldDiscoveryRow>();
+	const allBlockTypes = rows.some((row) => row.type === "blocks")
+		? await new BlockTypeRegistry(db).listBlockTypes()
+		: [];
 
 	for (const row of rows) {
 		rowBySlug.set(row.slug, row);
@@ -96,6 +116,13 @@ export async function loadContentMediaUsageFields(
 				});
 			}
 		}
+
+		if (row.type === "blocks") {
+			validateIdentifier(row.slug, "media usage field slug");
+			const configured = parseBlockTypeSlugs(row.validation);
+			const blockTypes = resolveMediaBlockTypes(allBlockTypes, configured);
+			extractionFields.push({ slug: row.slug, type: "blocks", blockTypes });
+		}
 	}
 
 	extractionFields.sort((a, b) => a.slug.localeCompare(b.slug));
@@ -110,10 +137,47 @@ export async function loadContentMediaUsageFields(
 	};
 }
 
+function parseBlockTypeSlugs(rawValidation: string | null): string[] {
+	const validation = parseValidation(rawValidation, "block");
+	if (!isRecord(validation)) {
+		throw new MediaUsageFieldDiscoveryError(
+			"Blocks field validation must be an object before media usage can be discovered",
+			"INVALID_BLOCK_VALIDATION",
+		);
+	}
+	const allowed = Array.isArray(validation.allowedTypes) ? validation.allowedTypes : [];
+	const retired = Array.isArray(validation.retiredTypes) ? validation.retiredTypes : [];
+	const values = [...allowed, ...retired];
+	if (values.some((value) => typeof value !== "string")) {
+		throw new MediaUsageFieldDiscoveryError(
+			"Blocks field type lists must contain strings before media usage can be discovered",
+			"INVALID_BLOCK_VALIDATION",
+		);
+	}
+	return [...new Set(values)];
+}
+
+function resolveMediaBlockTypes(
+	types: readonly BlockType[],
+	slugs: readonly string[],
+): BlockType[] {
+	const bySlug = new Map(types.map((type) => [type.slug, type]));
+	return slugs.map((slug) => {
+		const type = bySlug.get(slug);
+		if (!type || type.versions.some((version) => version.unsupportedTypes?.length)) {
+			throw new MediaUsageFieldDiscoveryError(
+				`Block type "${slug}" cannot be resolved for media usage`,
+				"UNSUPPORTED_BLOCK_DEFINITION",
+			);
+		}
+		return type;
+	});
+}
+
 function normalizeRepeaterImageSubFields(
 	rawValidation: string | null,
 ): MediaUsageExtractionSubField[] {
-	const validation = parseValidation(rawValidation);
+	const validation = parseValidation(rawValidation, "repeater");
 	if (!isRecord(validation) || !Array.isArray(validation.subFields)) return [];
 
 	const subFields: MediaUsageExtractionSubField[] = [];
@@ -127,14 +191,14 @@ function normalizeRepeaterImageSubFields(
 	return subFields.toSorted((a, b) => a.slug.localeCompare(b.slug));
 }
 
-function parseValidation(rawValidation: string | null): unknown {
+function parseValidation(rawValidation: string | null, kind: "block" | "repeater"): unknown {
 	if (!rawValidation) return null;
 	try {
 		return JSON.parse(rawValidation);
 	} catch {
 		throw new MediaUsageFieldDiscoveryError(
-			"Repeater field validation must be valid JSON before media usage can be discovered",
-			"INVALID_REPEATER_VALIDATION",
+			`${kind === "block" ? "Blocks" : "Repeater"} field validation must be valid JSON before media usage can be discovered`,
+			kind === "block" ? "INVALID_BLOCK_VALIDATION" : "INVALID_REPEATER_VALIDATION",
 		);
 	}
 }

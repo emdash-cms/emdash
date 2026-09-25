@@ -478,6 +478,7 @@ function parsePolicy(value: unknown): WorkloadPolicyResource {
 	const workflowRef = stringValue(value, "workflowRef");
 	const allowedRefs = parseStringArray(value["allowedRefs"]);
 	const allowedEnvironments = parseStringArray(value["allowedEnvironments"]);
+	const repositoryConnection = value["repositoryConnection"] ?? false;
 	const stateVersion = safeInteger(value, "stateVersion");
 	const authorizedBy = stringValue(value, "authorizedBy");
 	const createdAt = safeInteger(value, "createdAt");
@@ -490,6 +491,7 @@ function parsePolicy(value: unknown): WorkloadPolicyResource {
 		!workflowRef ||
 		!allowedRefs ||
 		!allowedEnvironments ||
+		typeof repositoryConnection !== "boolean" ||
 		typeof value["active"] !== "boolean" ||
 		stateVersion === null ||
 		!authorizedBy ||
@@ -506,6 +508,7 @@ function parsePolicy(value: unknown): WorkloadPolicyResource {
 		workflowRef,
 		allowedRefs,
 		allowedEnvironments,
+		repositoryConnection,
 		active: value["active"],
 		stateVersion,
 		authorizedBy,

@@ -1,112 +1,123 @@
 ---
 title: Architecture
-description: The mental model for building with EmDash — an Astro integration with a live, editable content model.
+description: How an Astro site, EmDash, the admin panel, and the data stores work together.
 ---
 
-import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-EmDash is an Astro integration. You add it to `astro.config.mjs`, choose a database and storage, and define content collections. This page covers the model you need to build a site. For internals (table layouts, the request path, code generation), see [Architecture (internals)](/contributing/architecture/).
+EmDash runs inside an Astro application. The public pages and the admin panel share the EmDash
+runtime, database, and media storage. They are parts of one deployed application rather than a
+frontend and a separate CMS service.
 
-## What EmDash adds to your site
+## The parts of an EmDash site
 
-```
-┌──────────────────────────────────────────────┐
-│                Your Astro site                │
-│                                               │
-│   Pages and components you write              │
-│        │                                      │
-│        │  getEmDashCollection() / getEmDashEntry()
-│        ▼                                      │
-│   ┌───────────────┐      ┌────────────────┐   │
-│   │   Content     │      │  Admin panel   │   │
-│   │  (your data)  │◄────►│ /_emdash/admin │   │
-│   └───────────────┘      └────────────────┘   │
-│        │                                      │
-│   Database (SQLite / libSQL / D1 / Postgres)  │
-│   Media storage (local / R2 / S3)             │
-└──────────────────────────────────────────────┘
-```
+The following table shows how each part connects through the EmDash runtime:
 
-You write pages and components as normal. EmDash provides the content, an admin panel for editing it, and the database and storage behind it. Editors work in the admin panel; your pages read the same content through query functions.
+| Part | Action | Connection |
+| --- | --- | --- |
+| Admin panel | Saves entries and media | Sends changes to the EmDash runtime |
+| Astro pages and components | Query entries for the public site | Read content through the EmDash runtime |
+| EmDash runtime | Applies the content model, publishing rules, queries, plugins, and API behavior | Reads and writes the database and media storage |
+| SQL database | Stores the content model, entries, users, settings, and other records | Used by the EmDash runtime |
+| Media storage | Stores uploaded files | Used by the EmDash runtime |
 
-## Your content model
+Editors use the admin panel to work with content. Site developers decide how that content appears
+by writing Astro pages and components. Both sides use the same content model: the collection and
+field definitions that describe each entry.
 
-You define collections and fields — in the admin panel or with the CLI — and EmDash stores content against them.
+The database stores the content model, entries, users, settings, and other CMS records. The media
+storage adapter holds uploaded files. A media field in an entry refers to a stored media item rather
+than placing the file bytes in the content table.
 
-<CardGrid>
-	<Card title="Change it anytime" icon="pencil">
-		Add, rename, remove, or retype collections and fields whenever you need
-		to. Changes take effect immediately.
-	</Card>
-	<Card title="Editor-designed" icon="seti:plan">
-		A content editor can design the whole model through the admin UI.
-	</Card>
-	<Card title="Typed" icon="approve-check">
-		Generate TypeScript types from the current model for autocomplete from
-		query to template.
-	</Card>
-	<Card title="Portable" icon="right-arrow">
-		Export the model as a JSON seed file for version control, and apply it in
-		another environment.
-	</Card>
-</CardGrid>
+## What Astro configures
 
-See the [content model](/concepts/content-model/) for how to define, change, type, and seed it.
+An EmDash site needs server rendering because the admin, API routes, and current content are served
+at runtime. Configure Astro with `output: "server"` and an adapter for the deployment platform.
 
-## Content is live
+Register both React and EmDash in the Astro integrations array. React hydrates the admin panel; if
+`@astrojs/react` is installed but `react()` is missing from the array, the admin page remains on
+**Loading EmDash...**.
 
-EmDash serves content through Astro's Live Collections at runtime, so changes an editor makes are visible immediately. You read content with two functions:
+The following Node.js example supplies a SQLite database and local media storage:
 
-```ts title="src/pages/blog.astro"
-import { getEmDashCollection, getEmDashEntry } from "emdash";
-
-const { entries: posts } = await getEmDashCollection("posts");
-const { entry: post } = await getEmDashEntry("posts", "my-post-slug");
-```
-
-See [Querying content](/guides/querying-content/) for filtering, pagination, and drafts.
-
-## What you configure
-
-You pass a database and a storage backend to the integration. Everything else has a default.
-
-```ts title="astro.config.mjs"
+```js title="astro.config.mjs"
+import node from "@astrojs/node";
+import react from "@astrojs/react";
 import { defineConfig } from "astro/config";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 export default defineConfig({
+	output: "server",
+	adapter: node({ mode: "standalone" }),
 	integrations: [
+		react(),
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
-			storage: local({ directory: "./uploads" }),
+			storage: local({
+				directory: "./uploads",
+				baseUrl: "/_emdash/api/media/file",
+			}),
 		}),
 	],
 });
 ```
 
-- **Database**: SQLite (local or libSQL), Cloudflare D1, or PostgreSQL. See [Database options](/deployment/database/).
-- **Storage**: the local filesystem, Cloudflare R2, or any S3-compatible storage for media. See [Storage options](/deployment/storage/).
+The integration can use other supported database and storage adapters. A local storage adapter is
+the default when `storage` is omitted, but production deployments need storage that persists across
+application releases and instances. See [Configuration](/reference/configuration/) for the available
+adapters and options.
 
-## Extending with plugins
+## How pages query content
 
-Plugins react to content and media lifecycle events and can add admin pages, dashboard widgets, and settings. There are two formats:
+`src/live.config.ts` registers the EmDash loader as an Astro Live Content Collection:
 
-- **Native plugins** run in the host environment with full access. Best for first-party and trusted plugins.
-- **Sandboxed plugins** run in an isolated runtime with capability-based permissions. Best for third-party plugins.
+```ts title="src/live.config.ts"
+import { defineLiveCollection } from "astro:content";
+import { emdashLoader } from "emdash/runtime";
 
-See the [plugin overview](/plugins/overview/) to choose and install plugins, or [create a plugin](/plugins/creating-plugins/choosing-a-format/).
+export const collections = {
+	_emdash: defineLiveCollection({ loader: emdashLoader() }),
+};
+```
 
-## Next steps
+Pages then call `getEmDashCollection()` for a list or `getEmDashEntry()` for one entry. The following
+query loads posts when the page renders:
 
-<CardGrid>
-	<Card title="Collections" icon="document">
-		Define [content collections and field types](/concepts/collections/).
-	</Card>
-	<Card title="Content Model" icon="open-book">
-		Understand the [content model](/concepts/content-model/).
-	</Card>
-	<Card title="Admin Panel" icon="setting">
-		See what the [admin panel](/concepts/admin-panel/) offers editors and admins.
-	</Card>
-</CardGrid>
+```astro title="src/pages/posts/index.astro"
+---
+import { getEmDashCollection } from "emdash";
+
+const { entries: posts, error } = await getEmDashCollection("posts");
+
+if (error) throw error;
+---
+
+<ul>{posts.map((post) => <li>{post.data.title}</li>)}</ul>
+```
+
+A server-rendered page runs this query for incoming requests, subject to any cache you configure. A
+prerendered page runs it during the build and cannot show later edits until another build.
+
+## How the model changes
+
+Administrators can create collections and fields in the admin panel. EmDash changes the database
+schema so later entries and queries use the new model. Seed files provide a version-controlled way
+to describe a starting model for another environment, and generated TypeScript declarations help
+developers use the current model in code.
+
+These tools describe and change the same model; they do not create parallel copies. Read [Content
+model](/concepts/content-model/) for the workflow and data-safety boundaries.
+
+## How plugins extend the runtime
+
+Plugins can respond to content and media events and add API routes, settings, or admin interfaces.
+Native plugins run with the host application's access. Standard-format plugins can run in an
+isolated runtime when the site configures a sandbox runner and grants capabilities. Read [Choose a
+plugin format](/plugins/creating-plugins/choosing-a-format/) before installing or building one.
+
+<Aside>
+	The contributor [architecture internals](/contributing/architecture/) page covers request order,
+	database tables, and other implementation details. Site builders do not need those details to
+	configure or query EmDash.
+</Aside>

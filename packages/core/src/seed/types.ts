@@ -5,6 +5,7 @@
  * collections, fields, menus, settings, taxonomies, redirects, widget areas, and optional sample content.
  */
 
+import type { BlockFieldDefinition } from "../schema/block-types.js";
 import type { CollectionAdminConfig, FieldType } from "../schema/types.js";
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
@@ -41,6 +42,12 @@ export interface SeedFile {
 	/** Collection definitions */
 	collections?: SeedCollection[];
 
+	/** Database-owned block types, applied before collections that reference them. */
+	blockTypes?: SeedBlockType[];
+
+	/** Relations joining two collections, which reference fields bind to */
+	relations?: SeedRelation[];
+
 	/** Taxonomy definitions */
 	taxonomies?: SeedTaxonomy[];
 
@@ -63,6 +70,19 @@ export interface SeedFile {
 	content?: Record<string, SeedContentEntry[]>;
 }
 
+export interface SeedBlockType {
+	slug: string;
+	label: string;
+	description?: string;
+	icon?: string;
+	category?: string;
+	currentVersion: number;
+	versions: Array<{
+		version: number;
+		fields: BlockFieldDefinition[];
+	}>;
+}
+
 /**
  * Collection definition in seed
  */
@@ -78,8 +98,9 @@ export interface SeedCollection {
 	/** Require a slug before an entry can be published. Defaults to true. */
 	routable?: boolean;
 	/**
-	 * Omit this collection from the admin sidebar. It stays reachable through
-	 * the API, MCP, plugin hooks, and direct `/content/:collection` URLs.
+	 * Omit this collection from the admin sidebar and the dashboard quick
+	 * actions. It stays reachable through the API, MCP, plugin hooks, and
+	 * direct `/content/:collection` URLs.
 	 */
 	hidden?: boolean;
 	/**
@@ -87,6 +108,8 @@ export interface SeedCollection {
 	 * a `sortOrder` keep the alphabetical order and follow the ordered ones.
 	 */
 	sortOrder?: number;
+	/** Admin sidebar folder shared with other collections of the same group. */
+	group?: string;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
 	/** Take an edit lock when an entry is opened (defaults to true) */
@@ -96,6 +119,34 @@ export interface SeedCollection {
 	/** Field slug (a datetime field) powering the admin list Date column (defaults to last-updated) */
 	dateField?: string;
 	fields: SeedField[];
+}
+
+/**
+ * Relation definition in seed.
+ *
+ * A relation joins two collections and owns the link set a reference field
+ * views. Declaring it here names it — the slug is how a field addresses it — and
+ * lets a field on either collection bind to it. A reference field that names
+ * only a `targetCollection` gets a relation created for it instead, which stays
+ * the shorter path for a one-sided link.
+ *
+ * Labels are single-valued: a relation is schema, like a collection or a field,
+ * and carries no locale.
+ */
+export interface SeedRelation {
+	slug: string;
+	parentCollection: string;
+	childCollection: string;
+	/** Names the parent's role, as seen from the child. */
+	parentLabel: string;
+	parentLabelSingular?: string;
+	/** Names the child's role, as seen from the parent. */
+	childLabel: string;
+	childLabelSingular?: string;
+	/** How many children one parent may link. Omitted or `null` is unlimited. */
+	maxChildrenPerParent?: number | null;
+	/** How many parents one child may link. Omitted or `null` is unlimited. */
+	maxParentsPerChild?: number | null;
 }
 
 /**
@@ -125,8 +176,10 @@ export interface SeedTaxonomy {
 	name: string;
 	label: string;
 	labelSingular?: string;
-	hierarchical: boolean;
-	collections: string[];
+	/** Required unless `translationOf` points at an entry with the same `name`, in which case it comes from the last entry of that same-name `translationOf` chain. Shared by every locale. */
+	hierarchical?: boolean;
+	/** Required unless `translationOf` points at an entry with the same `name`, in which case it comes from the last entry of that same-name `translationOf` chain. Shared by every locale. */
+	collections?: string[];
 	locale?: string;
 	translationOf?: string;
 	terms?: SeedTaxonomyTerm[];
@@ -316,7 +369,12 @@ export interface SeedApplyOptions {
 	 */
 	includeContent?: boolean;
 
-	/** How to handle conflicts (default: "skip") */
+	/**
+	 * How to handle conflicts (default: "skip"). Site settings are processed
+	 * per key: "skip" creates only missing keys, "update" overwrites supplied
+	 * keys, and "error" stops at the first existing key without rolling back
+	 * keys created earlier in the seed.
+	 */
 	onConflict?: "skip" | "update" | "error";
 
 	/** Base path for local media files (for $media.file resolution) */
@@ -345,9 +403,11 @@ export interface SeedApplyOptions {
  * Result of applying a seed
  */
 export interface SeedApplyResult {
+	blockTypes: { created: number; skipped: number; updated: number };
 	collections: { created: number; skipped: number; updated: number };
 	fields: { created: number; skipped: number; updated: number };
-	taxonomies: { created: number; terms: number };
+	relations: { created: number; skipped: number; updated: number };
+	taxonomies: { created: number; skipped: number; terms: number };
 	bylines: { created: number; skipped: number; updated: number };
 	menus: { created: number; items: number };
 	redirects: { created: number; skipped: number; updated: number };

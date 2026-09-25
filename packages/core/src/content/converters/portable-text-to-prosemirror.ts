@@ -4,7 +4,13 @@
  * Converts Portable Text to TipTap's ProseMirror JSON format for editing.
  */
 
-import { sanitizeGalleryImages } from "./gallery.js";
+import {
+	UnsafePortableTextTableError,
+	portableTextTableToProseMirror,
+} from "@emdash-cms/admin/portable-text-table";
+
+import { resolveImageMedia, sanitizeGalleryImages } from "./gallery.js";
+import { normalizeImageLink } from "./image-link.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -33,6 +39,10 @@ import type {
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
 } from "./types.js";
+
+function generateKey(): string {
+	return Math.random().toString(36).substring(2, 11);
+}
 
 export interface PortableTextToProsemirrorOptions {
 	/**
@@ -134,7 +144,7 @@ export function portableTextToProsemirror(
 				}),
 			});
 		} else {
-			const converted = convertBlock(block, preserveIdentity);
+			const converted = convertBlock(block, `root:${i}`, preserveIdentity);
 			if (converted) {
 				content.push(converted);
 			}
@@ -222,7 +232,11 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 /**
  * Convert a single Portable Text block to ProseMirror node
  */
-function convertBlock(block: PortableTextBlock, preserveIdentity: boolean): ProseMirrorNode | null {
+function convertBlock(
+	block: PortableTextBlock,
+	path: string,
+	preserveIdentity: boolean,
+): ProseMirrorNode | null {
 	if (isTextBlock(block)) {
 		return convertTextBlock(block, preserveIdentity);
 	}
@@ -285,6 +299,17 @@ function convertBlock(block: PortableTextBlock, preserveIdentity: boolean): Pros
 			type: PORTABLE_TEXT_BLOCK_NODE,
 			attrs: { [PORTABLE_TEXT_BLOCK_ATTR]: block },
 		};
+	}
+	if (block._type === "table") {
+		const result = portableTextTableToProseMirror(block, {
+			path,
+			createKey: generateKey,
+			spansToInline: (content, markDefs) => convertSpans(content, markDefs, preserveIdentity),
+		});
+		if (!result.ok) {
+			throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+		}
+		return result.node;
 	}
 	return {
 		type: "paragraph",
@@ -624,20 +649,22 @@ function imageAlignment(value: unknown): PortableTextImageBlock["alignment"] {
  * Convert image block to ProseMirror
  */
 function convertImage(block: PortableTextImageBlock, preserveIdentity: boolean): ProseMirrorNode {
+	const { asset, alt, width, height } = resolveImageMedia(block);
 	return {
 		type: "image",
 		attrs: identityAttrs(
 			{
-				src: block.asset.url || block.asset._ref,
-				alt: block.alt || "",
+				src: asset.url || asset._ref,
+				alt: alt || "",
 				title: block.caption || "",
-				mediaId: block.asset._ref,
-				provider: block.asset.provider,
-				width: block.width,
-				height: block.height,
+				mediaId: asset._ref,
+				provider: asset.provider,
+				width,
+				height,
 				displayWidth: block.displayWidth,
 				displayHeight: block.displayHeight,
 				alignment: imageAlignment(block.alignment),
+				link: normalizeImageLink(block.link),
 			},
 			block._key,
 			preserveIdentity,

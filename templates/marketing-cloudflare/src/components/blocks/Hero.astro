@@ -1,38 +1,27 @@
 ---
 import { sanitizeHref } from "emdash";
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-interface Props {
-	node: {
-		_key?: string;
-		headline: string;
-		subheadline?: string;
-		// CTAs are flattened to sibling fields because Block Kit has no
-		// object-group element. Empty strings mean "no CTA".
-		primaryCtaLabel?: string;
-		primaryCtaUrl?: string;
-		secondaryCtaLabel?: string;
-		secondaryCtaUrl?: string;
-		image?: { url: string; alt?: string };
-		centered?: boolean;
-	};
-}
+type HeroBlock = Extract<PageContentBlock, { _type: "marketing_hero" }>;
+type Props = BlockComponentProps<HeroBlock>;
 
-const { node } = Astro.props;
-const { _key, headline, subheadline, image, centered } = node;
-const headingId = _key ? `${_key}-title` : "hero-title";
+const { value } = Astro.props;
+const { anchor_id, headline, subheadline, image, centered } = value;
+const headingId = `${value._key}-title`;
 const showVisual = Boolean(image || !centered);
 
 const primaryCta =
-	node.primaryCtaLabel && node.primaryCtaUrl
-		? { label: node.primaryCtaLabel, url: sanitizeHref(node.primaryCtaUrl.trim()) }
+	value.primary_cta_label && value.primary_cta_url
+		? { label: value.primary_cta_label, url: sanitizeHref(value.primary_cta_url.trim()) }
 		: undefined;
 const secondaryCta =
-	node.secondaryCtaLabel && node.secondaryCtaUrl
-		? { label: node.secondaryCtaLabel, url: sanitizeHref(node.secondaryCtaUrl.trim()) }
+	value.secondary_cta_label && value.secondary_cta_url
+		? { label: value.secondary_cta_label, url: sanitizeHref(value.secondary_cta_url.trim()) }
 		: undefined;
 ---
 
-<section class:list={["hero", { "hero-centered": centered }]} id={_key} aria-labelledby={headingId}>
+<section class:list={["hero", { "hero-centered": centered }]} id={anchor_id || undefined} aria-labelledby={headingId}>
 	<div class="hero-section">
 		<div class="hero-container">
 			<div class="hero-copy">
@@ -58,12 +47,10 @@ const secondaryCta =
 				<div class="hero-image-wrap">
 					<div class:list={["hero-image-frame", { "hero-image-frame--art": !image }] }>
 						{image ? (
-							<img
-								src={image.url}
-								alt={image.alt || ""}
+							<Image
+								image={image}
 								class="hero-image"
-								loading="eager"
-								fetchpriority="high"
+								priority
 							/>
 						) : (
 							<img

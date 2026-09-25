@@ -22,6 +22,7 @@ import {
 	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
+import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
 import { createPostFixture } from "../utils/fixtures.js";
@@ -137,6 +138,32 @@ describe("object cache: content read-through", () => {
 
 		expect(result.entries[0]!.data).not.toHaveProperty("liveRevisionId");
 		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("primes the SEO panel cache when an entry is served from the object cache", async () => {
+		const [entry] = mockEntries();
+		(entry!.data as Record<string, unknown>).seo = { title: "Panel Title", noIndex: true };
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		// Cold request populates the cache.
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "hello"));
+		await flush();
+
+		// Warm request: the loader never runs, so <EmDashHead>'s overlay
+		// depends on the revive path priming from the snapshot data.
+		await runWithContext({ editMode: false, db }, async () => {
+			await getEmDashEntry("post", "hello");
+			expect(await peekSeoPanel("post", "db-1")).toMatchObject({
+				title: "Panel Title",
+				noIndex: true,
+			});
+		});
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
 	});
 
 	it("omits revision metadata from anonymous entry results", async () => {

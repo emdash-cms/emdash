@@ -6,16 +6,21 @@
  * instead of using ad-hoc strings.
  */
 
+import { TransferErrorCode, transferErrorStatus } from "../transfer/errors.js";
+
 export const ErrorCode = {
 	// Shared (used across domains)
 	NOT_FOUND: "NOT_FOUND",
 	VALIDATION_ERROR: "VALIDATION_ERROR",
+	UNSUPPORTED_FIELD_TYPE: "UNSUPPORTED_FIELD_TYPE",
 	INVALID_INPUT: "INVALID_INPUT",
 	INVALID_JSON: "INVALID_JSON",
 	INVALID_CURSOR: "INVALID_CURSOR",
 	CONFLICT: "CONFLICT",
 	SLUG_CONFLICT: "SLUG_CONFLICT",
 	NOT_CONFIGURED: "NOT_CONFIGURED",
+	BINDING_NOT_FOUND: "BINDING_NOT_FOUND",
+	CONFIGURATION_ERROR: "CONFIGURATION_ERROR",
 	UNAUTHORIZED: "UNAUTHORIZED",
 	FORBIDDEN: "FORBIDDEN",
 	RATE_LIMITED: "RATE_LIMITED",
@@ -29,6 +34,9 @@ export const ErrorCode = {
 	CONTENT_CREATE_ERROR: "CONTENT_CREATE_ERROR",
 	CONTENT_UPDATE_ERROR: "CONTENT_UPDATE_ERROR",
 	SAVE_REJECTED: "SAVE_REJECTED",
+	PUBLISH_REJECTED: "PUBLISH_REJECTED",
+	SCHEDULE_REJECTED: "SCHEDULE_REJECTED",
+	UNPUBLISH_REJECTED: "UNPUBLISH_REJECTED",
 	CONTENT_HOOK_ERROR: "CONTENT_HOOK_ERROR",
 	CONTENT_DELETE_ERROR: "CONTENT_DELETE_ERROR",
 	CONTENT_LIST_ERROR: "CONTENT_LIST_ERROR",
@@ -63,6 +71,10 @@ export const ErrorCode = {
 	SCHEMA_FIELD_UPDATE_ERROR: "SCHEMA_FIELD_UPDATE_ERROR",
 	SCHEMA_FIELD_DELETE_ERROR: "SCHEMA_FIELD_DELETE_ERROR",
 	SCHEMA_FIELD_REORDER_ERROR: "SCHEMA_FIELD_REORDER_ERROR",
+	BLOCK_TYPE_NOT_FOUND: "BLOCK_TYPE_NOT_FOUND",
+	BLOCK_TYPE_EXISTS: "BLOCK_TYPE_EXISTS",
+	BLOCK_TYPE_BREAKING_CHANGE: "BLOCK_TYPE_BREAKING_CHANGE",
+	BLOCK_TYPE_VERSION_CONFLICT: "BLOCK_TYPE_VERSION_CONFLICT",
 	// Byline schema (Discussion #1174). Reuses RESERVED_SLUG, INVALID_SLUG,
 	// INVALID_TYPE, FIELD_EXISTS, NOT_FOUND, VALIDATION_ERROR where the
 	// semantics match; the two below are byline-domain specific:
@@ -218,6 +230,11 @@ export const ErrorCode = {
 	PLUGIN_ID_CONFLICT: "PLUGIN_ID_CONFLICT",
 	PLUGIN_SETTINGS_READ_ERROR: "PLUGIN_SETTINGS_READ_ERROR",
 	PLUGIN_SETTINGS_UPDATE_ERROR: "PLUGIN_SETTINGS_UPDATE_ERROR",
+	PLUGIN_SETTING_ENCRYPTION_KEY_MISSING: "PLUGIN_SETTING_ENCRYPTION_KEY_MISSING",
+	PLUGIN_SETTING_ENCRYPTION_KEY_INVALID: "PLUGIN_SETTING_ENCRYPTION_KEY_INVALID",
+	PLUGIN_SETTING_ENCRYPTION_KEY_UNKNOWN: "PLUGIN_SETTING_ENCRYPTION_KEY_UNKNOWN",
+	PLUGIN_SETTING_ENCRYPTION_FAILED: "PLUGIN_SETTING_ENCRYPTION_FAILED",
+	PLUGIN_SETTING_DECRYPTION_FAILED: "PLUGIN_SETTING_DECRYPTION_FAILED",
 	MARKETPLACE_NOT_CONFIGURED: "MARKETPLACE_NOT_CONFIGURED",
 	MARKETPLACE_UNAVAILABLE: "MARKETPLACE_UNAVAILABLE",
 	MARKETPLACE_ERROR: "MARKETPLACE_ERROR",
@@ -374,6 +391,9 @@ export const ErrorCode = {
 	NO_DB: "NO_DB",
 	INVALID_REQUEST: "INVALID_REQUEST",
 	UNKNOWN_ACTION: "UNKNOWN_ACTION",
+
+	// Site transfer
+	...TransferErrorCode,
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -402,6 +422,9 @@ export type OAuthErrorCode = (typeof OAuthErrorCode)[keyof typeof OAuthErrorCode
  * defaults to 400 (client error).
  */
 export function mapErrorStatus(code: string | undefined): number {
+	const transferStatus = transferErrorStatus(code);
+	if (transferStatus !== undefined) return transferStatus;
+
 	switch (code) {
 		// 400 Bad Request
 		case ErrorCode.VALIDATION_ERROR:
@@ -434,6 +457,10 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.REORDER_MISMATCH:
 			return 400;
 
+		// 409 Conflict
+		case ErrorCode.UNSUPPORTED_FIELD_TYPE:
+			return 409;
+
 		// 401 Unauthorized
 		case ErrorCode.UNAUTHORIZED:
 		case ErrorCode.NOT_AUTHENTICATED:
@@ -462,6 +489,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.FILE_NOT_FOUND:
 		case ErrorCode.NO_VERSION:
 		case ErrorCode.AGGREGATOR_NOT_FOUND:
+		case ErrorCode.BLOCK_TYPE_NOT_FOUND:
 			return 404;
 
 		// 409 Conflict
@@ -481,6 +509,9 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.WORK_LEASE_ACTIVE:
 		case ErrorCode.WORK_CHANGED:
 		case ErrorCode.ENTRY_LOCKED:
+		case ErrorCode.BLOCK_TYPE_EXISTS:
+		case ErrorCode.BLOCK_TYPE_BREAKING_CHANGE:
+		case ErrorCode.BLOCK_TYPE_VERSION_CONFLICT:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_BUSY:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_CONFLICT:
@@ -493,6 +524,9 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 422 Unprocessable Entity
 		case ErrorCode.SAVE_REJECTED:
+		case ErrorCode.PUBLISH_REJECTED:
+		case ErrorCode.SCHEDULE_REJECTED:
+		case ErrorCode.UNPUBLISH_REJECTED:
 		case ErrorCode.CHECKSUM_MISMATCH:
 		case ErrorCode.INVALID_BUNDLE:
 		case ErrorCode.BUNDLE_EXTRACT_FAILED:
@@ -504,6 +538,8 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 500 Internal Server Error
 		case ErrorCode.NOT_CONFIGURED:
+		case ErrorCode.BINDING_NOT_FOUND:
+		case ErrorCode.CONFIGURATION_ERROR:
 		case ErrorCode.NO_STORAGE:
 		case ErrorCode.NO_DB:
 		case ErrorCode.STORAGE_NOT_CONFIGURED:

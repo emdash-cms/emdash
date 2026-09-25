@@ -50,22 +50,18 @@ More structured than the blog and portfolio templates: navy-tinted surfaces, a f
 
 ## Pages
 
-| Page             | Path           | What it shows                                                                                                                                    |
-| ---------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Home             | `/`            | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ, call to action) authored as a Portable Text document on the Home page |
-| Blog             | `/blog`        | One featured post and a responsive grid of the remaining published posts                                                                         |
-| Blog post        | `/blog/[slug]` | Post title, author, cover, metadata, and Portable Text article content                                                                           |
-| Contact          | `/contact`     | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                                      |
-| Pricing redirect | `/pricing`     | Redirects to the pricing section at `/#pricing`                                                                                                  |
-
-## Contact form
-
-The seeded contact form validates required fields and reports a local success state. Connect the submission to an email or webhook service, and add CSRF protection and rate limiting before using it in production.
+| Page             | Path           | What it shows                                                                                                                       |
+| ---------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Home             | `/`            | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ, call to action) authored in the Home page's blocks field |
+| Blog             | `/blog`        | One featured post and a responsive grid of the remaining published posts                                                            |
+| Blog post        | `/blog/[slug]` | Post title, author, cover, metadata, and Portable Text article content                                                              |
+| Contact          | `/contact`     | Direct email contacts for general questions, support, and sales                                                                     |
+| Pricing redirect | `/pricing`     | Redirects to the pricing section at `/#pricing`                                                                                     |
 
 ## Schema
 
-- `pages` collection: `title`, `content` (Portable Text containing marketing blocks).
-- `posts` collection: `title`, `excerpt`, `category`, `featured`, `featured_image`, `cover_style`, `content`.
+- `pages` collection: `title`, `content` (a versioned `blocks` field).
+- `posts` collection: `title`, `excerpt`, `category`, `featured`, `featured_image`, `cover_style`, `content` (Portable Text).
 - No taxonomies.
 - Four menus: `primary`, `footer_product`, `footer_company`, `footer_support`.
 
@@ -75,23 +71,25 @@ Blog posts use `featured_image` when an editor selects an image. Without an imag
 
 ## Marketing blocks
 
-This template ships a local plugin at `src/plugins/marketing-blocks/` that registers six Portable Text block types. Editors insert them in the admin's Portable Text editor; they render via `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ,CallToAction}.astro` (dispatched from `MarketingBlocks.astro`).
+The seed declares six versioned block types. Editors add and reorder them in the built-in blocks field editor. `MarketingBlocks.astro` maps the generated `PageContentBlock` union to the renderers in `src/components/blocks/`.
 
-| Block                    | Fields                                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `marketing.hero`         | `headline`, `subheadline`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`, `centered` (toggle)                        |
-| `marketing.features`     | `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                                             |
-| `marketing.testimonials` | `headline`, repeater of `{ quote, author, role, company, avatar (URL) }`                                                                          |
-| `marketing.pricing`      | `headline`, `subheadline`, repeater of `{ name, price, period, description, features (newline-separated string), ctaLabel, ctaUrl, highlighted }` |
-| `marketing.faq`          | `headline`, repeater of `{ question, answer }`                                                                                                    |
-| `marketing.cta`          | `mutedHeadline`, `headline`, `body`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`                                   |
+| Block                    | Fields                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `marketing_hero`         | `anchor_id`, `headline`, `subheadline`, primary and secondary CTA label/URL pairs, `image`, `centered`                                |
+| `marketing_features`     | `anchor_id`, `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                    |
+| `marketing_testimonials` | `anchor_id`, `headline`, repeater of `{ quote, author, role, company, avatar }` where `avatar` is an image field                      |
+| `marketing_pricing`      | `anchor_id`, `headline`, `subheadline`, repeater of `{ name, price, period, description, features, cta_label, cta_url, highlighted }` |
+| `marketing_faq`          | `anchor_id`, `headline`, repeater of `{ question, answer }`                                                                           |
+| `marketing_cta`          | `anchor_id`, `muted_headline`, `headline`, `body`, primary and secondary CTA label/URL pairs                                          |
 
 Constraints worth remembering:
 
-- Block Kit has no nested object element, so a CTA's `{ label, url }` is flattened to sibling fields like `primaryCtaLabel` + `primaryCtaUrl`. The renderer reads the flat keys -- don't try to nest them.
-- Repeater sub-fields are scalar only. Lists-of-strings (e.g. pricing features) are a single multiline text field, split on newline at render time.
-- There is no media-picker element in the plugin block modal yet, so where image fields exist they are URL strings entered by hand (testimonial `avatar`). Use real URLs, not placeholders.
-- The `marketing.hero` block has no image field in the editor schema. The hero renderer falls back to the bundled `/hero-visual.svg` illustration when no image is set. To customise the hero artwork, swap `/hero-visual.svg` in `public/` or extend the plugin schema with an image field (and update `Hero.astro` accordingly).
+- Block fields cannot contain nested object groups, so CTA labels and URLs remain sibling fields.
+- Pricing features are a multiline text field, split on newline by the renderer.
+- Hero and testimonial media are EmDash image fields rendered with `<Image>` from `emdash/ui`.
+- The Hero block falls back to `/hero-visual.svg` when its image field is empty.
+- Every stored block has `_type`, `_version`, and `_key` values. Components receive the generated value as `value`, not as a Portable Text node.
+- Render stored CTA URLs through `sanitizeHref()` even when field validation rejects unsafe-looking values.
 - Icons in the Features block come from a fixed set: `zap, shield, users, chart, code, globe, heart, star, check, lock, clock, cloud`. Pick from that list.
 
 ## Visual character
@@ -148,4 +146,4 @@ To re-brand, the highest-leverage moves are:
 - Don't use icon and stock photo combos that fight each other. Pick illustration _or_ photography, not both.
 - Don't use the blue accent as decoration. It identifies actions, focus, and selected states; if every surface is blue, those signals disappear.
 - Don't add a hero block followed immediately by another hero block. One hero, then features / testimonials / pricing / FAQ in some order.
-- Don't replace the `marketing.pricing` block with a hand-coded table. The block is the data shape downstream renderers expect.
+- Don't replace the `marketing_pricing` block with a hand-coded table. The block is the data shape downstream renderers expect.

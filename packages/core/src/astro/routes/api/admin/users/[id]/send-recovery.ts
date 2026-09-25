@@ -6,10 +6,12 @@
  * Admin-initiated account recovery — sends a recovery magic link to the user's email.
  */
 
+import { getMagicLinkEmailStrings } from "@emdash-cms/admin/locales/emails";
 import { Role, sendMagicLink, type MagicLinkConfig } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { APIRoute } from "astro";
 
+import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -54,12 +56,18 @@ export const POST: APIRoute = async ({ request, params, locals }) => {
 		// Build config using the configured site URL, stored option as fallback (not request Host header)
 		const options = new OptionsRepository(emdash.db);
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? "EmDash";
+		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
+		const siteName = siteOptions.get("emdash:site_title") ?? "EmDash";
 
+		// Localized copy following the site locale; the locale also
+		// drives lang/dir on the email HTML so RTL copy renders correctly.
+		const emailLocale = resolveEmailLocale(siteOptions.get("emdash:locale"), request);
 		const config: MagicLinkConfig = {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
+			emailStrings: await getMagicLinkEmailStrings(emailLocale, siteName),
+			emailLocale,
 		};
 
 		// Send recovery link

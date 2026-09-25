@@ -1,22 +1,13 @@
 ---
-interface Testimonial {
-	quote: string;
-	author: string;
-	role?: string;
-	company?: string;
-	avatar?: string;
-}
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-interface Props {
-	node: {
-		_key?: string;
-		headline?: string;
-		testimonials: Testimonial[];
-	};
-}
+type TestimonialsBlock = Extract<PageContentBlock, { _type: "marketing_testimonials" }>;
+type Props = BlockComponentProps<TestimonialsBlock>;
 
-const { node } = Astro.props;
-const { _key, headline, testimonials } = node;
+const { value } = Astro.props;
+const { anchor_id, headline, testimonials } = value;
+type Testimonial = (typeof testimonials)[number];
 
 function getInitials(name: string) {
 	return name
@@ -36,12 +27,12 @@ function getAttribution(testimonial: Testimonial) {
 const testimonialItems = testimonials.map((testimonial) => ({
 	...testimonial,
 	attribution: getAttribution(testimonial),
-	avatarUrl: testimonial.avatar?.trim() || null,
+	avatar: testimonial.avatar?.src ? testimonial.avatar : null,
 	initials: getInitials(testimonial.author),
 }));
 ---
 
-<section class="testimonials section" id={_key}>
+<section class="testimonials section" id={anchor_id || undefined}>
 	<div class="testimonials-container container">
 		{headline && (
 			<header class="testimonials-header">
@@ -55,12 +46,11 @@ const testimonialItems = testimonials.map((testimonial) => ({
 						<p>"{testimonial.quote}"</p>
 					</blockquote>
 					<figcaption class="testimonial-author">
-						{testimonial.avatarUrl ? (
-							<img
-								src={testimonial.avatarUrl}
+						{testimonial.avatar ? (
+							<Image
+								image={testimonial.avatar}
 								alt=""
 								class="testimonial-avatar"
-								loading="lazy"
 							/>
 						) : (
 							<span class="testimonial-avatar testimonial-avatar-fallback" aria-hidden="true">
@@ -146,7 +136,7 @@ const testimonialItems = testimonials.map((testimonial) => ({
 		min-width: 0;
 	}
 
-	.testimonial-avatar {
+	:global(.testimonial-avatar) {
 		display: block;
 		width: 2rem;
 		height: 2rem;

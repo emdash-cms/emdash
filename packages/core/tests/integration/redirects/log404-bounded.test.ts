@@ -13,9 +13,10 @@
  *     can't blow up storage by sending huge headers.
  */
 
-import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Kysely, SqliteDialect } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { runMigrations } from "../../../src/database/migrations/runner.js";
 import {
 	MAX_404_LOG_ROWS,
 	REFERRER_MAX_LENGTH,
@@ -23,7 +24,15 @@ import {
 	USER_AGENT_MAX_LENGTH,
 } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import { openNodeSqliteDatabase } from "../../../src/db/node-sqlite-compat.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+} from "../../utils/test-db.js";
+import type { DialectTestContext } from "../../utils/test-db.js";
 
 /**
  * Seed `_emdash_404_log` directly to MAX_404_LOG_ROWS, batching to stay
@@ -54,6 +63,160 @@ async function seedToCapacity(db: Kysely<Database>): Promise<void> {
 	}
 }
 
+// The upsert's conflict branch embeds a raw SQL fragment whose column
+// resolution is dialect-sensitive.
+describeEachDialect("RedirectRepository.log404 — path upsert", (dialect) => {
+	let ctx: DialectTestContext;
+	let repo: RedirectRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		repo = new RedirectRepository(ctx.db);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("dedups repeat hits by path instead of inserting new rows", async () => {
+		await repo.log404({ path: "/missing" });
+		await repo.log404({ path: "/missing" });
+		await repo.log404({ path: "/missing" });
+
+		const rows = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.selectAll()
+			.where("path", "=", "/missing")
+			.execute();
+
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.hits).toBe(3);
+		expect(rows[0]!.last_seen_at).toBeTruthy();
+	});
+
+	it("handles concurrent inserts for the same new path atomically", async () => {
+		// Regression: `log404` used to be SELECT-then-INSERT/UPDATE, which
+		// races under concurrency — both callers could miss the SELECT and
+		// the second INSERT would fail with a uniqueness violation once a
+		// UNIQUE index on `path` was added. The fix uses a single atomic
+		// upsert (ON CONFLICT DO UPDATE).
+		//
+		// SQLite's driver is synchronous, so Promise.all doesn't produce real
+		// parallelism there; the test instead sends a batch of concurrent
+		// upserts and asserts the end state: exactly one row, with the full
+		// count reflected in `hits`. Any lost updates or uniqueness errors
+		// would cause this to fail.
+		const concurrency = 10;
+		const pending: Array<Promise<void>> = [];
+		for (let i = 0; i < concurrency; i++) {
+			pending.push(repo.log404({ path: "/race" }));
+		}
+		await Promise.all(pending);
+
+		const rows = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.selectAll()
+			.where("path", "=", "/race")
+			.execute();
+
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.hits).toBe(concurrency);
+	});
+
+	it("scheduled cleanup evicts the oldest entry after the table exceeds capacity", async () => {
+		// Stuffing the table to MAX_404_LOG_ROWS via the public API would be
+		// slow, so seed it directly. Batch the inserts to stay under SQLite's
+		// per-statement parameter limit.
+		await seedToCapacity(ctx.db);
+
+		// Sanity: at capacity.
+		const before = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select((eb) => eb.fn.countAll<number>().as("c"))
+			.executeTakeFirstOrThrow();
+		expect(Number(before.c)).toBe(MAX_404_LOG_ROWS);
+
+		// The request path only records the miss; it does not count the table.
+		await repo.log404({ path: "/brand-new" });
+		expect(
+			Number(
+				(
+					await ctx.db
+						.selectFrom("_emdash_404_log")
+						.select((eb) => eb.fn.countAll<number>().as("c"))
+						.executeTakeFirstOrThrow()
+				).c,
+			),
+		).toBe(MAX_404_LOG_ROWS + 1);
+		expect(await repo.cleanup404Log()).toBe(1);
+
+		const after = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select((eb) => eb.fn.countAll<number>().as("c"))
+			.executeTakeFirstOrThrow();
+		expect(Number(after.c)).toBe(MAX_404_LOG_ROWS);
+
+		// The oldest seed row is gone.
+		const oldest = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select("id")
+			.where("id", "=", "seed-000000")
+			.executeTakeFirst();
+		expect(oldest).toBeUndefined();
+
+		// The new path is present.
+		const fresh = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select("path")
+			.where("path", "=", "/brand-new")
+			.executeTakeFirst();
+		expect(fresh?.path).toBe("/brand-new");
+	});
+
+	it("overlapping cleanup runs preserve the newest rows at capacity", async () => {
+		await seedToCapacity(ctx.db);
+		await repo.log404({ path: "/new-a" });
+		await repo.log404({ path: "/new-b" });
+
+		const deleted = await Promise.all([repo.cleanup404Log(), repo.cleanup404Log()]);
+		expect(deleted.reduce((total, count) => total + count, 0)).toBe(2);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select((eb) => eb.fn.countAll<number>().as("c"))
+			.executeTakeFirstOrThrow();
+		expect(Number(remaining.c)).toBe(MAX_404_LOG_ROWS);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_404_log")
+				.select("path")
+				.where("path", "in", ["/new-a", "/new-b"])
+				.execute(),
+		).toHaveLength(2);
+	});
+
+	it("does not evict when an existing path is hit again, even at capacity", async () => {
+		await seedToCapacity(ctx.db);
+
+		// Hit an existing path — should bump hits, not evict.
+		await repo.log404({ path: "/seed-500" });
+
+		const oldest = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select("id")
+			.where("id", "=", "seed-000000")
+			.executeTakeFirst();
+		expect(oldest?.id).toBe("seed-000000");
+
+		const bumped = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select(["hits"])
+			.where("path", "=", "/seed-500")
+			.executeTakeFirstOrThrow();
+		expect(bumped.hits).toBe(2);
+	});
+});
+
 describe("RedirectRepository.log404 — bounded logging", () => {
 	let db: Kysely<Database>;
 	let repo: RedirectRepository;
@@ -65,22 +228,6 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 
 	afterEach(async () => {
 		await teardownTestDatabase(db);
-	});
-
-	it("dedups repeat hits by path instead of inserting new rows", async () => {
-		await repo.log404({ path: "/missing" });
-		await repo.log404({ path: "/missing" });
-		await repo.log404({ path: "/missing" });
-
-		const rows = await db
-			.selectFrom("_emdash_404_log")
-			.selectAll()
-			.where("path", "=", "/missing")
-			.execute();
-
-		expect(rows).toHaveLength(1);
-		expect(rows[0]!.hits).toBe(3);
-		expect(rows[0]!.last_seen_at).toBeTruthy();
 	});
 
 	it("truncates oversize referrer and user_agent on insert", async () => {
@@ -119,92 +266,37 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 		expect(row.user_agent).toBeNull();
 	});
 
-	it("evicts the oldest entry when the table is at capacity", async () => {
-		// Stuffing the table to MAX_404_LOG_ROWS via the public API would be
-		// slow, so seed it directly. Batch the inserts to stay under SQLite's
-		// per-statement parameter limit.
-		await seedToCapacity(db);
+	it("never counts the full table on the request path", async () => {
+		// Regression: cap enforcement ran `COUNT(*)` after every unique path,
+		// allowing unauthenticated callers to amplify D1 row reads.
+		const captured: string[] = [];
+		const loggedDb = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: openNodeSqliteDatabase(":memory:") }),
+			log(event) {
+				if (event.level === "query") {
+					captured.push(event.query.sql);
+				}
+			},
+		});
+		await runMigrations(loggedDb);
+		const loggedRepo = new RedirectRepository(loggedDb);
+		const toISOString = vi
+			.spyOn(Date.prototype, "toISOString")
+			.mockReturnValue("2030-01-01T00:00:00.000Z");
 
-		// Sanity: at capacity.
-		const before = await db
-			.selectFrom("_emdash_404_log")
-			.select((eb) => eb.fn.countAll<number>().as("c"))
-			.executeTakeFirstOrThrow();
-		expect(Number(before.c)).toBe(MAX_404_LOG_ROWS);
+		try {
+			captured.length = 0;
+			await loggedRepo.log404({ path: "/new-path" });
+			const countAfterInsert = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
+			expect(countAfterInsert).toBe(0);
 
-		// New unique path triggers eviction.
-		await repo.log404({ path: "/brand-new" });
-
-		const after = await db
-			.selectFrom("_emdash_404_log")
-			.select((eb) => eb.fn.countAll<number>().as("c"))
-			.executeTakeFirstOrThrow();
-		expect(Number(after.c)).toBe(MAX_404_LOG_ROWS);
-
-		// The oldest seed row is gone.
-		const oldest = await db
-			.selectFrom("_emdash_404_log")
-			.select("id")
-			.where("id", "=", "seed-000000")
-			.executeTakeFirst();
-		expect(oldest).toBeUndefined();
-
-		// The new path is present.
-		const fresh = await db
-			.selectFrom("_emdash_404_log")
-			.select("path")
-			.where("path", "=", "/brand-new")
-			.executeTakeFirst();
-		expect(fresh?.path).toBe("/brand-new");
-	});
-
-	it("does not evict when an existing path is hit again, even at capacity", async () => {
-		await seedToCapacity(db);
-
-		// Hit an existing path — should bump hits, not evict.
-		await repo.log404({ path: "/seed-500" });
-
-		const oldest = await db
-			.selectFrom("_emdash_404_log")
-			.select("id")
-			.where("id", "=", "seed-000000")
-			.executeTakeFirst();
-		expect(oldest?.id).toBe("seed-000000");
-
-		const bumped = await db
-			.selectFrom("_emdash_404_log")
-			.select(["hits"])
-			.where("path", "=", "/seed-500")
-			.executeTakeFirstOrThrow();
-		expect(bumped.hits).toBe(2);
-	});
-
-	it("handles concurrent inserts for the same new path atomically", async () => {
-		// Regression: `log404` used to be SELECT-then-INSERT/UPDATE, which
-		// races under concurrency — both callers could miss the SELECT and
-		// the second INSERT would fail with a uniqueness violation once a
-		// UNIQUE index on `path` was added. The fix uses a single atomic
-		// upsert (ON CONFLICT DO UPDATE).
-		//
-		// better-sqlite3 is synchronous, so Promise.all doesn't produce real
-		// parallelism; the test instead sends a batch of concurrent upserts
-		// and asserts the end state: exactly one row, with the full count
-		// reflected in `hits`. Any lost updates or uniqueness errors would
-		// cause this to fail.
-		const concurrency = 10;
-		const pending: Array<Promise<void>> = [];
-		for (let i = 0; i < concurrency; i++) {
-			pending.push(repo.log404({ path: "/race" }));
+			captured.length = 0;
+			await loggedRepo.log404({ path: "/new-path" });
+			const countAfterUpdate = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
+			expect(countAfterUpdate).toBe(0);
+		} finally {
+			toISOString.mockRestore();
+			await loggedDb.destroy();
 		}
-		await Promise.all(pending);
-
-		const rows = await db
-			.selectFrom("_emdash_404_log")
-			.selectAll()
-			.where("path", "=", "/race")
-			.execute();
-
-		expect(rows).toHaveLength(1);
-		expect(rows[0]!.hits).toBe(concurrency);
 	});
 });

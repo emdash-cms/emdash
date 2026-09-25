@@ -24,7 +24,7 @@
  * #1200). Keeping the input outside the editor DOM avoids it entirely.
  */
 
-import { Autocomplete, Button, Popover, Toolbar, Tooltip, TooltipProvider } from "@cloudflare/kumo";
+import { Autocomplete, Popover, Toolbar, Tooltip, TooltipProvider } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { CaretDown, Check, Copy, X } from "@phosphor-icons/react";
 import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
@@ -96,6 +96,7 @@ async function copyTextToClipboard(text: string, shouldUseFallback: () => boolea
 		}
 	}
 }
+
 function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditing, setIsEditing] = React.useState(false);
@@ -113,7 +114,10 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	);
 
 	const languageItems = React.useMemo(
-		() => CODE_BLOCK_LANGUAGES.map((language) => t(language.label)),
+		() =>
+			CODE_BLOCK_LANGUAGES.map((language) => t(language.label)).toSorted((a, b) =>
+				a.localeCompare(b),
+			),
 		[t],
 	);
 
@@ -135,27 +139,21 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		},
 		[findLanguageByDisplayLabel, t],
 	);
-
 	const [draft, setDraft] = React.useState(() => labelText(storedLanguage));
-
-	// Sync draft when the stored language changes from outside the node view
-	// (e.g. another collaborator edits the attribute, or the editor reloads
-	// content). Don't clobber an in-progress edit.
-	React.useEffect(() => {
-		if (!isEditing) {
-			setDraft(labelText(storedLanguage));
-		}
-	}, [storedLanguage, isEditing, labelText]);
+	const hasLanguageMatches = React.useMemo(
+		() => languageItems.some((item) => filterLanguages(item, draft.trim())),
+		[draft, filterLanguages, languageItems],
+	);
+	const freeFormLanguage = hasLanguageMatches ? undefined : normalizeLanguage(draft);
 
 	const openPicker = React.useCallback(() => {
-		setDraft(storedLanguage ? labelText(storedLanguage) : "");
+		setDraft("");
 		setIsEditing(true);
-	}, [storedLanguage, labelText]);
+	}, []);
 
 	const closePicker = React.useCallback(() => {
 		setIsEditing(false);
-		setDraft(labelText(storedLanguage));
-	}, [storedLanguage, labelText]);
+	}, []);
 
 	const commit = React.useCallback(
 		(value?: string) => {
@@ -168,10 +166,10 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 		[draft, findLanguageByDisplayLabel, updateAttributes],
 	);
 
-	// Enter in the autocomplete input commits the current draft. Escape is
-	// handled by the Popover itself (it calls onOpenChange(false) -> closePicker).
+	// Enter commits a free-form value when no suggestion is active. The
+	// autocomplete handles highlighted suggestions and Escape.
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-		if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+		if (e.key === "Enter" && !e.defaultPrevented && e.target instanceof HTMLInputElement) {
 			e.preventDefault();
 			commit();
 		}
@@ -224,14 +222,14 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<TooltipProvider>
 						<Toolbar
 							size="sm"
-							className="emdash-code-block-controls max-w-full text-[13px]"
+							className="emdash-code-block-controls max-w-full border border-kumo-line text-[13px] ring-0 shadow-none"
 							data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 							aria-label={t`Code block actions`}
 						>
 							<Popover.Trigger
 								render={
 									<Toolbar.Button
-										className="min-w-0 flex-1 overflow-hidden text-[13px]"
+										className="min-w-0 flex-1 overflow-hidden text-[13px] focus:ring-0 focus-visible:relative focus-visible:z-10 focus-visible:bg-kumo-tint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-focus focus-visible:ring-0"
 										onMouseDown={(event) => event.preventDefault()}
 										aria-label={t`Set language (current: ${label})`}
 									>
@@ -269,51 +267,53 @@ function CodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 					<span className="sr-only" role="status" aria-live="polite">
 						{copyFailed ? t`Copy failed` : copied ? t`Copied` : ""}
 					</span>
-					<Popover.Content side="bottom" className="w-auto p-1">
-						<div className="flex items-center gap-1" onKeyDown={handleKeyDown}>
-							<Autocomplete
-								items={languageItems}
-								value={draft}
-								onValueChange={(next: string) => setDraft(next)}
-								filter={filterLanguages}
+					<Popover.Content
+						side="bottom"
+						className="emdash-code-language-popover z-[100] max-h-[var(--available-height)] w-80 max-w-[calc(100vw-1rem)] overflow-hidden p-3"
+					>
+						<Autocomplete
+							inline
+							label={t`Language`}
+							open={isEditing}
+							onOpenChange={(open: boolean) => {
+								if (!open) closePicker();
+							}}
+							items={languageItems}
+							value={draft}
+							onValueChange={(next: string) => setDraft(next)}
+							filter={filterLanguages}
+						>
+							<div onKeyDown={handleKeyDown}>
+								<Autocomplete.InputGroup
+									size="base"
+									className="emdash-code-language-input border border-kumo-line ring-0 focus:ring-0"
+									placeholder={t`Search for a language…`}
+								/>
+							</div>
+							<Autocomplete.List className="emdash-code-language-list mt-2 max-h-[min(20rem,calc(var(--available-height)-6rem))]">
+								{(item: string) => {
+									const isCurrentLanguage = Boolean(storedLanguage) && item === label;
+									return (
+										<Autocomplete.Item
+											key={item}
+											value={item}
+											aria-selected={isCurrentLanguage}
+											data-selected={isCurrentLanguage ? "" : undefined}
+											onClick={() => commit(item)}
+										>
+											{item}
+										</Autocomplete.Item>
+									);
+								}}
+							</Autocomplete.List>
+							<Autocomplete.Empty
+								className={hasLanguageMatches ? undefined : "px-3 py-2 text-base text-kumo-subtle"}
 							>
-								<Autocomplete.InputGroup size="sm" placeholder={t`Language`} />
-								<Autocomplete.Content sideOffset={4}>
-									<Autocomplete.List>
-										{(item: string) => (
-											<Autocomplete.Item key={item} value={item}>
-												{item}
-											</Autocomplete.Item>
-										)}
-									</Autocomplete.List>
-									<Autocomplete.Empty>{t`No matches`}</Autocomplete.Empty>
-								</Autocomplete.Content>
-							</Autocomplete>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-7 w-7"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => commit()}
-								title={t`Apply language`}
-								aria-label={t`Apply language`}
-							>
-								<Check className="h-4 w-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-7 w-7"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={closePicker}
-								title={t`Cancel`}
-								aria-label={t`Cancel`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
+								{freeFormLanguage
+									? t`No matches. Press Enter to use “${freeFormLanguage}”.`
+									: t`No matches`}
+							</Autocomplete.Empty>
+						</Autocomplete>
 					</Popover.Content>
 				</Popover>
 			</div>

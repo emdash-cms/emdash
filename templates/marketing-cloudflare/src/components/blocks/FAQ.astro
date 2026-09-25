@@ -1,20 +1,15 @@
 ---
-interface Props {
-	node: {
-		_key?: string;
-		headline?: string;
-		items: Array<{
-			question: string;
-			answer: string;
-		}>;
-	};
-}
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-const { node } = Astro.props;
-const { _key, headline, items } = node;
+type FAQBlock = Extract<PageContentBlock, { _type: "marketing_faq" }>;
+type Props = BlockComponentProps<FAQBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, headline, items } = value;
 ---
 
-<section class="faq section" id={_key}>
+<section class="faq section" id={anchor_id || undefined}>
 	<div class="faq-container container">
 		{headline && (
 			<header class="faq-header">
