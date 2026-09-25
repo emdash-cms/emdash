@@ -1,3 +1,5 @@
+import { apiError } from "#api/error.js";
+
 import { after } from "../after.js";
 
 /**
@@ -54,4 +56,15 @@ export async function resolveSessionUser<T>(
 	} finally {
 		clearTimeout(timer);
 	}
+}
+
+export const SESSION_UNAVAILABLE_MESSAGE =
+	"Sign-in needs an Astro session driver. Configure session.driver in astro.config.mjs.";
+
+/**
+ * Error for sign-in routes when Astro has no session to store the user in.
+ * Check before consuming tokens so a failed sign-in can be retried.
+ */
+export function sessionUnavailableError(): Response {
+	return apiError("SESSION_UNAVAILABLE", SESSION_UNAVAILABLE_MESSAGE, 500);
 }
