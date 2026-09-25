@@ -146,6 +146,37 @@ describe("RedirectRepository", () => {
 			const found = await repo.findBySource("/old");
 			expect(found?.destination).toBe("/new");
 		});
+
+		it("matches a source that only differs by a trailing slash", async () => {
+			await repo.create({ source: "/old/", destination: "/new" });
+			const withSlash = await repo.findBySource("/old/");
+			const withoutSlash = await repo.findBySource("/old");
+			expect(withSlash?.destination).toBe("/new");
+			expect(withoutSlash?.destination).toBe("/new");
+		});
+	});
+
+	describe("collapseChains", () => {
+		it("updates destinations that match exactly", async () => {
+			const redirect = await repo.create({ source: "/a", destination: "/old" });
+			const updated = await repo.collapseChains("/old", "/new");
+			expect(updated).toBe(1);
+			expect((await repo.findById(redirect.id))?.destination).toBe("/new");
+		});
+
+		it("updates a destination that has a trailing slash when queried without one", async () => {
+			const redirect = await repo.create({ source: "/a", destination: "/old/" });
+			const updated = await repo.collapseChains("/old", "/new");
+			expect(updated).toBe(1);
+			expect((await repo.findById(redirect.id))?.destination).toBe("/new");
+		});
+
+		it("updates a destination without a trailing slash when queried with one", async () => {
+			const redirect = await repo.create({ source: "/a", destination: "/old" });
+			const updated = await repo.collapseChains("/old/", "/new/");
+			expect(updated).toBe(1);
+			expect((await repo.findById(redirect.id))?.destination).toBe("/new/");
+		});
 	});
 
 	describe("update", () => {
@@ -569,6 +600,53 @@ describe("RedirectRepository", () => {
 			expect(redirect).toBeNull();
 			const all = await repo.findMany({});
 			expect(all.items).toHaveLength(0);
+		});
+
+		it("preserves a trailing slash from the URL pattern in the auto-redirect", async () => {
+			const redirect = await repo.createAutoRedirect(
+				"events",
+				"old",
+				"new",
+				"id1",
+				"/whats-on/{slug}/",
+			);
+
+			expect(redirect.source).toBe("/whats-on/old/");
+			expect(redirect.destination).toBe("/whats-on/new/");
+		});
+
+		it("collapses existing chains when the stored destination has a trailing slash", async () => {
+			await repo.create({
+				source: "/events/events/top-of-the-world",
+				destination: "/whats-on/old/",
+			});
+
+			await repo.createAutoRedirect("events", "old", "new", "id1", "/whats-on/{slug}/");
+
+			const seed = await repo.findBySource("/events/events/top-of-the-world");
+			expect(seed?.destination).toBe("/whats-on/new/");
+		});
+
+		it("removes redirects that shadow the new URL regardless of a trailing slash", async () => {
+			await repo.create({ source: "/whats-on/new/", destination: "/promo" });
+
+			await repo.createAutoRedirect("events", "old", "new", "id1", "/whats-on/{slug}/");
+
+			expect(await repo.findBySource("/whats-on/new/")).toBeNull();
+			expect(await repo.findBySource("/whats-on/new")).toBeNull();
+		});
+
+		it("updates an existing redirect that differs only by trailing slash instead of duplicating", async () => {
+			await repo.create({ source: "/whats-on/old/", destination: "/elsewhere" });
+
+			await repo.createAutoRedirect("events", "old", "new", "id1", "/whats-on/{slug}/");
+
+			const all = await repo.findMany({});
+			const fromOld = all.items.filter(
+				(r) => r.source === "/whats-on/old/" || r.source === "/whats-on/old",
+			);
+			expect(fromOld).toHaveLength(1);
+			expect(fromOld[0]!.destination).toBe("/whats-on/new/");
 		});
 	});
 

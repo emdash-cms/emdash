@@ -141,6 +141,33 @@ function rowToRedirect(row: RedirectTable): Redirect {
 }
 
 // ---------------------------------------------------------------------------
+// Redirect path helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * The redirect middleware treats `/a` and `/a/` as the same request path.
+ * Redirect bookkeeping must match under the same rule, otherwise seeded,
+ * imported, or manually created redirects with a trailing slash are invisible
+ * to slug-change clean-up and chain collapsing.
+ */
+function normalizeRedirectPath(path: string): string {
+	if (path.length > 1 && path.endsWith("/")) return path.slice(0, -1);
+	return path;
+}
+
+function withTrailingSlash(path: string): string {
+	if (path === "/" || path.endsWith("/")) return path;
+	return `${path}/`;
+}
+
+/** Both literal forms of a path that the middleware considers equivalent. */
+function redirectPathVariations(path: string): string[] {
+	const normalized = normalizeRedirectPath(path);
+	const slash = withTrailingSlash(normalized);
+	return normalized === slash ? [path] : [normalized, slash];
+}
+
+// ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
 
@@ -163,10 +190,11 @@ export class RedirectRepository {
 	}
 
 	async findBySource(source: string): Promise<Redirect | null> {
+		const variants = redirectPathVariations(source);
 		const row = await this.db
 			.selectFrom("_emdash_redirects")
 			.selectAll()
-			.where("source", "=", source)
+			.where("source", "in", variants)
 			.executeTakeFirst();
 		return row ? rowToRedirect(row) : null;
 	}
@@ -523,6 +551,7 @@ export class RedirectRepository {
 				slug: oldSlug,
 				id: contentId,
 				date: oldPublishedAt,
+				keepTrailingSlash: true,
 			});
 			const newUrl = interpolateUrlPattern({
 				pattern: urlPattern,
@@ -530,15 +559,19 @@ export class RedirectRepository {
 				slug: newSlug,
 				id: contentId,
 				date: newPublishedAt,
+				keepTrailingSlash: true,
 			});
 
-			// A redirect from a URL to itself would make the page unreachable
-			if (oldUrl === newUrl) return null;
+			// A redirect from a URL to itself would make the page unreachable.
+			// Compare under the same slash-equivalence rule the middleware uses.
+			if (normalizeRedirectPath(oldUrl) === normalizeRedirectPath(newUrl)) return null;
 
 			// The new URL serves live content again — any redirect from it would
+			// shadow the live page. Delete both slash forms because the
+			// middleware treats them as the same source.
 			await repository.db
 				.deleteFrom("_emdash_redirects")
-				.where("source", "=", newUrl)
+				.where("source", "in", redirectPathVariations(newUrl))
 				.where((eb) =>
 					eb.exists(
 						eb
@@ -598,7 +631,7 @@ export class RedirectRepository {
 				config_revision: ulid(),
 				...(fence ? { write_generation: fence.generation } : {}),
 			})
-			.where("destination", "=", oldDestination);
+			.where("destination", "in", redirectPathVariations(oldDestination));
 		if (fence) {
 			query = query.where((eb) =>
 				eb.exists(

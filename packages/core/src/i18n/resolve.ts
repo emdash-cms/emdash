@@ -91,15 +91,23 @@ export function interpolateUrlPattern(options: {
 	id: string;
 	/** Publish date used for date tokens; tokens stay literal when absent. */
 	date?: string | Date | null;
+	/**
+	 * By default the result is normalised to have no trailing slash (except for
+	 * the root path). Set this to `true` when the caller wants to preserve a
+	 * trailing slash that is part of the pattern itself — e.g. slug-change
+	 * auto-redirects should match the collection's configured `urlPattern`
+	 * exactly, including its trailing slash.
+	 */
+	keepTrailingSlash?: boolean;
 }): string {
-	const { pattern, collection, slug, id, date } = options;
+	const { pattern, collection, slug, id, date, keepTrailingSlash } = options;
 	const basePattern = pattern ?? `/${encodeURIComponent(collection)}/{slug}`;
 	let path = basePattern
 		.replaceAll("{slug}", encodeURIComponent(slug))
 		.replaceAll("{id}", encodeURIComponent(id));
 	path = applyDateTokens(path, date);
 	path = path.replace(REPEATED_SLASHES, "/");
-	if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+	if (!keepTrailingSlash && path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
 	if (!path.startsWith("/")) path = `/${path}`;
 	return path;
 }
