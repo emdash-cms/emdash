@@ -71,6 +71,15 @@ describe("PUT /_emdash/api/settings/email", () => {
 		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
 	});
 
+	it("rejects SMTP port 25", async () => {
+		const response = await put(smtpBody({ port: 25, pass: "s3cret" }));
+		expect(response.status).toBe(400);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "VALIDATION_ERROR" },
+		});
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+	});
+
 	it("keeps the stored password when a later save omits it", async () => {
 		const first = await put(smtpBody({ pass: "s3cret" }));
 		expect(first.status).toBe(200);

@@ -331,9 +331,6 @@ describe("deliverSmtp", () => {
 			connectFn,
 		);
 
-		// The body is base64-encoded, so no transmitted line can start with
-		// a period — the DATA terminator cannot be spoofed and no stuffing
-		// is needed. The decoded content must round-trip unchanged.
 		const transcript = written.join("");
 		const plainPartStart = transcript.indexOf("Content-Type: text/plain");
 		const plainBodyStart = transcript.indexOf("\r\n\r\n", plainPartStart) + 4;

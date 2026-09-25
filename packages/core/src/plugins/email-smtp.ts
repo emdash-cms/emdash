@@ -301,8 +301,7 @@ function parseAddress(input: string): { email: string; name?: string } {
 
 /**
  * Build the MIME message. Bodies are base64-encoded and wrapped at 76
- * columns, so no line ever starts with a dot (no dot-stuffing needed)
- * and no line exceeds the SMTP 998-octet limit.
+ * columns, so no line exceeds the SMTP 998-octet limit.
  */
 function buildMime(params: {
 	from: { email: string; name?: string };
@@ -905,7 +904,8 @@ export async function deliverSmtp(
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
 		});
-		await active.writer.write(encodeUtf8(`${mime}\r\n.\r\n`));
+		const stuffed = mime.replace(/^\./gm, "..");
+		await active.writer.write(encodeUtf8(`${stuffed}\r\n.\r\n`));
 		await recv("message accepted", 250);
 
 		// Quit
