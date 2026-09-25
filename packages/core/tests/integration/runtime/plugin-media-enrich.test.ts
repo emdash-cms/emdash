@@ -154,6 +154,29 @@ describe("plugin ctx.media.upload — type restrictions", () => {
 		});
 		expect(await db.selectFrom("media").select("id").execute()).toEqual([]);
 	});
+
+	it("reserves a signed upload key with an extension that matches the checked type", async () => {
+		const media = createMediaAccessWithWrite(db, undefined, fakeStorage());
+		const { mediaId, uploadUrl } = await media.getUploadUrl("page.html", "image/png");
+
+		const row = await new MediaRepository(db).findById(mediaId);
+		expect(row?.storageKey).toMatch(/^[0-9A-Z]{26}\.png$/);
+		expect(uploadUrl).toBe(`/s/${row?.storageKey}`);
+	});
+
+	it("checks the content type before calling a configured upload URL provider", async () => {
+		const calls: string[] = [];
+		const media = createMediaAccessWithWrite(db, async (_filename, contentType) => {
+			calls.push(contentType);
+			return { uploadUrl: "/u", mediaId: "m" };
+		});
+
+		await expect(media.getUploadUrl("page.html", "text/html")).rejects.toMatchObject({
+			status: 415,
+		});
+		await media.getUploadUrl("a.png", "IMAGE/PNG");
+		expect(calls).toEqual(["image/png"]);
+	});
 });
 
 describe("plugin ctx.media.delete", () => {
