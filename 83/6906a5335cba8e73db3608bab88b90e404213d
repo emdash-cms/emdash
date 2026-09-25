@@ -1,0 +1,31 @@
+.changeset/menu-navigation-cards.md
+  s_bf1a9ec1f5e062::t_97e90590f05249 1-5
+e2e/tests/menus.spec.ts
+  s_bf1a9ec1f5e062::t_fbd2401afe76c4 34-47,182-183,206-207
+packages/admin/src/components/MenuCard.tsx
+  s_bf1a9ec1f5e062::t_64a20e0a9f5cc5 1-72
+packages/admin/src/components/MenuEditor.tsx
+  s_bf1a9ec1f5e062::t_29975534175eb0 37,358-370,374-392,394-415,417-449,451,496,501
+packages/admin/src/components/MenuList.tsx
+  s_bf1a9ec1f5e062::t_b0063d2f62aaec 7,9,11,20,74-78,99-100,106,115-176,178-180,182,184-192,195-207,210,212,214-220,222,231
+packages/admin/tests/components/MenuEditor.test.tsx
+  s_bf1a9ec1f5e062::t_abc3514b938ddb 111-118
+packages/admin/tests/components/MenuList.test.tsx
+  s_bf1a9ec1f5e062::t_c4ddd97fcbdcd3 90-97,104,116-168,176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "836906a5335cba8e73db3608bab88b90e404213d",
+  "prompts": {},
+  "sessions": {
+    "s_bf1a9ec1f5e062": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3c-5e1e-7671-a431-f71c470b3acb",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
