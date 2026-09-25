@@ -1,5 +1,19 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.8
+
+### Patch Changes
+
+- [#3407](https://github.com/emdash-cms/emdash/pull/3407) [`256ba4f`](https://github.com/emdash-cms/emdash/commit/256ba4f774fb5cac0c123731f2b7a63d620c81e2) Thanks [@swissky](https://github.com/swissky)! - Fixes forms with a file field failing on every submission from the bundled form component. With JavaScript enabled, the component now sends a chosen file in the JSON submission body under `files.<fieldName>` as `{ filename, contentType, bytes }`, where `bytes` is the file encoded as base64. A required file field is now satisfied only by an attached file; a value for a file field in `data` is ignored, and a file sent for a field that its condition hides is not uploaded. A submission that attaches a file to one of the form's file fields now fails with a `500` error instead of being saved without it when the site has no media storage configured.
+
+- [#3405](https://github.com/emdash-cms/emdash/pull/3405) [`d9f0d85`](https://github.com/emdash-cms/emdash/commit/d9f0d851081b528039a011628ead10f61e7d51b2) Thanks [@swissky](https://github.com/swissky)! - Fixes public form submissions ignoring a file field's maximum file size, which let a visitor upload a file of any size. Submitted files are now checked against the field's `maxFileSize`, and no file can exceed 10 MB, even when the field's limit is higher or unset. Empty files are rejected. A file that fails its field's size or accepted-types check is rejected before any file in the submission is uploaded, and when a later upload fails, the files already uploaded for that submission are deleted.
+  
+  A file's `bytes` can now be sent as a base64 string, which is about a third larger than the file, instead of as an array of byte values, which is several times larger. Arrays of byte values are still accepted.
+  
+  Once `emdash` is also updated, file fields accept only PNG, JPEG, GIF, WebP, and AVIF images, video, audio, and PDF files. Submissions with any other file type are rejected with a `415` error, even when the field's accepted types list them, and a file with a malformed content type is rejected with a `400` error.
+
+- [#3207](https://github.com/emdash-cms/emdash/pull/3207) [`15d032f`](https://github.com/emdash-cms/emdash/commit/15d032fc26c22b58b496bfba1dfb756e56790181) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Updating one form setting no longer resets the others. A partial `forms/update` previously filled in schema defaults for every setting the caller left out, so changing a notification address also reset the form's confirmation message, submit label, digest options, retention and — most seriously — its spam protection, silently turning off Cloudflare Turnstile.
+
 ## 0.2.7
 
 ### Patch Changes
