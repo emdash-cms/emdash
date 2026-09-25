@@ -1,5 +1,6 @@
 import {
 	ar,
+	bn,
 	ca,
 	cs,
 	de,
@@ -31,6 +32,7 @@ const DAY_PICKER_LOCALES: Readonly<Record<string, DayPickerLocale>> = {
 	en: enUS,
 	ar,
 	eu,
+	bn,
 	ca,
 	"zh-CN": zhCN,
 	"zh-TW": zhTW,
