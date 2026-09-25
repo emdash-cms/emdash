@@ -72,16 +72,15 @@ const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` 
 
 <Base
 	title="Blog"
-	description="Practical notes on product decisions, thoughtful design, and the habits that help teams do their best work."
+	description="Release plans, interview notes, and small interface decisions that affect real work."
 >
 	<section class="blog-page">
 		<div class="blog-shell">
 			<header class="blog-intro">
-				<p class="blog-kicker">From the team</p>
-				<h1>Ideas for building better work.</h1>
+				<p class="blog-kicker">The journal</p>
+				<h1>The work between releases.</h1>
 				<p class="blog-description">
-					Practical notes on product decisions, thoughtful design, and the habits that
-					help teams do their best work.
+					Release plans, interview notes, and small interface decisions that affect real work.
 				</p>
 			</header>
 
@@ -138,7 +137,9 @@ const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` 
 						<>
 							<h2>No stories yet</h2>
 							<p>Publish your first story to start the journal.</p>
-							<a href="/_emdash/admin/content/posts/new" class="btn btn-primary">Write a story</a>
+							{Astro.locals.user && (
+								<a href="/_emdash/admin/content/posts/new" class="btn btn-primary">Write a story</a>
+							)}
 						</>
 					) : (
 						<>
@@ -226,7 +227,7 @@ const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` 
 <style>
 	.blog-page {
 		min-height: calc(100vh - 12rem);
-		padding-block: clamp(8rem, 12vw, 10rem) clamp(5rem, 8vw, 7rem);
+		padding-block: clamp(7rem, 10vw, 8rem) clamp(5rem, 8vw, 7rem);
 		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
 	}
 
@@ -237,8 +238,8 @@ const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` 
 	}
 
 	.blog-intro {
-		max-width: 43rem;
-		margin-block-end: clamp(3.5rem, 8vw, 5.5rem);
+		max-width: 36rem;
+		margin-block-end: clamp(2.5rem, 5vw, 3.5rem);
 	}
 
 	.blog-kicker,
@@ -252,20 +253,19 @@ const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` 
 	}
 
 	.blog-intro h1 {
-		max-width: 42rem;
 		margin-block-start: var(--spacing-md);
-		font-size: clamp(2.5rem, 7vw, 4.25rem);
-		font-weight: var(--font-weight-display);
-		line-height: 1.02;
-		letter-spacing: -0.045em;
+		font-size: clamp(2rem, 4.8vw, 3rem);
+		font-weight: 600;
+		line-height: 1.1;
+		letter-spacing: -0.035em;
 		text-wrap: balance;
 	}
 
 	.blog-description {
-		max-width: 39rem;
-		margin-block-start: var(--spacing-lg);
+		max-width: 35rem;
+		margin-block-start: var(--spacing-md);
 		color: var(--color-muted);
-		font-size: clamp(1rem, 2vw, 1.125rem);
+		font-size: var(--font-size-base);
 		line-height: 1.6;
 		text-wrap: pretty;
 	}
@@ -565,7 +565,7 @@ const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` 
 
 	@media (max-width: 479px) {
 		.blog-page {
-			padding-block-start: 7.25rem;
+			padding-block-start: 6.5rem;
 		}
 
 		.blog-intro {

@@ -14,7 +14,7 @@
 	--heat-12: #0075de1f;
 	--heat-8: #0075de14;
 	--heat-4: #0075de0a;
-	--color-primary: var(--heat-100);
+	--color-primary: #005bab;
 	--color-primary-dark: #005bab;
 	--color-primary-light: var(--heat-12);
 	--color-accent: #005bab;
@@ -35,7 +35,7 @@
 	--heat-12: #0075de1f;
 	--heat-8: #0075de14;
 	--heat-4: #0075de0a;
-	--color-primary: var(--heat-100);
+	--color-primary: #62aef0;
 	--color-primary-dark: #005bab;
 	--color-primary-light: var(--heat-12);
 	--color-accent: var(--heat-100);
@@ -58,7 +58,7 @@
 		--heat-12: #0075de1f;
 		--heat-8: #0075de14;
 		--heat-4: #0075de0a;
-		--color-primary: var(--heat-100);
+		--color-primary: #62aef0;
 		--color-primary-dark: #005bab;
 		--color-primary-light: var(--heat-12);
 		--color-accent: var(--heat-100);

@@ -31,36 +31,27 @@ const coverStyle = styles.includes(style) ? style : "signal";
 
 			{coverStyle === "signal" && (
 				<svg class="cover-scene launch-scene" viewBox="0 0 640 360">
-					<rect class="scene-panel" x="68" y="54" width="504" height="252" rx="28" />
-					<text class="scene-overline" x="102" y="96">Release plan</text>
-					<g class="status-pill">
-						<rect x="428" y="75" width="110" height="34" rx="17" />
-						<circle cx="451" cy="92" r="5" />
-						<text x="466" y="97">On track</text>
-					</g>
-					<path class="timeline-line" d="M126 186H508" />
-					<g class="milestone milestone--complete">
-						<circle cx="132" cy="186" r="14" />
-						<path d="m125 186 5 5 9-11" />
-						<text x="105" y="225">Scope</text>
-					</g>
-					<g class="milestone milestone--complete">
-						<circle cx="256" cy="186" r="14" />
-						<path d="m249 186 5 5 9-11" />
-						<text x="239" y="225">Test</text>
-					</g>
-					<g class="milestone milestone--complete">
-						<circle cx="380" cy="186" r="14" />
-						<path d="m373 186 5 5 9-11" />
-						<text x="356" y="225">Ready</text>
-					</g>
-					<g class="milestone milestone--current">
-						<circle cx="504" cy="186" r="20" />
-						<circle cx="504" cy="186" r="7" />
-						<text x="487" y="225">Ship</text>
-					</g>
-					<rect class="quiet-line" x="102" y="262" width="190" height="8" rx="4" />
-					<rect class="quiet-line quiet-line--short" x="306" y="262" width="102" height="8" rx="4" />
+					<rect class="launch-back-sheet" x="103" y="50" width="458" height="272" rx="15" transform="rotate(4 332 186)" />
+					<rect class="launch-paper" x="78" y="43" width="478" height="275" rx="16" />
+					<path class="launch-fold" d="M521 43v20a15 15 0 0 0 15 15h20" />
+					<text class="launch-meta" x="112" y="80">LAUNCH FIELD NOTE</text>
+					<path class="launch-rule" d="M112 98h408" />
+					<path class="launch-margin" d="M112 119v112" />
+					<text class="launch-quote" x="132" y="150">
+						<tspan x="132">Ship the export.</tspan>
+						<tspan x="132" dy="36">Watch first-time use.</tspan>
+						<tspan x="132" dy="36">Fix what gets stuck.</tspan>
+					</text>
+					<path class="launch-underline" d="M134 233c73-5 146-5 222-1" />
+					<path class="launch-rule" d="M112 252h408" />
+					<text class="launch-step-number" x="112" y="286">01</text>
+					<text class="launch-step-label" x="138" y="286">DECIDE</text>
+					<path class="launch-step-divider" d="M229 270v23" />
+					<text class="launch-step-number" x="252" y="286">02</text>
+					<text class="launch-step-label" x="278" y="286">REHEARSE</text>
+					<path class="launch-step-divider" d="M390 270v23" />
+					<text class="launch-step-number" x="412" y="286">03</text>
+					<text class="launch-step-label" x="438" y="286">LEARN</text>
 				</svg>
 			)}
 
@@ -121,13 +112,13 @@ const coverStyle = styles.includes(style) ? style : "signal";
 					</g>
 					<g class="main-bubble">
 						<path d="M226 55h184a28 28 0 0 1 28 28v109a28 28 0 0 1-28 28h-58l-34 30-6-30h-86a28 28 0 0 1-28-28V83a28 28 0 0 1 28-28Z" />
-						<text class="conversation-count" x="318" y="141" text-anchor="middle">100</text>
-						<text class="conversation-label" x="318" y="172" text-anchor="middle">conversations</text>
+						<text class="conversation-count" x="318" y="141" text-anchor="middle">3</text>
+						<text class="conversation-label" x="318" y="172" text-anchor="middle">requests</text>
 					</g>
 					<g class="insight-pill">
 						<rect x="264" y="283" width="108" height="34" rx="17" />
 						<circle cx="286" cy="300" r="5" />
-						<text x="299" y="305">Patterns</text>
+						<text x="299" y="305">One job</text>
 					</g>
 				</svg>
 			)}
@@ -164,7 +155,6 @@ const coverStyle = styles.includes(style) ? style : "signal";
 		--cover-ink: #f5f9ff;
 		--cover-accent: #1683e4;
 		--cover-accent-soft: #77bdf7;
-		--cover-panel: #102f53;
 		--cover-line: #86a6c7;
 	}
 
@@ -215,6 +205,12 @@ const coverStyle = styles.includes(style) ? style : "signal";
 		background:
 			radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--cover-accent) 24%, transparent), transparent 30%),
 			var(--cover-base);
+	}
+
+	.blog-cover--signal .cover-art {
+		background:
+			radial-gradient(circle at 83% 72%, color-mix(in srgb, var(--cover-accent) 28%, transparent), transparent 35%),
+			linear-gradient(145deg, #071a33, #0b2a4d 72%, #081a32);
 	}
 
 	.blog-cover--blueprint .cover-art {
@@ -268,8 +264,6 @@ const coverStyle = styles.includes(style) ? style : "signal";
 	}
 
 	.scene-overline,
-	.milestone text,
-	.status-pill text,
 	.saved-pill text,
 	.version-card text,
 	.insight-pill text,
@@ -285,7 +279,6 @@ const coverStyle = styles.includes(style) ? style : "signal";
 		text-transform: uppercase;
 	}
 
-	.status-pill rect,
 	.saved-pill rect,
 	.insight-pill rect {
 		fill: color-mix(in srgb, var(--cover-accent) 18%, var(--cover-panel));
@@ -293,7 +286,6 @@ const coverStyle = styles.includes(style) ? style : "signal";
 		stroke-width: 1;
 	}
 
-	.status-pill circle,
 	.saved-pill path,
 	.insight-pill circle {
 		fill: none;
@@ -303,13 +295,11 @@ const coverStyle = styles.includes(style) ? style : "signal";
 		stroke-linejoin: round;
 	}
 
-	.status-pill circle,
 	.insight-pill circle {
 		fill: var(--cover-accent-soft);
 		stroke: none;
 	}
 
-	.status-pill text,
 	.saved-pill text,
 	.version-card text,
 	.insight-pill text {
@@ -317,50 +307,78 @@ const coverStyle = styles.includes(style) ? style : "signal";
 		font-weight: 650;
 	}
 
-	.timeline-line {
+	.launch-back-sheet {
+		fill: #176db6;
+		opacity: 0.46;
+	}
+
+	.launch-paper {
+		fill: #f2f8ff;
+		stroke: #b8d5ec;
+		stroke-width: 1.5;
+	}
+
+	.launch-fold,
+	.launch-rule,
+	.launch-step-divider {
 		fill: none;
-		stroke: color-mix(in srgb, var(--cover-ink) 28%, transparent);
-		stroke-width: 3;
-		stroke-linecap: round;
+		stroke: #c8dbea;
+		stroke-width: 1.5;
 	}
 
-	.milestone circle:first-child {
-		fill: var(--cover-panel);
-		stroke: var(--cover-accent-soft);
-		stroke-width: 3;
+	.launch-fold {
+		stroke: #a7c9e4;
 	}
 
-	.milestone path {
-		fill: none;
-		stroke: var(--cover-accent-soft);
-		stroke-width: 2.5;
-		stroke-linecap: round;
-		stroke-linejoin: round;
+	.launch-meta,
+	.launch-quote,
+	.launch-step-number,
+	.launch-step-label {
+		font-family: var(--font-sans);
 	}
 
-	.milestone text {
+	.launch-meta {
+		fill: #58718b;
 		font-size: 12px;
-		font-weight: 600;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+		font-weight: 700;
+		letter-spacing: 0.13em;
 	}
 
-	.milestone--current circle:first-child {
-		fill: color-mix(in srgb, var(--cover-accent) 17%, var(--cover-panel));
-		stroke: var(--cover-accent);
+	.launch-margin {
+		fill: none;
+		stroke: #1683e4;
 		stroke-width: 4;
+		stroke-linecap: round;
 	}
 
-	.milestone--current circle:nth-child(2) {
-		fill: var(--cover-accent);
+	.launch-quote {
+		fill: #102b4b;
+		font-size: 29px;
+		font-weight: 700;
+		letter-spacing: -0.035em;
 	}
 
-	.quiet-line {
-		fill: color-mix(in srgb, var(--cover-line) 30%, transparent);
+	.launch-underline {
+		fill: none;
+		stroke: #1683e4;
+		stroke-width: 4;
+		stroke-linecap: round;
+		opacity: 0.85;
 	}
 
-	.quiet-line--short {
-		fill: color-mix(in srgb, var(--cover-accent) 40%, transparent);
+	.launch-step-number,
+	.launch-step-label {
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+	}
+
+	.launch-step-number {
+		fill: #1683e4;
+	}
+
+	.launch-step-label {
+		fill: #305273;
 	}
 
 	.workspace-divider {

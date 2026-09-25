@@ -11,15 +11,18 @@ interface MenuItem {
 interface SiteLogo {
 	url: string;
 	alt?: string | null;
+	width?: number | null;
+	height?: number | null;
 }
 
 interface Props {
 	siteTitle: string;
 	siteLogo?: SiteLogo | null;
 	menuItems: MenuItem[];
+	isLoggedIn: boolean;
 }
 
-const { siteTitle, siteLogo, menuItems } = Astro.props;
+const { siteTitle, siteLogo, menuItems, isLoggedIn } = Astro.props;
 const EXTERNAL_URL_REGEX = /^https?:\/\//i;
 
 function isExternalUrl(url?: string | null) {
@@ -47,7 +50,7 @@ const navItems = menuItems.map((item) => ({
 				<div class="site-brand-row">
 					<a href="/" class="site-logo" aria-label={`${siteTitle} home`} data-menu-close>
 						{siteLogo ? (
-							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} width={siteLogo.width} height={siteLogo.height} class="site-logo-img" />
 						) : (
 							<>
 								<span class="site-logo-mark" aria-hidden="true">
@@ -114,9 +117,11 @@ const navItems = menuItems.map((item) => ({
 					)}
 
 					<div class="nav-actions">
-						<a href="/_emdash/admin" class="nav-action nav-action--secondary" data-menu-close>
-							Admin
-						</a>
+						{isLoggedIn && (
+							<a href="/_emdash/admin" class="nav-action nav-action--secondary" data-menu-close>
+								Admin
+							</a>
+						)}
 						<a href="/#pricing" class="nav-action nav-action--primary" data-menu-close>
 							Get Started
 						</a>

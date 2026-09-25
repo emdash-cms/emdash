@@ -17,6 +17,8 @@ interface FooterColumn {
 interface SiteLogo {
 	url: string;
 	alt?: string | null;
+	width?: number | null;
+	height?: number | null;
 }
 
 interface Props {
@@ -61,7 +63,7 @@ const footerColumns = rawFooterColumns
 			<div class="footer-brand">
 				<a href="/" class="footer-logo" aria-label={`${siteTitle} home`}>
 					{siteLogo ? (
-						<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" loading="lazy" />
+						<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} width={siteLogo.width} height={siteLogo.height} class="footer-logo-img" loading="lazy" />
 					) : (
 						<span class="footer-logo-text">{siteTitle}</span>
 					)}

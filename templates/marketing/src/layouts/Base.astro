@@ -15,10 +15,26 @@ interface Props {
 	image?: string | null;
 	canonical?: string | null;
 	robots?: string | null;
+	type?: "website" | "article";
+	publishedTime?: string | null;
+	modifiedTime?: string | null;
+	author?: string | null;
 	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, pageTitle, description, image, canonical, robots, content } = Astro.props;
+const {
+	title,
+	pageTitle,
+	description,
+	image,
+	canonical,
+	robots,
+	type = "website",
+	publishedTime,
+	modifiedTime,
+	author,
+	content,
+} = Astro.props;
 const [settingsResult, menuResult, footerProductResult, footerCompanyResult, footerSupportResult] =
 	await Promise.all([
 		getSiteSettingsWithCacheHint(),
@@ -46,7 +62,12 @@ const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} — ${s
 const siteDescription =
 	settings?.tagline || "Build products people actually want";
 const siteLogo = settings.logo?.url
-	? { url: settings.logo.url, alt: settings.logo.alt }
+	? {
+			url: settings.logo.url,
+			alt: settings.logo.alt,
+			width: settings.logo.width,
+			height: settings.logo.height,
+		}
 	: null;
 const menu = menuResult.data;
 const footerProduct = footerProductResult.data;
@@ -66,7 +87,7 @@ const footerColumns = [
 const pageCtx = createPublicPageContext({
 	Astro,
 	kind: content ? "content" : "custom",
-	pageType: "website",
+	pageType: type,
 	title: fullTitle,
 	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || siteDescription,
@@ -74,8 +95,11 @@ const pageCtx = createPublicPageContext({
 	image,
 	content,
 	seo: { ogImage: image, robots },
+	articleMeta: { publishedTime, modifiedTime, author },
 	siteName: siteTitle,
 });
+
+const isLoggedIn = !!Astro.locals.user;
 ---
 
 <!doctype html>
@@ -108,6 +132,7 @@ const pageCtx = createPublicPageContext({
 			siteTitle={siteTitle}
 			siteLogo={siteLogo}
 			menuItems={menu?.items ?? []}
+			isLoggedIn={isLoggedIn}
 		/>
 
 		<main>
@@ -311,7 +336,7 @@ const pageCtx = createPublicPageContext({
 					align-items: center;
 					justify-content: center;
 					color: var(--color-on-brand);
-					background: var(--color-brand);
+					background: var(--button-primary-bg);
 					font-size: 1.5rem;
 					border-radius: var(--radius);
 				}

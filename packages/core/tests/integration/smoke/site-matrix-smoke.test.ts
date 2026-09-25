@@ -80,7 +80,7 @@ const SITE_MATRIX: SiteCase[] = [
 		startupTimeoutMs: 90_000,
 		frontendExpectations: [
 			{ path: "/", text: "Build products people actually want" },
-			{ path: "/blog", text: "Ideas for building better work" },
+			{ path: "/blog", text: "The work between releases" },
 		],
 	},
 	{
@@ -90,7 +90,7 @@ const SITE_MATRIX: SiteCase[] = [
 		startupTimeoutMs: 120_000,
 		frontendExpectations: [
 			{ path: "/", text: "Build products people actually want" },
-			{ path: "/blog", text: "Ideas for building better work" },
+			{ path: "/blog", text: "The work between releases" },
 		],
 	},
 	{
@@ -467,13 +467,11 @@ describe.sequential("Marketing template frontend behavior", () => {
 				if (!token) throw new Error("Dev bypass did not return an admin token");
 
 				const client = new EmDashClient({ baseUrl: server.baseUrl, token });
-				for (let index = 1; index <= 13; index++) {
-					const item = await client.create("posts", {
-						slug: `archive-regression-story-${index}`,
-						data: { title: `Archive regression story ${index}` },
-					});
-					await client.publish("posts", item.id);
-				}
+				const seededPosts = await client.list("posts", { limit: 12 });
+				const seededPost = seededPosts.items.find(
+					(item) => item.slug === "plan-the-week-after-a-product-launch",
+				);
+				expect(seededPost).toBeDefined();
 
 				const pricingResponse = await fetch(`${server.baseUrl}/pricing`, { redirect: "manual" });
 				expect(pricingResponse.status).toBe(302);
@@ -483,6 +481,45 @@ describe.sequential("Marketing template frontend behavior", () => {
 				const homepage = await fetchWithRetry(`${server.baseUrl}/`);
 				const homepageHtml = await homepage.text();
 				expect(linkHrefInSection(homepageHtml, "cta", "View Plans")).toBe("/#pricing");
+				const headerHtml = homepageHtml
+					.split('<header class="site-header"')[1]
+					?.split("</header>")[0];
+				expect(headerHtml).toBeDefined();
+				expect(headerHtml).not.toContain('href="/_emdash/admin"');
+
+				const seoUpdate = await fetch(
+					`${server.baseUrl}/_emdash/api/content/posts/${seededPost!.id}`,
+					{
+						method: "PUT",
+						headers: {
+							Authorization: `Bearer ${token}`,
+							"Content-Type": "application/json",
+							"X-EmDash-Request": "1",
+						},
+						body: JSON.stringify({ seo: { title: "Editor SEO title" } }),
+					},
+				);
+				expect(seoUpdate.status).toBe(200);
+				await client.publish("posts", seededPost!.id);
+
+				const article = await fetchWithRetry(
+					`${server.baseUrl}/blog/plan-the-week-after-a-product-launch`,
+				);
+				const articleHtml = await article.text();
+				expect(article.status).toBe(200);
+				expect(articleHtml.match(/<meta property="og:type" content="([^"]+)"/)?.[1]).toBe(
+					"article",
+				);
+				expect(articleHtml.match(/<title>([^<]+)<\/title>/)?.[1]).toContain("Editor SEO title");
+				expect(articleHtml).toContain('"@type":"BlogPosting"');
+
+				for (let index = 1; index <= 13; index++) {
+					const item = await client.create("posts", {
+						slug: `archive-regression-story-${index}`,
+						data: { title: `Archive regression story ${index}` },
+					});
+					await client.publish("posts", item.id);
+				}
 
 				const firstArchive = await fetchWithRetry(`${server.baseUrl}/blog`);
 				const firstArchiveHtml = await firstArchive.text();

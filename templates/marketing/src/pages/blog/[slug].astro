@@ -1,5 +1,5 @@
 ---
-import { decodeSlug, getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry, getSeoMeta } from "emdash";
 import { PortableText } from "emdash/ui";
 import BlogCover from "../../components/BlogCover.astro";
 import Base from "../../layouts/Base.astro";
@@ -31,9 +31,34 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const author = getPostAuthor(post.data);
 const publishedDate = formatPostDate(post.data.publishedAt);
 const readingTime = getReadingTime(post.data.content);
+const featuredImage = post.data.featured_image;
+const storageKey = featuredImage?.meta?.storageKey;
+const imageUrl = featuredImage?.src ?? featuredImage?.previewUrl ??
+	(featuredImage && (featuredImage.provider ?? "local") === "local"
+		? Astro.locals.emdash?.getPublicMediaUrl?.(
+				typeof storageKey === "string" ? storageKey : featuredImage.id,
+			)
+		: undefined);
+const seo = getSeoMeta(post, {
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname,
+	defaultOgImage: imageUrl ? new URL(imageUrl, Astro.url.origin).href : undefined,
+});
 ---
 
-<Base title={post.data.title} description={post.data.excerpt ?? ""}>
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	author={post.data.bylines?.[0]?.byline.displayName}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
 	<article class="article-page">
 		<div class="article-shell">
 			<a href="/blog" class="back-link">

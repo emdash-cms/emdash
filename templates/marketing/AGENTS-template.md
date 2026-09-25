@@ -4,6 +4,8 @@ A SaaS-style marketing template with modular landing-page blocks, an editorial b
 
 More structured than the blog and portfolio templates: navy-tinted surfaces, a focused blue accent, an isometric hero illustration, and restrained 700-weight display type. The voice is direct and product-confident without tipping into stock SaaS cliche.
 
+The Acme homepage headline, tagline, SEO description, and contact addresses are sample content for the layout. Replace them with specific product claims and working contacts before publishing.
+
 ## Pages
 
 | Page             | Path           | What it shows                                                                                                                       |
@@ -24,6 +26,8 @@ More structured than the blog and portfolio templates: navy-tinted surfaces, a f
 Site settings have `title` and `tagline`. Title renders in the header; tagline is used in the footer / metadata.
 
 Blog posts use `featured_image` when an editor selects an image. Without an image, `BlogCover.astro` renders the `cover_style` value (`signal`, `blueprint`, or `orbit`). The seed includes three author bylines and one post for each cover style.
+
+The first blog page selects its lead story from the 12 most recent published posts. Mark a recent post `featured` to lead the page; older posts stay in the paginated archive.
 
 ## Marketing blocks
 
@@ -56,8 +60,8 @@ The component styles use the same token roles as the EmDash public site, with na
 
 - `--color-bg: var(--background-base)` (`#f7f9fc` / `#0a0a0a`) -- the light and dark canvas
 - `--color-surface: var(--surface)` (`#ffffff` / `#171717`) -- bordered cards and panels
-- `--color-primary: var(--heat-100)` (`#0075de` / `#0075de`) -- links, focus, and selected states
-- `--heat-{4,8,12,16,20,40,90,100}` -- translucent through solid blue interaction treatments
+- `--color-primary` (`#005bab` / `#62aef0`) -- readable blue text and selected states in light and dark mode
+- `--heat-{4,8,12,16,20,40,90,100}` -- translucent through solid blue interaction treatments; `--heat-100` stays `#0075de` for button fill and focus
 - `--button-primary-*` and `--button-secondary-*` -- shared button foreground and background roles
 - `--color-success`, `--color-warning`, `--color-danger` -- semantic colours (pricing checkmarks, form errors)
 
@@ -90,7 +94,7 @@ CSS variables worth knowing (see `tokens.css` for the full list):
 
 To re-brand, the highest-leverage moves are:
 
-1. Change the `--heat-*` scale and `--button-primary-fg` in `theme.css`, checking foreground contrast in both appearances.
+1. Change the `--heat-*` scale, `--color-primary` for both appearances, and `--button-primary-fg` in `theme.css`, checking foreground contrast in both appearances.
 2. Update the site title (logo wordmark) and tagline.
 3. Replace the hero illustration URL.
 4. Edit hero `headline` and `subheadline` blocks to specific, concrete copy.
