@@ -67,6 +67,7 @@ import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
+import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
@@ -2262,6 +2263,19 @@ const backupSettingsRoute = createRoute({
 	component: BackupSettings,
 });
 
+const transferSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/transfer",
+	component: TransferSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
+		search.start === "import" ? { start: "import" } : {},
+});
+
+function TransferSettingsPage() {
+	const { start } = transferSettingsRoute.useSearch();
+	return <TransferSettings focusImport={start === "import"} />;
+}
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2829,6 +2843,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
 	backupSettingsRoute,
+	transferSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);

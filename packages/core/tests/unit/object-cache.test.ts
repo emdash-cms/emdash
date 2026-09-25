@@ -7,6 +7,7 @@ import {
 	__setObjectCacheBackendForTests,
 	__setObjectCacheBackendInitForTests,
 	cachedQuery,
+	coalesceObjectCacheWrites,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
 	invalidateObjectCache,
@@ -487,6 +488,55 @@ describe("cachedQuery", () => {
 		} finally {
 			vi.restoreAllMocks();
 		}
+	});
+});
+
+describe("coalesceObjectCacheWrites", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("writes the latest held epoch once when the work throws", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		const now = vi.spyOn(Date, "now");
+
+		await expect(
+			coalesceObjectCacheWrites(async () => {
+				now.mockReturnValue(1_000);
+				invalidateObjectCache("posts");
+				await flush();
+				now.mockReturnValue(2_000);
+				invalidateObjectCache("posts");
+				throw new Error("seed failed");
+			}),
+		).rejects.toThrow("seed failed");
+		await flush();
+
+		const epochWrites = vi
+			.mocked(backend.set)
+			.mock.calls.filter(([key]) => key === "em:epoch:posts");
+		expect(epochWrites).toEqual([["em:epoch:posts", "2000"]]);
+	});
+
+	it("writes through invalidations made after the work has ended", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		let release!: () => void;
+		let late!: Promise<void>;
+
+		await coalesceObjectCacheWrites(async () => {
+			const released = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			late = released.then(() => invalidateObjectCache("menus"));
+		});
+		release();
+		await late;
+		await flush();
+
+		expect(backend.store.has("em:epoch:menus")).toBe(true);
 	});
 });
 

@@ -169,8 +169,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (playgroundDb) {
 		// Check if playground user has toggled edit mode on
 		const hasEditCookie = cookies.get("emdash-edit-mode")?.value === "true";
-		return runWithContext({ editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true }, () =>
-			next(),
+		return runWithContext(
+			{ editMode: hasEditCookie, db: playgroundDb, dbIsIsolated: true },
+			async () => {
+				const response = await next();
+				if (!hasEditCookie || toolbarMode === false) return response;
+				// The Playground shows its own bar, so the editor toolbar is hidden and
+				// only provides inline editing.
+				const labels = await loadVisualEditingToolbarLabels(context.request);
+				const toolbarHtml = renderToolbar({
+					editMode: true,
+					isPreview: false,
+					labels,
+					hidden: true,
+				});
+				return injectToolbar(response, toolbarHtml, context.cache);
+			},
 		);
 	}
 

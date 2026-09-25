@@ -63,6 +63,7 @@ import {
 } from "./ContentSettingsPanel.js";
 import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
+import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
@@ -82,6 +83,7 @@ const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
 const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
 const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
 const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
+const LIST_FIELD_KINDS = new Set(["repeater", "portableText", "multiSelect", "blocks"]);
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -1866,6 +1868,12 @@ function FieldRenderer({
 			}
 			// Widget declared but plugin not found/active -- fall through to default
 		}
+	}
+
+	if (LIST_FIELD_KINDS.has(field.kind) && isNonListValue(value)) {
+		return (
+			<NonListFieldValue id={id} label={label} value={value} onReplace={() => handleChange([])} />
+		);
 	}
 
 	switch (field.kind) {

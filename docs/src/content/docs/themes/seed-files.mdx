@@ -273,7 +273,9 @@ Taxonomy definitions identify their target collections. Terms are sample data an
 }
 ```
 
-A taxonomy can carry a seed-local `id`, `locale`, and `translationOf`. Terms can also carry those properties. `translationOf` refers to another seed-local ID and must be ordered after its source when applying the seed.
+A taxonomy can carry a seed-local `id`, `locale`, and `translationOf`. Terms can also carry those properties. `translationOf` refers to another seed-local ID. A term must be ordered after the term it translates. Taxonomy entries of one `name` can appear in any order, because the entry that declares the taxonomy's structure applies before its translations.
+
+`hierarchical` and `collections` are shared by every locale of a taxonomy, so a taxonomy entry whose `translationOf` points at an entry with the same `name` can omit them. The apply engine follows `translationOf` through entries with the same `name` and takes them from the last one. Validation warns when a translation declares values other than the ones it takes, or when two entries that declare them for one taxonomy disagree. An existing taxonomy keeps its values unless an entry without `translationOf` replaces them. That happens with `onConflict: "update"`, and in every mode when the entry's locale has the unedited built-in `category` or `tag` definition described in [Conflict behavior](#conflict-behavior), or when that built-in definition is the taxonomy's only one. Export writes them only on the entry that translations point at.
 
 Term `parent` is the parent term's slug in the same locale. A parent on a non-hierarchical taxonomy produces a warning and is ignored. A term with `translationOf` and no `parent` takes the parent of the term it translates.
 

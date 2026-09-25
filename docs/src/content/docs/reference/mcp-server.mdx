@@ -5,7 +5,7 @@ description: Authentication, protocol behavior, and the complete tool inventory 
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash exposes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server at `/_emdash/api/mcp`. MCP clients use it to read and manage content, bylines, schemas, media, taxonomies, menus, revisions, and settings.
+EmDash exposes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server at `/_emdash/api/mcp`. MCP clients use it to read and manage content, bylines, schemas, media, taxonomies, menus, revisions, and settings, and to export or import the whole site.
 
 <Aside>
 	To connect Claude, ChatGPT, or another AI client, follow the [AI tools guide](/guides/ai-tools/).
@@ -41,7 +41,12 @@ OAuth and personal access tokens limit which tools a client can call. The user's
 | `settings:manage` | Update site settings. |
 | `mcp:tools` | Call MCP tools exposed by any enabled plugin. |
 | `mcp:tools:<pluginId>` | Call MCP tools exposed by one enabled plugin. |
-| `admin` | Call every core tool. Plugin tools still require `mcp:tools` or the plugin-specific scope. |
+| `transfer:export` | Export the whole site as a [site package](/guides/site-transfer/) and download it. |
+| `transfer:analyze` | Upload a site package and analyze it for import. |
+| `transfer:execute` | Start, advance, cancel, and abandon a site import. |
+| `admin` | Call every core tool, including the site transfer tools. Plugin tools still require `mcp:tools` or the plugin-specific scope. |
+
+The `admin` scope includes `transfer:export`, `transfer:analyze`, and `transfer:execute`. Each transfer scope grants only its own actions and requires the administrator role. To let a client, such as an agent, analyze a site package without exporting or importing, grant `transfer:analyze` instead of `admin`.
 
 The authorization-code consent page lets the user remove requested scopes. EmDash also intersects the request with the client's registered scopes and the user's role, and refuses an empty grant.
 
@@ -58,6 +63,7 @@ The following table shows the minimum role for the broad capability. Ownership c
 | Manage bylines, taxonomies, menus, or all users' content | Editor |
 | Read schemas or settings | Editor |
 | Change schemas or settings, permanently delete content, or repair media usage | Admin |
+| Export or import the whole site | Admin |
 
 See [user roles](/guides/authentication/#user-roles) for the complete role definitions.
 
@@ -188,6 +194,23 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | `settings_get` | Get Site Settings | `settings:read` |
 | `settings_update` | Update Site Settings | `settings:manage` |
 
+### Site transfer tools
+
+`transfer:*` means any one of `transfer:export`, `transfer:analyze`, or `transfer:execute`. The `admin` scope satisfies every requirement in this table.
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `site_transfer_capabilities` | Get Site Transfer Capabilities | `transfer:*` |
+| `site_export_start` | Start Site Export | `transfer:export` |
+| `site_export_status` | Get Site Export Status | `transfer:export` |
+| `site_import_analyze` | Analyze Site Import | `transfer:analyze` |
+| `site_import_start` | Start Site Import | `transfer:execute` |
+| `site_import_status` | Get Site Import Status | `transfer:*` |
+| `site_import_resume` | Resume Site Import | `transfer:execute` |
+| `site_import_receipt` | Get Site Import Receipt | `transfer:*` |
+
+`site_export_start` and `site_import_start` also accept a token without the scope when an admin approves the request. For the operation an approved request starts, `site_export_status`, `site_import_status`, `site_import_resume`, and `site_import_receipt` then accept the same token without the scope.
+
 {/* mcp-tool-inventory:end */}
 
 ## Use the tool schemas
@@ -249,6 +272,44 @@ Taxonomy definitions describe the classification and the collections it applies 
 <Aside type="caution">
 	Tools whose registered metadata has `destructiveHint: true` can delete stored data. Confirm the target and its current state before calling them.
 </Aside>
+
+## Site transfer
+
+The `site_*` tools export a whole site as a [site package](/guides/site-transfer/) and import a package into an empty site. They start and drive operations and return bounded summaries. They never carry package bytes, media, record contents, principal email addresses, or download URLs. Download an export, and upload a package for import, with the [CLI](/reference/cli/#emdash-site) or the [REST API](/guides/site-transfer/#import-with-the-rest-api), then refer to the operation by its ID.
+
+Every transfer tool requires the Admin role. The role is checked before the scope, so a non-admin caller receives `INSUFFICIENT_PERMISSIONS` and no approval request is created.
+
+### Export
+
+`site_export_start` accepts `comments` (default `true`) and returns the new operation. `site_export_status` runs one bounded export step on each call and reports the operation and `nextRequestInMs`. Call it again after that delay until `nextRequestInMs` is `null`. Pass `advance: false` to read the status without running a step. Once the export is complete, the result also includes `totals`: record counts by kind, media count and bytes, and package file count and bytes.
+
+### Import
+
+Upload the package first. The CLI's `emdash site import <file> --analyze` uploads and analyzes it and prints the operation ID.
+
+`site_import_analyze` runs one bounded analysis step per call. Repeat it until `nextRequestInMs` is `null`; the result then includes a plan summary with `packageDigest`, `planDigest`, `executable`, counts, sizes, principals, decisions, transformations, warnings, and blockers. Each transformation is listed as its `code`, the record `kind` when it has one, and a `count`, without the IDs or values it applies to. Principals, warnings, and blockers list at most 50 items each, with the full count in `total`. Principals are listed without email addresses, with the suggested and currently mapped target user IDs. Pass `decisions` to map principals to target user IDs (or `null`) and to choose the package or target title and tagline. Each change produces a new `planDigest`.
+
+`site_import_start` takes the operation ID and the `packageDigest` and `planDigest` of the latest plan. The plan must have no blockers. The tool has `destructiveHint: true`: once started, the import writes to the site and blocks other writes until it completes or an administrator abandons it. Show the user the plan and get their confirmation before calling it.
+
+`site_import_resume` runs one bounded import step and reports the operation and `nextRequestInMs`. Call it until `nextRequestInMs` is `null`; it is safe to repeat after a disconnect. `site_import_status` reports the operation and uploaded file counts without advancing the import. `site_import_receipt` returns the complete receipt, including `receiptDigest`, once the import is complete.
+
+While an import is executing, and after it fails or is cancelled until it is abandoned, every other tool that can write fails with `TRANSFER_IMPORT_IN_PROGRESS`. This includes plugin tools. Tools annotated `readOnlyHint: true` and the eight `site_*` tools keep working, and `initialize` and `tools/list` are never blocked. During media usage activation, write tools fail with `MEDIA_USAGE_ACTIVATION_IN_PROGRESS` in the same way.
+
+Operation summaries include `id`, `kind`, `state`, `stage`, `progress`, `packageDigest`, `planDigest`, `error` (`{ code }` or `null`), and timestamps. `progress` is `{ done, total }` steps, plus `records`, the records an export has written so far, and `bytesDone` and `bytesTotal`, once they are known. The MCP tools cannot cancel or abandon an import; use the [REST API](/guides/site-transfer/#cancel-an-import).
+
+### Approvals
+
+A token with `admin` or the needed transfer scope never asks for approval. For a token without either, such as an agent granted only `transfer:analyze`, `site_export_start` and `site_import_start` run when an administrator approves the request:
+
+1. The first call without the scope creates a pending approval request and fails with `TRANSFER_APPROVAL_REQUIRED`. The message text and `_meta.details` carry the `approvalId` and its `expiresAt`. Calling again with the same arguments and no `approvalId` returns the same open request.
+2. An administrator approves the request under **Approval requests** in **Settings → Transfer**, or with the session-only approval endpoint of the [REST API](/reference/rest-api/#site-transfer). API tokens cannot approve requests.
+3. The client repeats the call with the same arguments and the `approvalId`. The approval is used up when that call starts the operation. If the operation fails to start, the client can retry with the same `approvalId` until it expires.
+
+A request is bound to the user, the token, the action, and the exact arguments: the export options, or the import operation ID and both digests. A pending request expires 15 minutes after it is made, and an approved one 15 minutes after approval. A call with different arguments or another token, or with a denied, expired, or used approval, fails with `TRANSFER_APPROVAL_INVALID`.
+
+`site_import_start` checks the digests, the operation state, and the plan's blockers before it creates a request, so an administrator is only asked to approve an import that can run. An approval needs a token ID, so a caller without one receives `INSUFFICIENT_SCOPE`.
+
+After an approved call starts an operation, the same user and token can call `site_export_status`, or `site_import_status`, `site_import_resume`, and `site_import_receipt`, for that operation without the scope.
 
 ## Plugin tools
 

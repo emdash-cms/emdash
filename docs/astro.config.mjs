@@ -85,6 +85,7 @@ export default defineConfig({
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
 						{ label: "Backups", slug: "guides/backups" },
+						{ label: "Site Transfer", slug: "guides/site-transfer" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",

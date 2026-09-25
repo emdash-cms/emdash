@@ -70,6 +70,7 @@ export {
 	type MediaUsageOccurrenceDetail,
 	type MediaUsageSourceDetail,
 	type MediaUsageEntryDetail,
+	type MediaUsageSiteSettingDetail,
 	type MediaUsageDetailsResponse,
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,

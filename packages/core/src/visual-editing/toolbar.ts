@@ -14,6 +14,8 @@ interface ToolbarConfig {
 	isPreview: boolean;
 	actionToken?: string;
 	labels: ToolbarLabels;
+	/** Hide the pill but keep inline editing, for pages that show their own bar. */
+	hidden?: boolean;
 }
 
 export interface ToolbarLabels {
@@ -38,12 +40,12 @@ function inlineScriptJson(value: unknown): string {
 }
 
 export function renderToolbar(config: ToolbarConfig): string {
-	const { editMode, isPreview, actionToken = "", labels } = config;
+	const { editMode, isPreview, actionToken = "", labels, hidden = false } = config;
 	const recoveryBadge = `<span class="emdash-tb-badge emdash-tb-badge--error">${escapeHtml(labels.sessionExpired)}</span>`;
 
 	return `
 <!-- EmDash Visual Editing Toolbar -->
-<div id="emdash-toolbar" data-edit-mode="${editMode}" data-preview="${isPreview}">
+<div id="emdash-toolbar" data-edit-mode="${editMode}" data-preview="${isPreview}"${hidden ? " hidden" : ""}>
   <div class="emdash-tb-inner">
     <span class="emdash-tb-logo">EmDash</span>
 
@@ -880,12 +882,36 @@ export function renderToolbar(config: ToolbarConfig): string {
   // Plain text inline editing (contenteditable)
   var currentlyEditing = null;
 
-  function startTextEdit(element, annotation) {
+  // Browsers add line breaks while editing as <br> or <div> elements (Shift+Enter,
+  // pasted lines), which textContent drops.
+  function editableText(element) {
+    var text = "";
+    (function walk(node) {
+      for (var child = node.firstChild; child; child = child.nextSibling) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          text += child.data;
+        } else if (child.nodeName === "BR") {
+          text += "\\n";
+        } else {
+          if (child.nodeName === "DIV" && text && text.slice(-1) !== "\\n") text += "\\n";
+          walk(child);
+        }
+      }
+    })(element);
+    return text;
+  }
+
+  function startTextEdit(element, annotation, multiline) {
     if (currentlyEditing === element) return;
     if (currentlyEditing) endCurrentEdit();
 
+    // Line breaks only belong in multi-line fields.
+    function readText() {
+      return multiline ? editableText(element) : element.textContent || "";
+    }
+
     currentlyEditing = element;
-    var originalText = element.textContent || "";
+    var originalText = readText();
 
     element.setAttribute("data-emdash-editing", "");
     element.contentEditable = "plaintext-only";
@@ -900,7 +926,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     // Track dirty state via input events
     function handleInput() {
-      var current = (element.textContent || "").trim();
+      var current = readText().trim();
       if (current !== originalText.trim()) {
         setSaveState("unsaved");
       } else {
@@ -916,7 +942,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       element.removeAttribute("data-emdash-editing");
       currentlyEditing = null;
 
-      var newValue = (element.textContent || "").trim();
+      var newValue = readText().trim();
       if (newValue !== originalText.trim()) {
         pendingSavePromise = saveField(annotation.collection, annotation.id, annotation.field, newValue).then(function() {
           pendingSavePromise = null;
@@ -949,6 +975,34 @@ export function renderToolbar(config: ToolbarConfig): string {
     if (currentlyEditing) {
       currentlyEditing.blur();
     }
+  }
+
+  // Text fields are often rendered transformed (Markdown to HTML, truncated
+  // excerpts). Saving the page text over the stored value would lose content,
+  // so they are edited in place only when the page shows the stored text.
+  function startTextEditIfShownAsStored(element, annotation) {
+    // Rendered markup means the text was transformed. Open the admin before the
+    // lookup, while the click still lets popup blockers allow window.open().
+    if (element.children.length > 0) {
+      openAdmin(annotation);
+      return;
+    }
+    ecFetch("/_emdash/api/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id), {
+      credentials: "same-origin"
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(body) {
+      var item = body && body.data && body.data.item;
+      var stored = item && item.data ? item.data[annotation.field] : null;
+      if (typeof stored === "string" && stored.trim() === (element.textContent || "").trim()) {
+        startTextEdit(element, annotation, true);
+      } else {
+        openAdmin(annotation);
+      }
+    })
+    .catch(function() {
+      openAdmin(annotation);
+    });
   }
 
   // Fallback: open admin
@@ -1411,13 +1465,15 @@ export function renderToolbar(config: ToolbarConfig): string {
     document.addEventListener("click", function(e) {
       var target = e.target;
 
-      // Don't intercept clicks on elements currently being edited
-      if (target.hasAttribute && target.hasAttribute("data-emdash-editing")) return;
+      // Clicks inside the field being edited only move the caret; cancel them so
+      // a link wrapping the field isn't followed.
+      if (target.closest && target.closest("[data-emdash-editing]")) {
+        e.preventDefault();
+        return;
+      }
 
       // Walk up to find annotated element
       while (target && target !== document.body) {
-        if (target.hasAttribute && target.hasAttribute("data-emdash-editing")) return;
-
         var ref = target.getAttribute && target.getAttribute("data-emdash-ref");
         if (ref) {
           try {
@@ -1439,6 +1495,8 @@ export function renderToolbar(config: ToolbarConfig): string {
               e.stopPropagation();
               if (kind === "string" || kind === "text") {
                 startTextEdit(target, annotation);
+              } else if (kind === "richText") {
+                startTextEditIfShownAsStored(target, annotation);
               } else if (kind === "image") {
                 startImageEdit(target, annotation);
               } else {
@@ -1449,6 +1507,9 @@ export function renderToolbar(config: ToolbarConfig): string {
             if (manifestCache) {
               dispatchInline(getFieldKind(manifestCache, annotation.collection, annotation.field));
             } else {
+              // The click can only be cancelled now, so a link wrapping the field
+              // isn't followed while the manifest loads.
+              e.preventDefault();
               fetchManifest().then(function(manifest) {
                 dispatchInline(getFieldKind(manifest, annotation.collection, annotation.field));
               });

@@ -57,6 +57,7 @@ import { CommentRepository } from "./database/repositories/comment.js";
 import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
+import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
 import type {
 	ContentItem as ContentItemInternal,
@@ -1762,8 +1763,9 @@ export class EmDashRuntime {
 		}
 
 		// Register built-in default comment moderator.
-		// Always present — auto-selected as the sole comment:moderate provider
-		// unless a plugin (e.g. AI moderation) provides its own.
+		// Always present as a fallback: exclusive hook resolution selects a
+		// single plugin moderator (e.g. AI moderation) over it unless the site
+		// has already stored a comment:moderate selection.
 		try {
 			const defaultModeratorPlugin = definePlugin({
 				id: DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
@@ -2852,6 +2854,7 @@ export class EmDashRuntime {
 				await optionsRepo.delete(key);
 			},
 			preferredHints,
+			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
 		});
 	}
 
@@ -3029,11 +3032,7 @@ export class EmDashRuntime {
 		}> = [];
 		let taxonomyDefinitionLocales: string[] = [];
 		try {
-			const rows = await this.db
-				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
-				.orderBy("name")
-				.execute();
+			const rows = await selectTaxonomyDefs(this.db).orderBy("d.name").execute();
 			taxonomyDefinitionLocales = rows.map((row) => row.locale);
 			manifestTaxonomies = rows.map((row) => ({
 				id: row.id,

@@ -160,6 +160,7 @@ import {
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
 import { MediaPickerModal } from "./MediaPickerModal";
+import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { SectionPickerModal } from "./SectionPickerModal";
 
 const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
@@ -2241,6 +2242,15 @@ function BlockKitField({
 			);
 		}
 		case "repeater": {
+			if (isNonListValue(value)) {
+				return (
+					<NonListFieldValue
+						label={field.label}
+						value={value}
+						onReplace={() => onChange(field.action_id, [])}
+					/>
+				);
+			}
 			return (
 				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
 			);
