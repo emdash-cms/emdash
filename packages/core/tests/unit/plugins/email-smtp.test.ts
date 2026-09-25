@@ -165,6 +165,24 @@ describe("loadSmtpConfigFromEnv", () => {
 		expect(() => loadSmtpConfigFromEnv()).toThrow(/port 25/);
 	});
 
+	it.each(["abc", "587abc", "0", "70000", "58.7"])("refuses EMAIL_SMTP_PORT=%s", (port) => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = port;
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+
+		expect(() => loadSmtpConfigFromEnv()).toThrow(/EMAIL_SMTP_PORT must be a port number/);
+	});
+
+	it("uses port 587 when EMAIL_SMTP_PORT is empty", () => {
+		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
+		process.env.EMAIL_SMTP_PORT = "";
+		process.env.EMAIL_SMTP_USER = "u";
+		process.env.EMAIL_SMTP_PASS = "p";
+
+		expect(loadSmtpConfigFromEnv()?.port).toBe(587);
+	});
+
 	it("throws when credentials are missing", () => {
 		process.env.EMAIL_SMTP_HOST = "smtp.example.com";
 		process.env.EMAIL_SMTP_PORT = "587";

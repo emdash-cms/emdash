@@ -576,7 +576,11 @@ export interface SmtpConfig {
 export function loadSmtpConfigFromEnv(): SmtpConfig | null {
 	const host = process.env.EMAIL_SMTP_HOST;
 	if (!host) return null;
-	const port = Number.parseInt(process.env.EMAIL_SMTP_PORT ?? "587", 10);
+	const portRaw = process.env.EMAIL_SMTP_PORT || "587";
+	const port = Number(portRaw);
+	if (!Number.isInteger(port) || port < 1 || port > 65535) {
+		throw new Error(`EMAIL_SMTP_PORT must be a port number from 1 to 65535, got "${portRaw}"`);
+	}
 	if (port === 25) {
 		throw new Error(
 			"EMAIL_SMTP_PORT=25 is not supported: Cloudflare blocks outbound port 25. " +
