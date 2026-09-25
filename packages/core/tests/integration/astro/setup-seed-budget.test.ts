@@ -82,7 +82,13 @@ async function postSetupCounted(db: Kysely<Database>): Promise<{
 		params: {},
 		url: new URL(request.url),
 		request,
-		locals: { emdash: { db: db.withPlugin(counter), config: {}, storage: undefined } },
+		locals: {
+			emdash: {
+				db: db.withPlugin(counter),
+				config: { siteUrl: "http://site.example" },
+				storage: undefined,
+			},
+		},
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
 	} as unknown as APIContext);
 	const body = (await response.json()) as SetupResponse;
