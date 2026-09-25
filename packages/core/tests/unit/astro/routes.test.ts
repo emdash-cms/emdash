@@ -12,6 +12,7 @@ import {
 import * as mediaReplaceRoute from "../../../src/astro/routes/api/media/[id]/replace.js";
 import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
+import * as bulkTagRoute from "../../../src/astro/routes/api/taxonomies/bulk-tag.js";
 
 function mockMediaContext(key: string | undefined, contentType = "image/png") {
 	const download = vi.fn().mockResolvedValue({
@@ -216,6 +217,16 @@ describe("core media route injection", () => {
 			},
 		);
 	});
+});
+
+it("registers the bulk tag route as a POST endpoint", () => {
+	const routes: Array<{ pattern: string; entrypoint: string }> = [];
+	injectCoreRoutes((route) => routes.push(route));
+	expect(routes).toContainEqual(
+		expect.objectContaining({ pattern: "/_emdash/api/taxonomies/bulk-tag" }),
+	);
+	expect(bulkTagRoute.POST).toBeTypeOf("function");
+	expect(bulkTagRoute).not.toHaveProperty("GET");
 });
 
 describe("media file catch-all route", () => {

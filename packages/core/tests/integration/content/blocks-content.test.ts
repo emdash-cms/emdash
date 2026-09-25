@@ -284,4 +284,47 @@ describeEachDialect("blocks content semantics", (dialect) => {
 		expect(translated.success).toBe(true);
 		if (translated.success) expect(translated.data.item.data.layout).toEqual(layout);
 	});
+
+	it("preserves block identity through publish and revision restore", async () => {
+		const created = await runtime.handleContentCreate("pages", {
+			slug: "revision-page",
+			data: { layout: [{ _type: "hero", heading: "First" }] },
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		const original = (created.data.item.data.layout as Array<Record<string, unknown>>)[0]!;
+
+		const firstPublish = await runtime.handleContentPublish("pages", created.data.item.id);
+		expect(firstPublish.success).toBe(true);
+		if (!firstPublish.success) return;
+		const firstRevisionId = firstPublish.data.item.liveRevisionId;
+		expect(firstRevisionId).toBeTruthy();
+
+		const edited = await runtime.handleContentUpdate("pages", created.data.item.id, {
+			data: { layout: [{ ...original, heading: "Second" }] },
+		});
+		expect(edited.success).toBe(true);
+		const secondPublish = await runtime.handleContentPublish("pages", created.data.item.id);
+		expect(secondPublish.success).toBe(true);
+
+		const restored = await runtime.handleRevisionRestore(firstRevisionId!, "restore-author");
+		expect(restored.success).toBe(true);
+		if (!restored.success) return;
+		expect(restored.data.item.data.layout).toEqual([
+			expect.objectContaining({
+				_type: "hero",
+				_version: 1,
+				_key: original._key,
+				heading: "First",
+			}),
+		]);
+
+		const republished = await runtime.handleContentPublish("pages", created.data.item.id);
+		expect(republished.success).toBe(true);
+		if (republished.success) {
+			expect(republished.data.item.data.layout).toEqual([
+				expect.objectContaining({ _key: original._key, _version: 1, heading: "First" }),
+			]);
+		}
+	});
 });

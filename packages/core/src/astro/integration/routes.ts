@@ -428,6 +428,21 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/schema/collections/index.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types",
+		entrypoint: resolveRoute("api/schema/block-types/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types/[slug]/versions/[version]/activate",
+		entrypoint: resolveRoute("api/schema/block-types/[slug]/versions/[version]/activate.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types/[slug]",
+		entrypoint: resolveRoute("api/schema/block-types/[slug]/index.ts"),
+	});
+
 	// Order matters: the static `reorder` route must precede the dynamic
 	// `[slug]` route so Astro's resolver dispatches POST
 	// /schema/collections/reorder to the reorder handler instead of treating
@@ -507,6 +522,12 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/backups/archives/[name].ts"),
 	});
 
+	// Site transfer routes
+	injectRoute({
+		pattern: "/_emdash/api/admin/transfer/[...path]",
+		entrypoint: resolveRoute("api/admin/transfer/[...path].ts"),
+	});
+
 	// Snapshot route (for DO preview database population)
 	injectRoute({
 		pattern: "/_emdash/api/snapshot",
@@ -517,6 +538,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/taxonomies",
 		entrypoint: resolveRoute("api/taxonomies/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/taxonomies/bulk-tag",
+		entrypoint: resolveRoute("api/taxonomies/bulk-tag.ts"),
 	});
 
 	injectRoute({
@@ -619,6 +645,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/registry/artifact",
 		entrypoint: resolveRoute("api/admin/plugins/registry/artifact.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/publisher-handle",
+		entrypoint: resolveRoute("api/admin/plugins/registry/publisher-handle.ts"),
 	});
 
 	injectRoute({

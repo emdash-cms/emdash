@@ -76,6 +76,7 @@ export default defineConfig({
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
 						{ label: "Page Layouts", slug: "guides/page-layouts" },
+						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
 						{ label: "Authentication", slug: "guides/authentication" },
@@ -84,6 +85,7 @@ export default defineConfig({
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
 						{ label: "Backups", slug: "guides/backups" },
+						{ label: "Site Transfer", slug: "guides/site-transfer" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",

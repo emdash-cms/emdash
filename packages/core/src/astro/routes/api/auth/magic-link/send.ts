@@ -11,9 +11,11 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { getMagicLinkEmailStrings } from "@emdash-cms/admin/locales/emails";
 import { sendMagicLink, type MagicLinkConfig } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
+import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkSendBody } from "#api/schemas.js";
@@ -60,12 +62,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Build magic link config using the configured site URL, stored option as fallback (not request Host header)
 		const options = new OptionsRepository(emdash.db);
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? "EmDash";
+		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
+		const siteName = siteOptions.get("emdash:site_title") ?? "EmDash";
 
+		// Localized copy following the site locale; the locale also
+		// drives lang/dir on the email HTML so RTL copy renders correctly.
+		const emailLocale = resolveEmailLocale(siteOptions.get("emdash:locale"), request);
 		const config: MagicLinkConfig = {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
+			emailStrings: await getMagicLinkEmailStrings(emailLocale, siteName),
+			emailLocale,
 		};
 
 		// Send magic link (silently fails if user doesn't exist)

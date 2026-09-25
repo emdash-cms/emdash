@@ -36,6 +36,7 @@ export const POST: APIRoute = async ({ locals }) => {
 		if (!env) {
 			return apiSuccess({
 				available: false,
+				code: "NOT_WORKERS",
 				message:
 					"Cloudflare Workers runtime not detected. The send_email binding only works on Cloudflare Workers (deployed or via astro dev with the Cloudflare adapter).",
 			});
@@ -46,6 +47,7 @@ export const POST: APIRoute = async ({ locals }) => {
 		if (!binding || typeof binding.send !== "function") {
 			return apiSuccess({
 				available: false,
+				code: "BINDING_MISSING",
 				message:
 					'send_email binding "EMAIL" not found. Add it to wrangler.jsonc: "send_email": [{ "name": "EMAIL" }], then redeploy.',
 			});

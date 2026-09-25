@@ -339,6 +339,7 @@ export function validateContent(
 export function generateTypeScript(
 	collection: CollectionWithFields,
 	interfaceName: string = getInterfaceName(collection),
+	blockFieldTypes: ReadonlyMap<string, string> = new Map(),
 ): string {
 	const lines: string[] = [];
 
@@ -348,7 +349,7 @@ export function generateTypeScript(
 	lines.push(`  status: string;`);
 
 	for (const field of collection.fields) {
-		const tsType = fieldTypeToTypeScript(field);
+		const tsType = blockFieldTypes.get(field.slug) ?? fieldTypeToTypeScript(field);
 		const optional = field.required ? "" : "?";
 		lines.push(`  ${field.slug}${optional}: ${tsType};`);
 	}
@@ -357,6 +358,7 @@ export function generateTypeScript(
 	lines.push(`  updatedAt: Date;`);
 	lines.push(`  publishedAt: Date | null;`);
 	// Bylines are eagerly loaded by getEmDashCollection/getEmDashEntry
+	lines.push(`  byline?: BylineSummary | null;`);
 	lines.push(`  bylines?: ContentBylineCredit[];`);
 	// Taxonomy terms are eagerly loaded by getEmDashCollection/getEmDashEntry,
 	// keyed by taxonomy name (e.g. data.terms?.tag)
@@ -364,6 +366,54 @@ export function generateTypeScript(
 	lines.push(`}`);
 
 	return lines.join("\n");
+}
+
+function generateBlockTypeDeclarations(
+	collection: CollectionWithFields,
+	interfaceName: string,
+): { lines: string[]; fieldTypes: Map<string, string> } {
+	const lines: string[] = [];
+	const fieldTypes = new Map<string, string>();
+	for (const field of collection.fields) {
+		if (field.type !== "blocks") continue;
+		const fieldName = `${interfaceName}${pascalCase(field.slug)}`;
+		const typeNames: string[] = [];
+		for (const blockType of field.blockTypes ?? []) {
+			const typeName = `${fieldName}${pascalCase(blockType.slug)}`;
+			const versionNames: string[] = [];
+			for (const version of blockType.versions) {
+				const versionName = `${typeName}V${version.version}Block`;
+				versionNames.push(versionName);
+				lines.push(`export interface ${versionName} {`);
+				lines.push(`  _type: ${JSON.stringify(blockType.slug)};`);
+				lines.push(`  _version: ${version.version};`);
+				lines.push(`  _key: string;`);
+				for (const nestedField of version.fields) {
+					const nestedType = fieldTypeToTypeScript({
+						type: nestedField.type,
+						validation: nestedField.validation,
+					});
+					const name = JSON.stringify(nestedField.slug);
+					lines.push(
+						nestedField.required
+							? `  ${name}: ${nestedType};`
+							: `  ${name}?: ${nestedType} | null;`,
+					);
+				}
+				lines.push(`}`);
+				lines.push(``);
+			}
+			const unionName = `${typeName}Block`;
+			lines.push(`export type ${unionName} = ${versionNames.join(" | ") || "never"};`);
+			lines.push(``);
+			typeNames.push(unionName);
+		}
+		const fieldUnion = `${fieldName}Block`;
+		lines.push(`export type ${fieldUnion} = ${typeNames.join(" | ") || "never"};`);
+		lines.push(``);
+		fieldTypes.set(field.slug, `${fieldUnion}[]`);
+	}
+	return { lines, fieldTypes };
 }
 
 /**
@@ -381,13 +431,21 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 	lines.push(``);
 
 	// Check if we need PortableTextBlock import
-	const needsPortableText = collections.some((c) =>
-		c.fields.some((f) => f.type === "portableText"),
+	const needsPortableText = collections.some((collection) =>
+		collection.fields.some(
+			(field) =>
+				field.type === "portableText" ||
+				field.blockTypes?.some((blockType) =>
+					blockType.versions.some((version) =>
+						version.fields.some((nestedField) => nestedField.type === "portableText"),
+					),
+				),
+		),
 	);
 
-	// Build imports - ContentBylineCredit and TaxonomyTerm are always needed
+	// Build imports - BylineSummary, ContentBylineCredit and TaxonomyTerm are always needed
 	// for the hydrated bylines/terms fields
-	const imports = ["ContentBylineCredit", "TaxonomyTerm"];
+	const imports = ["BylineSummary", "ContentBylineCredit", "TaxonomyTerm"];
 	if (needsPortableText) {
 		imports.push("PortableTextBlock");
 	}
@@ -401,7 +459,10 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 
 	// Generate individual interfaces
 	for (const collection of collections) {
-		lines.push(generateTypeScript(collection, interfaceNames.get(collection.slug)));
+		const interfaceName = interfaceNames.get(collection.slug) ?? getInterfaceName(collection);
+		const blocks = generateBlockTypeDeclarations(collection, interfaceName);
+		lines.push(...blocks.lines);
+		lines.push(generateTypeScript(collection, interfaceName, blocks.fieldTypes));
 		lines.push(``);
 	}
 
@@ -429,6 +490,7 @@ export async function generateSchemaHash(collections: CollectionWithFields[]): P
 				type: f.type,
 				required: f.required,
 				validation: f.validation,
+				blockTypeFingerprint: f.blockTypeFingerprint,
 			})),
 		})),
 	);
@@ -516,6 +578,9 @@ function fieldTypeToTypeScript(field: {
 
 		case "json":
 			return "unknown";
+
+		case "blocks":
+			return "unknown[]";
 
 		default:
 			return "unknown";

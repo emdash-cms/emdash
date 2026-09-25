@@ -104,6 +104,7 @@ const FIELD_TYPES = [
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ] as const;
 
 export const HOOK_NAMES = [

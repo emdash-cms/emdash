@@ -105,11 +105,17 @@ export async function saveEmailSettings(
 	);
 }
 
-export async function testCloudflareBinding(): Promise<{ available: boolean; message: string }> {
+export interface CloudflareBindingResult {
+	available: boolean;
+	code?: "NOT_WORKERS" | "BINDING_MISSING";
+	message: string;
+}
+
+export async function testCloudflareBinding(): Promise<CloudflareBindingResult> {
 	const res = await apiFetch(`${API_BASE}/settings/email/test-binding`, {
 		method: "POST",
 	});
-	return parseApiResponse<{ available: boolean; message: string }>(
+	return parseApiResponse<CloudflareBindingResult>(
 		res,
 		i18n._(msg`Failed to test Cloudflare Email binding`),
 	);

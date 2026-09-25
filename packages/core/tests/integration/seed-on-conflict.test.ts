@@ -184,6 +184,55 @@ describe("applySeed onConflict modes", () => {
 			expect(result.content.updated).toBe(0);
 		});
 
+		it("applies the seed to a built-in taxonomy nobody has changed", async () => {
+			const seed = createTestSeed({
+				taxonomies: [
+					{
+						name: "tag",
+						label: "Topics",
+						labelSingular: "Topic",
+						hierarchical: false,
+						collections: ["posts"],
+					},
+					{ name: "category", label: "Sections", hierarchical: true, collections: ["posts"] },
+				],
+			});
+
+			const result = await applySeed(db, seed);
+
+			const defs = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.select(["name", "label", "label_singular"])
+				.orderBy("name")
+				.execute();
+			expect(defs).toEqual([
+				{ name: "category", label: "Sections", label_singular: null },
+				{ name: "tag", label: "Topics", label_singular: "Topic" },
+			]);
+			expect(result.taxonomies.skipped).toBe(0);
+		});
+
+		it("skips a built-in taxonomy the site has changed", async () => {
+			await db
+				.updateTable("_emdash_taxonomy_defs")
+				.set({ label: "Keywords" })
+				.where("name", "=", "tag")
+				.execute();
+			const seed = createTestSeed({
+				taxonomies: [{ name: "tag", label: "Topics", hierarchical: false, collections: ["posts"] }],
+			});
+
+			const result = await applySeed(db, seed);
+
+			const tag = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.select("label")
+				.where("name", "=", "tag")
+				.executeTakeFirstOrThrow();
+			expect(tag.label).toBe("Keywords");
+			expect(result.taxonomies.skipped).toBe(1);
+		});
+
 		it("defaults to skip when onConflict is not specified", async () => {
 			const seed = createTestSeed();
 			await applySeed(db, seed, { includeContent: true });
@@ -375,6 +424,21 @@ describe("applySeed onConflict modes", () => {
 					onConflict: "error",
 				}),
 			).rejects.toThrow('Conflict: collection "posts" already exists');
+		});
+
+		it("does not treat a built-in taxonomy nobody has changed as a conflict", async () => {
+			const seed = createTestSeed({
+				taxonomies: [{ name: "tag", label: "Topics", hierarchical: false, collections: ["posts"] }],
+			});
+
+			await applySeed(db, seed, { onConflict: "error" });
+
+			const tag = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.select("label")
+				.where("name", "=", "tag")
+				.executeTakeFirstOrThrow();
+			expect(tag.label).toBe("Topics");
 		});
 
 		it("throws on existing byline", async () => {

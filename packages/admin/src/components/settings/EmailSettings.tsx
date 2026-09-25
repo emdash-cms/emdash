@@ -25,6 +25,7 @@ import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js"
 
 const SMTP_PROVIDER_ID = "emdash-smtp";
 const CLOUDFLARE_PROVIDER_ID = "emdash-cloudflare-email";
+const WRANGLER_EMAIL_BINDING = '"send_email": [{ "name": "EMAIL" }]';
 const PROVIDER_LABELS: Record<string, MessageDescriptor> = {
 	[SMTP_PROVIDER_ID]: msg`SMTP`,
 	[CLOUDFLARE_PROVIDER_ID]: msg`Cloudflare Email`,
@@ -149,7 +150,12 @@ export function EmailSettings() {
 			} else {
 				toastManager.add({
 					title: t`Binding not available`,
-					description: result.message,
+					description:
+						result.code === "NOT_WORKERS"
+							? t`Cloudflare Workers runtime not detected. The send_email binding only works on Cloudflare Workers, deployed or through astro dev with the Cloudflare adapter.`
+							: result.code === "BINDING_MISSING"
+								? t`send_email binding "EMAIL" not found. Add ${WRANGLER_EMAIL_BINDING} to wrangler.jsonc, then redeploy.`
+								: t`The Cloudflare Email binding is not available.`,
 					variant: "warning",
 					timeout: 8000,
 				});

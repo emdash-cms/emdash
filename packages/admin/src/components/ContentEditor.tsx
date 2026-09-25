@@ -52,6 +52,7 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
+import { BlocksField } from "./BlocksField.js";
 import {
 	ContentSettingsPanel,
 	DiscardDraftDialog,
@@ -62,6 +63,7 @@ import {
 } from "./ContentSettingsPanel.js";
 import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
+import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
@@ -81,6 +83,7 @@ const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
 const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
 const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
 const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
+const LIST_FIELD_KINDS = new Set(["repeater", "portableText", "multiSelect", "blocks"]);
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -111,6 +114,7 @@ const SERVER_FIELD_TYPE_TO_EDITOR_KIND: Record<string, string> = {
 	reference: "reference",
 	json: "json",
 	repeater: "repeater",
+	blocks: "blocks",
 };
 
 function editorFieldMatchesReceipt(
@@ -169,6 +173,8 @@ export interface FieldDescriptor {
 	widget?: string;
 	validation?: Record<string, unknown>;
 	unsupportedType?: { type: string; path: string };
+	blockTypes?: import("../lib/api/schema.js").BlockType[];
+	blockTypeFingerprint?: string;
 }
 
 /** Simplified user info for current user context */
@@ -1864,6 +1870,12 @@ function FieldRenderer({
 		}
 	}
 
+	if (LIST_FIELD_KINDS.has(field.kind) && isNonListValue(value)) {
+		return (
+			<NonListFieldValue id={id} label={label} value={value} onReplace={() => handleChange([])} />
+		);
+	}
+
 	switch (field.kind) {
 		case "string": {
 			const text = typeof value === "string" ? value : "";
@@ -2113,6 +2125,58 @@ function FieldRenderer({
 					timezone={timezone}
 					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
 					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
+				/>
+			);
+		}
+
+		case "blocks": {
+			const allowedTypes = Array.isArray(field.validation?.allowedTypes)
+				? field.validation.allowedTypes.filter(
+						(blockType): blockType is string => typeof blockType === "string",
+					)
+				: [];
+			const retiredTypes = Array.isArray(field.validation?.retiredTypes)
+				? field.validation.retiredTypes.filter(
+						(blockType): blockType is string => typeof blockType === "string",
+					)
+				: [];
+			return (
+				<BlocksField
+					id={id}
+					fieldPath={name}
+					label={label}
+					value={value}
+					onChange={handleChange}
+					blockTypes={field.blockTypes ?? []}
+					allowedTypes={allowedTypes}
+					retiredTypes={retiredTypes}
+					minItems={
+						typeof field.validation?.minItems === "number" ? field.validation.minItems : undefined
+					}
+					maxItems={
+						typeof field.validation?.maxItems === "number" ? field.validation.maxItems : undefined
+					}
+					readOnly={readOnly}
+					renderField={({
+						name: nestedName,
+						field: nestedField,
+						value: nestedValue,
+						onChange: onNestedChange,
+					}) => (
+						<FieldRenderer
+							name={nestedName}
+							field={nestedField}
+							value={nestedValue}
+							onChange={(_fieldName, nextValue) => onNestedChange(nextValue)}
+							minimal={minimal}
+							pluginBlocks={pluginBlocks}
+							onBlockSidebarOpen={onBlockSidebarOpen}
+							onBlockSidebarClose={onBlockSidebarClose}
+							manifest={manifest}
+							readOnly={readOnly}
+							timezone={timezone}
+						/>
+					)}
 				/>
 			);
 		}

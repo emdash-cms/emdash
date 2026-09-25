@@ -594,7 +594,7 @@ export class PluginManager {
 	async getExclusiveHooksInfo(): Promise<
 		Array<{
 			hookName: string;
-			providers: Array<{ pluginId: string }>;
+			providers: Array<{ pluginId: string; autoSelect: boolean }>;
 			selectedPluginId: string | null;
 		}>
 	> {

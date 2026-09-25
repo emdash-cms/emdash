@@ -3,13 +3,17 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { EmailSettings as EmailSettingsData } from "../../../src/lib/api/email-settings";
+import type {
+	CloudflareBindingResult,
+	EmailSettings as EmailSettingsData,
+} from "../../../src/lib/api/email-settings";
 import { render } from "../../utils/render";
 
 const mockFetchEmailSettings = vi.fn<() => Promise<EmailSettingsData>>();
 const mockSendTestEmail = vi.fn<(to: string) => Promise<{ success: boolean; message: string }>>();
 const mockSaveEmailSettings =
 	vi.fn<(input: unknown) => Promise<{ success: boolean; message: string }>>();
+const mockTestCloudflareBinding = vi.fn<() => Promise<CloudflareBindingResult>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -30,6 +34,7 @@ vi.mock("../../../src/lib/api/email-settings", async () => {
 		fetchEmailSettings: () => mockFetchEmailSettings(),
 		sendTestEmail: (to: string) => mockSendTestEmail(to),
 		saveEmailSettings: (input: unknown) => mockSaveEmailSettings(input),
+		testCloudflareBinding: () => mockTestCloudflareBinding(),
 	};
 });
 
@@ -208,5 +213,25 @@ describe("EmailSettings", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Save Settings" }));
 		await expect.element(screen.getByText("Port 25 is not supported")).toBeInTheDocument();
 		expect(mockSaveEmailSettings).not.toHaveBeenCalled();
+	});
+
+	it("describes a missing Cloudflare binding from the response code, not the server message", async () => {
+		mockFetchEmailSettings.mockResolvedValue({
+			...availableSettings,
+			selectedProviderId: "emdash-cloudflare-email",
+			providers: [{ pluginId: "emdash-cloudflare-email" }],
+		});
+		mockTestCloudflareBinding.mockResolvedValue({
+			available: false,
+			code: "BINDING_MISSING",
+			message: "server diagnostic",
+		});
+		const screen = await renderEmailSettings();
+
+		await userEvent.click(screen.getByRole("button", { name: "Test Binding" }));
+		await expect
+			.element(screen.getByText(/send_email binding "EMAIL" not found/))
+			.toBeInTheDocument();
+		expect(screen.getByText("server diagnostic").query()).toBeNull();
 	});
 });

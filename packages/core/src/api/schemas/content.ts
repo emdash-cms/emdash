@@ -136,9 +136,24 @@ const contentFieldFiltersQuery = z
 	})
 	.pipe(contentFieldFiltersSchema);
 
+/** Statuses the content list can filter by. */
+const CONTENT_STATUSES = [
+	"draft",
+	"published",
+	"scheduled",
+	"archived",
+	"pending",
+	"private",
+	"future",
+] as const;
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
-		status: z.string().optional(),
+		/** Filter by status; `all` (like omitting it) lists every status. */
+		status: z
+			.enum([...CONTENT_STATUSES, "all"])
+			.optional()
+			.transform((status) => (status === "all" ? undefined : status)),
 		orderBy: z.string().optional(),
 		order: z.enum(["asc", "desc"]).optional(),
 		locale: localeCode.optional(),
@@ -196,6 +211,8 @@ export const contentCreateBody = z
 		}),
 		publishedAt: contentDateOverride,
 		createdAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentCreateBody" });
 
@@ -218,6 +235,8 @@ export const contentUpdateBody = z
 				"Replace taxonomy assignments as { taxonomyName: [termSlug, ...] }. Only named taxonomies are touched; pass an empty array to clear a taxonomy.",
 		}),
 		publishedAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentUpdateBody" });
 

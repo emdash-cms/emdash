@@ -718,6 +718,98 @@ describe("resolveExclusiveHooks — shared function", () => {
 		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("provider-a");
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
 	});
+
+	describe("with a fallback provider", () => {
+		function providerPipeline(...ids: string[]): HookPipeline {
+			return new HookPipeline(
+				ids.map((id) =>
+					createTestPlugin({
+						id,
+						hooks: {
+							"content:beforeSave": createTestHook(id, vi.fn(), { exclusive: true }),
+						},
+					}),
+				),
+			);
+		}
+
+		async function resolveWithFallback(
+			pipeline: HookPipeline,
+			store: Map<string, string>,
+		): Promise<void> {
+			await resolveExclusiveHooks({
+				pipeline,
+				isActive: () => true,
+				getOption: async (key) => store.get(key) ?? null,
+				setOption: async (key, value) => {
+					store.set(key, value);
+				},
+				fallbackProviders: new Set(["built-in"]),
+			});
+		}
+
+		it("selects the fallback when it is the only provider without storing it", async () => {
+			const pipeline = providerPipeline("built-in");
+			const store = new Map<string, string>();
+
+			await resolveWithFallback(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
+			expect(store.size).toBe(0);
+		});
+
+		it("selects the one other provider over the fallback and stores it", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a");
+			const store = new Map<string, string>();
+
+			await resolveWithFallback(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("plugin-a");
+			expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("plugin-a");
+		});
+
+		it("keeps a stored selection of the fallback", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a");
+			const store = new Map([["emdash:exclusive_hook:content:beforeSave", "built-in"]]);
+
+			await resolveWithFallback(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("built-in");
+		});
+
+		it("serves the hook with the fallback while a stored provider is missing, keeping the stored choice", async () => {
+			const key = "emdash:exclusive_hook:content:beforeSave";
+			const store = new Map([[key, "plugin-a"]]);
+
+			const withoutPlugin = providerPipeline("built-in");
+			await resolveWithFallback(withoutPlugin, store);
+			expect(withoutPlugin.getExclusiveSelection("content:beforeSave")).toBe("built-in");
+			expect(store.get(key)).toBe("plugin-a");
+
+			const withPlugin = providerPipeline("built-in", "plugin-a");
+			await resolveWithFallback(withPlugin, store);
+			expect(withPlugin.getExclusiveSelection("content:beforeSave")).toBe("plugin-a");
+		});
+
+		it("serves the hook with the one other provider over the fallback while a stored provider is missing", async () => {
+			const key = "emdash:exclusive_hook:content:beforeSave";
+			const store = new Map([[key, "plugin-a"]]);
+
+			const pipeline = providerPipeline("built-in", "plugin-b");
+			await resolveWithFallback(pipeline, store);
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("plugin-b");
+			expect(store.get(key)).toBe("plugin-a");
+		});
+
+		it("leaves the hook unselected when several other providers compete", async () => {
+			const pipeline = providerPipeline("built-in", "plugin-a", "plugin-b");
+
+			await resolveWithFallback(pipeline, new Map());
+
+			expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
+		});
+	});
 });
 
 // ---------------------------------------------------------------------------

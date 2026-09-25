@@ -162,7 +162,6 @@ export default {
 		"content:afterSave": {
 			priority: 210,
 			timeout: 10000,
-			dependencies: ["audit-log"],
 			errorPolicy: "continue",
 			handler: async (event, ctx) => {
 				const { url, token, enabled } = await getConfig(ctx);
@@ -190,7 +189,6 @@ export default {
 		"content:afterDelete": {
 			priority: 210,
 			timeout: 10000,
-			dependencies: ["audit-log"],
 			errorPolicy: "continue",
 			handler: async (event, ctx) => {
 				const { url, token, enabled } = await getConfig(ctx);

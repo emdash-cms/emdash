@@ -64,10 +64,13 @@ export {
 	hashPrefixedToken,
 	// Scopes
 	VALID_SCOPES,
+	TRANSFER_SCOPES,
 	validateScopes,
 	isValidScope,
+	isTransferScope,
 	hasScope,
 	type ApiTokenScope,
+	type TransferScope,
 	// PKCE
 	computeS256Challenge,
 } from "./tokens.js";
@@ -80,7 +83,9 @@ export {
 	sendMagicLink,
 	verifyMagicLink,
 	MagicLinkError,
+	buildMagicLinkEmail,
 	type MagicLinkConfig,
+	type MagicLinkEmailStrings,
 } from "./magic-link/index.js";
 
 // Invite
@@ -89,10 +94,12 @@ export {
 	createInviteToken,
 	validateInvite,
 	completeInvite,
+	buildInviteEmail,
 	InviteError,
 	escapeHtml,
 	type InviteConfig,
 	type InviteTokenResult,
+	type InviteEmailStrings,
 	type EmailSendFn,
 } from "./invite.js";
 

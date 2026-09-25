@@ -1490,6 +1490,15 @@ export interface ExclusiveHookResolutionOptions {
 	 * in an environment where that provider is not registered.
 	 */
 	ephemeralProviders?: ReadonlySet<string>;
+	/**
+	 * Plugin IDs of built-in providers that give way to a plugin. When no
+	 * selection is stored, a fallback is auto-selected only if no other
+	 * provider of the hook is active, and that selection is not stored, so a
+	 * plugin provider that becomes active later is selected in its place.
+	 * While a stored selection names an inactive provider, a sole active
+	 * fallback serves the hook in memory.
+	 */
+	fallbackProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
@@ -1509,15 +1518,27 @@ export const EXCLUSIVE_HOOK_NONE_VALUE = "__none__";
  * Shared algorithm used by both PluginManager and EmDashRuntime:
  * 1. If a DB selection exists and that plugin is active → keep it.
  * 2. If the selected provider is not currently registered → keep the DB
- *    value, leave the in-memory selection unset (unless the selection
- *    names an ephemeral provider, which is ignored and re-resolved).
+ *    value and select a sole active fallback in memory, otherwise leave the
+ *    hook unselected (unless the selection names an ephemeral provider,
+ *    which is ignored and re-resolved).
  * 3. If no selection and only one auto-select candidate → auto-select it.
+ *    Fallback providers are not counted when another candidate is active,
+ *    so a single plugin provider is selected over a built-in fallback. A
+ *    fallback selection is kept in memory only.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
-	const { pipeline, isActive, getOption, getOptions, setOption, preferredHints } = opts;
-	const ephemeralProviders = opts.ephemeralProviders;
+	const {
+		pipeline,
+		isActive,
+		getOption,
+		getOptions,
+		setOption,
+		preferredHints,
+		ephemeralProviders,
+		fallbackProviders,
+	} = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
 
@@ -1573,19 +1594,29 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 			continue;
 		}
 
-		// Selection exists but the provider is not currently registered —
-		// keep the DB value (providers may be registered conditionally, and
-		// deleting would silently revert the choice on the next restart).
-		// Ephemeral selections are the exception: they must not wedge
-		// delivery off outside the environment that wrote them.
+		// Keep a stored selection whose provider is not registered; a hook with
+		// a fallback is served in memory until that provider returns. Ephemeral
+		// selections are re-resolved so they cannot turn delivery off outside
+		// the environment that wrote them.
 		if (currentSelection && !ephemeralProviders?.has(currentSelection)) {
+			const fallbacks = [...autoSelectCandidates].filter((id) => fallbackProviders?.has(id));
+			const others = [...autoSelectCandidates].filter((id) => !fallbackProviders?.has(id));
+			const standIn =
+				others.length === 1 ? others[0] : others.length === 0 ? fallbacks[0] : undefined;
+			if (fallbacks.length > 0 && standIn) {
+				pipeline.setExclusiveSelection(hookName, standIn);
+			}
 			continue;
 		}
 
 		// No usable selection — auto-select if only one candidate
-		if (autoSelectCandidates.size === 1) {
-			const [onlyProvider] = autoSelectCandidates;
-			if (!ephemeralProviders?.has(onlyProvider)) {
+		const candidates =
+			autoSelectCandidates.size > 1 && fallbackProviders
+				? [...autoSelectCandidates].filter((id) => !fallbackProviders.has(id))
+				: [...autoSelectCandidates];
+		if (candidates.length === 1) {
+			const [onlyProvider] = candidates;
+			if (!ephemeralProviders?.has(onlyProvider) && !fallbackProviders?.has(onlyProvider)) {
 				try {
 					await setOption(key, onlyProvider);
 				} catch {

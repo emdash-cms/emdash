@@ -56,6 +56,8 @@ export interface PluginCodeStorage {
  */
 export interface SandboxEmailMessage {
 	to: string;
+	cc?: string[];
+	replyTo?: string;
 	subject: string;
 	text: string;
 	html?: string;
@@ -100,8 +102,12 @@ export interface SandboxOptions {
 	storage?: PluginCodeStorage;
 	/** Database for bridge operations */
 	db: Kysely<Database>;
-	/** Called immediately before a sandboxed plugin content mutation. */
-	beforeContentWrite?: () => Promise<void>;
+	/**
+	 * Called immediately before a sandboxed plugin content mutation; it throws
+	 * to refuse the write. When it returns a function, the bridge calls that
+	 * function once the write has succeeded.
+	 */
+	beforeContentWrite?: () => Promise<void | (() => Promise<void>)>;
 	/** Runtime-owned taxonomy mutation surface used by sandbox bridges. */
 	taxonomyWrite?: TaxonomyAccessWithWrite;
 	contentActions?: ContentActionCallbacks;
@@ -210,6 +216,14 @@ const SANDBOX_ROUTE_ERROR_DEFINITIONS = {
 	},
 	MEDIA_USAGE_ACTIVATION_CHECK_FAILED: {
 		message: "Unable to verify media usage activation state",
+		status: 503,
+	},
+	TRANSFER_IMPORT_IN_PROGRESS: {
+		message: "A site import is in progress or incomplete; writes are disabled",
+		status: 503,
+	},
+	TRANSFER_FENCE_CHECK_FAILED: {
+		message: "Unable to verify whether site writes are allowed",
 		status: 503,
 	},
 } as const;

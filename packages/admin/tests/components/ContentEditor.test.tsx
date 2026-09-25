@@ -1,7 +1,7 @@
 import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { userEvent, type Locator } from "vitest/browser";
 
 import {
 	ContentEditor,
@@ -2666,6 +2666,100 @@ describe("ContentEditor", () => {
 		expect(portableTextProps.current?.editable).toBe(true);
 	});
 
+	describe("stored value that is not a list", () => {
+		type Screen = Awaited<ReturnType<typeof renderEditor>>;
+		const repeaterField: FieldDescriptor = {
+			kind: "repeater",
+			label: "Highlights",
+			validation: { subFields: [{ slug: "caption", type: "string", label: "Caption" }] },
+		};
+		const addFirstItem = (s: Screen) =>
+			s.getByRole("button", { name: "Add First Item", exact: true });
+		const cases: Array<{ kind: string; field: FieldDescriptor; widget: (s: Screen) => Locator }> = [
+			{ kind: "repeater", field: repeaterField, widget: addFirstItem },
+			{
+				kind: "portableText",
+				field: { kind: "portableText", label: "Highlights" },
+				widget: (s) => s.getByTestId("portable-text-editor"),
+			},
+			{
+				kind: "multiSelect",
+				field: {
+					kind: "multiSelect",
+					label: "Highlights",
+					options: [{ value: "news", label: "News" }],
+				},
+				widget: (s) => s.getByRole("checkbox", { name: "News" }),
+			},
+			{
+				kind: "blocks",
+				field: { kind: "blocks", label: "Highlights", blockTypes: [] },
+				widget: (s) => s.getByText("No blocks yet"),
+			},
+		];
+
+		function renderWithStoredValue(field: FieldDescriptor, stored: unknown, onSave = vi.fn()) {
+			return renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "My Post", highlights: stored } }),
+				fields: { title: { kind: "string", label: "Title" }, highlights: field },
+				onSave,
+			});
+		}
+
+		it.each(cases)(
+			"keeps a $kind field's stored value through an unrelated edit and save",
+			async ({ field, widget }) => {
+				const onSave = vi.fn();
+				const screen = await renderWithStoredValue(field, "First\nSecond", onSave);
+
+				await expect.element(screen.getByLabelText("Highlights")).toHaveValue("First\nSecond");
+				expect(widget(screen).query()).toBeNull();
+
+				await screen.getByLabelText("Title").fill("Changed title");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ title: "Changed title", highlights: "First\nSecond" }),
+					}),
+				);
+			},
+		);
+
+		it.each(cases)(
+			"replaces a $kind field's stored value only through the replace action",
+			async ({ field, widget }) => {
+				const onSave = vi.fn();
+				const screen = await renderWithStoredValue(field, "First\nSecond", onSave);
+
+				await screen.getByRole("button", { name: "Replace with empty list" }).click();
+				await expect.element(widget(screen)).toBeVisible();
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({ data: expect.objectContaining({ highlights: [] }) }),
+				);
+			},
+		);
+
+		it("shows a stored object read-only as JSON", async () => {
+			const screen = await renderWithStoredValue(repeaterField, { caption: "First" });
+
+			await expect
+				.element(screen.getByLabelText("Highlights"))
+				.toHaveValue('{\n  "caption": "First"\n}');
+			expect(addFirstItem(screen).query()).toBeNull();
+		});
+
+		it("opens a blank stored string as an empty list", async () => {
+			const screen = await renderWithStoredValue(repeaterField, "  ");
+
+			await expect.element(addFirstItem(screen)).toBeVisible();
+			expect(screen.getByRole("button", { name: "Replace with empty list" }).query()).toBeNull();
+		});
+	});
+
 	describe("autosave race with repeater sub-field", () => {
 		it("does not overwrite a sub-field input with a stale autosave payload", async () => {
 			const fields: Record<string, FieldDescriptor> = {
@@ -2706,6 +2800,97 @@ describe("ContentEditor", () => {
 			);
 
 			await expect.element(caption).toHaveValue("Mobile view of the dashboard");
+		});
+	});
+
+	describe("autosave race with blocks", () => {
+		it("preserves newer nested edits, order, keys, and versions", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				layout: {
+					kind: "blocks",
+					label: "Layout",
+					validation: { allowedTypes: ["hero"], retiredTypes: [] },
+					blockTypes: [
+						{
+							id: "hero-type",
+							slug: "hero",
+							label: "Hero",
+							currentVersion: 2,
+							source: "user",
+							createdAt: "2026-01-01T00:00:00.000Z",
+							updatedAt: "2026-01-01T00:00:00.000Z",
+							versions: [
+								{
+									id: "hero-v1",
+									blockTypeId: "hero-type",
+									version: 1,
+									fields: [{ slug: "heading", label: "Heading", type: "string" }],
+									fingerprint: "one",
+									active: false,
+									createdAt: "2026-01-01T00:00:00.000Z",
+									updatedAt: "2026-01-01T00:00:00.000Z",
+								},
+								{
+									id: "hero-v2",
+									blockTypeId: "hero-type",
+									version: 2,
+									fields: [{ slug: "heading", label: "Heading", type: "string" }],
+									fingerprint: "two",
+									active: true,
+									createdAt: "2026-01-01T00:00:00.000Z",
+									updatedAt: "2026-01-01T00:00:00.000Z",
+								},
+							],
+						},
+					],
+				},
+			};
+			const initialBlocks = [
+				{ _type: "hero", _version: 1, _key: "first", heading: "First" },
+				{ _type: "hero", _version: 2, _key: "second", heading: "Second" },
+			];
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { layout: initialBlocks } }),
+				fields,
+				onAutosave: vi.fn(),
+				supportsDrafts: true,
+			});
+
+			const headings = screen.getByRole("textbox", { name: "Heading" }).all();
+			await headings[0]!.fill("First, edited again");
+			const firstHandle = screen.getByRole("button", { name: "Reorder Hero" }).first().element();
+			firstHandle.focus();
+			await userEvent.keyboard("{Space}");
+			await userEvent.keyboard("{ArrowDown}");
+			await userEvent.keyboard("{Space}");
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={fields}
+					isNew={false}
+					item={makeItem({ data: { layout: initialBlocks } })}
+					onSave={vi.fn()}
+					onAutosave={vi.fn()}
+					supportsDrafts={true}
+					autosaveCompletionToken={1}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Heading" }).all()[1]!)
+				.toHaveValue("First, edited again");
+			expect(
+				Array.from(document.querySelectorAll<HTMLElement>("[data-block-key]"), (element) => [
+					element.dataset.blockKey,
+					element.textContent?.includes("Version 2") ? 2 : 1,
+				]),
+			).toEqual([
+				["second", 2],
+				["first", 1],
+			]);
 		});
 	});
 });

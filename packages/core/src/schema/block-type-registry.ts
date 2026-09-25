@@ -9,6 +9,10 @@ import {
 import { withTransaction } from "../database/transaction.js";
 import type { BlockTypeTable, BlockTypeVersionTable, Database } from "../database/types.js";
 import {
+	invalidateContentMediaUsageSchemaChange,
+	markContentMediaUsageCollectionStaleSafely,
+} from "../media/usage/schema-invalidation.js";
+import {
 	compareBlockFields,
 	fingerprintBlockFields,
 	validateBlockFields,
@@ -22,6 +26,7 @@ import {
 	type BlockTypeVersion,
 	type CreateBlockTypeInput,
 	type UpdateBlockTypeInput,
+	type ApplySeedBlockTypeInput,
 } from "./block-types.js";
 import { SchemaError } from "./registry.js";
 import { REPEATER_SUB_FIELD_TYPES, RESERVED_FIELD_SLUGS } from "./types.js";
@@ -251,9 +256,34 @@ export class BlockTypeRegistry {
 		return [...affected].toSorted();
 	}
 
-	private async notifyMutation(slug: string): Promise<void> {
+	private async beginMediaSchemaMutation(slug: string): Promise<ReadonlySet<string>> {
+		const invalidated = new Set<string>();
+		for (const collection of await this.listAffectedCollections(slug)) {
+			if (await invalidateContentMediaUsageSchemaChange(this.db, collection)) {
+				invalidated.add(collection);
+			}
+		}
+		return invalidated;
+	}
+
+	private async notifyMutation(
+		slug: string,
+		mediaInvalidated?: ReadonlySet<string>,
+	): Promise<void> {
 		const collections = await this.listAffectedCollections(slug);
-		for (const collection of collections) invalidateSchemaCache(collection);
+		for (const collection of collections) {
+			invalidateSchemaCache(collection);
+			if (!mediaInvalidated) continue;
+			if (mediaInvalidated.has(collection)) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collection);
+			} else {
+				await markContentMediaUsageCollectionStaleSafely(
+					this.db,
+					collection,
+					"CONTENT_USAGE_STALE",
+				);
+			}
+		}
 		refreshDevTypes(this.db);
 	}
 
@@ -273,6 +303,7 @@ export class BlockTypeRegistry {
 		const fingerprint = await fingerprintBlockFields(fields);
 		const typeId = ulid();
 		const versionId = ulid();
+		const mediaInvalidated = await this.beginMediaSchemaMutation(input.slug);
 		try {
 			await executeAtomicStatements(this.db, [
 				sql<{ id: string }>`
@@ -305,7 +336,7 @@ export class BlockTypeRegistry {
 		if (!created) {
 			throw new SchemaError(`Block type "${input.slug}" was not created`, "BLOCK_TYPE_NOT_FOUND");
 		}
-		await this.notifyMutation(input.slug);
+		await this.notifyMutation(input.slug, mediaInvalidated);
 		return created;
 	}
 
@@ -362,6 +393,10 @@ export class BlockTypeRegistry {
 				)
 			RETURNING id
 		`;
+		const mediaInvalidated =
+			fields && nextFingerprint !== active.fingerprint
+				? await this.beginMediaSchemaMutation(slug)
+				: undefined;
 
 		if (compatibility && !compatibility.compatible && fields) {
 			const existingRetry = existing.versions.find(
@@ -445,8 +480,153 @@ export class BlockTypeRegistry {
 
 		const updated = await this.getBlockType(slug);
 		if (!updated) throw new SchemaError(`Block type "${slug}" not found`, "BLOCK_TYPE_NOT_FOUND");
-		await this.notifyMutation(slug);
+		await this.notifyMutation(slug, mediaInvalidated);
 		return updated;
+	}
+
+	async applySeedBlockType(
+		input: ApplySeedBlockTypeInput,
+		onConflict: "skip" | "error" | "update" = "skip",
+	): Promise<BlockType> {
+		assertBlockTypeSlug(input.slug);
+		assertLabel(input.label);
+		const versions = await Promise.all(
+			input.versions
+				.toSorted((left, right) => left.version - right.version)
+				.map(async (version) => ({
+					version: version.version,
+					fields: validateBlockFields(version.fields),
+					fingerprint: await fingerprintBlockFields(version.fields),
+				})),
+		);
+		if (
+			versions.length === 0 ||
+			versions[0]?.version !== 1 ||
+			versions.some(
+				(version, index) =>
+					!Number.isInteger(version.version) ||
+					version.version < 1 ||
+					(index > 0 && version.version !== versions[index - 1].version + 1),
+			)
+		) {
+			throw new SchemaError(
+				`Block type "${input.slug}" versions must be contiguous positive integers starting at 1`,
+				"BLOCK_TYPE_VERSION_CONFLICT",
+			);
+		}
+		if (!versions.some((version) => version.version === input.currentVersion)) {
+			throw new SchemaError(
+				`Block type "${input.slug}" currentVersion ${input.currentVersion} is not declared`,
+				"BLOCK_TYPE_VERSION_CONFLICT",
+			);
+		}
+
+		const existing = await this.getBlockType(input.slug);
+		if (existing && onConflict === "error") {
+			throw new SchemaError(`Block type "${input.slug}" already exists`, "BLOCK_TYPE_EXISTS");
+		}
+		if (existing && onConflict === "skip") return existing;
+		const mediaInvalidated = await this.beginMediaSchemaMutation(input.slug);
+
+		if (!existing) {
+			const typeId = ulid();
+			const statements: RawBuilder<{ id: string }>[] = [
+				sql<{ id: string }>`
+					INSERT INTO _emdash_block_types (
+						id, slug, label, description, icon, category, current_version, source
+					) VALUES (
+						${typeId}, ${input.slug}, ${input.label}, ${input.description ?? null},
+						${input.icon ?? null}, ${input.category ?? null}, ${input.currentVersion}, 'seed'
+					)
+					RETURNING id
+				`,
+			];
+			for (const version of versions) {
+				statements.push(sql<{ id: string }>`
+					INSERT INTO _emdash_block_type_versions (
+						id, block_type_id, version, fields, fingerprint
+					) VALUES (
+						${ulid()}, ${typeId}, ${version.version},
+						${JSON.stringify(version.fields)}, ${version.fingerprint}
+					)
+					RETURNING id
+				`);
+			}
+			try {
+				await executeAtomicStatements(this.db, statements);
+			} catch (error) {
+				if (error instanceof Error && UNIQUE_VIOLATION.test(error.message)) {
+					throw new SchemaError(`Block type "${input.slug}" already exists`, "BLOCK_TYPE_EXISTS");
+				}
+				throw error;
+			}
+		} else {
+			const statements: RawBuilder<{ id: string }>[] = [
+				sql<{ id: string }>`
+					UPDATE _emdash_block_types
+					SET label = ${input.label}, description = ${input.description ?? null},
+						icon = ${input.icon ?? null}, category = ${input.category ?? null},
+						updated_at = ${currentTimestampValue(this.db)}
+					WHERE id = ${existing.id}
+					RETURNING id
+				`,
+			];
+			for (const version of versions) {
+				const stored = existing.versions.find((candidate) => candidate.version === version.version);
+				if (stored) {
+					if (stored.unsupportedTypes?.length) {
+						throw new SchemaError(
+							`Block type "${input.slug}" version ${version.version} contains unsupported field types`,
+							"UNSUPPORTED_FIELD_TYPE",
+							{ unsupportedTypes: stored.unsupportedTypes },
+						);
+					}
+					if (
+						stored.fingerprint !== version.fingerprint &&
+						!compareBlockFields(stored.fields, version.fields).compatible
+					) {
+						throw new SchemaError(
+							`Block type "${input.slug}" version ${version.version} has an incompatible stored contract`,
+							"BLOCK_TYPE_VERSION_CONFLICT",
+							{ version: version.version },
+						);
+					}
+					statements.push(sql<{ id: string }>`
+						UPDATE _emdash_block_type_versions
+						SET fields = ${JSON.stringify(version.fields)},
+							fingerprint = ${version.fingerprint},
+							updated_at = ${currentTimestampValue(this.db)}
+						WHERE id = ${stored.id}
+						RETURNING id
+					`);
+				} else {
+					statements.push(sql<{ id: string }>`
+						INSERT INTO _emdash_block_type_versions (
+							id, block_type_id, version, fields, fingerprint
+						) VALUES (
+							${ulid()}, ${existing.id}, ${version.version},
+							${JSON.stringify(version.fields)}, ${version.fingerprint}
+						)
+						RETURNING id
+					`);
+				}
+			}
+			statements.push(sql<{ id: string }>`
+				UPDATE _emdash_block_types
+				SET current_version = ${input.currentVersion},
+					updated_at = ${currentTimestampValue(this.db)}
+				WHERE id = ${existing.id}
+				RETURNING id
+			`);
+			await executeAtomicStatements(this.db, statements);
+		}
+
+		const applied = await this.getBlockType(input.slug);
+		if (!applied) {
+			throw new SchemaError(`Block type "${input.slug}" not found`, "BLOCK_TYPE_NOT_FOUND");
+		}
+		await this.notifyMutation(input.slug, mediaInvalidated);
+		return applied;
 	}
 
 	async activateVersion(
@@ -480,6 +660,8 @@ export class BlockTypeRegistry {
 				{ unsupportedTypes: target.unsupportedTypes },
 			);
 		}
+		const mediaInvalidated =
+			version !== existing.currentVersion ? await this.beginMediaSchemaMutation(slug) : undefined;
 		if (version !== existing.currentVersion) {
 			const result = await sql<{ id: string }>`
 				UPDATE _emdash_block_types
@@ -501,7 +683,7 @@ export class BlockTypeRegistry {
 		}
 		const updated = await this.getBlockType(slug);
 		if (!updated) throw new SchemaError(`Block type "${slug}" not found`, "BLOCK_TYPE_NOT_FOUND");
-		await this.notifyMutation(slug);
+		await this.notifyMutation(slug, mediaInvalidated);
 		return updated;
 	}
 }
