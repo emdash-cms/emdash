@@ -488,7 +488,7 @@ describe("Expired token cleanup", () => {
 	});
 });
 
-describeEachDialect("Expired OAuth and API token cleanup", (dialect) => {
+describeEachDialect("Expired OAuth token cleanup", (dialect) => {
 	let ctx: DialectTestContext;
 	const userId = "cleanup-user";
 	const past = () => new Date(Date.now() - 60 * 1000).toISOString();
@@ -614,36 +614,5 @@ describeEachDialect("Expired OAuth and API token cleanup", (dialect) => {
 			.execute();
 		expect(remaining.map((row) => row.code_hash)).toEqual(["live-code"]);
 		expect(result.authorizationCodes).toBe(1);
-	});
-
-	it("deletes expired personal access tokens and keeps ones without an expiry", async () => {
-		const apiToken = (id: string, expiresAt: string | null) => ({
-			id,
-			name: id,
-			token_hash: `hash-${id}`,
-			prefix: "ec_pat_x",
-			user_id: userId,
-			scopes: '["content:read"]',
-			expires_at: expiresAt,
-			last_used_at: null,
-		});
-		await ctx.db
-			.insertInto("_emdash_api_tokens")
-			.values([
-				apiToken("expired-pat", past()),
-				apiToken("live-pat", future()),
-				apiToken("never-expires-pat", null),
-			])
-			.execute();
-
-		const result = await runSystemCleanup(ctx.db);
-
-		const remaining = await ctx.db
-			.selectFrom("_emdash_api_tokens")
-			.select("id")
-			.orderBy("id")
-			.execute();
-		expect(remaining.map((row) => row.id)).toEqual(["live-pat", "never-expires-pat"]);
-		expect(result.apiTokens).toBe(1);
 	});
 });

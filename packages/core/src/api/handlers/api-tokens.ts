@@ -192,18 +192,6 @@ export async function deleteApiTokensByName(
 }
 
 /**
- * Delete expired API tokens. Tokens without an expiry are never deleted.
- */
-export async function cleanupExpiredApiTokens(db: Kysely<Database>): Promise<number> {
-	const result = await db
-		.deleteFrom("_emdash_api_tokens")
-		.where("expires_at", "<", new Date().toISOString())
-		.executeTakeFirst();
-
-	return Number(result.numDeletedRows);
-}
-
-/**
  * A resolved bearer token. `tokenId` identifies the credential (not the
  * user) and is safe to store and show: the token row id for a PAT, and for
  * an OAuth token a one-way id of its grant that stays the same across
