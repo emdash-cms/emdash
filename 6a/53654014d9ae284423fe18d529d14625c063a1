@@ -1,0 +1,27 @@
+.changeset/sections-library-ui.md
+  s_eebc9619e69ac4::t_5eb09baa6c962d 1-5
+packages/admin/src/components/SectionEditor.tsx
+  s_eebc9619e69ac4::t_ffecd9879c6c5b 210,212,239
+packages/admin/src/components/Sections.tsx
+  s_eebc9619e69ac4::t_3c7b77e5f2fc17 7-18,28,32,46,49,89-94,133,143,147-159,161-246,248-262,265,268-282,285,288-299,303-308,311-312,318,374-386,388-404,409-411,415,417-419,422-424,429,431,433,435,439-470,473
+packages/admin/tests/components/SectionEditor.test.tsx
+  s_eebc9619e69ac4::t_0e92b9fce14332 4-5,7,101-133
+packages/admin/tests/components/Sections.test.tsx
+  s_eebc9619e69ac4::t_13dc6d842b02fb 97-106,119-177,184-187,199,218-229,248-249,254,271-274
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6a53654014d9ae284423fe18d529d14625c063a1",
+  "prompts": {},
+  "sessions": {
+    "s_eebc9619e69ac4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3f-74f0-7711-ba4b-e1a223298d10",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
