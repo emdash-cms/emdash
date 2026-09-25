@@ -18,6 +18,10 @@ EmDash is released before version 1.0, and its version numbers follow two rules:
 
 The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry per package and version. Before an update, read the `emdash` entries between your installed version and the target, and the same range for `@emdash-cms/cloudflare` if the site runs on Cloudflare.
 
+## Template files are not updated
+
+Creating a site from a template copies the template's files, such as layouts, components, styles, and `astro.config.mjs`, into your project. An update changes the installed packages only and leaves these files as they are. Later changes to a template, for example the move from Google Fonts `<link>` tags to the Astro Fonts API, apply to new sites only. To adopt one in an existing site, compare your files with the current version in the [`templates` directory](https://github.com/emdash-cms/emdash/tree/main/templates) and copy the changes you want.
+
 ## Before you update
 
 Take a restorable database backup and a separate media-storage backup. EmDash's JSON export cannot restore a site, and core migrations have no operational undo step. [Backups and recovery](/guides/backups/) describes the usable recovery point for each database.
