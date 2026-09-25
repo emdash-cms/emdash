@@ -20,6 +20,8 @@ import {
 } from "./kv.js";
 import type { DiscordInteraction, GitHubPRPayload } from "./types.js";
 
+export { ContributorInvitation } from "./contributor-invitation.js";
+
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url);
@@ -217,10 +219,7 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 	const prUrl = payload.pull_request.html_url;
 
 	// Skip bots and the repo owner
-	if (
-		payload.pull_request.user.login === env.GITHUB_OWNER_LOGIN ||
-		payload.pull_request.user.login.endsWith("[bot]")
-	) {
+	if (shouldSkipContributor(payload.pull_request.user, env.GITHUB_OWNER_LOGIN)) {
 		return new Response("Skipped owner/bot", { status: 200 });
 	}
 
@@ -244,6 +243,11 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 			[link.discord_id],
 		);
 	} else {
+		await env.CONTRIBUTOR_INVITATIONS.getByName(String(githubId)).invite({
+			githubId,
+			githubLogin,
+			prNumber,
+		});
 		await postMessage(
 			env,
 			env.DISCORD_CHANNEL_ID,
@@ -257,6 +261,13 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 	}
 
 	return new Response("OK", { status: 200 });
+}
+
+export function shouldSkipContributor(
+	user: GitHubPRPayload["pull_request"]["user"],
+	ownerLogin: string,
+): boolean {
+	return user.login === ownerLogin || user.type === "Bot" || user.login.endsWith("[bot]");
 }
 
 // ─── Message Templates ───────────────────────────────────────────
