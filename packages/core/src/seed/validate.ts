@@ -12,7 +12,7 @@ import {
 	MAX_COLLECTION_GROUP_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
 } from "../schema/types.js";
-import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
+import type { SeedFile, SeedMenuItem, SeedTaxonomy, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
@@ -34,6 +34,41 @@ function isValidRedirectPath(path: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * The entry that declares `taxonomy`'s `hierarchical` and `collections`: the last
+ * entry of its `translationOf` chain within the taxonomy's name, or undefined when
+ * the chain loops.
+ */
+export function findTaxonomyStructureSource<T extends Pick<SeedTaxonomy, "name" | "translationOf">>(
+	taxonomy: T,
+	taxonomiesById: ReadonlyMap<string, T>,
+): T | undefined {
+	const visited = new Set<T>();
+	let current = taxonomy;
+	while (!visited.has(current)) {
+		visited.add(current);
+		const source = current.translationOf ? taxonomiesById.get(current.translationOf) : undefined;
+		if (!source || source.name !== current.name) return current;
+		current = source;
+	}
+	return undefined;
+}
+
+/** Whether `a` and `b` disagree on `hierarchical` or `collections`, comparing only fields both declare. */
+function declaresDifferentStructure(a: SeedTaxonomy, b: SeedTaxonomy): boolean {
+	if (
+		a.hierarchical !== undefined &&
+		b.hierarchical !== undefined &&
+		a.hierarchical !== b.hierarchical
+	) {
+		return true;
+	}
+	if (!Array.isArray(a.collections) || !Array.isArray(b.collections)) return false;
+	const own = new Set(a.collections);
+	const other = new Set(b.collections);
+	return own.size !== other.size || [...own].some((collection) => !other.has(collection));
 }
 
 /**
@@ -262,6 +297,11 @@ export function validateSeed(data: unknown): ValidationResult {
 			errors.push("taxonomies must be an array");
 		} else {
 			const taxonomyNames = new Set<string>();
+			const taxonomiesById = new Map<string, SeedTaxonomy>();
+			for (const taxonomy of seed.taxonomies) {
+				if (taxonomy.id) taxonomiesById.set(taxonomy.id, taxonomy);
+			}
+			const structureDeclarations = new Map<string, SeedTaxonomy>();
 
 			for (let i = 0; i < seed.taxonomies.length; i++) {
 				const taxonomy = seed.taxonomies[i];
@@ -287,17 +327,57 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: label is required`);
 				}
 
-				if (taxonomy.hierarchical === undefined) {
+				const structureSource = findTaxonomyStructureSource(taxonomy, taxonomiesById);
+
+				// A translation takes its taxonomy's structure, so it may omit both, but only
+				// from an entry of the same taxonomy.
+				if (
+					taxonomy.translationOf &&
+					(taxonomy.hierarchical === undefined || taxonomy.collections === undefined)
+				) {
+					if (!structureSource) {
+						errors.push(
+							`${prefix}.translationOf: the translationOf chain from "${taxonomy.translationOf}" loops, so hierarchical and collections are required`,
+						);
+					} else if (structureSource === taxonomy) {
+						errors.push(
+							`${prefix}.translationOf: "${taxonomy.translationOf}" is not an entry of taxonomy "${taxonomy.name}", so hierarchical and collections are required`,
+						);
+					}
+				}
+
+				if (taxonomy.hierarchical === undefined && !taxonomy.translationOf) {
 					errors.push(`${prefix}: hierarchical is required`);
 				}
 
-				if (!Array.isArray(taxonomy.collections)) {
+				if (taxonomy.collections === undefined) {
+					if (!taxonomy.translationOf) errors.push(`${prefix}.collections: must be an array`);
+				} else if (!Array.isArray(taxonomy.collections)) {
 					errors.push(`${prefix}.collections: must be an array`);
-				} else if (taxonomy.collections.length === 0) {
+				} else if (taxonomy.collections.length === 0 && !taxonomy.translationOf) {
 					warnings.push(
 						`${prefix}.collections: taxonomy "${taxonomy.name}" is not assigned to any collections`,
 					);
 				}
+
+				if (structureSource && structureSource !== taxonomy) {
+					if (declaresDifferentStructure(taxonomy, structureSource)) {
+						warnings.push(
+							`${prefix}: hierarchical and collections come from taxonomies[${seed.taxonomies.indexOf(structureSource)}], so the values declared here are ignored`,
+						);
+					}
+				} else if (structureSource && taxonomy.name) {
+					const declaring = structureDeclarations.get(taxonomy.name);
+					if (!declaring) {
+						structureDeclarations.set(taxonomy.name, taxonomy);
+					} else if (declaresDifferentStructure(taxonomy, declaring)) {
+						warnings.push(
+							`${prefix}: hierarchical and collections differ from taxonomies[${seed.taxonomies.indexOf(declaring)}]; every locale of taxonomy "${taxonomy.name}" shares them, so only one entry's values apply`,
+						);
+					}
+				}
+
+				const hierarchical = (structureSource ?? taxonomy).hierarchical;
 
 				// Validate terms if present
 				if (taxonomy.terms) {
@@ -332,9 +412,9 @@ export function validateSeed(data: unknown): ValidationResult {
 							}
 
 							// Check parent reference validity (for hierarchical taxonomies)
-							if (term.parent && taxonomy.hierarchical) {
+							if (term.parent && hierarchical) {
 								// Parent will be validated in a second pass
-							} else if (term.parent && !taxonomy.hierarchical) {
+							} else if (term.parent && !hierarchical) {
 								warnings.push(
 									`${termPrefix}.parent: taxonomy "${taxonomy.name}" is not hierarchical, parent will be ignored`,
 								);
@@ -342,7 +422,7 @@ export function validateSeed(data: unknown): ValidationResult {
 						}
 
 						// Second pass: validate parent references (within the same locale).
-						if (taxonomy.hierarchical && taxonomy.terms) {
+						if (hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
 								const termLocale = resolveConfiguredLocale(

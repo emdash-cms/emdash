@@ -397,6 +397,181 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain('taxonomies[1].name: duplicate taxonomy name "category"');
 		});
 
+		it("lets a translation omit its structure only when it points at the same taxonomy", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "genre:en",
+						name: "genre",
+						label: "Genres",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{ name: "genre", label: "Géneros", locale: "es", translationOf: "genre:en" },
+					{ name: "gattung", label: "Gattungen", locale: "de", translationOf: "genre:en" },
+				],
+			});
+			expect(result.errors).toEqual([
+				'taxonomies[2].translationOf: "genre:en" is not an entry of taxonomy "gattung", so hierarchical and collections are required',
+			]);
+		});
+
+		it("checks a translation's term parents against its taxonomy's hierarchy", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+						terms: [{ slug: "news", label: "News" }],
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+						terms: [
+							{ slug: "noticias", label: "Noticias" },
+							{ slug: "local", label: "Local", parent: "noticias" },
+							{ slug: "mundo", label: "Mundo", parent: "missing" },
+						],
+					},
+				],
+			});
+			expect(result.warnings).toEqual([]);
+			expect(result.errors).toEqual([
+				'taxonomies[1].terms[2].parent: parent term "missing" not found in taxonomy',
+			]);
+		});
+
+		it("checks term parents against the hierarchy at the end of a translation chain", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						id: "topic:es",
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+					},
+					{
+						name: "topic",
+						label: "Sujets",
+						locale: "fr",
+						translationOf: "topic:es",
+						terms: [
+							{ slug: "actualites", label: "Actualités" },
+							{ slug: "locales", label: "Locales", parent: "actualites" },
+						],
+					},
+				],
+			});
+			expect(result.warnings).toEqual([]);
+			expect(result.errors).toEqual([]);
+		});
+
+		it("requires the structure when a translation chain loops", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						locale: "en",
+						translationOf: "topic:es",
+					},
+					{
+						id: "topic:es",
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+					},
+				],
+			});
+			expect(result.errors).toEqual([
+				'taxonomies[0].translationOf: the translationOf chain from "topic:es" loops, so hierarchical and collections are required',
+				'taxonomies[1].translationOf: the translationOf chain from "topic:en" loops, so hierarchical and collections are required',
+			]);
+		});
+
+		it("warns when a translation declares a structure other than the one it takes", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "topic:en",
+					},
+				],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([
+				"taxonomies[1]: hierarchical and collections come from taxonomies[0], so the values declared here are ignored",
+			]);
+		});
+
+		it("warns when entries that declare one taxonomy's structure disagree", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts", "pages"],
+						locale: "en",
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "es",
+					},
+					{
+						name: "topic",
+						label: "Sujets",
+						hierarchical: true,
+						collections: ["pages", "posts"],
+						locale: "fr",
+					},
+				],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([
+				'taxonomies[1]: hierarchical and collections differ from taxonomies[0]; every locale of taxonomy "topic" shares them, so only one entry\'s values apply',
+			]);
+		});
+
 		it("should validate term properties", () => {
 			const result = validateSeed({
 				version: "1",

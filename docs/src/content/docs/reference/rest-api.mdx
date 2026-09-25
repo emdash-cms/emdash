@@ -382,6 +382,8 @@ The public REST contract exposes content translations and taxonomy-definition tr
 
 `GET /taxonomies/{name}` returns the site's default-locale definition when `locale` is omitted, falling back to the lowest locale code only when the default locale has no definition. An update behaves differently: when `locale` is omitted, it changes the definition with the lowest locale code. Pass `locale` so a translated-taxonomy update reaches the intended definition. If that locale has no definition, the update returns `NOT_FOUND` instead of falling back to another locale. The translations operation returns every definition in the shared group and supplies the IDs accepted by `translationOf`.
 
+`label` and `labelSingular` belong to one locale's definition. `hierarchical` and `collections` belong to the taxonomy: every locale returns the same values, and an update that sends either changes it for every locale. Creating a definition for a name that already exists in another locale adds it to that taxonomy, whether or not the request sends `translationOf`. The new definition takes the taxonomy's `hierarchical` and `collections`, and a create that sends different values returns `VALIDATION_ERROR`.
+
 Deleting a taxonomy removes every locale of its definition, all its terms, and all assignments of those terms to content. It does not delete the content entries themselves.
 
 The term-reorder operation changes one sibling group. The `ids` array may contain only part of that group; listed terms exchange their existing positions and omitted terms stay where they are. For example, reordering `[A, B, C]` with `ids: ["C", "A"]` produces `[C, B, A]`. Reordering does not change parent relationships, and one term order applies across every locale in its translation group.
@@ -398,7 +400,9 @@ Media operations cover listing, upload, metadata updates, image replacement, fol
 
 `GET /media` supports cursor or numbered-page pagination, MIME-type and filename filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
 
-`usage.count` counts distinct active content rows or locales whose current indexed source references the media item. Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
+`usage.count` counts distinct active content rows or locales whose current indexed source references the media item, plus each site setting that selects it (`logo`, `favicon`, `seo.defaultOgImage`). Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
+
+`GET /media/{id}/usage` returns the referencing content entries in pages. Every page also includes `siteSettings`, the site settings that select the media item, for example `[{ "setting": "favicon" }]`. Site settings are read from the stored settings on each request and do not depend on usage indexing.
 
 Every usage result includes a coverage status:
 
@@ -412,7 +416,7 @@ Every usage result includes a coverage status:
 | `stale` | The index is older than the content it describes. |
 | `unknown` | The stored state is not recognized by this EmDash version. |
 
-Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image blocks, and media declared by retained block versions in EmDash collections. It does not scan application code, rendered HTML, settings, menus, widgets, plugin data, external sites, or provider-only assets.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, Portable Text image and gallery blocks, and media declared by retained block versions in EmDash collections. The site logo, favicon, and default social image settings are also reported. Usage does not include custom Portable Text blocks, application code, rendered HTML, other settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
 ### Direct multipart upload
 
@@ -520,6 +524,14 @@ If a write request times out or returns `409` or `500`, read the activation and 
 The work-list operations expose failed or delayed entry indexing without returning content, media references, lease tokens, raw database errors, or an exact backlog count. Retrying one item is idempotent. `409 WORK_LEASE_ACTIVE` means a worker is still processing the item; the response includes `details.leaseExpiresAt`, so wait until that time and read the item again before retrying. `409 WORK_CHANGED` means another request changed the work item; read its current state rather than overwriting the newer work.
 
 The repair operation accepts either `{ "scope": "collection", "collection": "articles" }` or `{ "scope": "all" }`. An all-collection repair runs synchronously and sequentially, so it can take a long time on a large site. A `200` response can still report `partial`, `failed`, or `stale`; inspect `data.status`, the per-collection status, and the source counts before treating the repair as complete.
+
+## Site transfer
+
+The transfer operations under `/_emdash/api/admin/transfer/` export a site as a site package and import one into an empty site. The [site transfer guide](/guides/site-transfer/) describes the export, upload, analysis, execution, and receipt workflow.
+
+Session users need the `transfer:export` or `transfer:import` permission, which only administrators hold. Bearer tokens need `admin` or the `transfer:export`, `transfer:analyze`, or `transfer:execute` scope named by each operation. The approval operations accept signed-in sessions only. They decide requests made by the MCP `site_export_start` and `site_import_start` tools; the REST export and execute operations do not take an approval.
+
+While an import is executing, and after it fails or is cancelled until it is abandoned, most other write operations return `503 TRANSFER_IMPORT_IN_PROGRESS`. The guide lists the [operations that stay available](/guides/site-transfer/#writes-are-blocked-during-an-import).
 
 ## Pagination
 

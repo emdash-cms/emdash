@@ -17,6 +17,10 @@ import { BylineRepository } from "../../database/repositories/byline.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
+import {
+	parseTaxonomyCollections,
+	selectTaxonomyDefs,
+} from "../../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import type { ContentItem } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
@@ -388,21 +392,20 @@ async function exportTaxonomies(
 ): Promise<SeedTaxonomy[]> {
 	// Mirrors the content export pattern: one entry per (name, locale), stable
 	// seed-local id, translations linked via `translationOf` to the anchor's id.
-	const defs = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.selectAll()
+	const defs = await selectTaxonomyDefs(db)
 		// Chained, not `orderBy(["name", "locale"])`: kysely deprecated the array
 		// form and announces it with `console.log`, which lands in the seed
 		// document this command writes to stdout.
-		.orderBy("name")
-		.orderBy("locale")
+		.orderBy("d.name")
+		.orderBy("d.locale")
 		.execute();
 
 	const result: SeedTaxonomy[] = [];
 	const termRepo = new TaxonomyRepository(db);
 
-	// translation_group -> seed-local id of first def we emitted in that group.
-	const defGroupToSeedId = new Map<string, string>();
+	// Taxonomy name -> seed-local id of the first def emitted for it. Every locale
+	// of a name is one taxonomy, whatever translation_group its rows carry.
+	const anchorByName = new Map<string, string>();
 
 	for (const def of defs) {
 		const defSeedId =
@@ -455,17 +458,19 @@ async function exportTaxonomies(
 			name: def.name,
 			label: def.label,
 			labelSingular: def.label_singular || undefined,
-			hierarchical: def.hierarchical === 1,
-			collections: def.collections ? JSON.parse(def.collections) : [],
 		};
 
 		if (i18nEnabled && def.locale) {
 			taxonomy.locale = def.locale;
-			if (def.translation_group) {
-				const anchor = defGroupToSeedId.get(def.translation_group);
-				if (anchor) taxonomy.translationOf = anchor;
-				else defGroupToSeedId.set(def.translation_group, defSeedId);
-			}
+			const anchor = anchorByName.get(def.name);
+			if (anchor) taxonomy.translationOf = anchor;
+			else anchorByName.set(def.name, defSeedId);
+		}
+
+		// The structure is the taxonomy's, so only the entry translations point at carries it.
+		if (!taxonomy.translationOf) {
+			taxonomy.hierarchical = def.hierarchical === 1;
+			taxonomy.collections = parseTaxonomyCollections(def.collections);
 		}
 
 		if (seedTerms.length > 0) taxonomy.terms = seedTerms;

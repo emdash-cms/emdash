@@ -131,7 +131,14 @@ export function generateToken(): string {
  * We never store raw tokens - only their SHA-256 hash
  */
 export function hashToken(token: string): string {
-	const bytes = decodeBase64urlIgnorePadding(token);
+	// Malformed input can't match an issued token, so hash its raw bytes and
+	// let the lookup miss.
+	let bytes: Uint8Array;
+	try {
+		bytes = decodeBase64urlIgnorePadding(token);
+	} catch {
+		bytes = new TextEncoder().encode(token);
+	}
 	const hash = sha256(bytes);
 	return encodeBase64urlNoPadding(hash);
 }

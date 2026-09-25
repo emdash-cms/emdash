@@ -39,11 +39,28 @@ function repeaterDatetimeFields(validation: string | null): string[] {
 		.map((field) => field.slug);
 }
 
+/**
+ * Datetime contexts by collection slug, shared so that a bulk write reads each
+ * collection's context once. A cached context doesn't see later writes to the
+ * `site:timezone` setting or to field definitions, so share one only across
+ * work that makes neither.
+ */
+export type DatetimeContextCache = Map<string, Promise<DatetimeContext>>;
+
 export class ContentDatetimeNormalizer {
-	constructor(private readonly db: Kysely<Database>) {}
+	constructor(
+		private readonly db: Kysely<Database>,
+		private readonly contexts?: DatetimeContextCache,
+	) {}
 
 	private context(collection: string): Promise<DatetimeContext> {
-		return this.loadContext(collection);
+		if (!this.contexts) return this.loadContext(collection);
+		let context = this.contexts.get(collection);
+		if (!context) {
+			context = this.loadContext(collection);
+			this.contexts.set(collection, context);
+		}
+		return context;
 	}
 
 	private async loadContext(collection: string): Promise<DatetimeContext> {

@@ -178,6 +178,35 @@ export type DefinitionInput = z.infer<typeof definitionSchema>;
 
 // ─── Submission Schemas ──────────────────────────────────────────
 
+/** Upper bound for one uploaded file, applied even when the field sets no `maxFileSize`. */
+export const MAX_SUBMISSION_FILE_BYTES = 10 * 1024 * 1024;
+
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+
+function decodeBase64(b64: string): Uint8Array<ArrayBuffer> {
+	const binary = atob(b64);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+	return bytes;
+}
+
+/** File contents as base64, or as an array of byte values; either way parsed to bytes. */
+const fileBytes = z
+	.union([
+		z
+			.string()
+			.max(Math.ceil(MAX_SUBMISSION_FILE_BYTES / 3) * 4, "File is too large")
+			.regex(BASE64_RE, "File contents must be base64")
+			.refine((b64) => b64.length % 4 === 0, "File contents must be base64")
+			.transform(decodeBase64),
+		z
+			.array(z.number().int().min(0).max(255))
+			.max(MAX_SUBMISSION_FILE_BYTES, "File is too large")
+			.transform((values) => Uint8Array.from(values)),
+	])
+	.refine((bytes) => bytes.byteLength > 0, "File is empty")
+	.refine((bytes) => bytes.byteLength <= MAX_SUBMISSION_FILE_BYTES, "File is too large");
+
 export const submitSchema = z.object({
 	formId: z.string().min(1),
 	data: z.record(z.string(), z.unknown()),
@@ -187,7 +216,7 @@ export const submitSchema = z.object({
 			z.object({
 				filename: z.string(),
 				contentType: z.string(),
-				bytes: z.custom<ArrayBuffer>(),
+				bytes: fileBytes,
 			}),
 		)
 		.optional(),

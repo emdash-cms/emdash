@@ -171,6 +171,7 @@ const SYSTEM_TABLES = [
 	"_emdash_collections",
 	"_emdash_fields",
 	"_emdash_taxonomy_defs",
+	"_emdash_taxonomy_def_groups",
 	"_emdash_menus",
 	"_emdash_menu_items",
 	"_emdash_sections",
