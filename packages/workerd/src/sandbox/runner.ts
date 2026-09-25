@@ -499,19 +499,21 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// the next invocation.
 		const configurationVersion = this.configurationVersion;
 		this.startupPromise = this.restart();
+		let restartSucceeded = false;
 		try {
 			await this.startupPromise;
 			this.needsRestart = configurationVersion !== this.configurationVersion;
 			// A repeat load returns the cached instance without marking a
 			// restart, so it never drives the start that clears this.
 			this.gaveUp = false;
+			restartSucceeded = true;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
 			// subsequent retries. needsRestart stays true on failure (set above
 			// only after the await succeeds), enabling automatic retry.
 			this.startupPromise = null;
 		}
-		if (this.needsRestart) {
+		if (this.needsRestart && restartSucceeded) {
 			if (this.plugins.size === 0) {
 				this.needsRestart = false;
 				await this.stopWorkerd();
