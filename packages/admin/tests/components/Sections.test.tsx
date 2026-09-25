@@ -94,6 +94,16 @@ describe("Sections", () => {
 		mockDeleteSection.mockResolvedValue(undefined);
 	});
 
+	it("announces loading sections once", async () => {
+		mockFetchSections.mockImplementation(() => new Promise(() => {}));
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Loading sections...");
+	});
+
 	it("displays sections with titles and descriptions", async () => {
 		const screen = await render(
 			<Wrapper>
@@ -106,14 +116,75 @@ describe("Sections", () => {
 		await expect.element(screen.getByText("CTA block")).toBeInTheDocument();
 	});
 
+	it("does not present stored text as a visual preview", async () => {
+		mockFetchSections.mockResolvedValue({
+			items: [
+				makeSection({
+					title: "Newsletter Signup",
+					description: "A newsletter call to action",
+					content: [
+						{
+							_type: "block",
+							style: "h3",
+							children: [{ _type: "span", text: "Stay in the loop" }],
+						},
+						{ _type: "block", children: [{ _type: "span", text: "Newsletter body copy" }] },
+					],
+				}),
+				makeSection({
+					id: "sec_02",
+					slug: "about-author",
+					title: "About the Author",
+					description: "A short author bio",
+					content: [{ _type: "block", children: [{ _type: "span", text: "Author body copy" }] }],
+				}),
+			],
+		});
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Newsletter Signup")).toBeInTheDocument();
+		await expect.element(screen.getByText("About the Author")).toBeInTheDocument();
+		await expect.element(screen.getByText("A newsletter call to action")).toBeInTheDocument();
+		await expect.element(screen.getByText("A short author bio")).toBeInTheDocument();
+		await expect.element(screen.getByText("Stay in the loop")).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Author body copy")).not.toBeInTheDocument();
+	});
+
+	it("keeps the image preview when one is available", async () => {
+		mockFetchSections.mockResolvedValue({
+			items: [
+				makeSection({
+					previewUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+					content: [
+						{ _type: "block", children: [{ _type: "span", text: "Image replaces this text" }] },
+					],
+				}),
+			],
+		});
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+		await expect
+			.element(screen.getByRole("img", { name: "Preview of Hero Section" }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Image replaces this text")).not.toBeInTheDocument();
+	});
+
 	it("create button opens dialog with title/slug form", async () => {
 		const screen = await render(
 			<Wrapper>
 				<Sections />
 			</Wrapper>,
 		);
-		await screen.getByText("New Section").click();
-		await expect.element(screen.getByText("Create Section")).toBeInTheDocument();
+		await screen.getByText("New section").click();
+		await expect
+			.element(screen.getByRole("heading", { name: "Create section" }))
+			.toBeInTheDocument();
 		// Check form fields exist — InputArea uses label prop but may not be associated via aria
 		await expect.element(screen.getByLabelText("Title")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Slug")).toBeInTheDocument();
@@ -125,7 +196,7 @@ describe("Sections", () => {
 				<Sections />
 			</Wrapper>,
 		);
-		await screen.getByText("New Section").click();
+		await screen.getByText("New section").click();
 		const titleInput = screen.getByLabelText("Title");
 		await titleInput.fill("My Great Section");
 		// Slug should be auto-generated
@@ -142,6 +213,18 @@ describe("Sections", () => {
 		await searchInput.fill("hero");
 		// fetchSections will be called again with search param
 		expect(mockFetchSections).toHaveBeenCalledWith(expect.objectContaining({ search: "hero" }));
+	});
+
+	it("offers a retry when sections fail to load", async () => {
+		mockFetchSections.mockRejectedValueOnce(new Error("Offline"));
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("Sections could not be loaded.")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Retry" }).click();
+		await expect.element(screen.getByText("Hero Section")).toBeInTheDocument();
 	});
 
 	it("delete button opens confirmation dialog", async () => {
@@ -162,16 +245,13 @@ describe("Sections", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Call to Action")).toBeInTheDocument();
-		// Click delete on the user section. Kumo 2.x wraps `<Button title>` as
-		// a Tooltip popup rather than a DOM `title` attribute, so we locate the
-		// button by its aria-label instead.
-		const deleteButton = screen.getByLabelText("Delete Call to Action");
-		await deleteButton.click();
+		await screen.getByRole("button", { name: "More actions for Call to Action" }).click();
+		await screen.getByRole("menuitem", { name: "Delete Call to Action" }).click();
 		await expect.element(screen.getByText("Delete Section?")).toBeInTheDocument();
 		await expect.element(screen.getByText(DELETE_SECTION_MSG_REGEX)).toBeInTheDocument();
 	});
 
-	it("theme sections have disabled delete button", async () => {
+	it("explains why theme sections cannot be deleted", async () => {
 		mockFetchSections.mockResolvedValue({
 			items: [
 				makeSection({
@@ -188,12 +268,10 @@ describe("Sections", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("Hero Section")).toBeInTheDocument();
-		// Kumo 2.x's `<Button title>` is rendered as a Tooltip popup, not a DOM
-		// `title`. Locate the button by aria-label and assert the disabled state
-		// directly; the "Cannot delete theme sections" copy is now in the
-		// hover Tooltip rather than a queryable attribute.
-		const deleteButton = screen.getByLabelText("Delete Hero Section");
-		await expect.element(deleteButton).toBeDisabled();
+		await screen.getByRole("button", { name: "More actions for Hero Section" }).click();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Cannot delete theme sections" }))
+			.toHaveAttribute("aria-disabled", "true");
 	});
 
 	it("each section has an edit button", async () => {
