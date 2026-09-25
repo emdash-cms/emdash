@@ -653,6 +653,13 @@ export async function loadSmtpConfigFromDb(
 	if (!host || !port || !secure || !user || !encryptedPass) {
 		return null;
 	}
+	if (!Number.isInteger(port) || port < 1 || port > 65535 || port === 25) {
+		console.warn(
+			`[email-smtp] Stored SMTP port ${port} cannot be used (port 25 is blocked on Cloudflare) — ` +
+				"save 587 or 465 in Settings → Email.",
+		);
+		return null;
+	}
 
 	// Try every configured key (rotation) — the password may have been
 	// encrypted with a key that is no longer primary.

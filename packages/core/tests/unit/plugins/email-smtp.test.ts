@@ -451,6 +451,21 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 		expect(typeof raw).toBe("string");
 	});
 
+	it.each([25, 70000, 587.5])("ignores a stored port %s the transport cannot use", async (port) => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
+			host: "smtp.example.com",
+			port,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		});
+
+		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("Settings → Email"));
+		warn.mockRestore();
+	});
+
 	it("clears all config", async () => {
 		const input: SmtpConfig = {
 			host: "smtp.example.com",
