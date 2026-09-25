@@ -513,7 +513,6 @@ export function ContentTypeEditor({
 										label={t`Icon`}
 										value={icon}
 										onChange={(e) => setIcon(e.target.value)}
-										placeholder="calendar-blank"
 										disabled={isFromCode}
 									/>
 									<p className="text-xs text-kumo-subtle mt-1">
