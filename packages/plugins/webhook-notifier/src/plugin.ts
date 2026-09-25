@@ -141,9 +141,8 @@ function getString(value: unknown, key: string): string | undefined {
 
 const MAX_RETRIES = 3;
 const MAX_DELIVERY_RECORDS = 500;
-// Cloudflare D1 binds at most ~100 parameters per statement; deleteMany's `IN
-// (...)` also binds plugin_id and collection, so a batch of ids must stay
-// well under that.
+// D1 rejects a statement with more than 100 bound parameters, and deleteMany
+// binds plugin_id and collection alongside the ids.
 const PRUNE_BATCH_SIZE = 50;
 
 async function getConfig(ctx: PluginContext) {
@@ -210,11 +209,8 @@ async function recordDelivery(ctx: PluginContext, record: DeliveryRecord): Promi
 	const deliveries = ctx.storage.deliveries!;
 	await deliveries.put(crypto.randomUUID(), record);
 
-	// query() caps a page at 100 rows, and a delete can race a concurrent
-	// insert. Re-counting after every batch keeps pruning until the log is
-	// actually at or below the cap, past a single page or a race. Each
-	// batch also stays at PRUNE_BATCH_SIZE, not the full page, to keep
-	// deleteMany's bound parameter count under D1's limit.
+	// Re-count after every batch: the excess can span several batches, and a
+	// concurrent delivery can insert between the count and the delete.
 	for (;;) {
 		const excess = (await deliveries.count()) - MAX_DELIVERY_RECORDS;
 		if (excess <= 0) return;
