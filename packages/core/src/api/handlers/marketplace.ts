@@ -175,6 +175,23 @@ async function resolveVersionMetadata(
 	return versions.find((v) => v.version === version) ?? null;
 }
 
+/** A null verdict means no audit ran, which is allowed; "fail" and "warn" are not. */
+function checkAuditVerdict(versionMetadata: MarketplaceVersionSummary): ApiResult<never> | null {
+	if (versionMetadata.auditVerdict !== "fail" && versionMetadata.auditVerdict !== "warn") {
+		return null;
+	}
+	return {
+		success: false,
+		error: {
+			code: "AUDIT_FAILED",
+			message:
+				versionMetadata.auditVerdict === "fail"
+					? "Plugin failed security audit and cannot be installed or updated"
+					: "Plugin audit was inconclusive and cannot be installed or updated until reviewed",
+		},
+	};
+}
+
 function validateBundleIdentity(
 	bundle: PluginBundle,
 	pluginId: string,
@@ -479,22 +496,8 @@ export async function handleMarketplaceInstall(
 			};
 		}
 
-		// Block installation of plugins that haven't passed audit.
-		// Both "fail" (explicitly malicious) and "warn" (audit error or
-		// inconclusive) are non-installable — only "pass" or null (no audit
-		// ran) are allowed through.
-		if (versionMetadata.auditVerdict === "fail" || versionMetadata.auditVerdict === "warn") {
-			return {
-				success: false,
-				error: {
-					code: "AUDIT_FAILED",
-					message:
-						versionMetadata.auditVerdict === "fail"
-							? "Plugin failed security audit and cannot be installed"
-							: "Plugin audit was inconclusive and cannot be installed until reviewed",
-				},
-			};
-		}
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
 
 		// Download and extract bundle
 		const bundle = await client.downloadBundle(pluginId, version);
@@ -719,6 +722,9 @@ export async function handleMarketplaceUpdate(
 				},
 			};
 		}
+
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
 
 		// Download new bundle
 		const bundle = await client.downloadBundle(pluginId, newVersion);

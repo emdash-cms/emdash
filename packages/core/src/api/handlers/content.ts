@@ -18,6 +18,7 @@ import {
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
@@ -46,12 +47,37 @@ import {
 	type ScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
 import { decodeRev, encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
+import {
+	getReferenceTitleField,
+	type ReferenceSelectionWrite,
+	resolveEntries,
+	resolveEntryGroups,
+	resolveReferenceSelection,
+	resolveReferenceSelectionTargets,
+	type ResolvedReferenceTargets,
+	writeReferenceSelection,
+} from "./relations.js";
+import {
+	applyStagedReferences,
+	liveReferenceSelection,
+	pageStagedGroups,
+	readStagedReferences,
+	recordPublishedReferences,
+	STAGED_REFERENCES_KEY,
+	type StagedReferences,
+	validateStagedReferences,
+} from "./staged-references.js";
 import { validateMediaFields } from "./validate-media-fields.js";
+import {
+	referenceFieldConstraints,
+	validateRequiredReferencesPresent,
+} from "./validate-references.js";
 
 /**
  * Narrow a caught error to one carrying a structured `apiError` discriminant.
@@ -67,6 +93,98 @@ function hasApiError(error: unknown): error is Error & { apiError: { code: strin
 		"code" in apiError &&
 		typeof apiError.code === "string"
 	);
+}
+
+/**
+ * Abort the surrounding transaction when a relation's limit refused an edge.
+ *
+ * `farSide` names the end that filled up, which is the opposite of the end the
+ * refused group sits on: a child that cannot take another parent refuses with
+ * `"parent"`.
+ */
+function throwIfReferenceLimitRefused(rejected: string[], farSide: "parent" | "child"): void {
+	if (rejected.length === 0) return;
+	throw Object.assign(
+		new Error(
+			`Entry '${rejected[0]}' already has the maximum number of ${farSide} entries on this relation.`,
+		),
+		{ apiError: { code: "VALIDATION_ERROR" } },
+	);
+}
+
+/** The slug a draft revision stages, when it stages one. */
+function readStagedSlug(data: Record<string, unknown> | undefined): string | null {
+	return typeof data?._slug === "string" ? data._slug : null;
+}
+
+/**
+ * Make every refusal `publish()` decides before it writes, ahead of it.
+ *
+ * `publish()` decides all of them again and stays authoritative; this does not
+ * replace it. It exists for the one caller that has irreversible work to do
+ * first — promoting a draft's staged reference selection, which nothing takes
+ * back where `withTransaction` degrades to plain statements. A refusal that
+ * landed after that promotion would leave a draft's links live on an entry that
+ * never published.
+ *
+ * The optimistic fence `publish()` ends on is not checked here, because it is
+ * the write itself: a publish lost to a concurrent edit still promotes.
+ */
+async function assertPublishWillNotBeRefused(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+	existing: ContentItem,
+	options: {
+		stagedSlug: string | null;
+		requireSlug: boolean;
+		requireDue?: boolean;
+		expectedScheduledAt?: string;
+		expectedRevision?: ContentRevisionPrecondition;
+	},
+): Promise<void> {
+	const { expectedRevision } = options;
+	if (
+		expectedRevision &&
+		(existing.version !== expectedRevision.version ||
+			existing.updatedAt !== expectedRevision.updatedAt)
+	) {
+		throw new ContentMutationConflictError();
+	}
+
+	if (
+		options.requireDue &&
+		options.expectedScheduledAt !== undefined &&
+		existing.scheduledAt !== options.expectedScheduledAt
+	) {
+		throw new ScheduledNotDueError();
+	}
+
+	const intendedSlug = options.stagedSlug ?? existing.slug;
+	if (options.requireSlug && !intendedSlug?.trim()) {
+		throw new EmDashValidationError("Cannot publish routable content without a slug");
+	}
+
+	// Only a publish that moves the slug can collide, so this costs a read on
+	// that path alone.
+	if (
+		options.stagedSlug !== null &&
+		options.stagedSlug !== existing.slug &&
+		existing.locale !== null
+	) {
+		const conflict = await new ContentRepository(db).findBySlugIncludingTrashed(
+			collection,
+			options.stagedSlug,
+			existing.locale,
+		);
+		if (conflict && conflict.id !== id) {
+			throw new EmDashValidationError(
+				`Cannot publish: slug '${options.stagedSlug}' is already used by another entry` +
+					` in this collection (id: ${conflict.id}). Choose a different slug.`,
+				{ code: "SLUG_CONFLICT" },
+			);
+		}
+	}
 }
 
 function isTranslationLocaleConflict(error: unknown, collection: string): boolean {
@@ -219,6 +337,132 @@ async function hydrateBylines(
 
 	item.bylines = [];
 	item.byline = null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/**
+ * Hydrate the first page of each reference field's selection onto a single
+ * content item, keyed by field slug — the same key the create and update bodies
+ * take a selection under.
+ *
+ * Callers must have already decided `includeDrafts` — draft visibility is
+ * enforced by the caller, not this helper — because a resolved entry can carry
+ * a draft or scheduled entry's id and slug. The admin's REST GET route is the
+ * only caller, and it asks for every entry it serves, so a collection with no
+ * reference field still pays the two lookups below.
+ *
+ * For a caller that opted into drafts, a field whose selection is staged in the
+ * entry's draft revision is answered from that revision; every other field, and
+ * every field for a caller that did not opt in, is answered from the links,
+ * which hold the published selection. That is what keeps a picker change on a
+ * published entry invisible until it is published.
+ *
+ * Either selection arrives one page at a time, with the cursor to walk the rest
+ * through the edge routes — a draft's pending selection can be as long as a
+ * published one, and a caller that reads an entry should not have to take a
+ * field of a thousand entries to find out.
+ */
+async function hydrateReferences(
+	db: Kysely<Database>,
+	collection: string,
+	item: ContentItem,
+	includeDrafts: boolean,
+): Promise<void> {
+	if (!item.translationGroup) return;
+
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!collectionRow) return;
+
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select(["slug", "validation"])
+		.where("collection_id", "=", collectionRow.id)
+		.where("type", "=", "reference")
+		.execute();
+
+	const references: NonNullable<ContentItem["references"]> = {};
+	if (fields.length === 0) {
+		item.references = references;
+		return;
+	}
+
+	const repo = new RelationRepository(db);
+	const content = new ContentRepository(db);
+
+	const staged =
+		includeDrafts && item.draftRevisionId
+			? readStagedReferences(
+					(await new RevisionRepository(db).findById(item.draftRevisionId))?.data,
+				)
+			: undefined;
+
+	for (const field of fields) {
+		let validation: Record<string, unknown> = {};
+		if (field.validation) {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(field.validation);
+			} catch {
+				continue;
+			}
+			if (isRecord(parsed)) validation = parsed;
+		}
+		const relation = typeof validation.relation === "string" ? validation.relation : undefined;
+		const targetCollection =
+			typeof validation.targetCollection === "string" ? validation.targetCollection : undefined;
+		// A field with no relation keeps its own column; its value is already in
+		// `data` and there are no links to resolve.
+		if (!relation || !targetCollection) continue;
+
+		const stagedGroups = staged?.[field.slug];
+		if (stagedGroups) {
+			// Paged like the links below it: the REST contract promises one page and
+			// a cursor whichever selection answers, and the editor walks the rest
+			// through the same edge route either way.
+			const page = pageStagedGroups(stagedGroups);
+			references[field.slug] = {
+				children: await resolveEntryGroups(
+					content,
+					targetCollection,
+					page.groups,
+					item.locale,
+					includeDrafts,
+					await getReferenceTitleField(db, targetCollection),
+				),
+				...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+			};
+			continue;
+		}
+
+		// A field on the child end of its relation selects parents, which carry no
+		// order of their own — `sort_order` positions children within one parent.
+		const onChildSide = validation.relationSide === "child";
+		const edges = onChildSide
+			? await repo.getParentsPage(relation, item.translationGroup)
+			: await repo.getChildrenPage(relation, item.translationGroup);
+		const children = await resolveEntries(
+			content,
+			targetCollection,
+			edges.items,
+			(e) => (onChildSide ? e.parentGroup : e.childGroup),
+			item.locale,
+			includeDrafts,
+			await getReferenceTitleField(db, targetCollection),
+		);
+		references[field.slug] = {
+			children,
+			...(edges.nextCursor ? { nextCursor: edges.nextCursor } : {}),
+		};
+	}
+
+	item.references = references;
 }
 
 /**
@@ -405,6 +649,84 @@ async function resolveSearchColumns(db: Kysely<Database>, collection: string): P
 		if (field.searchable === 1) columns.add(field.slug);
 	}
 	return [...columns];
+}
+
+/**
+ * The keys of `data` that name a storage-less field — a reference field bound
+ * to a relation, whose selection lives in the edge table and reaches the API
+ * under the separate `references` key.
+ *
+ * A reference field with no relation still owns its column, so its value in
+ * `data` is exactly where it belongs and is not returned here.
+ */
+async function storagelessDataKeys(
+	db: Kysely<Database>,
+	collection: string,
+	data: Record<string, unknown>,
+): Promise<string[]> {
+	const collectionRow = await db
+		.selectFrom("_emdash_collections")
+		.select("id")
+		.where("slug", "=", collection)
+		.executeTakeFirst();
+	if (!collectionRow) return [];
+	const fields = await db
+		.selectFrom("_emdash_fields")
+		.select(["slug", "type", "validation"])
+		.where("collection_id", "=", collectionRow.id)
+		.execute();
+	const storageless = new Set(fields.filter(isStoragelessFieldRow).map((f) => f.slug));
+	if (storageless.size === 0) return [];
+	return Object.keys(data).filter((key) => storageless.has(key));
+}
+
+/**
+ * Refuse a `data` payload that tries to set a storage-less field.
+ *
+ * Such a key would otherwise reach the column writer and throw "no such
+ * column". Dropping it instead is worse than refusing it: a client that can
+ * only write `data` would be told its write succeeded while nothing was linked.
+ * On a collection that keeps drafts the key never reaches the column writer at
+ * all — it is merged into the draft revision's JSON — so the runtime applies
+ * this before staging rather than leaving it to the write below.
+ */
+export function storagelessDataKeyError(keys: string[]): {
+	success: false;
+	error: { code: string; message: string };
+} {
+	return {
+		success: false,
+		error: {
+			code: "VALIDATION_ERROR",
+			message: `Reference fields bound to a relation are set through 'references', not 'data': ${keys.join(", ")}`,
+		},
+	};
+}
+
+/**
+ * The storage-less keys in `data` that an update is actually trying to change.
+ *
+ * A field bound to a relation after its column existed keeps that column, and
+ * every read hands the value frozen in it back under the field's own slug. A
+ * read-then-write client — the admin editor among them — therefore echoes a key
+ * it never touched, and refusing that would make such an entry unsaveable. An
+ * echo asks for nothing; a different value is an attempt to set a selection
+ * through the one channel that cannot carry it.
+ *
+ * A key the entry does not store counts as changed, which is every key of a
+ * field that never had a column: there is nothing for such a payload to be
+ * echoing, and letting it through would reach the column writer.
+ */
+export function changedStoragelessDataKeys(
+	storageless: ReadonlySet<string>,
+	data: Record<string, unknown>,
+	stored: Record<string, unknown>,
+): string[] {
+	return Object.keys(data).filter(
+		(key) =>
+			storageless.has(key) &&
+			(!Object.hasOwn(stored, key) || JSON.stringify(data[key]) !== JSON.stringify(stored[key])),
+	);
 }
 
 /**
@@ -731,6 +1053,7 @@ export async function handleContentGet(
 	collection: string,
 	id: string,
 	locale?: string,
+	referenceOptions?: { includeDrafts: boolean },
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -754,6 +1077,12 @@ export async function handleContentGet(
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeo(db, collection, item, hasSeo);
 		await hydrateBylines(db, collection, item);
+		// Opt-in: hydration is skipped entirely unless the caller passes
+		// `referenceOptions`, since it can leak draft child ids/slugs — see
+		// `hydrateReferences`'s doc comment.
+		if (referenceOptions) {
+			await hydrateReferences(db, collection, item, referenceOptions.includeDrafts);
+		}
 
 		return {
 			success: true,
@@ -840,6 +1169,8 @@ export async function handleContentCreate(
 		translationOf?: string;
 		seo?: ContentSeoInput;
 		taxonomies?: Record<string, string[]>;
+		/** Reference fields: field slug → ordered selected entry ids. */
+		references?: Record<string, string[]>;
 		createdAt?: string | null;
 		publishedAt?: string | null;
 	},
@@ -858,8 +1189,19 @@ export async function handleContentCreate(
 			};
 		}
 
+		const storagelessKeys = await storagelessDataKeys(db, collection, body.data);
+		if (storagelessKeys.length > 0) return storagelessDataKeyError(storagelessKeys);
+
 		const mimeCheck = await validateMediaFields(db, collection, body.data);
 		if (!mimeCheck.success) return mimeCheck;
+
+		const requiredReferences = await validateRequiredReferencesPresent(
+			db,
+			collection,
+			body.references,
+			body.translationOf,
+		);
+		if (!requiredReferences.success) return requiredReferences;
 
 		// Wrap content + SEO writes in a transaction for atomicity
 		const item = await withTransaction(db, async (trx) => {
@@ -880,6 +1222,34 @@ export async function handleContentCreate(
 							.execute()
 					).map((field) => field.slug)
 				: [];
+
+			// Resolve the whole selection before the entry is written. On D1 the
+			// statements below land one at a time with nothing to roll them back, so
+			// a field slug or a selected id that fails to resolve has to fail here,
+			// while the only thing written is nothing.
+			const referenceWrites: ResolvedReferenceTargets[] = [];
+			if (body.references) {
+				// A new translation joins the source's group, which may already hold
+				// links the far-side count must discount.
+				const entryGroup = body.translationOf
+					? ((await repo.findById(collection, body.translationOf))?.translationGroup ?? null)
+					: null;
+				for (const [fieldSlug, selectedIds] of Object.entries(body.references)) {
+					const resolved = await resolveReferenceSelectionTargets(
+						trx,
+						collection,
+						fieldSlug,
+						selectedIds,
+						entryGroup,
+					);
+					if (!resolved.success) {
+						throw Object.assign(new Error(resolved.error.message), {
+							apiError: { code: resolved.error.code },
+						});
+					}
+					referenceWrites.push(resolved.data);
+				}
+			}
 
 			// Default to the configured site locale rather than the repo's
 			// hard-coded "en" — otherwise non-English default-locale sites
@@ -962,6 +1332,18 @@ export async function handleContentCreate(
 				await assignTaxonomies(trx, collection, created.id, effectiveLocale, body.taxonomies);
 			}
 
+			// Attach the links resolved above. Nothing here can fail on the
+			// caller's input any more, so the entry cannot be left written with a
+			// selection that was rejected.
+			if (created.translationGroup) {
+				for (const write of referenceWrites) {
+					await writeReferenceSelection(trx, {
+						...write,
+						entryGroup: created.translationGroup,
+					});
+				}
+			}
+
 			return created;
 		});
 
@@ -970,6 +1352,14 @@ export async function handleContentCreate(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		// Handle structured errors thrown from inside the transaction (e.g. a
+		// reference resolution failure from `setReferenceSelection`).
+		if (hasApiError(error)) {
+			return {
+				success: false,
+				error: { code: error.apiError.code, message: error.message },
+			};
+		}
 		if (isMissingTableError(error)) {
 			return {
 				success: false,
@@ -1061,6 +1451,8 @@ export async function handleContentUpdate(
 		_rev?: string;
 		seo?: ContentSeoInput;
 		taxonomies?: Record<string, string[]>;
+		/** Reference fields: field slug → ordered selected entry ids. */
+		references?: Record<string, string[]>;
 		publishedAt?: string | null;
 	},
 ): Promise<ApiResult<ContentResponse>> {
@@ -1087,6 +1479,19 @@ export async function handleContentUpdate(
 
 		// Resolve slug → ID if needed
 		const resolvedId = (await resolveId(repo, collection, id, body.locale)) ?? id;
+
+		if (body.data) {
+			const storagelessKeys = await storagelessDataKeys(db, collection, body.data);
+			if (storagelessKeys.length > 0) {
+				const stored = await repo.findById(collection, resolvedId);
+				const changed = changedStoragelessDataKeys(
+					new Set(storagelessKeys),
+					body.data,
+					stored?.data ?? {},
+				);
+				if (changed.length > 0) return storagelessDataKeyError(changed);
+			}
+		}
 
 		// Wrap content + SEO writes in a transaction for atomicity.
 		// The _rev check is inside the transaction so the read-then-write
@@ -1133,6 +1538,29 @@ export async function handleContentUpdate(
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
 				const intendedSlug = body.slug !== undefined ? body.slug : existing.slug;
 				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
+			}
+
+			// Resolve the whole selection before the update, for the reason the
+			// matching block in `handleContentCreate` gives: on D1 the columns,
+			// bylines and SEO below are committed one statement at a time, and a
+			// reference rejected after them cannot take them back.
+			const referenceWrites: ReferenceSelectionWrite[] = [];
+			if (body.references) {
+				for (const [fieldSlug, selectedIds] of Object.entries(body.references)) {
+					const resolved = await resolveReferenceSelection(
+						trx,
+						collection,
+						resolvedId,
+						fieldSlug,
+						selectedIds,
+					);
+					if (!resolved.success) {
+						throw Object.assign(new Error(resolved.error.message), {
+							apiError: { code: resolved.error.code },
+						});
+					}
+					referenceWrites.push(resolved.data);
+				}
 			}
 
 			const updated = await trxRepo.update(collection, resolvedId, {
@@ -1203,6 +1631,11 @@ export async function handleContentUpdate(
 					updated.locale ?? body.locale,
 					body.taxonomies,
 				);
+			}
+
+			// Replace the links from the selection resolved above.
+			for (const write of referenceWrites) {
+				await writeReferenceSelection(trx, write);
 			}
 
 			return updated;
@@ -1286,7 +1719,41 @@ export async function handleContentDuplicate(
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const original = await repo.findById(collection, resolvedId);
 			const dup = await repo.duplicate(collection, resolvedId, authorId);
+
+			// Reference edges are storage-less (keyed by translation_group, not in
+			// `data`), so they don't ride along in the row copy — carry the original's
+			// outgoing references onto the duplicate explicitly.
+			if (original?.translationGroup && dup.translationGroup) {
+				const relations = new RelationRepository(trx);
+				// A relation's limits bind a copied edge like any other, and a
+				// selection the copy cannot hold is not one to drop quietly: the
+				// duplicate would look complete with a reference field the editor
+				// never emptied. Refuse instead, and name what refused it.
+				throwIfReferenceLimitRefused(
+					await relations.copyParentEdges(original.translationGroup, dup.translationGroup),
+					"parent",
+				);
+
+				// Where a field on this collection binds the *child* end, its
+				// backlinks are the field's value, so a duplicate that dropped them
+				// would lose that field's whole selection. Backlinks no field views
+				// still point only at the original.
+				for (const field of (await referenceFieldConstraints(trx, collection)).values()) {
+					if (field.relationSide !== "child") continue;
+					const parents = await relations.getParents(field.relation, original.translationGroup);
+					if (parents.length === 0) continue;
+					throwIfReferenceLimitRefused(
+						await relations.setParents(
+							field.relation,
+							dup.translationGroup,
+							parents.map((parent) => parent.parentGroup),
+						),
+						"child",
+					);
+				}
+			}
 
 			const existingBylines = await bylineRepo.getContentBylines(collection, resolvedId);
 			if (existingBylines.length > 0) {
@@ -1325,6 +1792,14 @@ export async function handleContentDuplicate(
 					code: "NOT_FOUND",
 					message: err.message,
 				},
+			};
+		}
+		// A relation limit that refused a copied edge names the entry that refused
+		// it, which the editor needs to act on.
+		if (hasApiError(err)) {
+			return {
+				success: false,
+				error: { code: err.apiError.code, message: err.message },
 			};
 		}
 		console.error("Content duplicate error:", err);
@@ -1458,6 +1933,33 @@ export async function handleContentPermanentDelete(
 		const deleted = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
 			const item = await trxRepo.findByIdIncludingTrashed(collection, resolvedId);
+
+			// `permanentDelete` removes a trashed row only. Anything cleared ahead of
+			// it has to answer the same question first, or purging a live entry strips
+			// what belongs to it and then reports it was never found — and nothing
+			// throws, so the clear stands even where the transaction is real.
+			if (!item || item.deletedAt === null) return false;
+
+			// Term assignments and reference edges are keyed by translation_group, so
+			// they belong to the group rather than to this row. They go only once no
+			// row of the group is left, trashed ones included, since a trashed row
+			// can still be restored.
+			const lastOfGroup =
+				item.translationGroup !== null
+					? !(await trxRepo.hasTranslationsIncludingTrashed(collection, item.translationGroup, {
+							excludeId: resolvedId,
+						}))
+					: false;
+
+			// The edges go before the row does. On D1 the delete below is committed
+			// on its own, and this row is the only way back to the group that names
+			// them — a cleanup that failed after it would strand edges that still
+			// count and still show up as backlinks, with nothing left to find them
+			// by. Failing here instead leaves everything as it was, to retry.
+			if (lastOfGroup && item.translationGroup) {
+				await new RelationRepository(trx).clearReferencesForGroup(item.translationGroup);
+			}
+
 			const wasDeleted = await trxRepo.permanentDelete(collection, resolvedId);
 
 			if (wasDeleted) {
@@ -1471,21 +1973,11 @@ export async function handleContentPermanentDelete(
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
 				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
+				// Credits belong to this row alone — no other row reads them, so they
+				// go with it whether or not the group survives.
 				await new BylineRepository(trx).deleteContentBylines(collection, resolvedId);
-				// Term assignments are keyed by translation_group, so they belong to the
-				// group rather than to this row. They go only once no row of the group is
-				// left, trashed ones included, since a trashed row can still be restored.
-				if (item?.translationGroup) {
-					const groupSurvives = await trxRepo.hasTranslationsIncludingTrashed(
-						collection,
-						item.translationGroup,
-					);
-					if (!groupSurvives) {
-						await new TaxonomyRepository(trx).clearEntryGroupTerms(
-							collection,
-							item.translationGroup,
-						);
-					}
+				if (lastOfGroup && item.translationGroup) {
+					await new TaxonomyRepository(trx).clearEntryGroupTerms(collection, item.translationGroup);
 				}
 			}
 
@@ -1806,6 +2298,54 @@ export async function handleContentPublish(
 			// are normally created.
 			const existing = await repo.findById(collection, resolvedId);
 
+			// A selection staged in the draft becomes the live one here. Validate
+			// before the publishing statement rather than after: `withTransaction`
+			// degrades to sequential statements on D1, so a selection rejected
+			// afterwards would leave the entry published with the old links.
+			const draftRevision =
+				publishConfig.supportsRevisions && existing?.draftRevisionId
+					? await new RevisionRepository(trx).findById(existing.draftRevisionId)
+					: undefined;
+			const stagedReferences = draftRevision ? readStagedReferences(draftRevision.data) : undefined;
+			if (existing?.translationGroup) {
+				const valid = await validateStagedReferences(
+					trx,
+					collection,
+					stagedReferences ?? {},
+					existing.translationGroup,
+				);
+				if (!valid.success) {
+					throw Object.assign(new Error(valid.error.message), {
+						apiError: { code: valid.error.code },
+					});
+				}
+
+				// Promote before the publishing statement, which is also what clears
+				// the draft pointer. On D1 that statement cannot be taken back, and
+				// the draft is the only place the staged selection can be read from
+				// again — a promotion that failed after it would have nothing left to
+				// retry. Replacing a selection is idempotent, so a retry that reaches
+				// here twice writes the same links.
+				//
+				// That ordering only holds if the publish is going to happen, so every
+				// refusal `repo.publish()` decides before it writes is decided here
+				// first. It repeats them all and stays authoritative; running them
+				// early keeps a refusal from landing after a promotion nothing undoes,
+				// which would show readers a selection that was never published. Its
+				// last check is the optimistic fence, which cannot move ahead of the
+				// write it guards.
+				if (stagedReferences) {
+					await assertPublishWillNotBeRefused(trx, collection, resolvedId, existing, {
+						stagedSlug: readStagedSlug(draftRevision?.data),
+						requireSlug: publishConfig.routable,
+						requireDue: options.requireScheduledDue,
+						expectedScheduledAt: options.expectedScheduledAt,
+						expectedRevision,
+					});
+					await applyStagedReferences(trx, collection, existing.translationGroup, stagedReferences);
+				}
+			}
+
 			const published = await repo.publish(
 				collection,
 				resolvedId,
@@ -1817,6 +2357,19 @@ export async function handleContentPublish(
 				expectedRevision,
 				options.currentTime,
 			);
+
+			if (
+				publishConfig.supportsRevisions &&
+				published.liveRevisionId &&
+				published.translationGroup
+			) {
+				await recordPublishedReferences(
+					trx,
+					collection,
+					published.liveRevisionId,
+					published.translationGroup,
+				);
+			}
 
 			if (
 				existing &&
@@ -1864,6 +2417,12 @@ export async function handleContentPublish(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (hasApiError(error)) {
+			return {
+				success: false,
+				error: { code: error.apiError.code, message: error.message },
+			};
+		}
 		if (error instanceof ContentMutationConflictError) {
 			return {
 				success: false,
@@ -2094,13 +2653,31 @@ export async function handleContentCompare(
 		const live = entry.liveRevisionId ? await revisionRepo.findById(entry.liveRevisionId) : null;
 		const draft = entry.draftRevisionId ? await revisionRepo.findById(entry.draftRevisionId) : null;
 
+		// Reference selections have to be filled in from the links on both sides
+		// before they can be compared. The published selection is the links, not
+		// whatever `_references` the live revision happens to carry; and the draft
+		// stages only the fields its saves named, so the rest of its effective
+		// selection is the live one.
+		const liveReferences = entry.translationGroup
+			? await liveReferenceSelection(db, collection, entry.translationGroup)
+			: {};
+		const withReferences = (
+			revisionData: Record<string, unknown> | undefined,
+			staged: StagedReferences,
+		) => {
+			if (!revisionData) return undefined;
+			const selection = { ...liveReferences, ...staged };
+			if (Object.keys(selection).length === 0) return revisionData;
+			return { ...revisionData, [STAGED_REFERENCES_KEY]: selection };
+		};
+
 		return {
 			success: true,
 			data: {
 				hasChanges:
 					entry.draftRevisionId !== null && entry.draftRevisionId !== entry.liveRevisionId,
-				live: live?.data ?? null,
-				draft: draft?.data ?? null,
+				live: withReferences(live?.data, {}) ?? null,
+				draft: withReferences(draft?.data, readStagedReferences(draft?.data) ?? {}) ?? null,
 			},
 		};
 	} catch (error) {

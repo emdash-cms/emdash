@@ -266,6 +266,9 @@ describe("OpenAPI document generation", () => {
 		expect(paths).toContain("/_emdash/api/schema/collections/{slug}");
 		expect(paths).toContain("/_emdash/api/schema/collections/{slug}/fields");
 		expect(paths).toContain("/_emdash/api/schema/collections/{slug}/fields/{fieldSlug}");
+		expect(paths).toContain("/_emdash/api/schema/block-types");
+		expect(paths).toContain("/_emdash/api/schema/block-types/{slug}");
+		expect(paths).toContain("/_emdash/api/schema/block-types/{slug}/versions/{version}/activate");
 		expect(paths).toContain("/_emdash/api/schema/orphans");
 	});
 
@@ -651,7 +654,7 @@ describe("OpenAPI document generation", () => {
 		expect(schemes).toHaveProperty("bearer");
 	});
 
-	it("tags all 12 domains", () => {
+	it("tags all 13 domains", () => {
 		const doc = generateOpenApiDocument();
 		const tagNames = (doc.tags ?? []).map((t: { name: string }) => t.name);
 
@@ -667,7 +670,8 @@ describe("OpenAPI document generation", () => {
 		expect(tagNames).toContain("Search");
 		expect(tagNames).toContain("Redirects");
 		expect(tagNames).toContain("Users");
-		expect(tagNames).toHaveLength(12);
+		expect(tagNames).toContain("Transfer");
+		expect(tagNames).toHaveLength(13);
 	});
 
 	it("produces valid JSON output", () => {

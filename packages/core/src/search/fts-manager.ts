@@ -341,6 +341,46 @@ export class FTSManager {
 	}
 
 	/**
+	 * Index up to `limit` content rows with `rowid > afterRowid`, in rowid
+	 * order, so a large collection can be populated across several requests.
+	 * Returns the last rowid covered, or null when no rows remain. Returns
+	 * null on dialects without FTS5.
+	 */
+	async populateRange(
+		collectionSlug: string,
+		searchableFields: string[],
+		afterRowid: number,
+		limit: number,
+	): Promise<number | null> {
+		if (!isSqlite(this.db)) return null;
+		this.validateInputs(collectionSlug, searchableFields);
+		const ftsTable = this.getFtsTableName(collectionSlug);
+		const contentTable = this.getContentTableName(collectionSlug);
+		const range = await sql<{ last: number | null }>`
+			SELECT MAX(rowid) AS last FROM (
+				SELECT rowid FROM ${sql.ref(contentTable)}
+				WHERE rowid > ${afterRowid}
+				ORDER BY rowid
+				LIMIT ${limit}
+			)
+		`.execute(this.db);
+		const last = range.rows[0]?.last ?? null;
+		if (last === null) return null;
+
+		const fieldTypes = await this.getFieldTypes(collectionSlug);
+		const fieldList = searchableFields.join(", ");
+		const valueList = searchableFields
+			.map((f) => this.searchValueExpr(`"${contentTable}"."${f}"`, fieldTypes.get(f)))
+			.join(", ");
+		await sql`
+			INSERT OR REPLACE INTO ${sql.ref(ftsTable)}(rowid, id, locale, ${sql.raw(fieldList)})
+			SELECT rowid, id, locale, ${sql.raw(valueList)} FROM ${sql.ref(contentTable)}
+			WHERE deleted_at IS NULL AND rowid > ${afterRowid} AND rowid <= ${last}
+		`.execute(this.db);
+		return Number(last);
+	}
+
+	/**
 	 * Get the search configuration for a collection
 	 */
 	async getSearchConfig(collectionSlug: string): Promise<SearchConfig | null> {

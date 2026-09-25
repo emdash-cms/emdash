@@ -6,6 +6,8 @@
  */
 import { PortableText } from "astro-portabletext";
 
+import { emdashMarkComponents } from "./marks.js";
+
 export interface Props {
 	node: {
 		_type: "columns";
@@ -34,7 +36,7 @@ if (!columns.length) {
 				class="emdash-column"
 				style={column.width ? `flex-basis: ${column.width}` : undefined}
 			>
-				<PortableText value={column.content} />
+				<PortableText value={column.content} components={{ mark: emdashMarkComponents }} />
 			</div>
 		))
 	}

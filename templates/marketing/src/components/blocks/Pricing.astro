@@ -1,28 +1,13 @@
 ---
-interface RawPlan {
-	name: string;
-	price: string;
-	period?: string;
-	description?: string;
-	// Features are stored as a newline-separated string (Block Kit has no
-	// list-of-strings element, so a multiline text input is the closest fit).
-	features?: string;
-	// CTAs are flattened to sibling fields because Block Kit has no
-	// object-group element.
-	ctaLabel?: string;
-	ctaUrl?: string;
-	highlighted?: boolean;
-}
+import { sanitizeHref } from "emdash";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-interface Props {
-	node: {
-		headline?: string;
-		plans: RawPlan[];
-	};
-}
+type PricingBlock = Extract<PageContentBlock, { _type: "marketing_pricing" }>;
+type Props = BlockComponentProps<PricingBlock>;
 
-const { node } = Astro.props;
-const { headline, plans: rawPlans } = node;
+const { value } = Astro.props;
+const { anchor_id, headline, plans: rawPlans } = value;
 
 const plans = rawPlans.map((plan) => ({
 	...plan,
@@ -31,13 +16,13 @@ const plans = rawPlans.map((plan) => ({
 		.map((s) => s.trim())
 		.filter(Boolean),
 	cta: {
-		label: plan.ctaLabel ?? "",
-		url: plan.ctaUrl ?? "#",
+		label: plan.cta_label,
+		url: sanitizeHref(plan.cta_url),
 	},
 }));
 ---
 
-<section class="pricing section">
+<section class="pricing section" id={anchor_id || undefined}>
 	<div class="container">
 		{headline && (
 			<header class="section-header pricing-header">
@@ -61,7 +46,7 @@ const plans = rawPlans.map((plan) => ({
 					<ul class="pricing-features">
 						{plan.features.map((feature) => (
 							<li>
-								<svg class="check-icon" viewBox="0 0 20 20" fill="currentColor">
+								<svg class="check-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
 									<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
 								</svg>
 								{feature}

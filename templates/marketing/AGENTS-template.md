@@ -1,22 +1,22 @@
 ## This Template
 
-A SaaS-style landing page template with modular content blocks: hero, features, testimonials, pricing, FAQ, plus a real contact page. Designed for product marketing sites, app landing pages, and anything that needs a hero + features + pricing + CTA flow.
+A SaaS-style landing page template with modular content blocks: hero, features, testimonials, pricing, FAQ, plus a contact page with direct email calls to action. Designed for product marketing sites, app landing pages, and anything that needs a hero + features + pricing + CTA flow.
 
 Bolder than the blog and portfolio templates: vibrant gradient accents, isometric illustration in the hero, heavy headline weights. The voice is product-confident without tipping into stock SaaS cliche.
 
 ## Pages
 
-| Page    | Path       | What it shows                                                                                                                    |
-| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Home    | `/`        | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ) authored as a Portable Text document on the Home page |
-| Pricing | `/pricing` | Same block-driven editor -- "Simple, transparent pricing" page using the `pricing` block                                         |
-| Contact | `/contact` | Left column with contact methods (Email / Support / Sales, each with a gradient icon), right column with a form                  |
+| Page    | Path       | What it shows                                                                                                       |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| Home    | `/`        | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ) authored in the Home page's blocks field |
+| Pricing | `/pricing` | The same block editor, with a hero, pricing comparison, and FAQ                                                     |
+| Contact | `/contact` | CMS-authored hero followed by direct email contacts for general questions, support, and sales                       |
 
 There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
 
 ## Schema
 
-- `pages` collection: `title`, `content` (Portable Text containing marketing blocks).
+- `pages` collection: `title`, `content` (a first-class `blocks` field).
 - No taxonomies.
 - Four menus: `primary`, `footer_product`, `footer_company`, `footer_support`.
 
@@ -24,22 +24,24 @@ Site settings have `title` and `tagline`. Title renders in the header; tagline i
 
 ## Marketing blocks
 
-This template ships a local plugin at `src/plugins/marketing-blocks/` that registers five Portable Text block types. Editors insert them in the admin's Portable Text editor; they render via `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ}.astro` (dispatched from `MarketingBlocks.astro`).
+The seed declares five versioned block types. Editors add, reorder, duplicate, and edit them with the built-in blocks field editor. `MarketingBlocks.astro` maps the generated `PageContentBlock` union to `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ}.astro` with `defineBlockComponents()`.
 
-| Block                    | Fields                                                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `marketing.hero`         | `headline`, `subheadline`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`, `centered` (toggle)         |
-| `marketing.features`     | `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                              |
-| `marketing.testimonials` | `headline`, repeater of `{ quote, author, role, company, avatar (URL) }`                                                           |
-| `marketing.pricing`      | `headline`, repeater of `{ name, price, period, description, features (newline-separated string), ctaLabel, ctaUrl, highlighted }` |
-| `marketing.faq`          | `headline`, repeater of `{ question, answer }`                                                                                     |
+| Block                    | Fields                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `marketing_hero`         | `anchor_id`, `headline`, `subheadline`, flattened primary and secondary CTA label/URL pairs, `image`, `centered`       |
+| `marketing_features`     | `anchor_id`, `headline`, `subheadline`, repeater of `{ icon, title, description }`                                     |
+| `marketing_testimonials` | `anchor_id`, `headline`, repeater of `{ quote, author, role, company, avatar }` where `avatar` is an image field       |
+| `marketing_pricing`      | `anchor_id`, `headline`, repeater of `{ name, price, period, description, features, cta_label, cta_url, highlighted }` |
+| `marketing_faq`          | `anchor_id`, `headline`, repeater of `{ question, answer }`                                                            |
 
 Constraints worth remembering:
 
-- Block Kit has no nested object element, so a CTA's `{ label, url }` is flattened to sibling fields like `primaryCtaLabel` + `primaryCtaUrl`. The renderer reads the flat keys -- don't try to nest them.
-- Repeater sub-fields are scalar only. Lists-of-strings (e.g. pricing features) are a single multiline text field, split on newline at render time.
-- There is no media-picker element in the plugin block modal yet, so where image fields exist they are URL strings entered by hand (testimonial `avatar`). Use real URLs, not placeholders.
-- The `marketing.hero` block has no image field in the editor schema. The hero renderer falls back to the bundled `/hero-visual.svg` illustration when no image is set. To customise the hero artwork, swap `/hero-visual.svg` in `public/` or extend the plugin schema with an image field (and update `Hero.astro` accordingly).
+- Block fields cannot contain nested object groups, so CTA labels and URLs remain sibling fields.
+- Repeaters cannot contain nested repeaters. Pricing features therefore remain one multiline text value, split on newline by the renderer.
+- Hero and testimonial media are EmDash image fields. Render them with `<Image>` from `emdash/ui`, not a raw URL.
+- The Hero block falls back to `/hero-visual.svg` when its image field is empty.
+- Every stored block has immutable `_type`, `_version`, and `_key` values. Components receive the generated value as `value` plus `index` and `blockKey`; do not treat blocks as Portable Text nodes.
+- Render stored CTA URLs through `sanitizeHref()` even when their field validation rejects unsafe-looking values.
 - Icons in the Features block come from a fixed set: `zap, shield, users, chart, code, globe, heart, star, check, lock, clock, cloud`. Pick from that list.
 
 ## Visual character
@@ -50,7 +52,7 @@ Colour is the loudest of any template here. The default palette is:
 
 - `--color-brand: #6366f1` (indigo) -- main brand colour, used in buttons and links, with `--color-brand-strong` / `--color-brand-soft` shades
 - `--color-accent: #f472b6` (pink) -- the gradient partner to brand
-- `--color-success`, `--color-warning`, `--color-danger` -- semantic colours (pricing checkmarks, form errors)
+- `--color-success`, `--color-warning`, `--color-danger` -- semantic colours (pricing checkmarks and status accents)
 
 Gradients are part of the look and are tokens themselves: `--gradient-brand` (logo, icon tiles, pricing badge, CTA hover), `--gradient-brand-strong` (CTA resting state), `--gradient-brand-soft` (hero image glow), and `--gradient-headline` (hero headline text fill). They follow the brand/accent colours automatically, so a rebrand usually only needs new `--color-brand-*` / `--color-accent-*` values. Don't strip the gradients entirely -- the template will look generic without them -- but a flat brand can set the `--gradient-*` tokens to solid colours.
 
@@ -82,7 +84,7 @@ To re-brand, the highest-leverage moves are:
 
 1. Change `--color-brand` (and its `-strong` / `-soft` shades) and `--color-accent` to the brand pair -- the gradients follow.
 2. Update the site title (logo wordmark) and tagline.
-3. Replace the hero illustration URL.
+3. Choose a Hero image in the media library or replace the fallback illustration.
 4. Edit hero `headline` and `subheadline` blocks to specific, concrete copy.
 
 ## What not to do
@@ -92,4 +94,4 @@ To re-brand, the highest-leverage moves are:
 - Don't use icon and stock photo combos that fight each other. Pick illustration _or_ photography, not both.
 - Don't enable the gradient on every interactive element. The CTA gradient is the signal; if it's on every button, it stops signalling.
 - Don't add a hero block followed immediately by another hero block. One hero, then features / testimonials / pricing / FAQ in some order.
-- Don't replace the `marketing.pricing` block with a hand-coded table. The block is the data shape downstream renderers expect.
+- Don't replace the `marketing_pricing` block with a hand-coded table. The block is the data shape downstream renderers expect.

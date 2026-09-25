@@ -27,6 +27,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
@@ -44,6 +45,7 @@ import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
 import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
+import { MagicLinkConfirmPage } from "./components/MagicLinkConfirmPage";
 import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
@@ -52,6 +54,7 @@ import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
+import { RelationList } from "./components/RelationList";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -65,6 +68,7 @@ import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
+import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
@@ -85,7 +89,14 @@ import {
 	fetchMediaList,
 	updateMedia,
 	uploadMedia,
+	createRelation,
+	deleteRelation,
 	fetchCollections,
+	fetchRelations,
+	updateRelation,
+	type CreateRelationInput,
+	type UpdateRelationInput,
+	fetchBlockTypes,
 	fetchCollection,
 	createCollection,
 	updateCollection,
@@ -161,6 +172,7 @@ interface ContentUpdateChanges {
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	references?: Record<string, string[]>;
 	/** Optimistic-concurrency token from the latest response. */
 	_rev?: string;
 }
@@ -175,7 +187,7 @@ interface ContentUpdateMutationInput {
 interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "_rev">;
+	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "references" | "_rev">;
 }
 
 function isSaveConflict(error: unknown): boolean {
@@ -250,6 +262,22 @@ function LoginPageWrapper() {
 	const searchParams = new URLSearchParams(window.location.search);
 	const redirect = sanitizeRedirectUrl(searchParams.get("redirect") || "/_emdash/admin");
 	return <LoginPage redirectUrl={redirect} />;
+}
+
+const magicLinkConfirmRoute = createRoute({
+	getParentRoute: () => baseRootRoute,
+	path: "/login/magic-link",
+	component: MagicLinkConfirmPageWrapper,
+	validateSearch: (search: Record<string, unknown>) => ({
+		token: typeof search.token === "string" ? search.token : undefined,
+		redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+	}),
+});
+
+function MagicLinkConfirmPageWrapper() {
+	const { token, redirect } = useSearch({ from: "/login/magic-link" });
+	const safeRedirect = sanitizeRedirectUrl(redirect || "/_emdash/admin");
+	return <MagicLinkConfirmPage token={token ?? null} redirectUrl={safeRedirect} />;
 }
 
 // Signup route (standalone, no Shell)
@@ -677,6 +705,12 @@ function ContentListPage() {
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			bulkTagEnabled={
+				(currentUser?.role ?? 0) >= ROLE_EDITOR &&
+				manifest.taxonomies.some(
+					(taxonomy) => taxonomy.name === "tag" && taxonomy.collections.includes(collection),
+				)
+			}
 			pluginStates={manifest.plugins}
 			userRole={currentUser?.role ?? 0}
 		/>
@@ -721,6 +755,7 @@ function ContentNewPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -779,7 +814,12 @@ function ContentNewPage() {
 	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
 	// would defeat the memo. mutate/mutateAsync are referentially stable.
 	const handleSave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			createMutation.mutate(payload);
 		},
 		[createMutation.mutate],
@@ -1400,7 +1440,12 @@ function ContentEditPage() {
 	// (twice per autosave cycle) would defeat the memo. mutate/mutateAsync
 	// are referentially stable.
 	const handleSave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			void serializeEditorSave(
 				() =>
 					updateMutation.mutateAsync({
@@ -1416,7 +1461,12 @@ function ContentEditPage() {
 	);
 
 	const handleAutosave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			void serializeEditorSave(() =>
 				autosaveMutation.mutateAsync({
 					targetId: id,
@@ -2237,6 +2287,19 @@ const backupSettingsRoute = createRoute({
 	component: BackupSettings,
 });
 
+const transferSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/transfer",
+	component: TransferSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
+		search.start === "import" ? { start: "import" } : {},
+});
+
+function TransferSettingsPage() {
+	const { start } = transferSettingsRoute.useSearch();
+	return <TransferSettings focusImport={start === "import"} />;
+}
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2509,12 +2572,23 @@ function ContentTypesListPage() {
 		queryKey: ["schema", "orphans"],
 		queryFn: fetchOrphanedTables,
 	});
+	const {
+		data: blockTypes,
+		isLoading: blockTypesLoading,
+		error: blockTypesError,
+	} = useQuery({
+		queryKey: ["schema", "block-types"],
+		queryFn: fetchBlockTypes,
+	});
 
 	const deleteMutation = useMutation({
 		mutationFn: (slug: string) => deleteCollection(slug, true),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// Every relationship the collection was an end of went with it, along
+			// with the reference fields on the other collections.
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
 		},
 	});
 
@@ -2537,20 +2611,23 @@ function ContentTypesListPage() {
 		},
 	});
 
-	const error = collectionsError || orphansError;
+	const error = collectionsError || orphansError || blockTypesError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
 	}
 
 	return (
-		<ContentTypeList
-			collections={collections ?? []}
-			orphanedTables={orphanedTables}
-			isLoading={collectionsLoading || orphansLoading}
-			onDelete={(slug) => deleteMutation.mutate(slug)}
-			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
-			onReorder={(slugs) => reorderMutation.mutate(slugs)}
-		/>
+		<div className="space-y-6">
+			<ContentTypeList
+				collections={collections ?? []}
+				orphanedTables={orphanedTables}
+				isLoading={collectionsLoading || orphansLoading}
+				onDelete={(slug) => deleteMutation.mutate(slug)}
+				onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+				onReorder={(slugs) => reorderMutation.mutate(slugs)}
+			/>
+			<BlockTypeList blockTypes={blockTypes ?? []} isLoading={blockTypesLoading} />
+		</div>
 	);
 }
 
@@ -2585,6 +2662,68 @@ function ContentTypesNewPage() {
 			}}
 		/>
 	);
+}
+
+// Relations: link definitions between two content types. Under /content-types
+// because a relation is schema, like a collection.
+const relationsListRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/content-types/relations",
+	component: RelationsListPage,
+});
+
+function RelationsListPage() {
+	const { data: relations, isLoading, error } = useRelationsQuery();
+	const { data: collections = [] } = useQuery({
+		queryKey: ["schema", "collections"],
+		queryFn: fetchCollections,
+	});
+	const queryClient = useQueryClient();
+
+	// Deleting a relation takes the reference fields bound to it, on both of
+	// the content types it joins.
+	const invalidateRelations = () => {
+		void queryClient.invalidateQueries({ queryKey: ["relations"] });
+		void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+		void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+	};
+
+	const createMutation = useMutation({
+		mutationFn: (input: CreateRelationInput) => createRelation(input),
+		onSuccess: invalidateRelations,
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: ({ id, input }: { id: string; input: UpdateRelationInput }) =>
+			updateRelation(id, input),
+		onSuccess: invalidateRelations,
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (id: string) => deleteRelation(id),
+		onSuccess: invalidateRelations,
+	});
+
+	return (
+		<RelationList
+			relations={relations ?? []}
+			collections={collections}
+			isLoading={isLoading}
+			error={error ? error.message : undefined}
+			onCreateRelation={(input) => createMutation.mutateAsync(input)}
+			onUpdateRelation={(id, input) => updateMutation.mutateAsync({ id, input })}
+			onDeleteRelation={(id) => deleteMutation.mutateAsync(id)}
+			isDeleting={deleteMutation.isPending}
+			deleteError={deleteMutation.error}
+		/>
+	);
+}
+
+function useRelationsQuery() {
+	return useQuery({
+		queryKey: ["relations"],
+		queryFn: () => fetchRelations(),
+	});
 }
 
 const contentTypesEditRoute = createRoute({
@@ -2654,6 +2793,9 @@ function ContentTypesEditPage() {
 				queryKey: ["schema", "collections", slug],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// A reference field creates a relationship server-side, so the list the
+			// next dialog computes its free sides from is stale without this.
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
 		},
 	});
 
@@ -2665,15 +2807,59 @@ function ContentTypesEditPage() {
 				queryKey: ["schema", "collections", slug],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// Binding a field creates a relationship, and a relabel renames a role
+			// on one.
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
 		},
 	});
 
 	const deleteFieldMutation = useMutation({
-		mutationFn: (fieldSlug: string) => deleteField(slug, fieldSlug),
+		mutationFn: ({
+			fieldSlug,
+			alsoDeleteRelation,
+		}: {
+			fieldSlug: string;
+			alsoDeleteRelation?: boolean;
+		}) => deleteField(slug, fieldSlug, { deleteRelation: alsoDeleteRelation }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["schema", "collections", slug],
 			});
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// Deleting the relationship takes the field on its other end with it,
+			// so every collection's field list and the relations list can change.
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+		},
+	});
+
+	const createRelationMutation = useMutation({
+		mutationFn: (input: CreateRelationInput) => createRelation(input),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+		},
+	});
+
+	const updateRelationMutation = useMutation({
+		mutationFn: ({ id, input }: { id: string; input: UpdateRelationInput }) =>
+			updateRelation(id, input),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+			// The relation's limits are what the manifest reports as a bound
+			// field's `multiple`, so the entry editor's picker is stale without
+			// this.
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
+	const deleteRelationMutation = useMutation({
+		mutationFn: (id: string) => deleteRelation(id),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+			// The fields bound to the relation went with it, on both of the
+			// content types it joined.
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections", slug] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
 	});
@@ -2703,8 +2889,15 @@ function ContentTypesEditPage() {
 			onSave={(input) => updateMutation.mutate(input)}
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
-			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}
+			onDeleteField={(fieldSlug, options) =>
+				deleteFieldMutation.mutate({ fieldSlug, alsoDeleteRelation: options?.deleteRelation })
+			}
 			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
+			onCreateRelation={(input) => createRelationMutation.mutateAsync(input)}
+			onUpdateRelation={(id, input) => updateRelationMutation.mutateAsync({ id, input })}
+			onDeleteRelation={(id) => deleteRelationMutation.mutateAsync(id)}
+			isDeletingRelation={deleteRelationMutation.isPending}
+			deleteRelationError={deleteRelationMutation.error}
 		/>
 	);
 }
@@ -2761,6 +2954,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	contentEditRoute,
 	contentTypesListRoute,
 	contentTypesNewRoute,
+	relationsListRoute,
 	contentTypesEditRoute,
 	mediaRoute,
 	commentsRoute,
@@ -2793,6 +2987,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
 	backupSettingsRoute,
+	transferSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);
@@ -2800,6 +2995,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 const routeTree = baseRootRoute.addChildren([
 	setupRoute,
 	loginRoute,
+	magicLinkConfirmRoute,
 	signupRoute,
 	inviteAcceptRoute,
 	deviceRoute,

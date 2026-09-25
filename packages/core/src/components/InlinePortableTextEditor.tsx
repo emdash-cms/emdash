@@ -26,6 +26,7 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { resolveImageMedia } from "../content/converters/gallery.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -298,14 +299,15 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 		}
 		case "pluginBlock": {
 			// Spread the captured data back out so the block round-trips losslessly.
-			// `data` holds every field except _type / _key / id (which live on
-			// dedicated attrs).
-			const { blockType, id, data } = node.attrs ?? {};
+			// `data` holds every field except _type / _key and the identity field
+			// (`id` or `url`, named by `identityField`), which live on dedicated attrs.
+			const { blockType, id, identityField, data } = node.attrs ?? {};
+			const field = identityField === "url" || identityField === "" ? identityField : "id";
 			return {
 				...(data && typeof data === "object" ? data : {}),
 				_type: typeof blockType === "string" ? blockType : "embed",
 				_key: k(),
-				id: typeof id === "string" ? id : "",
+				...(field ? { [field]: typeof id === "string" ? id : "" } : {}),
 			};
 		}
 		default:
@@ -579,8 +581,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
-		const asset = ib.asset;
-		const meta = asset?.meta;
+		const meta = ib.asset?.meta;
+		const { asset, alt, width, height } = resolveImageMedia(ib);
 		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
 		const blurhash =
 			typeof ib.blurhash === "string"
@@ -597,14 +599,14 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return {
 			type: "image",
 			attrs: {
-				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
-				alt: ib.alt || "",
+				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
+				alt: alt || "",
 				title: ib.caption || "",
 				caption: ib.caption || "",
-				mediaId: asset?._ref,
-				provider: canonicalMediaProviderId(asset?.provider),
-				width: ib.width,
-				height: ib.height,
+				mediaId: asset._ref || undefined,
+				provider: canonicalMediaProviderId(asset.provider),
+				width,
+				height,
 				blurhash,
 				dominantColor,
 				displayWidth: ib.displayWidth,
@@ -621,15 +623,22 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 	// Unknown block types — treat as plugin blocks. Capture every field other
 	// than the well-known ones into `data` so the block round-trips losslessly,
 	// even if no plugin currently registers this type. Matches the admin
-	// editor's behaviour at PortableTextEditor.tsx:572-588.
-	const { _type, _key, id, url, ...rest } = block;
+	// editor's `convertCustomBlock`.
+	// The identity lives under whichever of `id` / `url` the block arrived with,
+	// so the PM → PT direction can write it back under the same key.
+	const identityField =
+		typeof block.id === "string" ? "id" : typeof block.url === "string" ? "url" : "";
+	const identity = identityField ? block[identityField] : undefined;
 	// Filter out _-prefixed keys to prevent accumulation across edit cycles.
-	const data = Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
+	const data = Object.fromEntries(
+		Object.entries(block).filter(([key]) => !key.startsWith("_") && key !== identityField),
+	);
 	return {
 		type: "pluginBlock",
 		attrs: {
-			blockType: typeof _type === "string" ? _type : "embed",
-			id: typeof id === "string" ? id : typeof url === "string" ? url : "",
+			blockType: typeof block._type === "string" ? block._type : "embed",
+			id: typeof identity === "string" ? identity : "",
+			identityField,
 			data,
 		},
 	};
@@ -1209,13 +1218,14 @@ const PluginBlockNode = Node.create({
 	draggable: true,
 
 	addAttributes() {
-		// All three attributes are stored on the ProseMirror node but not
+		// These attributes are stored on the ProseMirror node but not
 		// rendered as DOM attributes — they're metadata for the round-trip,
 		// not styling or behaviour the placeholder DOM needs to expose.
 		const noDom = { rendered: false, parseHTML: () => null };
 		return {
 			blockType: { default: "", ...noDom },
 			id: { default: "", ...noDom },
+			identityField: { default: "id", ...noDom },
 			data: { default: {}, ...noDom },
 		};
 	},

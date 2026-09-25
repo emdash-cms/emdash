@@ -7,6 +7,8 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 Use a JSON backup when you need an offline copy of selected content data. EmDash cannot import that file. A recovery plan needs a raw database backup or point-in-time recovery and a separate copy of media binaries.
 
+To copy a site's content, settings, and media into a new EmDash site, including one on a different database, use a [site package](/guides/site-transfer/) instead.
+
 If the site stores encrypted plugin settings, keep the complete `EMDASH_ENCRYPTION_KEY` rotation list in a separate secret-manager backup. The key is never stored in the database, D1 Time Travel, a SQL dump, or a JSON export.
 
 ## What's in a backup
@@ -43,8 +45,9 @@ Backups are JSON files in the same snapshot format used by EmDash's preview syst
 
 Under **Settings → Backups** in the admin, the **Download backup** button generates a fresh backup and downloads it as a JSON file. Requires the admin role.
 
-The download is for inspection or custom migration tooling. Before bulk imports, schema changes, or
-major upgrades, create a restorable database backup using one of the options below.
+The download is for inspection or custom tooling. Before bulk imports, schema changes, or
+major upgrades, create a restorable database backup using one of the options below. To move the
+site to another EmDash site, export a [site package](/guides/site-transfer/) under **Settings → Transfer**.
 
 ## Automatic backups to storage
 
@@ -136,7 +139,7 @@ npx wrangler d1 execute my-recovery-database --remote --file=backup.sql
 
 ## SQLite backup and recovery
 
-For an offline SQLite backup, stop every process that writes the database and copy the database file. For a consistent online backup, use SQLite's backup command:
+For an offline SQLite backup, stop every process that writes the database and copy the database file together with any `-wal` and `-shm` files next to it. The `-wal` file can hold committed changes that are not yet in the main file. For a consistent online backup, use SQLite's backup command:
 
 ```bash
 sqlite3 emdash.db ".backup backup.db"
@@ -145,5 +148,11 @@ sqlite3 emdash.db ".backup backup.db"
 Back up the local upload directory or S3-compatible bucket and the `EMDASH_ENCRYPTION_KEY` rotation list separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore the runtime keys and any required media objects, and start the matching application version. Verify sign-in, public content, an encrypted plugin setting, an edit, and a media read before reopening traffic.
 
 ## JSON exports cannot restore a site
+
 EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
 D1 SQL dump, or a copy of the SQLite database as described above.
+
+To rebuild a site's content in a new, empty EmDash site, export a [site package](/guides/site-transfer/)
+from the original site while it is still available and import it into the new site. A site package
+does not restore users, API tokens, plugin data, or secrets, so it does not replace a database
+backup for disaster recovery.

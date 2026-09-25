@@ -85,6 +85,11 @@ const ROUTES = [
 	// per-byline media lookup. The gap between them is the N+1 the join removes.
 	["GET", "/contributors", "text/html"],
 	["GET", "/contributors-naive", "text/html"],
+	// An entry read with and without a reference field. /related opts in;
+	// /related-baseline is the same page without the option. The gap between
+	// them is the whole cost of `getEmDashEntry(..., { references })`.
+	["GET", "/related", "text/html"],
+	["GET", "/related-baseline", "text/html"],
 ];
 
 const TRACKED_PHASES = new Set(["cold", "warm"]);

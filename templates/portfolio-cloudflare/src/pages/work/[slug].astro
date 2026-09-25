@@ -1,5 +1,10 @@
 ---
-import { getEmDashEntry, getEmDashCollection, decodeSlug } from "emdash";
+import {
+	decodeSlug,
+	getEmDashCollection,
+	getEmDashEntry,
+	getSeoMeta,
+} from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 import ProjectCard from "../../components/ProjectCard.astro";
@@ -10,40 +15,68 @@ if (!slug) {
 	return Astro.redirect("/404");
 }
 
-const { entry: project, cacheHint } = await getEmDashEntry("projects", slug);
+const {
+	entry: project,
+	error,
+	cacheHint: projectCacheHint,
+} = await getEmDashEntry("projects", slug);
 
+if (error) return new Response("Could not load the project", { status: 500 });
 if (!project) {
 	return Astro.redirect("/404");
 }
 
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
-
 // Related projects: order by date in the DB and request a small lookahead
 // so we can drop the current entry without re-querying. Avoids loading
 // every project just to slice off two.
-const { entries: relatedProjects } = await getEmDashCollection("projects", {
+const relatedResult = await getEmDashCollection("projects", {
 	orderBy: { published_at: "desc" },
 	limit: 3,
 });
-const otherProjects = relatedProjects.filter((p) => p.id !== project.id).slice(0, 2);
-
-// Parse gallery if present
-const gallery = project.data.gallery as
-	| Array<{ url: string; alt?: string }>
-	| undefined;
-
-// Get image src for OG image
-function getImageSrc(img: unknown): string | undefined {
-	if (!img || typeof img !== "object") return undefined;
-	const image = img as Record<string, unknown>;
-	return typeof image.src === "string" ? image.src : undefined;
+if (relatedResult.error) {
+	return new Response("Could not load related projects", { status: 500 });
 }
+const { entries: relatedProjects, cacheHint: relatedCacheHint } = relatedResult;
+const otherProjects = relatedProjects
+	.filter((p) => p.id !== project.id)
+	.slice(0, 2);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(projectCacheHint);
+	Astro.cache.set(relatedCacheHint);
+}
+
+const gallery = project.data.gallery;
+
+function safeExternalUrl(value: string | undefined): string | undefined {
+	if (!value) return undefined;
+	try {
+		const url = new URL(value);
+		return url.protocol === "https:" || url.protocol === "http:"
+			? url.href
+			: undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+const projectUrl = safeExternalUrl(project.data.url);
+const seo = getSeoMeta(project, {
+	siteUrl: Astro.url.origin,
+	path: `/work/${slug}`,
+	defaultDescription: project.data.summary,
+	defaultOgImage: project.data.featured_image?.src,
+});
 ---
 
 <Base
-	title={project.data.title}
-	description={project.data.summary}
-	image={getImageSrc(project.data.featured_image)}
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	content={{ collection: "projects", id: project.data.id, slug }}
 >
 	<article class="project">
 		<header class="project-header">
@@ -79,12 +112,13 @@ function getImageSrc(img: unknown): string | undefined {
 				)
 			}
 			{
-				project.data.url && (
+				projectUrl && (
 					<a
-						href={project.data.url ?? "#"}
+						href={projectUrl}
 						class="project-link"
 						target="_blank"
 						rel="noopener noreferrer"
+						{...project.edit.url}
 					>
 						View Live Project →
 					</a>
@@ -100,17 +134,18 @@ function getImageSrc(img: unknown): string | undefined {
 			)
 		}
 
-		<div class="project-content">
+		<div class="project-content" {...project.edit.content}>
 			<PortableText value={project.data.content} />
 		</div>
 
 		{
 			gallery && gallery.length > 0 && (
-				<div class="project-gallery">
-					{gallery.map((img) => (
-						<div class="gallery-item">
-							<img src={img.url} alt={img.alt || ""} loading="lazy" />
-						</div>
+				<div class="project-gallery" {...project.edit.gallery}>
+					{gallery.map((item) => (
+						<figure class="gallery-item">
+							<Image image={item.image} />
+							{item.caption && <figcaption>{item.caption}</figcaption>}
+						</figure>
 					))}
 				</div>
 			)
@@ -125,12 +160,13 @@ function getImageSrc(img: unknown): string | undefined {
 					<div class="more-grid">
 						{otherProjects.map((p) => (
 							<ProjectCard
-								title={p.data.title ?? "Untitled"}
+								title={p.data.title}
 								summary={p.data.summary}
-								featuredImage={p.data.featured_image ?? ""}
+								featuredImage={p.data.featured_image}
 								href={`/work/${p.id}`}
 								client={p.data.client}
 								year={p.data.year}
+								edit={p.edit}
 							/>
 						))}
 					</div>
@@ -227,8 +263,8 @@ function getImageSrc(img: unknown): string | undefined {
 
 	.project-content :global(blockquote) {
 		margin: 2em 0;
-		padding-left: var(--spacing-xl);
-		border-left: 2px solid var(--color-brand);
+		padding-inline-start: var(--spacing-xl);
+		border-inline-start: 2px solid var(--color-brand);
 		color: var(--color-muted);
 		font-family: var(--font-heading);
 		font-style: italic;
@@ -238,7 +274,7 @@ function getImageSrc(img: unknown): string | undefined {
 	.project-content :global(ul),
 	.project-content :global(ol) {
 		margin-bottom: 1.5em;
-		padding-left: 1.25em;
+		padding-inline-start: 1.25em;
 	}
 
 	.project-content :global(li) {
@@ -261,6 +297,12 @@ function getImageSrc(img: unknown): string | undefined {
 		width: 100%;
 		height: auto;
 		border-radius: var(--radius);
+	}
+
+	.gallery-item figcaption {
+		margin-top: var(--spacing-sm);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
 	}
 
 	.more-projects {
