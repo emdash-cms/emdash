@@ -26,6 +26,7 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { resolveImageMedia } from "../content/converters/gallery.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -580,8 +581,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
-		const asset = ib.asset;
-		const meta = asset?.meta;
+		const meta = ib.asset?.meta;
+		const { asset, alt, width, height } = resolveImageMedia(ib);
 		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
 		const blurhash =
 			typeof ib.blurhash === "string"
@@ -598,14 +599,14 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return {
 			type: "image",
 			attrs: {
-				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
-				alt: ib.alt || "",
+				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
+				alt: alt || "",
 				title: ib.caption || "",
 				caption: ib.caption || "",
-				mediaId: asset?._ref,
-				provider: canonicalMediaProviderId(asset?.provider),
-				width: ib.width,
-				height: ib.height,
+				mediaId: asset._ref || undefined,
+				provider: canonicalMediaProviderId(asset.provider),
+				width,
+				height,
 				blurhash,
 				dominantColor,
 				displayWidth: ib.displayWidth,

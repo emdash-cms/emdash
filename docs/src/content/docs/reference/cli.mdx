@@ -5,7 +5,7 @@ description: Command-line interface for EmDash CMS.
 
 import { Aside } from "@astrojs/starlight/components";
 
-The EmDash CLI provides commands for database setup, type generation, creating and editing content, schema management, media, and plugin development.
+The EmDash CLI provides commands for database setup, type generation, creating and editing content, schema management, media, site export and import, and plugin development.
 
 ## Installation
 
@@ -28,7 +28,7 @@ Commands that connect to a running EmDash instance resolve authentication in thi
 3. **Stored credentials** from `~/.config/emdash/auth.json` (saved by `emdash login`)
 4. **Dev bypass** — if the URL is localhost and no token is available, automatically authenticates via the dev bypass endpoint
 
-The `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, and `menu` commands connect to a running instance. Authentication commands have their own connection options. When targeting a local development server, no token is needed.
+The `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, and `site` commands connect to a running instance. Authentication commands have their own connection options. When targeting a local development server, no token is needed.
 
 ## Common flags
 
@@ -36,10 +36,10 @@ Connection flags vary by command. The grouped commands below mean every subcomma
 
 | Flag                      | Alias | Available on | Description and default |
 | ------------------------- | ----- | ------------ | ----------------------- |
-| `--url`                   | `-u`  | `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Instance URL; defaults to `EMDASH_URL` or `http://localhost:4321` |
-| `--token`                 | `-t`  | `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Token from the flag, `EMDASH_TOKEN`, or stored credentials |
-| `--header "Name: Value"` | `-H`  | `types`, `login`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
-| `--json`                  |       | `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Write raw JSON instead of terminal-formatted output |
+| `--url`                   | `-u`  | `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Instance URL; defaults to `EMDASH_URL` or `http://localhost:4321` |
+| `--token`                 | `-t`  | `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Token from the flag, `EMDASH_TOKEN`, or stored credentials |
+| `--header "Name: Value"` | `-H`  | `types`, `login`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
+| `--json`                  |       | `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site` | Write raw JSON instead of terminal-formatted output |
 
 ## Output
 
@@ -590,6 +590,82 @@ npx emdash menu get primary
 
 Returns the menu with all its items.
 
+### `emdash site`
+
+Export a whole site to a `.emdash` site package, and import a package into an empty site. The [site transfer guide](/guides/site-transfer/) explains what a package contains, what the target site needs, and how to read an import plan.
+
+The token needs the `admin` scope, which the `emdash login` token has, or the matching transfer scopes: `transfer:export` to export, and `transfer:analyze` and `transfer:execute` to import. A token without them fails with `INSUFFICIENT_SCOPE`.
+
+Progress messages always go to stderr, and the result goes to stdout. With `--json`, or when stdout is not a terminal, stdout contains only the JSON result. An error is written as `{ "error": { "code": "…", "message": "…" } }`. The codes are the server's error codes, plus `INVALID_ARGUMENT` for bad flags, `PACKAGE_FILE_REQUIRED` when a resumed import still needs the package file, and `UNKNOWN_ERROR`.
+
+The commands retry network failures and `408`, `429`, and `5xx` responses with backoff.
+
+#### `site export`
+
+Export the site and write it to a package file:
+
+```bash
+npx emdash site export --output site.emdash
+```
+
+| Option          | Alias | Description                                        | Default           |
+| --------------- | ----- | -------------------------------------------------- | ----------------- |
+| `--output`      | `-o`  | Package file to write (required)                   |                   |
+| `--no-comments` |       | Leave comments and comment reactions out           | Comments included |
+
+The command starts an export, advances it until it completes, and downloads the package file by file. It checks that the downloaded manifest matches the export's package digest, and fails with `TRANSFER_PACKAGE_DIGEST_MISMATCH` before writing anything if it does not. It checks each file's size and SHA-256 digest before writing it. The package is written to `<output>.partial` and renamed to the output path when it is complete.
+
+The command keeps its progress in `<output>.partial.json` and the downloaded files in the `<output>.parts/` directory. Run the same command again after an interruption to resume the same export; files already downloaded are checked and reused, and the command reports how many it reused. Both are deleted when the package is written. The progress file is ignored when it was written for another URL or another comments setting, or when its export failed or expired; the command then starts a new export.
+
+The JSON result contains `operationId`, `output`, `packageDigest`, `files`, `bytes`, and `resumed`.
+
+#### `site import <file>`
+
+Import a package in two steps. Analyze it first, then confirm the plan digest that analysis printed:
+
+```bash
+npx emdash site import site.emdash --analyze
+npx emdash site import site.emdash --plan sha256:3f1c… --confirm
+```
+
+| Option                   | Description                                                                                          |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `--analyze`              | Upload the package, analyze it, and print the import plan                                            |
+| `--map-principal <from>=<to>` | With `--analyze`: map a package principal, by ID or email address, to a site user by ID or email address, or to `none`. Repeatable |
+| `--use-target-title`     | With `--analyze`: keep this site's title instead of the package's                                     |
+| `--use-target-tagline`   | With `--analyze`: keep this site's tagline instead of the package's                                   |
+| `--plan <digest>`        | The plan digest to execute, as `sha256:<hex>` or bare hex. Requires `--confirm`                      |
+| `--confirm`              | Execute the plan given by `--plan`. Requires `--plan`                                                |
+| `--yes`                  | Alias `-y`. With `cancel` or `abandon`: skip the confirmation prompt                                 |
+
+`--analyze` verifies the whole package file locally, then finds the site's existing import of the same package or creates one. It uploads the files the site does not have yet, runs analysis, and prints the plan: the package and plan digests, record counts, sizes, the title and tagline choice, each principal and its mapping, the transformations under "Differences from the source site", the warnings, and the blockers. If an earlier import of the same package failed, was cancelled or abandoned, or expired, the command warns and starts a new import.
+
+Decisions are stored with the import, so a later `--analyze` run without decision flags keeps them. Each change of decisions produces a new plan digest. Decisions cannot be combined with `--plan`, and `--plan` cannot be combined with `--analyze`.
+
+`--plan <digest> --confirm` executes the import only when the digest matches the current plan, then advances it until it completes and prints the receipt. If the plan changed since you reviewed it, the command fails with `TRANSFER_PLAN_DIGEST_MISMATCH`; analyze again and confirm the new digest.
+
+The JSON result of `--analyze` contains `operationId`, `state`, `packageDigest`, `planDigest`, `executable`, and the full `plan`. The JSON result of `--confirm` contains `operationId`, `state` (`complete`), `receipt`, and `receiptDigestValid`, which reports whether the receipt's `receiptDigest` matches its contents.
+
+These forms operate on an import by its operation ID:
+
+| Command | Description |
+| --- | --- |
+| `emdash site import status <operation-id>` | Print the import's state, stage, progress, digests, and error, and how many files are uploaded. The JSON result is `{ operation, files: { declared, verified } }`. |
+| `emdash site import resume <operation-id> [file]` | Continue the import from its current state: finish uploading, finish analysis and print the plan, or finish execution and print the receipt. Pass the package file only while the import is still uploading. |
+| `emdash site import receipt <operation-id>` | Print the receipt of a complete import, in the same shape as `--confirm`. |
+| `emdash site import cancel <operation-id>` | Cancel the import. A running import stops after its current batch; what it already wrote stays on the site. |
+| `emdash site import abandon <operation-id>` | Lift the write block that a failed or cancelled import leaves on the site. What the import wrote is not deleted, so reset the site or set up a new one before importing again. |
+
+`cancel` and `abandon` ask for confirmation. Pass `--yes` to skip the prompt; the prompt is also skipped with `--json` or when stdout is not a terminal. When stdin is not a terminal and neither applies, the command fails with `INVALID_ARGUMENT`. Declining the prompt changes nothing and exits with code `1`. The JSON result of both is `{ operationId, state, operation }`.
+
+The import commands exit with these codes:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. For `status`, an import that is in progress or complete |
+| `1` | An error, a declined prompt, an import that ended without a receipt, or a receipt whose digest does not match. For `status`, an import that failed, was cancelled or abandoned, or expired |
+| `2` | Analysis finished, but the plan has blockers |
+
 ### `emdash plugin`
 
 Create, validate, bundle, and publish EmDash plugins. Marketplace login is separate from login to a CMS instance.
@@ -841,7 +917,7 @@ Add common commands as `package.json` scripts for convenience:
 
 ## General exit codes
 
-Most commands use `0` for success and `1` for an error. `emdash migrate` also uses codes `2`, `3`, `4`, and `130` for the specific outcomes listed in its [exit-code table](#exit-codes).
+Most commands use `0` for success and `1` for an error. `emdash migrate` also uses codes `2`, `3`, `4`, and `130` for the specific outcomes listed in its [exit-code table](#exit-codes). `emdash site import` uses `2` when the import plan has blockers.
 
 | Code | Description                              |
 | ---- | ---------------------------------------- |

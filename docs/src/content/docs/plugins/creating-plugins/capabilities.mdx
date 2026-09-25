@@ -169,6 +169,10 @@ const updated = await ctx.media!.updateMetadata!(mediaId, {
 
 Provide both focal coordinates as numbers from `0` to `1`, or set both to `null`. Concurrent patches to different metadata fields do not replace one another.
 
+### Uploading media
+
+`ctx.media.upload()` accepts image, video, audio, and PDF content and throws for any other content type. In a trusted plugin, `upload()` and `getUploadUrl()` enforce the default media upload allowlist: PNG, JPEG, GIF, WebP, and AVIF images, any `video/*` or `audio/*` type, and `application/pdf`. Other types throw a `PluginRouteError` with status `415`, and a malformed content type throws one with status `400`; a route handler can let either propagate as the response. In a trusted plugin, a file stored by `upload()` or reserved by `getUploadUrl()` also takes an extension that matches the content type, whatever extension the filename has; when the content type has no known extension, the filename's extension is kept only if it belongs to an allowed media type. A sandboxed plugin keeps the filename's extension when it is 1 to 10 letters or digits.
+
 ### Managing redirects safely
 
 `redirects:read` provides cursor-paginated rule listing and versioned single-rule reads. Add `redirects:write` when the plugin creates, updates, or deletes rules. Write access can change where visitors are sent.

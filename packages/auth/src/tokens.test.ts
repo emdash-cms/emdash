@@ -97,6 +97,19 @@ describe("tokens", () => {
 			const token2 = generateToken();
 			expect(hashToken(token1)).not.toBe(hashToken(token2));
 		});
+
+		it("hashes malformed (non-base64url) tokens without throwing", () => {
+			for (const malformed of ["!!!", "not a token", "\0", "日本語"]) {
+				expect(() => hashToken(malformed)).not.toThrow();
+				expect(hashToken(malformed)).toMatch(NO_PADDING_REGEX);
+			}
+		});
+
+		it("hashes malformed tokens deterministically to a non-matching value", () => {
+			const token = generateToken();
+			expect(hashToken("!!!")).toBe(hashToken("!!!"));
+			expect(hashToken("!!!")).not.toBe(hashToken(token));
+		});
 	});
 
 	describe("generateTokenWithHash", () => {

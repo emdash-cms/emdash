@@ -5,13 +5,13 @@
  * It's a standalone page for initial site configuration.
  *
  * Steps:
- * 1. Site Configuration (title, tagline, sample content)
+ * 1. Site Configuration (title, tagline, how to start: sample content, empty, or import)
  * 2. Create admin account — user picks any available auth method:
  *    - Passkey (always available)
  *    - Any configured auth provider (AT Protocol, GitHub, Google, etc.)
  */
 
-import { Button, Checkbox, Input, Loader } from "@cloudflare/kumo";
+import { Button, Input, Loader, Radio } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -19,6 +19,7 @@ import * as React from "react";
 
 import { apiFetch, fetchManifest, parseApiResponse } from "../lib/api/client";
 import { useAuthProviderList, type AuthProviderModule } from "../lib/auth-provider-context";
+import { navigateTo } from "../lib/navigation.js";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { BrandLogo } from "./Logo.js";
 
@@ -76,13 +77,22 @@ interface SetupAdminResponse {
 
 type WizardStep = "site" | "admin" | "passkey";
 
+type StartWith = "sample" | "empty" | "import";
+
+const ADMIN_HOME_URL = "/_emdash/admin";
+const START_IMPORT_URL = "/_emdash/admin/settings/transfer?start=import";
+
+function completionUrl(startWith: StartWith): string {
+	return startWith === "import" ? START_IMPORT_URL : ADMIN_HOME_URL;
+}
+
 // ============================================================================
 // Step Components
 // ============================================================================
 
 interface SiteStepProps {
 	seedInfo?: SetupStatusResponse["seedInfo"];
-	onNext: (data: SetupSiteRequest) => void;
+	onNext: (data: SetupSiteRequest, startWith: StartWith) => void;
 	isLoading: boolean;
 	error?: string;
 }
@@ -91,7 +101,9 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const { t } = useLingui();
 	const [title, setTitle] = React.useState(seedInfo?.title ?? "");
 	const [tagline, setTagline] = React.useState(seedInfo?.tagline ?? "");
-	const [includeContent, setIncludeContent] = React.useState(true);
+	const [startWith, setStartWith] = React.useState<StartWith>(
+		seedInfo?.hasContent ? "sample" : "empty",
+	);
 	const [errors, setErrors] = React.useState<Record<string, string>>({});
 
 	const validate = (): boolean => {
@@ -106,7 +118,7 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!validate()) return;
-		onNext({ title, tagline, includeContent });
+		onNext({ title, tagline, includeContent: startWith === "sample" }, startWith);
 	};
 
 	return (
@@ -133,14 +145,31 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 				/>
 			</div>
 
-			{seedInfo?.hasContent && (
-				<Checkbox
-					label={t`Include sample content (recommended for new sites)`}
-					checked={includeContent}
-					onCheckedChange={(checked) => setIncludeContent(checked)}
-					disabled={isLoading}
+			<Radio.Group
+				legend={t`How do you want to start?`}
+				appearance="card"
+				value={startWith}
+				onValueChange={(value: StartWith) => setStartWith(value)}
+				disabled={isLoading}
+			>
+				{seedInfo?.hasContent && (
+					<Radio.Item
+						value="sample"
+						label={t`Sample content`}
+						description={t`Start with the template’s example posts and pages. Recommended for new sites.`}
+					/>
+				)}
+				<Radio.Item
+					value="empty"
+					label={t`Empty site`}
+					description={t`Start with the template’s content types and no content.`}
 				/>
-			)}
+				<Radio.Item
+					value="import"
+					label={t`Import an existing EmDash site`}
+					description={t`Once setup is done, upload a .emdash package exported from another EmDash site.`}
+				/>
+			</Radio.Group>
 
 			{error && (
 				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div>
@@ -237,18 +266,16 @@ function AdminStep({ onNext, onBack, isLoading, error }: AdminStepProps) {
 	);
 }
 
-function handleSetupSuccess() {
-	window.location.href = "/_emdash/admin";
-}
-
 interface AuthMethodStepProps {
 	adminData: SetupAdminRequest;
 	providers: AuthProviderModule[];
+	startWith: StartWith;
 	onBack: () => void;
 }
 
-function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
+function AuthMethodStep({ adminData, providers, startWith, onBack }: AuthMethodStepProps) {
 	const { t } = useLingui();
+	const handleSetupSuccess = () => navigateTo(completionUrl(startWith));
 	const [activeProvider, setActiveProvider] = React.useState<string | null>(null);
 	const [passkeyComplete, setPasskeyComplete] = React.useState(false);
 
@@ -291,7 +318,7 @@ function AuthMethodStep({ adminData, providers, onBack }: AuthMethodStepProps) {
 				additionalData={{ ...adminData }}
 				showEducation
 				showSuccessStep
-				successButtonText={t`Open the dashboard`}
+				successButtonText={startWith === "import" ? t`Continue to import` : t`Open the dashboard`}
 				onSuccessReady={() => setPasskeyComplete(true)}
 				onBack={onBack}
 			/>
@@ -406,7 +433,7 @@ function StepIndicator({ currentStep, useAccessAuth }: StepIndicatorProps) {
 export function SetupWizard() {
 	const { t } = useLingui();
 	const [currentStep, setCurrentStep] = React.useState<WizardStep>("site");
-	const [_siteData, setSiteData] = React.useState<SetupSiteRequest | null>(null);
+	const [startWith, setStartWith] = React.useState<StartWith>("sample");
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
 	const [error, setError] = React.useState<string | undefined>();
 	const [urlError, setUrlError] = React.useState<string | null>(null);
@@ -452,7 +479,7 @@ export function SetupWizard() {
 
 	// Site setup mutation
 	const siteMutation = useMutation({
-		mutationFn: async (data: SetupSiteRequest) => {
+		mutationFn: async ({ data }: { data: SetupSiteRequest; startWith: StartWith }) => {
 			const response = await apiFetch("/_emdash/api/setup", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -460,11 +487,11 @@ export function SetupWizard() {
 			});
 			return parseApiResponse<SetupSiteResponse>(response, t`Setup failed`);
 		},
-		onSuccess: (data) => {
+		onSuccess: (data, variables) => {
 			setError(undefined);
-			// In Access mode, setup is complete - redirect to admin
+			// In Access mode, setup is complete after the site step
 			if (data.setupComplete) {
-				window.location.href = "/_emdash/admin";
+				navigateTo(completionUrl(variables.startWith));
 				return;
 			}
 			// Continue to admin account creation
@@ -495,9 +522,9 @@ export function SetupWizard() {
 	});
 
 	// Handle site step completion
-	const handleSiteNext = (data: SetupSiteRequest) => {
-		setSiteData(data);
-		siteMutation.mutate(data);
+	const handleSiteNext = (data: SetupSiteRequest, choice: StartWith) => {
+		setStartWith(choice);
+		siteMutation.mutate({ data, startWith: choice });
 	};
 
 	// Handle admin step completion
@@ -595,6 +622,7 @@ export function SetupWizard() {
 						<AuthMethodStep
 							adminData={adminData}
 							providers={authProviderList}
+							startWith={startWith}
 							onBack={() => {
 								setError(undefined);
 								setCurrentStep("admin");

@@ -261,13 +261,12 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		const source = await handleTaxonomyCreate(ctx.db, {
 			name: "tags",
 			label: "Tags",
-			hierarchical: true,
+			hierarchical: false,
 		});
 		if (!source.success) throw new Error(source.error.message);
 		const translated = await handleTaxonomyCreate(ctx.db, {
 			name: "tags",
 			label: "Étiquettes",
-			hierarchical: false,
 			locale: "fr",
 			translationOf: source.data.taxonomy.id,
 		});
@@ -297,13 +296,12 @@ describeEachDialect("content terms route locale-awareness (#1218)", (dialect) =>
 		const source = await handleTaxonomyCreate(ctx.db, {
 			name: "tags",
 			label: "Tags",
-			hierarchical: true,
+			hierarchical: false,
 		});
 		if (!source.success) throw new Error(source.error.message);
 		const translated = await handleTaxonomyCreate(ctx.db, {
 			name: "tags",
 			label: "Étiquettes",
-			hierarchical: false,
 			locale: "fr",
 			translationOf: source.data.taxonomy.id,
 		});

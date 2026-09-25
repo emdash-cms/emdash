@@ -15,3 +15,4 @@ export { getI18nConfig, setI18nConfig } from "./i18n/config.js";
 export { RedirectRepository } from "./database/repositories/redirect.js";
 export { BylineRepository } from "./database/repositories/byline.js";
 export { TaxonomyRepository } from "./database/repositories/taxonomy.js";
+export { saveTaxonomyStructure } from "./database/repositories/taxonomy-def.js";

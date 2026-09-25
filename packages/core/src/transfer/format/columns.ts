@@ -554,6 +554,7 @@ export const NON_PORTABLE_TABLES: Readonly<Record<string, string>> = Object.free
 	_emdash_media_usage_work: "runtime",
 	_emdash_media_usage_collection_deletions: "runtime",
 	_emdash_media_usage_reconciliations: "runtime",
+	_emdash_taxonomy_def_groups: "derived",
 	audit_logs: "audit",
 	_emdash_migrations: "migrations",
 	_emdash_migrations_lock: "migrations",

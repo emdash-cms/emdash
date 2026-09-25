@@ -131,12 +131,14 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 				contentType: string,
 				bytes: ArrayBuffer,
 			): Promise<{ mediaId: string; storageKey: string; url: string }>;
+			delete(id: string): Promise<boolean>;
 		};
 
-		for (const field of allFields.filter((f) => f.type === "file")) {
-			const fileData = input.files[field.name];
-			if (!fileData) continue;
-
+		const pending = allFields.flatMap((field) => {
+			const fileData = field.type === "file" ? input.files?.[field.name] : undefined;
+			return fileData ? [{ field, fileData }] : [];
+		});
+		for (const { field, fileData } of pending) {
 			// Validate file type
 			if (field.validation?.accept) {
 				const allowed = field.validation.accept.split(",").map((s) => s.trim().toLowerCase());
@@ -161,20 +163,27 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
 				);
 			}
+		}
 
-			const uploaded = await mediaWithWrite.upload(
-				fileData.filename,
-				fileData.contentType,
-				fileData.bytes,
-			);
+		try {
+			for (const { field, fileData } of pending) {
+				const uploaded = await mediaWithWrite.upload(
+					fileData.filename,
+					fileData.contentType,
+					fileData.bytes.buffer,
+				);
 
-			files.push({
-				fieldName: field.name,
-				filename: fileData.filename,
-				contentType: fileData.contentType,
-				size: fileData.bytes.byteLength,
-				mediaId: uploaded.mediaId,
-			});
+				files.push({
+					fieldName: field.name,
+					filename: fileData.filename,
+					contentType: fileData.contentType,
+					size: fileData.bytes.byteLength,
+					mediaId: uploaded.mediaId,
+				});
+			}
+		} catch (error) {
+			await Promise.allSettled(files.map((file) => mediaWithWrite.delete(file.mediaId)));
+			throw error;
 		}
 	}
 

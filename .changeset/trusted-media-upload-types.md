@@ -1,0 +1,5 @@
+---
+"emdash": patch
+---
+
+Fixes `ctx.media.upload()` in trusted (in-process) plugins accepting any content type and keeping the filename's extension, which let a public plugin route, such as the forms plugin's submit endpoint, store files like HTML pages that the site then served under their own type. Trusted plugins can now upload through `ctx.media.upload()` or request an upload URL through `ctx.media.getUploadUrl()` only for the types in the default media upload allowlist: PNG, JPEG, GIF, WebP, and AVIF images, video, audio, and PDF. Any other type, including SVG and `application/octet-stream`, throws a `PluginRouteError` with status `415 UNSUPPORTED_MEDIA_TYPE`, and a malformed content type throws one with status `400`. A file stored by `upload()` or reserved by `getUploadUrl()` gets an extension that matches its content type, so an upload named `page.html` with type `image/png` is stored and served as a PNG; when the type has no known extension, the filename's extension is kept only if it belongs to an allowed media type. Trusted plugins that uploaded other types must switch to one of the accepted types.

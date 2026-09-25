@@ -11,6 +11,7 @@ import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
+import { resolveImageMedia } from "../content/converters/gallery.js";
 
 export interface Props {
 	node: {
@@ -68,7 +69,8 @@ if (!node?.asset) {
 	return null;
 }
 
-const { asset, alt = "", caption, width, height, displayWidth, displayHeight, alignment } = node;
+const { caption, displayWidth, displayHeight, alignment } = node;
+const { asset, alt = "", width, height } = resolveImageMedia(node);
 
 // Calculate aspect ratio from original dimensions
 const aspectRatio = width && height ? width / height : undefined;
@@ -149,12 +151,11 @@ if (!src) {
 
 // Build placeholder background style. Prefer first-class LQIP fields; fall
 // back to `asset.meta` for legacy snapshots persisted before LQIP was promoted.
-const blurhash = (node.blurhash ?? (asset.meta?.blurhash as string | undefined)) as
+const blurhash = (node.blurhash ?? (node.asset.meta?.blurhash as string | undefined)) as
 	| string
 	| undefined;
-const dominantColor = (node.dominantColor ?? (asset.meta?.dominantColor as string | undefined)) as
-	| string
-	| undefined;
+const dominantColor = (node.dominantColor ??
+	(node.asset.meta?.dominantColor as string | undefined)) as string | undefined;
 
 let placeholderStyle = "";
 if (placeholder && blurhash) {

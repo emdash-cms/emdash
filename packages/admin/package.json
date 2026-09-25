@@ -99,6 +99,7 @@
     "highlight.js": "catalog:",
     "lowlight": "catalog:",
     "marked": "^17.0.3",
+    "modern-tar": "^0.7.5",
     "react-day-picker": "catalog:",
     "react-hotkeys-hook": "^5.2.4",
     "react-image-crop": "^11.1.2",
