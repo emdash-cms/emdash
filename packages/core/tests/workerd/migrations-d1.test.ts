@@ -219,6 +219,26 @@ describe("036 taxonomy rebuild on D1", () => {
 
 		expect(await listIndexes(db, "content_taxonomies")).toContain("idx_content_taxonomies_term");
 	});
+
+	it("renames the staged taxonomy definitions back when a run stopped between drop and rename", async () => {
+		await seedPreI18nSchema(db);
+		await sql`INSERT INTO _emdash_taxonomy_defs (id, name, label) VALUES ('d1', 'topic', 'Topics')`.execute(
+			db,
+		);
+		await up036(db);
+		const indexes = await listIndexes(db, "_emdash_taxonomy_defs");
+		await sql`ALTER TABLE _emdash_taxonomy_defs RENAME TO _emdash_taxonomy_defs_new`.execute(db);
+		for (const name of indexes) await sql`DROP INDEX ${sql.ref(name)}`.execute(db);
+
+		await up036(db);
+
+		expect(await listTables(db)).not.toContain("_emdash_taxonomy_defs_new");
+		expect(await listIndexes(db, "_emdash_taxonomy_defs")).toEqual(indexes);
+		const defs = await sql<{ id: string }>`
+			SELECT id FROM _emdash_taxonomy_defs WHERE id = 'd1'
+		`.execute(db);
+		expect(defs.rows).toEqual([{ id: "d1" }]);
+	});
 });
 
 describe("040 byline rebuild on D1", () => {
