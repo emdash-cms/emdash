@@ -11,6 +11,8 @@ import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
+import { sanitizeHref } from "../utils/url.js";
+import { normalizeImageLink } from "../content/converters/image-link.js";
 import { resolveImageMedia } from "../content/converters/gallery.js";
 
 export interface Props {
@@ -42,6 +44,12 @@ export interface Props {
 		displayHeight?: number;
 		/** Alignment for this image instance (e.g. from a WordPress import) */
 		alignment?: "left" | "center" | "right" | "wide" | "full";
+		/**
+		 * Optional link. When set, the image is rendered inside an `<a>` using
+		 * `sanitizeHref`-validated `href`. A bare string is the legacy shape
+		 * written by WordPress/Gutenberg imports.
+		 */
+		link?: string | { href: string; blank?: boolean };
 	};
 	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
 	placeholder?: boolean;
@@ -69,8 +77,17 @@ if (!node?.asset) {
 	return null;
 }
 
-const { caption, displayWidth, displayHeight, alignment } = node;
+const { caption, displayWidth, displayHeight, alignment, link } = node;
 const { asset, alt = "", width, height } = resolveImageMedia(node);
+
+const imageLink = normalizeImageLink(link);
+const linkHref = imageLink ? sanitizeHref(imageLink.href) : null;
+// Same-page anchor links (`#section`) are on-page jumps — never open them in
+// a new tab, regardless of `blank`. Mirrors marks/Link.astro.
+const isSamePageAnchor = linkHref?.startsWith("#") ?? false;
+const linkBlank = !isSamePageAnchor && imageLink?.blank === true;
+const linkTarget = linkBlank ? "_blank" : undefined;
+const linkRel = linkBlank ? "noopener noreferrer" : undefined;
 
 // Calculate aspect ratio from original dimensions
 const aspectRatio = width && height ? width / height : undefined;
@@ -169,7 +186,34 @@ if (placeholder && blurhash) {
 
 <figure class:list={["emdash-image", alignment && `emdash-image--align-${alignment}`]}>
 	{
-		astroImageSrc ? (
+		linkHref ? (
+			<a href={linkHref} target={linkTarget} rel={linkRel}>
+				{astroImageSrc ? (
+					<AstroImage
+						src={astroImageSrc}
+						alt={alt}
+						width={renderWidth}
+						height={renderHeight}
+						layout="constrained"
+						loading="lazy"
+						decoding="async"
+						style={placeholderStyle || undefined}
+					/>
+				) : (
+					<img
+						src={src}
+						srcset={srcset}
+						sizes={sizes}
+						alt={alt}
+						width={renderWidth}
+						height={renderHeight}
+						loading="lazy"
+						decoding="async"
+						style={placeholderStyle || undefined}
+					/>
+				)}
+			</a>
+		) : astroImageSrc ? (
 			<AstroImage
 				src={astroImageSrc}
 				alt={alt}

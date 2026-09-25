@@ -14,7 +14,7 @@ import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
 import type { FormDefinition, Submission, SubmissionFile } from "../types.js";
 import { getFormFields } from "../types.js";
-import { validateSubmission } from "../validation.js";
+import { evaluateCondition, validateSubmission } from "../validation.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -116,7 +116,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 3. Validate submission data
 	const allFields = getFormFields(form);
-	const result = validateSubmission(allFields, input.data);
+	const result = validateSubmission(allFields, input.data, new Set(Object.keys(input.files ?? {})));
 
 	if (!result.valid) {
 		return { success: false, errors: result.errors };
@@ -124,7 +124,16 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 4. Upload files
 	const files: SubmissionFile[] = [];
-	if (input.files && ctx.media && "upload" in ctx.media) {
+	const pending = allFields.flatMap((field) => {
+		if (field.type !== "file") return [];
+		if (field.condition && !evaluateCondition(field.condition, input.data)) return [];
+		const fileData = input.files?.[field.name];
+		return fileData ? [{ field, fileData }] : [];
+	});
+	if (pending.length > 0 && !(ctx.media && "upload" in ctx.media)) {
+		throw PluginRouteError.internal("File uploads are not configured");
+	}
+	if (pending.length > 0) {
 		const mediaWithWrite = ctx.media as {
 			upload(
 				filename: string,
@@ -134,10 +143,6 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 			delete(id: string): Promise<boolean>;
 		};
 
-		const pending = allFields.flatMap((field) => {
-			const fileData = field.type === "file" ? input.files?.[field.name] : undefined;
-			return fileData ? [{ field, fileData }] : [];
-		});
 		for (const { field, fileData } of pending) {
 			// Validate file type
 			if (field.validation?.accept) {
