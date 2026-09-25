@@ -15,7 +15,7 @@ describe("Loader field filters", () => {
 	beforeEach(async () => {
 		db = await setupTestDatabaseWithCollections();
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();

@@ -16,6 +16,7 @@ import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
+import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
@@ -375,10 +376,7 @@ async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promi
 	}
 
 	try {
-		const defs = await db
-			.selectFrom("_emdash_taxonomy_defs")
-			.select(["name", "collections"])
-			.execute();
+		const defs = await selectTaxonomyDefs(db).execute();
 		const namesByCollection = new Map<string, Set<string>>();
 		for (const def of defs) {
 			let collections: unknown;

@@ -235,6 +235,16 @@ Use `getEntryTerms()` when all you have is a collection name and entry ID. Use `
 
 Taxonomy definitions and terms have one row per locale. EmDash records which rows are translations of the same taxonomy or term. Content assignments use that shared identity, so an assignment made in one locale resolves to the translated term in another locale when one exists.
 
+A taxonomy definition splits its fields between the taxonomy and each locale:
+
+| Field | Belongs to | Effect |
+| --- | --- | --- |
+| `name` | Taxonomy | Fixed after creation. Every locale's definition uses the same name. |
+| `hierarchical`, `collections` | Taxonomy | The same in every locale. Changing either through any locale changes it for all locales. |
+| `label`, `labelSingular` | Locale | Each locale's definition has its own. |
+
+A definition created for a name that already exists in another locale joins that taxonomy, with or without `translationOf`, and takes its `hierarchical` and `collections`. Creating it with different values fails; change them with an update. A locale without its own definition still lists the taxonomy's terms and shows the label of the first locale on its fallback chain that has one, else the default locale's label, else the label of the locale with the lowest locale code.
+
 Use the locale switcher on a taxonomy page to manage terms in each configured locale. Open a term's edit dialog and use its **Translations** panel to add or open another locale. A translated term can use a different slug and label.
 
 A term's parent and position are shared by every locale. A translation created without a parent takes its term's parent and position. Creating a translation under a different parent, or changing the parent through any locale, moves the term in every locale.

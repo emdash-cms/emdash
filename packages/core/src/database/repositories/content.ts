@@ -10,7 +10,7 @@ import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js"
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
@@ -323,8 +323,11 @@ function escapeRegExp(s: string): string {
 export class ContentRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		private readonly datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**
@@ -1104,7 +1107,7 @@ export class ContentRepository {
 		const item = await this.findById(type, id);
 		if (!item) throw new Error("Content not found");
 
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return { item, revisionId };
 	}
 
@@ -1174,7 +1177,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return revisionId;
 	}
 
@@ -1213,7 +1216,7 @@ export class ContentRepository {
 			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
 		);
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let existing = await this.findById(type, id);
 
 		// A key with no field is rejected unless the entry already stores it: deleting a field
@@ -1436,7 +1439,7 @@ export class ContentRepository {
 		usesRevisions: boolean,
 	): Promise<boolean> {
 		const tableName = getTableName(type);
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let sibling: ContentItem | null = initial;
 
 		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
@@ -2375,7 +2378,7 @@ export class ContentRepository {
 		}
 
 		if (!promoteRevision) {
-			const revisionRepo = new RevisionRepository(this.db);
+			const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 			let provisionalRevisionId: string | null = null;
 			try {
 				let liveRevisionId = existing.liveRevisionId;
@@ -2468,7 +2471,7 @@ export class ContentRepository {
 			}
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
@@ -2629,7 +2632,7 @@ export class ContentRepository {
 			return existing;
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
@@ -2701,7 +2704,7 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		const revision = await revisionRepo.findById(revisionId);
 		if (!revision) {
 			throw new EmDashValidationError("Revision not found");

@@ -12,6 +12,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
+import { MEDIA_USAGE_SITE_SETTING_OPTIONS } from "../../../src/media/usage/site-settings.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { SQL_BATCH_SIZE } from "../../../src/utils/chunks.js";
 
@@ -97,10 +98,10 @@ it("seeks batched counts through the media/source/generation index", async () =>
 });
 
 it("loads coverage and one grouped page in one statement each", async () => {
-	await repo.findCollectionIndexStatusScopes({
-		adapterId: "content-media",
-		scopeType: "collection",
-	});
+	await repo.findCoverageWithOptions(
+		{ adapterId: "content-media", scopeType: "collection" },
+		MEDIA_USAGE_SITE_SETTING_OPTIONS,
+	);
 	await repo.findCurrentEntryUsagePageByMediaId("media-shared", { limit: 1 });
 
 	const coverageQueries = captured.filter(

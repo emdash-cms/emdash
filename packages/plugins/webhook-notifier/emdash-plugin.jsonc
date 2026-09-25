@@ -14,8 +14,8 @@
 	// `content:afterDelete` and `media:afterUpload` hooks. Outbound
 	// HTTP is unrestricted because the webhook URLs are user-supplied
 	// at runtime — there's no fixed allow-list we could pin at publish
-	// time. Declares the `deliveries` storage collection for audit +
-	// retry state.
+	// time. Declares the `deliveries` storage collection for the
+	// delivery log behind the status counts.
 	"capabilities": ["content:read", "media:read", "network:request:unrestricted"],
 	"allowedHosts": [],
 	"storage": {

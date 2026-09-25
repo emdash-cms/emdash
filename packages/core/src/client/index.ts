@@ -207,10 +207,16 @@ export interface MediaUsageEntryDetail {
 	sources: MediaUsageSourceDetail[];
 }
 
+/** A site setting that selects a media item */
+export interface MediaUsageSiteSettingDetail {
+	setting: "logo" | "favicon" | "seo.defaultOgImage";
+}
+
 /** Entry-grouped media usage details */
 export interface MediaUsageDetailsResponse {
 	items: MediaUsageEntryDetail[];
 	nextCursor?: string;
+	siteSettings: MediaUsageSiteSettingDetail[];
 	coverage: MediaUsageCoverage;
 }
 

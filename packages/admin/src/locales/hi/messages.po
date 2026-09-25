@@ -3091,7 +3091,7 @@ msgstr ""
 msgid "Couldn’t load media usage tracking settings."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:195
+#: packages/admin/src/components/MediaUsedIn.tsx:236
 msgid "Couldn’t load more usage."
 msgstr ""
 
@@ -3099,7 +3099,7 @@ msgstr ""
 msgid "Couldn’t load the import plan"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:233
+#: packages/admin/src/components/MediaUsedIn.tsx:274
 msgid "Couldn’t load usage."
 msgstr ""
 
@@ -3523,6 +3523,7 @@ msgstr "डिफ़ॉल्ट भूमिका:"
 msgid "Default social image"
 msgstr "डिफ़ॉल्ट सामाजिक छवि"
 
+#: packages/admin/src/components/MediaUsedIn.tsx:46
 #: packages/admin/src/components/settings/SeoSettings.tsx:177
 msgid "Default Social Image"
 msgstr "डिफ़ॉल्ट सामाजिक छवि"
@@ -4817,7 +4818,7 @@ msgstr ""
 msgid "Failed to communicate with plugin"
 msgstr "प्लगइन के साथ संचार करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:369
+#: packages/admin/src/lib/api/media.ts:374
 msgid "Failed to confirm upload"
 msgstr "अपलोड की पुष्टि करने में विफल"
 
@@ -4851,7 +4852,7 @@ msgstr "बायलाइन फ़ील्ड बनाने में व�
 msgid "Failed to create field"
 msgstr "फ़ील्ड बनाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:242
+#: packages/admin/src/lib/api/media.ts:247
 msgid "Failed to create media folder"
 msgstr ""
 
@@ -4913,15 +4914,15 @@ msgstr "सामग्री हटाने में विफल"
 msgid "Failed to delete field"
 msgstr "फ़ील्ड हटाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:674
+#: packages/admin/src/lib/api/media.ts:679
 msgid "Failed to delete from provider"
 msgstr "प्रदाता से हटाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:534
+#: packages/admin/src/lib/api/media.ts:539
 msgid "Failed to delete media"
 msgstr "मीडिया हटाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:264
+#: packages/admin/src/lib/api/media.ts:269
 msgid "Failed to delete media folder"
 msgstr ""
 
@@ -5045,27 +5046,27 @@ msgstr "प्रवेश शर्तें लाने में विफ�
 msgid "Failed to fetch manifest"
 msgstr "मेनिफ़ेस्ट लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:164
+#: packages/admin/src/lib/api/media.ts:169
 msgid "Failed to fetch media"
 msgstr "मीडिया लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:229
+#: packages/admin/src/lib/api/media.ts:234
 msgid "Failed to fetch media folder"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:221
+#: packages/admin/src/lib/api/media.ts:226
 msgid "Failed to fetch media folders"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:182
+#: packages/admin/src/lib/api/media.ts:187
 msgid "Failed to fetch media item"
 msgstr "मीडिया आइटम लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:607
+#: packages/admin/src/lib/api/media.ts:612
 msgid "Failed to fetch media providers"
 msgstr "मीडिया प्रदाता लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:205
+#: packages/admin/src/lib/api/media.ts:210
 msgid "Failed to fetch media usage details"
 msgstr ""
 
@@ -5082,7 +5083,7 @@ msgstr "प्लगइन सेटिंग लाने में विफ�
 msgid "Failed to fetch plugins"
 msgstr "प्लगइन्स लाने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:637
+#: packages/admin/src/lib/api/media.ts:642
 msgid "Failed to fetch provider media"
 msgstr "प्रदाता मीडिया लाने में विफल"
 
@@ -5135,7 +5136,7 @@ msgstr "प्रमाणीकरण विकल्प प्राप्त 
 msgid "Failed to get registration options"
 msgstr "पंजीकरण विकल्प प्राप्त करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:341
+#: packages/admin/src/lib/api/media.ts:346
 msgid "Failed to get upload URL"
 msgstr "अपलोड URL प्राप्त करने में विफल"
 
@@ -5305,7 +5306,7 @@ msgstr "डोमेन हटाने में विफल"
 msgid "Failed to remove passkey"
 msgstr "पासकी निकालने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:255
+#: packages/admin/src/lib/api/media.ts:260
 msgid "Failed to rename media folder"
 msgstr ""
 
@@ -5330,7 +5331,7 @@ msgstr "फ़ील्ड पुन: व्यवस्थित करने �
 msgid "Failed to reorder widgets"
 msgstr "विजेट्स को पुन: व्यवस्थित करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:522
+#: packages/admin/src/lib/api/media.ts:527
 msgid "Failed to replace media image"
 msgstr ""
 
@@ -5445,7 +5446,7 @@ msgstr "बायलाइन फ़ील्ड अपडेट करने �
 msgid "Failed to update domain"
 msgstr "डोमेन अद्यतन करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:558
+#: packages/admin/src/lib/api/media.ts:563
 msgid "Failed to update media"
 msgstr "मीडिया अपडेट करने में विफल"
 
@@ -5479,15 +5480,15 @@ msgstr "स्थिति अपडेट करने में विफल"
 msgid "Failed to upload a package file"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:392
+#: packages/admin/src/lib/api/media.ts:397
 msgid "Failed to upload file"
 msgstr "फ़ाइल अपलोड करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:463
+#: packages/admin/src/lib/api/media.ts:468
 msgid "Failed to upload media"
 msgstr "मीडिया अपलोड करने में विफल"
 
-#: packages/admin/src/lib/api/media.ts:662
+#: packages/admin/src/lib/api/media.ts:667
 msgid "Failed to upload to provider"
 msgstr "प्रदाता पर अपलोड करने में विफल"
 
@@ -5507,6 +5508,7 @@ msgstr "पंजीकरण सत्यापित करने में �
 msgid "FAQ"
 msgstr "अक्सर पूछे जाने वाले प्रश्न"
 
+#: packages/admin/src/components/MediaUsedIn.tsx:45
 #: packages/admin/src/components/settings/GeneralSettings.tsx:258
 #: packages/admin/src/components/settings/GeneralSettings.tsx:265
 msgid "Favicon"
@@ -6254,7 +6256,7 @@ msgstr ""
 msgid "Importing terms and bylines"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:290
+#: packages/admin/src/components/MediaUsedIn.tsx:355
 msgid "In trash"
 msgstr ""
 
@@ -6769,7 +6771,7 @@ msgstr "लाइव देखें"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:228
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
-#: packages/admin/src/components/MediaUsedIn.tsx:207
+#: packages/admin/src/components/MediaUsedIn.tsx:248
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
@@ -6905,7 +6907,7 @@ msgstr "शर्तें लोड हो रही हैं..."
 msgid "Loading the import plan…"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:112
+#: packages/admin/src/components/MediaUsedIn.tsx:137
 msgid "Loading usage"
 msgstr ""
 
@@ -6924,7 +6926,7 @@ msgstr "विजेट लोड हो रहे हैं..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
 #: packages/admin/src/components/MediaDetailPanel.tsx:1729
 #: packages/admin/src/components/MediaLibrary.tsx:1352
-#: packages/admin/src/components/MediaUsedIn.tsx:204
+#: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:2633
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
@@ -6987,6 +6989,7 @@ msgstr "लॉक किया गया क्योंकि इस फ़ी�
 msgid "Log out"
 msgstr "लॉग आउट"
 
+#: packages/admin/src/components/MediaUsedIn.tsx:44
 #: packages/admin/src/components/settings/GeneralSettings.tsx:198
 #: packages/admin/src/components/settings/GeneralSettings.tsx:205
 msgid "Logo"
@@ -8089,11 +8092,11 @@ msgstr "कोई स्पैम टिप्पणियाँ नहीं."
 msgid "No themes found"
 msgstr "कोई थीम नहीं मिली"
 
-#: packages/admin/src/components/MediaUsedIn.tsx:182
-msgid "No usage"
+#: packages/admin/src/components/MediaUsedIn.tsx:212
+msgid "No tracked references found"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:182
+#: packages/admin/src/components/MediaUsedIn.tsx:212
 msgid "No usage to show yet"
 msgstr ""
 
@@ -8183,6 +8186,10 @@ msgstr "केवल उन्हीं कोड को अधिकृत क�
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "केवल अनुमत डोमेन के ईमेल पते ही साइन अप कर सकते हैं।"
 
+#: packages/admin/src/components/MediaUsedIn.tsx:216
+msgid "Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked."
+msgstr ""
+
 #: packages/admin/src/components/media/ImageDropTarget.tsx:53
 msgid "Only image files can be dropped here."
 msgstr ""
@@ -8199,7 +8206,7 @@ msgstr "इस फ़ील्ड के लिए केवल सूचीब�
 msgid "Oops!"
 msgstr "उफ़!"
 
-#: packages/admin/src/components/MediaUsedIn.tsx:323
+#: packages/admin/src/components/MediaUsedIn.tsx:388
 msgid "Open"
 msgstr ""
 
@@ -10287,7 +10294,7 @@ msgstr "सुरक्षा त्रुटि. सुनिश्चित �
 msgid "Security Settings"
 msgstr "सुरक्षा सेटिंग्स"
 
-#: packages/admin/src/components/MediaUsedIn.tsx:148
+#: packages/admin/src/components/MediaUsedIn.tsx:173
 msgid "See where this file is used."
 msgstr ""
 
@@ -10759,6 +10766,7 @@ msgstr ""
 msgid "Site settings"
 msgstr ""
 
+#: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:371
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
@@ -10876,8 +10884,8 @@ msgstr ""
 msgid "Some content links to media files the source site doesn’t have; those links won’t work"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:94
-#: packages/admin/src/components/MediaUsedIn.tsx:187
+#: packages/admin/src/components/MediaUsedIn.tsx:119
+#: packages/admin/src/components/MediaUsedIn.tsx:217
 msgid "Some content may not appear here yet."
 msgstr ""
 
@@ -11713,10 +11721,6 @@ msgstr ""
 msgid "This file is not an EmDash site package: it must start with manifest.json."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:186
-msgid "This file isn’t used in any content."
-msgstr ""
-
 #: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "This folder is empty"
 msgstr ""
@@ -12132,8 +12136,8 @@ msgstr "अपनी खोज को समायोजित करने क�
 msgid "Try adjusting your search or filters."
 msgstr "अपनी खोज या फ़िल्टर समायोजित करने का प्रयास करें."
 
-#: packages/admin/src/components/MediaUsedIn.tsx:206
-#: packages/admin/src/components/MediaUsedIn.tsx:236
+#: packages/admin/src/components/MediaUsedIn.tsx:247
+#: packages/admin/src/components/MediaUsedIn.tsx:277
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:352
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:386
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:397
@@ -12340,7 +12344,7 @@ msgid "Until {0}"
 msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:543
-#: packages/admin/src/components/MediaUsedIn.tsx:255
+#: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "शीर्षकहीन"
 
@@ -12410,7 +12414,7 @@ msgstr "सामग्री URL अपडेट किया जा रहा 
 msgid "Updating the plan…"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:113
+#: packages/admin/src/components/MediaUsedIn.tsx:138
 msgid "Updating usage"
 msgstr ""
 
@@ -12554,35 +12558,35 @@ msgstr "URL-अनुकूल पहचानकर्ता (उदाहर�
 msgid "URL:"
 msgstr "URL:"
 
-#: packages/admin/src/components/MediaUsedIn.tsx:104
+#: packages/admin/src/components/MediaUsedIn.tsx:129
 msgid "Usage completeness couldn’t be verified."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:156
+#: packages/admin/src/components/MediaUsedIn.tsx:181
 msgid "Usage details aren’t available for your account."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:111
+#: packages/admin/src/components/MediaUsedIn.tsx:136
 msgid "Usage details unavailable"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:99
+#: packages/admin/src/components/MediaUsedIn.tsx:124
 msgid "Usage indexing couldn’t finish."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:84
+#: packages/admin/src/components/MediaUsedIn.tsx:109
 msgid "Usage indexing hasn’t started."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:73
+#: packages/admin/src/components/MediaUsedIn.tsx:98
 msgid "Usage is updating. Some content may not appear here yet."
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:115
+#: packages/admin/src/components/MediaUsedIn.tsx:140
 msgid "Usage loaded"
 msgstr ""
 
-#: packages/admin/src/components/MediaUsedIn.tsx:89
+#: packages/admin/src/components/MediaUsedIn.tsx:114
 msgid "Usage may be out of date."
 msgstr ""
 
@@ -12640,7 +12644,7 @@ msgstr "स्क्रीन रीडर द्वारा उपयोग �
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1155
 #: packages/admin/src/components/MediaDetailPanel.tsx:1188
-#: packages/admin/src/components/MediaUsedIn.tsx:127
+#: packages/admin/src/components/MediaUsedIn.tsx:152
 msgid "Used in"
 msgstr ""
 
@@ -12925,6 +12929,10 @@ msgstr "जब आप आयात करेंगे तो क्या हो
 
 #: packages/admin/src/components/ContentEditor.tsx:1361
 msgid "What you typed is still here. Saving replaces the newer version."
+msgstr ""
+
+#: packages/admin/src/components/MediaUsedIn.tsx:226
+msgid "What’s tracked"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:125

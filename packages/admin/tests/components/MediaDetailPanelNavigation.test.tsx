@@ -67,6 +67,7 @@ const usageDetails: MediaUsageDetailsResponse = {
 			sources: [],
 		},
 	],
+	siteSettings: [],
 	coverage: { scope: "all_content_collections", status: "complete" },
 };
 
