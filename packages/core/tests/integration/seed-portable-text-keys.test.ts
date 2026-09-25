@@ -90,8 +90,7 @@ describe("shipped template seeds survive the autosave validator (issue #867)", (
 
 			const slugs = collectionsWithContent(seed);
 			if (slugs.length === 0) {
-				// Marketing has no content entries -- nothing to validate,
-				// but exercising applySeed itself is still useful coverage.
+				// A schema-only template still benefits from exercising applySeed.
 				return;
 			}
 

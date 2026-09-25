@@ -18,12 +18,13 @@ The maintained templates call these runtime helpers:
 | `decodeSlug` | Decoding a dynamic route parameter before lookup |
 | `getEmDashCollection` | Reading and filtering entries in a collection |
 | `getEmDashEntry` | Reading one entry by ID or slug |
-| `getMenu` | Rendering a navigation menu and its resolved links |
+| `getMenuWithCacheHint` | Rendering a navigation menu with cache invalidation |
 | `getSeoMeta` | Resolving an entry's SEO panel values and template fallbacks |
 | `getSiteSettings` | Reading public site identity and other global settings |
-| `getTaxonomyTerms` | Rendering taxonomy navigation, filters, and term indexes |
-| `getTerm` | Reading one taxonomy term for an archive page |
+| `getSiteSettingsWithCacheHint` | Reading global settings with cache invalidation |
+| `getTaxonomyTermsWithCacheHint` | Rendering taxonomy filters with cache invalidation |
 | `getTermsForEntries` | Batch-loading one taxonomy for a list of entries |
+| `sanitizeHref` | Rejecting unsafe URL schemes before rendering stored links |
 | `search` | Searching published content across collections |
 
 ## Content queries
