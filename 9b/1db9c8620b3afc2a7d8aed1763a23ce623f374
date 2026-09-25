@@ -1,0 +1,89 @@
+packages/core/tests/integration/smoke/site-matrix-smoke.test.ts
+  s_bf1a9ec1f5e062::t_3c542ea117c0ed 83,93,470-474,484-522
+templates/marketing-cloudflare/AGENTS.md
+  s_ad1c9419023c90::t_0f5f80feecdbef 51-52,74-75,107-108,141
+templates/marketing-cloudflare/seed/seed.json
+  s_81c53493e8c532::t_76a909d2f420a3 120,123-124,137,149,161,173,179-180,184-185,191-192,196-197,203-204,208-209,221,236,239-240,252,264,276,282,287-288,294,299-300,306,311-312,318-330,335-336,351,354-356,367,379,391,403,409,414-415,421,426-427,439,448
+templates/marketing-cloudflare/src/components/BlogCover.astro
+  s_81c53493e8c532::t_c23d672767b13e 34-54,115-116,121,210-215,310-323,325-326,329-337,340-347,349-350,354-358,361-363,365-366,369-373,376-377,380-381
+templates/marketing-cloudflare/src/components/SiteFooter.astro
+  s_e2fcafcb645317::t_17230246d023be 20-21,66
+templates/marketing-cloudflare/src/components/SiteHeader.astro
+  s_e2fcafcb645317::t_b9f219185e7604 14-15,22,25,53,120-124
+templates/marketing-cloudflare/src/layouts/Base.astro
+  s_eebc9619e69ac4::t_9595fb3e5c4620 18-21,25-37,65-70,90,98,101-102,135,339
+templates/marketing-cloudflare/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_21962d62569c17 2,34-46,49-61
+templates/marketing-cloudflare/src/pages/blog/index.astro
+  s_e2fcafcb645317::t_19c85b11c8c737 75,80-81,83,140-142,230,241-242,257-260,265-266,268,568
+templates/marketing-cloudflare/src/styles/theme.css
+  s_81c53493e8c532::t_17658e4ebd7ffc 17,38,61
+templates/marketing/AGENTS-template.md
+  s_ad1c9419023c90::t_915f3d654fa6f4 7-8,30-31,63-64,97
+templates/marketing/AGENTS.md
+  s_ad1c9419023c90::t_e325e1fefb7cab 51-52,74-75,107-108,141
+templates/marketing/seed/seed.json
+  s_81c53493e8c532::t_e5ab1c2057716a 120,123-124,137,149,161,173,179-180,184-185,191-192,196-197,203-204,208-209,221,236,239-240,252,264,276,282,287-288,294,299-300,306,311-312,318-330,335-336,351,354-356,367,379,391,403,409,414-415,421,426-427,439,448
+templates/marketing/src/components/BlogCover.astro
+  s_81c53493e8c532::t_d9949b6b7f9ee8 34-54,115-116,121,210-215,310-323,325-326,329-337,340-347,349-350,354-358,361-363,365-366,369-373,376-377,380-381
+templates/marketing/src/components/SiteFooter.astro
+  s_e2fcafcb645317::t_7a57b1922a601e 20-21,66
+templates/marketing/src/components/SiteHeader.astro
+  s_e2fcafcb645317::t_7436b35a28968f 14-15,22,25,53,120-124
+templates/marketing/src/layouts/Base.astro
+  s_eebc9619e69ac4::t_06a2abd48a72da 18-21,25-37,65-70,90,98,101-102,135,339
+templates/marketing/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_9597de0a7b886e 2,34-46,49-61
+templates/marketing/src/pages/blog/index.astro
+  s_e2fcafcb645317::t_d50958f91f1756 75,80-81,83,140-142,230,241-242,257-260,265-266,268,568
+templates/marketing/src/styles/theme.css
+  s_81c53493e8c532::t_0feb4ac65386ee 17,38,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9b1db9c8620b3afc2a7d8aed1763a23ce623f374",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_ad1c9419023c90": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3e-96b9-7120-a5bb-1933899c5ebc",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_bf1a9ec1f5e062": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3c-5e1e-7671-a431-f71c470b3acb",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e2fcafcb645317": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da40-6d7c-78c2-8db9-0a79b698cb37",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_eebc9619e69ac4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3f-74f0-7711-ba4b-e1a223298d10",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
