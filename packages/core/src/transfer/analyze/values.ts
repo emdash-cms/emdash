@@ -19,6 +19,8 @@ export type TargetDialect = "sqlite" | "postgres";
 export interface FieldInfo {
 	columnType: FieldColumnType;
 	required: boolean;
+	/** Values live as content references; the target has no column for them. */
+	storageless?: boolean;
 }
 
 const PROVIDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -184,6 +186,10 @@ export function checkEntryFields(
 			result.issues.push(mismatch(slug, "Entry has a value for a field its collection lacks"));
 			continue;
 		}
+		if (info.storageless) {
+			result.issues.push(mismatch(slug, "Entry has a value for a field that stores no column"));
+			continue;
+		}
 		try {
 			encodeColumn(dialect, codecForColumnType(info.columnType), value);
 		} catch (error) {
@@ -204,7 +210,12 @@ export function checkEntryFields(
 		}
 	}
 	for (const [slug, info] of fields) {
-		if (info.required && info.columnType !== "JSON" && !Object.hasOwn(entry.fields, slug)) {
+		if (
+			info.required &&
+			!info.storageless &&
+			info.columnType !== "JSON" &&
+			!Object.hasOwn(entry.fields, slug)
+		) {
 			result.issues.push(mismatch(slug, "Required field has no value"));
 		}
 	}

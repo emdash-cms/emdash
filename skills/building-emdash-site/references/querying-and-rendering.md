@@ -81,6 +81,31 @@ interface PostData {
 
 **Important:** `entry.id` is the slug (for URLs), `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
 
+### Reference Fields
+
+A `reference` field's value is not in `data`. Ask for it by field slug through the `references` option, and read the page it returns:
+
+```typescript
+const { entry: post } = await getEmDashEntry("posts", slug, {
+	references: { author: true, related_posts: { limit: 6 } },
+});
+
+const author = post?.references?.author.entries[0];
+const related = post?.references?.related_posts.entries ?? [];
+```
+
+`true` is the first page at the default limit of 50; `{ limit, cursor }` takes at most 100 per page. `getEmDashReferences(collection, id, field, { cursor, limit })` fetches the next page of one field on its own.
+
+Each referenced entry is a full `ContentEntry` -- same `data` mapping, and an `edit` proxy scoped to the referenced entry. Bylines and taxonomy terms are **not** hydrated onto referenced entries; read those from the entry itself.
+
+Entries come back in the editor's order when the field sits on the parent end of its relation. A field on the child end lists whatever points at it, unordered.
+
+Ask only for the fields the page renders: a call with no `references` runs no extra queries, and each selected field costs one link query plus one entry query per distinct target collection.
+
+A public render sees published entries and the published selection. Preview and visual editing see the selection staged in the entry's draft.
+
+Generated types register a `{Collection}References` interface per collection with bound reference fields, so `post.references.author.entries[0].data` carries the target collection's interface and a field that was not selected is a type error.
+
 ### Caching
 
 Query results include a `cacheHint` for Astro's Route Caching:

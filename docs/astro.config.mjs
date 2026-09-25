@@ -73,6 +73,7 @@ export default defineConfig({
 						{ label: "Media Library", slug: "guides/media-library" },
 						{ label: "Dark Mode", slug: "guides/dark-mode" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
+						{ label: "Relations", slug: "guides/relations" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
 						{ label: "Page Layouts", slug: "guides/page-layouts" },

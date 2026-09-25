@@ -93,6 +93,8 @@ import * as m082 from "./082_taxonomy_translation_locale_unique.js";
 import * as m083 from "./083_block_types.js";
 import * as m084 from "./084_site_transfer.js";
 import * as m085 from "./085_taxonomy_def_groups.js";
+import * as m086 from "./086_relations_structural.js";
+import * as m087 from "./087_reference_field_relations.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -179,6 +181,8 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"083_block_types": m083,
 	"084_site_transfer": m084,
 	"085_taxonomy_def_groups": m085,
+	"086_relations_structural": m086,
+	"087_reference_field_relations": m087,
 });
 
 /** Ordered names from the statically registered migration set. */

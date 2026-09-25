@@ -250,7 +250,8 @@
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:repro": "vitest run --config vitest.repro.config.ts"
+    "test:repro": "vitest run --config vitest.repro.config.ts",
+    "test:types": "vitest run --config vitest.types.config.ts"
   },
   "dependencies": {
     "@atcute/identity-resolver": "catalog:",

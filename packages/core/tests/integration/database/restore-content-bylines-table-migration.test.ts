@@ -90,14 +90,19 @@ describeEachDialect("restore content bylines table migration", (dialect) => {
 		it("recovers through the runner when the rebuild is retried after the drop", async () => {
 			const { post, author } = await createCreditedPost();
 			await leaveStagedCopyBehind();
+			// Starts after 043: replaying it once 076 has restructured
+			// `_emdash_relations` would index columns 076 removed. A recorded
+			// migration sitting before a pending one reads as corrupted history, so
+			// the window has to stay contiguous and simply begins past that
+			// boundary. 071 is what this test is about, and it is still inside.
 			await ctx.db
 				.deleteFrom("_emdash_migrations")
-				.where("name", ">=", "040_byline_i18n")
+				.where("name", ">=", "044_comment_reactions")
 				.execute();
 
 			const { applied } = await runMigrationsForDialect(ctx);
 
-			expect(applied).toContain("040_byline_i18n");
+			expect(applied).toContain("044_comment_reactions");
 			expect(applied).toContain("071_restore_content_bylines_table");
 			expect(await tableExists(ctx.db, "_emdash_content_bylines")).toBe(true);
 			expect(await tableExists(ctx.db, "_emdash_content_bylines_new")).toBe(false);

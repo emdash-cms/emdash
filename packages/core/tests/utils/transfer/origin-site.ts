@@ -369,13 +369,14 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		.insertInto("_emdash_relations")
 		.values({
 			id: fixtureId(1110),
-			name: "related_pages",
+			slug: "related_pages",
 			parent_collection: "posts",
 			child_collection: "pages",
 			parent_label: "Related pages",
 			child_label: "Referenced by",
-			locale: "en",
-			translation_group: fixtureId(1110),
+			parent_label_singular: "Related page",
+			child_label_singular: "Referencing post",
+			max_children_per_parent: 5,
 		})
 		.execute();
 
@@ -752,7 +753,7 @@ export async function buildOriginSite(db: Kysely<Database>, storage: Storage): P
 		.insertInto("_emdash_content_references")
 		.values({
 			id: fixtureId(1210),
-			relation_group: fixtureId(1110),
+			relation_id: fixtureId(1110),
 			parent_group: ids.hello,
 			child_group: ids.about,
 			sort_order: 0,

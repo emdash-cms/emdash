@@ -1,7 +1,8 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -13,6 +14,27 @@ import * as mediaReplaceRoute from "../../../src/astro/routes/api/media/[id]/rep
 import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
 import * as bulkTagRoute from "../../../src/astro/routes/api/taxonomies/bulk-tag.js";
+
+const SRC_ROUTES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../src/astro/routes");
+
+function resolveSourceRouteFile(entrypoint: string): string {
+	const normalized = entrypoint.replaceAll("\\", "/");
+	const marker = "astro/routes/";
+	const markerIndex = normalized.lastIndexOf(marker);
+	if (markerIndex === -1) {
+		throw new Error(`Route entrypoint has an unexpected shape: ${entrypoint}`);
+	}
+	const relative = normalized.slice(markerIndex + marker.length);
+	if (relative.endsWith(".astro")) {
+		return join(SRC_ROUTES_DIR, ...relative.split("/"));
+	}
+	const segments = relative
+		.replace(/\.mjs$/, "")
+		.split("/")
+		.map((segment) => segment.replace(/_([^_]+)_/g, "[$1]"));
+	const base = join(SRC_ROUTES_DIR, ...segments);
+	return existsSync(`${base}.ts`) ? `${base}.ts` : `${base}.tsx`;
+}
 
 function mockMediaContext(key: string | undefined, contentType = "image/png") {
 	const download = vi.fn().mockResolvedValue({
@@ -50,10 +72,17 @@ describe("core media route injection", () => {
 		}
 	}
 
-	function collectRoutePatterns(srcDir?: URL): string[] {
+	function collectRoutePatternsWithEntrypoints(srcDir?: URL): Array<{
+		pattern: string;
+		entrypoint: string;
+	}> {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route), { srcDir });
-		return routes.map((route) => route.pattern);
+		return routes;
+	}
+
+	function collectRoutePatterns(srcDir?: URL): string[] {
+		return collectRoutePatternsWithEntrypoints(srcDir).map((route) => route.pattern);
 	}
 
 	it("uses a catch-all media file route so storage keys can contain slashes", () => {
@@ -94,6 +123,40 @@ describe("core media route injection", () => {
 		expect(mediaUploadRoute.PUT).toBeTypeOf("function");
 		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
 			expect(mediaUploadRoute).not.toHaveProperty(method);
+		}
+	});
+
+	it("injects the relation and reference-edge API routes", () => {
+		// Regression: these route files existed but were never wired into
+		// injectCoreRoutes, so /_emdash/api/relations 404'd and the admin's
+		// "Referenced by" backlinks panel silently hid itself.
+		const routes = collectRoutePatterns();
+
+		expect(routes).toContain("/_emdash/api/relations");
+		expect(routes).toContain("/_emdash/api/relations/[id]");
+		expect(routes).toContain(
+			"/_emdash/api/content/[collection]/[id]/references/[relation]/children",
+		);
+		expect(routes).toContain(
+			"/_emdash/api/content/[collection]/[id]/references/[relation]/parents",
+		);
+	});
+
+	it("registers every core route pattern exactly once, pointing at a file that exists", () => {
+		const routes = collectRoutePatternsWithEntrypoints();
+
+		const seen = new Map<string, number>();
+		for (const { pattern } of routes) {
+			seen.set(pattern, (seen.get(pattern) ?? 0) + 1);
+		}
+		const duplicates = [...seen.entries()]
+			.filter(([, count]) => count > 1)
+			.map(([pattern]) => pattern);
+		expect(duplicates).toEqual([]);
+
+		for (const { pattern, entrypoint } of routes) {
+			const sourceFile = resolveSourceRouteFile(entrypoint);
+			expect(existsSync(sourceFile), `${pattern} -> ${sourceFile}`).toBe(true);
 		}
 	});
 

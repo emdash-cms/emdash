@@ -8,7 +8,7 @@ import {
 	type FieldDescriptor,
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
-import { fetchBylines } from "../../src/lib/api";
+import { fetchBylines, fetchReferenceChildren } from "../../src/lib/api";
 import type { BylineSummary, ContentItem } from "../../src/lib/api";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
@@ -112,6 +112,7 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		getPreviewUrl: vi.fn().mockResolvedValue({ url: "https://example.com/preview" }),
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchReferenceChildren: vi.fn(async () => ({ children: [] })),
 	};
 });
 
@@ -2517,6 +2518,216 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+		});
+	});
+
+	describe("reference field paging", () => {
+		const RELATION = "rel-group-1";
+
+		const referenceFields: Record<string, FieldDescriptor> = {
+			title: { kind: "string", label: "Title" },
+			related: {
+				kind: "reference",
+				label: "Related",
+				validation: { relation: RELATION, targetCollection: "posts", multiple: true },
+			},
+		};
+
+		/**
+		 * An entry whose hydrated first page leaves a second page to auto-load.
+		 * Keyed by field slug, as the server hydrates it; the paging request
+		 * addresses the relation the field names.
+		 */
+		function itemWithPendingPage(): ContentItem {
+			return makeItem({
+				data: { title: "Hello" },
+				references: {
+					related: {
+						children: [
+							{ id: "c-1", slug: "one", title: "One", locale: "en", translationGroup: "g-1" },
+						],
+						nextCursor: "cursor-1",
+					},
+				},
+			});
+		}
+
+		async function renderWithFailedPage() {
+			vi.mocked(fetchReferenceChildren).mockRejectedValue(new Error("network"));
+			const screen = await renderEditor({
+				isNew: false,
+				item: itemWithPendingPage(),
+				fields: referenceFields,
+			});
+			await expect.element(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+			return screen;
+		}
+
+		it("offers a retry instead of spinning forever when a page fails", async () => {
+			const screen = await renderWithFailedPage();
+
+			await expect.element(screen.getByText("Couldn't load all references.")).toBeInTheDocument();
+			expect(screen.getByText("Loading references...").query()).toBeNull();
+		});
+
+		it("retries the same cursor and recovers the field", async () => {
+			const screen = await renderWithFailedPage();
+			const before = vi.mocked(fetchReferenceChildren).mock.calls.length;
+
+			vi.mocked(fetchReferenceChildren).mockResolvedValue({
+				children: [
+					{
+						id: "c-2",
+						slug: "second-entry",
+						title: "Two",
+						locale: "en",
+						translationGroup: "g-2",
+					} as never,
+				],
+			});
+
+			await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+			await expect.element(screen.getByText("Two")).toBeInTheDocument();
+			const calls = vi.mocked(fetchReferenceChildren).mock.calls;
+			expect(calls.length).toBeGreaterThan(before);
+			// The failed page must be re-requested, not skipped past, and addressed
+			// by the relation the field names.
+			expect(calls[before]?.[2]).toBe(RELATION);
+			expect(calls[before]?.[3]).toEqual({ cursor: "cursor-1" });
+			expect(screen.getByText("Couldn't load all references.").query()).toBeNull();
+		});
+
+		it("re-enables editing once the retried page lands", async () => {
+			const screen = await renderWithFailedPage();
+			await expect.element(screen.getByRole("button", { name: "Add reference" })).toBeDisabled();
+
+			vi.mocked(fetchReferenceChildren).mockResolvedValue({ children: [] });
+			await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+			await expect.element(screen.getByRole("button", { name: "Add reference" })).toBeEnabled();
+		});
+
+		it("autosaves a reference change made after a rejected autosave", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const onAutosave = vi.fn();
+				const item = makeItem({
+					data: { title: "Hello" },
+					references: {
+						related: {
+							children: [
+								{ id: "c-1", slug: "one", title: "One", locale: "en", translationGroup: "g-1" },
+							],
+						},
+					},
+				});
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: referenceFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				await screen.getByLabelText("Title").fill("Rejected");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				// The selection is the only thing that changes now. The rejected
+				// payload is not what this save would send, so it has to go out —
+				// otherwise the edit is stuck in the editor until a field changes.
+				await screen.getByRole("button", { name: "Remove One" }).click();
+				await vi.advanceTimersByTimeAsync(2000);
+
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({ references: { related: [] } }),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
+
+	describe("reference field requiredness", () => {
+		function referenceField(required: boolean): Record<string, FieldDescriptor> {
+			return {
+				title: { kind: "string", label: "Title" },
+				related: {
+					kind: "reference",
+					label: "Related",
+					required,
+					validation: { relation: "rel-group-1", targetCollection: "posts", multiple: true },
+				},
+			};
+		}
+
+		it("says a required reference field needs an entry while none is selected", async () => {
+			const screen = await renderEditor({ fields: referenceField(true) });
+
+			await expect.element(screen.getByText("Select at least one entry.")).toBeInTheDocument();
+		});
+
+		it("marks an optional reference field the way every other field is marked", async () => {
+			const screen = await renderEditor({ fields: referenceField(false) });
+
+			await expect.element(screen.getByText("(optional)")).toBeInTheDocument();
+			expect(screen.getByText("Select at least one entry.").query()).toBeNull();
+		});
+	});
+
+	describe("reference field that predates relations", () => {
+		// No relation means the field still owns a column holding one entry id, so
+		// it keeps the text input it had before reference pickers existed.
+		const legacyFields: Record<string, FieldDescriptor> = {
+			title: { kind: "string", label: "Title" },
+			author: { kind: "reference", label: "Author", options: { collection: "authors" } },
+		};
+
+		it("edits its stored entry id in a text input", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Hello", author: "author-entry-id" } }),
+				fields: legacyFields,
+				onSave,
+			});
+
+			const input = screen.getByLabelText("Author");
+			await expect.element(input).toHaveValue("author-entry-id");
+
+			await userEvent.fill(input, "another-entry-id");
+			await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+			expect(onSave).toHaveBeenCalled();
+			expect(onSave.mock.calls[0]?.[0]?.data).toMatchObject({ author: "another-entry-id" });
+		});
+
+		it("points at the schema editor instead of claiming it is misconfigured", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Hello", author: "author-entry-id" } }),
+				fields: legacyFields,
+			});
+
+			await expect
+				.element(screen.getByText(/Set a target collection under Content Types/))
+				.toBeInTheDocument();
 		});
 	});
 

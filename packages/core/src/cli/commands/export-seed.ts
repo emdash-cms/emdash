@@ -33,6 +33,7 @@ import type {
 	SeedFile,
 	SeedCollection,
 	SeedField,
+	SeedRelation,
 	SeedTaxonomy,
 	SeedTaxonomyTerm,
 	SeedMenu,
@@ -146,6 +147,13 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// 3. Export collections and fields
 	seed.collections = await exportCollections(db);
 
+	// 3. Export the relations reference fields bind to. Emitted even when no
+	// field binds one: a relation outlives the fields that viewed it.
+	const relations = await exportRelations(db);
+	if (relations.length > 0) {
+		seed.relations = relations;
+	}
+
 	// Decide locale-awareness from the data. The runtime sets the i18n config via
 	// middleware, but the CLI never does, so `isI18nEnabled()` is always false
 	// under `emdash export-seed` (#1330). Detecting multiple locales in the data
@@ -157,23 +165,23 @@ export async function exportSeed(db: Kysely<Database>, withContent?: string): Pr
 	// otherwise backfill omitted locales as `en` (#1421).
 	if (defaultLocale) seed.defaultLocale = defaultLocale;
 
-	// 3. Export taxonomy definitions and terms
+	// 4. Export taxonomy definitions and terms
 	seed.taxonomies = await exportTaxonomies(db, i18nEnabled);
 
-	// 4. Export menus
+	// 5. Export menus
 	seed.menus = await exportMenus(db, i18nEnabled);
 
-	// 5. Export widget areas
+	// 6. Export widget areas
 	seed.widgetAreas = await exportWidgetAreas(db);
 
-	// 6. Export byline profiles. The returned map (translation_group -> seed-local
+	// 7. Export byline profiles. The returned map (translation_group -> seed-local
 	// id) lets content credits below reference the same ids the root list emits.
 	const { bylines, groupToSeedId } = await exportBylines(db);
 	if (bylines.length > 0) {
 		seed.bylines = bylines;
 	}
 
-	// 7. Export content (if requested)
+	// 8. Export content (if requested)
 	if (withContent !== undefined) {
 		// Treat "all" as a synonym for the bare flag and "true". The args help
 		// text documents `all` as a valid value, but without this the literal
@@ -381,6 +389,43 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 	}
 
 	return result;
+}
+
+/**
+ * Export relations as root-level `relations[]`.
+ *
+ * A reference field's `validation.relation` names a relation by slug, and the
+ * field's validation is exported verbatim, so re-applying the seed binds the
+ * field to this relation rather than creating another one.
+ */
+async function exportRelations(db: Kysely<Database>): Promise<SeedRelation[]> {
+	const rows = await db
+		.selectFrom("_emdash_relations")
+		.select([
+			"slug",
+			"parent_collection",
+			"child_collection",
+			"parent_label",
+			"parent_label_singular",
+			"child_label",
+			"child_label_singular",
+			"max_children_per_parent",
+			"max_parents_per_child",
+		])
+		.orderBy("slug", "asc")
+		.execute();
+
+	return rows.map((row) => ({
+		slug: row.slug,
+		parentCollection: row.parent_collection,
+		childCollection: row.child_collection,
+		parentLabel: row.parent_label,
+		parentLabelSingular: row.parent_label_singular ?? undefined,
+		childLabel: row.child_label,
+		childLabelSingular: row.child_label_singular ?? undefined,
+		maxChildrenPerParent: row.max_children_per_parent,
+		maxParentsPerChild: row.max_parents_per_child,
+	}));
 }
 
 /**
@@ -728,8 +773,31 @@ interface CollectedEntry {
 	seedId: string;
 }
 
-/** A reference field holds a single entry id or an array of them. */
-function referenceValues(value: unknown): string[] {
+/** A relation, by the slug a reference field addresses it under. */
+type RelationsBySlug = Map<
+	string,
+	{ id: string; childCollection: string; maxChildrenPerParent: number | null }
+>;
+
+async function loadRelations(db: Kysely<Database>): Promise<RelationsBySlug> {
+	const rows = await db
+		.selectFrom("_emdash_relations")
+		.select(["id", "slug", "child_collection", "max_children_per_parent"])
+		.execute();
+	return new Map(
+		rows.map((row) => [
+			row.slug,
+			{
+				id: row.id,
+				childCollection: row.child_collection,
+				maxChildrenPerParent: row.max_children_per_parent,
+			},
+		]),
+	);
+}
+
+/** A legacy reference column holds a single entry id or an array of them. */
+function legacyReferenceValues(value: unknown): string[] {
 	if (typeof value === "string") return [value];
 	if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string");
 	return [];
@@ -737,31 +805,52 @@ function referenceValues(value: unknown): string[] {
 
 /**
  * For each exported collection, the other exported collections its entries
- * point into. Read from the values rather than a field's declared target so a
- * `reference` field without `options.collection` is still accounted for.
+ * point into.
+ *
+ * A field bound to a relation names its target in the relation, and its links
+ * are not in `data` to be read. A field with no relation still holds entry ids
+ * in its own column; those are read from the values rather than from a declared
+ * target, so a field without `options.collection` is still accounted for.
  */
 function referenceTargets(
 	collected: Map<string, CollectedEntry[]>,
 	collectionsBySlug: Map<string, SeedCollection>,
 	entryIdToCollection: Map<string, string>,
+	relations: RelationsBySlug,
 ): Map<string, Set<string>> {
 	const targets = new Map<string, Set<string>>();
 
 	for (const [slug, items] of collected) {
-		const referenceFields = (collectionsBySlug.get(slug)?.fields ?? [])
-			.filter((field) => field.type === "reference")
-			.map((field) => field.slug);
+		const referenceFields = (collectionsBySlug.get(slug)?.fields ?? []).filter(
+			(field) => field.type === "reference",
+		);
 		if (referenceFields.length === 0) continue;
 
 		const found = new Set<string>();
-		for (const { item } of items) {
-			for (const fieldSlug of referenceFields) {
-				for (const value of referenceValues(item.data[fieldSlug])) {
-					const target = entryIdToCollection.get(value);
-					if (target && target !== slug) found.add(target);
+		const add = (target: string | undefined): void => {
+			if (target && target !== slug) found.add(target);
+		};
+
+		for (const field of referenceFields) {
+			const relationSlug = field.validation?.relation;
+			if (typeof relationSlug !== "string") continue;
+			if (field.validation?.relationSide === "child") continue;
+			add(relations.get(relationSlug)?.childCollection);
+		}
+
+		const columnFields = referenceFields
+			.filter((field) => typeof field.validation?.relation !== "string")
+			.map((field) => field.slug);
+		if (columnFields.length > 0) {
+			for (const { item } of items) {
+				for (const fieldSlug of columnFields) {
+					for (const value of legacyReferenceValues(item.data[fieldSlug])) {
+						add(entryIdToCollection.get(value));
+					}
 				}
 			}
 		}
+
 		if (found.size > 0) targets.set(slug, found);
 	}
 
@@ -841,13 +930,18 @@ async function exportContent(
 		// Media table might not exist or be empty
 	}
 
-	// Read every entry and assign its seed id before processing any data. A
-	// `reference` value holds a row id whose target can sit in a collection this
-	// loop has not reached yet, so the row id -> seed id map has to be complete
-	// before the first conversion.
+	// Read every entry and assign its seed id before emitting any of them. A
+	// reference can point at a collection the emit loop has not reached yet, so
+	// both seed-id maps have to be complete before the first conversion — and the
+	// collection order itself is derived from what points where.
+	//
+	// Keyed two ways: links are keyed by translation group, while a legacy
+	// reference column holding one entry id is not.
 	const collected = new Map<string, CollectedEntry[]>();
 	const entryIdToSeedId = new Map<string, string>();
 	const entryIdToCollection = new Map<string, string>();
+	const groupToSeedId = new Map<string, string>();
+	const exported: ExportedEntry[] = [];
 
 	for (const collection of collections) {
 		// Skip if not in include list
@@ -876,6 +970,9 @@ async function exportContent(
 				items.push({ item, seedId });
 				entryIdToSeedId.set(item.id, seedId);
 				entryIdToCollection.set(item.id, collection.slug);
+				if (item.translationGroup && !groupToSeedId.has(item.translationGroup)) {
+					groupToSeedId.set(item.translationGroup, seedId);
+				}
 			}
 
 			cursor = result.nextCursor;
@@ -884,10 +981,11 @@ async function exportContent(
 		collected.set(collection.slug, items);
 	}
 
+	const relations = await loadRelations(db);
 	const collectionsBySlug = new Map(collections.map((c) => [c.slug, c]));
 	const orderedSlugs = orderByReferenceTargets(
 		[...collected.keys()],
-		referenceTargets(collected, collectionsBySlug, entryIdToCollection),
+		referenceTargets(collected, collectionsBySlug, entryIdToCollection, relations),
 	);
 
 	for (const slug of orderedSlugs) {
@@ -903,13 +1001,8 @@ async function exportContent(
 		const translationGroupToSeedId = new Map<string, string>();
 
 		for (const { item, seedId } of items) {
-			// Process data fields for $media and $ref conversion
-			const processedData = processDataForExport(
-				item.data,
-				collection.fields,
-				mediaMap,
-				entryIdToSeedId,
-			);
+			// Process data fields for $media conversion
+			const processedData = processDataForExport(item.data, collection.fields, mediaMap);
 
 			const entry: SeedContentEntry = {
 				id: seedId,
@@ -950,6 +1043,13 @@ async function exportContent(
 				entry.bylines = bylines;
 			}
 
+			exported.push({
+				collection,
+				entry,
+				translationGroup: item.translationGroup ?? null,
+				referenceValues: item.data,
+			});
+
 			entries.push(entry);
 		}
 
@@ -968,7 +1068,94 @@ async function exportContent(
 		}
 	}
 
+	await addReferenceLinks(db, exported, relations, groupToSeedId, entryIdToSeedId);
+
 	return content;
+}
+
+interface ExportedEntry {
+	collection: SeedCollection;
+	entry: SeedContentEntry;
+	translationGroup: string | null;
+	/** The entry's stored `data`, which a reference field's column value is read from. */
+	referenceValues: Record<string, unknown>;
+}
+
+/**
+ * Write each entry's reference selection into its `data` as `$ref:` values, which
+ * the seed's own content ids resolve on apply.
+ *
+ * A field bound to a relation takes its selection from the link table. Only the
+ * parent side is emitted: both sides view one link set, so a child-side field
+ * would restate links the parent side already carries, and `setReferenceChildren`
+ * accepts them only from the parent. A field with no relation takes the entry id
+ * in its column instead.
+ *
+ * Runs after every collection has been emitted, so the seed id of any target is
+ * known. A target that was not exported has none: a link is then dropped, since
+ * nothing in the seed owns it, while a column value keeps its `$ref:` prefix
+ * around the raw row id. Stripping the prefix there would write a row id that no
+ * restored row carries into the column, and the restore would report success.
+ */
+async function addReferenceLinks(
+	db: Kysely<Database>,
+	exported: ExportedEntry[],
+	relations: RelationsBySlug,
+	groupToSeedId: Map<string, string>,
+	entryIdToSeedId: Map<string, string>,
+): Promise<void> {
+	if (exported.length === 0) return;
+
+	// Relation id -> parent group -> ordered child groups.
+	const linksByRelation = new Map<string, Map<string, string[]>>();
+	if (relations.size > 0) {
+		const edges = await db
+			.selectFrom("_emdash_content_references")
+			.select(["relation_id", "parent_group", "child_group"])
+			.orderBy("sort_order", "asc")
+			.execute();
+		for (const edge of edges) {
+			const byParent = linksByRelation.get(edge.relation_id) ?? new Map<string, string[]>();
+			const children = byParent.get(edge.parent_group) ?? [];
+			children.push(edge.child_group);
+			byParent.set(edge.parent_group, children);
+			linksByRelation.set(edge.relation_id, byParent);
+		}
+	}
+
+	for (const { collection, entry, translationGroup, referenceValues } of exported) {
+		for (const field of collection.fields) {
+			if (field.type !== "reference") continue;
+			const slug = field.validation?.relation;
+
+			if (typeof slug !== "string") {
+				// No relation: the field keeps its own column, holding one entry id or
+				// a JSON array of them.
+				const stored = referenceValues[field.slug];
+				const ids = (Array.isArray(stored) ? stored : [stored]).filter(
+					(id): id is string => typeof id === "string" && id.length > 0,
+				);
+				const refs = ids.map((id) => `$ref:${entryIdToSeedId.get(id) ?? id}`);
+				if (refs.length === 0) continue;
+				entry.data[field.slug] = Array.isArray(stored) ? refs : refs[0];
+				continue;
+			}
+
+			if (field.validation?.relationSide === "child") continue;
+
+			const relation = relations.get(slug);
+			if (!relation || !translationGroup) continue;
+
+			const childGroups = linksByRelation.get(relation.id)?.get(translationGroup) ?? [];
+			const refs = childGroups
+				.map((group) => groupToSeedId.get(group))
+				.filter((seedId): seedId is string => seedId !== undefined)
+				.map((seedId) => `$ref:${seedId}`);
+			if (refs.length === 0) continue;
+
+			entry.data[field.slug] = relation.maxChildrenPerParent === 1 ? refs[0] : refs;
+		}
+	}
 }
 
 /**
@@ -978,7 +1165,6 @@ function processDataForExport(
 	data: Record<string, unknown>,
 	fields: SeedField[],
 	mediaMap: Map<string, { url: string; filename: string; alt?: string; caption?: string }>,
-	entryIdToSeedId: Map<string, string>,
 ): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 
@@ -1010,20 +1196,11 @@ function processDataForExport(
 			}
 			// Fallback: keep as-is if no media info found
 			result[key] = value;
-		} else if (fieldType === "reference" && typeof value === "string") {
-			// Convert reference to $ref syntax, naming the target by the seed id
-			// this export assigns it. The stored value is a row id, and `seed`
-			// renumbers rows on insert, so a row id matches nothing in the
-			// restored database and gets written to the column verbatim.
-			result[key] = `$ref:${entryIdToSeedId.get(value) ?? value}`;
-		} else if (Array.isArray(value)) {
-			// Process arrays (could contain references or images)
-			result[key] = value.map((item) => {
-				if (typeof item === "string" && fieldType === "reference") {
-					return `$ref:${entryIdToSeedId.get(item) ?? item}`;
-				}
-				return item;
-			});
+		} else if (fieldType === "reference") {
+			// Left for `addReferenceLinks`, which knows the seed id each entry was
+			// emitted under. A `$ref:` built here from a raw entry id resolves
+			// against nothing on apply.
+			continue;
 		} else {
 			result[key] = value;
 		}

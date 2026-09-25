@@ -28,6 +28,12 @@ import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
+import { resolveReferenceSelection } from "./api/handlers/relations.js";
+import {
+	mergeStagedReferences,
+	STAGED_REFERENCES_KEY,
+	type StagedReferences,
+} from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
 import { getSiteBaseUrl } from "./api/site-url.js";
 import type {
@@ -126,6 +132,7 @@ import type {
 import { normalizePluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
+import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
 import type { CollectionWithFields } from "./schema/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
@@ -184,6 +191,7 @@ interface PageContributions {
 
 import { after } from "./after.js";
 import { maybeRunScheduledBackup } from "./api/handlers/backup.js";
+import { changedStoragelessDataKeys, storagelessDataKeyError } from "./api/handlers/content.js";
 import { loadBundleFromR2 } from "./api/handlers/marketplace.js";
 import { runSystemCleanup } from "./cleanup.js";
 import {
@@ -286,6 +294,7 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 	"slug",
 	"locale",
 	"skipRevision",
+	"references",
 	"actor",
 	"migrateBlocks",
 	"replaceBlocks",
@@ -3219,8 +3228,13 @@ export class EmDashRuntime {
 		return handleContentAuthors(this.db, collection);
 	}
 
-	async handleContentGet(collection: string, id: string, locale?: string) {
-		const result = await handleContentGet(this.db, collection, id, locale);
+	async handleContentGet(
+		collection: string,
+		id: string,
+		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
+	) {
+		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
 		return this.hydrateDraftData(result);
 	}
 
@@ -3317,6 +3331,7 @@ export class EmDashRuntime {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			actor?: ActorInfo;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
@@ -3353,11 +3368,18 @@ export class EmDashRuntime {
 				await this.db
 					.selectFrom("_emdash_fields as field")
 					.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
-					.select("field.slug")
+					.select(["field.slug", "field.type", "field.validation"])
 					.where("collection.slug", "=", collection)
 					.where("field.translatable", "=", 0)
 					.execute()
-			).map((field) => field.slug);
+			)
+				// A storage-less field has nothing in `data` worth sharing: its
+				// selection is keyed by translation group, so every translation
+				// already reads the same edges. What the source row does carry under
+				// that slug is the frozen column a field bound after the fact left
+				// behind, and copying it would send a key `data` no longer accepts.
+				.filter((field) => !isStoragelessFieldRow(field))
+				.map((field) => field.slug);
 			const siblings = await repo.findTranslations(
 				collection,
 				source.translationGroup ?? source.id,
@@ -3501,6 +3523,7 @@ export class EmDashRuntime {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			locale?: string;
 			/** Replace the previous autosave revision after staging this save. */
@@ -3551,10 +3574,29 @@ export class EmDashRuntime {
 
 		// Loaded once and threaded through normalization, the stale-key drop and the draft
 		// merge below: each of those needs the field list and the registry does not cache.
-		const collectionInfo = bodyWithoutRev.data
-			? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
-			: null;
+		// A save carrying only a reference selection reaches the draft merge without any
+		// data, so it needs the collection loaded just the same.
+		const collectionInfo =
+			bodyWithoutRev.data || bodyWithoutRev.references
+				? await this.schemaRegistry.getCollectionWithFields(collection).catch(() => null)
+				: null;
 		const knownFieldSlugs = new Set((collectionInfo?.fields ?? []).map((f) => f.slug));
+
+		// A collection that keeps drafts merges `data` into a revision instead of
+		// writing columns, so a reference field's slug would land in the revision
+		// JSON and never reach the check the column writer's own path makes. Both
+		// operands are already in hand here, so the check costs nothing.
+		if (bodyWithoutRev.data && collectionInfo) {
+			const storageless = new Set(
+				collectionInfo.fields.filter(isStoragelessField).map((field) => field.slug),
+			);
+			const changed = changedStoragelessDataKeys(
+				storageless,
+				bodyWithoutRev.data,
+				resolvedItem?.data ?? {},
+			);
+			if (changed.length > 0) return storagelessDataKeyError(changed);
+		}
 
 		// Run beforeSave hooks if data is provided
 		let processedData = bodyWithoutRev.data;
@@ -3647,9 +3689,32 @@ export class EmDashRuntime {
 		// Draft data lives only in the revisions table.
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
-		if (processedData) {
+		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
+
+				// Resolve a pending selection to translation groups before it is
+				// staged, so a bad id or an over-long selection fails this save the
+				// way a direct link write would, and publication has nothing left to
+				// resolve.
+				let stagedReferences: StagedReferences | undefined;
+				if (bodyWithoutRev.references) {
+					stagedReferences = {};
+					for (const [fieldSlug, selectedIds] of Object.entries(bodyWithoutRev.references)) {
+						const resolved = await resolveReferenceSelection(
+							this.db,
+							collection,
+							resolvedId,
+							fieldSlug,
+							selectedIds,
+						);
+						if (!resolved.success) {
+							return { success: false as const, error: resolved.error };
+						}
+						stagedReferences[fieldSlug] = resolved.data.groups;
+					}
+				}
+
 				const revisionRepo = new RevisionRepository(this.db);
 				let existing = await repo.findById(collection, resolvedId);
 
@@ -3661,12 +3726,12 @@ export class EmDashRuntime {
 					} else {
 						baseData = existing.data;
 					}
-					let attemptData = processedData;
+					let attemptData = processedData ?? {};
 					try {
 						attemptData = await normalizeBlocksData(
 							this.db,
 							collectionInfo,
-							processedData,
+							attemptData,
 							baseData,
 							blockWriteOptions,
 							true,
@@ -3703,6 +3768,9 @@ export class EmDashRuntime {
 						: { ...baseData, ...attemptData };
 					if (bodyWithoutRev.slug !== undefined) {
 						mergedData._slug = bodyWithoutRev.slug;
+					}
+					if (stagedReferences) {
+						mergedData[STAGED_REFERENCES_KEY] = mergeStagedReferences(baseData, stagedReferences);
 					}
 
 					const revision = await revisionRepo.create({
@@ -3795,13 +3863,19 @@ export class EmDashRuntime {
 						...bodyWithoutRev,
 						data: usesDraftRevisions ? undefined : processedData,
 						slug: usesDraftRevisions ? undefined : bodyWithoutRev.slug,
+						references: usesDraftRevisions ? undefined : bodyWithoutRev.references,
 						authorId: bodyWithoutRev.authorId,
 						bylines: bodyWithoutRev.bylines,
 					});
 
 		const liveContentChanged = usesDraftRevisions
 			? liveMetaTouched
-			: Boolean(processedData || bodyWithoutRev.slug !== undefined || liveMetaTouched);
+			: Boolean(
+					processedData ||
+					bodyWithoutRev.slug !== undefined ||
+					bodyWithoutRev.references ||
+					liveMetaTouched,
+				);
 
 		// Hydrate draft data BEFORE firing afterSave hooks so the hook sees
 		// the same effective data the response surfaces — for revision-

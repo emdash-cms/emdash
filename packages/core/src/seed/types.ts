@@ -45,6 +45,9 @@ export interface SeedFile {
 	/** Database-owned block types, applied before collections that reference them. */
 	blockTypes?: SeedBlockType[];
 
+	/** Relations joining two collections, which reference fields bind to */
+	relations?: SeedRelation[];
+
 	/** Taxonomy definitions */
 	taxonomies?: SeedTaxonomy[];
 
@@ -116,6 +119,34 @@ export interface SeedCollection {
 	/** Field slug (a datetime field) powering the admin list Date column (defaults to last-updated) */
 	dateField?: string;
 	fields: SeedField[];
+}
+
+/**
+ * Relation definition in seed.
+ *
+ * A relation joins two collections and owns the link set a reference field
+ * views. Declaring it here names it — the slug is how a field addresses it — and
+ * lets a field on either collection bind to it. A reference field that names
+ * only a `targetCollection` gets a relation created for it instead, which stays
+ * the shorter path for a one-sided link.
+ *
+ * Labels are single-valued: a relation is schema, like a collection or a field,
+ * and carries no locale.
+ */
+export interface SeedRelation {
+	slug: string;
+	parentCollection: string;
+	childCollection: string;
+	/** Names the parent's role, as seen from the child. */
+	parentLabel: string;
+	parentLabelSingular?: string;
+	/** Names the child's role, as seen from the parent. */
+	childLabel: string;
+	childLabelSingular?: string;
+	/** How many children one parent may link. Omitted or `null` is unlimited. */
+	maxChildrenPerParent?: number | null;
+	/** How many parents one child may link. Omitted or `null` is unlimited. */
+	maxParentsPerChild?: number | null;
 }
 
 /**
@@ -375,6 +406,7 @@ export interface SeedApplyResult {
 	blockTypes: { created: number; skipped: number; updated: number };
 	collections: { created: number; skipped: number; updated: number };
 	fields: { created: number; skipped: number; updated: number };
+	relations: { created: number; skipped: number; updated: number };
 	taxonomies: { created: number; skipped: number; terms: number };
 	bylines: { created: number; skipped: number; updated: number };
 	menus: { created: number; items: number };

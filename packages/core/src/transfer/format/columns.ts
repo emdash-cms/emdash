@@ -24,6 +24,7 @@ import type { Kysely } from "kysely";
 import { listTableColumns, type TableColumnInfo } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import { isStoragelessFieldRow } from "../../schema/types.js";
 import { TransferError } from "../errors.js";
 import type { RecordKind } from "./kinds.js";
 
@@ -175,13 +176,15 @@ const PORTABLE_TABLE_LIST: PortableTableSpec[] = [
 		kind: "relation",
 		columns: {
 			id: f("id"),
-			name: f("name"),
+			slug: f("slug"),
 			parent_collection: f("parentCollection"),
 			child_collection: f("childCollection"),
 			parent_label: f("parentLabel"),
 			child_label: f("childLabel"),
-			locale: f("locale"),
-			translation_group: f("translationGroup"),
+			parent_label_singular: f("parentLabelSingular"),
+			child_label_singular: f("childLabelSingular"),
+			max_children_per_parent: f("maxChildrenPerParent", "integer"),
+			max_parents_per_child: f("maxParentsPerChild", "integer"),
 			created_at: f("createdAt"),
 			updated_at: f("updatedAt"),
 		},
@@ -335,7 +338,7 @@ const PORTABLE_TABLE_LIST: PortableTableSpec[] = [
 		kind: "content_reference",
 		columns: {
 			id: f("id"),
-			relation_group: f("relationGroup"),
+			relation_id: f("relationId"),
 			parent_group: f("parentGroup"),
 			child_group: f("childGroup"),
 			sort_order: f("sortOrder", "integer"),
@@ -623,7 +626,12 @@ export async function getColumnSpecs(
 	const fields = await db
 		.selectFrom("_emdash_fields")
 		.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
-		.select(["_emdash_fields.slug as slug", "_emdash_fields.column_type as column_type"])
+		.select([
+			"_emdash_fields.slug as slug",
+			"_emdash_fields.column_type as column_type",
+			"_emdash_fields.type as type",
+			"_emdash_fields.validation as validation",
+		])
 		.where("_emdash_collections.slug", "=", slug)
 		.execute();
 	return contentColumnSpecs(fields, await listTableColumns(db, table));
@@ -632,15 +640,27 @@ export async function getColumnSpecs(
 /**
  * Column classification of an `ec_*` table from its collection's registered
  * fields and the table's declared columns (see {@link getColumnSpecs}).
+ *
+ * A storage-less field's values are content references, not a column. A
+ * column left under its slug from before the field was bound is excluded.
  */
 export function contentColumnSpecs(
-	fields: ReadonlyArray<{ slug: string; column_type: string }>,
+	fields: ReadonlyArray<{
+		slug: string;
+		column_type: string;
+		type: string;
+		validation: string | null;
+	}>,
 	tableColumns: readonly TableColumnInfo[],
 ): Readonly<Record<string, ColumnSpec>> {
 	const declared = new Map(tableColumns.map((column) => [column.name, column.type.toLowerCase()]));
 	const columns: Record<string, ColumnSpec> = { ...CONTENT_TABLE_COLUMNS };
 	for (const field of fields) {
 		if (Object.hasOwn(columns, field.slug)) continue;
+		if (isStoragelessFieldRow(field)) {
+			columns[field.slug] = EXCLUDED;
+			continue;
+		}
 		let codec = codecForColumnType(field.column_type);
 		if (codec === "nativeJson" && !JSON_COLUMN_TYPES.has(declared.get(field.slug) ?? "")) {
 			codec = "json";

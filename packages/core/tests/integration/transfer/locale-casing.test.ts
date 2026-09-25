@@ -37,7 +37,6 @@ const LOCALE_TABLES = [
 	"_emdash_bylines",
 	"_emdash_menus",
 	"_emdash_menu_items",
-	"_emdash_relations",
 ] as const;
 
 describeEachDialect("importing a locale the target spells differently", (dialect) => {

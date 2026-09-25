@@ -459,13 +459,14 @@ export function goldenRecords(
 	add({
 		kind: "relation",
 		id: ids.relatedPages,
-		name: "related_pages",
+		slug: "related_pages",
 		parentCollection: "posts",
 		childCollection: "pages",
 		parentLabel: "Related pages",
 		childLabel: "Referenced by",
-		locale: "en",
-		translationGroup: ids.relatedPages,
+		parentLabelSingular: "Related page",
+		childLabelSingular: "Referencing post",
+		maxChildrenPerParent: 5,
 		createdAt: T0,
 		updatedAt: T0,
 	});
@@ -827,7 +828,7 @@ export function goldenRecords(
 	add({
 		kind: "content_reference",
 		id: ids.relatedRef,
-		relationGroup: ids.relatedPages,
+		relationId: ids.relatedPages,
 		parentGroup: ids.hello,
 		childGroup: ids.about,
 		sortOrder: 0,

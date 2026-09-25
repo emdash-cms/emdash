@@ -11,6 +11,7 @@ import { ulid } from "ulidx";
 
 import { refreshDevTypes } from "../astro/dev-typegen.js";
 import {
+	columnExists,
 	currentTimestamp,
 	isPostgres,
 	listTablesLike,
@@ -65,6 +66,7 @@ import {
 	FIELD_TYPE_TO_COLUMN,
 	REPEATER_SUB_FIELD_TYPES,
 	isIndexableFieldType,
+	isStoragelessField,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
 	MAX_BLOCKS_ITEMS,
@@ -152,13 +154,30 @@ const UNORDERED_COLLECTION_RANK = 2147483647;
  */
 const collectionOrder = sql<number>`coalesce(sort_order, ${sql.lit(UNORDERED_COLLECTION_RANK)})`;
 
-function assertIndexableField(type: FieldType, indexed: boolean | undefined, slug: string): void {
-	if (indexed && !isIndexableFieldType(type)) {
+function assertIndexableField(
+	field: { type: FieldType; validation?: FieldValidation | null },
+	indexed: boolean | undefined,
+	slug: string,
+): void {
+	if (!indexed) return;
+	if (!isIndexableFieldType(field.type)) {
 		throw new SchemaError(
-			`Field "${slug}" cannot be indexed because type "${type}" is not a scalar query type`,
+			`Field "${slug}" cannot be indexed because type "${field.type}" is not a scalar query type`,
 			"FIELD_NOT_INDEXABLE",
 		);
 	}
+	if (isStoragelessField(field)) {
+		throw new SchemaError(
+			`Field "${slug}" cannot be indexed because it stores no column to index`,
+			"FIELD_NOT_INDEXABLE",
+		);
+	}
+}
+
+/** A field record's `validation`, which the package carries as any JSON value. */
+function importFieldValidation(value: unknown): FieldValidation | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+	return value;
 }
 
 function isCollectionSupport(value: unknown): value is CollectionSupport {
@@ -598,7 +617,7 @@ export class SchemaRegistry {
 		const normalizedFields: CreateFieldInput[] = [];
 		for (const field of fields) {
 			this.validateSlug(field.slug, "field");
-			assertIndexableField(field.type, field.indexed, field.slug);
+			assertIndexableField(field, field.indexed, field.slug);
 			if (RESERVED_FIELD_SLUGS.includes(field.slug)) {
 				throw new SchemaError(`Field slug "${field.slug}" is reserved`, "RESERVED_SLUG");
 			}
@@ -961,7 +980,8 @@ export class SchemaRegistry {
 					"INVALID_FIELD_TYPE",
 				);
 			}
-			assertIndexableField(field.type, field.indexed, field.slug);
+			const validation = importFieldValidation(field.validation);
+			assertIndexableField({ type: field.type, validation }, field.indexed, field.slug);
 			if (field.indexed) this.getFieldIndexName(field.id);
 			return {
 				slug: field.slug,
@@ -969,6 +989,7 @@ export class SchemaRegistry {
 				type: field.type,
 				required: field.required,
 				defaultValue: field.defaultValue,
+				validation,
 			};
 		});
 	}
@@ -1105,16 +1126,29 @@ export class SchemaRegistry {
 	}
 
 	/**
-	 * Delete a collection
+	 * The content guard {@link deleteCollection} refuses on, on its own.
+	 *
+	 * A caller that has to cascade before deleting — relations, whose edges point
+	 * at rows the drop is about to take — needs to know the delete is acceptable
+	 * before it changes anything, since the cascade cannot be rolled back on D1.
 	 */
-	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
+	async assertCollectionDeletable(slug: string, options?: { force?: boolean }): Promise<void> {
+		if (options?.force) return;
 		const existing = await this.getCollection(slug);
-		if (existing && !options?.force && (await this.collectionHasContent(slug))) {
+		if (existing && (await this.collectionHasContent(slug))) {
 			throw new SchemaError(
 				`Collection "${slug}" has content. Use force: true to delete.`,
 				"COLLECTION_HAS_CONTENT",
 			);
 		}
+	}
+
+	/**
+	 * Delete a collection
+	 */
+	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
+		await this.assertCollectionDeletable(slug, options);
+		const existing = await this.getCollection(slug);
 		const activated = await deleteActivatedMediaUsageCollection(this.db, {
 			collectionId: existing?.id,
 			collectionSlug: slug,
@@ -1230,7 +1264,7 @@ export class SchemaRegistry {
 				? await this.normalizeBlocksFieldValidation(collectionSlug, input, undefined, this.db)
 				: input.validation;
 		const columnType = FIELD_TYPE_TO_COLUMN[input.type];
-		assertIndexableField(input.type, input.indexed, input.slug);
+		assertIndexableField(input, input.indexed, input.slug);
 
 		// Get max sort order
 		const maxSort = await this.db
@@ -1273,17 +1307,21 @@ export class SchemaRegistry {
 					.execute();
 				schemaMutated = true;
 
-				// Add column to content table — pass trx to stay on the same connection
-				await this.addColumn(
-					collectionSlug,
-					input.slug,
-					input.type,
-					{
-						required: input.required,
-						defaultValue: input.defaultValue,
-					},
-					trx,
-				);
+				// Add column to content table — pass trx to stay on the same connection.
+				// A storage-less field persists no column; its values live in a side
+				// table (see `isStoragelessField`). Insert the field row only.
+				if (!isStoragelessField(input)) {
+					await this.addColumn(
+						collectionSlug,
+						input.slug,
+						input.type,
+						{
+							required: input.required,
+							defaultValue: input.defaultValue,
+						},
+						trx,
+					);
+				}
 
 				if (input.indexed) {
 					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
@@ -1390,9 +1428,29 @@ export class SchemaRegistry {
 								field,
 								trx,
 							)
-						: input.validation;
+						: input.validation !== undefined
+							? input.validation
+							: field.validation;
 
 				if (input.type !== undefined && input.type !== field.type) {
+					// A change into or out of storage-less is never a no-op column change:
+					// string -> reference both map to TEXT and would slip past the affinity
+					// check below, yet one has a column and the other does not. An unwired
+					// reference field is column-backed, so its refusal comes from the
+					// text-alias check instead.
+					const storagelessBefore = isStoragelessField(field);
+					const storagelessAfter = isStoragelessField({
+						type: input.type,
+						validation: nextValidation,
+					});
+					if (storagelessBefore !== storagelessAfter) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" between ` +
+								`storage-less and column-backed types ("${field.type}" -> "${input.type}").`,
+							"FIELD_TYPE_COLUMN_CHANGE",
+						);
+					}
+
 					const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
 					if (newColumnType !== field.columnType) {
 						throw new SchemaError(
@@ -1464,7 +1522,11 @@ export class SchemaRegistry {
 				if (input.options !== undefined) updates.options = JSON.stringify(input.options);
 				if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
 
-				assertIndexableField(nextType, input.indexed ?? field.indexed, fieldSlug);
+				assertIndexableField(
+					{ type: nextType, validation: nextValidation },
+					input.indexed ?? field.indexed,
+					fieldSlug,
+				);
 				if (Object.keys(updates).length === 0) return field;
 
 				activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
@@ -1636,8 +1698,19 @@ export class SchemaRegistry {
 					await this.dropFieldIndex(field.id, trx);
 				}
 
-				// Drop column from content table — safe now because FTS triggers are gone
-				await this.dropColumn(collectionSlug, fieldSlug, trx);
+				// Drop column from content table — safe now because FTS triggers are gone.
+				// Whether a field is storage-less is a property of the row rather than of
+				// its type: reference fields created before they became storage-less
+				// still carry a column, and skipping the DDL would strand it and block
+				// the slug from ever being reused.
+				const hasColumn = await columnExists(
+					trx,
+					this.getTableName(collectionSlug),
+					this.getColumnName(fieldSlug),
+				);
+				if (hasColumn) {
+					await this.dropColumn(collectionSlug, fieldSlug, trx);
+				}
 			});
 			if (activeCoverageInvalidated) {
 				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
@@ -1777,6 +1850,8 @@ export class SchemaRegistry {
 		if (options.ifNotExists) table = table.ifNotExists();
 
 		for (const field of fields) {
+			if (isStoragelessField(field)) continue;
+
 			const columnName = this.getColumnName(field.slug);
 			const columnType = COLUMN_TYPE_TO_DATA_TYPE[FIELD_TYPE_TO_COLUMN[field.type]];
 			table = table.addColumn(columnName, columnType, (column) => {

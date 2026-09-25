@@ -376,7 +376,33 @@ The acquire body can include an opaque `token` that identifies one editing sessi
 
 When another user holds the lease, protected content writes return `409 ENTRY_LOCKED`. The error details identify the holder and expiry. To override the lock, send `"overrideLock": true` in the JSON body for a write that has a body, or `?overrideLock=true` for a `DELETE` operation that has no body.
 
-## Translations and relations
+## Reference selections
+
+A [`reference` field](/reference/field-types/#reference) links an entry to entries in another collection through a relation. Its value is not part of `data`, and it is keyed by translation group, so every translation of an entry shares one selection.
+
+Creation and update bodies carry selections under `references`, keyed by field slug, each an array of at most 1000 entry IDs in display order. EmDash writes the selection in the same transaction as the entry. The following update replaces the entry's author:
+
+```http
+PUT /_emdash/api/content/articles/01JARTICLE0000000000000000
+Authorization: Bearer $EMDASH_TOKEN
+Content-Type: application/json
+
+{
+	"data": { "title": "Updated launch notes" },
+	"references": { "author": ["01JAUTHOR00000000000000000"] },
+	"_rev": "opaque-revision-token"
+}
+```
+
+A field bound to the child end of its relation selects the entries pointing at the one being written, which carry no order of their own. Relation limits are enforced on both ends, so a selection that would give a linked entry more parents than the relation allows is rejected alongside one that links too many entries itself.
+
+On a collection that keeps revisions, a selection changed on a published entry is staged in the draft with the entry's other pending edits. It becomes live when the entry is published and is discarded with the draft. Publishing re-checks the whole selection against the relation's limits.
+
+A single-entry read returns `references` keyed by field slug. Each field holds the first page of its linked entries, 50 of them, with a `nextCursor` when the field holds more, and reports each entry's ID, slug, collection, display title, resolved locale, and translation group. A caller who may read drafts sees a staged selection where the draft carries one. The content list operation does not include references.
+
+Relation definitions and link traversal are admin routes, absent from OpenAPI and outside the public contract. Write and read selections through the content operations above, and render them on a site with [`getEmDashEntry()`](/reference/api/#getemdashentry) and [`getEmDashReferences()`](/reference/api/#getemdashreferences).
+
+## Translations
 
 The public REST contract exposes content translations and taxonomy-definition translations. Content creation accepts `translationOf`, and taxonomy creation uses the same field to add a locale variant. The content-term operations return locale-aware assignments.
 
@@ -389,8 +415,6 @@ Deleting a taxonomy removes every locale of its definition, all its terms, and a
 The term-reorder operation changes one sibling group. The `ids` array may contain only part of that group; listed terms exchange their existing positions and omitted terms stay where they are. For example, reordering `[A, B, C]` with `ids: ["C", "A"]` produces `[C, B, A]`. Reordering does not change parent relationships, and one term order applies across every locale in its translation group.
 
 Menu, taxonomy-term, and byline translation routes are not in the public REST contract. Their supported translation listings are available through `menu_translations`, `taxonomy_term_translations`, and `byline_translations` on the [MCP server](/reference/mcp-server/#tool-inventory).
-
-EmDash has internal routes that support relation editing in the admin, but they are absent from OpenAPI. External REST clients should use the relation and reference fields described by the collection schema instead of calling those internal routes.
 
 ## Media endpoints
 
