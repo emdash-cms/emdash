@@ -40,23 +40,33 @@ export const wpPluginExecuteBody = z.object({
 	commentRoots: z.record(z.string(), z.string().min(1)).optional(),
 });
 
+const wpPrepareField = z.object({
+	slug: z.string().min(1),
+	label: z.string().min(1),
+	type: z.string().min(1),
+	required: z.boolean(),
+	searchable: z.boolean().optional(),
+});
+
 export const wpPrepareBody = z.object({
 	postTypes: z.array(
-		z.object({
-			name: z.string().min(1),
-			collection: z.string().min(1),
-			fields: z
-				.array(
-					z.object({
-						slug: z.string().min(1),
-						label: z.string().min(1),
-						type: z.string().min(1),
-						required: z.boolean(),
-						searchable: z.boolean().optional(),
-					}),
-				)
-				.optional(),
-		}),
+		z
+			.object({
+				name: z.string().min(1),
+				collection: z.string().min(1).optional(),
+				suggestedCollection: z.string().min(1).optional(),
+				fields: z.array(wpPrepareField).optional(),
+				requiredFields: z.array(wpPrepareField).optional(),
+			})
+			.refine((pt) => pt.collection || pt.suggestedCollection, {
+				message: "collection or suggestedCollection is required",
+				path: ["collection"],
+			})
+			.transform((pt) => ({
+				name: pt.name,
+				collection: pt.collection ?? pt.suggestedCollection!,
+				fields: pt.fields ?? pt.requiredFields ?? [],
+			})),
 	),
 });
 

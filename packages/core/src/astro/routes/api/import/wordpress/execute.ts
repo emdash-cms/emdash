@@ -23,6 +23,7 @@ import { resolveImportByline } from "#import/utils.js";
 import {
 	attachPostTaxonomies,
 	isWxrTaxonomyConflictError,
+	loadTaxonomyPlanFromDb,
 	mirrorTermsToLocales,
 	preImportWxrTaxonomies,
 	setPostTermAssignmentsReplacing,
@@ -34,6 +35,28 @@ import { slugify } from "#utils/slugify.js";
 import { sanitizeSlug } from "./analyze.js";
 
 export const prerender = false;
+
+/** Posts processed per Worker invocation in chunked WXR imports. */
+const WXR_CONTENT_CHUNK_SIZE = 30;
+
+/** Phase/cursor payload for chunked WXR imports. */
+interface WxrChunkCursor {
+	offset: number;
+}
+
+/** Cross-chunk state carried by the client. */
+interface WxrChunkState {
+	translationGroups: Record<string, string>;
+}
+
+/** Chunked response shape mirrors the wordpress-plugin execute endpoint. */
+interface WxrChunkResponse {
+	success: boolean;
+	result: ImportResult;
+	done: boolean;
+	cursor?: WxrChunkCursor;
+	chunk?: WxrChunkState;
+}
 
 export interface ImportConfig {
 	/** Map WordPress post types to EmDash collections */
@@ -111,6 +134,23 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		const config: ImportConfig = JSON.parse(configJson);
 
+		const phaseEntry = formData.get("phase");
+		const phase = phaseEntry === "content" ? phaseEntry : undefined;
+
+		const cursorEntry = formData.get("cursor");
+		let cursor: WxrChunkCursor | undefined;
+		if (typeof cursorEntry === "string" && cursorEntry.length > 0) {
+			cursor = parseJsonField<WxrChunkCursor>(cursorEntry, "cursor");
+			if (cursor instanceof Response) return cursor;
+		}
+
+		const chunkEntry = formData.get("chunk");
+		let incomingChunk: WxrChunkState | undefined;
+		if (typeof chunkEntry === "string" && chunkEntry.length > 0) {
+			incomingChunk = parseJsonField<WxrChunkState>(chunkEntry, "chunk");
+			if (incomingChunk instanceof Response) return incomingChunk;
+		}
+
 		// Parse WXR
 		const text = await file.text();
 		const wxr = await parseWxrString(text);
@@ -128,6 +168,39 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		for (const author of wxr.authors) {
 			if (!author.login) continue;
 			authorDisplayNames.set(author.login, author.displayName || author.login);
+		}
+
+		// Chunked mode: one bounded unit of work per invocation so large WXR
+		// imports stay under Cloudflare's D1 per-invocation query budget. The
+		// client re-uploads the file and carries cross-chunk state; the server
+		// stays stateless. See issue #3210.
+		if (phase === "content") {
+			const chunkResponse = await runContentChunk(
+				wxr,
+				config,
+				emdash,
+				emdashManifest,
+				attachmentMap,
+				authorDisplayNames,
+				cursor,
+				incomingChunk,
+			);
+			if (chunkResponse instanceof Response) return chunkResponse;
+			return apiSuccess(chunkResponse);
+		}
+
+		// Single-shot mode. D1 allows at most ~1,000 queries per Worker
+		// invocation; for WXR imports the practical ceiling after schema/taxonomy
+		// optimisations is roughly this chunk size. Refuse to start a request
+		// that is guaranteed to fail midway, so the client gets a clear error
+		// instead of a hang and partial writes.
+		if (wxr.posts.length > WXR_CONTENT_CHUNK_SIZE) {
+			return apiError(
+				"WXR_IMPORT_TOO_LARGE",
+				`This WXR contains ${wxr.posts.length} posts, which exceeds the ${WXR_CONTENT_CHUNK_SIZE}-post limit for a single import request. ` +
+					`Run the import in chunked mode or split the file into smaller exports.`,
+				413,
+			);
 		}
 
 		// Pre-create taxonomy terms (categories, tags, custom taxonomies) so
@@ -205,6 +278,95 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 };
 
+function parseJsonField<T>(value: string, fieldName: string): T | Response {
+	try {
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller validates shape
+		return JSON.parse(value) as T;
+	} catch {
+		return apiError("VALIDATION_ERROR", `Invalid JSON in ${fieldName}`, 400);
+	}
+}
+
+/**
+ * Import a single bounded chunk of WXR posts. The first chunk pre-imports
+ * taxonomy terms and mirrors them to per-post locales; later chunks reload
+ * the taxonomy plan from the database so they stay cheap. Cross-chunk state
+ * (translation groups) is accumulated by the client and passed back in.
+ */
+async function runContentChunk(
+	wxr: Awaited<ReturnType<typeof parseWxrString>>,
+	config: ImportConfig,
+	emdash: EmDashHandlers,
+	manifest: EmDashManifest,
+	attachmentMap: Map<string, string>,
+	authorDisplayNames: Map<string, string>,
+	cursor: WxrChunkCursor | undefined,
+	incomingChunk: WxrChunkState | undefined,
+): Promise<WxrChunkResponse | Response> {
+	const offset = cursor?.offset ?? 0;
+	const isFirstChunk = offset === 0;
+	const posts = wxr.posts.slice(offset, offset + WXR_CONTENT_CHUNK_SIZE);
+
+	let taxonomyPlan!: TaxonomyImportPlan;
+	if (isFirstChunk) {
+		taxonomyPlan = await preImportWxrTaxonomies(
+			emdash.db,
+			wxr.posts,
+			wxr.categories,
+			wxr.tags,
+			wxr.terms,
+			config.locale,
+		);
+
+		const postLocales = new Set<string>();
+		for (const post of wxr.posts) {
+			if (post.locale) postLocales.add(post.locale);
+		}
+		if (postLocales.size > 0) {
+			try {
+				await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, config.locale);
+			} catch (mirrorError) {
+				if (isWxrTaxonomyConflictError(mirrorError)) {
+					console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", mirrorError);
+					return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", mirrorError.publicMessage, 409);
+				}
+				throw mirrorError;
+			}
+		}
+	} else {
+		taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
+	}
+
+	// Seed translation-group state from earlier chunks so a translation that
+	// appears on chunk N can link to its sibling imported on chunk N-1.
+	const translationGroupMap = new Map<string, string>(
+		Object.entries(incomingChunk?.translationGroups ?? {}),
+	);
+
+	const result = await importContent(
+		posts,
+		config,
+		emdash,
+		manifest,
+		attachmentMap,
+		config.locale,
+		authorDisplayNames,
+		taxonomyPlan,
+		translationGroupMap,
+	);
+
+	const nextOffset = offset + posts.length;
+	const done = nextOffset >= wxr.posts.length;
+
+	return {
+		success: result.errors.length === 0,
+		result,
+		done,
+		cursor: done ? undefined : { offset: nextOffset },
+		chunk: { translationGroups: Object.fromEntries(translationGroupMap) },
+	};
+}
+
 export async function importContent(
 	posts: WxrPost[],
 	config: ImportConfig,
@@ -214,6 +376,7 @@ export async function importContent(
 	locale: string | undefined,
 	authorDisplayNames: Map<string, string> | undefined,
 	taxonomyPlan: TaxonomyImportPlan,
+	translationGroupMap = new Map<string, string>(),
 ): Promise<ImportResult> {
 	const result: ImportResult = {
 		success: true,
@@ -233,11 +396,6 @@ export async function importContent(
 	const contentRepo = new ContentRepository(emdash.db);
 	const bylineRepo = new BylineRepository(emdash.db);
 	const bylineCache = new Map<string, string>();
-
-	// Source-side translation group ID -> the EmDash ID of the first post we
-	// imported for that group. Subsequent translations are linked via
-	// `translationOf` so they share a `translation_group` on the EmDash side.
-	const translationGroupMap = new Map<string, string>();
 
 	for (const post of posts) {
 		const postType = post.postType || "post";

@@ -136,4 +136,42 @@ describe("wpPrepareBody schema", () => {
 		const result = wpPrepareBody.safeParse(input);
 		expect(result.success).toBe(true);
 	});
+
+	it("normalizes analyze-shaped post types to the prepare shape", () => {
+		const input = {
+			postTypes: [
+				{
+					name: "post",
+					suggestedCollection: "posts",
+					requiredFields: [
+						{ slug: "title", label: "Title", type: "string", required: true, searchable: true },
+					],
+				},
+			],
+		};
+
+		const result = wpPrepareBody.safeParse(input);
+		expect(result.success).toBe(true);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
+		expect(
+			(result.data as { postTypes: Array<{ collection: string; fields: unknown[] }> }).postTypes[0],
+		).toEqual({
+			name: "post",
+			collection: "posts",
+			fields: [{ slug: "title", label: "Title", type: "string", required: true, searchable: true }],
+		});
+	});
+
+	it("defaults missing fields to an empty array", () => {
+		const input = {
+			postTypes: [{ name: "post", collection: "posts" }],
+		};
+
+		const result = wpPrepareBody.safeParse(input);
+		expect(result.success).toBe(true);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
+		expect(
+			(result.data as { postTypes: Array<{ fields: unknown[] }> }).postTypes[0].fields,
+		).toEqual([]);
+	});
 });

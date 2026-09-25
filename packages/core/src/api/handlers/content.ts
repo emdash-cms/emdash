@@ -46,6 +46,7 @@ import {
 	type ScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { requestCached } from "../../request-cache.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
@@ -111,30 +112,41 @@ const SEO_DEFAULTS: ContentSeo = {
 
 /**
  * Check if a collection has SEO enabled.
+ *
+ * Cached per request so bulk imports do not re-query `_emdash_collections`
+ * for every item they create. See issue #3210.
  */
 async function collectionHasSeo(db: Kysely<Database>, collection: string): Promise<boolean> {
-	const row = await db
-		.selectFrom("_emdash_collections")
-		.select("has_seo")
-		.where("slug", "=", collection)
-		.executeTakeFirst();
-	return row?.has_seo === 1;
+	return requestCached(`collectionHasSeo:${collection}`, async () => {
+		const row = await db
+			.selectFrom("_emdash_collections")
+			.select("has_seo")
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		return row?.has_seo === 1;
+	});
 }
 
+/**
+ * Collection publication metadata. Cached per request for bulk imports; see
+ * issue #3210.
+ */
 async function getCollectionPublishConfig(
 	db: Kysely<Database>,
 	collection: string,
 ): Promise<{ supportsRevisions: boolean; routable: boolean }> {
-	const row = await db
-		.selectFrom("_emdash_collections")
-		.select(["supports", "routable"])
-		.where("slug", "=", collection)
-		.executeTakeFirst();
-	const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
-	return {
-		supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
-		routable: row?.routable !== 0,
-	};
+	return requestCached(`collectionPublishConfig:${collection}`, async () => {
+		const row = await db
+			.selectFrom("_emdash_collections")
+			.select(["supports", "routable"])
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
+		return {
+			supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
+			routable: row?.routable !== 0,
+		};
+	});
 }
 
 function requireRoutablePublishSlug(routable: boolean, slug: string | null | undefined): void {

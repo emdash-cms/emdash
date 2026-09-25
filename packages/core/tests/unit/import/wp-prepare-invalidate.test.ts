@@ -24,9 +24,17 @@ function buildRequest(body: unknown): Request {
 	});
 }
 
-function buildContext(emdash: any, user = { id: "test-user", role: 50 }) {
+function buildContext(emdash: any, body: unknown, user = { id: "test-user", role: 50 }) {
 	return {
-		request: buildRequest({
+		request: buildRequest(body),
+		locals: { emdash, user },
+	};
+}
+
+function buildDefaultContext(emdash: any, user = { id: "test-user", role: 50 }) {
+	return buildContext(
+		emdash,
+		{
 			postTypes: [
 				{
 					name: "tablepress_table",
@@ -34,9 +42,9 @@ function buildContext(emdash: any, user = { id: "test-user", role: 50 }) {
 					fields: [{ slug: "title", label: "Title", type: "string", required: true }],
 				},
 			],
-		}),
-		locals: { emdash, user },
-	};
+		},
+		user,
+	);
 }
 
 describe("POST /api/import/wordpress/prepare", () => {
@@ -50,7 +58,7 @@ describe("POST /api/import/wordpress/prepare", () => {
 			invalidateUrlPatternCache,
 		};
 
-		const ctx = buildContext(emdash);
+		const ctx = buildDefaultContext(emdash);
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		const response = await POST(ctx as any);
 
@@ -81,11 +89,50 @@ describe("POST /api/import/wordpress/prepare", () => {
 			invalidateUrlPatternCache,
 		};
 
-		const ctx = buildContext(emdash);
+		const ctx = buildDefaultContext(emdash);
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion
 		const response = await POST(ctx as any);
 
 		expect(response.status).toBe(200);
 		expect(invalidateUrlPatternCache).not.toHaveBeenCalled();
+	});
+
+	it("accepts post types shaped like /analyze output (suggestedCollection + requiredFields) (regression for #3210)", async () => {
+		const db = await setupTestDatabase();
+		const invalidateUrlPatternCache = vi.fn();
+
+		const emdash = {
+			db,
+			handleContentCreate: vi.fn(),
+			invalidateUrlPatternCache,
+		};
+
+		const ctx = buildContext(emdash, {
+			postTypes: [
+				{
+					name: "post",
+					suggestedCollection: "posts",
+					requiredFields: [
+						{ slug: "title", label: "Title", type: "string", required: true, searchable: true },
+					],
+				},
+			],
+		});
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
+		const response = await POST(ctx as any);
+
+		expect(response.status).toBe(200);
+		expect(invalidateUrlPatternCache).toHaveBeenCalledTimes(1);
+
+		const body = await response.json();
+		expect(body.data.fieldsCreated).toContainEqual({ collection: "posts", field: "title" });
+
+		const { SchemaRegistry } = await import("../../../src/schema/registry.js");
+		const registry = new SchemaRegistry(db);
+		const createdField = await registry.getField("posts", "title");
+		expect(createdField).not.toBeNull();
+		expect(createdField?.type).toBe("string");
+		expect(createdField?.required).toBe(true);
+		expect(createdField?.searchable).toBe(true);
 	});
 });
