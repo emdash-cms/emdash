@@ -64,7 +64,7 @@ const seo = getSeoMeta(project, {
 	siteUrl: Astro.url.origin,
 	path: `/work/${slug}`,
 	defaultDescription: project.data.summary,
-	defaultOgImage: project.data.featured_image.src,
+	defaultOgImage: project.data.featured_image?.src,
 });
 ---
 

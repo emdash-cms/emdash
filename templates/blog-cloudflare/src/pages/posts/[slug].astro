@@ -71,10 +71,14 @@ const readingTime = getReadingTime(post.data.content);
 const tags = post.data.terms?.tag ?? [];
 
 // Fetch a few extra recent posts in case the current post is among them.
-const { entries: recentPosts } = await getEmDashCollection("posts", {
+const { entries: recentPosts, cacheHint: recentPostsCacheHint } = await getEmDashCollection(
+	"posts",
+	{
 	orderBy: { published_at: "desc" },
 	limit: 4,
-});
+	},
+);
+if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
 
 // Single batched query for related-posts tags, rather than one
