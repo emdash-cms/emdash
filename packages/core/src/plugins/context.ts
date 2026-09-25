@@ -985,6 +985,25 @@ function allowedUploadType(contentType: string): string {
 	return mimeType;
 }
 
+function uploadStorageKey(
+	filename: string,
+	mimeType: string,
+): { basename: string; storageKey: string } {
+	const keyPrefix = ulid();
+	const basename = filename.split("/").pop() ?? filename;
+	const dotIdx = basename.lastIndexOf(".");
+	const nameExt = dotIdx > 0 ? basename.slice(dotIdx + 1).toLowerCase() : "";
+	// Local storage serves files by their key's extension, so it must map to an allowed type.
+	const nameType = mime.getType(nameExt);
+	const nameExtAllowed =
+		nameType !== null && matchesMimeAllowlist(nameType, GLOBAL_UPLOAD_ALLOWLIST);
+	const ext =
+		nameType === mimeType
+			? nameExt
+			: (mime.getExtension(mimeType) ?? (nameExtAllowed ? nameExt : null));
+	return { basename, storageKey: ext ? `${keyPrefix}.${ext}` : keyPrefix };
+}
+
 /**
  * Create full media access with write operations.
  *
@@ -1003,35 +1022,33 @@ export function createMediaAccessWithWrite(
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
 
-	const getUploadUrl =
-		getUploadUrlFn ??
-		(async (filename: string, contentType: string) => {
-			if (!storage) {
-				throw new Error(
-					"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
-				);
-			}
+	const getUploadUrl = getUploadUrlFn
+		? async (filename: string, contentType: string) =>
+				getUploadUrlFn(filename, allowedUploadType(contentType))
+		: async (filename: string, contentType: string) => {
+				if (!storage) {
+					throw new Error(
+						"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
+					);
+				}
 
-			const mimeType = allowedUploadType(contentType);
-			const basename = filename.split("/").pop() ?? filename;
-			const dotIdx = basename.lastIndexOf(".");
-			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
-			const storageKey = `${ulid()}${ext}`;
+				const mimeType = allowedUploadType(contentType);
+				const { basename, storageKey } = uploadStorageKey(filename, mimeType);
 
-			const media = await mediaRepo.createPending({
-				filename: basename,
-				mimeType,
-				storageKey,
-			});
+				const media = await mediaRepo.createPending({
+					filename: basename,
+					mimeType,
+					storageKey,
+				});
 
-			const signed = await storage.getSignedUploadUrl({
-				key: storageKey,
-				contentType: mimeType,
-				expiresIn: 3600,
-			});
+				const signed = await storage.getSignedUploadUrl({
+					key: storageKey,
+					contentType: mimeType,
+					expiresIn: 3600,
+				});
 
-			return { uploadUrl: signed.url, mediaId: media.id };
-		});
+				return { uploadUrl: signed.url, mediaId: media.id };
+			};
 
 	return {
 		...readAccess,
@@ -1050,22 +1067,7 @@ export function createMediaAccessWithWrite(
 			}
 
 			const mimeType = allowedUploadType(contentType);
-
-			// Generate a storage key with a unique prefix
-			const keyPrefix = ulid();
-			// Extract extension from basename (ignore path separators)
-			const basename = filename.split("/").pop() ?? filename;
-			const dotIdx = basename.lastIndexOf(".");
-			const nameExt = dotIdx > 0 ? basename.slice(dotIdx + 1).toLowerCase() : "";
-			// Local storage serves files by their key's extension, so it must map to an allowed type.
-			const nameType = mime.getType(nameExt);
-			const nameExtAllowed =
-				nameType !== null && matchesMimeAllowlist(nameType, GLOBAL_UPLOAD_ALLOWLIST);
-			const ext =
-				nameType === mimeType
-					? nameExt
-					: (mime.getExtension(mimeType) ?? (nameExtAllowed ? nameExt : null));
-			const storageKey = ext ? `${keyPrefix}.${ext}` : keyPrefix;
+			const { basename, storageKey } = uploadStorageKey(filename, mimeType);
 
 			// Upload to storage first
 			await storage.upload({

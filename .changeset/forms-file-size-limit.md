@@ -6,4 +6,4 @@ Fixes public form submissions ignoring a file field's maximum file size, which l
 
 A file's `bytes` can now be sent as a base64 string, which is about a third larger than the file, instead of as an array of byte values, which is several times larger. Arrays of byte values are still accepted.
 
-Once `emdash` is also updated, file fields accept only PNG, JPEG, GIF, WebP, and AVIF images, video, audio, and PDF files. Submissions with any other file type are rejected with a `415` error, even when the field's accepted types list them.
+Once `emdash` is also updated, file fields accept only PNG, JPEG, GIF, WebP, and AVIF images, video, audio, and PDF files. Submissions with any other file type are rejected with a `415` error, even when the field's accepted types list them, and a file with a malformed content type is rejected with a `400` error.
