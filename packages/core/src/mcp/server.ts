@@ -1827,10 +1827,21 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
-			const ec = getEmDash(extra);
-			return unwrapAndInvalidate(extra, await ec.handleContentDuplicate(args.collection, args.id), [
-				args.collection,
-			]);
+			const { emdash, userId } = getExtra(extra);
+			const existing = await emdash.handleContentGet(args.collection, args.id);
+			if (!existing.success) return unwrap(existing);
+			requireOwnership(
+				extra,
+				extractContentAuthorId(existing.data),
+				"content:edit_own",
+				"content:edit_any",
+			);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
+			return unwrapAndInvalidate(
+				extra,
+				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
+				[args.collection],
+			);
 		},
 	);
 

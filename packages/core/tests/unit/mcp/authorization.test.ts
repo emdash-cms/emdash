@@ -543,6 +543,84 @@ describe("MCP Authorization", () => {
 		});
 	});
 
+	describe("content_duplicate ownership", () => {
+		it("CONTRIBUTOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR duplicates their own content as its author", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				AUTHOR_USER_ID,
+			);
+		});
+
+		it("EDITOR can duplicate any user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.EDITOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				OTHER_USER_ID,
+			);
+		});
+	});
+
 	// -----------------------------------------------------------------------
 	// content_permanent_delete: ADMIN only
 	// -----------------------------------------------------------------------
