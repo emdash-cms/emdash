@@ -99,6 +99,17 @@ describe("ContentTypeList", () => {
 			await expect.element(screen.getByText("preview")).toBeInTheDocument();
 			await expect.element(screen.getByText("search")).toBeInTheDocument();
 		});
+
+		it("shows the seo badge from hasSeo, not from supports", async () => {
+			const collections = [
+				makeCollection({ id: "1", slug: "pages", supports: ["drafts"], hasSeo: true }),
+				makeCollection({ id: "2", slug: "posts", supports: ["drafts", "seo"], hasSeo: false }),
+			];
+			const screen = await render(<ContentTypeList collections={collections} />);
+			const seoBadges = screen.getByText("seo", { exact: true }).elements();
+			expect(seoBadges).toHaveLength(1);
+			expect(seoBadges[0]!.closest("tr")?.textContent).toContain("pages");
+		});
 	});
 
 	describe("navigation", () => {

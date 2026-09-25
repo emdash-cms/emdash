@@ -317,7 +317,10 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 			</td>
 			<td className="px-4 py-3">
 				<div className="flex flex-wrap gap-1">
-					{collection.supports.map((feature) => (
+					{[
+						...collection.supports.filter((feature) => feature !== "seo"),
+						...(collection.hasSeo ? ["seo"] : []),
+					].map((feature) => (
 						<Badge key={feature} variant="secondary">
 							{feature}
 						</Badge>
