@@ -373,7 +373,7 @@ jobs:
             echo "::error::Browser tests were selected without a browser suite"
             exit 1
           fi
-          pnpm run "${filters[@]}" build
+          pnpm run --if-present "${filters[@]}" build
       - name: Build playground
         if: needs.change-plan.outputs.e2e_playground == 'true'
         run: pnpm run --filter "@emdash-cms/playground^..." build
