@@ -38,13 +38,16 @@ test.describe("Bylines", () => {
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
 
-		await expect(page.getByRole("button", { name: initialName })).toBeVisible({ timeout: 5000 });
+		const editByline = page.getByRole("button", { name: `Edit ${initialName}`, exact: true });
+		await expect(editByline).toBeVisible({ timeout: 5000 });
 
-		await page.getByRole("button", { name: initialName }).click();
+		await editByline.click();
 		await page.getByLabel("Display name").fill(updatedName);
 		await page.getByRole("button", { name: "Save" }).click();
 
-		await expect(page.getByRole("button", { name: updatedName })).toBeVisible({ timeout: 5000 });
+		await expect(
+			page.getByRole("button", { name: `Edit ${updatedName}`, exact: true }),
+		).toBeVisible({ timeout: 5000 });
 	});
 
 	test("sets a byline avatar via the media picker and preserves it across edits (#1250)", async ({
@@ -84,7 +87,7 @@ test.describe("Bylines", () => {
 		await admin.waitForLoading();
 
 		// Open the byline in the editor and confirm the avatar field renders.
-		await page.getByRole("button", { name }).click();
+		await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
 		await expect(page.getByText("Avatar", { exact: true })).toBeVisible();
 
 		// Open the avatar picker and upload an image. The upload stays inside
@@ -224,6 +227,7 @@ test.describe("Bylines", () => {
 		// Regression guard for #1250: editing another field through the UI must
 		// not wipe the avatar. The PUT route coerces a missing `avatarMediaId`
 		// back to null, so before the fix every save dropped the avatar.
+		await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
 		await page.getByLabel("Display name").fill(`${name} edited`);
 		const secondSave = page.waitForResponse(
 			(res) =>
