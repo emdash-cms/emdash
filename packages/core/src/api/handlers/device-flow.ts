@@ -757,3 +757,15 @@ export async function handleTokenRevoke(
 		};
 	}
 }
+
+/**
+ * Clean up expired device codes.
+ */
+export async function cleanupExpiredDeviceCodes(db: Kysely<Database>): Promise<number> {
+	const result = await db
+		.deleteFrom("_emdash_device_codes")
+		.where("expires_at", "<", new Date().toISOString())
+		.executeTakeFirst();
+
+	return Number(result.numDeletedRows);
+}

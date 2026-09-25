@@ -12,6 +12,9 @@
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 
+import { cleanupExpiredApiTokens, cleanupExpiredOAuthTokens } from "./api/handlers/api-tokens.js";
+import { cleanupExpiredDeviceCodes } from "./api/handlers/device-flow.js";
+import { cleanupExpiredAuthorizationCodes } from "./api/handlers/oauth-authorization.js";
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
 import { MediaRepository } from "./database/repositories/media.js";
 import { RedirectRepository } from "./database/repositories/redirect.js";
@@ -28,6 +31,10 @@ import type { Storage } from "./storage/types.js";
 export interface CleanupResult {
 	challenges: number;
 	expiredTokens: number;
+	oauthTokens: number;
+	deviceCodes: number;
+	authorizationCodes: number;
+	apiTokens: number;
 	pendingUploads: number;
 	pendingUploadFiles: number;
 	uploadAttempts: number;
@@ -60,6 +67,10 @@ export async function runSystemCleanup(
 	const result: CleanupResult = {
 		challenges: -1,
 		expiredTokens: -1,
+		oauthTokens: -1,
+		deviceCodes: -1,
+		authorizationCodes: -1,
+		apiTokens: -1,
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
@@ -134,6 +145,30 @@ export async function runSystemCleanup(
 		}
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media upload attempts:", error);
+	}
+
+	try {
+		result.oauthTokens = await cleanupExpiredOAuthTokens(db);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired OAuth tokens:", error);
+	}
+
+	try {
+		result.deviceCodes = await cleanupExpiredDeviceCodes(db);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired device codes:", error);
+	}
+
+	try {
+		result.authorizationCodes = await cleanupExpiredAuthorizationCodes(db);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired authorization codes:", error);
+	}
+
+	try {
+		result.apiTokens = await cleanupExpiredApiTokens(db);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean expired API tokens:", error);
 	}
 
 	try {
