@@ -86,7 +86,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr ""
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:185
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# 個內容集合} other {# 個內容集合}}"
 
@@ -359,6 +359,12 @@ msgstr "將匯入 {0} 個項目"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:123
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:427
 msgid "{0} of {1} files · {2} of {3}"
+msgstr ""
+
+#. placeholder {0}: i18n.number(seedProgress.done)
+#. placeholder {1}: i18n.number(seedProgress.total)
+#: packages/admin/src/components/SetupWizard.tsx:210
+msgid "{0} of {1} items"
 msgstr ""
 
 #. placeholder {0}: i18n.number(matched)
@@ -745,8 +751,8 @@ msgstr "• 已上傳至您的 EmDash 媒體儲存空間"
 msgid "• URLs in your content are updated automatically"
 msgstr "• 內容中的網址會自動更新"
 
-#: packages/admin/src/components/SetupWizard.tsx:254
-#: packages/admin/src/components/SetupWizard.tsx:305
+#: packages/admin/src/components/SetupWizard.tsx:288
+#: packages/admin/src/components/SetupWizard.tsx:339
 #: packages/admin/src/components/WordPressImport.tsx:1617
 msgid "← Back"
 msgstr "← 返回"
@@ -999,7 +1005,7 @@ msgstr "存取遭拒"
 msgid "Access your media library"
 msgstr "存取您的媒體庫"
 
-#: packages/admin/src/components/SetupWizard.tsx:374
+#: packages/admin/src/components/SetupWizard.tsx:408
 msgid "Account"
 msgstr "帳號"
 
@@ -2924,8 +2930,8 @@ msgstr "寫入內容"
 msgid "Continue"
 msgstr "繼續"
 
-#: packages/admin/src/components/SetupWizard.tsx:179
-#: packages/admin/src/components/SetupWizard.tsx:262
+#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:296
 msgid "Continue →"
 msgstr "繼續 →"
 
@@ -2941,7 +2947,7 @@ msgstr ""
 msgid "Continue to finish signing in. The link works only once."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:321
+#: packages/admin/src/components/SetupWizard.tsx:355
 msgid "Continue to import"
 msgstr ""
 
@@ -3301,7 +3307,7 @@ msgstr "建立權杖"
 msgid "Create Widget Area"
 msgstr "建立小工具區域"
 
-#: packages/admin/src/components/SetupWizard.tsx:580
+#: packages/admin/src/components/SetupWizard.tsx:627
 msgid "Create your account"
 msgstr "建立您的帳號"
 
@@ -4439,7 +4445,7 @@ msgstr "電子郵件"
 msgid "Email address"
 msgstr "電子郵件地址"
 
-#: packages/admin/src/components/SetupWizard.tsx:208
+#: packages/admin/src/components/SetupWizard.tsx:242
 #: packages/admin/src/components/SignupPage.tsx:67
 msgid "Email is required"
 msgstr "電子郵件為必填"
@@ -4519,7 +4525,7 @@ msgstr ""
 msgid "Empty gallery — open settings to add images"
 msgstr "空白圖庫 — 開啟設定以新增圖片"
 
-#: packages/admin/src/components/SetupWizard.tsx:164
+#: packages/admin/src/components/SetupWizard.tsx:173
 msgid "Empty site"
 msgstr ""
 
@@ -4629,7 +4635,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:155
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:559
+#: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:769
 #: packages/admin/src/router.tsx:2913
@@ -4835,7 +4841,7 @@ msgstr ""
 msgid "Failed to create {0}"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:513
+#: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
 msgstr "無法建立管理員"
 
@@ -5104,7 +5110,7 @@ msgstr "無法取得區段"
 msgid "Failed to fetch settings"
 msgstr "無法取得設定"
 
-#: packages/admin/src/components/SetupWizard.tsx:466
+#: packages/admin/src/components/SetupWizard.tsx:501
 msgid "Failed to fetch setup status"
 msgstr "擷取設定狀態失敗"
 
@@ -5243,7 +5249,7 @@ msgstr "無法載入外掛。外掛庫彙整器可能無法連線。"
 msgid "Failed to load revisions"
 msgstr "無法載入修訂版本"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:608
 msgid "Failed to load setup"
 msgstr "無法載入初始設定"
 
@@ -5992,7 +5998,7 @@ msgstr ""
 msgid "Hour"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:149
+#: packages/admin/src/components/SetupWizard.tsx:158
 msgid "How do you want to start?"
 msgstr ""
 
@@ -6154,7 +6160,7 @@ msgstr ""
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "直接匯入所有內容，包括草稿、自訂文章類型、ACF 欄位及 SEO 資料，無需下載檔案。"
 
-#: packages/admin/src/components/SetupWizard.tsx:169
+#: packages/admin/src/components/SetupWizard.tsx:178
 msgid "Import an existing EmDash site"
 msgstr ""
 
@@ -6539,7 +6545,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:70
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:276
 #: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
 msgstr "Jane Doe"
@@ -6905,7 +6911,7 @@ msgstr "正在載入區段..."
 msgid "Loading settings..."
 msgstr "正在載入設定..."
 
-#: packages/admin/src/components/SetupWizard.tsx:548
+#: packages/admin/src/components/SetupWizard.tsx:595
 msgid "Loading setup..."
 msgstr "正在載入設定..."
 
@@ -7598,7 +7604,7 @@ msgstr "多行純文字"
 msgid "Multiple choices from options"
 msgstr "從選項中選擇多個項目"
 
-#: packages/admin/src/components/SetupWizard.tsx:132
+#: packages/admin/src/components/SetupWizard.tsx:141
 msgid "My Awesome Blog"
 msgstr "我的精彩網誌"
 
@@ -8189,7 +8195,7 @@ msgstr ""
 msgid "OG Image"
 msgstr "OG 圖片"
 
-#: packages/admin/src/components/SetupWizard.tsx:170
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr ""
 
@@ -8257,7 +8263,7 @@ msgid "Open setup"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:83
-#: packages/admin/src/components/SetupWizard.tsx:321
+#: packages/admin/src/components/SetupWizard.tsx:355
 #: packages/admin/src/components/SignupPage.tsx:237
 msgid "Open the dashboard"
 msgstr ""
@@ -8324,7 +8330,7 @@ msgstr "或透過網址連線"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:263
-#: packages/admin/src/components/SetupWizard.tsx:334
+#: packages/admin/src/components/SetupWizard.tsx:368
 msgid "Or continue with"
 msgstr "或繼續使用"
 
@@ -8599,7 +8605,7 @@ msgstr ""
 msgid "Please ask your administrator to send a new invite."
 msgstr "請要求您的管理員傳送新的邀請。"
 
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:244
 msgid "Please enter a valid email"
 msgstr "請輸入有效的電子郵件地址"
 
@@ -8799,7 +8805,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "正在準備從 WordPress 下載檔案…"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:262
+#: packages/admin/src/components/SetupWizard.tsx:296
 msgid "Preparing..."
 msgstr "正在準備…"
 
@@ -9839,7 +9845,8 @@ msgstr "Rust"
 msgid "Same window"
 msgstr "同一視窗"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:167
+#: packages/admin/src/components/SetupWizard.tsx:207
 msgid "Sample content"
 msgstr ""
 
@@ -10261,7 +10268,7 @@ msgstr "區段標題"
 msgid "Sections"
 msgstr "區段"
 
-#: packages/admin/src/components/SetupWizard.tsx:581
+#: packages/admin/src/components/SetupWizard.tsx:628
 msgid "Secure your account"
 msgstr "保護您的帳號"
 
@@ -10578,7 +10585,7 @@ msgstr ""
 msgid "Set up Windows Hello"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:579
+#: packages/admin/src/components/SetupWizard.tsx:626
 msgid "Set up your site"
 msgstr "設定您的網站"
 
@@ -10587,7 +10594,7 @@ msgstr "設定您的網站"
 msgid "Setting up"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:201
 msgid "Setting up..."
 msgstr "正在設定…"
 
@@ -10620,7 +10627,8 @@ msgstr "設定已成功儲存"
 msgid "Setup couldn’t continue. Try again."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:488
+#: packages/admin/src/components/SetupWizard.tsx:527
+#: packages/admin/src/components/SetupWizard.tsx:530
 msgid "Setup failed"
 msgstr "設定失敗"
 
@@ -10686,7 +10694,7 @@ msgstr "游標停留在圖片上時顯示。"
 msgid "Sign in"
 msgstr "登入"
 
-#: packages/admin/src/components/SetupWizard.tsx:375
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Sign In"
 msgstr "登入"
 
@@ -10706,7 +10714,7 @@ msgstr "登入您的網站"
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:292
+#: packages/admin/src/components/SetupWizard.tsx:326
 msgid "Sign in with {0}"
 msgstr "使用 {0} 登入"
 
@@ -10746,7 +10754,7 @@ msgid "Single line text input"
 msgstr "單行文字輸入"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:373
+#: packages/admin/src/components/SetupWizard.tsx:407
 msgid "Site"
 msgstr "網站"
 
@@ -10784,7 +10792,7 @@ msgid "Site settings"
 msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:371
+#: packages/admin/src/components/SetupWizard.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
 msgstr "網站設定"
@@ -10794,7 +10802,7 @@ msgid "Site title"
 msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
-#: packages/admin/src/components/SetupWizard.tsx:128
+#: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "網站標題"
 
@@ -10802,7 +10810,7 @@ msgstr "網站標題"
 msgid "Site title & tagline"
 msgstr "網站標題及標語"
 
-#: packages/admin/src/components/SetupWizard.tsx:112
+#: packages/admin/src/components/SetupWizard.tsx:121
 msgid "Site title is required"
 msgstr "網站標題為必填"
 
@@ -11009,11 +11017,11 @@ msgstr ""
 msgid "Start Import"
 msgstr "開始匯入"
 
-#: packages/admin/src/components/SetupWizard.tsx:165
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Start with the template’s content types and no content."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:159
+#: packages/admin/src/components/SetupWizard.tsx:168
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr ""
 
@@ -11179,7 +11187,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:180
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:139
+#: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
 msgstr "網站標語"
 
@@ -11263,7 +11271,7 @@ msgstr ""
 msgid "Technical verification details"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:184
+#: packages/admin/src/components/SetupWizard.tsx:218
 msgid "Template:"
 msgstr "範本:"
 
@@ -11567,6 +11575,10 @@ msgstr "參照的圖片已無法使用。請選取新圖片或移除參照。"
 #: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "參照的標誌已無法使用。請選取新標誌或移除參照。"
+
+#: packages/admin/src/components/SetupWizard.tsx:188
+msgid "The sample content added so far is kept. Continue to add the rest."
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
 msgid "The selected folder no longer exists. Choose another location and save again."
@@ -11976,7 +11988,7 @@ msgstr "這會從您的網站移除此外掛及其套件組合。"
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "這會還原至已發佈的版本。您的草稿變更將會遺失。"
 
-#: packages/admin/src/components/SetupWizard.tsx:143
+#: packages/admin/src/components/SetupWizard.tsx:152
 msgid "Thoughts, tutorials, and more"
 msgstr "想法、教學及更多內容"
 
@@ -13239,7 +13251,7 @@ msgstr "系統會將您重新導向至 WordPress，以授權連線。"
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:584
+#: packages/admin/src/components/SetupWizard.tsx:631
 msgid "You're signed in via Cloudflare Access"
 msgstr "您已透過 Cloudflare Access 登入"
 
@@ -13259,7 +13271,7 @@ msgstr "您已收到邀請。"
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/SetupWizard.tsx:230
+#: packages/admin/src/components/SetupWizard.tsx:264
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -13295,7 +13307,7 @@ msgstr ""
 msgid "your device's passkey prompt"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:226
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
 msgstr "您的電子郵件"
 
@@ -13320,7 +13332,7 @@ msgstr "您的 LinkedIn 個人檔案使用者名稱"
 msgid "Your media library is empty"
 msgstr "您的媒體庫是空的"
 
-#: packages/admin/src/components/SetupWizard.tsx:238
+#: packages/admin/src/components/SetupWizard.tsx:272
 msgid "Your Name"
 msgstr "您的姓名"
 

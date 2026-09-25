@@ -631,14 +631,20 @@ export function createViteConfig(
 			// When using dist, pre-bundle to avoid re-optimization on first hydration.
 			// lowlight pulls in a CommonJS highlight.js entry, so the inline Portable
 			// Text editor requires these to be pre-bundled with ESM interop in dev.
+			// Bare ids would not resolve on pnpm sites, which have no top-level copy.
 			include: useSource
-				? ["@astrojs/react/client.js", "lowlight", "highlight.js", "highlight.js/lib/core"]
+				? [
+						"@astrojs/react/client.js",
+						"emdash > lowlight",
+						"emdash > highlight.js",
+						"emdash > highlight.js/lib/core",
+					]
 				: [
 						"@emdash-cms/admin",
 						"@astrojs/react/client.js",
-						"lowlight",
-						"highlight.js",
-						"highlight.js/lib/core",
+						"emdash > lowlight",
+						"emdash > highlight.js",
+						"emdash > highlight.js/lib/core",
 					],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},

@@ -2547,27 +2547,15 @@ export function createMcpServer(
 	server.registerTool(
 		"media_create",
 		{
-			title: "Register Uploaded Media",
+			title: "Confirm Signed Media Upload",
 			description:
-				"Register a media file that has already been uploaded to storage. The " +
-				"caller is responsible for placing the file at `storageKey` (typically " +
-				"using a signed upload URL obtained from the admin UI or a separate API). " +
-				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. To upload the " +
-				"file itself, use media_upload (base64 data or a public URL) instead.",
+				"Confirm a file after uploading it with a signed URL obtained from " +
+				"POST /_emdash/api/media/upload-url. `storageKey` must be the key returned " +
+				"for the same user. Confirmation checks that the stored file exists and " +
+				"matches the size fixed when the URL was issued, then makes it available " +
+				"through media_list / media_get. To upload through MCP, use media_upload instead.",
 			inputSchema: z.object({
-				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
-				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
-				storageKey: z.string().describe("Storage path/key the file was uploaded to"),
-				size: z.number().int().nonnegative().optional().describe("File size in bytes"),
-				width: z.number().int().positive().optional().describe("Image width in pixels"),
-				height: z.number().int().positive().optional().describe("Image height in pixels"),
-				contentHash: z.string().optional().describe("Hash of the file contents (for dedupe)"),
-				blurhash: z.string().optional().describe("Blurhash for image placeholders"),
-				dominantColor: z
-					.string()
-					.optional()
-					.describe("Hex color string for the image's dominant color"),
+				storageKey: z.string().describe("Storage key returned by the signed upload URL request"),
 			}),
 		},
 		async (args, extra) => {
@@ -2575,16 +2563,8 @@ export function createMcpServer(
 			requireRole(extra, Role.AUTHOR);
 			const { emdash, userId } = getExtra(extra);
 			return unwrap(
-				await emdash.handleMediaCreate({
-					filename: args.filename,
-					mimeType: args.mimeType,
+				await emdash.handleMediaRegisterUpload({
 					storageKey: args.storageKey,
-					size: args.size,
-					width: args.width,
-					height: args.height,
-					contentHash: args.contentHash,
-					blurhash: args.blurhash,
-					dominantColor: args.dominantColor,
 					authorId: userId,
 				}),
 			);
@@ -2596,34 +2576,20 @@ export function createMcpServer(
 		{
 			title: "Upload Media",
 			description:
-				"Upload a media file from base64-encoded data or an external URL and " +
+				"Upload a media file from base64-encoded data and " +
 				"register it in the media library. Returns the media item with id, " +
 				"storageKey, and url — ready to reference from content fields (e.g. " +
 				"featured_image) via content_create / content_update. Uploads are " +
 				"deduplicated by content hash: re-uploading identical bytes returns " +
-				"the existing item with deduplicated: true. URL fetches must resolve " +
-				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"the existing item with deduplicated: true. Subject to the global " +
 				"upload MIME allowlist and the configured maximum upload size.",
 			inputSchema: z.object({
 				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
-				base64: z
-					.string()
-					.optional()
-					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
-				url: z
-					.url()
-					.optional()
-					.describe(
-						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
-					),
+				base64: z.string().describe("Base64-encoded file contents."),
 				contentType: z
 					.string()
 					.regex(CONTENT_TYPE_RE, "Invalid content type")
-					.optional()
-					.describe(
-						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
-							"defaults to the response's Content-Type header.",
-					),
+					.describe("MIME type (e.g. 'image/png')."),
 				alt: z.string().optional().describe("Alt text for accessibility"),
 			}),
 			annotations: { destructiveHint: false },
@@ -2640,7 +2606,6 @@ export function createMcpServer(
 					await emdash.handleMediaUpload({
 						filename: args.filename,
 						base64: args.base64,
-						url: args.url,
 						contentType: args.contentType,
 						alt: args.alt,
 						authorId: userId,

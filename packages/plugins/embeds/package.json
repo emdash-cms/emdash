@@ -29,12 +29,18 @@
 	},
 	"dependencies": {
 		"@emdash-cms/blocks": "workspace:*",
-		"astro-embed": "^0.12.0"
+		"astro-embed": "^0.12.0",
+		"sanitize-html": "^2.17.1"
 	},
 	"devDependencies": {
-		"astro": "catalog:"
+		"@types/sanitize-html": "^2.16.0",
+		"astro": "catalog:",
+		"playwright": "^1.61.1",
+		"vitest": "catalog:"
 	},
 	"scripts": {
+		"test": "vitest run",
+		"test:browser": "vitest run --config vitest.browser.config.ts",
 		"typecheck": "tsgo --noEmit"
 	},
 	"repository": {

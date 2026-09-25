@@ -429,7 +429,7 @@ See [MCP Server Reference](/reference/mcp-server/) for token creation and client
 
 ### `siteUrl`
 
-**Optional.** The public browser-facing origin for the site (scheme + host + optional port, **no path**).
+The public browser-facing origin for the site (scheme + host + optional port, **no path**). Set it before running production setup. Only loopback development hosts can complete setup without a configured origin.
 
 Behind a **TLS-terminating reverse proxy**, `Astro.url` returns the internal address (`http://localhost:4321`) instead of the public one (`https://cms.example.com`). This breaks passkeys, CSRF origin matching, OAuth redirects, login redirects, MCP discovery, snapshot exports, sitemap, robots.txt, and JSON-LD structured data. Set `siteUrl` to fix all of these at once.
 
@@ -449,6 +449,8 @@ emdash({
 ```
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
+
+Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails.
 
 On **Cloudflare Workers**, the env-var fallback reads `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env`.
 

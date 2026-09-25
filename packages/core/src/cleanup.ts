@@ -14,6 +14,7 @@ import type { Kysely } from "kysely";
 
 import { cleanupExpiredChallenges } from "./auth/challenge-store.js";
 import { MediaRepository } from "./database/repositories/media.js";
+import { RedirectRepository } from "./database/repositories/redirect.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
@@ -32,6 +33,8 @@ export interface CleanupResult {
 	uploadAttempts: number;
 	revisionsPruned: number;
 	mediaUsage: number;
+	/** Oldest 404-log rows deleted to restore the hard cap. */
+	notFoundLog: number;
 	/** Transfer operations whose staging area was collected. */
 	transferStaging: number;
 }
@@ -62,6 +65,7 @@ export async function runSystemCleanup(
 		uploadAttempts: -1,
 		revisionsPruned: -1,
 		mediaUsage: -1,
+		notFoundLog: -1,
 		transferStaging: -1,
 	};
 
@@ -143,6 +147,12 @@ export async function runSystemCleanup(
 		result.mediaUsage = mediaUsage.status === "failed" ? -1 : mediaUsage.deletedRows;
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media usage:", error);
+	}
+
+	try {
+		result.notFoundLog = await new RedirectRepository(db).cleanup404Log();
+	} catch (error) {
+		console.error("[cleanup] Failed to cap the 404 log:", error);
 	}
 
 	if (storage) {

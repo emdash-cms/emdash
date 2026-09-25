@@ -5,7 +5,7 @@ import { ContentRepository } from "../../../src/database/repositories/content.js
 import type { Database } from "../../../src/database/types.js";
 import { setDefaultDnsResolver } from "../../../src/import/ssrf.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { applySeed } from "../../../src/seed/apply.js";
+import { applySeed, applySeedWithinBudget } from "../../../src/seed/apply.js";
 import type { SeedFile } from "../../../src/seed/types.js";
 import type { Storage, UploadOptions } from "../../../src/storage/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -722,5 +722,43 @@ describe("$media seed resolution", () => {
 		const contentRepo = new ContentRepository(db);
 		const entry = await contentRepo.findBySlug("posts", "hello");
 		expect(entry?.data.body).toEqual([block]);
+	});
+
+	it("downloads no more files per call than its budget allows", async () => {
+		mockFetch.mockImplementation(async () => createMockResponse(MOCK_PNG, "image/png"));
+		const seed: SeedFile = {
+			version: "1",
+			content: {
+				posts: ["one", "two", "three"].map((slug) => ({
+					id: slug,
+					slug,
+					data: {
+						title: slug,
+						featured_image: { $media: { url: `https://example.com/${slug}.png` } },
+					},
+				})),
+			},
+		};
+
+		const downloadsPerCall: number[] = [];
+		for (let call = 0; call < 10; call++) {
+			const before = mockFetch.mock.calls.length;
+			const { complete } = await applySeedWithinBudget(
+				db,
+				seed,
+				{ includeContent: true, storage },
+				{ mediaDownloads: 1 },
+			);
+			downloadsPerCall.push(mockFetch.mock.calls.length - before);
+			if (complete) break;
+		}
+
+		expect(Math.max(...downloadsPerCall)).toBe(1);
+		expect(storage.uploads).toHaveLength(3);
+		const contentRepo = new ContentRepository(db);
+		for (const slug of ["one", "two", "three"]) {
+			const entry = await contentRepo.findBySlug("posts", slug);
+			expect(entry?.data.featured_image).toMatchObject({ provider: "local" });
+		}
 	});
 });

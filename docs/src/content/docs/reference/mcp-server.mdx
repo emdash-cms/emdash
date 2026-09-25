@@ -140,7 +140,7 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | Tool | Registered title | Required scope |
 | --- | --- | --- |
 | `media_list` | List Media | `media:read` |
-| `media_create` | Register Uploaded Media | `media:write` |
+| `media_create` | Confirm Signed Media Upload | `media:write` |
 | `media_upload` | Upload Media | `media:write` |
 | `media_get` | Get Media Item | `media:read` |
 | `media_update` | Update Media Metadata | `media:write` |
@@ -261,7 +261,9 @@ Content, byline, taxonomy term, and menu translation tools return every locale v
 
 Schema tools change the database structure. Use `schema_get_collection` before creating content or changing fields; it returns the available field names, types, constraints, and validation rules. Collection and field deletion remove stored content or field values and cannot be undone.
 
-Use `media_upload` to send base64-encoded bytes or fetch a public HTTP or HTTPS URL. URL uploads reject private-network destinations and re-check redirects. Use `media_create` only when the file already exists at the supplied storage key and you need to register its metadata. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
+Use `media_upload` to send base64-encoded bytes. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
+
+`media_create` confirms a pending upload created through `POST /_emdash/api/media/upload-url`. Upload the file with the returned signed URL, then call `media_create` from the same user account with the returned `storageKey`. The tool checks that the stored file exists and matches the size supplied when the upload URL was requested before making it available in the media library.
 
 Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. Creating or updating a term with `parentId` in a non-hierarchical taxonomy returns `VALIDATION_ERROR`. A term with children must have those children removed or moved before deletion.
 

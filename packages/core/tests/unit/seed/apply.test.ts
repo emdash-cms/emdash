@@ -1233,6 +1233,28 @@ describe("applySeed", () => {
 			expect(entry?.data.title).toBe("Existing");
 		});
 
+		it("skips an entry whose slug an earlier entry of the same seed took", async () => {
+			const registry = new SchemaRegistry(db);
+			await registry.createCollection({ slug: "posts", label: "Posts" });
+			await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+
+			const seed: SeedFile = {
+				version: "1",
+				content: {
+					posts: [
+						{ id: "post-1", slug: "hello", data: { title: "First" } },
+						{ id: "post-2", slug: "hello", data: { title: "Second" } },
+					],
+				},
+			};
+
+			const result = await applySeed(db, seed, { includeContent: true });
+
+			expect(result.content).toMatchObject({ created: 1, skipped: 1 });
+			const entry = await new ContentRepository(db).findBySlug("posts", "hello");
+			expect(entry?.data.title).toBe("First");
+		});
+
 		it("should resolve $ref: references between content", async () => {
 			const registry = new SchemaRegistry(db);
 			await registry.createCollection({ slug: "posts", label: "Posts" });

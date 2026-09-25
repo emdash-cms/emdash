@@ -86,7 +86,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr ""
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:185
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {#개 컬렉션} other {#개 컬렉션}}"
 
@@ -359,6 +359,12 @@ msgstr "{0}개 ​​항목을 가져옵니다"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:123
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:427
 msgid "{0} of {1} files · {2} of {3}"
+msgstr ""
+
+#. placeholder {0}: i18n.number(seedProgress.done)
+#. placeholder {1}: i18n.number(seedProgress.total)
+#: packages/admin/src/components/SetupWizard.tsx:210
+msgid "{0} of {1} items"
 msgstr ""
 
 #. placeholder {0}: i18n.number(matched)
@@ -745,8 +751,8 @@ msgstr "• EmDash 미디어 저장소에 업로드됨"
 msgid "• URLs in your content are updated automatically"
 msgstr "• 콘텐츠의 URL이 자동으로 업데이트됩니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:254
-#: packages/admin/src/components/SetupWizard.tsx:305
+#: packages/admin/src/components/SetupWizard.tsx:288
+#: packages/admin/src/components/SetupWizard.tsx:339
 #: packages/admin/src/components/WordPressImport.tsx:1617
 msgid "← Back"
 msgstr "← 뒤로"
@@ -999,7 +1005,7 @@ msgstr ""
 msgid "Access your media library"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:374
+#: packages/admin/src/components/SetupWizard.tsx:408
 msgid "Account"
 msgstr "계정"
 
@@ -2924,8 +2930,8 @@ msgstr "콘텐츠 쓰기"
 msgid "Continue"
 msgstr "계속"
 
-#: packages/admin/src/components/SetupWizard.tsx:179
-#: packages/admin/src/components/SetupWizard.tsx:262
+#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:296
 msgid "Continue →"
 msgstr "계속 →"
 
@@ -2941,7 +2947,7 @@ msgstr ""
 msgid "Continue to finish signing in. The link works only once."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:321
+#: packages/admin/src/components/SetupWizard.tsx:355
 msgid "Continue to import"
 msgstr ""
 
@@ -3301,7 +3307,7 @@ msgstr "토큰 만들기"
 msgid "Create Widget Area"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:580
+#: packages/admin/src/components/SetupWizard.tsx:627
 msgid "Create your account"
 msgstr "계정 만들기"
 
@@ -4436,7 +4442,7 @@ msgstr "이메일"
 msgid "Email address"
 msgstr "이메일 주소"
 
-#: packages/admin/src/components/SetupWizard.tsx:208
+#: packages/admin/src/components/SetupWizard.tsx:242
 #: packages/admin/src/components/SignupPage.tsx:67
 msgid "Email is required"
 msgstr "이메일은 필수입니다"
@@ -4516,7 +4522,7 @@ msgstr ""
 msgid "Empty gallery — open settings to add images"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:164
+#: packages/admin/src/components/SetupWizard.tsx:173
 msgid "Empty site"
 msgstr ""
 
@@ -4626,7 +4632,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:155
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:559
+#: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:769
 #: packages/admin/src/router.tsx:2913
@@ -4832,7 +4838,7 @@ msgstr ""
 msgid "Failed to create {0}"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:513
+#: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
 msgstr ""
 
@@ -5101,7 +5107,7 @@ msgstr ""
 msgid "Failed to fetch settings"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:466
+#: packages/admin/src/components/SetupWizard.tsx:501
 msgid "Failed to fetch setup status"
 msgstr ""
 
@@ -5240,7 +5246,7 @@ msgstr ""
 msgid "Failed to load revisions"
 msgstr "버전을 로드하지 못했습니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:608
 msgid "Failed to load setup"
 msgstr "설정을 로드하지 못했습니다."
 
@@ -5989,7 +5995,7 @@ msgstr ""
 msgid "Hour"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:149
+#: packages/admin/src/components/SetupWizard.tsx:158
 msgid "How do you want to start?"
 msgstr ""
 
@@ -6151,7 +6157,7 @@ msgstr ""
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "초안, 사용자 정의 게시물 유형, ACF 필드 및 SEO 데이터를 포함한 모든 콘텐츠를 직접 가져옵니다. 파일 다운로드가 필요하지 않습니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:169
+#: packages/admin/src/components/SetupWizard.tsx:178
 msgid "Import an existing EmDash site"
 msgstr ""
 
@@ -6536,7 +6542,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:70
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:276
 #: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
 msgstr "제인 도"
@@ -6902,7 +6908,7 @@ msgstr "섹션 로드 중..."
 msgid "Loading settings..."
 msgstr "설정 로드 중..."
 
-#: packages/admin/src/components/SetupWizard.tsx:548
+#: packages/admin/src/components/SetupWizard.tsx:595
 msgid "Loading setup..."
 msgstr "설정 로드 중..."
 
@@ -7595,7 +7601,7 @@ msgstr "여러 줄 일반 텍스트"
 msgid "Multiple choices from options"
 msgstr "옵션의 다중 선택"
 
-#: packages/admin/src/components/SetupWizard.tsx:132
+#: packages/admin/src/components/SetupWizard.tsx:141
 msgid "My Awesome Blog"
 msgstr "내 멋진 블로그"
 
@@ -8186,7 +8192,7 @@ msgstr ""
 msgid "OG Image"
 msgstr "OG 이미지"
 
-#: packages/admin/src/components/SetupWizard.tsx:170
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr ""
 
@@ -8254,7 +8260,7 @@ msgid "Open setup"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:83
-#: packages/admin/src/components/SetupWizard.tsx:321
+#: packages/admin/src/components/SetupWizard.tsx:355
 #: packages/admin/src/components/SignupPage.tsx:237
 msgid "Open the dashboard"
 msgstr ""
@@ -8318,7 +8324,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:263
-#: packages/admin/src/components/SetupWizard.tsx:334
+#: packages/admin/src/components/SetupWizard.tsx:368
 msgid "Or continue with"
 msgstr "또는 다음으로 계속"
 
@@ -8593,7 +8599,7 @@ msgstr ""
 msgid "Please ask your administrator to send a new invite."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:244
 msgid "Please enter a valid email"
 msgstr "유효한 이메일을 입력해주세요"
 
@@ -8793,7 +8799,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "WordPress에서 파일 다운로드 준비 중..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:262
+#: packages/admin/src/components/SetupWizard.tsx:296
 msgid "Preparing..."
 msgstr "준비 중..."
 
@@ -9833,7 +9839,8 @@ msgstr ""
 msgid "Same window"
 msgstr "현재 창"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:167
+#: packages/admin/src/components/SetupWizard.tsx:207
 msgid "Sample content"
 msgstr ""
 
@@ -10255,7 +10262,7 @@ msgstr "섹션 제목"
 msgid "Sections"
 msgstr "섹션"
 
-#: packages/admin/src/components/SetupWizard.tsx:581
+#: packages/admin/src/components/SetupWizard.tsx:628
 msgid "Secure your account"
 msgstr "계정을 보호하세요"
 
@@ -10572,7 +10579,7 @@ msgstr ""
 msgid "Set up Windows Hello"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:579
+#: packages/admin/src/components/SetupWizard.tsx:626
 msgid "Set up your site"
 msgstr "사이트 설정"
 
@@ -10581,7 +10588,7 @@ msgstr "사이트 설정"
 msgid "Setting up"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:201
 msgid "Setting up..."
 msgstr "설정 중..."
 
@@ -10614,7 +10621,8 @@ msgstr "설정이 성공적으로 저장되었습니다."
 msgid "Setup couldn’t continue. Try again."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:488
+#: packages/admin/src/components/SetupWizard.tsx:527
+#: packages/admin/src/components/SetupWizard.tsx:530
 msgid "Setup failed"
 msgstr ""
 
@@ -10680,7 +10688,7 @@ msgstr "이미지 위로 마우스를 가져가면 표시됩니다."
 msgid "Sign in"
 msgstr "로그인"
 
-#: packages/admin/src/components/SetupWizard.tsx:375
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Sign In"
 msgstr "로그인"
 
@@ -10700,7 +10708,7 @@ msgstr "사이트에 로그인"
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:292
+#: packages/admin/src/components/SetupWizard.tsx:326
 msgid "Sign in with {0}"
 msgstr "{0}(으)로 로그인"
 
@@ -10740,7 +10748,7 @@ msgid "Single line text input"
 msgstr "한 줄 텍스트 입력"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:373
+#: packages/admin/src/components/SetupWizard.tsx:407
 msgid "Site"
 msgstr "사이트"
 
@@ -10778,7 +10786,7 @@ msgid "Site settings"
 msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:371
+#: packages/admin/src/components/SetupWizard.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
 msgstr "사이트 설정"
@@ -10788,7 +10796,7 @@ msgid "Site title"
 msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
-#: packages/admin/src/components/SetupWizard.tsx:128
+#: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "사이트 제목"
 
@@ -10796,7 +10804,7 @@ msgstr "사이트 제목"
 msgid "Site title & tagline"
 msgstr "사이트 제목 및 태그라인"
 
-#: packages/admin/src/components/SetupWizard.tsx:112
+#: packages/admin/src/components/SetupWizard.tsx:121
 msgid "Site title is required"
 msgstr "사이트 제목이 필요합니다"
 
@@ -11003,11 +11011,11 @@ msgstr ""
 msgid "Start Import"
 msgstr "가져오기 시작"
 
-#: packages/admin/src/components/SetupWizard.tsx:165
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Start with the template’s content types and no content."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:159
+#: packages/admin/src/components/SetupWizard.tsx:168
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr ""
 
@@ -11173,7 +11181,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:180
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:139
+#: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
 msgstr "사이트 설명"
 
@@ -11257,7 +11265,7 @@ msgstr ""
 msgid "Technical verification details"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:184
+#: packages/admin/src/components/SetupWizard.tsx:218
 msgid "Template:"
 msgstr "템플릿:"
 
@@ -11560,6 +11568,10 @@ msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
+msgstr ""
+
+#: packages/admin/src/components/SetupWizard.tsx:188
+msgid "The sample content added so far is kept. Continue to add the rest."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
@@ -11970,7 +11982,7 @@ msgstr "그러면 사이트에서 플러그인과 해당 번들이 제거됩니�
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "게시된 버전으로 되돌아갑니다. 초안 변경사항이 손실됩니다."
 
-#: packages/admin/src/components/SetupWizard.tsx:143
+#: packages/admin/src/components/SetupWizard.tsx:152
 msgid "Thoughts, tutorials, and more"
 msgstr "생각, 튜토리얼 등"
 
@@ -13233,7 +13245,7 @@ msgstr "연결을 승인하기 위해 WordPress로 이동합니다."
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:584
+#: packages/admin/src/components/SetupWizard.tsx:631
 msgid "You're signed in via Cloudflare Access"
 msgstr "Cloudflare Access로 로그인되어 있습니다"
 
@@ -13253,7 +13265,7 @@ msgstr ""
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/SetupWizard.tsx:230
+#: packages/admin/src/components/SetupWizard.tsx:264
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -13289,7 +13301,7 @@ msgstr ""
 msgid "your device's passkey prompt"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:226
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
 msgstr "이메일"
 
@@ -13314,7 +13326,7 @@ msgstr "LinkedIn 프로필 사용자 이름"
 msgid "Your media library is empty"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:238
+#: packages/admin/src/components/SetupWizard.tsx:272
 msgid "Your Name"
 msgstr "이름 입력"
 

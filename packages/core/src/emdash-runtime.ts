@@ -226,6 +226,7 @@ import {
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
+	handleMediaRegisterUpload,
 	handleMediaUpdate,
 	handleMediaReplaceMetadata,
 	handleMediaDelete,
@@ -4569,6 +4570,33 @@ export class EmDashRuntime {
 				createdAt: item.createdAt,
 			});
 		}
+		return result;
+	}
+
+	async handleMediaRegisterUpload(input: { storageKey: string; authorId?: string }) {
+		if (!this.storage) {
+			return {
+				success: false as const,
+				error: { code: "NO_STORAGE", message: "Storage not configured" },
+			};
+		}
+		const result = await handleMediaRegisterUpload(this.db, this.storage, input);
+
+		if (result.success && this.hooks.hasHooks("media:afterUpload")) {
+			const item = result.data.item;
+			const mediaItem: MediaItem = {
+				id: item.id,
+				filename: item.filename,
+				mimeType: item.mimeType,
+				size: item.size,
+				url: `/media/${item.id}/${item.filename}`,
+				createdAt: item.createdAt,
+			};
+			this.hooks
+				.runMediaAfterUpload(mediaItem)
+				.catch((err) => console.error("EmDash afterUpload hook error:", err));
+		}
+
 		return result;
 	}
 

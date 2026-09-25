@@ -80,6 +80,8 @@ export function parsePreviewSignatureHeader(
 // ── Media URL rewriting ─────────────────────────────────────────
 
 const MEDIA_FILE_PREFIX = "/_emdash/api/media/file/";
+const MEDIA_FILE_SUFFIX = /[?#]/;
+const EXTERNAL_OR_ROOT_URL = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
 /**
  * Parse a JSON string value and inject `src` for local media objects.
@@ -179,12 +181,59 @@ const SYSTEM_TABLES = [
 	"_emdash_widgets",
 	"_emdash_seo",
 	"_emdash_migrations",
-	"taxonomies",
 	"content_taxonomies",
-	"media",
+	"taxonomies",
 	"options",
+	"media",
 	"revisions",
-];
+] as const;
+
+type SystemTable = (typeof SYSTEM_TABLES)[number];
+type PublishedTablePolicy = "full" | "content-linked" | "omit";
+
+/**
+ * Published snapshots are available to preview-signature callers, so every
+ * system table must be classified explicitly. Adding a snapshot table without
+ * choosing a policy is a type error rather than an accidental data export.
+ */
+const PUBLISHED_TABLE_POLICIES: Record<SystemTable, PublishedTablePolicy> = {
+	_emdash_block_types: "full",
+	_emdash_block_type_versions: "full",
+	_emdash_collections: "full",
+	_emdash_fields: "full",
+	_emdash_taxonomy_defs: "full",
+	_emdash_taxonomy_def_groups: "full",
+	_emdash_menus: "full",
+	_emdash_menu_items: "content-linked",
+	_emdash_sections: "full",
+	_emdash_widget_areas: "full",
+	_emdash_widgets: "full",
+	_emdash_seo: "content-linked",
+	_emdash_migrations: "full",
+	content_taxonomies: "content-linked",
+	taxonomies: "content-linked",
+	options: "content-linked",
+	media: "content-linked",
+	revisions: "omit",
+};
+
+const SYSTEM_TABLE_SET: ReadonlySet<string> = new Set(SYSTEM_TABLES);
+
+function isSystemTable(tableName: string): tableName is SystemTable {
+	return SYSTEM_TABLE_SET.has(tableName);
+}
+
+interface PublishedContentReferences {
+	ids: Set<string>;
+	translationGroups: Set<string>;
+}
+
+interface PublishedProjection {
+	content: Map<string, PublishedContentReferences>;
+	taxonomyGroups: Set<string>;
+	mediaIds: Set<string>;
+	mediaStorageKeys: Set<string>;
+}
 
 /**
  * Table name prefixes excluded from snapshots (auth/security data).
@@ -256,6 +305,191 @@ function normalizeRows(
 	return rows;
 }
 
+function createPublishedProjection(): PublishedProjection {
+	return {
+		content: new Map(),
+		taxonomyGroups: new Set(),
+		mediaIds: new Set(),
+		mediaStorageKeys: new Set(),
+	};
+}
+
+function readString(value: unknown): string | null {
+	return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function recordPublishedContent(
+	projection: PublishedProjection,
+	tableName: string,
+	rows: Record<string, unknown>[],
+): void {
+	const references: PublishedContentReferences = {
+		ids: new Set(),
+		translationGroups: new Set(),
+	};
+	for (const row of rows) {
+		const id = readString(row.id);
+		const translationGroup = readString(row.translation_group);
+		if (id) references.ids.add(id);
+		if (translationGroup) references.translationGroups.add(translationGroup);
+	}
+	projection.content.set(tableName.slice("ec_".length), references);
+}
+
+function isPublishedContentReference(
+	projection: PublishedProjection,
+	collection: unknown,
+	reference: unknown,
+): boolean {
+	const collectionName = readString(collection);
+	const id = readString(reference);
+	if (!collectionName || !id) return false;
+	const references = projection.content.get(collectionName);
+	return references?.ids.has(id) === true || references?.translationGroups.has(id) === true;
+}
+
+function collectMediaReferences(value: unknown, projection: PublishedProjection): void {
+	if (typeof value === "string") {
+		if (value.startsWith(MEDIA_FILE_PREFIX)) {
+			const storageKey = value.slice(MEDIA_FILE_PREFIX.length).split(MEDIA_FILE_SUFFIX, 1)[0];
+			if (storageKey) projection.mediaStorageKeys.add(storageKey);
+			return;
+		}
+		const trimmed = value.trimStart();
+		if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+			try {
+				collectMediaReferences(JSON.parse(value), projection);
+			} catch {
+				// Not structured data.
+			}
+		}
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const item of value) collectMediaReferences(item, projection);
+		return;
+	}
+	if (!isRecord(value)) return;
+
+	const mediaId = readString(value.mediaId);
+	if (mediaId) projection.mediaIds.add(mediaId);
+
+	const provider = readString(value.provider);
+	const meta = isRecord(value.meta) ? value.meta : null;
+	const localMediaId = readString(value.id);
+	if ((provider === "local" || (!provider && meta)) && localMediaId) {
+		projection.mediaIds.add(localMediaId);
+	}
+	const storageKey = readString(value.storageKey) ?? readString(meta?.storageKey);
+	if (storageKey) projection.mediaStorageKeys.add(storageKey);
+
+	const asset = isRecord(value.asset) ? value.asset : null;
+	const assetRef = readString(asset?._ref);
+	if (assetRef) {
+		projection.mediaIds.add(assetRef);
+		projection.mediaStorageKeys.add(assetRef);
+	}
+
+	for (const child of Object.values(value)) collectMediaReferences(child, projection);
+}
+
+function projectTaxonomyRows(
+	rows: Record<string, unknown>[],
+	projection: PublishedProjection,
+): Record<string, unknown>[] {
+	const includedGroups = new Set(projection.taxonomyGroups);
+	const includedIds = new Set(projection.taxonomyGroups);
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const row of rows) {
+			const id = readString(row.id);
+			const group = readString(row.translation_group);
+			if (!id) continue;
+			if (includedIds.has(id) || (group && includedGroups.has(group))) {
+				if (!includedIds.has(id)) {
+					includedIds.add(id);
+					changed = true;
+				}
+				if (group && !includedGroups.has(group)) {
+					includedGroups.add(group);
+					changed = true;
+				}
+				const parentId = readString(row.parent_id);
+				if (parentId && !includedIds.has(parentId)) {
+					includedIds.add(parentId);
+					changed = true;
+				}
+			}
+		}
+	}
+	return rows.filter((row) => {
+		const id = readString(row.id);
+		const group = readString(row.translation_group);
+		return (id && includedIds.has(id)) || (group && includedGroups.has(group));
+	});
+}
+
+function projectPublishedRows(
+	tableName: SystemTable,
+	rows: Record<string, unknown>[],
+	projection: PublishedProjection,
+): Record<string, unknown>[] {
+	switch (tableName) {
+		case "_emdash_seo":
+			return rows.filter((row) => {
+				const published = isPublishedContentReference(projection, row.collection, row.content_id);
+				if (!published) return false;
+				const image = readString(row.seo_image);
+				if (image) {
+					collectMediaReferences(image, projection);
+					if (!EXTERNAL_OR_ROOT_URL.test(image)) {
+						projection.mediaIds.add(image);
+						projection.mediaStorageKeys.add(image);
+					}
+				}
+				return true;
+			});
+		case "content_taxonomies":
+			return rows.filter((row) => {
+				const published = isPublishedContentReference(projection, row.collection, row.entry_id);
+				const taxonomyGroup = readString(row.taxonomy_id);
+				if (published && taxonomyGroup) projection.taxonomyGroups.add(taxonomyGroup);
+				return published;
+			});
+		case "taxonomies":
+			return projectTaxonomyRows(rows, projection);
+		case "_emdash_menu_items":
+			return rows.filter((row) => {
+				const type = readString(row.type);
+				const referenceId = readString(row.reference_id);
+				if (!referenceId || type === "custom") return true;
+				if (type === "taxonomy") {
+					projection.taxonomyGroups.add(referenceId);
+					return true;
+				}
+				if (type === "collection" && !row.reference_id) return true;
+				const collection =
+					readString(row.reference_collection) ??
+					(type === "post" || type === "page" ? `${type}s` : null);
+				return isPublishedContentReference(projection, collection, referenceId);
+			});
+		case "media":
+			return rows.filter((row) => {
+				const id = readString(row.id);
+				const storageKey = readString(row.storage_key);
+				return (
+					(id !== null && projection.mediaIds.has(id)) ||
+					(storageKey !== null && projection.mediaStorageKeys.has(storageKey))
+				);
+			});
+		case "options":
+			return rows;
+		default:
+			return [];
+	}
+}
+
 export interface GenerateSnapshotOptions {
 	/** Include draft and scheduled content (default: false) */
 	includeDrafts?: boolean;
@@ -288,6 +522,8 @@ export async function generateSnapshot(
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
 	const optionKeys = new Set(options?.optionKeys);
+	const publishedOnly = !includeDrafts && !includeTrashed;
+	const publishedProjection = createPublishedProjection();
 
 	const contentTables = await listTablesLike(db, "ec_%");
 
@@ -340,6 +576,12 @@ export async function generateSnapshot(
 					`.execute(db)
 				).rows;
 			}
+		} else if (
+			publishedOnly &&
+			isSystemTable(tableName) &&
+			PUBLISHED_TABLE_POLICIES[tableName] === "omit"
+		) {
+			rows = [];
 		} else if (tableName === "options") {
 			rows = (
 				await sql<Record<string, unknown>>`
@@ -355,6 +597,18 @@ export async function generateSnapshot(
 					SELECT * FROM ${sql.ref(tableName)}
 				`.execute(db)
 			).rows;
+		}
+
+		if (publishedOnly) {
+			if (tableName.startsWith("ec_")) {
+				recordPublishedContent(publishedProjection, tableName, rows);
+			} else if (
+				isSystemTable(tableName) &&
+				PUBLISHED_TABLE_POLICIES[tableName] === "content-linked"
+			) {
+				rows = projectPublishedRows(tableName, rows, publishedProjection);
+			}
+			for (const row of rows) collectMediaReferences(row, publishedProjection);
 		}
 
 		if (rows.length > 0) {

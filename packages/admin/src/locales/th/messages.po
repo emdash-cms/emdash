@@ -86,7 +86,7 @@ msgid "{0, plural, one {# byline} other {# bylines}}"
 msgstr ""
 
 #. placeholder {0}: seedInfo.collections
-#: packages/admin/src/components/SetupWizard.tsx:185
+#: packages/admin/src/components/SetupWizard.tsx:219
 msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# คอลเลกชัน} other {# คอลเลกชัน}}"
 
@@ -359,6 +359,12 @@ msgstr "จะนำเข้า {0} รายการ"
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:123
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:427
 msgid "{0} of {1} files · {2} of {3}"
+msgstr ""
+
+#. placeholder {0}: i18n.number(seedProgress.done)
+#. placeholder {1}: i18n.number(seedProgress.total)
+#: packages/admin/src/components/SetupWizard.tsx:210
+msgid "{0} of {1} items"
 msgstr ""
 
 #. placeholder {0}: i18n.number(matched)
@@ -745,8 +751,8 @@ msgstr "• อัปโหลดไปยังที่จัดเก็บ�
 msgid "• URLs in your content are updated automatically"
 msgstr "• URL ในเนื้อหาของคุณจะถูกอัปเดตโดยอัตโนมัติ"
 
-#: packages/admin/src/components/SetupWizard.tsx:254
-#: packages/admin/src/components/SetupWizard.tsx:305
+#: packages/admin/src/components/SetupWizard.tsx:288
+#: packages/admin/src/components/SetupWizard.tsx:339
 #: packages/admin/src/components/WordPressImport.tsx:1617
 msgid "← Back"
 msgstr "← กลับ"
@@ -999,7 +1005,7 @@ msgstr "การเข้าถึงถูกปฏิเสธ"
 msgid "Access your media library"
 msgstr "เข้าถึงไลบรารีมีเดียของคุณ"
 
-#: packages/admin/src/components/SetupWizard.tsx:374
+#: packages/admin/src/components/SetupWizard.tsx:408
 msgid "Account"
 msgstr "บัญชี"
 
@@ -2924,8 +2930,8 @@ msgstr "เขียนเนื้อหา"
 msgid "Continue"
 msgstr "ดำเนินการต่อ"
 
-#: packages/admin/src/components/SetupWizard.tsx:179
-#: packages/admin/src/components/SetupWizard.tsx:262
+#: packages/admin/src/components/SetupWizard.tsx:201
+#: packages/admin/src/components/SetupWizard.tsx:296
 msgid "Continue →"
 msgstr "ดำเนินการต่อ →"
 
@@ -2941,7 +2947,7 @@ msgstr ""
 msgid "Continue to finish signing in. The link works only once."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:321
+#: packages/admin/src/components/SetupWizard.tsx:355
 msgid "Continue to import"
 msgstr ""
 
@@ -3301,7 +3307,7 @@ msgstr "สร้างโทเค็น"
 msgid "Create Widget Area"
 msgstr "สร้างพื้นที่วิดเจ็ต"
 
-#: packages/admin/src/components/SetupWizard.tsx:580
+#: packages/admin/src/components/SetupWizard.tsx:627
 msgid "Create your account"
 msgstr "สร้างบัญชีของคุณ"
 
@@ -4436,7 +4442,7 @@ msgstr "อีเมล"
 msgid "Email address"
 msgstr "ที่อยู่อีเมล"
 
-#: packages/admin/src/components/SetupWizard.tsx:208
+#: packages/admin/src/components/SetupWizard.tsx:242
 #: packages/admin/src/components/SignupPage.tsx:67
 msgid "Email is required"
 msgstr "ต้องระบุอีเมล"
@@ -4516,7 +4522,7 @@ msgstr ""
 msgid "Empty gallery — open settings to add images"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:164
+#: packages/admin/src/components/SetupWizard.tsx:173
 msgid "Empty site"
 msgstr ""
 
@@ -4626,7 +4632,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:155
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:559
+#: packages/admin/src/components/SetupWizard.tsx:606
 #: packages/admin/src/components/TaxonomyManager.tsx:1206
 #: packages/admin/src/components/Widgets.tsx:769
 #: packages/admin/src/router.tsx:2913
@@ -4832,7 +4838,7 @@ msgstr ""
 msgid "Failed to create {0}"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:513
+#: packages/admin/src/components/SetupWizard.tsx:560
 msgid "Failed to create admin"
 msgstr "สร้างผู้ดูแลระบบไม่สำเร็จ"
 
@@ -5101,7 +5107,7 @@ msgstr ""
 msgid "Failed to fetch settings"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:466
+#: packages/admin/src/components/SetupWizard.tsx:501
 msgid "Failed to fetch setup status"
 msgstr "ดึงข้อมูลสถานะการตั้งค่าไม่สำเร็จ"
 
@@ -5240,7 +5246,7 @@ msgstr "โหลดปลั๊กอินไม่สำเร็จ อา�
 msgid "Failed to load revisions"
 msgstr "โหลดรุ่นแก้ไขไม่สำเร็จ"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:608
 msgid "Failed to load setup"
 msgstr "โหลดการตั้งค่าไม่สำเร็จ"
 
@@ -5989,7 +5995,7 @@ msgstr ""
 msgid "Hour"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:149
+#: packages/admin/src/components/SetupWizard.tsx:158
 msgid "How do you want to start?"
 msgstr ""
 
@@ -6151,7 +6157,7 @@ msgstr ""
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "นำเข้าเนื้อหาทั้งหมดโดยตรง รวมถึงฉบับร่าง custom post type ฟิลด์ ACF และข้อมูล SEO โดยไม่ต้องดาวน์โหลดไฟล์"
 
-#: packages/admin/src/components/SetupWizard.tsx:169
+#: packages/admin/src/components/SetupWizard.tsx:178
 msgid "Import an existing EmDash site"
 msgstr ""
 
@@ -6536,7 +6542,7 @@ msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:70
-#: packages/admin/src/components/SetupWizard.tsx:242
+#: packages/admin/src/components/SetupWizard.tsx:276
 #: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
 msgstr "Jane Doe"
@@ -6902,7 +6908,7 @@ msgstr "กำลังโหลดส่วนต่างๆ..."
 msgid "Loading settings..."
 msgstr "กำลังโหลดการตั้งค่า..."
 
-#: packages/admin/src/components/SetupWizard.tsx:548
+#: packages/admin/src/components/SetupWizard.tsx:595
 msgid "Loading setup..."
 msgstr "กำลังโหลดการตั้งค่า..."
 
@@ -7595,7 +7601,7 @@ msgstr "ข้อความธรรมดาหลายบรรทัด"
 msgid "Multiple choices from options"
 msgstr "เลือกได้หลายตัวเลือกจากรายการ"
 
-#: packages/admin/src/components/SetupWizard.tsx:132
+#: packages/admin/src/components/SetupWizard.tsx:141
 msgid "My Awesome Blog"
 msgstr "My Awesome Blog"
 
@@ -8186,7 +8192,7 @@ msgstr ""
 msgid "OG Image"
 msgstr "OG Image"
 
-#: packages/admin/src/components/SetupWizard.tsx:170
+#: packages/admin/src/components/SetupWizard.tsx:179
 msgid "Once setup is done, upload a .emdash package exported from another EmDash site."
 msgstr ""
 
@@ -8254,7 +8260,7 @@ msgid "Open setup"
 msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:83
-#: packages/admin/src/components/SetupWizard.tsx:321
+#: packages/admin/src/components/SetupWizard.tsx:355
 #: packages/admin/src/components/SignupPage.tsx:237
 msgid "Open the dashboard"
 msgstr ""
@@ -8321,7 +8327,7 @@ msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:263
-#: packages/admin/src/components/SetupWizard.tsx:334
+#: packages/admin/src/components/SetupWizard.tsx:368
 msgid "Or continue with"
 msgstr "หรือดำเนินการต่อด้วย"
 
@@ -8596,7 +8602,7 @@ msgstr ""
 msgid "Please ask your administrator to send a new invite."
 msgstr "โปรดขอให้ผู้ดูแลระบบของคุณส่งคำเชิญใหม่"
 
-#: packages/admin/src/components/SetupWizard.tsx:210
+#: packages/admin/src/components/SetupWizard.tsx:244
 msgid "Please enter a valid email"
 msgstr "โปรดป้อนอีเมลที่ถูกต้อง"
 
@@ -8796,7 +8802,7 @@ msgid "Preparing to download files from WordPress..."
 msgstr "กำลังเตรียมดาวน์โหลดไฟล์จาก WordPress..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:163
-#: packages/admin/src/components/SetupWizard.tsx:262
+#: packages/admin/src/components/SetupWizard.tsx:296
 msgid "Preparing..."
 msgstr "กำลังเตรียม..."
 
@@ -9836,7 +9842,8 @@ msgstr ""
 msgid "Same window"
 msgstr "หน้าต่างเดียวกัน"
 
-#: packages/admin/src/components/SetupWizard.tsx:158
+#: packages/admin/src/components/SetupWizard.tsx:167
+#: packages/admin/src/components/SetupWizard.tsx:207
 msgid "Sample content"
 msgstr ""
 
@@ -10258,7 +10265,7 @@ msgstr "ชื่อส่วน"
 msgid "Sections"
 msgstr "ส่วน"
 
-#: packages/admin/src/components/SetupWizard.tsx:581
+#: packages/admin/src/components/SetupWizard.tsx:628
 msgid "Secure your account"
 msgstr "รักษาความปลอดภัยบัญชีของคุณ"
 
@@ -10575,7 +10582,7 @@ msgstr ""
 msgid "Set up Windows Hello"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:579
+#: packages/admin/src/components/SetupWizard.tsx:626
 msgid "Set up your site"
 msgstr "ตั้งค่าเว็บไซต์ของคุณ"
 
@@ -10584,7 +10591,7 @@ msgstr "ตั้งค่าเว็บไซต์ของคุณ"
 msgid "Setting up"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:179
+#: packages/admin/src/components/SetupWizard.tsx:201
 msgid "Setting up..."
 msgstr "กำลังตั้งค่า..."
 
@@ -10617,7 +10624,8 @@ msgstr "บันทึกการตั้งค่าสำเร็จ"
 msgid "Setup couldn’t continue. Try again."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:488
+#: packages/admin/src/components/SetupWizard.tsx:527
+#: packages/admin/src/components/SetupWizard.tsx:530
 msgid "Setup failed"
 msgstr "การตั้งค่าล้มเหลว"
 
@@ -10683,7 +10691,7 @@ msgstr "แสดงเมื่อชี้เมาส์เหนือรู
 msgid "Sign in"
 msgstr "เข้าสู่ระบบ"
 
-#: packages/admin/src/components/SetupWizard.tsx:375
+#: packages/admin/src/components/SetupWizard.tsx:409
 msgid "Sign In"
 msgstr "เข้าสู่ระบบ"
 
@@ -10703,7 +10711,7 @@ msgstr "เข้าสู่ระบบเว็บไซต์ของคุ
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:292
+#: packages/admin/src/components/SetupWizard.tsx:326
 msgid "Sign in with {0}"
 msgstr "เข้าสู่ระบบด้วย {0}"
 
@@ -10743,7 +10751,7 @@ msgid "Single line text input"
 msgstr "ช่องป้อนข้อความบรรทัดเดียว"
 
 #: packages/admin/src/components/Settings.tsx:50
-#: packages/admin/src/components/SetupWizard.tsx:373
+#: packages/admin/src/components/SetupWizard.tsx:407
 msgid "Site"
 msgstr "เว็บไซต์"
 
@@ -10781,7 +10789,7 @@ msgid "Site settings"
 msgstr ""
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
-#: packages/admin/src/components/SetupWizard.tsx:371
+#: packages/admin/src/components/SetupWizard.tsx:405
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
 msgstr "ตั้งค่าเว็บไซต์"
@@ -10791,7 +10799,7 @@ msgid "Site title"
 msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:172
-#: packages/admin/src/components/SetupWizard.tsx:128
+#: packages/admin/src/components/SetupWizard.tsx:137
 msgid "Site Title"
 msgstr "ชื่อเว็บไซต์"
 
@@ -10799,7 +10807,7 @@ msgstr "ชื่อเว็บไซต์"
 msgid "Site title & tagline"
 msgstr "ชื่อเว็บไซต์และคำโปรย"
 
-#: packages/admin/src/components/SetupWizard.tsx:112
+#: packages/admin/src/components/SetupWizard.tsx:121
 msgid "Site title is required"
 msgstr "ต้องระบุชื่อเว็บไซต์"
 
@@ -11006,11 +11014,11 @@ msgstr ""
 msgid "Start Import"
 msgstr "เริ่มการนำเข้า"
 
-#: packages/admin/src/components/SetupWizard.tsx:165
+#: packages/admin/src/components/SetupWizard.tsx:174
 msgid "Start with the template’s content types and no content."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:159
+#: packages/admin/src/components/SetupWizard.tsx:168
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr ""
 
@@ -11176,7 +11184,7 @@ msgstr ""
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:180
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:375
-#: packages/admin/src/components/SetupWizard.tsx:139
+#: packages/admin/src/components/SetupWizard.tsx:148
 msgid "Tagline"
 msgstr "คำโปรย"
 
@@ -11260,7 +11268,7 @@ msgstr ""
 msgid "Technical verification details"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:184
+#: packages/admin/src/components/SetupWizard.tsx:218
 msgid "Template:"
 msgstr "เทมเพลต:"
 
@@ -11564,6 +11572,10 @@ msgstr "รูปภาพที่อ้างอิงไม่พร้อม
 #: packages/admin/src/components/settings/GeneralSettings.tsx:216
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "โลโก้ที่อ้างอิงไม่พร้อมใช้งานอีกต่อไป เลือกใหม่หรือนำการอ้างอิงออก"
+
+#: packages/admin/src/components/SetupWizard.tsx:188
+msgid "The sample content added so far is kept. Continue to add the rest."
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:817
 msgid "The selected folder no longer exists. Choose another location and save again."
@@ -11973,7 +11985,7 @@ msgstr "การดำเนินการนี้จะนำปลั๊ก
 msgid "This will revert to the published version. Your draft changes will be lost."
 msgstr "การดำเนินการนี้จะย้อนกลับไปยังเวอร์ชันที่เผยแพร่แล้ว การเปลี่ยนแปลงในฉบับร่างของคุณจะสูญหาย"
 
-#: packages/admin/src/components/SetupWizard.tsx:143
+#: packages/admin/src/components/SetupWizard.tsx:152
 msgid "Thoughts, tutorials, and more"
 msgstr "ความคิด บทแนะนำ และอื่น ๆ"
 
@@ -13236,7 +13248,7 @@ msgstr "คุณจะถูกเปลี่ยนเส้นทางไป
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:584
+#: packages/admin/src/components/SetupWizard.tsx:631
 msgid "You're signed in via Cloudflare Access"
 msgstr "คุณเข้าสู่ระบบผ่าน Cloudflare Access"
 
@@ -13256,7 +13268,7 @@ msgstr "คุณได้รับคำเชิญ!"
 msgid "you@company.com"
 msgstr "you@company.com"
 
-#: packages/admin/src/components/SetupWizard.tsx:230
+#: packages/admin/src/components/SetupWizard.tsx:264
 msgid "you@example.com"
 msgstr "you@example.com"
 
@@ -13292,7 +13304,7 @@ msgstr ""
 msgid "your device's passkey prompt"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:226
+#: packages/admin/src/components/SetupWizard.tsx:260
 msgid "Your Email"
 msgstr "อีเมลของคุณ"
 
@@ -13317,7 +13329,7 @@ msgstr "ชื่อผู้ใช้โปรไฟล์ LinkedIn ของ�
 msgid "Your media library is empty"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:238
+#: packages/admin/src/components/SetupWizard.tsx:272
 msgid "Your Name"
 msgstr "ชื่อของคุณ"
 
