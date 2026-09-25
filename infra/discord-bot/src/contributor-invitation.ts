@@ -8,11 +8,11 @@ interface InviteInput {
 	prNumber: number;
 }
 
-interface InvitationRecord extends InviteInput {
+export interface InvitationRecord extends InviteInput {
 	invitedAt: string;
 }
 
-type InviteResult = { invited: true } | { invited: false; record?: InvitationRecord };
+export type InviteResult = { invited: true } | { invited: false; record?: InvitationRecord };
 
 const INVITATION_KEY = "invitation";
 

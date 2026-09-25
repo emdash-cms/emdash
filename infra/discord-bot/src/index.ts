@@ -1,3 +1,4 @@
+import type { InviteResult } from "./contributor-invitation.js";
 import {
 	verifyDiscordSignature,
 	interactionResponse,
@@ -243,16 +244,18 @@ async function handleGitHubWebhook(request: Request, env: Env): Promise<Response
 			[link.discord_id],
 		);
 	} else {
-		await env.CONTRIBUTOR_INVITATIONS.getByName(String(githubId)).invite({
+		const inviteResult = await env.CONTRIBUTOR_INVITATIONS.getByName(String(githubId)).invite({
 			githubId,
 			githubLogin,
 			prNumber,
 		});
-		await postMessage(
-			env,
-			env.DISCORD_CHANNEL_ID,
-			pick(unlinkedMergeMessages, { login: githubLogin, pr: prLink }),
-		);
+		if (shouldAnnounceUnlinkedMerge(inviteResult, prNumber)) {
+			await postMessage(
+				env,
+				env.DISCORD_CHANNEL_ID,
+				pick(unlinkedMergeMessages, { login: githubLogin, pr: prLink }),
+			);
+		}
 	}
 
 	// Mark delivery processed after all side effects succeed
@@ -268,6 +271,13 @@ export function shouldSkipContributor(
 	ownerLogin: string,
 ): boolean {
 	return user.login === ownerLogin || user.type === "Bot" || user.login.endsWith("[bot]");
+}
+
+export function shouldAnnounceUnlinkedMerge(inviteResult: InviteResult, prNumber: number): boolean {
+	return (
+		inviteResult.invited ||
+		(inviteResult.record !== undefined && inviteResult.record.prNumber !== prNumber)
+	);
 }
 
 // ─── Message Templates ───────────────────────────────────────────
