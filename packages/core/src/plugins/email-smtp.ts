@@ -568,7 +568,7 @@ export interface SmtpConfig {
 	fromName?: string;
 	fromEmail?: string;
 	replyTo?: string;
-	/** Connect + overall timeout in ms (default 30s) */
+	/** Connect + overall timeout in ms (default 25s) */
 	timeoutMs?: number;
 }
 
@@ -797,11 +797,6 @@ export async function deliverSmtp(
 		});
 
 	let socket: SmtpSocket | null = null;
-	// A throw inside setTimeout never reaches the awaiting promise — it becomes
-	// an unhandled exception while the real delivery keeps hanging until the
-	// hook timeout kills it, with no SMTP trace. Race a rejecting timeout
-	// promise instead, and race the connect too: a blackholed host must fail
-	// with the same timeout error rather than hanging in connect().
 	let fail!: (error: Error) => void;
 	const timeout = new Promise<never>((_, reject) => {
 		fail = reject;
@@ -812,18 +807,12 @@ export async function deliverSmtp(
 	}, timeoutMs);
 
 	const trace = new SmtpTrace();
-	// Held outside the race so a connect that resolves after the timeout
-	// still gets closed (see finally) instead of leaking the socket.
+	// Closed in finally even when it resolves after the timeout.
 	const connecting = connect(config.host, config.port, config.secure);
 	try {
-		// connect() runs outside deliver() so TS's control-flow analysis sees the
-		// socket assignment (closure assignments make `socket` narrow to never).
 		socket = await Promise.race([connecting, timeout]);
 		return await Promise.race([deliver(socket), timeout]);
 	} catch (error) {
-		// The transcript goes to the server logs only — a bare "Hook timeout"
-		// or "connection closed" says nothing about which step stalled. The
-		// thrown error carries just the humanized message, safe to surface.
 		const detail = error instanceof Error ? error.message : String(error);
 		ctx.log.error("SMTP delivery failed", {
 			error: detail,
@@ -832,9 +821,7 @@ export async function deliverSmtp(
 			trace: trace.tail(),
 		});
 		if (error instanceof SmtpDeliveryError) throw error;
-		// Unknown errors (socket failures, internal bugs) surface only a
-		// generic message plus the OS error code — the raw message may
-		// contain internals and is available in the log entry above.
+		// The raw message may contain internals; it is only logged above.
 		const code =
 			error instanceof Error && "code" in error && typeof error.code === "string"
 				? ` (${error.code})`

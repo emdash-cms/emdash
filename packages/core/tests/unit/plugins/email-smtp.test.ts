@@ -667,23 +667,21 @@ describe("Cloudflare socket edge cases", () => {
 		expect(connectFn).not.toHaveBeenCalled();
 	});
 
-	it("fails with its own timeout error when the server never responds", async () => {
-		const { socket } = mockSocket([]);
+	it("fails with its own timeout error after 25 s when the server never responds", async () => {
+		vi.useFakeTimers();
+		try {
+			const { socket } = mockSocket([]);
+			const neverConnect = vi.fn(async () => ({
+				...socket,
+				reader: { read: () => new Promise<never>(() => {}) },
+			}));
 
-		// Mock a socket that never responds — should hit our timeout, not the hook's
-		const neverResponds = {
-			...socket,
-			reader: {
-				read: async () => {
-					await new Promise((resolve) => setTimeout(resolve, 30_000));
-					return { done: true };
-				},
-			},
-		};
-		const neverConnect = vi.fn(async () => neverResponds);
-
-		await expect(
-			deliverSmtp({ ...baseConfig, timeoutMs: 50 }, message, mockCtx, neverConnect),
-		).rejects.toThrow(/timed out after 50ms/);
-	}, 5_000);
+			const delivery = deliverSmtp(baseConfig, message, mockCtx, neverConnect);
+			const rejected = expect(delivery).rejects.toThrow(/timed out after 25000ms/);
+			await vi.advanceTimersByTimeAsync(25_001);
+			await rejected;
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });
