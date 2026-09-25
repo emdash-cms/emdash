@@ -4025,7 +4025,7 @@ function EditorBubbleMenu({
 					(selection instanceof TextSelection ||
 						selection instanceof AllSelection ||
 						isImageSelection) &&
-					!selection.empty &&
+					(!selection.empty || isImageSelection) &&
 					(view.hasFocus() || element.contains(document.activeElement))
 				);
 			}}
