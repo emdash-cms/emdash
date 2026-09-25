@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
+import type { Storage } from "../../../src/storage/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -348,6 +349,36 @@ describe("media_delete", () => {
 			arguments: { id },
 		});
 		expect(got.isError).toBe(true);
+	});
+
+	it("removes the stored file along with the record", async () => {
+		const objects = new Set<string>();
+		const storage = {
+			delete: async (key: string) => {
+				objects.delete(key);
+			},
+		} as unknown as Storage;
+		const item = await new MediaRepository(db).create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "media/photo.png",
+			authorId: ADMIN_ID,
+		});
+		objects.add(item.storageKey);
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: { storage },
+		});
+
+		const result = await harness.client.callTool({
+			name: "media_delete",
+			arguments: { id: item.id },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(objects.size).toBe(0);
 	});
 
 	it("AUTHOR cannot delete another user's media", async () => {

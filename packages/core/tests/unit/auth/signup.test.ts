@@ -98,9 +98,10 @@ describe("Self-Signup", () => {
 		it("should send verification email for allowed domain", async () => {
 			await adapter.createAllowedDomain("allowed.com", Role.AUTHOR);
 
+			// The route passes getSiteBaseUrl(), which is the origin plus /_emdash.
 			await requestSignup(
 				{
-					baseUrl: "https://example.com",
+					baseUrl: "https://example.com/_emdash",
 					email: mockEmailSend,
 					siteName: "Test Site",
 				},
@@ -111,9 +112,7 @@ describe("Self-Signup", () => {
 			expect(mockEmailSend).toHaveBeenCalledTimes(1);
 			expect(sentEmails[0]!.to).toBe("newuser@allowed.com");
 			expect(sentEmails[0]!.subject).toContain("Test Site");
-			expect(sentEmails[0]!.text).toContain(
-				"https://example.com/_emdash/api/auth/signup/verify?token=",
-			);
+			expect(sentEmails[0]!.text).toContain("https://example.com/_emdash/admin/signup?token=");
 			expect(sentEmails[0]!.text).toContain("verify");
 		});
 
@@ -280,6 +279,25 @@ describe("Self-Signup", () => {
 			expect(user.name).toBe("New User");
 			expect(user.role).toBe(Role.AUTHOR);
 			expect(user.emailVerified).toBe(true);
+		});
+
+		it("redeems a signup token only once when completed twice at the same time", async () => {
+			await adapter.createAllowedDomain("allowed.com", Role.AUTHOR);
+			await requestSignup(
+				{ baseUrl: "https://example.com", email: mockEmailSend, siteName: "Test Site" },
+				adapter,
+				"newuser@allowed.com",
+			);
+
+			const results = await Promise.allSettled([
+				completeSignup(adapter, capturedToken!, { name: "First" }),
+				completeSignup(adapter, capturedToken!, { name: "Second" }),
+			]);
+
+			expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+			expect(results.filter((r) => r.status === "rejected")).toMatchObject([
+				{ reason: { code: "invalid_token" } },
+			]);
 		});
 
 		it("should throw user_exists if user created during signup flow (race condition)", async () => {

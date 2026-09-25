@@ -596,3 +596,45 @@ describe("Scope Clamping: Role-based scope restriction", () => {
 		expect(scopes).toContain("schema:read");
 	});
 });
+
+describe("Transfer scopes", () => {
+	async function approveAndExchange(
+		requestedScopes: string,
+		userRole: RoleLevel,
+	): Promise<string[]> {
+		const codeResult = await handleDeviceCodeRequest(
+			db,
+			{ client_id: "emdash-cli", scope: requestedScopes },
+			"https://example.com/_emdash/device",
+		);
+		if (!codeResult.success) throw new Error("device code request failed");
+
+		const authResult = await handleDeviceAuthorize(db, "user-1", userRole, {
+			user_code: codeResult.data.user_code,
+		});
+		if (!authResult.success) throw new Error(authResult.error.code);
+
+		const tokenResult = await handleDeviceTokenExchange(db, {
+			device_code: codeResult.data.device_code,
+			grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+		});
+		if (!tokenResult.success) throw new Error("token exchange failed");
+		return tokenResult.data.scope.split(" ");
+	}
+
+	it("grants an admin a narrow transfer scope without admin", async () => {
+		expect(await approveAndExchange("content:read transfer:analyze", Role.ADMIN)).toEqual([
+			"content:read",
+			"transfer:analyze",
+		]);
+	});
+
+	it("strips transfer scopes for non-admins", async () => {
+		expect(
+			await approveAndExchange(
+				"content:read transfer:export transfer:analyze transfer:execute",
+				Role.EDITOR,
+			),
+		).toEqual(["content:read"]);
+	});
+});

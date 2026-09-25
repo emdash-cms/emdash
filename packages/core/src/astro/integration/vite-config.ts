@@ -372,6 +372,27 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 	return astroConfig.adapter?.name === "@astrojs/cloudflare";
 }
 
+/**
+ * Workers built-ins that core imports dynamically behind a runtime fallback.
+ * Outside workerd nothing resolves them, and Rollup fails the server build on
+ * an unresolved import, so they are left to the runtime. List only core's own
+ * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
+ * still fail the build instead of failing at runtime.
+ */
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+
+function createWorkersBuiltinsExternalPlugin(): Plugin {
+	return {
+		name: "emdash-workers-builtins-external",
+		apply: "build",
+		resolveId(id) {
+			if (CORE_WORKERS_BUILTINS.has(id) && this.environment.config.consumer === "server") {
+				return { id, external: true };
+			}
+		},
+	};
+}
+
 function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
 	try {
 		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
@@ -464,6 +485,7 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options, command),
+			...(cloudflare ? [] : [createWorkersBuiltinsExternalPlugin()]),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
@@ -534,6 +556,7 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
 							// Registry routes are lazy, so their AT Protocol graph is not
 							// present during Vite's initial dependency scan.
+							"emdash > @atcute/identity-resolver",
 							"emdash > @emdash-cms/registry-lexicons > @atcute/atproto/types/label/defs",
 							"emdash > @emdash-cms/registry-client > @atcute/client",
 							"emdash > @emdash-cms/registry-client > @atcute/crypto",
@@ -566,6 +589,9 @@ export function createViteConfig(
 							// first rendered.
 							"emdash > @emdash-cms/admin > @lingui/react",
 							"emdash > @emdash-cms/admin > @cloudflare/kumo/primitives",
+							// System email copy resolution (invite, magic link) — reached
+							// only when one of those routes sends an email.
+							"emdash > @emdash-cms/admin > @lingui/core",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",

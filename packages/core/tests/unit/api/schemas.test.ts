@@ -160,6 +160,18 @@ describe("localeCode validator", () => {
 		expect(result.locale).toBe("zh-TW");
 	});
 
+	it("contentListQuery treats ?status=all as no status filter", () => {
+		expect(contentListQuery.parse({ status: "all" }).status).toBeUndefined();
+	});
+
+	it("contentListQuery rejects a status no entry can have", () => {
+		expect(() => contentListQuery.parse({ status: "publishd" })).toThrow();
+	});
+
+	it("contentListQuery still filters by WordPress-style statuses such as pending", () => {
+		expect(contentListQuery.parse({ status: "pending" }).status).toBe("pending");
+	});
+
 	it("contentListQuery parses bounded indexed field filters", () => {
 		const result = contentListQuery.parse({
 			fieldFilters: JSON.stringify({

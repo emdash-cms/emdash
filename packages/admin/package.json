@@ -21,6 +21,14 @@
       "types": "./dist/locales/server.d.ts",
       "default": "./dist/locales/server.js"
     },
+    "./locales/config": {
+      "types": "./dist/locales/config.d.ts",
+      "default": "./dist/locales/config.js"
+    },
+    "./locales/emails": {
+      "types": "./dist/locales/emails.d.ts",
+      "default": "./dist/locales/emails.js"
+    },
     "./locales/*": "./dist/locales/*",
     "./slugify": {
       "types": "./dist/slugify.d.ts",
@@ -43,7 +51,6 @@
     "locale:extract": "lingui extract --clean"
   },
   "dependencies": {
-    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@cloudflare/kumo": "catalog:",
     "@dnd-kit/core": "^6.3.1",
@@ -92,6 +99,7 @@
     "highlight.js": "catalog:",
     "lowlight": "catalog:",
     "marked": "^17.0.3",
+    "modern-tar": "^0.7.5",
     "react-day-picker": "catalog:",
     "react-hotkeys-hook": "^5.2.4",
     "react-image-crop": "^11.1.2",

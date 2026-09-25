@@ -38,7 +38,27 @@ import { convertDataForRead, convertDataForWrite } from "../client/portable-text
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
+import {
+	TRANSFER_SCOPES,
+	type TransferApprovalAction,
+	type TransferScope,
+} from "../transfer/auth.js";
+import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
+import { toSha256Digest } from "../transfer/format/digest.js";
+import { siteImportDecisionsInputSchema } from "../transfer/format/plan.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
+import {
+	analyzeImport,
+	exportStatus,
+	hasOperationGrant,
+	importReceipt,
+	importStatus,
+	resumeImport,
+	startExport,
+	startImport,
+	transferCapabilities,
+	type TransferContext,
+} from "./transfer.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
@@ -59,6 +79,43 @@ const REV_PARAM_DESCRIPTION =
  */
 const REV_MISSING_ERROR =
 	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
+const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const TRANSFER_OPERATION_ID_PATTERN = /^[0-9A-Za-z_-]{1,64}$/;
+
+const transferOperationIdSchema = z
+	.string()
+	.regex(TRANSFER_OPERATION_ID_PATTERN, "Invalid operation id")
+	.describe("Transfer operation id");
+
+const transferApprovalIdSchema = z
+	.string()
+	.min(1)
+	.max(64)
+	.describe("Approval id from an earlier TRANSFER_APPROVAL_REQUIRED error, once approved");
+
+/**
+ * The site transfer tools. Like the transfer REST API they are exempt from
+ * the site write fence, so an import started over MCP can be driven to
+ * completion over MCP.
+ */
+const TRANSFER_TOOL_NAMES: ReadonlySet<string> = new Set([
+	"site_transfer_capabilities",
+	"site_export_start",
+	"site_export_status",
+	"site_import_analyze",
+	"site_import_start",
+	"site_import_status",
+	"site_import_resume",
+	"site_import_receipt",
+]);
+
+const APPROVAL_FLOW_DESCRIPTION =
+	"If the token lacks the scope, the first call fails with TRANSFER_APPROVAL_REQUIRED and " +
+	"details.approvalId; an admin must approve that request in the EmDash admin " +
+	"(Settings → Transfer). Then repeat the call with the same arguments plus approvalId. " +
+	"Approvals are single-use, bound to this user, this token, and these exact arguments, " +
+	"and expire 15 minutes after they are requested or approved.";
 
 const TAXONOMY_CURSOR_VERSION = 2;
 const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
@@ -99,8 +156,9 @@ const settingsSeoSchema = z.object({
 		.optional()
 		.describe("Separator between page title and site title (e.g. ' | ')"),
 	defaultOgImage: settingsMediaReferenceSchema
+		.nullable()
 		.optional()
-		.describe("Default Open Graph image when content has none"),
+		.describe("Default Open Graph image when content has none; null removes it"),
 	robotsTxt: z
 		.string()
 		.max(5000)
@@ -467,6 +525,8 @@ interface EmDashExtra {
 	userRole: RoleLevel;
 	/** Token scopes — undefined for session auth (all access allowed). */
 	tokenScopes?: string[];
+	/** Id of the API or OAuth token the caller authenticated with. */
+	tokenId?: string;
 	/** The route cache of the MCP request, used to invalidate the same tags the REST routes do. */
 	cache?: APIContext["cache"];
 }
@@ -606,6 +666,61 @@ function requireRole(
 	}
 }
 
+type TransferScopeRequirement = TransferScope | "transfer:*";
+
+/**
+ * Whether the caller's token holds `scope` (`transfer:*`: any transfer
+ * scope). A caller without token scopes holds none.
+ */
+function transferScopeHeld(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	scope: TransferScopeRequirement,
+): boolean {
+	const { tokenScopes } = getExtra(extra);
+	if (!tokenScopes) return false;
+	if (scope === "transfer:*") return TRANSFER_SCOPES.some((held) => hasScope(tokenScopes, held));
+	return hasScope(tokenScopes, scope);
+}
+
+function insufficientTransferScope(scope: TransferScopeRequirement): EmDashAuthError {
+	const required = scope === "transfer:*" ? TRANSFER_SCOPES.join(" or ") : scope;
+	return new EmDashAuthError(`Insufficient scope: requires ${required}`, "INSUFFICIENT_SCOPE");
+}
+
+function requireTransferScope(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	scope: TransferScopeRequirement,
+): void {
+	if (!transferScopeHeld(extra, scope)) throw insufficientTransferScope(scope);
+}
+
+/**
+ * Require `scope`, or a grant this user consumed with this token to start
+ * `operationId`.
+ */
+async function requireTransferAccess(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	scope: TransferScopeRequirement,
+	action: TransferApprovalAction,
+	operationId: string,
+): Promise<void> {
+	if (transferScopeHeld(extra, scope)) return;
+	const { emdash, userId, tokenId } = getExtra(extra);
+	if (await hasOperationGrant(emdash.db, { userId, tokenId }, action, operationId)) return;
+	throw insufficientTransferScope(scope);
+}
+
+function transferContext(extra: {
+	authInfo?: { extra?: Record<string, unknown> };
+}): TransferContext {
+	const { emdash } = getExtra(extra);
+	return { db: emdash.db, storage: emdash.storage, maxUploadSize: emdash.config.maxUploadSize };
+}
+
+function transferDigest(value: string) {
+	return toSha256Digest(value.slice("sha256:".length));
+}
+
 /**
  * Whether the current user may read non-published content (drafts, scheduled,
  * trashed, revisions, compare). SUBSCRIBER may hold content:read for
@@ -718,20 +833,38 @@ export function createMcpServer(
 	// surface as structured `_meta.code`-bearing tool error envelopes
 	// instead of the SDK's text-only fallback in createToolError().
 	//
+	// The wrapper also applies the site write fence. Every MCP request is a
+	// POST, so the fence middleware leaves the endpoint to this per-tool
+	// check: every tool is fenced unless it is annotated `readOnlyHint: true`
+	// or is a transfer tool. A tool annotated read-only must never write.
+	//
 	// Type-erased on purpose — the SDK's overloads are too narrow for a
 	// generic wrapper, but the runtime contract (callback returns the tool
 	// result envelope) holds for every registered tool.
 	const originalRegisterTool = server.registerTool.bind(server);
 	(server as { registerTool: typeof server.registerTool }).registerTool = ((
 		name: string,
-		config: unknown,
+		config: { annotations?: { readOnlyHint?: boolean } },
 		callback: (...callbackArgs: unknown[]) => Promise<SuccessEnvelope | ErrorEnvelope>,
 	) => {
+		const fenced = config.annotations?.readOnlyHint !== true && !TRANSFER_TOOL_NAMES.has(name);
 		const wrapped = async (
 			...callbackArgs: unknown[]
 		): Promise<SuccessEnvelope | ErrorEnvelope> => {
 			try {
-				return await callback(...callbackArgs);
+				if (!fenced) return await callback(...callbackArgs);
+				// The SDK passes the request extra as the last callback argument.
+				const extra = callbackArgs.at(-1) as { authInfo?: { extra?: Record<string, unknown> } };
+				const { db } = getEmDash(extra);
+				const fence = await readSiteWriteFence(db);
+				if (fence.error) return respondError(fence.error.code, fence.error.message);
+				const result = await callback(...callbackArgs);
+				// Recorded after the write so an export whose fence was captured
+				// while this tool ran still sees it.
+				if (fence.exportRunning && !("isError" in result && result.isError)) {
+					await recordSiteWrite(db);
+				}
+				return result;
 			} catch (error) {
 				return respondHandlerError(error, "INTERNAL_ERROR");
 			}
@@ -2995,7 +3128,9 @@ export function createMcpServer(
 				translationOf: z
 					.string()
 					.optional()
-					.describe("Term id to join as a translation (same translation_group)"),
+					.describe(
+						"Term id to join as a translation (same translation_group). The new term takes that term's parent and position; a different parentId moves the term in every locale",
+					),
 			}),
 		},
 		async (args, extra) => {
@@ -3499,16 +3634,18 @@ export function createMcpServer(
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +
-				"media_create first).",
+				"media_create first), or pass null to remove it.",
 			inputSchema: z.object({
 				title: z.string().optional().describe("Site title"),
 				tagline: z.string().optional().describe("Site tagline / short description"),
 				logo: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Logo media reference ({ mediaId, alt? })"),
+					.describe("Logo media reference ({ mediaId, alt? }); null removes it"),
 				favicon: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Favicon media reference ({ mediaId, alt? })"),
+					.describe("Favicon media reference ({ mediaId, alt? }); null removes it"),
 				url: z
 					.union([
 						z.url().refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
@@ -3541,6 +3678,216 @@ export function createMcpServer(
 			} catch (error) {
 				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
 			}
+		},
+	);
+
+	// =====================================================================
+	// Site transfer tools
+	// =====================================================================
+
+	server.registerTool(
+		"site_transfer_capabilities",
+		{
+			title: "Get Site Transfer Capabilities",
+			description:
+				"Site package format versions, features, and limits this site supports, and whether " +
+				"it can receive an import (its portable content is empty) with the reasons it cannot. " +
+				"Requires any transfer scope (transfer:export, transfer:analyze, or transfer:execute).",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			requireTransferScope(extra, "transfer:*");
+			return unwrap(await transferCapabilities(transferContext(extra)));
+		},
+	);
+
+	server.registerTool(
+		"site_export_start",
+		{
+			title: "Start Site Export",
+			description:
+				"Start exporting the whole site as a portable site package (schema, content, media, " +
+				"settings; never users, credentials, or secrets). Returns the operation id and " +
+				"status only; drive it with site_export_status. The package itself is downloaded " +
+				"outside MCP, from the admin or the CLI. Requires the transfer:export scope. " +
+				APPROVAL_FLOW_DESCRIPTION,
+			inputSchema: z.object({
+				comments: z.boolean().optional().describe("Include comments and reactions (default true)"),
+				approvalId: transferApprovalIdSchema.optional(),
+			}),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			const scoped = transferScopeHeld(extra, "transfer:export");
+			const { userId, tokenId } = getExtra(extra);
+			return unwrap(
+				await startExport(transferContext(extra), { userId, tokenId }, { ...args, scoped }),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_export_status",
+		{
+			title: "Get Site Export Status",
+			description:
+				"Report an export's state, stage, and progress, and once it is complete its package " +
+				"digest and record and media totals. By default each call also runs one bounded " +
+				"export step, so call it repeatedly until nextRequestInMs is null; pass advance: " +
+				"false to only read. Requires the transfer:export scope, or the approval that " +
+				"started this export (same token).",
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+				advance: z
+					.boolean()
+					.optional()
+					.describe("Run one bounded export step before reporting (default true)"),
+			}),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:export", "export", args.operationId);
+			return unwrap(
+				await exportStatus(transferContext(extra), {
+					operationId: args.operationId,
+					advance: args.advance ?? true,
+				}),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_import_analyze",
+		{
+			title: "Analyze Site Import",
+			description:
+				"Validate an uploaded site package against this site and produce an import plan. " +
+				"The package must already be uploaded over HTTP, from the admin or the CLI; MCP " +
+				"never carries package bytes. Each call runs one bounded analysis step: repeat until " +
+				"nextRequestInMs is null, then read plan (counts, principals with suggested user " +
+				"mappings, warnings, blockers, packageDigest, planDigest). Pass decisions to map " +
+				"principals or keep this site's title and tagline; that produces a new planDigest. " +
+				"Principal emails are never returned. Writes no site content. Requires the " +
+				"transfer:analyze scope.",
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+				decisions: siteImportDecisionsInputSchema
+					.optional()
+					.describe(
+						"principalMappings (principal id to target user id, or null to drop the " +
+							"reference) and siteTitle / siteTagline ('package' or 'target'). Omitted " +
+							"values keep the plan defaults.",
+					),
+			}),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			requireTransferScope(extra, "transfer:analyze");
+			return unwrap(await analyzeImport(transferContext(extra), args));
+		},
+	);
+
+	server.registerTool(
+		"site_import_start",
+		{
+			title: "Start Site Import",
+			description:
+				"Start importing an analyzed package into this site. packageDigest and planDigest " +
+				"must be the values from the latest site_import_analyze plan, which must have no " +
+				"blockers. Returns the operation id and status; drive it with site_import_resume. " +
+				"The site refuses ordinary content writes until the import completes or an admin " +
+				"abandons it. Requires the transfer:execute scope. " +
+				APPROVAL_FLOW_DESCRIPTION,
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+				packageDigest: z
+					.string()
+					.regex(SHA256_DIGEST_PATTERN, "Expected sha256:<64 hex>")
+					.describe("Package digest from the plan"),
+				planDigest: z
+					.string()
+					.regex(SHA256_DIGEST_PATTERN, "Expected sha256:<64 hex>")
+					.describe("Plan digest from the latest analysis"),
+				approvalId: transferApprovalIdSchema.optional(),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			const scoped = transferScopeHeld(extra, "transfer:execute");
+			const { userId, tokenId } = getExtra(extra);
+			return unwrap(
+				await startImport(
+					transferContext(extra),
+					{ userId, tokenId },
+					{
+						operationId: args.operationId,
+						packageDigest: transferDigest(args.packageDigest),
+						planDigest: transferDigest(args.planDigest),
+						approvalId: args.approvalId,
+						scoped,
+					},
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_import_status",
+		{
+			title: "Get Site Import Status",
+			description:
+				"Report an import's state, stage, progress, digests, and uploaded file counts. Does " +
+				"not advance the import. Requires any transfer scope, or the approval that started " +
+				"this import (same token).",
+			inputSchema: z.object({ operationId: transferOperationIdSchema }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:*", "import", args.operationId);
+			return unwrap(await importStatus(transferContext(extra), args.operationId));
+		},
+	);
+
+	server.registerTool(
+		"site_import_resume",
+		{
+			title: "Resume Site Import",
+			description:
+				"Run one bounded step of a started import and report its status. Call repeatedly " +
+				"until nextRequestInMs is null; safe to repeat after a disconnect. Requires the " +
+				"transfer:execute scope, or the approval that started this import (same token).",
+			inputSchema: z.object({ operationId: transferOperationIdSchema }),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:execute", "import", args.operationId);
+			const { userId, tokenId } = getExtra(extra);
+			return unwrap(
+				await resumeImport(transferContext(extra), { userId, tokenId }, args.operationId),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_import_receipt",
+		{
+			title: "Get Site Import Receipt",
+			description:
+				"Return the verified receipt of a completed import: package and plan digests, " +
+				"origin and target site ids, logical digest, record counts, warnings, and the " +
+				"receipt's own digest. Requires any transfer scope, or the approval that started " +
+				"this import (same token).",
+			inputSchema: z.object({ operationId: transferOperationIdSchema }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:*", "import", args.operationId);
+			return unwrap(await importReceipt(transferContext(extra), args.operationId));
 		},
 	);
 

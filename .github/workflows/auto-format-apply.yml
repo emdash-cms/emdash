@@ -1,12 +1,12 @@
 name: Auto Format — Apply
 
-# Stage 2 of 2. Runs after "Auto Format" completes on a PR. This job has
+# Runs after the required "Format" check finds an unformatted PR. This job has
 # elevated permissions to push the formatted patch back to the PR branch,
 # but it never executes code from the PR — it only downloads the inert
 # patch artifact, checks out the measured head SHA, and applies the diff.
 on:
   workflow_run:
-    workflows: ["Auto Format"]
+    workflows: ["Format"]
     types: [completed]
 
 permissions:
@@ -20,7 +20,9 @@ permissions:
 jobs:
   apply:
     name: Apply
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -101,7 +103,7 @@ jobs:
             }
             if (pr.head.sha !== headSha) {
               core.setFailed(
-                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has moved on; the next PR event will re-run format+apply.`,
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match workflow_run head SHA (${headSha}). The branch has moved on; the next PR event will re-run the format check.`,
               );
               return;
             }
@@ -187,7 +189,7 @@ jobs:
           # past the measured SHA, this fails non-fast-forward — the next PR
           # event re-runs format+apply against the new head.
           if ! git push origin "HEAD:$HEAD_REF"; then
-            echo "::error::Non-fast-forward push — the PR branch moved past the measured SHA $HEAD_SHA. The next PR event will re-run format+apply." >&2
+            echo "::error::Non-fast-forward push — the PR branch moved past the measured SHA $HEAD_SHA. The next PR event will re-run the format check." >&2
             exit 1
           fi
 

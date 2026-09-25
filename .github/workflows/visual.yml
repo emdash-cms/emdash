@@ -19,8 +19,13 @@ on:
     branches: [main]
     paths:
       - "packages/admin/**"
+      - "!packages/admin/tests/**"
       - "packages/core/**"
+      - "!packages/core/tests/**"
       - "e2e/**"
+      - "!e2e/tests/**"
+      - "e2e/tests/visual-regression.spec.ts"
+      - "e2e/tests/visual-regression.spec.ts-snapshots/**"
       - "playwright.config.ts"
       - ".github/workflows/visual.yml"
       - "pnpm-lock.yaml"
