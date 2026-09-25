@@ -1,5 +1,13 @@
 # @emdash-cms/admin
 
+## 0.40.1
+
+### Patch Changes
+
+- [#3448](https://github.com/emdash-cms/emdash/pull/3448) [`7b431fe`](https://github.com/emdash-cms/emdash/commit/7b431fe008c2512249b0d27fc93c9b57638edcf8) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the setup wizard failing with "Failed to apply seed" on Cloudflare Workers when its sample content needs more database queries than one request allows. The wizard now adds sample content over as many requests as it needs and shows the progress. When a request fails, the content added so far is kept, and **Continue** adds the rest.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.40.1
+
 ## 0.40.0
 
 ### Minor Changes

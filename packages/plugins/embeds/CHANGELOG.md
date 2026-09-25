@@ -1,5 +1,13 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.50
+
+### Patch Changes
+
+- [`28362d4`](https://github.com/emdash-cms/emdash/commit/28362d4acbd7569b0fc92de3dca56544a7e40482) Thanks [@swissky](https://github.com/swissky)! - Updates Gist and Mastodon embed rendering for consistent remote-content handling. Gist blocks accept gist page URLs such as `https://gist.github.com/<user>/<id>`; other URL forms render nothing. Mastodon posts retain supported content and formatting after fetched markup is normalized before rendering.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.40.1
+
 ## 0.1.49
 
 ### Patch Changes

@@ -1,5 +1,32 @@
 # emdash
 
+## 0.40.1
+
+### Patch Changes
+
+- [`8bee2f4`](https://github.com/emdash-cms/emdash/commit/8bee2f4a2618394b6660540ea1d7d2599eccd087) Thanks [@swissky](https://github.com/swissky)! - Updates the MCP `media_create` tool to complete pending signed uploads. Pass the `storageKey` returned by `POST /_emdash/api/media/upload-url` after uploading the file. Confirmation uses the same user and the file size supplied when the upload URL was issued.
+  
+  Media deletion and abandoned-upload cleanup preserve stored objects while another media record references the same key.
+
+- [#3449](https://github.com/emdash-cms/emdash/pull/3449) [`bdf62ce`](https://github.com/emdash-cms/emdash/commit/bdf62cebb120aa961bca6129b0d0cabb2f093ebc) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the inline Portable Text editor failing to load in visual editing under `astro dev` on sites installed with pnpm, along with the `Failed to resolve dependency` warnings for `lowlight`, `highlight.js`, and `highlight.js/lib/core` that `astro dev` and `astro build` printed on those sites.
+
+- [`f9cac8d`](https://github.com/emdash-cms/emdash/commit/f9cac8d494952243a1c67c9a47cbc9f5b523a512) Thanks [@ascorbic](https://github.com/ascorbic)! - Reduces D1 work when recording new 404 paths by moving log-cap maintenance to scheduled cleanup. The log remains bounded to 10,000 paths.
+
+- [`190717a`](https://github.com/emdash-cms/emdash/commit/190717a12732c505636e231c3b2c43020d3a3a03) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates the `media_upload` MCP tool to accept base64-encoded content only. Pass the file bytes and `contentType`; callers that previously passed `url` must download the file before calling the tool.
+
+- [`cc42ac9`](https://github.com/emdash-cms/emdash/commit/cc42ac94417a44a75aa5618e7b5c2ac2e2066c25) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates link rendering in nested Portable Text inside column and cover blocks. Nested and top-level Portable Text links now follow the same URL handling.
+
+- [#3448](https://github.com/emdash-cms/emdash/pull/3448) [`7b431fe`](https://github.com/emdash-cms/emdash/commit/7b431fe008c2512249b0d27fc93c9b57638edcf8) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the setup wizard failing with "Failed to apply seed" on Cloudflare Workers when its sample content needs more database queries than one request allows. The wizard now adds sample content over as many requests as it needs and shows the progress. When a request fails, the content added so far is kept, and **Continue** adds the rest.
+
+- [`a59690e`](https://github.com/emdash-cms/emdash/commit/a59690eea91699408994fe574c87f0e555aecc76) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates preview-signature snapshots to match the published site view. These snapshots include published content and its related SEO, taxonomy and media records. Signed-in editors can still request the complete draft snapshot with `?drafts=true`, and backups are unchanged.
+
+- [`88253e0`](https://github.com/emdash-cms/emdash/commit/88253e0d6f68131a58316e71eb7550d413464c8a) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates production setup to use an explicitly configured public origin. Set `siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL` before setup outside local development. Loopback development continues to use the request origin.
+- Updated dependencies [[`7b431fe`](https://github.com/emdash-cms/emdash/commit/7b431fe008c2512249b0d27fc93c9b57638edcf8)]:
+  - @emdash-cms/admin@0.40.1
+  - @emdash-cms/auth@0.40.1
+  - @emdash-cms/blocks@0.40.1
+  - @emdash-cms/gutenberg-to-portable-text@0.40.1
+
 ## 0.40.0
 
 ### Minor Changes
