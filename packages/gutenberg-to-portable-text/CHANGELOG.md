@@ -1,5 +1,19 @@
 # @emdash-cms/gutenberg-to-portable-text
 
+## 0.41.0
+
+No changes in this release.
+
+## 0.40.1
+
+No changes in this release.
+
+## 0.40.0
+
+### Patch Changes
+
+- [#3167](https://github.com/emdash-cms/emdash/pull/3167) [`ed51c68`](https://github.com/emdash-cms/emdash/commit/ed51c685bec26ba745624a7c54e9cf96e5e0c927) Thanks [@kwmr](https://github.com/kwmr)! - Adds optional `link` on portable-text image blocks: editor link buttons work on image selection, and `Image.astro` wraps images in a sanitized `<a>` when `link.href` is set. Legacy `link: "https://…"` strings written by WordPress/Gutenberg imports are normalised on read, so already-imported linked images keep their link and are upgraded to the object shape on their next edit.
+
 ## 0.39.1
 
 No changes in this release.

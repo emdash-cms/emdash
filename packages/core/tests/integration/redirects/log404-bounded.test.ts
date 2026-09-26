@@ -123,7 +123,7 @@ describeEachDialect("RedirectRepository.log404 — path upsert", (dialect) => {
 		expect(rows[0]!.hits).toBe(concurrency);
 	});
 
-	it("evicts the oldest entry when the table is at capacity", async () => {
+	it("scheduled cleanup evicts the oldest entry after the table exceeds capacity", async () => {
 		// Stuffing the table to MAX_404_LOG_ROWS via the public API would be
 		// slow, so seed it directly. Batch the inserts to stay under SQLite's
 		// per-statement parameter limit.
@@ -136,8 +136,19 @@ describeEachDialect("RedirectRepository.log404 — path upsert", (dialect) => {
 			.executeTakeFirstOrThrow();
 		expect(Number(before.c)).toBe(MAX_404_LOG_ROWS);
 
-		// New unique path triggers eviction.
+		// The request path only records the miss; it does not count the table.
 		await repo.log404({ path: "/brand-new" });
+		expect(
+			Number(
+				(
+					await ctx.db
+						.selectFrom("_emdash_404_log")
+						.select((eb) => eb.fn.countAll<number>().as("c"))
+						.executeTakeFirstOrThrow()
+				).c,
+			),
+		).toBe(MAX_404_LOG_ROWS + 1);
+		expect(await repo.cleanup404Log()).toBe(1);
 
 		const after = await ctx.db
 			.selectFrom("_emdash_404_log")
@@ -160,6 +171,28 @@ describeEachDialect("RedirectRepository.log404 — path upsert", (dialect) => {
 			.where("path", "=", "/brand-new")
 			.executeTakeFirst();
 		expect(fresh?.path).toBe("/brand-new");
+	});
+
+	it("overlapping cleanup runs preserve the newest rows at capacity", async () => {
+		await seedToCapacity(ctx.db);
+		await repo.log404({ path: "/new-a" });
+		await repo.log404({ path: "/new-b" });
+
+		const deleted = await Promise.all([repo.cleanup404Log(), repo.cleanup404Log()]);
+		expect(deleted.reduce((total, count) => total + count, 0)).toBe(2);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_404_log")
+			.select((eb) => eb.fn.countAll<number>().as("c"))
+			.executeTakeFirstOrThrow();
+		expect(Number(remaining.c)).toBe(MAX_404_LOG_ROWS);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_404_log")
+				.select("path")
+				.where("path", "in", ["/new-a", "/new-b"])
+				.execute(),
+		).toHaveLength(2);
 	});
 
 	it("does not evict when an existing path is hit again, even at capacity", async () => {
@@ -233,9 +266,9 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 		expect(row.user_agent).toBeNull();
 	});
 
-	it("only enforces the row cap on a new unique path, not on repeat hits", async () => {
-		// Regression: enforce404Cap unconditionally ran `COUNT(*)` after every
-		// upsert. Repeat hits are updates, so the count was wasted work.
+	it("never counts the full table on the request path", async () => {
+		// Regression: cap enforcement ran `COUNT(*)` after every unique path,
+		// allowing unauthenticated callers to amplify D1 row reads.
 		const captured: string[] = [];
 		const loggedDb = new Kysely<Database>({
 			dialect: new SqliteDialect({ database: openNodeSqliteDatabase(":memory:") }),
@@ -255,7 +288,7 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 			captured.length = 0;
 			await loggedRepo.log404({ path: "/new-path" });
 			const countAfterInsert = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
-			expect(countAfterInsert).toBe(1);
+			expect(countAfterInsert).toBe(0);
 
 			captured.length = 0;
 			await loggedRepo.log404({ path: "/new-path" });

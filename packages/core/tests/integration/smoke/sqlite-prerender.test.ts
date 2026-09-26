@@ -31,48 +31,51 @@ describe("SQLite static prerender", () => {
 		if (workDir) rmSync(workDir, { recursive: true, force: true });
 	});
 
-	it("builds a page that queries a live collection", { timeout: 120_000 }, async () => {
+	async function buildFixture(env: Record<string, string> = {}): Promise<string> {
 		await ensureBuilt();
 		mkdirSync(SERVERS_BASE, { recursive: true });
-		workDir = mkdtempSync(join(SERVERS_BASE, "prerender-"));
-		cpSync(FIXTURE_DIR, workDir, {
+		const dir = mkdtempSync(join(SERVERS_BASE, "prerender-"));
+		workDir = dir;
+		cpSync(FIXTURE_DIR, dir, {
 			recursive: true,
 			filter: (source) => !source.split(/[\\/]/).includes("node_modules"),
 		});
-		symlinkSync(DONOR_NODE_MODULES, join(workDir, "node_modules"));
+		symlinkSync(DONOR_NODE_MODULES, join(dir, "node_modules"));
 
-		const databasePath = join(workDir, "prerender.db");
-		await execAsync(process.execPath, [
-			CLI_BIN,
-			"init",
-			"--database",
-			databasePath,
-			"--cwd",
-			workDir,
-		]);
-		await execAsync(process.execPath, [
-			CLI_BIN,
-			"seed",
-			"--database",
-			databasePath,
-			"--cwd",
-			workDir,
-		]);
+		const databasePath = join(dir, "prerender.db");
+		await execAsync(process.execPath, [CLI_BIN, "init", "--database", databasePath, "--cwd", dir]);
+		await execAsync(process.execPath, [CLI_BIN, "seed", "--database", databasePath, "--cwd", dir]);
 
-		const astro = join(workDir, "node_modules", ".bin", "astro");
+		const astro = join(dir, "node_modules", ".bin", "astro");
 		await execAsync(astro, ["build"], {
-			cwd: workDir,
+			cwd: dir,
 			timeout: 90_000,
 			env: {
 				...process.env,
 				CI: "true",
 				NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
 				EMDASH_TEST_DB: `file:${databasePath}`,
-				EMDASH_TEST_UPLOADS: join(workDir, "uploads"),
-				EMDASH_TEST_VITE_CACHE: join(workDir, ".vite-cache"),
+				EMDASH_TEST_UPLOADS: join(dir, "uploads"),
+				EMDASH_TEST_VITE_CACHE: join(dir, ".vite-cache"),
+				...env,
 			},
 		});
+		return dir;
+	}
 
-		expect(existsSync(join(workDir, "dist/client/prerender-check/index.html"))).toBe(true);
+	it("builds a page that queries a live collection", { timeout: 120_000 }, async () => {
+		const dir = await buildFixture();
+
+		expect(existsSync(join(dir, "dist/client/prerender-check/index.html"))).toBe(true);
+	});
+
+	it('keeps EmDash routes on demand with output: "static"', { timeout: 120_000 }, async () => {
+		const dir = await buildFixture({ EMDASH_TEST_OUTPUT: "static" });
+
+		expect(existsSync(join(dir, "dist/client/index.html"))).toBe(true);
+		expect(existsSync(join(dir, "dist/client/_emdash"))).toBe(false);
+		expect(existsSync(join(dir, "dist/client/sitemap.xml"))).toBe(false);
+		expect(existsSync(join(dir, "dist/client/robots.txt"))).toBe(false);
+		expect(existsSync(join(dir, "dist/client/.well-known"))).toBe(false);
 	});
 });

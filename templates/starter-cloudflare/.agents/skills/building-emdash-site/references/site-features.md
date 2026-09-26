@@ -3,7 +3,7 @@
 ## Site Settings
 
 ```typescript
-import { getSiteSettings, getSiteSetting } from "emdash";
+import { getSiteSettings, getSiteSettingsWithCacheHint, getSiteSetting } from "emdash";
 
 // All settings
 const settings = await getSiteSettings();
@@ -14,6 +14,10 @@ settings.favicon?.url;
 
 // Single setting
 const title = await getSiteSetting("title");
+
+// Cached route: register invalidation for settings changes
+const { data: cachedSettings, cacheHint } = await getSiteSettingsWithCacheHint();
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
 Available keys: `title`, `tagline`, `logo`, `favicon`, `social`, `timezone`, `dateFormat`.
@@ -23,13 +27,17 @@ Use these instead of hard-coding site name, logo, etc.
 ## Navigation Menus
 
 ```typescript
-import { getMenu, getMenus } from "emdash";
+import { getMenu, getMenuWithCacheHint, getMenus } from "emdash";
 
 // Fetch a named menu
 const menu = await getMenu("primary");
 
 // List all menus
 const menus = await getMenus();
+
+// Cached route
+const { data: primaryMenu, cacheHint } = await getMenuWithCacheHint("primary");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
 ### Rendering a menu
@@ -41,7 +49,11 @@ const primaryMenu = await getMenu("primary");
 ---
 <nav>
 	{primaryMenu?.items.map(item => (
-		<a href={item.url} target={item.target}>{item.label}</a>
+		<a
+			href={item.url}
+			target={item.target}
+			rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+		>{item.label}</a>
 	))}
 </nav>
 ```
@@ -78,11 +90,23 @@ interface MenuItem {
 ## Taxonomies
 
 ```typescript
-import { getTaxonomyTerms, getTerm, getEntryTerms, getEntriesByTerm } from "emdash";
+import {
+	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
+	getTerm,
+	getEntryTerms,
+	getEntriesByTerm,
+} from "emdash";
 
 // All terms in a taxonomy (name must match your seed's "name" field exactly)
 const categories = await getTaxonomyTerms("category");
 const tags = await getTaxonomyTerms("tag");
+
+// Cached taxonomy archive or facet
+const { data: cachedCategories, cacheHint } = await getTaxonomyTermsWithCacheHint("category", {
+	includeCounts: false,
+});
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Single term by slug
 const term = await getTerm("category", "news");
@@ -104,7 +128,7 @@ const newsPosts = await getEntriesByTerm("posts", "category", "news");
 
 ```astro
 ---
-const tags = await getEntryTerms("posts", post.data.id, "tag");
+const tags = post.data.terms?.tag ?? [];
 ---
 {tags.map(t => (
 	<a href={`/tag/${t.slug}`}>{t.label}</a>
@@ -134,6 +158,8 @@ import { WidgetArea } from "emdash/ui";
 	<WidgetArea name="sidebar" />
 </aside>
 ```
+
+`WidgetArea` registers its widget-area cache hint when Astro's route cache is enabled.
 
 The `WidgetArea` component automatically renders all widgets in the area (search, categories, tags, recent posts, rich text, etc.) with appropriate HTML and CSS classes.
 
@@ -209,10 +235,10 @@ const results = await search("hello world", {
 	status: "published",
 	limit: 20,
 });
-// { results: SearchResult[], total, nextCursor? }
+// { items: SearchResult[], nextCursor? }
 ```
 
-Each result has: `collection`, `id`, `title`, `slug`, `snippet` (HTML with `<mark>` highlights), `score`.
+Each item has: `collection`, `id`, `title`, `slug`, `locale`, `snippet` (sanitized HTML with `<mark>` highlights), and `score`.
 
 ### Search page
 

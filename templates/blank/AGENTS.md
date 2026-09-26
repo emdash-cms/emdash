@@ -39,14 +39,14 @@ This template ships with `.mcp.json`, `.cursor/mcp.json`, and `.vscode/mcp.json`
 - All content pages must be server-rendered (`output: "server"`). No `getStaticPaths()` for CMS content.
 - Image fields are objects (`{ src, alt }`), not strings. Use `<Image image={...} />` from `"emdash/ui"`.
 - `entry.id` is the slug (for URLs). `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
-- Always call `Astro.cache.set(cacheHint)` on pages that query content.
+- When Astro's cache is enabled, pass content-query hints to `Astro.cache.set(cacheHint)`. Use the `WithCacheHint` variants for site settings, menus, taxonomies, and widget areas rendered by cached routes.
 - Taxonomy names in queries must match the seed's `"name"` field exactly (e.g., `"category"` not `"categories"`).
 
 ## This Template
 
-The most minimal template. A single `index.astro` page with EmDash wired up and nothing else: no collections, no seed, no styles, no components, no layouts beyond what Astro provides by default.
+The most minimal template. A single `index.astro` page with EmDash wired up and no user seed, styles, components, or layouts beyond what Astro provides by default.
 
-Start here if you want full control from the beginning -- no schema or design decisions made for you.
+Without a user seed, EmDash applies its built-in posts/pages/categories/tags schema. Start here if you want to replace that baseline and control the public design from the beginning.
 
 ## Pages
 
@@ -56,13 +56,13 @@ Start here if you want full control from the beginning -- no schema or design de
 
 ## Schema
 
-None. There are no collections, taxonomies, or menus seeded. You define everything via the admin UI (Schema -> Add collection) or by editing `seed/seed.json` once you create one.
+There is no template-owned `seed/seed.json`. EmDash applies its built-in posts/pages schema with category and tag taxonomies. Add a user seed when the project needs a different schema or reproducible starter content.
 
 ## What to do here
 
 This template is a substrate, not a starting design. The natural first steps are:
 
-1. Decide what content types the site needs (posts? events? products?) and define them in the admin under Schema, or by adding a `seed/seed.json`.
+1. Decide whether the built-in posts/pages schema fits. Define changes in the admin under Schema, or add `seed/seed.json` when the project needs a reproducible custom schema.
 2. Add the pages that render that content (e.g. `src/pages/posts/index.astro`).
 3. Add a layout in `src/layouts/` for shared chrome.
 4. Add styles -- this template has no `theme.css` and no fonts configured.

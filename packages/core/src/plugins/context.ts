@@ -6,8 +6,11 @@
  */
 
 import type { Kysely } from "kysely";
+import mime from "mime/lite";
 import { ulid } from "ulidx";
 
+import { GLOBAL_UPLOAD_ALLOWLIST } from "../api/handlers/media-allowlist.js";
+import { handleMediaDelete } from "../api/handlers/media.js";
 import {
 	handleRedirectCreate,
 	handleRedirectDelete,
@@ -15,6 +18,7 @@ import {
 	handleRedirectUpdate,
 } from "../api/handlers/redirects.js";
 import { handleTermCreate } from "../api/handlers/taxonomies.js";
+import { CONTENT_TYPE_RE } from "../api/schemas/media.js";
 import { createRedirectBody, updateRedirectBody } from "../api/schemas/redirects.js";
 import { CommentRepository, type Comment } from "../database/repositories/comment.js";
 import { ContentRepository } from "../database/repositories/content.js";
@@ -28,6 +32,10 @@ import {
 	type VersionedRedirectRecord,
 } from "../database/repositories/redirect.js";
 import { SeoRepository } from "../database/repositories/seo.js";
+import {
+	findTaxonomyStructure,
+	selectTaxonomyDefs,
+} from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
@@ -39,6 +47,7 @@ import {
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
+import { matchesMimeAllowlist, normalizeMime } from "../media/mime.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
@@ -55,6 +64,7 @@ import {
 	rewritePluginHttpRedirect,
 } from "./http-wire.js";
 import { readPluginMediaBytes, toPluginMediaItem, updatePluginMediaMetadata } from "./media.js";
+import { PluginRouteError } from "./route-error.js";
 import {
 	createPluginSecretRedactor,
 	createSettingsAccess,
@@ -390,9 +400,9 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 
 	return {
 		async getAll(options?: TaxonomyReadOptions): Promise<TaxonomyDefInfo[]> {
-			let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-			if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
-			const rows = await query.orderBy("name", "asc").execute();
+			let query = selectTaxonomyDefs(db);
+			if (options?.locale !== undefined) query = query.where("d.locale", "=", options.locale);
+			const rows = await query.orderBy("d.name", "asc").execute();
 			return rows.map((row) => ({
 				name: row.name,
 				label: row.label,
@@ -643,15 +653,11 @@ async function resolveTaxonomyDelta(
 		throw taxonomyAccessError("VALIDATION_ERROR", "Taxonomy term IDs must be non-empty strings");
 	}
 
-	const defs = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.select(["collections"])
-		.where("name", "=", taxonomy)
-		.execute();
-	if (defs.length === 0) {
+	const structure = await findTaxonomyStructure(db, taxonomy);
+	if (!structure) {
 		throw taxonomyAccessError("NOT_FOUND", `Taxonomy '${taxonomy}' not found`);
 	}
-	const attached = defs.some((def) => parseCollectionsColumn(def.collections).includes(collection));
+	const attached = structure.collections.includes(collection);
 	if (!attached) {
 		throw taxonomyAccessError(
 			"VALIDATION_ERROR",
@@ -746,6 +752,17 @@ export function createTaxonomyAccessWithWrite(db: Kysely<Database>): TaxonomyAcc
 }
 
 /**
+ * Called immediately before a plugin content write; it throws to refuse the
+ * write. When it returns a function, that function is called once the write
+ * has succeeded.
+ */
+export type ContentWriteGuard = () => Promise<void | (() => Promise<void>)>;
+
+async function afterContentWrite(recordWrite: void | (() => Promise<void>)): Promise<void> {
+	if (typeof recordWrite === "function") await recordWrite();
+}
+
+/**
  * Create full content access with write operations.
  *
  * `create` and `update` accept a reserved `seo` key in their `data`
@@ -756,7 +773,7 @@ export function createTaxonomyAccessWithWrite(db: Kysely<Database>): TaxonomyAcc
  */
 export function createContentAccessWithWrite(
 	db: Kysely<Database>,
-	beforeContentWrite?: () => Promise<void>,
+	beforeContentWrite?: ContentWriteGuard,
 	accessOptions?: { site?: SiteInfo; revisions?: boolean },
 	contentCreate?: (data: {
 		collection: string;
@@ -775,13 +792,15 @@ export function createContentAccessWithWrite(
 			options?: ContentCreateOptions,
 		): Promise<ContentItem> {
 			const locale = resolveContentCreateLocale(options?.locale);
-			await beforeContentWrite?.();
+			const recordWrite = await beforeContentWrite?.();
 			if (contentCreate) {
-				return contentCreate({
+				const created = await contentCreate({
 					collection,
 					input: data,
 					options: { ...options, locale },
 				});
+				await afterContentWrite(recordWrite);
+				return created;
 			}
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
@@ -824,6 +843,7 @@ export function createContentAccessWithWrite(
 					return result;
 				});
 				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				await afterContentWrite(recordWrite);
 				return created;
 			} catch (error) {
 				if (contentMutated) {
@@ -834,7 +854,7 @@ export function createContentAccessWithWrite(
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
-			await beforeContentWrite?.();
+			const recordWrite = await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			const hasFieldUpdates = Object.keys(fields).length > 0;
 			let contentMutated = false;
@@ -885,6 +905,7 @@ export function createContentAccessWithWrite(
 				if (hasFieldUpdates) {
 					await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 				}
+				await afterContentWrite(recordWrite);
 				return updated;
 			} catch (error) {
 				if (contentMutated) {
@@ -895,7 +916,7 @@ export function createContentAccessWithWrite(
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
-			await beforeContentWrite?.();
+			const recordWrite = await beforeContentWrite?.();
 			const contentRepo = new ContentRepository(db);
 			const deleted = await contentRepo.delete(collection, id);
 			if (deleted) {
@@ -903,6 +924,7 @@ export function createContentAccessWithWrite(
 				// release the lease itself. Mirrors handleContentDelete.
 				await new EntryLockRepository(db).releaseEntry(collection, id);
 				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
+				await afterContentWrite(recordWrite);
 			}
 			return deleted;
 		},
@@ -952,6 +974,36 @@ function createBlockedMediaReadAccess(): MediaAccess {
 	};
 }
 
+function allowedUploadType(contentType: string): string {
+	if (!CONTENT_TYPE_RE.test(contentType)) {
+		throw PluginRouteError.badRequest("Invalid content type");
+	}
+	const mimeType = normalizeMime(contentType);
+	if (!matchesMimeAllowlist(mimeType, GLOBAL_UPLOAD_ALLOWLIST)) {
+		throw new PluginRouteError("UNSUPPORTED_MEDIA_TYPE", "File type not allowed", 415);
+	}
+	return mimeType;
+}
+
+function uploadStorageKey(
+	filename: string,
+	mimeType: string,
+): { basename: string; storageKey: string } {
+	const keyPrefix = ulid();
+	const basename = filename.split("/").pop() ?? filename;
+	const dotIdx = basename.lastIndexOf(".");
+	const nameExt = dotIdx > 0 ? basename.slice(dotIdx + 1).toLowerCase() : "";
+	// Local storage serves files by their key's extension, so it must map to an allowed type.
+	const nameType = mime.getType(nameExt);
+	const nameExtAllowed =
+		nameType !== null && matchesMimeAllowlist(nameType, GLOBAL_UPLOAD_ALLOWLIST);
+	const ext =
+		nameType === mimeType
+			? nameExt
+			: (mime.getExtension(mimeType) ?? (nameExtAllowed ? nameExt : null));
+	return { basename, storageKey: ext ? `${keyPrefix}.${ext}` : keyPrefix };
+}
+
 /**
  * Create full media access with write operations.
  *
@@ -970,34 +1022,33 @@ export function createMediaAccessWithWrite(
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
 
-	const getUploadUrl =
-		getUploadUrlFn ??
-		(async (filename: string, contentType: string) => {
-			if (!storage) {
-				throw new Error(
-					"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
-				);
-			}
+	const getUploadUrl = getUploadUrlFn
+		? async (filename: string, contentType: string) =>
+				getUploadUrlFn(filename, allowedUploadType(contentType))
+		: async (filename: string, contentType: string) => {
+				if (!storage) {
+					throw new Error(
+						"Media getUploadUrl() requires a storage backend. Configure storage in PluginContextFactoryOptions.",
+					);
+				}
 
-			const basename = filename.split("/").pop() ?? filename;
-			const dotIdx = basename.lastIndexOf(".");
-			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
-			const storageKey = `${ulid()}${ext}`;
+				const mimeType = allowedUploadType(contentType);
+				const { basename, storageKey } = uploadStorageKey(filename, mimeType);
 
-			const media = await mediaRepo.createPending({
-				filename: basename,
-				mimeType: contentType,
-				storageKey,
-			});
+				const media = await mediaRepo.createPending({
+					filename: basename,
+					mimeType,
+					storageKey,
+				});
 
-			const signed = await storage.getSignedUploadUrl({
-				key: storageKey,
-				contentType,
-				expiresIn: 3600,
-			});
+				const signed = await storage.getSignedUploadUrl({
+					key: storageKey,
+					contentType: mimeType,
+					expiresIn: 3600,
+				});
 
-			return { uploadUrl: signed.url, mediaId: media.id };
-		});
+				return { uploadUrl: signed.url, mediaId: media.id };
+			};
 
 	return {
 		...readAccess,
@@ -1015,30 +1066,25 @@ export function createMediaAccessWithWrite(
 				);
 			}
 
-			// Generate a storage key with a unique prefix
-			const keyPrefix = ulid();
-			// Extract extension from basename (ignore path separators)
-			const basename = filename.split("/").pop() ?? filename;
-			const dotIdx = basename.lastIndexOf(".");
-			const ext = dotIdx > 0 ? basename.slice(dotIdx).toLowerCase() : "";
-			const storageKey = `${keyPrefix}${ext}`;
+			const mimeType = allowedUploadType(contentType);
+			const { basename, storageKey } = uploadStorageKey(filename, mimeType);
 
 			// Upload to storage first
 			await storage.upload({
 				key: storageKey,
 				body: new Uint8Array(bytes),
-				contentType,
+				contentType: mimeType,
 			});
 
 			// Derive dimensions + LQIP placeholders (no-op for non-images).
-			const enriched = await enrichImageMetadata(new Uint8Array(bytes), contentType);
+			const enriched = await enrichImageMetadata(new Uint8Array(bytes), mimeType);
 
 			// Create DB record — clean up storage on failure
 			let media;
 			try {
 				media = await mediaRepo.create({
 					filename: basename,
-					mimeType: contentType,
+					mimeType,
 					size: bytes.byteLength,
 					storageKey,
 					status: "ready",
@@ -1064,16 +1110,18 @@ export function createMediaAccessWithWrite(
 		},
 
 		async delete(id: string): Promise<boolean> {
-			const deleted = await mediaRepo.delete(id);
+			const result = await handleMediaDelete(db, id, storage);
+			if (!result.success) {
+				if (result.error.code === "NOT_FOUND") return false;
+				throw new Error(result.error.message);
+			}
 			// Plugins can delete media that's referenced by site settings
 			// (`logo`, `favicon`, `seo.defaultOgImage`); the worker-scoped
 			// resolved-URL cache must be dropped or it will keep serving
 			// 404s. Matches the invalidation in
 			// `EmDashRuntime.handleMediaDelete`.
-			if (deleted) {
-				invalidateSiteSettingsCache();
-			}
-			return deleted;
+			invalidateSiteSettingsCache();
+			return true;
 		},
 	};
 }
@@ -1455,7 +1503,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
-	beforeContentWrite?: () => Promise<void>;
+	beforeContentWrite?: ContentWriteGuard;
 	contentCreate?: PluginContentCreateCallback;
 	contentActions?: ContentActionCallbacks;
 	/**
@@ -1581,7 +1629,7 @@ export interface ContentActionCallbacks {
  */
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
-	private beforeContentWrite?: () => Promise<void>;
+	private beforeContentWrite?: ContentWriteGuard;
 	private contentCreate?: PluginContentCreateCallback;
 	private contentActions?: ContentActionCallbacks;
 	private storage?: Storage;

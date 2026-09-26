@@ -5,15 +5,18 @@
  */
 
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { validateBlockFields } from "../schema/block-type-contract.js";
 import {
 	FIELD_TYPES,
 	isIndexableFieldType,
 	MAX_COLLECTION_GROUP_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
 } from "../schema/types.js";
-import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
+import type { SeedFile, SeedMenuItem, SeedTaxonomy, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+/** Matches `SchemaRegistry.validateSlug`, which collection and field slugs go through. */
+const MAX_SLUG_LENGTH = 63;
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const REDIRECT_TYPES = new Set([301, 302, 307, 308]);
 const CRLF_PATTERN = /[\r\n]/;
@@ -33,6 +36,41 @@ function isValidRedirectPath(path: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * The entry that declares `taxonomy`'s `hierarchical` and `collections`: the last
+ * entry of its `translationOf` chain within the taxonomy's name, or undefined when
+ * the chain loops.
+ */
+export function findTaxonomyStructureSource<T extends Pick<SeedTaxonomy, "name" | "translationOf">>(
+	taxonomy: T,
+	taxonomiesById: ReadonlyMap<string, T>,
+): T | undefined {
+	const visited = new Set<T>();
+	let current = taxonomy;
+	while (!visited.has(current)) {
+		visited.add(current);
+		const source = current.translationOf ? taxonomiesById.get(current.translationOf) : undefined;
+		if (!source || source.name !== current.name) return current;
+		current = source;
+	}
+	return undefined;
+}
+
+/** Whether `a` and `b` disagree on `hierarchical` or `collections`, comparing only fields both declare. */
+function declaresDifferentStructure(a: SeedTaxonomy, b: SeedTaxonomy): boolean {
+	if (
+		a.hierarchical !== undefined &&
+		b.hierarchical !== undefined &&
+		a.hierarchical !== b.hierarchical
+	) {
+		return true;
+	}
+	if (!Array.isArray(a.collections) || !Array.isArray(b.collections)) return false;
+	const own = new Set(a.collections);
+	const other = new Set(b.collections);
+	return own.size !== other.size || [...own].some((collection) => !other.has(collection));
 }
 
 /**
@@ -78,6 +116,49 @@ export function validateSeed(data: unknown): ValidationResult {
 			errors.push(
 				"defaultLocale: must be a non-empty string with no leading or trailing whitespace",
 			);
+		}
+	}
+
+	if (seed.blockTypes !== undefined) {
+		if (!Array.isArray(seed.blockTypes)) {
+			errors.push("blockTypes must be an array");
+		} else {
+			const slugs = new Set<string>();
+			for (const [index, blockType] of seed.blockTypes.entries()) {
+				const prefix = `blockTypes[${index}]`;
+				if (!blockType.slug || !COLLECTION_FIELD_SLUG_PATTERN.test(blockType.slug)) {
+					errors.push(`${prefix}.slug: must be a valid block type slug`);
+				} else if (slugs.has(blockType.slug)) {
+					errors.push(`${prefix}.slug: duplicate block type slug "${blockType.slug}"`);
+				} else {
+					slugs.add(blockType.slug);
+				}
+				if (!blockType.label) errors.push(`${prefix}.label: is required`);
+				if (!Array.isArray(blockType.versions) || blockType.versions.length === 0) {
+					errors.push(`${prefix}.versions: must be a non-empty array`);
+					continue;
+				}
+				const numbers = blockType.versions.map((version) => version.version);
+				const sorted = [...numbers].toSorted((left, right) => left - right);
+				if (
+					sorted[0] !== 1 ||
+					sorted.some((version, versionIndex) => version !== versionIndex + 1)
+				) {
+					errors.push(`${prefix}.versions: numbers must be contiguous and start at 1`);
+				}
+				if (!numbers.includes(blockType.currentVersion)) {
+					errors.push(`${prefix}.currentVersion: must name a declared version`);
+				}
+				for (const [versionIndex, version] of blockType.versions.entries()) {
+					try {
+						validateBlockFields(version.fields);
+					} catch (error) {
+						errors.push(
+							`${prefix}.versions[${versionIndex}].${error instanceof Error ? error.message : "invalid fields"}`,
+						);
+					}
+				}
+			}
 		}
 	}
 
@@ -199,13 +280,87 @@ export function validateSeed(data: unknown): ValidationResult {
 							errors.push(`${fieldPrefix}.indexed: must be a boolean`);
 						}
 
+						if (field.translatable !== undefined && typeof field.translatable !== "boolean") {
+							errors.push(`${fieldPrefix}.translatable: must be a boolean`);
+						}
+
 						if (!field.type) {
 							errors.push(`${fieldPrefix}: type is required`);
 						} else if (!(FIELD_TYPES as readonly string[]).includes(field.type)) {
 							errors.push(`${fieldPrefix}.type: unsupported field type "${field.type}"`);
 						} else if (field.indexed === true && !isIndexableFieldType(field.type)) {
 							errors.push(`${fieldPrefix}.indexed: type "${field.type}" cannot be indexed`);
+						} else if (
+							field.indexed === true &&
+							field.type === "reference" &&
+							typeof field.validation?.targetCollection === "string"
+						) {
+							// A targetCollection makes this field storage-less on apply: its
+							// selection becomes relation edges, leaving no column to index.
+							// Without one it stays a plain entry-id column, which can be.
+							errors.push(
+								`${fieldPrefix}.indexed: a reference field with a targetCollection stores no column to index`,
+							);
 						}
+					}
+				}
+			}
+		}
+	}
+
+	// Validate relations
+	if (seed.relations) {
+		if (!Array.isArray(seed.relations)) {
+			errors.push("relations must be an array");
+		} else {
+			const relationSlugs = new Set<string>();
+
+			for (let i = 0; i < seed.relations.length; i++) {
+				const relation = seed.relations[i];
+				const prefix = `relations[${i}]`;
+				if (!relation) continue;
+
+				if (!relation.slug) {
+					errors.push(`${prefix}: slug is required`);
+				} else {
+					if (!COLLECTION_FIELD_SLUG_PATTERN.test(relation.slug)) {
+						errors.push(
+							`${prefix}.slug: must start with a letter and contain only lowercase letters, numbers, and underscores`,
+						);
+					}
+					if (relation.slug.length > MAX_SLUG_LENGTH) {
+						errors.push(`${prefix}.slug: must be ${MAX_SLUG_LENGTH} characters or fewer`);
+					}
+					if (relationSlugs.has(relation.slug)) {
+						errors.push(`${prefix}.slug: duplicate relation slug "${relation.slug}"`);
+					}
+					relationSlugs.add(relation.slug);
+				}
+
+				for (const end of ["parentCollection", "childCollection"] as const) {
+					const value = relation[end];
+					if (!value) {
+						errors.push(`${prefix}: ${end} is required`);
+					} else if (!COLLECTION_FIELD_SLUG_PATTERN.test(value)) {
+						errors.push(`${prefix}.${end}: "${value}" is not a valid collection slug`);
+					}
+				}
+
+				for (const label of ["parentLabel", "childLabel"] as const) {
+					if (!relation[label]) errors.push(`${prefix}: ${label} is required`);
+				}
+				for (const label of ["parentLabelSingular", "childLabelSingular"] as const) {
+					const value = relation[label];
+					if (value !== undefined && typeof value !== "string") {
+						errors.push(`${prefix}.${label}: must be a string`);
+					}
+				}
+
+				for (const limit of ["maxChildrenPerParent", "maxParentsPerChild"] as const) {
+					const value = relation[limit];
+					if (value === undefined || value === null) continue;
+					if (!Number.isInteger(value) || value < 1) {
+						errors.push(`${prefix}.${limit}: must be a positive integer, or null for unlimited`);
 					}
 				}
 			}
@@ -218,6 +373,11 @@ export function validateSeed(data: unknown): ValidationResult {
 			errors.push("taxonomies must be an array");
 		} else {
 			const taxonomyNames = new Set<string>();
+			const taxonomiesById = new Map<string, SeedTaxonomy>();
+			for (const taxonomy of seed.taxonomies) {
+				if (taxonomy.id) taxonomiesById.set(taxonomy.id, taxonomy);
+			}
+			const structureDeclarations = new Map<string, SeedTaxonomy>();
 
 			for (let i = 0; i < seed.taxonomies.length; i++) {
 				const taxonomy = seed.taxonomies[i];
@@ -243,17 +403,57 @@ export function validateSeed(data: unknown): ValidationResult {
 					errors.push(`${prefix}: label is required`);
 				}
 
-				if (taxonomy.hierarchical === undefined) {
+				const structureSource = findTaxonomyStructureSource(taxonomy, taxonomiesById);
+
+				// A translation takes its taxonomy's structure, so it may omit both, but only
+				// from an entry of the same taxonomy.
+				if (
+					taxonomy.translationOf &&
+					(taxonomy.hierarchical === undefined || taxonomy.collections === undefined)
+				) {
+					if (!structureSource) {
+						errors.push(
+							`${prefix}.translationOf: the translationOf chain from "${taxonomy.translationOf}" loops, so hierarchical and collections are required`,
+						);
+					} else if (structureSource === taxonomy) {
+						errors.push(
+							`${prefix}.translationOf: "${taxonomy.translationOf}" is not an entry of taxonomy "${taxonomy.name}", so hierarchical and collections are required`,
+						);
+					}
+				}
+
+				if (taxonomy.hierarchical === undefined && !taxonomy.translationOf) {
 					errors.push(`${prefix}: hierarchical is required`);
 				}
 
-				if (!Array.isArray(taxonomy.collections)) {
+				if (taxonomy.collections === undefined) {
+					if (!taxonomy.translationOf) errors.push(`${prefix}.collections: must be an array`);
+				} else if (!Array.isArray(taxonomy.collections)) {
 					errors.push(`${prefix}.collections: must be an array`);
-				} else if (taxonomy.collections.length === 0) {
+				} else if (taxonomy.collections.length === 0 && !taxonomy.translationOf) {
 					warnings.push(
 						`${prefix}.collections: taxonomy "${taxonomy.name}" is not assigned to any collections`,
 					);
 				}
+
+				if (structureSource && structureSource !== taxonomy) {
+					if (declaresDifferentStructure(taxonomy, structureSource)) {
+						warnings.push(
+							`${prefix}: hierarchical and collections come from taxonomies[${seed.taxonomies.indexOf(structureSource)}], so the values declared here are ignored`,
+						);
+					}
+				} else if (structureSource && taxonomy.name) {
+					const declaring = structureDeclarations.get(taxonomy.name);
+					if (!declaring) {
+						structureDeclarations.set(taxonomy.name, taxonomy);
+					} else if (declaresDifferentStructure(taxonomy, declaring)) {
+						warnings.push(
+							`${prefix}: hierarchical and collections differ from taxonomies[${seed.taxonomies.indexOf(declaring)}]; every locale of taxonomy "${taxonomy.name}" shares them, so only one entry's values apply`,
+						);
+					}
+				}
+
+				const hierarchical = (structureSource ?? taxonomy).hierarchical;
 
 				// Validate terms if present
 				if (taxonomy.terms) {
@@ -288,9 +488,9 @@ export function validateSeed(data: unknown): ValidationResult {
 							}
 
 							// Check parent reference validity (for hierarchical taxonomies)
-							if (term.parent && taxonomy.hierarchical) {
+							if (term.parent && hierarchical) {
 								// Parent will be validated in a second pass
-							} else if (term.parent && !taxonomy.hierarchical) {
+							} else if (term.parent && !hierarchical) {
 								warnings.push(
 									`${termPrefix}.parent: taxonomy "${taxonomy.name}" is not hierarchical, parent will be ignored`,
 								);
@@ -298,7 +498,7 @@ export function validateSeed(data: unknown): ValidationResult {
 						}
 
 						// Second pass: validate parent references (within the same locale).
-						if (taxonomy.hierarchical && taxonomy.terms) {
+						if (hierarchical && taxonomy.terms) {
 							for (let j = 0; j < taxonomy.terms.length; j++) {
 								const term = taxonomy.terms[j];
 								const termLocale = resolveConfiguredLocale(
@@ -513,8 +713,8 @@ export function validateSeed(data: unknown): ValidationResult {
 				}
 
 				// Validate source
-				if (section.source && !["theme", "import"].includes(section.source)) {
-					errors.push(`${prefix}.source: must be "theme" or "import"`);
+				if (section.source && !["theme", "user", "import"].includes(section.source)) {
+					errors.push(`${prefix}.source: must be "theme", "user", or "import"`);
 				}
 			}
 		}

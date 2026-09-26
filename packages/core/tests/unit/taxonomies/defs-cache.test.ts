@@ -2,7 +2,7 @@
  * Isolate-wide taxonomy-definitions cache (perf: removes the per-render
  * `SELECT * FROM _emdash_taxonomy_defs` on warm isolates).
  *
- * The cache lives on globalThis and is keyed by resolved locale. Because
+ * The cache lives on globalThis and holds every locale's rows. Because
  * `requestCached` dedupes within a single request scope, we exercise the
  * isolate cache by running each `getTaxonomyDefs()` call inside its own
  * `runWithContext` scope (a fresh context object => a fresh per-request
@@ -17,8 +17,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import { runWithContext } from "../../../src/request-context.js";
 import {
+	getTaxonomyDef,
 	getTaxonomyDefs,
 	invalidateTaxonomyDefsCache,
 	resetTaxonomyDefsCacheForTests,
@@ -117,6 +119,19 @@ describe("getTaxonomyDefs — isolate cache", () => {
 
 		const fresh = await inScope(db, () => getTaxonomyDefs());
 		expect(fresh.map((d) => d.name)).toContain("topic");
+	});
+
+	it("serves every locale, and single-definition lookups, from one query", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "es", "fr"] });
+		try {
+			await inScope(db, () => getTaxonomyDefs({ locale: "en" }));
+			await inScope(db, () => getTaxonomyDefs({ locale: "es" }));
+			const def = await inScope(db, () => getTaxonomyDef("genre", { locale: "fr" }));
+			expect(def?.name).toBe("genre");
+			expect(queryCount).toBe(1);
+		} finally {
+			setI18nConfig(null);
+		}
 	});
 
 	it("bypasses the isolate cache for isolated databases (playground / DO preview)", async () => {

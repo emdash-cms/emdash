@@ -6,7 +6,7 @@
  * update/uninstall for marketplace-installed plugins.
  */
 
-import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
+import { Badge, Button, Checkbox, Link as KumoLink, Switch, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -69,7 +69,22 @@ export function RegistryInstallMessage() {
 			<Link to="/plugins/registry" className="text-kumo-link hover:underline">
 				registry
 			</Link>{" "}
-			to install plugins, or add them to your astro.config.mjs.
+			to install plugins.
+		</Trans>
+	);
+}
+
+const PLUGIN_INSTALL_DOCS_URL = "https://docs.emdashcms.com/plugins/installing/";
+
+export function PluginInstallDocsMessage() {
+	return (
+		<Trans>
+			Learn how to install plugins in the{" "}
+			<KumoLink href={PLUGIN_INSTALL_DOCS_URL} target="_blank" rel="noreferrer">
+				documentation
+				<KumoLink.ExternalIcon />
+			</KumoLink>
+			.
 		</Trans>
 	);
 }
@@ -84,6 +99,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 	const hasRegistry = !!manifest?.registry;
+	const canInstallFromRegistry = hasRegistry && manifest?.sandboxEnabled === true;
 
 	const {
 		data: plugins,
@@ -216,11 +232,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 					<ADMIN_NAV_ICONS.plugins className="mx-auto h-12 w-12 text-kumo-subtle" />
 					<h3 className="mt-4 text-lg font-medium">{t`No plugins configured`}</h3>
 					<p className="mt-2 text-sm text-kumo-subtle">
-						{hasRegistry ? (
-							<RegistryInstallMessage />
-						) : (
-							t`Add plugins to your astro.config.mjs to extend EmDash functionality.`
-						)}
+						{canInstallFromRegistry ? <RegistryInstallMessage /> : <PluginInstallDocsMessage />}
 					</p>
 				</div>
 			)}

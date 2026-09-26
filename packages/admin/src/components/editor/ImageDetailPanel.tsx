@@ -5,7 +5,16 @@
  * Shows preview and allows editing alt text, caption, and link settings.
  */
 
-import { Button, Input, InputArea, Label, LinkButton, Select, Text } from "@cloudflare/kumo";
+import {
+	Button,
+	Checkbox,
+	Input,
+	InputArea,
+	Label,
+	LinkButton,
+	Select,
+	Text,
+} from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	X,
@@ -49,6 +58,11 @@ export interface ImageAttributes {
 	displayHeight?: number;
 	/** Alignment for this image instance (e.g. from a WordPress import) */
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/** When set, the image renders inside an `<a>` linking to `href`. */
+	link?: {
+		href: string;
+		blank?: boolean;
+	} | null;
 }
 
 export interface ImagePanelAttributes extends ImageAttributes {
@@ -91,6 +105,8 @@ export function ImageDetailPanel({
 	const [alt, setAlt] = React.useState(attributes.alt ?? "");
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
 	const [title, setTitle] = React.useState(attributes.title ?? "");
+	const [linkHref, setLinkHref] = React.useState(attributes.link?.href ?? "");
+	const [linkBlank, setLinkBlank] = React.useState(Boolean(attributes.link?.blank));
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 	const [asset, setAsset] = React.useState(attributes);
 	const handleAssetItemChanged = React.useCallback(
@@ -144,6 +160,8 @@ export function ImageDetailPanel({
 		setDisplayHeight(attributes.displayHeight ?? undefined);
 		setLockAspectRatio(true);
 		setAlignment(attributes.alignment);
+		setLinkHref(attributes.link?.href ?? "");
+		setLinkBlank(Boolean(attributes.link?.blank));
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- the node token identifies a new attribute snapshot
 	}, [nodeKey]);
 
@@ -206,11 +224,24 @@ export function ImageDetailPanel({
 			title !== (attributes.title ?? "") ||
 			displayWidth !== originalDisplayWidth ||
 			displayHeight !== originalDisplayHeight ||
-			alignment !== attributes.alignment
+			alignment !== attributes.alignment ||
+			linkHref !== (attributes.link?.href ?? "") ||
+			linkBlank !== Boolean(attributes.link?.blank)
 		);
-	}, [attributes, alt, caption, title, displayWidth, displayHeight, alignment]);
+	}, [
+		attributes,
+		alt,
+		caption,
+		title,
+		displayWidth,
+		displayHeight,
+		alignment,
+		linkHref,
+		linkBlank,
+	]);
 
 	const handleSave = () => {
+		const trimmedHref = linkHref.trim();
 		onUpdate({
 			alt: alt || undefined,
 			caption: caption || undefined,
@@ -218,6 +249,13 @@ export function ImageDetailPanel({
 			displayWidth,
 			displayHeight,
 			alignment,
+			// Only touch `link` when one is being set or an existing one cleared, so
+			// images without links keep their update payload unchanged.
+			...(trimmedHref || attributes.link
+				? {
+						link: trimmedHref ? { href: trimmedHref, ...(linkBlank ? { blank: true } : {}) } : null,
+					}
+				: {}),
 		});
 		onClose();
 	};
@@ -490,6 +528,23 @@ export function ImageDetailPanel({
 						placeholder={t`Optional hover text`}
 					/>
 
+					<div className="space-y-2">
+						<Input
+							label={t`Link URL`}
+							type="text"
+							value={linkHref}
+							onChange={(e) => setLinkHref(e.target.value)}
+							placeholder={t`https://example.com or /page`}
+							description={t`When set, the image becomes a clickable link to this URL.`}
+						/>
+						<Checkbox
+							checked={linkBlank}
+							onCheckedChange={(checked) => setLinkBlank(checked)}
+							disabled={!linkHref.trim()}
+							label={t`Open in new tab`}
+						/>
+					</div>
+
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
@@ -697,6 +752,23 @@ export function ImageDetailPanel({
 						placeholder={t`Optional tooltip on hover`}
 						description={t`Shown when hovering over the image.`}
 					/>
+
+					<div className="space-y-2">
+						<Input
+							label={t`Link URL`}
+							type="text"
+							value={linkHref}
+							onChange={(e) => setLinkHref(e.target.value)}
+							placeholder={t`https://example.com or /page`}
+							description={t`When set, the image becomes a clickable link to this URL.`}
+						/>
+						<Checkbox
+							checked={linkBlank}
+							onCheckedChange={(checked) => setLinkBlank(checked)}
+							disabled={!linkHref.trim()}
+							label={t`Open in new tab`}
+						/>
+					</div>
 
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
