@@ -9,6 +9,7 @@
 		"@emdash-cms/auth": "workspace:*",
 		"@emdash-cms/cloudflare": "workspace:*",
 		"@emdash-cms/plugin-color": "workspace:*",
+		"@emdash-cms/plugin-marketplace-test": "workspace:*",
 		"astro": "catalog:",
 		"emdash": "workspace:*",
 		"react": "catalog:",

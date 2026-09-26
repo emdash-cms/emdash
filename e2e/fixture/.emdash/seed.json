@@ -79,6 +79,12 @@
 					"label": "Theme Color",
 					"type": "string",
 					"widget": "color:picker"
+				},
+				{
+					"slug": "event",
+					"label": "Event",
+					"type": "json",
+					"widget": "marketplace-test:event-picker"
 				}
 			]
 		},
