@@ -918,4 +918,29 @@ describe("ImageDetailPanel edits", () => {
 			expect.objectContaining({ caption: "A saved caption" }),
 		);
 	});
+
+	it("preserves an explicitly cleared caption when a tooltip title remains", async () => {
+		const onUpdate = vi.fn();
+		const screen = await render(
+			<ImageDetailPanel
+				attributes={{
+					src: "/photo.jpg",
+					caption: "Visible caption",
+					title: "Tooltip title",
+				}}
+				onUpdate={onUpdate}
+				onReplace={vi.fn()}
+				onDelete={vi.fn()}
+				onClose={vi.fn()}
+				inline
+			/>,
+		);
+
+		await screen.getByLabelText("Caption").fill("");
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenLastCalledWith(
+			expect.objectContaining({ caption: "", title: "Tooltip title" }),
+		);
+	});
 });

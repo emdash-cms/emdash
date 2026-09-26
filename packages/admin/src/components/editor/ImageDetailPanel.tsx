@@ -254,7 +254,7 @@ export function ImageDetailPanel({
 		const trimmedHref = linkHref.trim();
 		onUpdate({
 			alt: alt || undefined,
-			caption: caption || undefined,
+			caption,
 			title: title || undefined,
 			displayWidth: imageDimension(displayWidth),
 			displayHeight: imageDimension(displayHeight),
