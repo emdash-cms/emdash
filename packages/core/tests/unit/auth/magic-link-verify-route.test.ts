@@ -98,4 +98,24 @@ describe("magic link verify route", () => {
 		});
 		expect(session.set).not.toHaveBeenCalled();
 	});
+
+	it("fails without an Astro session and leaves the token usable", async () => {
+		const token = linkUrl.searchParams.get("token")!;
+		const withoutSession = await confirmLink({
+			request: new Request("https://example.com/_emdash/api/auth/magic-link/verify", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token }),
+			}),
+			locals: { emdash: { db, config: {} } },
+			session: undefined,
+		} as unknown as Parameters<typeof confirmLink>[0]);
+
+		expect(withoutSession.status).toBe(500);
+		await expect(withoutSession.json()).resolves.toMatchObject({
+			success: false,
+			error: { code: "SESSION_UNAVAILABLE" },
+		});
+		expect((await confirm(token)).status).toBe(200);
+	});
 });

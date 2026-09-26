@@ -236,6 +236,31 @@ export function missingReactIntegrationWarning(
 	);
 }
 
+/**
+ * Warn when Astro has no session driver. Sign-in stores the user in the Astro
+ * session, so without a driver every sign-in route fails. The Node, Cloudflare,
+ * and Netlify adapters configure a driver in `astro:config:setup`; others,
+ * such as Vercel, do not.
+ */
+function missingSessionDriverWarning(
+	session: { driver?: unknown } | false | undefined,
+): string | undefined {
+	if (session && session.driver) return undefined;
+	const problem =
+		session === false
+			? `Astro sessions are disabled (\`session: false\`), but EmDash stores signed-in users in the Astro session.`
+			: `No Astro session driver is configured, but EmDash stores signed-in users in the Astro session.`;
+	return (
+		`${problem} Without one, signing in to the admin fails. Use an adapter that ` +
+		`provides a driver (Node, Cloudflare, Netlify) or configure one yourself, for example:\n\n` +
+		`  import { defineConfig, sessionDrivers } from "astro/config";\n` +
+		`  export default defineConfig({\n` +
+		`    session: { driver: sessionDrivers.redis({ url: process.env.REDIS_URL }) },\n` +
+		`  });\n\n` +
+		`See https://docs.astro.build/en/guides/sessions/`
+	);
+}
+
 // Terminal formatting
 const dim = (s: string) => `\x1b[2m${s}\x1b[22m`;
 const bold = (s: string) => `\x1b[1m${s}\x1b[22m`;
@@ -634,6 +659,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
+				const sessionWarning = useExternalAuth
+					? undefined
+					: missingSessionDriverWarning(finalConfig.session);
+				if (sessionWarning) logger.warn(sessionWarning);
 
 				if (astroCommand !== "build" && astroCommand !== "sync") return;
 				if (!migrationMetadata.database) {
