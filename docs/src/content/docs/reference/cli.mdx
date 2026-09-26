@@ -219,7 +219,7 @@ npx emdash login [options]
 
 1. Discovers auth endpoints from the instance
 2. If localhost and no auth configured, uses dev bypass automatically
-3. Otherwise initiates OAuth Device Flow — displays a code and opens your browser
+3. Otherwise initiates OAuth Device Flow — displays a code and opens your browser. After you enter the code, the admin page lists the permissions the CLI will receive, and any requested permissions your role does not allow, before you approve.
 4. Polls for authorization, then saves credentials to `~/.config/emdash/auth.json`
 
 Saved credentials are used automatically by all subsequent commands targeting the same instance.
@@ -764,6 +764,7 @@ npx emdash export-seed [options] > seed.json
 | `--cwd`          |       | Working directory                                    | Current directory |
 | `--with-content` |       | Include content (all or comma-separated collections) |                   |
 | `--pretty` / `--no-pretty` |       | Enable or disable indented JSON output              | Pretty output enabled |
+| `--media-base-url` |     | Public URL of the site, used to write absolute `$media` URLs |           |
 
 #### Output format
 
@@ -774,8 +775,24 @@ The exported seed file includes:
 - **Block types**: Every retained version and each type's active version pointer
 - **Taxonomies**: Taxonomy definitions and terms
 - **Menus**: Navigation menus with items
+- **Redirects**: Redirect rules with status 301, 302, 307, or 308
 - **Widget Areas**: Widget areas and widgets
+- **Sections**: Reusable content blocks
 - **Content** (if requested): Entries with `$media` references and `$ref:` syntax for portability
+
+Scheduled entries are exported as drafts, because a seed has no field for a publish time. The export leaves out, with a warning on stderr, anything `emdash seed` would reject: redirect rules with status 410 or 451, extra rules that share a source (possible in older databases), and sections whose slug contains characters other than lowercase letters, digits, and hyphens.
+
+#### Media URLs
+
+`emdash seed` downloads each `$media` URL and uploads the file to the target site's storage, so it needs an absolute `http` or `https` URL it can reach. Pass the source site's public URL to write absolute URLs:
+
+```bash
+npx emdash export-seed --with-content=all --media-base-url=https://example.com > seed.json
+```
+
+The site must serve its media from `/_emdash/api/media/file/` under that URL while the seed is applied, and the URL must not point at `localhost` or a private network address, which `emdash seed` refuses to download from. Without `--media-base-url`, `$media` URLs are site-relative paths that `emdash seed` skips, leaving the fields empty, and the export prints a warning on stderr.
+
+Image and file fields, and image sub-fields of repeaters, are exported as `$media` references. Images inside Portable Text fields keep their stored media ID and URL, which do not resolve on a different site.
 
 ### `emdash secrets`
 

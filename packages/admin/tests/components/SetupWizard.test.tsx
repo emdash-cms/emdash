@@ -8,6 +8,7 @@ import { render } from "../utils/render.tsx";
 let mockSeedInfo: any = null;
 let mockAuthMode: "passkey" | "cloudflare-access" = "passkey";
 let setupRequests: unknown[] = [];
+let setupResponses: Response[] = [];
 const navigateTo = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/lib/navigation.js", () => ({ navigateTo }));
@@ -40,6 +41,8 @@ vi.mock("../../src/lib/api/client", async () => {
 			}
 			if (url.includes("/setup") && !url.includes("status")) {
 				setupRequests.push(JSON.parse(init?.body as string));
+				const queued = setupResponses.shift();
+				if (queued) return Promise.resolve(queued);
 				return Promise.resolve(
 					new Response(
 						JSON.stringify({
@@ -77,6 +80,7 @@ describe("SetupWizard", () => {
 		mockSeedInfo = null;
 		mockAuthMode = "passkey";
 		setupRequests = [];
+		setupResponses = [];
 	});
 
 	it("shows site setup step first with title input", async () => {
@@ -373,4 +377,78 @@ describe("SetupWizard", () => {
 			});
 		});
 	});
+
+	it("keeps posting while sample content remains, then advances", async () => {
+		setupResponses = [seedPartResponse(40), seedPartResponse(80)];
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
+		await screen.getByText("Continue →").click();
+
+		await expect.element(screen.getByText("Create your account")).toBeInTheDocument();
+		expect(setupRequests).toHaveLength(3);
+	});
+
+	it("keeps the added sample content after a failed request and resumes on Continue", async () => {
+		setupResponses = [
+			seedPartResponse(40),
+			new Response(
+				JSON.stringify({ error: { code: "SEED_ERROR", message: "Failed to apply seed" } }),
+				{ status: 500 },
+			),
+		];
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
+		await screen.getByText("Continue →").click();
+
+		await expect.element(screen.getByText("Failed to apply seed")).toBeInTheDocument();
+		await expect
+			.element(
+				screen.getByText("The sample content added so far is kept. Continue to add the rest."),
+			)
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("40 of 112 items")).toBeInTheDocument();
+
+		await screen.getByText("Continue →").click();
+		await expect.element(screen.getByText("Create your account")).toBeInTheDocument();
+		expect(setupRequests).toHaveLength(3);
+	});
+
+	it("stops posting when a request reports no progress", async () => {
+		setupResponses = [seedPartResponse(40), seedPartResponse(40), seedPartResponse(80)];
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		await screen.getByPlaceholder("My Awesome Blog").fill("Test Site");
+		await screen.getByText("Continue →").click();
+
+		await expect.element(screen.getByText("Setup failed")).toBeInTheDocument();
+		expect(setupRequests).toHaveLength(2);
+	});
 });
+
+function seedPartResponse(done: number): Response {
+	return new Response(
+		JSON.stringify({
+			data: {
+				success: true,
+				setupComplete: false,
+				seedComplete: false,
+				seedProgress: { done, total: 112 },
+			},
+		}),
+		{ status: 200 },
+	);
+}

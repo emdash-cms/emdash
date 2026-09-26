@@ -947,6 +947,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handleMediaGet: runtime.handleMediaGet.bind(runtime),
 					handleMediaUpload: runtime.handleMediaUpload.bind(runtime),
 					handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
+					handleMediaRegisterUpload: runtime.handleMediaRegisterUpload.bind(runtime),
 					handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
 					...(runtime.handleMediaReplaceMetadata
 						? {

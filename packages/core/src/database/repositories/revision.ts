@@ -110,6 +110,22 @@ export class RevisionRepository {
 		return row ? this.normalizeRow(row) : null;
 	}
 
+	/** Shallow-merge `patch` into a stored revision's data. */
+	async mergeData(id: string, patch: Record<string, unknown>): Promise<void> {
+		const row = await this.db
+			.selectFrom("revisions")
+			.select("data")
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return;
+		const data: Record<string, unknown> = { ...JSON.parse(row.data), ...patch };
+		await this.db
+			.updateTable("revisions")
+			.set({ data: JSON.stringify(data) })
+			.where("id", "=", id)
+			.execute();
+	}
+
 	/**
 	 * Get all revisions for an entry (newest first)
 	 *

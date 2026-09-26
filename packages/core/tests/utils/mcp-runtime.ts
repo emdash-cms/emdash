@@ -194,6 +194,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		handleMediaList: runtime.handleMediaList.bind(runtime),
 		handleMediaGet: runtime.handleMediaGet.bind(runtime),
 		handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
+		handleMediaRegisterUpload: runtime.handleMediaRegisterUpload.bind(runtime),
 		handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
 		handleMediaDelete: runtime.handleMediaDelete.bind(runtime),
 

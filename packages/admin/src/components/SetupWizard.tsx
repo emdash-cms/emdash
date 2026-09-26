@@ -11,7 +11,7 @@
  *    - Any configured auth provider (AT Protocol, GitHub, Google, etc.)
  */
 
-import { Button, Input, Loader, Radio } from "@cloudflare/kumo";
+import { Button, Input, Loader, Meter, Radio } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -53,6 +53,9 @@ interface SetupSiteResponse {
 	error?: string;
 	/** In Access mode, setup is complete after site config */
 	setupComplete?: boolean;
+	/** False while sample content remains; post again to continue */
+	seedComplete?: boolean;
+	seedProgress?: SeedProgress;
 	result?: {
 		collections: { created: number; skipped: number };
 		fields: { created: number; skipped: number };
@@ -62,6 +65,11 @@ interface SetupSiteResponse {
 		settings: { applied: number };
 		content: { created: number; skipped: number };
 	};
+}
+
+interface SeedProgress {
+	done: number;
+	total: number;
 }
 
 interface SetupAdminRequest {
@@ -95,10 +103,11 @@ interface SiteStepProps {
 	onNext: (data: SetupSiteRequest, startWith: StartWith) => void;
 	isLoading: boolean;
 	error?: string;
+	seedProgress?: SeedProgress;
 }
 
-function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
-	const { t } = useLingui();
+function SiteStep({ seedInfo, onNext, isLoading, error, seedProgress }: SiteStepProps) {
+	const { t, i18n } = useLingui();
 	const [title, setTitle] = React.useState(seedInfo?.title ?? "");
 	const [tagline, setTagline] = React.useState(seedInfo?.tagline ?? "");
 	const [startWith, setStartWith] = React.useState<StartWith>(
@@ -172,12 +181,37 @@ function SiteStep({ seedInfo, onNext, isLoading, error }: SiteStepProps) {
 			</Radio.Group>
 
 			{error && (
-				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">{error}</div>
+				<div className="rounded-lg bg-kumo-danger/10 p-4 text-sm text-kumo-danger">
+					<p>{error}</p>
+					{seedProgress && seedProgress.done > 0 && (
+						<p className="mt-2">
+							{t`The sample content added so far is kept. Continue to add the rest.`}
+						</p>
+					)}
+				</div>
 			)}
 
-			<Button type="submit" className="w-full justify-center" loading={isLoading} variant="primary">
-				{isLoading ? <>{t`Setting up...`}</> : t`Continue →`}
-			</Button>
+			<div>
+				<Button
+					type="submit"
+					className="w-full justify-center"
+					loading={isLoading}
+					variant="primary"
+				>
+					{isLoading ? <>{t`Setting up...`}</> : t`Continue →`}
+				</Button>
+				<div role="status" aria-live="polite">
+					{seedProgress && seedProgress.total > 0 && (
+						<Meter
+							className="mt-6"
+							label={t`Sample content`}
+							value={seedProgress.done}
+							max={seedProgress.total}
+							customValue={t`${i18n.number(seedProgress.done)} of ${i18n.number(seedProgress.total)} items`}
+						/>
+					)}
+				</div>
+			</div>
 
 			{seedInfo && (
 				<p className="text-xs text-kumo-subtle text-center">
@@ -436,6 +470,7 @@ export function SetupWizard() {
 	const [startWith, setStartWith] = React.useState<StartWith>("sample");
 	const [adminData, setAdminData] = React.useState<SetupAdminRequest | null>(null);
 	const [error, setError] = React.useState<string | undefined>();
+	const [seedProgress, setSeedProgress] = React.useState<SeedProgress | undefined>();
 	const [urlError, setUrlError] = React.useState<string | null>(null);
 
 	// Auth provider components from virtual module (via context)
@@ -480,15 +515,27 @@ export function SetupWizard() {
 	// Site setup mutation
 	const siteMutation = useMutation({
 		mutationFn: async ({ data }: { data: SetupSiteRequest; startWith: StartWith }) => {
-			const response = await apiFetch("/_emdash/api/setup", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(data),
-			});
-			return parseApiResponse<SetupSiteResponse>(response, t`Setup failed`);
+			// A seed too large for one request is applied over several, each
+			// continuing after the items the previous ones wrote.
+			let lastDone = -1;
+			for (;;) {
+				const response = await apiFetch("/_emdash/api/setup", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(data),
+				});
+				const result = await parseApiResponse<SetupSiteResponse>(response, t`Setup failed`);
+				if (result.seedComplete !== false) return result;
+				if (!result.seedProgress || result.seedProgress.done <= lastDone) {
+					throw new Error(t`Setup failed`);
+				}
+				lastDone = result.seedProgress.done;
+				setSeedProgress(result.seedProgress);
+			}
 		},
 		onSuccess: (data, variables) => {
 			setError(undefined);
+			setSeedProgress(undefined);
 			// In Access mode, setup is complete after the site step
 			if (data.setupComplete) {
 				navigateTo(completionUrl(variables.startWith));
@@ -603,6 +650,7 @@ export function SetupWizard() {
 							onNext={handleSiteNext}
 							isLoading={siteMutation.isPending}
 							error={error}
+							seedProgress={seedProgress}
 						/>
 					)}
 

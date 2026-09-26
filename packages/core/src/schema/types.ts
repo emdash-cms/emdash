@@ -100,6 +100,48 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 export const MAX_BLOCKS_ITEMS = 100;
 
 /**
+ * Field types that *can* persist no `ec_*` column — see `isStoragelessField`
+ * for whether a given row actually does. The `FIELD_TYPE_TO_COLUMN` entry above
+ * is retained deliberately: it doubles as the `isFieldType` guard.
+ */
+export const STORAGELESS_FIELD_TYPES: ReadonlySet<string> = new Set<FieldType>(["reference"]);
+
+/**
+ * Whether a field row keeps its values outside the content table.
+ *
+ * Storage-less is a property of the row, not of the type. A `reference` field
+ * is storage-less once it is bound to a relation: the selection lives as edges
+ * in `_emdash_content_references`. A reference field created before relations
+ * existed — or one whose target collection could not be resolved — still owns a
+ * TEXT column holding an entry id, and behaves like a string field until
+ * something wires it.
+ */
+export function isStoragelessField(field: {
+	type: string;
+	validation?: FieldValidation | null;
+}): boolean {
+	if (!STORAGELESS_FIELD_TYPES.has(field.type)) return false;
+	return typeof field.validation?.relation === "string" && field.validation.relation.length > 0;
+}
+
+/**
+ * `isStoragelessField` for a raw `_emdash_fields` row, whose `validation` is
+ * unparsed JSON. Malformed JSON reads as unwired: a field nothing can resolve a
+ * relation for keeps its column.
+ */
+export function isStoragelessFieldRow(row: { type: string; validation: string | null }): boolean {
+	if (!STORAGELESS_FIELD_TYPES.has(row.type) || !row.validation) return false;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(row.validation);
+	} catch {
+		return false;
+	}
+	if (typeof parsed !== "object" || parsed === null) return false;
+	return isStoragelessField({ type: row.type, validation: parsed });
+}
+
+/**
  * Features a collection can support
  */
 export type CollectionSupport =
@@ -166,6 +208,19 @@ export interface FieldValidation {
 	minItems?: number; // For repeater fields
 	maxItems?: number; // For repeater fields
 	allowedMimeTypes?: string[];
+	/** Reference fields: the relation's slug. */
+	relation?: string;
+	/**
+	 * Reference fields: which end of the relation this collection sits on.
+	 * `parent` picks children and controls their order; `child` picks parents
+	 * and is unordered, since `sort_order` is scoped to a parent.
+	 */
+	relationSide?: "parent" | "child";
+	/** Reference fields: the collection on the *other* end (derived from the
+	 * relation and the side, denormalized here). */
+	targetCollection?: string;
+	/** Reference fields: allow selecting more than one entry (UI constraint). */
+	multiple?: boolean;
 	allowedTypes?: string[]; // For blocks fields
 	retiredTypes?: string[]; // Server-owned retained types for blocks fields
 }
@@ -435,6 +490,9 @@ export const RESERVED_COLLECTION_SLUGS = [
 	// Shadowed by the static POST /schema/collections/reorder route: a
 	// collection with this slug could never be addressed at its own URL.
 	"reorder",
+	// Shadowed by the static /content-types/relations admin route, for the same
+	// reason: a collection with this slug would be unreachable in the admin.
+	"relations",
 ];
 
 /**

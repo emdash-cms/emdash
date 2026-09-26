@@ -174,6 +174,91 @@ export async function handleMediaCreate(
 }
 
 /**
+ * Confirm an upload minted by the signed upload URL endpoint.
+ *
+ * The storage key must belong to a pending media row created for the same
+ * user; arbitrary keys never reach storage this way.
+ */
+export async function handleMediaRegisterUpload(
+	db: Kysely<Database>,
+	storage: Storage,
+	input: {
+		storageKey: string;
+		authorId?: string;
+	},
+): Promise<ApiResult<MediaResponse>> {
+	const invalidKey: ApiResult<never> = {
+		success: false,
+		error: {
+			code: "INVALID_STORAGE_KEY",
+			message:
+				"storageKey does not match a pending upload created for this user; request a signed upload URL first",
+		},
+	};
+	try {
+		const repo = new MediaRepository(db);
+		const pending = await repo.findPendingByStorageKey(input.storageKey);
+		if (!pending) return invalidKey;
+		if ((pending.authorId ?? null) !== (input.authorId ?? null)) return invalidKey;
+		if (pending.size === null) {
+			return {
+				success: false,
+				error: {
+					code: "INVALID_STATE",
+					message: "Pending upload has no expected size",
+				},
+			};
+		}
+		if (!(await storage.exists(input.storageKey))) {
+			return {
+				success: false,
+				error: { code: "FILE_NOT_FOUND", message: "File was not uploaded to storage" },
+			};
+		}
+
+		const storedFile = await storage.download(input.storageKey);
+		try {
+			if (storedFile.size !== pending.size) {
+				return {
+					success: false,
+					error: {
+						code: "UPLOAD_SIZE_MISMATCH",
+						message: "Stored file size does not match the pending upload",
+					},
+				};
+			}
+		} finally {
+			try {
+				await storedFile.body.cancel();
+			} catch (error) {
+				console.error("[media] upload confirmation cancellation failed:", error);
+			}
+		}
+
+		const item = await repo.confirmUpload(pending.id, undefined, input.storageKey);
+		if (!item) return invalidKey;
+		try {
+			await repo.deleteUploadAttempt(input.storageKey);
+		} catch (error) {
+			console.error("[media] upload attempt cleanup failed:", error);
+		}
+
+		return {
+			success: true,
+			data: { item },
+		};
+	} catch {
+		return {
+			success: false,
+			error: {
+				code: "MEDIA_REGISTER_ERROR",
+				message: "Failed to register the upload",
+			},
+		};
+	}
+}
+
+/**
  * Update media metadata
  */
 export async function handleMediaUpdate(
@@ -291,9 +376,18 @@ export async function handleMediaDelete(
 		const storageKey = await repo.deleteWithStorageKey(id);
 		if (!storageKey) return notFound;
 
-		const storageDeleted = storage
-			? await removeUploadAttempt(storage, repo, storageKey, { allowUntracked: true })
-			: false;
+		let storageDeleted = false;
+		if (storage) {
+			if (await repo.isStorageKeyReferenced(storageKey)) {
+				// A legacy or concurrently-created row still owns this object. Remove
+				// the cleanup marker created above so scheduled cleanup cannot delete it.
+				await repo.deleteUploadAttempt(storageKey);
+			} else {
+				storageDeleted = await removeUploadAttempt(storage, repo, storageKey, {
+					allowUntracked: true,
+				});
+			}
+		}
 
 		return {
 			success: true,

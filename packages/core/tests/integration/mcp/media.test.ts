@@ -27,6 +27,7 @@ import {
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import { createMemoryStorage, type MemoryStorage } from "../../utils/transfer/memory-storage.js";
 
 const ADMIN_ID = "user_admin";
 const EDITOR_ID = "user_editor";
@@ -381,6 +382,43 @@ describe("media_delete", () => {
 		expect(objects.size).toBe(0);
 	});
 
+	it("keeps a stored file while another media record references its key", async () => {
+		const storageKey = "media/shared.png";
+		const objects = new Set([storageKey]);
+		const storage = {
+			delete: async (key: string) => {
+				objects.delete(key);
+			},
+		} as unknown as Storage;
+		const repo = new MediaRepository(db);
+		const owned = await repo.create({
+			filename: "owned.png",
+			mimeType: "image/png",
+			storageKey,
+			authorId: AUTHOR_ID,
+		});
+		const retained = await repo.create({
+			filename: "retained.png",
+			mimeType: "image/png",
+			storageKey,
+			authorId: OTHER_AUTHOR_ID,
+		});
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+
+		const result = await harness.client.callTool({
+			name: "media_delete",
+			arguments: { id: owned.id },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(objects).toContain(storageKey);
+		expect(await repo.findById(retained.id)).not.toBeNull();
+	});
+
 	it("AUTHOR cannot delete another user's media", async () => {
 		const id = await seedMedia(db, { authorId: OTHER_AUTHOR_ID });
 		harness = await connectMcpHarness({ db, userId: AUTHOR_ID, userRole: Role.AUTHOR });
@@ -434,9 +472,11 @@ describe("media_delete", () => {
 describe("media_create (bug #14 / F1)", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
+	let storage: MemoryStorage;
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
+		storage = createMemoryStorage();
 	});
 
 	afterEach(async () => {
@@ -445,27 +485,203 @@ describe("media_create (bug #14 / F1)", () => {
 	});
 
 	it("MCP exposes media_create", async () => {
-		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: { storage },
+		});
 		const tools = await harness.client.listTools();
 		const names = new Set(tools.tools.map((t) => t.name));
 		expect(names.has("media_create")).toBe(true);
 	});
 
-	it("AUTHOR creates media; subsequent media_get returns it; same author can update; different author cannot", async () => {
-		// AUTHOR creates the media item via media_create.
-		harness = await connectMcpHarness({ db, userId: AUTHOR_ID, userRole: Role.AUTHOR });
+	it.each([
+		"backups/emdash-backup-2026-09-24T07-58-54-b3a5a1ba.json",
+		"plugins/gallery/manifest.json",
+		"../outside.txt",
+		"01JUNMINTEDKEY.png",
+	])("rejects the storage key %j because no upload URL minted it", async (storageKey) => {
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+		const create = await harness.client.callTool({
+			name: "media_create",
+			arguments: { mimeType: "application/json", storageKey },
+		});
+		expect(create.isError).toBe(true);
+		expect(extractText(create)).toMatch(/pending upload/);
+		const count = await db
+			.selectFrom("media")
+			.select((eb) => eb.fn.countAll<number>().as("n"))
+			.executeTakeFirstOrThrow();
+		expect(Number(count.n)).toBe(0);
+	});
+
+	it("rejects the key of another user's pending upload", async () => {
+		const repo = new MediaRepository(db);
+		await repo.createPending({
+			filename: "other.png",
+			mimeType: "image/png",
+			storageKey: "01JOTHERUSERKEY.png",
+			authorId: OTHER_AUTHOR_ID,
+		});
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+		const create = await harness.client.callTool({
+			name: "media_create",
+			arguments: { storageKey: "01JOTHERUSERKEY.png" },
+		});
+		expect(create.isError).toBe(true);
+		expect(extractText(create)).toMatch(/pending upload/);
+	});
+
+	it("rejects the key of an existing ready media item instead of adding a second record", async () => {
+		const victimId = await seedMedia(db, { authorId: OTHER_AUTHOR_ID });
+		const victim = await new MediaRepository(db).findById(victimId);
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+		const create = await harness.client.callTool({
+			name: "media_create",
+			arguments: { storageKey: victim?.storageKey },
+		});
+		expect(create.isError).toBe(true);
+		const count = await db
+			.selectFrom("media")
+			.select((eb) => eb.fn.countAll<number>().as("n"))
+			.where("storage_key", "=", victim?.storageKey ?? "")
+			.executeTakeFirstOrThrow();
+		expect(Number(count.n)).toBe(1);
+	});
+
+	it("rejects a pending upload whose object is missing", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "missing.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "01JMISSING.png",
+			authorId: AUTHOR_ID,
+		});
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+
+		const create = await harness.client.callTool({
+			name: "media_create",
+			arguments: { storageKey: pending.storageKey },
+		});
+
+		expect(create.isError).toBe(true);
+		expect(extractText(create)).toMatch(/FILE_NOT_FOUND|not uploaded/i);
+		expect((await repo.findById(pending.id))?.status).toBe("pending");
+	});
+
+	it("rejects a stored object whose size differs from the pending upload", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "wrong-size.png",
+			mimeType: "image/png",
+			size: 4,
+			storageKey: "01JWRONGSIZE.png",
+			authorId: AUTHOR_ID,
+		});
+		await storage.upload({
+			key: pending.storageKey,
+			body: new Uint8Array([1, 2, 3]),
+			contentType: pending.mimeType,
+		});
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+
+		const create = await harness.client.callTool({
+			name: "media_create",
+			arguments: { storageKey: pending.storageKey },
+		});
+
+		expect(create.isError).toBe(true);
+		expect(extractText(create)).toMatch(/UPLOAD_SIZE_MISMATCH|size/i);
+		expect((await repo.findById(pending.id))?.status).toBe("pending");
+	});
+
+	it("AUTHOR confirms an uploaded object; subsequent media_get returns it; same author can update; different author cannot", async () => {
+		const repo = new MediaRepository(db);
+		const pending = await repo.createPending({
+			filename: "logo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "01JMINTEDLOGO.png",
+			contentHash: "server-computed-hash",
+			authorId: AUTHOR_ID,
+		});
+		await repo.createUploadAttempt(pending.id, pending.storageKey);
+		await storage.upload({
+			key: pending.storageKey,
+			body: new Uint8Array([1, 2, 3]),
+			contentType: pending.mimeType,
+		});
+
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
 		const create = await harness.client.callTool({
 			name: "media_create",
 			arguments: {
-				filename: "logo.png",
-				mimeType: "image/png",
-				storageKey: "media/logo-key",
+				storageKey: "01JMINTEDLOGO.png",
 				size: 4096,
+				width: 100,
+				height: 100,
+				blurhash: "forged",
+				dominantColor: "forged",
 			},
 		});
 		expect(create.isError, extractText(create)).toBeFalsy();
 		const created = extractJson<{ item: { id: string; filename: string } }>(create);
+		expect(created.item.id).toBe(pending.id);
 		expect(created.item.filename).toBe("logo.png");
+
+		const readyRow = await db
+			.selectFrom("media")
+			.select(["content_hash", "status", "size", "width", "height", "blurhash", "dominant_color"])
+			.where("id", "=", pending.id)
+			.executeTakeFirstOrThrow();
+		expect(readyRow.status).toBe("ready");
+		expect(readyRow).toMatchObject({
+			content_hash: "server-computed-hash",
+			size: 3,
+			width: null,
+			height: null,
+			blurhash: null,
+			dominant_color: null,
+		});
+		expect(await repo.hasUploadAttempt(pending.storageKey)).toBe(false);
+
+		const again = await harness.client.callTool({
+			name: "media_create",
+			arguments: { storageKey: "01JMINTEDLOGO.png" },
+		});
+		expect(again.isError).toBe(true);
 
 		// media_get returns the same id.
 		const got = await harness.client.callTool({
@@ -489,6 +705,7 @@ describe("media_create (bug #14 / F1)", () => {
 			db,
 			userId: OTHER_AUTHOR_ID,
 			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
 		});
 		const otherUpdate = await harness.client.callTool({
 			name: "media_update",

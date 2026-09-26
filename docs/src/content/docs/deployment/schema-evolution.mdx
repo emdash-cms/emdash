@@ -83,7 +83,7 @@ sqlite3 prod.db < prod.sql
 npx emdash export-seed --database prod.db > .emdash/seed.json
 ```
 
-The exported seed contains the settings, collections, taxonomies, menus, and widget areas of the live site. Add `--with-content` to include entries. Commit the updated `.emdash/seed.json` together with the code that depends on the new schema, so a fresh environment always bootstraps to a model the code understands.
+The exported seed contains the settings, collections, taxonomies, menus, redirects, widget areas, and sections of the live site. Add `--with-content` to include entries. Commit the updated `.emdash/seed.json` together with the code that depends on the new schema, so a fresh environment always bootstraps to a model the code understands.
 
 ## Rehearse changes on a preview environment
 

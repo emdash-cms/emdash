@@ -78,20 +78,18 @@ async function insertOrphans(db: Kysely<Database>, site: OriginSite): Promise<st
 			.insertInto("_emdash_relations")
 			.values({
 				id: fixtureId(9002),
-				name: "ghost_relation",
+				slug: "ghost_relation",
 				parent_collection: "ghosts",
 				child_collection: "pages",
 				parent_label: "Ghost",
 				child_label: "Ghost",
-				locale: "en",
-				translation_group: fixtureId(9002),
 			})
 			.execute();
 		await raw
 			.insertInto("_emdash_content_references")
 			.values({
 				id: fixtureId(9014),
-				relation_group: fixtureId(9002),
+				relation_id: fixtureId(9002),
 				parent_group: ids.hello,
 				child_group: ids.about,
 				sort_order: 0,

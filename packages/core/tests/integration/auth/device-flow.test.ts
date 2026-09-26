@@ -86,6 +86,25 @@ describe("Device Code Request", () => {
 		expect(JSON.parse(row!.scopes)).toEqual(["content:read", "media:read"]);
 	});
 
+	it("should store each requested scope once", async () => {
+		const result = await handleDeviceCodeRequest(
+			db,
+			{ scope: "content:read admin content:read" },
+			"https://example.com/_emdash/device",
+		);
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+
+		const row = await db
+			.selectFrom("_emdash_device_codes")
+			.select("scopes")
+			.where("device_code", "=", result.data.device_code)
+			.executeTakeFirstOrThrow();
+
+		expect(JSON.parse(row.scopes)).toEqual(["content:read", "admin"]);
+	});
+
 	it("should reject invalid scopes", async () => {
 		const result = await handleDeviceCodeRequest(
 			db,

@@ -172,21 +172,14 @@ describe("validateSeed", () => {
 			expect(result.errors[0]).toContain('unsupported field type "invalid"');
 		});
 
-		it("should reject indexed fields whose type cannot be indexed", () => {
+		it("should reject indexed portableText fields", () => {
 			const result = validateSeed({
 				version: "1",
 				collections: [
 					{
 						slug: "posts",
 						label: "Posts",
-						fields: [
-							{
-								slug: "content",
-								label: "Content",
-								type: "portableText",
-								indexed: true,
-							},
-						],
+						fields: [{ slug: "content", label: "Content", type: "portableText", indexed: true }],
 					},
 				],
 			});
@@ -195,6 +188,58 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain(
 				'collections[0].fields[0].indexed: type "portableText" cannot be indexed',
 			);
+		});
+
+		it("should reject an indexed reference field that names a target collection", () => {
+			// The target makes the field storage-less on apply, leaving no column.
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "author",
+								label: "Author",
+								type: "reference",
+								indexed: true,
+								validation: { targetCollection: "authors" },
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"collections[0].fields[0].indexed: a reference field with a targetCollection stores no column to index",
+			);
+		});
+
+		it("should accept an indexed reference field with no target collection", () => {
+			// The shape a seed had before relations existed: a plain entry-id column,
+			// which a content-list filter can be served from.
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "author",
+								label: "Author",
+								type: "reference",
+								indexed: true,
+								options: { collection: "authors" },
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(true);
 		});
 
 		it("should reject non-boolean indexed values", () => {
@@ -326,6 +371,74 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain(
 				"collections[0].admin.listColumns: must contain at most 4 items",
 			);
+		});
+	});
+
+	describe("relation validation", () => {
+		const relation = {
+			slug: "post_authors",
+			parentCollection: "posts",
+			childCollection: "authors",
+			parentLabel: "Posts",
+			childLabel: "Authors",
+		};
+
+		it("accepts a complete relation", () => {
+			const result = validateSeed({
+				version: "1",
+				relations: [{ ...relation, maxChildrenPerParent: 3, maxParentsPerChild: null }],
+			});
+
+			expect(result.valid).toBe(true);
+		});
+
+		it("requires both ends and both labels", () => {
+			const result = validateSeed({ version: "1", relations: [{ slug: "post_authors" }] });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("relations[0]: parentCollection is required");
+			expect(result.errors).toContain("relations[0]: childCollection is required");
+			expect(result.errors).toContain("relations[0]: parentLabel is required");
+			expect(result.errors).toContain("relations[0]: childLabel is required");
+		});
+
+		it("rejects a slug that is not usable as an identifier", () => {
+			const result = validateSeed({
+				version: "1",
+				relations: [{ ...relation, slug: "Post-Authors" }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]).toContain("relations[0].slug");
+		});
+
+		it("rejects a duplicate slug", () => {
+			const result = validateSeed({ version: "1", relations: [relation, { ...relation }] });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain('relations[1].slug: duplicate relation slug "post_authors"');
+		});
+
+		it("rejects a limit that is not a positive integer", () => {
+			const result = validateSeed({
+				version: "1",
+				relations: [{ ...relation, maxChildrenPerParent: 0, maxParentsPerChild: 1.5 }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"relations[0].maxChildrenPerParent: must be a positive integer, or null for unlimited",
+			);
+			expect(result.errors).toContain(
+				"relations[0].maxParentsPerChild: must be a positive integer, or null for unlimited",
+			);
+		});
+
+		it("rejects relations that are not an array", () => {
+			const result = validateSeed({ version: "1", relations: {} });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("relations must be an array");
 		});
 	});
 

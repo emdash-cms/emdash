@@ -277,13 +277,16 @@ Cloudflare Access also writes the resolved EmDash user to the Astro session. Tha
 
 ## Authentication rate limits
 
-EmDash limits the endpoints that begin unauthenticated login or signup flows. The limits are separate for each endpoint and trusted client IP:
+EmDash limits the unauthenticated endpoints that begin login, signup, or OAuth client registration. The limits are separate for each endpoint and trusted client IP:
 
 | Endpoint | Limit |
 | --- | --- |
 | `POST /_emdash/api/auth/passkey/options` | 10 requests per minute |
 | `POST /_emdash/api/auth/magic-link/send` | 3 requests per 5 minutes |
 | `POST /_emdash/api/auth/signup/request` | 3 requests per 5 minutes |
+| `POST /_emdash/api/oauth/device/code` | 10 requests per minute |
+| `POST /_emdash/api/oauth/device/token` | 12 requests per minute |
+| `POST /_emdash/api/oauth/register` | 10 registrations per minute |
 
 On Cloudflare, EmDash reads the client IP from Cloudflare's request metadata. A self-hosted site behind a reverse proxy must configure [`trustedProxyHeaders`](/reference/configuration/#trustedproxyheaders) before EmDash can use the proxy's client-IP header. When no trusted IP is available, these per-IP checks are skipped because there is no safe key to count.
 

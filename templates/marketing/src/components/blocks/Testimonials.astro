@@ -1,22 +1,15 @@
 ---
-interface Props {
-	node: {
-		headline?: string;
-		testimonials: Array<{
-			quote: string;
-			author: string;
-			role?: string;
-			company?: string;
-			avatar?: string;
-		}>;
-	};
-}
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-const { node } = Astro.props;
-const { headline, testimonials } = node;
+type TestimonialsBlock = Extract<PageContentBlock, { _type: "marketing_testimonials" }>;
+type Props = BlockComponentProps<TestimonialsBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, headline, testimonials } = value;
 ---
 
-<section class="testimonials section">
+<section class="testimonials section" id={anchor_id || undefined}>
 	<div class="container">
 		{headline && (
 			<header class="section-header">
@@ -26,16 +19,15 @@ const { headline, testimonials } = node;
 		<div class="testimonials-grid">
 			{testimonials.map((testimonial) => (
 				<div class="testimonial-card">
-					<blockquote class="testimonial-quote">
-						"{testimonial.quote}"
-					</blockquote>
+					<blockquote class="testimonial-quote">{testimonial.quote}</blockquote>
 					<div class="testimonial-author">
 						{testimonial.avatar && (
-							<img
-								src={testimonial.avatar}
-								alt={testimonial.author}
+							<Image
+								image={testimonial.avatar}
+								alt=""
 								class="testimonial-avatar"
-								loading="lazy"
+								width={48}
+								height={48}
 							/>
 						)}
 						<div class="testimonial-info">
@@ -89,7 +81,7 @@ const { headline, testimonials } = node;
 		gap: var(--spacing-md);
 	}
 
-	.testimonial-avatar {
+	:global(.testimonial-avatar) {
 		width: 48px;
 		height: 48px;
 		border-radius: var(--radius-full);

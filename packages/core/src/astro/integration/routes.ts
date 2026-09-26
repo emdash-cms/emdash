@@ -218,22 +218,13 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/content/[collection]/[id]/translations.ts"),
 	});
 
-	// Content relation routes
+	// Scheduled publishing routes
 	injectRoute({
-		pattern: "/_emdash/api/relations",
-		entrypoint: resolveRoute("api/relations/index.ts"),
+		pattern: "/_emdash/api/content/[collection]/[id]/schedule",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/schedule.ts"),
 	});
 
-	injectRoute({
-		pattern: "/_emdash/api/relations/[id]",
-		entrypoint: resolveRoute("api/relations/[id]/index.ts"),
-	});
-
-	injectRoute({
-		pattern: "/_emdash/api/relations/[id]/translations",
-		entrypoint: resolveRoute("api/relations/[id]/translations.ts"),
-	});
-
+	// Reference field edge routes (children = parent side, parents = backlinks)
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/references/[relation]/children",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/references/[relation]/children.ts"),
@@ -242,12 +233,6 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/references/[relation]/parents",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/references/[relation]/parents.ts"),
-	});
-
-	// Scheduled publishing routes
-	injectRoute({
-		pattern: "/_emdash/api/content/[collection]/[id]/schedule",
-		entrypoint: resolveRoute("api/content/[collection]/[id]/schedule.ts"),
 	});
 
 	// Revision management routes (for restore, etc.)
@@ -572,6 +557,17 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/terms/[taxonomy]",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/terms/[taxonomy].ts"),
+	});
+
+	// Relation definition routes (reference field relations)
+	injectRoute({
+		pattern: "/_emdash/api/relations",
+		entrypoint: resolveRoute("api/relations/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/relations/[id]",
+		entrypoint: resolveRoute("api/relations/[id]/index.ts"),
 	});
 
 	// Plugin management routes (under /admin to avoid conflict with plugin API routes)

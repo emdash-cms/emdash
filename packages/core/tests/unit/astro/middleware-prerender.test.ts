@@ -77,6 +77,7 @@ const {
 			handleMediaGet: ok,
 			handleMediaUpload,
 			handleMediaCreate: ok,
+			handleMediaRegisterUpload: ok,
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
 			handleRevisionList: ok,
