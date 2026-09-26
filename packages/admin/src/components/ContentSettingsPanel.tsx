@@ -1203,25 +1203,28 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									label={title}
 									disclosure
 								>
-									<ContentEditorPanelBoundary
-										key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}`}
-										pluginId={pluginId}
-										panelId={extension.id}
-									>
-										<SandboxedContentEditorPanel
+									<div className="min-w-0 p-4">
+										<ContentEditorPanelBoundary
+											key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}`}
 											pluginId={pluginId}
 											panelId={extension.id}
-											title={title}
-											collection={collection}
-											entryId={item.id}
-											locale={item.locale ?? entryLocale}
-											versionToken={item._rev ?? item.updatedAt}
-											draftAccess={extension.draft}
-											captureDraft={captureEditorDraft}
-											onDraftResponse={onEditorDraftResponse}
-											onEntryRefresh={onEntryRefresh}
-										/>
-									</ContentEditorPanelBoundary>
+										>
+											<SandboxedContentEditorPanel
+												pluginId={pluginId}
+												panelId={extension.id}
+												title={title}
+												collection={collection}
+												entryId={item.id}
+												locale={item.locale ?? entryLocale}
+												versionToken={item._rev ?? item.updatedAt}
+												draftAccess={extension.draft}
+												captureDraft={captureEditorDraft}
+												onDraftResponse={onEditorDraftResponse}
+												onEntryRefresh={onEntryRefresh}
+												reserveHeaderEnd
+											/>
+										</ContentEditorPanelBoundary>
+									</div>
 								</SortableContentSettingsSection>
 							);
 						}

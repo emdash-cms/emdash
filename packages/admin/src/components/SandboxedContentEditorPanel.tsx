@@ -1,4 +1,4 @@
-import { Button, Collapsible, SkeletonLine, Toast } from "@cloudflare/kumo";
+import { Button, Collapsible, SkeletonLine, Text, Toast } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type {
 	Block,
@@ -9,12 +9,14 @@ import type {
 	EditorDraftPatchEffect,
 } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
+import { CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { apiFetch } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
 import { editorExtensionUrl } from "../lib/sandboxed-editor-extensions.js";
 import type { EditorDraftAccessDeclaration } from "../lib/sandboxed-editor-extensions.js";
+import { cn } from "../lib/utils.js";
 
 export interface BrowserEditorDraftRequest {
 	collection: string;
@@ -43,6 +45,8 @@ interface SandboxedContentEditorPanelProps {
 	captureDraft?: (access: EditorDraftAccessDeclaration) => BrowserEditorDraftRequest | null;
 	onDraftResponse?: (access: EditorDraftAccessDeclaration, response: EditorDraftResponse) => void;
 	onEntryRefresh?: () => void | Promise<void>;
+	/** Reserve the inline end of the disclosure header for an external control. */
+	reserveHeaderEnd?: boolean;
 }
 
 export function SandboxedContentEditorPanel({
@@ -57,6 +61,7 @@ export function SandboxedContentEditorPanel({
 	captureDraft,
 	onDraftResponse,
 	onEntryRefresh,
+	reserveHeaderEnd = false,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
 	const toastManager = Toast.useToastManager();
@@ -216,11 +221,40 @@ export function SandboxedContentEditorPanel({
 
 	return (
 		<Collapsible.Root open={open} onOpenChange={handleOpenChange}>
-			<Collapsible.DefaultTrigger>
-				<span className="text-base font-semibold text-kumo-default">{title}</span>
-			</Collapsible.DefaultTrigger>
-			<Collapsible.DefaultPanel>
-				<div className="min-w-0 px-4 pb-4">
+			<Collapsible.Trigger
+				render={
+					<Button
+						type="button"
+						variant="ghost"
+						className="relative justify-between"
+						style={{
+							width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+							insetInlineStart: "-0.75rem",
+						}}
+					/>
+				}
+			>
+				<Text as="span" truncate title={title} DANGEROUS_className="font-semibold">
+					{title}
+				</Text>
+				<CaretDown
+					className={cn(
+						"h-4 w-4 shrink-0 text-kumo-subtle transition-transform duration-150 ease-out motion-reduce:transition-none",
+						open && "rotate-180",
+					)}
+				/>
+			</Collapsible.Trigger>
+			<Collapsible.Panel
+				className="-mx-2 overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				style={({ transitionStatus }) => ({
+					height:
+						transitionStatus === "starting" || transitionStatus === "ending"
+							? 0
+							: "var(--collapsible-panel-height)",
+					transitionProperty: "height",
+				})}
+			>
+				<div className="min-w-0 px-2 pt-2 pb-1">
 					{loading && !loaded ? (
 						<div className="space-y-2 py-2" aria-label={t`Loading plugin panel`}>
 							<SkeletonLine blockHeight={20} minWidth={60} maxWidth={95} />
@@ -247,7 +281,7 @@ export function SandboxedContentEditorPanel({
 						/>
 					) : null}
 				</div>
-			</Collapsible.DefaultPanel>
+			</Collapsible.Panel>
 		</Collapsible.Root>
 	);
 }
