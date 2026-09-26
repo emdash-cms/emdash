@@ -1100,7 +1100,14 @@ export function buildTaxonomyPivotQuery(
 	// by primary key, and short-circuit at `LIMIT`. A `CROSS JOIN` pin would
 	// force `content_taxonomies` as the outer table and require a temp sort,
 	// producing a full nested loop over the collection on D1.
-	const pivotContentJoin = sql`JOIN`;
+	//
+	// The temp-sort branch keeps the pin. Its `picked` collects every tagged
+	// entry with no `LIMIT`, so starting from `ec_*` can never stop early, and
+	// D1 does start there when `ANALYZE` has underestimated
+	// `deleted_at IS NULL` (a trash with many distinct deletion times): it
+	// walks the collection's `(deleted_at, status)` index and probes the pivot
+	// once per published row.
+	const pivotContentJoin = isPostgres(db) || isIndexedSort ? sql`JOIN` : sql`CROSS JOIN`;
 	const {
 		terms: termsSelect,
 		bylines: bylinesSelect,

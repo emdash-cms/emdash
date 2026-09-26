@@ -159,3 +159,22 @@ it("updated_at sort seeks the term via the pivot and does not full-scan the cont
 	expect(picked).not.toContain("SCAN ct");
 	expect(plan).not.toContain("SCAN r");
 });
+
+it("keeps the pivot as the outer table for a temp sort, and frees it for an indexed sort", async () => {
+	// `EXPLAIN QUERY PLAN` differs between D1 and local SQLite for the same plain
+	// JOIN, so this test pins the join the builder emits as the stable contract.
+	const pickedJoin = () => {
+		const query = captured.find((q) => q.sql.includes("picked"));
+		expect(query, "expected the loader to emit a pivot-driven query").toBeDefined();
+		return /content_taxonomies ct\s+(CROSS JOIN|JOIN) "ec_post" AS r/.exec(query!.sql)?.[1];
+	};
+
+	await runLoad({ orderBy: { updated_at: "desc" } });
+	expect(pickedJoin()).toBe("CROSS JOIN");
+
+	await runLoad({ orderBy: { title: "asc" } });
+	expect(pickedJoin()).toBe("CROSS JOIN");
+
+	await runLoad({ orderBy: { published_at: "desc" } });
+	expect(pickedJoin()).toBe("JOIN");
+});
