@@ -83,6 +83,8 @@ describe("generatePluginsModule() standard format", () => {
 		const descriptors: PluginDescriptor[] = [
 			{
 				id: "my-native-plugin",
+				displayName: "My Native Plugin",
+				description: "Runs natively",
 				version: "1.0.0",
 				entrypoint: "@my/native-plugin",
 				options: { debug: true },
@@ -94,6 +96,8 @@ describe("generatePluginsModule() standard format", () => {
 		expect(code).not.toContain("adaptSandboxEntry");
 		expect(code).toContain('import { createPlugin as createPlugin0 } from "@my/native-plugin"');
 		expect(code).toContain('createPlugin0({"debug":true})');
+		expect(code).toContain('...{"displayName":"My Native Plugin","description":"Runs natively"}');
+		expect(code).not.toContain("Object.assign");
 	});
 
 	it("handles mixed standard and native plugins", () => {
@@ -189,6 +193,8 @@ describe("generatePluginsModule() standard format", () => {
 		const descriptors: PluginDescriptor[] = [
 			{
 				id: "my-plugin",
+				displayName: "My Plugin",
+				description: "Does useful things",
 				version: "1.0.0",
 				entrypoint: "@my/plugin",
 				format: "standard",
@@ -203,6 +209,8 @@ describe("generatePluginsModule() standard format", () => {
 
 		// The descriptor metadata should be serialized into the adapter call
 		expect(code).toContain('"id":"my-plugin"');
+		expect(code).toContain('"displayName":"My Plugin"');
+		expect(code).toContain('"description":"Does useful things"');
 		expect(code).toContain('"version":"1.0.0"');
 		expect(code).toContain('"capabilities":["content:read","network:request"]');
 		expect(code).toContain('"allowedHosts":["api.example.com"]');
