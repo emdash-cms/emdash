@@ -1,9 +1,16 @@
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { ContentTypeList } from "../../src/components/ContentTypeList";
+import { ContentTypeList, moveCollection } from "../../src/components/ContentTypeList";
+import { fetchRelations } from "../../src/lib/api";
 import type { SchemaCollection, OrphanedTable } from "../../src/lib/api";
+import type { RelationWithUsage } from "../../src/lib/api/relations.js";
 import { render } from "../utils/render.tsx";
+
+vi.mock("../../src/lib/api", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/api")>("../../src/lib/api");
+	return { ...actual, fetchRelations: vi.fn(async () => []) };
+});
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -213,6 +220,9 @@ describe("ContentTypeList", () => {
 		it("shows 'No content types yet' when no collections", async () => {
 			const screen = await render(<ContentTypeList collections={[]} />);
 			await expect.element(screen.getByText(NO_CONTENT_TYPES_REGEX)).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("link", { name: "Create your first content type" }))
+				.toBeInTheDocument();
 		});
 	});
 
@@ -221,5 +231,122 @@ describe("ContentTypeList", () => {
 			const screen = await render(<ContentTypeList collections={[]} isLoading />);
 			await expect.element(screen.getByText("Loading collections...")).toBeInTheDocument();
 		});
+	});
+
+	describe("reordering", () => {
+		const twoCollections = [
+			makeCollection({ id: "1", slug: "posts", label: "Posts" }),
+			makeCollection({ id: "2", slug: "pages", label: "Pages" }),
+		];
+
+		it("renders a labelled drag handle per row when onReorder is provided", async () => {
+			const screen = await render(
+				<ContentTypeList collections={twoCollections} onReorder={vi.fn()} />,
+			);
+
+			// The accessible name carries the collection, so screen-reader users
+			// know which row the handle moves.
+			await expect
+				.element(screen.getByRole("button", { name: "Reorder Posts" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Reorder Pages" }))
+				.toBeInTheDocument();
+		});
+
+		it("renders no drag handles without onReorder", async () => {
+			const screen = await render(<ContentTypeList collections={twoCollections} />);
+
+			expect(screen.getByRole("button", { name: "Reorder Posts" }).query()).toBeNull();
+		});
+
+		it("renders no drag handles for a single collection (nothing to reorder)", async () => {
+			const screen = await render(
+				<ContentTypeList collections={[twoCollections[0]!]} onReorder={vi.fn()} />,
+			);
+
+			expect(screen.getByRole("button", { name: "Reorder Posts" }).query()).toBeNull();
+		});
+
+		it("renders collections in the order given, not alphabetically", async () => {
+			// The server already returns them ordered; the list must not re-sort.
+			const screen = await render(
+				<ContentTypeList collections={twoCollections} onReorder={vi.fn()} />,
+			);
+
+			const rendered = screen.container.querySelectorAll("tbody code");
+			expect(Array.from(rendered, (el) => el.textContent)).toEqual(["posts", "pages"]);
+		});
+	});
+
+	describe("moveCollection", () => {
+		it("moves an item down to the drop target index", () => {
+			expect(moveCollection(["a", "b", "c"], "a", "c")).toEqual(["b", "c", "a"]);
+		});
+
+		it("moves an item up to the drop target index", () => {
+			expect(moveCollection(["a", "b", "c"], "c", "a")).toEqual(["c", "a", "b"]);
+		});
+
+		it("returns the same reference when the move is a no-op", () => {
+			const slugs = ["a", "b", "c"];
+			// Same identity lets the caller skip both the state update and the
+			// network request on a drop that changes nothing.
+			expect(moveCollection(slugs, "b", "b")).toBe(slugs);
+			expect(moveCollection(slugs, "b", "missing")).toBe(slugs);
+			expect(moveCollection(slugs, "missing", "b")).toBe(slugs);
+		});
+	});
+});
+
+describe("ContentTypeList relationship warning", () => {
+	const relation: RelationWithUsage = {
+		id: "rel-1",
+		slug: "posts_authors",
+		parentCollection: "posts",
+		childCollection: "authors",
+		parentLabel: "Posts",
+		parentLabelSingular: "Post",
+		childLabel: "Authors",
+		childLabelSingular: "Author",
+		maxChildrenPerParent: 1,
+		maxParentsPerChild: null,
+		boundFields: [
+			{ collectionSlug: "posts", fieldSlug: "author", side: "parent" },
+			{ collectionSlug: "authors", fieldSlug: "posts", side: "child" },
+		],
+		linkCount: 4,
+	};
+
+	beforeEach(() => {
+		vi.mocked(fetchRelations).mockResolvedValue([relation]);
+	});
+
+	// Deleting a content type cascades through every relationship it is an end
+	// of, which takes reference fields off *other* content types.
+	it("names the relationships and the fields on other content types that go with them", async () => {
+		const screen = await render(
+			<ContentTypeList collections={[makeCollection({ slug: "posts", label: "Posts" })]} />,
+		);
+
+		await screen.getByRole("button", { name: /Delete Posts/i }).click();
+		await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
+
+		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText(/the posts field on authors, which lists entries that link to it/))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("4 links")).toBeInTheDocument();
+	});
+
+	it("says nothing about relationships for a content type in none", async () => {
+		const screen = await render(
+			<ContentTypeList collections={[makeCollection({ slug: "pages", label: "Pages" })]} />,
+		);
+
+		await screen.getByRole("button", { name: /Delete Pages/i }).click();
+		await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
+
+		expect(screen.getByText("posts_authors").query()).toBeNull();
 	});
 });

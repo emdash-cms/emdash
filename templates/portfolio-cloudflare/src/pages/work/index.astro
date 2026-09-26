@@ -3,7 +3,7 @@ export const prerender = false;
 
 import {
 	getEmDashCollection,
-	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
 	getTermsForEntries,
 } from "emdash";
 import Base from "../../layouts/Base.astro";
@@ -14,17 +14,27 @@ import ProjectCard from "../../components/ProjectCard.astro";
 // in JS — that pattern scales O(projects × terms-per-project) and
 // blows up the moment you have more than a couple of dozen entries.
 const activeTag = Astro.url.searchParams.get("tag");
+const cursor = Astro.url.searchParams.get("cursor") ?? undefined;
 
-const [{ entries: sortedProjects, cacheHint }, tags] = await Promise.all([
+const [projectsResult, tagsResult] = await Promise.all([
 	getEmDashCollection("projects", {
 		orderBy: { published_at: "desc" },
+		limit: 12,
+		cursor,
 		...(activeTag ? { where: { tag: activeTag } } : {}),
 	}),
-	// The filter pills show labels only, so skip the visible-entry counts.
-	getTaxonomyTerms("tag", { includeCounts: false }),
+	getTaxonomyTermsWithCacheHint("tag", { includeCounts: false }),
 ]);
+if (projectsResult.error) {
+	return new Response("Could not load the portfolio", { status: 500 });
+}
 
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { entries: sortedProjects, nextCursor } = projectsResult;
+const tags = tagsResult.data;
+if (Astro.cache?.enabled) {
+	Astro.cache.set(projectsResult.cacheHint);
+	Astro.cache.set(tagsResult.cacheHint);
+}
 
 // Single batched JOIN for the tag pills shown on each card, instead of
 // one getEntryTerms() round-trip per card.
@@ -37,6 +47,12 @@ const projectsWithTags = sortedProjects.map((project) => ({
 	project,
 	projectTags: tagsByEntry.get(project.data.id) ?? [],
 }));
+
+function workUrl(next: string): string {
+	const params = new URLSearchParams({ cursor: next });
+	if (activeTag) params.set("tag", activeTag);
+	return `/work?${params.toString()}`;
+}
 ---
 
 <Base
@@ -47,8 +63,8 @@ const projectsWithTags = sortedProjects.map((project) => ({
 	<section class="work-header">
 		<h1>Work</h1>
 		<p class="work-intro">
-			A selection of projects spanning branding, web design, print, and
-			photography.
+			A selection of projects spanning identity, interface design, development,
+			and art direction.
 		</p>
 
 		{
@@ -58,6 +74,7 @@ const projectsWithTags = sortedProjects.map((project) => ({
 						<a
 							href={`/work?tag=${tag.slug}`}
 							class:list={["tag-filter", { active: activeTag === tag.slug }]}
+							aria-current={activeTag === tag.slug ? "page" : undefined}
 						>
 							{tag.label}
 						</a>
@@ -78,13 +95,14 @@ const projectsWithTags = sortedProjects.map((project) => ({
 				<div class="projects-grid">
 					{projectsWithTags.map(({ project, projectTags }) => (
 						<ProjectCard
-							title={project.data.title ?? "Untitled"}
+							title={project.data.title}
 							summary={project.data.summary}
-							featuredImage={project.data.featured_image ?? ""}
+							featuredImage={project.data.featured_image}
 							href={`/work/${project.id}`}
 							client={project.data.client}
 							year={project.data.year}
 							tags={projectTags.map((t) => t.label)}
+							edit={project.edit}
 						/>
 					))}
 				</div>
@@ -107,6 +125,16 @@ const projectsWithTags = sortedProjects.map((project) => ({
 					</>
 				)}
 			</section>
+		)
+	}
+
+	{
+		nextCursor && (
+			<nav class="pagination" aria-label="Portfolio pagination">
+				<a href={workUrl(nextCursor)} rel="next">
+					More projects
+				</a>
+			</nav>
 		)
 	}
 </Base>
@@ -197,6 +225,26 @@ const projectsWithTags = sortedProjects.map((project) => ({
 		text-align: center;
 		padding: var(--spacing-4xl) var(--spacing-lg);
 		color: var(--color-muted);
+	}
+
+	.pagination {
+		max-width: var(--wide-width);
+		margin: calc(-1 * var(--spacing-2xl)) auto var(--spacing-4xl);
+		padding: 0 var(--spacing-lg);
+		text-align: center;
+	}
+
+	.pagination a {
+		display: inline-block;
+		padding: var(--spacing-sm) var(--spacing-lg);
+		color: var(--color-text);
+		text-decoration: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+	}
+
+	.pagination a:hover {
+		border-color: var(--color-text);
 	}
 
 	.btn {

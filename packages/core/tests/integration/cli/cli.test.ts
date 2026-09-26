@@ -275,11 +275,11 @@ describe("CLI Integration", () => {
 			);
 
 			// Schedule does not produce JSON output, just a success message
-			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T09:00:00Z");
+			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T04:00:00-05:00");
 
 			// Verify via get
 			const fetched = await cliJson<{ scheduledAt: string }>("content", "get", "posts", item.id);
-			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00Z");
+			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00.000Z");
 
 			// Clean up
 			await cli("content", "delete", "posts", item.id);
@@ -300,9 +300,9 @@ describe("CLI Integration", () => {
 			// Restore
 			await cli("content", "restore", "posts", item.id);
 
-			// Should be accessible again (auto-published before deletion, so restored as published)
+			// Accessible again, as a draft even though it was auto-published before deletion
 			const fetched = await cliJson<{ status: string }>("content", "get", "posts", item.id);
-			expect(fetched.status).toBe("published");
+			expect(fetched.status).toBe("draft");
 
 			// Final cleanup
 			await cli("content", "delete", "posts", item.id);

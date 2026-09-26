@@ -32,6 +32,29 @@ export function responsiveSizes(width: number | undefined): string {
 	return width ? `(min-width: ${width}px) ${width}px, 100vw` : "100vw";
 }
 
+/** Column count `Gallery.astro` uses when a gallery block does not set one. */
+export const GALLERY_DEFAULT_COLUMNS = 3;
+
+/**
+ * Build the `sizes` attribute for one cell of a Portable Text gallery.
+ *
+ * Mirrors the gallery's CSS: `columns` equal cells with a `1rem` gap, and two
+ * columns at `640px` and below. Each cell is estimated against the viewport, so
+ * a gallery inside a narrower content column still gets a larger slot than it
+ * renders at; pass `sizes` to `Gallery` when the container width is known.
+ */
+export function gallerySizes(columns: number | undefined): string {
+	const count =
+		typeof columns === "number" && Number.isInteger(columns) && columns > 0
+			? columns
+			: GALLERY_DEFAULT_COLUMNS;
+	return `(max-width: 640px) ${galleryCell(2)}, ${galleryCell(count)}`;
+}
+
+function galleryCell(columns: number): string {
+	return columns === 1 ? "100vw" : `calc((100vw - ${columns - 1}rem) / ${columns})`;
+}
+
 /**
  * Make a same-origin media URL absolute so Astro's image service can optimize it.
  *

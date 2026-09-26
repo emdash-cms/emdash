@@ -41,8 +41,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { msg, plural } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	TextB,
 	TextItalic,
@@ -74,35 +75,26 @@ import {
 	BracketsAngle,
 	CodeBlock,
 	Stack,
-	Eye,
 	Table as TableIcon,
 	Plus,
 	Trash,
-	Rows,
 	RowsPlusBottom,
-	RowsPlusTop,
-	Columns,
-	ColumnsPlusLeft,
 	ColumnsPlusRight,
 	DotsSixVertical,
 	CaretDown,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { Extension, type Range } from "@tiptap/core";
+import { Extension, Mark, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
-import { Table } from "@tiptap/extension-table";
-import { TableCell } from "@tiptap/extension-table-cell";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, TextSelection } from "@tiptap/pm/state";
+import { AllSelection, NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -112,7 +104,21 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
+import {
+	UnsupportedPortableTextMarksError,
+	assertPortableTextMarksSupported,
+	assertProseMirrorMarksSupported,
+	findUnsupportedPortableTextMarks,
+} from "../lib/portable-text-marks.js";
 import { cn } from "../lib/utils";
+import {
+	TABLE_CELL_MIN_WIDTH,
+	UnsafePortableTextTableError,
+	portableTextTableToProseMirror,
+	proseMirrorTableToPortableText,
+	type PortableTextTableProseMirrorNode,
+} from "../portable-text-table.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
@@ -123,6 +129,7 @@ import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
+import { LinkDestinationInput } from "./editor/LinkDestinationInput";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
 import { EmDashOrderedList } from "./editor/ordered-list";
 import {
@@ -131,7 +138,29 @@ import {
 	registerPluginBlocks,
 	resolveIcon,
 } from "./editor/PluginBlockNode";
+import { runTableAction } from "./editor/TableActions.js";
+import { createTableCellSafety, type TablePasteRejection } from "./editor/TableCellSafety.js";
+import { createTableClipboard } from "./editor/TableClipboard.js";
+import {
+	TableMoreMenu,
+	TableSelectionAnnouncer,
+	TableSizePicker,
+	TableToolbarControl,
+	insertTable as insertEditorTable,
+	useTableControls,
+} from "./editor/TableControls.js";
+import {
+	EmDashTable,
+	EmDashTableCell,
+	EmDashTableHeader,
+	EmDashTableRow,
+	TableIdentity,
+	selectionIsContainedInTableCells,
+	selectionTouchesTable,
+} from "./editor/TableExtensions.js";
+import { createTableResize } from "./editor/TableResize.js";
 import { MediaPickerModal } from "./MediaPickerModal";
+import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { SectionPickerModal } from "./SectionPickerModal";
 
 const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
@@ -174,7 +203,7 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -186,6 +215,8 @@ interface PortableTextImageBlock {
 	displayWidth?: number;
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/** `{ href, blank? }` from the editor, or a legacy bare string from WordPress imports */
+	link?: string | { href: string; blank?: boolean };
 }
 
 interface PortableTextCodeBlock {
@@ -213,6 +244,40 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+type ImageMedia = Pick<GalleryImage, "asset" | "alt" | "width" | "height">;
+
+/**
+ * Read an image's media reference, alt text, and dimensions from the reference
+ * shape or the MediaValue that seeded `$media` stores instead. Keep in sync with
+ * `resolveImageMedia` in core's content converters.
+ */
+function resolveImageMedia(image: unknown): ImageMedia {
+	const record: Record<string, unknown> = isRecord(image) ? image : {};
+	const asset: Record<string, unknown> = isRecord(record.asset) ? record.asset : {};
+	// The media id is not a storage key, so local files need `url`.
+	const storageKey = isRecord(asset.meta) ? attrStr(asset.meta.storageKey) : undefined;
+	const url =
+		attrStr(asset.url) ??
+		attrStr(asset.src) ??
+		(storageKey ? localMediaFileUrl(storageKey) : undefined);
+	const provider = attrStr(asset.provider);
+	const alt = attrStr(record.alt) ?? attrStr(asset.alt);
+	const width = typeof record.width === "number" ? record.width : asset.width;
+	const height = typeof record.height === "number" ? record.height : asset.height;
+	const media: ImageMedia = {
+		asset: {
+			_type: "reference",
+			_ref: attrStr(asset._ref) ?? attrStr(asset.id) ?? "",
+			...(url ? { url } : {}),
+			...(provider ? { provider } : {}),
+		},
+	};
+	if (alt) media.alt = alt;
+	if (typeof width === "number") media.width = width;
+	if (typeof height === "number") media.height = height;
+	return media;
+}
+
 /**
  * Normalize an untrusted gallery `images` value into well-formed entries.
  * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
@@ -226,21 +291,18 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		const record = entry as Record<string, unknown>;
 		const asset = record.asset;
 		if (typeof asset !== "object" || asset === null) continue;
-		const assetRecord = asset as Record<string, unknown>;
+		const { asset: reference, alt, width, height } = resolveImageMedia(record);
 		const image: GalleryImage = {
 			_type: "image",
 			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
-			asset: {
-				_type: "reference",
-				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
-				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
-				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
-			},
+			asset: reference,
 		};
-		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (alt) image.alt = alt;
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
-		if (typeof record.width === "number") image.width = record.width;
-		if (typeof record.height === "number") image.height = record.height;
+		if (width !== undefined) image.width = width;
+		if (height !== undefined) image.height = height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
 		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
 		images.push(image);
@@ -251,6 +313,181 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
 const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v ? v : undefined);
+
+const PORTABLE_TEXT_BLOCK_ATTR = "emdashPortableTextBlock";
+const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
+const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function attrsWithPortableTextKey(
+	attrs: Record<string, unknown> | undefined,
+	key: string,
+): Record<string, unknown> {
+	return { ...attrs, [PORTABLE_TEXT_KEY_ATTR]: key };
+}
+
+/**
+ * Image links arrive either as `{ href, blank? }` (written by this editor) or as
+ * a bare string (legacy WordPress/Gutenberg imports). Mirrors core's
+ * `normalizeImageLink`; admin does not depend on the core package.
+ */
+function normalizeImageLink(raw: unknown): { href: string; blank?: boolean } | null {
+	if (typeof raw === "string") {
+		const href = raw.trim();
+		return href ? { href } : null;
+	}
+	if (!isRecord(raw)) return null;
+	const href = typeof raw.href === "string" ? raw.href.trim() : "";
+	if (!href) return null;
+	return raw.blank === true ? { href, blank: true } : { href };
+}
+
+/**
+ * Point the selected image at `href`, or clear its link when `href` is empty.
+ * Keeps an existing "open in new tab" choice when only the destination changes.
+ * Shared by the toolbar and the bubble menu, which both edit image links.
+ */
+function setSelectedImageLink(editor: Editor, href: string | null) {
+	const trimmed = href?.trim() ?? "";
+	const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
+	const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
+	editor.chain().focus().updateAttributes("image", { link }).run();
+}
+
+function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
+	return attrStr(attrs?.[PORTABLE_TEXT_KEY_ATTR]);
+}
+
+function portableTextSpanKeyFromMarks(marks: unknown[] | undefined): string | undefined {
+	for (const mark of marks ?? []) {
+		if (!isRecord(mark) || mark.type !== PORTABLE_TEXT_SPAN_MARK || !isRecord(mark.attrs)) continue;
+		const key = attrStr(mark.attrs.key);
+		if (key) return key;
+	}
+	return undefined;
+}
+
+function portableTextMarkDefsFromMarks(marks: unknown[] | undefined): PortableTextMarkDef[] {
+	const identity = (marks ?? []).find(
+		(mark) => isRecord(mark) && mark.type === PORTABLE_TEXT_SPAN_MARK && isRecord(mark.attrs),
+	);
+	if (!isRecord(identity) || !isRecord(identity.attrs) || !Array.isArray(identity.attrs.markDefs)) {
+		return [];
+	}
+	return identity.attrs.markDefs.filter(
+		(markDef): markDef is PortableTextMarkDef =>
+			isRecord(markDef) && typeof markDef._type === "string" && typeof markDef._key === "string",
+	);
+}
+
+function portableTextBlockFromAttrs(
+	attrs: Record<string, unknown> | undefined,
+): PortableTextBlock | undefined {
+	const block = attrs?.[PORTABLE_TEXT_BLOCK_ATTR];
+	if (!isRecord(block) || typeof block._type !== "string" || typeof block._key !== "string") {
+		return undefined;
+	}
+	return block as PortableTextBlock;
+}
+
+function customBlockData(block: PortableTextBlock): Record<string, unknown> {
+	const {
+		_type: _blockType,
+		_key: _blockKey,
+		id: _id,
+		url: _url,
+		...rest
+	} = block as Record<string, unknown>;
+	return Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
+}
+
+function customBlockIdentity(block: PortableTextBlock): string {
+	const record = block as Record<string, unknown>;
+	return attrStr(record.id) ?? attrStr(record.url) ?? "";
+}
+
+function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | undefined {
+	if (Object.hasOwn(block, "id")) return "id";
+	if (Object.hasOwn(block, "url")) return "url";
+	return undefined;
+}
+
+function equalJsonValues(left: unknown, right: unknown): boolean {
+	if (Object.is(left, right)) return true;
+	if (Array.isArray(left) || Array.isArray(right)) {
+		return (
+			Array.isArray(left) &&
+			Array.isArray(right) &&
+			left.length === right.length &&
+			left.every((value, index) => equalJsonValues(value, right[index]))
+		);
+	}
+	if (!isRecord(left) || !isRecord(right)) return false;
+	const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
+	const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
+	return (
+		leftKeys.length === rightKeys.length &&
+		leftKeys.every((key) => Object.hasOwn(right, key) && equalJsonValues(left[key], right[key]))
+	);
+}
+
+const PortableTextIdentityExtension = Extension.create({
+	name: "emdashPortableTextIdentity",
+
+	addGlobalAttributes() {
+		const hiddenAttribute = { default: null, rendered: false };
+		return [
+			{
+				types: [
+					"paragraph",
+					"heading",
+					"blockquote",
+					"codeBlock",
+					"htmlBlock",
+					"image",
+					"horizontalRule",
+					"gallery",
+					"table",
+					"tableRow",
+					"tableCell",
+					"tableHeader",
+					"pluginBlock",
+				],
+				attributes: { [PORTABLE_TEXT_KEY_ATTR]: hiddenAttribute },
+			},
+			{
+				types: ["pluginBlock"],
+				attributes: { [PORTABLE_TEXT_BLOCK_ATTR]: hiddenAttribute },
+			},
+		];
+	},
+});
+
+// ProseMirror text nodes cannot carry schema attributes, so a non-rendered mark
+// keeps each Portable Text span's key and referenced mark definitions attached.
+const PortableTextSpanIdentity = Mark.create({
+	name: PORTABLE_TEXT_SPAN_MARK,
+	inclusive: false,
+	spanning: false,
+
+	addAttributes() {
+		return {
+			key: { default: null, rendered: false },
+			markDefs: { default: [], rendered: false },
+		};
+	},
+
+	parseHTML() {
+		return [];
+	},
+
+	renderHTML() {
+		return ["span", 0];
+	},
+});
 
 const MAX_ORDERED_LIST_START = 2_147_483_647;
 
@@ -420,21 +657,39 @@ function prosemirrorToPortableText(doc: {
 	if (!doc || doc.type !== "doc" || !doc.content) {
 		return [];
 	}
+	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
+	const usedBlockKeys = new Set<string>();
 
 	for (let i = 0; i < doc.content.length; i++) {
-		const converted = convertPMNode(doc.content[i]!, `root:${i}`);
-		if (converted) {
-			if (Array.isArray(converted)) {
-				blocks.push(...converted);
-			} else {
-				blocks.push(converted);
+		const node = doc.content[i]!;
+		if (i === doc.content.length - 1 && isUnkeyedEmptyParagraph(node)) continue;
+		const converted = convertPMNode(node, `root:${i}`);
+		for (const block of converted ? (Array.isArray(converted) ? converted : [converted]) : []) {
+			let key = block._key;
+			if (usedBlockKeys.has(key)) {
+				do key = generateKey();
+				while (usedBlockKeys.has(key));
 			}
+			usedBlockKeys.add(key);
+			blocks.push(key === block._key ? block : { ...block, _key: key });
 		}
 	}
 
 	return blocks;
+}
+
+function isUnkeyedEmptyParagraph(node: {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: unknown[];
+}): boolean {
+	return (
+		node.type === "paragraph" &&
+		(node.content?.length ?? 0) === 0 &&
+		portableTextKeyFromAttrs(node.attrs) === undefined
+	);
 }
 
 function convertPMNode(
@@ -455,10 +710,10 @@ function convertPMNode(
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "normal",
 				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(markDefs.length > 0 ? { markDefs } : {}),
 				...(textAlign ? { textAlign } : {}),
 			};
 		}
@@ -476,7 +731,7 @@ function convertPMNode(
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -494,6 +749,7 @@ function convertPMNode(
 			const blocks: PortableTextTextBlock[] = [];
 			const blockquoteContent = (node.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of blockquoteContent) {
@@ -502,7 +758,10 @@ function convertPMNode(
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: generateKey(),
+							_key:
+								portableTextKeyFromAttrs(child.attrs) ??
+								portableTextKeyFromAttrs(node.attrs) ??
+								generateKey(),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -522,7 +781,7 @@ function convertPMNode(
 			const rawLanguage = node.attrs?.language;
 			return {
 				_type: "code",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				code,
 				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
 			};
@@ -532,7 +791,7 @@ function convertPMNode(
 			const rawHtml = node.attrs?.html;
 			return {
 				_type: "htmlBlock",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				html: typeof rawHtml === "string" ? rawHtml : "",
 			};
 		}
@@ -547,9 +806,21 @@ function convertPMNode(
 			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
 			// only provider-specific data (we don't reconstruct it here, so any
 			// non-LQIP meta keys are never silently dropped on editor round-trip).
+			// Normalise link: drop when href is missing/empty so half-populated
+			// { blank: true } objects don't leak into Portable Text.
+			let link: { href: string; blank?: boolean } | undefined;
+			const rawLink = attrs.link;
+			if (rawLink && typeof rawLink === "object") {
+				const linkObj = rawLink as { href?: unknown; blank?: unknown };
+				const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
+				if (href) {
+					link = { href };
+					if (linkObj.blank === true) link.blank = true;
+				}
+			}
 			return {
 				_type: "image",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				asset: {
 					_ref: attrStr(attrs.mediaId) ?? "",
 					url: attrStr(attrs.src) ?? "",
@@ -564,13 +835,14 @@ function convertPMNode(
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
 				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
+				link,
 			};
 		}
 
 		case "horizontalRule":
 			return {
 				_type: "break",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "lineBreak",
 			};
 
@@ -578,82 +850,63 @@ function convertPMNode(
 			const columns = node.attrs?.columns;
 			return {
 				_type: "gallery",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				images: sanitizeGalleryImages(node.attrs?.images, true),
 				...(typeof columns === "number" ? { columns } : {}),
 			};
 		}
 
 		case "table": {
-			const tableKey = generateKey();
-			const tableContent = (node.content || []) as Array<{
-				type: string;
-				content?: Array<{
-					type: string;
-					content?: unknown[];
-				}>;
-			}>;
-
-			const rows = tableContent
-				.filter((row) => row.type === "tableRow")
-				.map((row, rowIndex) => {
-					const cells = (row.content || []).map((cell, cellIndex) => {
-						const isHeader = cell.type === "tableHeader";
-						const cellContent = (cell.content || []) as Array<{
-							type: string;
-							content?: unknown[];
-						}>;
-
-						const contentSpans: PortableTextSpan[] = [];
-						const cellMarkDefs: PortableTextMarkDef[] = [];
-						for (const paragraph of cellContent) {
-							if (paragraph.type === "paragraph") {
-								const { children, markDefs } = convertInlineContent(paragraph.content || []);
-								contentSpans.push(...children);
-								cellMarkDefs.push(...markDefs);
-							}
-						}
-
-						if (contentSpans.length === 0) {
-							contentSpans.push({
-								_type: "span",
-								_key: generateKey(),
-								text: "",
-							});
-						}
-
-						return {
-							_type: "tableCell" as const,
-							_key: `${tableKey}_r${rowIndex}_c${cellIndex}`,
-							content: contentSpans,
-							isHeader,
-							markDefs: cellMarkDefs.length > 0 ? cellMarkDefs : undefined,
-						};
-					});
-
+			const result = proseMirrorTableToPortableText(node, {
+				path,
+				createKey: generateKey,
+				inlineToSpans: (content) => {
+					const { children, markDefs } = convertInlineContent(content, true);
 					return {
-						_type: "tableRow" as const,
-						_key: `${tableKey}_r${rowIndex}`,
-						cells,
+						content: children,
+						markDefs: markDefs.length > 0 ? markDefs : undefined,
 					};
-				});
-
-			return {
-				_type: "table",
-				_key: tableKey,
-				rows,
-				hasHeaderRow: rows[0]?.cells.some((cell) => cell.isHeader) ?? false,
-			};
+				},
+			});
+			if (!result.ok) {
+				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+			}
+			return result.table;
 		}
 
 		case "pluginBlock": {
-			const { blockType, id: pluginId, data } = node.attrs ?? {};
-			return {
-				...(data && typeof data === "object" ? data : {}),
-				_type: typeof blockType === "string" ? blockType : "embed",
-				_key: generateKey(),
-				id: typeof pluginId === "string" ? pluginId : "",
+			const attrs = node.attrs ?? {};
+			const blockType = typeof attrs.blockType === "string" ? attrs.blockType : "embed";
+			const pluginId = typeof attrs.id === "string" ? attrs.id : "";
+			const data = isRecord(attrs.data) ? attrs.data : {};
+			const originalBlock = portableTextBlockFromAttrs(attrs);
+
+			if (
+				originalBlock &&
+				originalBlock._type === blockType &&
+				customBlockIdentity(originalBlock) === pluginId &&
+				equalJsonValues(customBlockData(originalBlock), data)
+			) {
+				return { ...originalBlock };
+			}
+
+			const result: Record<string, unknown> = {
+				...(originalBlock
+					? Object.fromEntries(
+							Object.entries(originalBlock).filter(
+								([key]) => key.startsWith("_") && key !== "_type" && key !== "_key",
+							),
+						)
+					: {}),
+				...data,
+				_type: blockType,
+				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
 			};
+			const identityField =
+				(originalBlock ? customBlockIdentityField(originalBlock) : undefined) ??
+				(pluginId ? "id" : undefined);
+			if (identityField) result[identityField] = pluginId;
+			return result as PortableTextBlock;
 		}
 
 		default:
@@ -687,7 +940,7 @@ function convertList(
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: generateKey(),
+							_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
 							style: "normal",
 							listItem,
 							level,
@@ -724,13 +977,28 @@ function convertList(
 	return blocks;
 }
 
-function convertInlineContent(nodes: unknown[]): {
+function convertInlineContent(
+	nodes: unknown[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
 	const markDefMap = new Map<string, string>();
+	const usedSpanKeys = new Set<string>();
+	const claimSpanKey = (preferred?: string) => {
+		if (preferred && !usedSpanKeys.has(preferred)) {
+			usedSpanKeys.add(preferred);
+			return preferred;
+		}
+		let key: string;
+		do key = generateKey();
+		while (usedSpanKeys.has(key));
+		usedSpanKeys.add(key);
+		return key;
+	};
 
 	const typedNodes = nodes as Array<{
 		type: string;
@@ -740,28 +1008,41 @@ function convertInlineContent(nodes: unknown[]): {
 	for (const node of typedNodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
+			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
 
 			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap);
+				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
 				if (markType) {
 					marks.push(markType);
 				}
 			}
 
+			const preferredKey = portableTextSpanKeyFromMarks(node.marks);
+			const normalizedMarks = marks.length > 0 ? marks : undefined;
+			const previous = children.at(-1);
+			if (
+				preferredKey &&
+				previous?._key === preferredKey &&
+				equalJsonValues(previous.marks, normalizedMarks)
+			) {
+				previous.text += node.text;
+				continue;
+			}
+
 			children.push({
 				_type: "span",
-				_key: generateKey(),
+				_key: claimSpanKey(preferredKey),
 				text: node.text,
-				marks: marks.length > 0 ? marks : undefined,
+				marks: normalizedMarks,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const last = children.at(-1);
 				if (last) last.text += "\n";
 			} else {
 				children.push({
 					_type: "span",
-					_key: generateKey(),
+					_key: claimSpanKey(portableTextSpanKeyFromMarks(node.marks)),
 					text: "\n",
 				});
 			}
@@ -771,7 +1052,7 @@ function convertInlineContent(nodes: unknown[]): {
 	if (children.length === 0) {
 		children.push({
 			_type: "span",
-			_key: generateKey(),
+			_key: claimSpanKey(),
 			text: "",
 		});
 	}
@@ -783,6 +1064,7 @@ function convertMark(
 	mark: { type: string; attrs?: Record<string, unknown> },
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
+	originalMarkDefs: PortableTextMarkDef[],
 ): string | null {
 	switch (mark.type) {
 		case "bold":
@@ -796,26 +1078,42 @@ function convertMark(
 		case "strike":
 		case "strikethrough":
 			return "strike-through";
+		case "subscript":
+			return "subscript";
+		case "superscript":
+			return "superscript";
 		case "code":
 			return "code";
+		case PORTABLE_TEXT_SPAN_MARK:
+			return null;
 		case "link": {
 			const rawHref = mark.attrs?.href;
 			const href = typeof rawHref === "string" ? rawHref : "";
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			const blank = mark.attrs?.target === "_blank";
+			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
+			const mapKey = originalMarkDef
+				? `key:${originalMarkDef._key}`
+				: `value:${JSON.stringify([href, blank])}`;
+			if (markDefMap.has(mapKey)) {
+				return markDefMap.get(mapKey)!;
 			}
-			const key = generateKey();
+			const key = originalMarkDef?._key || generateKey();
 			markDefs.push({
+				...originalMarkDef,
 				_type: "link",
 				_key: key,
 				href,
-				blank: mark.attrs?.target === "_blank",
+				...(originalMarkDef
+					? blank || Object.hasOwn(originalMarkDef, "blank")
+						? { blank }
+						: {}
+					: { blank }),
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(mapKey, key);
 			return key;
 		}
 		default:
-			return mark.type;
+			throw new UnsupportedPortableTextMarksError([mark.type]);
 	}
 }
 
@@ -843,6 +1141,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			content: [{ type: "paragraph" }],
 		};
 	}
+	assertPortableTextMarksSupported(blocks);
 
 	const content: unknown[] = [];
 	let i = 0;
@@ -879,7 +1178,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 
 			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
-			const converted = convertPTBlock(block);
+			const converted = convertPTBlock(block, `root:${i}`);
 			if (converted) {
 				content.push(converted);
 			}
@@ -921,7 +1220,7 @@ function belongsToNestedGroup(
 	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
-function convertPTBlock(block: PortableTextBlock): unknown {
+function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 	switch (block._type) {
 		case "block": {
 			if (!isTextBlock(block)) return null;
@@ -938,13 +1237,17 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					const level = parseInt(style.substring(1), 10);
 					return {
 						type: "heading",
-						attrs: { level, ...(textAlign ? { textAlign } : {}) },
+						attrs: attrsWithPortableTextKey(
+							{ level, ...(textAlign ? { textAlign } : {}) },
+							block._key,
+						),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 				}
 				case "blockquote":
 					return {
 						type: "blockquote",
+						attrs: attrsWithPortableTextKey(undefined, block._key),
 						content: [
 							{
 								type: "paragraph",
@@ -955,7 +1258,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				default:
 					return {
 						type: "paragraph",
-						attrs: textAlign ? { textAlign } : undefined,
+						attrs: attrsWithPortableTextKey(textAlign ? { textAlign } : undefined, block._key),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 			}
@@ -965,6 +1268,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
 			const meta = imageBlock.asset.meta;
+			const { asset, alt, width, height } = resolveImageMedia(imageBlock);
 			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
 			// snapshots persisted before LQIP was promoted out of the provider meta bag.
 			const blurhash =
@@ -981,58 +1285,62 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 						: null;
 			return {
 				type: "image",
-				attrs: {
-					src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
-					alt: imageBlock.alt || "",
-					title: imageBlock.caption || "",
-					caption: imageBlock.caption || "",
-					mediaId: imageBlock.asset._ref,
-					width: imageBlock.width,
-					height: imageBlock.height,
-					blurhash,
-					dominantColor,
-					displayWidth: imageBlock.displayWidth,
-					displayHeight: imageBlock.displayHeight,
-					alignment: imageBlock.alignment,
-				},
+				attrs: attrsWithPortableTextKey(
+					{
+						src: asset.url || `/_emdash/api/media/file/${asset._ref}`,
+						alt: alt || "",
+						title: imageBlock.caption || "",
+						caption: imageBlock.caption || "",
+						mediaId: asset._ref,
+						provider: canonicalMediaProviderId(asset.provider),
+						width,
+						height,
+						blurhash,
+						dominantColor,
+						displayWidth: imageBlock.displayWidth,
+						displayHeight: imageBlock.displayHeight,
+						alignment: imageBlock.alignment,
+						link: normalizeImageLink(imageBlock.link),
+					},
+					block._key,
+				),
 			};
 		}
 
 		case "code": {
 			if (!isCodeBlock(block)) return null;
 			const codeBlock = block;
+			const language =
+				typeof codeBlock.language === "string" && codeBlock.language.length > 0
+					? codeBlock.language
+					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language: codeBlock.language || null },
+				attrs: attrsWithPortableTextKey({ language }, block._key),
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
 
 		case "break":
-			return { type: "horizontalRule" };
+			return {
+				type: "horizontalRule",
+				attrs: attrsWithPortableTextKey(undefined, block._key),
+			};
 
 		case "gallery": {
 			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
-			// A gallery without an images array is malformed — keep the visible
-			// placeholder rather than silently rendering an empty grid.
 			if (!Array.isArray(galleryBlock.images)) {
-				return {
-					type: "paragraph",
-					content: [
-						{
-							type: "text",
-							text: `[Unknown block type: ${block._type}]`,
-							marks: [{ type: "code" }],
-						},
-					],
-				};
+				return convertCustomBlock(block);
 			}
 			return {
 				type: "gallery",
-				attrs: {
-					images: sanitizeGalleryImages(galleryBlock.images),
-					columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
-				},
+				attrs: attrsWithPortableTextKey(
+					{
+						images: sanitizeGalleryImages(galleryBlock.images),
+						columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
+					},
+					galleryBlock._key,
+				),
 			};
 		}
 
@@ -1040,101 +1348,41 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
 			return {
 				type: "htmlBlock",
-				attrs: { html: htmlBlock.html || "" },
+				attrs: attrsWithPortableTextKey({ html: htmlBlock.html || "" }, htmlBlock._key),
 			};
 		}
 
 		case "table": {
-			const tableBlock = block as {
-				_type: "table";
-				_key: string;
-				rows?: Array<{
-					_type: "tableRow";
-					_key: string;
-					cells: Array<{
-						_type: "tableCell";
-						_key: string;
-						content: PortableTextSpan[];
-						isHeader?: boolean;
-						markDefs?: PortableTextMarkDef[];
-					}>;
-				}>;
-				hasHeaderRow?: boolean;
-				markDefs?: PortableTextMarkDef[];
-			};
-
-			const tableMarkDefs = tableBlock.markDefs || [];
-			const tableMarkDefsMap = new Map(tableMarkDefs.map((md) => [md._key, md]));
-
-			const rows = (tableBlock.rows || []).map((row, rowIndex) => {
-				const cells = row.cells.map((cell) => {
-					const cellType =
-						cell.isHeader || (tableBlock.hasHeaderRow && rowIndex === 0)
-							? "tableHeader"
-							: "tableCell";
-
-					const cellMarkDefs = cell.markDefs || [];
-					const markDefsMap = new Map([
-						...tableMarkDefsMap,
-						...cellMarkDefs.map((md) => [md._key, md] as const),
-					]);
-
-					const pmContent = convertPTSpans(cell.content, [...markDefsMap.values()]);
-
-					return {
-						type: cellType,
-						content: [
-							{
-								type: "paragraph",
-								content: pmContent.length > 0 ? pmContent : undefined,
-							},
-						],
-					};
-				});
-
-				return {
-					type: "tableRow",
-					content: cells,
-				};
+			const result = portableTextTableToProseMirror(block, {
+				path,
+				createKey: generateKey,
+				spansToInline: (content, markDefs) =>
+					convertPTSpans(content, markDefs) as PortableTextTableProseMirrorNode[],
 			});
-
-			return {
-				type: "table",
-				content: rows,
-			};
+			if (!result.ok) {
+				throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+			}
+			return result.node;
 		}
 
 		default: {
-			// Treat unknown block types as plugin blocks (embeds)
-			// These have an id field (or url for backwards compat) for the embed source,
-			// OR Block Kit field data stored as top-level keys (e.g., formId for forms plugin)
-			const { _type, _key, id, url, ...rest } = block as Record<string, unknown>;
-			// Filter out _-prefixed keys to prevent accumulation across edit cycles
-			const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !k.startsWith("_")));
-			const hasFieldData = Object.keys(data).length > 0;
-			if (id || url || hasFieldData) {
-				return {
-					type: "pluginBlock",
-					attrs: {
-						blockType: _type,
-						id: id || url || "",
-						data,
-					},
-				};
-			}
-			// Truly unknown blocks with no data at all
-			return {
-				type: "paragraph",
-				content: [
-					{
-						type: "text",
-						text: `[Unknown block type: ${block._type}]`,
-						marks: [{ type: "code" }],
-					},
-				],
-			};
+			return convertCustomBlock(block);
 		}
 	}
+}
+
+function convertCustomBlock(block: PortableTextBlock): unknown {
+	const record = block as Record<string, unknown>;
+	return {
+		type: "pluginBlock",
+		attrs: {
+			blockType: block._type,
+			id: attrStr(record.id) ?? attrStr(record.url) ?? "",
+			data: customBlockData(block),
+			[PORTABLE_TEXT_KEY_ATTR]: block._key,
+			[PORTABLE_TEXT_BLOCK_ATTR]: block,
+		},
+	};
 }
 
 function convertPTList(
@@ -1193,6 +1441,7 @@ function convertPTListItem(
 	const pmContent = convertPTSpans(item.children, item.markDefs || []);
 	content.push({
 		type: "paragraph",
+		attrs: attrsWithPortableTextKey(undefined, item._key),
 		content: pmContent.length > 0 ? pmContent : undefined,
 	});
 
@@ -1201,11 +1450,9 @@ function convertPTListItem(
 		// item's nested subtree. A new sub-list only starts when we hit
 		// another block at that root level with a different `listItem` type;
 		// deeper blocks (level > minLevel) belong to the current group as
-		// descendants regardless of their own `listItem`. The previous
-		// grouping broke on any type change at any depth, so a deep mixed
-		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
-		// emit C(L3) as a sibling list under A(L1) instead of nesting it
-		// under B(L2), then degrade C to L2 on round-trip.
+		// descendants regardless of their own `listItem`. A deep mixed tree
+		// like `bullet L1 → number L2 → bullet L3 → number L2` stays nested
+		// under B(L2) and preserves its original level on round-trip.
 		let minLevel = Infinity;
 		for (const ni of nestedItems) {
 			const level = ni.level || 2;
@@ -1251,6 +1498,7 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 
 	for (const span of spans) {
 		if (span._type !== "span") continue;
+		const referencedMarkDefs = markDefs.filter((markDef) => span.marks?.includes(markDef._key));
 
 		const parts = span.text.split("\n");
 
@@ -1258,19 +1506,31 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 			const text = parts[i]!;
 
 			if (text.length > 0) {
-				const marks = convertPTMarks(span.marks || [], markDefsMap);
+				const marks = [
+					...convertPTMarks(span.marks || [], markDefsMap),
+					{
+						type: PORTABLE_TEXT_SPAN_MARK,
+						attrs: { key: span._key, markDefs: referencedMarkDefs },
+					},
+				];
 				const node: { type: string; text: string; marks?: unknown[] } = {
 					type: "text",
 					text,
 				};
-				if (marks.length > 0) {
-					node.marks = marks;
-				}
+				node.marks = marks;
 				nodes.push(node);
 			}
 
 			if (i < parts.length - 1) {
-				nodes.push({ type: "hardBreak" });
+				nodes.push({
+					type: "hardBreak",
+					marks: [
+						{
+							type: PORTABLE_TEXT_SPAN_MARK,
+							attrs: { key: span._key, markDefs: referencedMarkDefs },
+						},
+					],
+				});
 			}
 		}
 	}
@@ -1314,6 +1574,10 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 							target: markDef.blank ? "_blank" : null,
 						},
 					});
+				} else {
+					throw new UnsupportedPortableTextMarksError([
+						typeof markDef?._type === "string" ? markDef._type : mark,
+					]);
 				}
 				break;
 			}
@@ -1339,6 +1603,7 @@ interface SlashCommandItem {
 	command: (props: { editor: Editor; range: Range }) => void;
 	/** Delay document insertion until a modal-backed command returns a selection. */
 	deferInsertion?: boolean;
+	opensTablePicker?: boolean;
 	aliases?: string[];
 	/**
 	 * Display category. Built-in commands use `msg`-tagged descriptors;
@@ -1346,6 +1611,12 @@ interface SlashCommandItem {
 	 * and are passed through verbatim when rendered.
 	 */
 	category?: MessageDescriptor | string;
+}
+
+function insertHtmlBlock(editor: Editor, range?: Range) {
+	const chain = editor.chain().focus();
+	if (range) chain.deleteRange(range);
+	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
 }
 
 /**
@@ -1458,14 +1729,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert raw HTML`,
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-				.run();
-		},
+		command: ({ editor, range }) => insertHtmlBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -1483,14 +1747,8 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert a table`,
 		icon: TableIcon,
 		aliases: ["grid", "spreadsheet"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-				.run();
-		},
+		opensTablePicker: true,
+		command: () => undefined,
 	},
 ];
 
@@ -1499,6 +1757,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
  */
 interface SlashMenuState {
 	isOpen: boolean;
+	mode: "commands" | "table-size";
 	items: SlashCommandItem[];
 	selectedIndex: number;
 	clientRect: (() => DOMRect | null) | null;
@@ -1517,6 +1776,13 @@ function createSlashCommandsExtension(options: {
 	getState: () => SlashMenuState;
 }) {
 	const { filterCommands, onStateChange, getState } = options;
+	const execute = (item: SlashCommandItem, editor: Editor, range: Range) => {
+		if (item.opensTablePicker) {
+			onStateChange((state) => ({ ...state, isOpen: true, mode: "table-size", range }));
+			return;
+		}
+		item.command({ editor, range });
+	};
 
 	return Extension.create({
 		name: "slashCommands",
@@ -1537,15 +1803,17 @@ function createSlashCommandsExtension(options: {
 					startOfLine: true,
 					command: ({ editor, range, props }) => {
 						const item = props as SlashCommandItem;
-						item.command({ editor, range });
+						execute(item, editor, range);
 					},
 					items: ({ query }) => filterCommands(query),
-					allow: ({ range }) => getState().dismissedSlashFrom !== range.from,
+					allow: ({ range }) =>
+						!this.editor.isActive("table") && getState().dismissedSlashFrom !== range.from,
 					render: () => {
 						return {
 							onStart: (props) => {
 								onStateChange({
 									isOpen: true,
+									mode: "commands",
 									items: props.items,
 									selectedIndex: 0,
 									clientRect: props.clientRect ?? null,
@@ -1599,8 +1867,10 @@ function createSlashCommandsExtension(options: {
 									if (state.items.length > 0 && state.range) {
 										const item = state.items[state.selectedIndex];
 										if (item) {
-											item.command({ editor: this.editor, range: state.range });
-											onStateChange((prev) => ({ ...prev, isOpen: false }));
+											execute(item, this.editor, state.range);
+											if (!item.opensTablePicker) {
+												onStateChange((prev) => ({ ...prev, isOpen: false }));
+											}
 											return true;
 										}
 									}
@@ -1625,11 +1895,15 @@ function SlashCommandMenu({
 	state,
 	onCommand,
 	onClose,
+	onTableInsert,
+	onTableCancel,
 	setSelectedIndex,
 }: {
 	state: SlashMenuState;
 	onCommand: (item: SlashCommandItem) => void;
 	onClose: () => void;
+	onTableInsert: (rows: number, columns: number, withHeaderRow: boolean) => void;
+	onTableCancel: () => void;
 	setSelectedIndex: (index: number) => void;
 }) {
 	const { t } = useLingui();
@@ -1728,58 +2002,64 @@ function SlashCommandMenu({
 							hasMouseMovedRef.current = true;
 						}}
 					>
-						{selectedItem && (
-							<span className="sr-only" role="status">
-								{t`Selected ${selectedItemTitle}`}
-							</span>
+						{state.mode === "table-size" ? (
+							<TableSizePicker onInsert={onTableInsert} onCancel={onTableCancel} />
+						) : (
+							<>
+								{selectedItem && (
+									<span className="sr-only" role="status">
+										{t`Selected ${selectedItemTitle}`}
+									</span>
+								)}
+								<div
+									ref={containerRef}
+									data-slash-menu-scroll-viewport
+									className="max-h-[300px] overflow-y-auto overscroll-contain scroll-py-1 p-1"
+								>
+									{state.items.length === 0 ? (
+										<p className="px-3 py-2 text-sm text-kumo-subtle">{t`No results`}</p>
+									) : (
+										state.items.map((item, index) => (
+											<button
+												key={item.id}
+												type="button"
+												tabIndex={-1}
+												data-index={index}
+												aria-current={index === state.selectedIndex ? "true" : undefined}
+												className={cn(
+													"flex w-full items-center gap-3 rounded px-3 py-2 text-start text-sm",
+													index === state.selectedIndex
+														? "bg-kumo-interact text-kumo-default"
+														: "hover:bg-kumo-interact",
+												)}
+												onPointerDown={(event) => event.preventDefault()}
+												onClick={() => onCommand(item)}
+												onMouseEnter={() => {
+													// Only react if the user has actually moved the
+													// mouse since the menu opened -- not when items
+													// appear under a stationary pointer.
+													if (hasMouseMovedRef.current) {
+														setSelectedIndex(index);
+													}
+												}}
+											>
+												<item.icon className="h-4 w-4 flex-shrink-0 text-kumo-subtle" />
+												<div className="flex flex-col">
+													<span className="font-medium">
+														{typeof item.title === "string" ? item.title : t(item.title)}
+													</span>
+													<span className="text-xs text-kumo-subtle">
+														{typeof item.description === "string"
+															? item.description
+															: t(item.description)}
+													</span>
+												</div>
+											</button>
+										))
+									)}
+								</div>
+							</>
 						)}
-						<div
-							ref={containerRef}
-							data-slash-menu-scroll-viewport
-							className="max-h-[300px] overflow-y-auto overscroll-contain scroll-py-1 p-1"
-						>
-							{state.items.length === 0 ? (
-								<p className="px-3 py-2 text-sm text-kumo-subtle">{t`No results`}</p>
-							) : (
-								state.items.map((item, index) => (
-									<button
-										key={item.id}
-										type="button"
-										tabIndex={-1}
-										data-index={index}
-										aria-current={index === state.selectedIndex ? "true" : undefined}
-										className={cn(
-											"flex w-full items-center gap-3 rounded px-3 py-2 text-start text-sm",
-											index === state.selectedIndex
-												? "bg-kumo-interact text-kumo-default"
-												: "hover:bg-kumo-interact",
-										)}
-										onPointerDown={(event) => event.preventDefault()}
-										onClick={() => onCommand(item)}
-										onMouseEnter={() => {
-											// Only react if the user has actually moved the
-											// mouse since the menu opened -- not when items
-											// appear under a stationary pointer.
-											if (hasMouseMovedRef.current) {
-												setSelectedIndex(index);
-											}
-										}}
-									>
-										<item.icon className="h-4 w-4 flex-shrink-0 text-kumo-subtle" />
-										<div className="flex flex-col">
-											<span className="font-medium">
-												{typeof item.title === "string" ? item.title : t(item.title)}
-											</span>
-											<span className="text-xs text-kumo-subtle">
-												{typeof item.description === "string"
-													? item.description
-													: t(item.description)}
-											</span>
-										</div>
-									</button>
-								))
-							)}
-						</div>
 					</PopoverPrimitive.Popup>
 				</PopoverPrimitive.Positioner>
 			</PopoverPrimitive.Portal>
@@ -1870,16 +2150,7 @@ function PluginBlockModal({
 		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
-	// Size the dialog based on field complexity. The default `sm` is right for
-	// simple URL embeds (one field) but cramps Block Kit forms with several
-	// fields or a repeater, which need room for inline sub-field inputs.
-	const dialogSize = (() => {
-		if (!hasFields) return "sm";
-		const fields = block?.fields ?? [];
-		if (fields.some((f) => f.type === "repeater")) return "xl";
-		if (fields.length > 3) return "lg";
-		return "base";
-	})();
+	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>
@@ -2015,6 +2286,15 @@ function BlockKitField({
 			);
 		}
 		case "repeater": {
+			if (isNonListValue(value)) {
+				return (
+					<NonListFieldValue
+						label={field.label}
+						value={value}
+						onReplace={() => onChange(field.action_id, [])}
+					/>
+				);
+			}
 			return (
 				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
 			);
@@ -2486,20 +2766,20 @@ function EditorFooter({ editor }: { editor: Editor }) {
 		},
 	});
 
+	// Subscribes to locale changes so the plural messages below re-render.
+	useLinguiContext();
 	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
-			<span>
-				{words} {words === 1 ? "word" : "words"}
-			</span>
-			<span>
-				{characters} {characters === 1 ? "character" : "characters"}
-			</span>
-			<span>{readingTime} min read</span>
+			<span>{plural(words, { one: "# word", other: "# words" })}</span>
+			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
+			<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
 		</div>
 	);
 }
+
+export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
@@ -2553,7 +2833,6 @@ export function PortableTextEditor({
 	"aria-labelledby": ariaLabelledby,
 	pluginBlocks = [],
 	focusMode: controlledFocusMode,
-	onFocusModeChange,
 	onEditorReady,
 	minimal = false,
 	onBlockSidebarOpen,
@@ -2587,26 +2866,46 @@ export function PortableTextEditor({
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
+	const lastPortableTextValueRef = React.useRef(value || []);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
 
-	// Focus mode state - support both controlled and uncontrolled modes
-	const [internalFocusMode, setInternalFocusMode] = React.useState<FocusMode>("normal");
-	const focusMode = controlledFocusMode ?? internalFocusMode;
-	const setFocusMode = (mode: FocusMode) => {
-		if (onFocusModeChange) {
-			onFocusModeChange(mode);
-		} else {
-			setInternalFocusMode(mode);
-		}
-	};
+	const focusMode = controlledFocusMode ?? "normal";
 
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 
 	// Multi-select media picker state (for gallery insertion)
 	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
+	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
+	const [conversionTableError, setConversionTableError] =
+		React.useState<UnsafePortableTextTableError | null>(null);
+	const [sectionInsertErrorMarks, setSectionInsertErrorMarks] = React.useState<string[]>([]);
+	const [sectionInsertTableError, setSectionInsertTableError] = React.useState(false);
+	const tablePasteErrorIdRef = React.useRef(0);
+	const [tablePasteError, setTablePasteError] = React.useState<{
+		id: number;
+		reason: TablePasteRejection;
+	} | null>(null);
+	const [tableAnnouncement, setTableAnnouncement] = React.useState<{
+		id: number;
+		text: string;
+	} | null>(null);
+	const announceTable = React.useCallback((text: string) => {
+		setTableAnnouncement((current) => ({ id: (current?.id ?? 0) + 1, text }));
+	}, []);
+	const rejectTablePaste = React.useCallback((reason: TablePasteRejection) => {
+		tablePasteErrorIdRef.current++;
+		setTablePasteError({ id: tablePasteErrorIdRef.current, reason });
+	}, []);
+	const extensionAnnouncementRef = React.useRef<(rows?: number, columns?: number) => void>(
+		() => {},
+	);
+	extensionAnnouncementRef.current = (rows, columns) =>
+		announceTable(
+			rows === undefined ? t`Column width resized` : t`${rows} × ${columns} table pasted`,
+		);
 
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
@@ -2619,10 +2918,15 @@ export function PortableTextEditor({
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const openToolbarImagePicker = React.useCallback(() => {
+		pendingBlockInsertPosRef.current = null;
+		setMediaPickerOpen(true);
+	}, []);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
 		isOpen: false,
+		mode: "commands",
 		items: [],
 		selectedIndex: 0,
 		clientRect: null,
@@ -2757,10 +3061,30 @@ export function PortableTextEditor({
 	};
 
 	// Convert initial value to ProseMirror format
-	const initialContent = React.useMemo(
-		() => portableTextToProsemirror(value || []),
-		[], // Only compute once on mount
+	const initialUnsupportedMarks = React.useMemo(
+		() => findUnsupportedPortableTextMarks(value || []),
+		[],
 	);
+	const unsupportedMarks = React.useMemo(
+		() => [...new Set([...initialUnsupportedMarks, ...conversionErrorMarks])].toSorted(),
+		[conversionErrorMarks, initialUnsupportedMarks],
+	);
+	const initialConversion = React.useMemo(() => {
+		const emptyDocument = { type: "doc" as const, content: [{ type: "paragraph" }] };
+		if (initialUnsupportedMarks.length > 0) {
+			return { content: emptyDocument, tableError: null };
+		}
+		try {
+			return { content: portableTextToProsemirror(value || []), tableError: null };
+		} catch (error) {
+			if (error instanceof UnsafePortableTextTableError) {
+				return { content: emptyDocument, tableError: error };
+			}
+			throw error;
+		}
+	}, []); // Only compute once on mount
+	const initialContent = initialConversion.content;
+	const tableConversionError = initialConversion.tableError ?? conversionTableError;
 
 	// Memoize the entire extensions array so TipTap never diffs/replaces
 	// plugins on re-render. The loop was: extension array changes → useEditor
@@ -2769,6 +3093,8 @@ export function PortableTextEditor({
 	// All mutable state (filterCommands, onChange) is accessed via refs.
 	const extensions = React.useMemo(
 		() => [
+			PortableTextIdentityExtension,
+			PortableTextSpanIdentity,
 			StarterKit.configure({
 				heading: {
 					levels: [1, 2, 3, 4, 5, 6],
@@ -2802,13 +3128,21 @@ export function PortableTextEditor({
 			PluginBlockExtension,
 			Subscript,
 			Superscript,
-			Table.configure({
+			EmDashTable.configure({
 				allowTableNodeSelection: true,
-				resizable: true,
+				cellMinWidth: TABLE_CELL_MIN_WIDTH,
+				resizable: false,
 			}),
-			TableRow,
-			TableHeader,
-			TableCell,
+			createTableResize(() => extensionAnnouncementRef.current()),
+			EmDashTableRow,
+			EmDashTableHeader,
+			EmDashTableCell,
+			TableIdentity,
+			TableSafetyShortcuts,
+			createTableCellSafety(rejectTablePaste),
+			createTableClipboard(rejectTablePaste, (rows, columns) =>
+				extensionAnnouncementRef.current(rows, columns),
+			),
 			Placeholder.configure({
 				includeChildren: true,
 				placeholder: () => placeholderRef.current,
@@ -2838,7 +3172,7 @@ export function PortableTextEditor({
 		() => ({
 			attributes: {
 				class:
-					"prose prose-sm sm:prose-base dark:prose-invert w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
+					"prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
@@ -2848,7 +3182,7 @@ export function PortableTextEditor({
 	const editor = useEditor({
 		extensions,
 		content: initialContent as Parameters<typeof useEditor>[0]["content"],
-		editable,
+		editable: editable && unsupportedMarks.length === 0 && tableConversionError === null,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => {
@@ -2857,8 +3191,22 @@ export function PortableTextEditor({
 				const doc = updatedEditor.getJSON();
 				// TipTap's getJSON() returns JSONContent which is structurally compatible
 				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
-				const portableText = prosemirrorToPortableText(pmDoc);
-				cb(portableText);
+				try {
+					const portableText = prosemirrorToPortableText(pmDoc);
+					if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
+					lastPortableTextValueRef.current = portableText;
+					cb(portableText);
+				} catch (error) {
+					if (error instanceof UnsupportedPortableTextMarksError) {
+						setConversionErrorMarks(error.marks);
+						return;
+					}
+					if (error instanceof UnsafePortableTextTableError) {
+						setConversionTableError(error);
+						return;
+					}
+					throw error;
+				}
 			}
 		},
 	});
@@ -2876,6 +3224,7 @@ export function PortableTextEditor({
 
 			setSlashMenuState((prev) => ({
 				isOpen: true,
+				mode: "commands",
 				items: filterCommandsRef.current(""),
 				selectedIndex: 0,
 				clientRect: () => {
@@ -2904,6 +3253,7 @@ export function PortableTextEditor({
 		setSlashMenuState((prev) => ({
 			...prev,
 			isOpen: false,
+			mode: "commands",
 			gutterBlockPos: null,
 			dismissedSlashFrom:
 				state.trigger === "slash" ? (state.range?.from ?? null) : prev.dismissedSlashFrom,
@@ -2916,6 +3266,10 @@ export function PortableTextEditor({
 	const executeSlashCommand = React.useCallback(
 		(item: SlashCommandItem, state: SlashMenuState) => {
 			if (!editor || !state.range) return;
+			if (item.opensTablePicker) {
+				setSlashMenuState((current) => ({ ...current, mode: "table-size", isOpen: true }));
+				return;
+			}
 
 			let range = state.range;
 			if (state.trigger === "gutter") {
@@ -2940,7 +3294,12 @@ export function PortableTextEditor({
 			}
 
 			item.command({ editor, range });
-			setSlashMenuState((prev) => ({ ...prev, isOpen: false, gutterBlockPos: null }));
+			setSlashMenuState((prev) => ({
+				...prev,
+				isOpen: false,
+				mode: "commands",
+				gutterBlockPos: null,
+			}));
 		},
 		[editor, setSlashMenuState],
 	);
@@ -3037,14 +3396,14 @@ export function PortableTextEditor({
 	// reference before TipTap destroys the instance (e.g. when keying by item.id
 	// to switch translations).
 	React.useEffect(() => {
-		if (editor && onEditorReady) {
+		if (editor && onEditorReady && unsupportedMarks.length === 0 && tableConversionError === null) {
 			onEditorReady(editor);
 			return () => {
 				onEditorReady(null);
 			};
 		}
 		return undefined;
-	}, [editor, onEditorReady]);
+	}, [editor, onEditorReady, tableConversionError, unsupportedMarks.length]);
 
 	React.useEffect(() => {
 		const viewport = window.visualViewport;
@@ -3139,7 +3498,7 @@ export function PortableTextEditor({
 					src: item.url,
 					alt: item.alt || item.filename,
 					mediaId: item.id,
-					provider: item.provider || "local",
+					provider: canonicalMediaProviderId(item.provider),
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
@@ -3241,6 +3600,58 @@ export function PortableTextEditor({
 		},
 		[executeSlashCommand],
 	);
+	React.useEffect(() => {
+		if (editable || !editor || slashMenuStateRef.current.mode !== "table-size") return;
+		exitSuggestion(editor.view);
+		queueMicrotask(() =>
+			setSlashMenuState((current) => ({
+				...current,
+				isOpen: false,
+				mode: "commands",
+				gutterBlockPos: null,
+			})),
+		);
+	}, [editable, editor, setSlashMenuState]);
+	const handleSlashTableInsert = React.useCallback(
+		(rows: number, columns: number, withHeaderRow: boolean) => {
+			if (!editor?.isEditable) return;
+			const state = slashMenuStateRef.current;
+			const inserted = insertEditorTable(
+				editor,
+				rows,
+				columns,
+				withHeaderRow,
+				state.trigger === "slash" ? (state.range ?? undefined) : undefined,
+				state.trigger === "gutter" ? (state.gutterBlockPos ?? undefined) : undefined,
+			);
+			if (!inserted) return;
+			if (state.trigger === "slash") exitSuggestion(editor.view);
+			setSlashMenuState((current) => ({
+				...current,
+				isOpen: false,
+				mode: "commands",
+				gutterBlockPos: null,
+				dismissedSlashFrom: null,
+			}));
+			announceTable(t`Table inserted`);
+		},
+		[announceTable, editor, setSlashMenuState, t],
+	);
+	const handleSlashTableCancel = React.useCallback(() => {
+		const state = slashMenuStateRef.current;
+		setSlashMenuState((current) => ({
+			...current,
+			isOpen: false,
+			mode: "commands",
+			gutterBlockPos: null,
+			dismissedSlashFrom:
+				state.trigger === "slash" ? (state.range?.from ?? null) : current.dismissedSlashFrom,
+		}));
+		if (editor) {
+			if (state.trigger === "slash") exitSuggestion(editor.view);
+			editor.view.focus();
+		}
+	}, [editor, setSlashMenuState]);
 
 	// Handle section selection - insert section content at cursor
 	const handleSectionSelect = React.useCallback(
@@ -3251,7 +3662,24 @@ export function PortableTextEditor({
 			const ptContent = Array.isArray(section.content)
 				? (section.content as PortableTextBlock[])
 				: [];
-			const { content: prosemirrorContent } = portableTextToProsemirror(ptContent);
+			let prosemirrorContent: unknown[];
+			try {
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+			} catch (error) {
+				if (error instanceof UnsupportedPortableTextMarksError) {
+					setSectionInsertErrorMarks(error.marks);
+					setSectionInsertTableError(false);
+					return;
+				}
+				if (error instanceof UnsafePortableTextTableError) {
+					setSectionInsertErrorMarks([]);
+					setSectionInsertTableError(true);
+					return;
+				}
+				throw error;
+			}
+			setSectionInsertErrorMarks([]);
+			setSectionInsertTableError(false);
 
 			const insertPos = pendingBlockInsertPosRef.current;
 			const chain = editor.chain().focus();
@@ -3265,6 +3693,46 @@ export function PortableTextEditor({
 		[editor],
 	);
 
+	if (tableConversionError) {
+		return (
+			<div
+				role="alert"
+				className={cn(
+					className,
+					"rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start",
+				)}
+				aria-labelledby={ariaLabelledby}
+			>
+				<p className="font-medium text-kumo-error">{t`This table cannot be edited safely`}</p>
+				<p className="mt-1 text-sm text-kumo-subtle">
+					{t`This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content.`}
+				</p>
+			</div>
+		);
+	}
+
+	if (unsupportedMarks.length > 0) {
+		const markList = unsupportedMarks.join(", ");
+		return (
+			<div
+				role="alert"
+				className={cn(
+					className,
+					"rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start",
+				)}
+				aria-labelledby={ariaLabelledby}
+			>
+				<p className="font-medium text-kumo-error">{t`This content cannot be edited safely`}</p>
+				<p className="mt-1 text-sm text-kumo-subtle">
+					<Trans>
+						This field contains unsupported Portable Text marks: <code dir="auto">{markList}</code>.
+						Remove them through the API before editing or saving this content.
+					</Trans>
+				</p>
+			</div>
+		);
+	}
+
 	if (!editor) {
 		return (
 			<div className={cn("border rounded-lg", className)}>
@@ -3273,18 +3741,88 @@ export function PortableTextEditor({
 		);
 	}
 
+	const tablePasteErrorMessage =
+		tablePasteError?.reason === "too-large"
+			? t`This paste is too large. Paste fewer cells or less text at a time.`
+			: tablePasteError?.reason === "invalid-tsv"
+				? t`This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again.`
+				: tablePasteError?.reason === "table-must-be-top-level"
+					? t`Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again.`
+					: tablePasteError?.reason === "invalid-table"
+						? t`This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again.`
+						: t`Table cells accept text, links, and formatting only.`;
+
 	return (
 		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+			<div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+				{tableAnnouncement && <span key={tableAnnouncement.id}>{tableAnnouncement.text}</span>}
+			</div>
+			{tablePasteError && (
+				<div
+					key={tablePasteError.id}
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<p className="text-sm font-medium text-kumo-error">{tablePasteErrorMessage}</p>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => setTablePasteError(null)}
+						aria-label={t`Dismiss table paste error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
+			{(sectionInsertErrorMarks.length > 0 || sectionInsertTableError) && (
+				<div
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<div className="min-w-0">
+						<p className="font-medium text-kumo-error">{t`Could not insert section`}</p>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							{sectionInsertTableError ? (
+								t`This section contains table content that the editor cannot preserve. Update the section before inserting it.`
+							) : (
+								<Trans>
+									This section contains unsupported Portable Text marks:{" "}
+									<code dir="auto">{sectionInsertErrorMarks.join(", ")}</code>. Update the section
+									before inserting it.
+								</Trans>
+							)}
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => {
+							setSectionInsertErrorMarks([]);
+							setSectionInsertTableError(false);
+						}}
+						aria-label={t`Dismiss section error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
 			<EditorBubbleMenu
 				editor={editor}
 				appendTo={appendBubbleMenu}
 				getCollisionOptions={getBubbleMenuCollisionOptions}
 			/>
-			<TableBubbleMenu
-				editor={editor}
-				appendTo={appendBubbleMenu}
-				getCollisionOptions={getBubbleMenuCollisionOptions}
-			/>
+			{!minimal && (
+				<TableBubbleMenu
+					editor={editor}
+					editable={editable}
+					appendTo={appendBubbleMenu}
+					getCollisionOptions={getBubbleMenuCollisionOptions}
+					onRun={announceTable}
+				/>
+			)}
+			<TableSelectionAnnouncer editor={editor} onChange={announceTable} />
 			<div
 				className={cn(
 					"border rounded-lg overflow-clip",
@@ -3300,9 +3838,10 @@ export function PortableTextEditor({
 					<EditorToolbar
 						toolbarRef={toolbarRef}
 						editor={editor}
-						focusMode={focusMode}
-						onFocusModeChange={setFocusMode}
+						editable={editable}
 						onInsertBlock={handleTouchInsertBlock}
+						onInsertImage={openToolbarImagePicker}
+						onTableAction={announceTable}
 					/>
 				)}
 				<div className="relative overflow-visible">
@@ -3312,14 +3851,18 @@ export function PortableTextEditor({
 				{!minimal && <EditorFooter editor={editor} />}
 
 				{/* Slash command menu */}
-				<SlashCommandMenu
-					state={slashMenuState}
-					onCommand={handleSlashCommand}
-					onClose={closeSlashMenu}
-					setSelectedIndex={(index) =>
-						setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
-					}
-				/>
+				{editable && (
+					<SlashCommandMenu
+						state={slashMenuState}
+						onCommand={handleSlashCommand}
+						onClose={closeSlashMenu}
+						onTableInsert={handleSlashTableInsert}
+						onTableCancel={handleSlashTableCancel}
+						setSelectedIndex={(index) =>
+							setSlashMenuState((prev) => ({ ...prev, selectedIndex: index }))
+						}
+					/>
+				)}
 
 				{/* Media picker for image insertion */}
 				<MediaPickerModal
@@ -3330,7 +3873,8 @@ export function PortableTextEditor({
 					}}
 					onSelect={handleImageSelect}
 					mimeTypeFilter="image/"
-					title={t`Select Image`}
+					title={t`Select image`}
+					confirmLabel={t`Insert image`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
@@ -3344,7 +3888,7 @@ export function PortableTextEditor({
 					onSelect={() => {}}
 					onSelectMany={handleGallerySelect}
 					mimeTypeFilter="image/"
-					title={t`Select Gallery Images`}
+					title={t`Select gallery images`}
 				/>
 
 				{/* Plugin block insertion/editing modal */}
@@ -3389,7 +3933,6 @@ function EditorBubbleMenu({
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const inputRef = React.useRef<HTMLInputElement>(null);
 	const { t } = useLingui();
 	const activeMarks = useEditorState({
 		editor,
@@ -3402,43 +3945,53 @@ function EditorBubbleMenu({
 			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
+			image: activeEditor.isActive("image"),
+			imageLink:
+				activeEditor.isActive("image") && Boolean(activeEditor.getAttributes("image").link),
 		}),
 	});
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
-			// Focus input after state update
-			setTimeout(() => inputRef.current?.focus(), 0);
 		}
 	}, [showLinkInput, editor]);
 
+	const closeLinkInput = () => {
+		setShowLinkInput(false);
+		setLinkUrl("");
+	};
+
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, linkUrl);
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
 		}
-		setShowLinkInput(false);
-		setLinkUrl("");
+		closeLinkInput();
+	};
+
+	const applyLinkHref = (href: string) => {
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, href);
+		} else {
+			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		}
+		closeLinkInput();
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
-		setShowLinkInput(false);
-		setLinkUrl("");
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkInput(false);
-			setLinkUrl("");
-			editor.commands.focus();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, null);
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		}
+		closeLinkInput();
 	};
 
 	return (
@@ -3463,10 +4016,16 @@ function EditorBubbleMenu({
 			}}
 			shouldShow={({ editor: activeEditor, element, state, view }) => {
 				const { selection } = state;
+				// A selected image is a NodeSelection, not a TextSelection: let it
+				// through so the link controls below are reachable for images.
+				const isImageSelection =
+					selection instanceof NodeSelection && selection.node.type.name === "image";
 				return (
 					activeEditor.isEditable &&
-					(selection instanceof TextSelection || selection instanceof AllSelection) &&
-					!selection.empty &&
+					(selection instanceof TextSelection ||
+						selection instanceof AllSelection ||
+						isImageSelection) &&
+					(!selection.empty || isImageSelection) &&
 					(view.hasFocus() || element.contains(document.activeElement))
 				);
 			}}
@@ -3474,16 +4033,17 @@ function EditorBubbleMenu({
 			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
 		>
 			{showLinkInput ? (
-				<div className="flex items-center gap-1">
-					<Input
-						ref={inputRef}
-						type="url"
-						placeholder={t`https://...`}
+				<div className="flex items-start gap-1">
+					<LinkDestinationInput
+						className="w-72"
 						value={linkUrl}
-						onChange={(e) => setLinkUrl(e.target.value)}
-						onKeyDown={handleKeyDown}
-						className="h-8 w-48 text-sm"
-						aria-label={t`URL`}
+						onValueChange={setLinkUrl}
+						onSubmit={handleSetLink}
+						onPick={applyLinkHref}
+						onEscape={() => {
+							closeLinkInput();
+							editor.commands.focus();
+						}}
 					/>
 					<Button
 						type="button"
@@ -3496,7 +4056,7 @@ function EditorBubbleMenu({
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{activeMarks.link && (
+					{(activeMarks.link || activeMarks.imageLink) && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -3512,60 +4072,65 @@ function EditorBubbleMenu({
 				</div>
 			) : (
 				<>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						active={activeMarks.bold}
-						title={t`Bold`}
-					>
-						<TextB className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						active={activeMarks.italic}
-						title={t`Italic`}
-					>
-						<TextItalic className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						active={activeMarks.underline}
-						title={t`Underline`}
-					>
-						<TextUnderline className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleStrike().run()}
-						active={activeMarks.strike}
-						title={t`Strikethrough`}
-					>
-						<TextStrikethrough className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSubscript().run()}
-						active={activeMarks.subscript}
-						title={t`Subscript`}
-					>
-						<TextSubscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSuperscript().run()}
-						active={activeMarks.superscript}
-						title={t`Superscript`}
-					>
-						<TextSuperscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleCode().run()}
-						active={activeMarks.code}
-						title={t`Code`}
-					>
-						<Code className="h-4 w-4" />
-					</BubbleButton>
-					<div className="w-px h-6 bg-kumo-line mx-1" />
+					{/* Text marks are meaningless on a selected image: show only the link control. */}
+					{!activeMarks.image && (
+						<>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleBold().run()}
+								active={activeMarks.bold}
+								title={t`Bold`}
+							>
+								<TextB className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleItalic().run()}
+								active={activeMarks.italic}
+								title={t`Italic`}
+							>
+								<TextItalic className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleUnderline().run()}
+								active={activeMarks.underline}
+								title={t`Underline`}
+							>
+								<TextUnderline className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleStrike().run()}
+								active={activeMarks.strike}
+								title={t`Strikethrough`}
+							>
+								<TextStrikethrough className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleSubscript().run()}
+								active={activeMarks.subscript}
+								title={t`Subscript`}
+							>
+								<TextSubscript className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleSuperscript().run()}
+								active={activeMarks.superscript}
+								title={t`Superscript`}
+							>
+								<TextSuperscript className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleCode().run()}
+								active={activeMarks.code}
+								title={t`Code`}
+							>
+								<Code className="h-4 w-4" />
+							</BubbleButton>
+							<div className="w-px h-6 bg-kumo-line mx-1" />
+						</>
+					)}
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={activeMarks.link}
-						title={activeMarks.link ? t`Edit link` : t`Add link`}
+						active={activeMarks.link || activeMarks.imageLink}
+						title={activeMarks.link || activeMarks.imageLink ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -3581,18 +4146,22 @@ function EditorBubbleMenu({
  */
 function TableBubbleMenu({
 	editor,
+	editable,
 	appendTo,
 	getCollisionOptions,
+	onRun,
 }: {
 	editor: Editor;
+	editable: boolean;
 	appendTo: () => HTMLElement;
 	getCollisionOptions: BubbleMenuCollisionOptions;
+	onRun: (label: string) => void;
 }) {
 	const { t } = useLingui();
-	const isHeaderRow = useEditorState({
-		editor,
-		selector: ({ editor: activeEditor }) => activeEditor.isActive("tableHeader"),
-	});
+	const controls = useTableControls(editor);
+	const run = (id: "add-row-after" | "add-column-after", label: string) => {
+		if (runTableAction(editor, id)) onRun(label);
+	};
 
 	return (
 		<BubbleMenu
@@ -3615,7 +4184,13 @@ function TableBubbleMenu({
 				}),
 			}}
 			shouldShow={({ editor: activeEditor, element, state, view }) => {
-				const hasEditorFocus = view.hasFocus() || element.contains(document.activeElement);
+				const activeElement = document.activeElement;
+				const triggerId = element.querySelector('[aria-expanded="true"]')?.id;
+				const hasMenuFocus = Boolean(
+					triggerId &&
+					activeElement?.closest('[role="menu"]')?.getAttribute("aria-labelledby") === triggerId,
+				);
+				const hasEditorFocus = view.hasFocus() || element.contains(activeElement) || hasMenuFocus;
 				return (
 					activeEditor.isEditable &&
 					hasEditorFocus &&
@@ -3626,60 +4201,28 @@ function TableBubbleMenu({
 			data-emdash-table-bubble-menu
 			role="group"
 			aria-label={t`Table controls`}
-			className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+			className="z-[100] flex items-center gap-0.5 rounded-lg bg-kumo-base p-1 shadow-lg ring ring-kumo-line"
 		>
+			{controls && (controls.rows > 1 || controls.columns > 1) && (
+				<span className="px-2 text-xs text-kumo-subtle">
+					{t`${plural(controls.rows, { one: "# row", other: "# rows" })} × ${plural(controls.columns, { one: "# column", other: "# columns" })} selected`}
+				</span>
+			)}
 			<BubbleButton
-				onClick={() => editor.chain().focus().addColumnBefore().run()}
-				title={t`Add column before`}
+				onClick={() => run("add-row-after", t`Row added below`)}
+				disabled={!controls?.can["add-row-after"]}
+				title={t`Add row below`}
 			>
-				<ColumnsPlusLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+				<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
 			</BubbleButton>
 			<BubbleButton
-				onClick={() => editor.chain().focus().addColumnAfter().run()}
+				onClick={() => run("add-column-after", t`Column added after`)}
+				disabled={!controls?.can["add-column-after"]}
 				title={t`Add column after`}
 			>
 				<ColumnsPlusRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
 			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteColumn().run()}
-				title={t`Delete column`}
-			>
-				<Columns className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-			</BubbleButton>
-
-			<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
-
-			<BubbleButton
-				onClick={() => editor.chain().focus().addRowBefore().run()}
-				title={t`Add row before`}
-			>
-				<RowsPlusTop className="h-4 w-4" aria-hidden="true" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().addRowAfter().run()}
-				title={t`Add row after`}
-			>
-				<RowsPlusBottom className="h-4 w-4" aria-hidden="true" />
-			</BubbleButton>
-			<BubbleButton onClick={() => editor.chain().focus().deleteRow().run()} title={t`Delete row`}>
-				<Rows className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-			</BubbleButton>
-
-			<div className="mx-1 h-6 w-px bg-kumo-line" aria-hidden="true" />
-
-			<BubbleButton
-				onClick={() => editor.chain().focus().toggleHeaderRow().run()}
-				active={isHeaderRow}
-				title={t`Toggle header row`}
-			>
-				<TableIcon className="h-4 w-4" aria-hidden="true" />
-			</BubbleButton>
-			<BubbleButton
-				onClick={() => editor.chain().focus().deleteTable().run()}
-				title={t`Delete table`}
-			>
-				<Trash className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
-			</BubbleButton>
+			<TableMoreMenu editor={editor} editable={editable} onRun={onRun} />
 		</BubbleMenu>
 	);
 }
@@ -3687,11 +4230,13 @@ function TableBubbleMenu({
 function BubbleButton({
 	onClick,
 	active,
+	disabled,
 	title,
 	children,
 }: {
 	onClick: () => void;
 	active?: boolean;
+	disabled?: boolean;
 	title: string;
 	children: React.ReactNode;
 }) {
@@ -3700,8 +4245,12 @@ function BubbleButton({
 			type="button"
 			variant="ghost"
 			shape="square"
-			className={cn("h-8 w-8", active && "bg-kumo-tint text-kumo-default")}
+			className={cn(
+				"h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11",
+				active && "bg-kumo-tint text-kumo-default",
+			)}
 			onClick={onClick}
+			disabled={disabled}
 			title={title}
 			aria-label={title}
 			aria-pressed={active === undefined ? undefined : active}
@@ -3712,12 +4261,60 @@ function BubbleButton({
 }
 
 type TextAlignment = "left" | "center" | "right" | "justify";
+type AlignmentButtonState = boolean | "mixed";
 
-function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
+function getSelectedTableCells(editor: Editor): ProseMirrorNode[] {
+	const { selection } = editor.state;
+	const cells: ProseMirrorNode[] = [];
+	if (selection instanceof CellSelection) {
+		selection.forEachCell((cell) => cells.push(cell));
+		return cells;
+	}
+	for (let depth = selection.$from.depth; depth > 0; depth--) {
+		const node = selection.$from.node(depth);
+		if (node.type.name === "tableCell" || node.type.name === "tableHeader") {
+			cells.push(node);
+			break;
+		}
+	}
+	return cells;
+}
+
+function getSelectionTextAlignments(editor: Editor): {
+	alignments: Set<TextAlignment>;
+	isCellSelection: boolean;
+	isTableAlignmentUnavailable: boolean;
+} {
+	const tableCells = getSelectedTableCells(editor);
+	if (selectionTouchesTable(editor.state) && !selectionIsContainedInTableCells(editor.state)) {
+		return {
+			alignments: new Set(),
+			isCellSelection: false,
+			isTableAlignmentUnavailable: true,
+		};
+	}
 	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
 	const defaultAlignment: TextAlignment =
 		ownerWindow?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
 	const alignments = new Set<TextAlignment>();
+	if (tableCells.length > 0) {
+		for (const cell of tableCells) {
+			const textAlign = cell.attrs.textAlign;
+			alignments.add(
+				textAlign === "left" ||
+					textAlign === "center" ||
+					textAlign === "right" ||
+					textAlign === "justify"
+					? textAlign
+					: defaultAlignment,
+			);
+		}
+		return {
+			alignments,
+			isCellSelection: editor.state.selection instanceof CellSelection,
+			isTableAlignmentUnavailable: false,
+		};
+	}
 
 	const collectAlignment = (node: ProseMirrorNode) => {
 		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
@@ -3750,8 +4347,72 @@ function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
 		});
 	}
 
-	return alignments.size === 1 ? (alignments.values().next().value ?? null) : null;
+	return { alignments, isCellSelection: false, isTableAlignmentUnavailable: false };
 }
+
+function alignmentButtonState(
+	alignments: Set<TextAlignment>,
+	isCellSelection: boolean,
+	alignment: TextAlignment,
+): AlignmentButtonState {
+	if (alignments.size === 1) return alignments.has(alignment);
+	return isCellSelection && alignments.has(alignment) ? "mixed" : false;
+}
+
+function setSelectionTextAlignment(editor: Editor, alignment: TextAlignment): boolean {
+	if (selectionTouchesTable(editor.state) && !selectionIsContainedInTableCells(editor.state)) {
+		return false;
+	}
+	if (!(editor.state.selection instanceof CellSelection)) {
+		const chain = editor.chain().focus();
+		return editor.isActive("table")
+			? chain.setCellAttribute("textAlign", alignment).run()
+			: chain.setTextAlign(alignment).run();
+	}
+
+	editor.commands.focus();
+	const selection = editor.state.selection;
+	if (!(selection instanceof CellSelection)) return false;
+	const transaction = editor.state.tr;
+	selection.forEachCell((_cell, position) => {
+		const cell = transaction.doc.nodeAt(position);
+		if (cell && cell.attrs.textAlign !== alignment) {
+			transaction.setNodeMarkup(position, undefined, { ...cell.attrs, textAlign: alignment });
+		}
+	});
+	if (!transaction.docChanged) return false;
+	editor.view.dispatch(transaction);
+	return true;
+}
+
+const TableSafetyShortcuts = Extension.create({
+	name: "tableSafetyShortcuts",
+	priority: 1_200,
+	addKeyboardShortcuts() {
+		const blockUnsafeStructure = () => selectionTouchesTable(this.editor.state);
+		const setTableAlignment = (alignment: TextAlignment) => {
+			if (!selectionTouchesTable(this.editor.state)) return false;
+			setSelectionTextAlignment(this.editor, alignment);
+			return true;
+		};
+		return {
+			"Mod-Alt-1": blockUnsafeStructure,
+			"Mod-Alt-2": blockUnsafeStructure,
+			"Mod-Alt-3": blockUnsafeStructure,
+			"Mod-Alt-4": blockUnsafeStructure,
+			"Mod-Alt-5": blockUnsafeStructure,
+			"Mod-Alt-6": blockUnsafeStructure,
+			"Mod-Shift-7": blockUnsafeStructure,
+			"Mod-Shift-8": blockUnsafeStructure,
+			"Mod-Shift-b": blockUnsafeStructure,
+			"Mod-Alt-c": blockUnsafeStructure,
+			"Mod-Shift-l": () => setTableAlignment("left"),
+			"Mod-Shift-e": () => setTableAlignment("center"),
+			"Mod-Shift-r": () => setTableAlignment("right"),
+			"Mod-Shift-j": () => setTableAlignment("justify"),
+		};
+	},
+});
 
 /**
  * Editor Toolbar
@@ -3762,34 +4423,36 @@ function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
 function EditorToolbar({
 	toolbarRef,
 	editor,
-	focusMode,
-	onFocusModeChange,
+	editable,
 	onInsertBlock,
+	onInsertImage,
+	onTableAction,
 }: {
 	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
-	focusMode: FocusMode;
-	onFocusModeChange: (mode: FocusMode) => void;
+	editable: boolean;
 	onInsertBlock: () => void;
+	onInsertImage: () => void;
+	onTableAction: (label: string) => void;
 }) {
 	const { t } = useLingui();
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
-	const linkInputRef = React.useRef<HTMLInputElement>(null);
 
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
 		selector: (ctx) => {
-			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			const { alignments, isCellSelection, isTableAlignmentUnavailable } =
+				getSelectionTextAlignments(ctx.editor);
 			const isOrderedList = ctx.editor.isActive("orderedList");
+			const touchesTable = selectionTouchesTable(ctx.editor.state);
 			return {
+				isInTable: touchesTable,
 				isBold: ctx.editor.isActive("bold"),
 				isItalic: ctx.editor.isActive("italic"),
 				isUnderline: ctx.editor.isActive("underline"),
 				isStrike: ctx.editor.isActive("strike"),
-				isSubscript: ctx.editor.isActive("subscript"),
-				isSuperscript: ctx.editor.isActive("superscript"),
 				isCode: ctx.editor.isActive("code"),
 				isBulletList: ctx.editor.isActive("bulletList"),
 				isOrderedList,
@@ -3797,10 +4460,14 @@ function EditorToolbar({
 				canRestartOrderedList: isOrderedList && ctx.editor.can().restartOrderedList(),
 				isBlockquote: ctx.editor.isActive("blockquote"),
 				isCodeBlock: ctx.editor.isActive("codeBlock"),
-				isAlignLeft: textAlignment === "left",
-				isAlignCenter: textAlignment === "center",
-				isAlignRight: textAlignment === "right",
+				alignLeftState: alignmentButtonState(alignments, isCellSelection, "left"),
+				alignCenterState: alignmentButtonState(alignments, isCellSelection, "center"),
+				alignRightState: alignmentButtonState(alignments, isCellSelection, "right"),
+				isTableAlignmentUnavailable,
 				isLink: ctx.editor.isActive("link"),
+				isImage: ctx.editor.isActive("image"),
+				imageHasLink:
+					ctx.editor.isActive("image") && Boolean(ctx.editor.getAttributes("image").link),
 				canUndo: ctx.editor.can().undo(),
 				canRedo: ctx.editor.can().redo(),
 			};
@@ -3810,14 +4477,27 @@ function EditorToolbar({
 	// Populate link URL when opening popover
 	React.useEffect(() => {
 		if (showLinkPopover) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
-			setTimeout(() => linkInputRef.current?.focus(), 0);
 		}
 	}, [showLinkPopover, editor]);
 
+	const applyLinkHref = (href: string) => {
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, href);
+		} else {
+			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		}
+		setShowLinkPopover(false);
+		setLinkUrl("");
+	};
+
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, linkUrl);
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -3827,20 +4507,19 @@ function EditorToolbar({
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, null);
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
 	};
 
-	const handleLinkKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSetLink();
-		} else if (e.key === "Escape") {
-			setShowLinkPopover(false);
-			setLinkUrl("");
-			editor.commands.focus();
-		}
+	const closeLinkPopover = () => {
+		setShowLinkPopover(false);
+		setLinkUrl("");
+		editor.commands.focus();
 	};
 
 	// Keyboard navigation for toolbar (WAI-ARIA toolbar pattern)
@@ -3946,20 +4625,6 @@ function EditorToolbar({
 					<TextStrikethrough className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSubscript().run()}
-					active={editorState.isSubscript}
-					title={t`Subscript`}
-				>
-					<TextSubscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
-					onClick={() => editor.chain().focus().toggleSuperscript().run()}
-					active={editorState.isSuperscript}
-					title={t`Superscript`}
-				>
-					<TextSuperscript className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					active={editorState.isCode}
 					title={t`Inline Code`}
@@ -3982,6 +4647,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBulletList().run()}
 					active={editorState.isBulletList}
+					disabled={editorState.isInTable}
 					title={t`Bullet List`}
 				>
 					<List className="h-4 w-4" aria-hidden="true" />
@@ -3989,6 +4655,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleOrderedList().run()}
 					active={editorState.isOrderedList}
+					disabled={editorState.isInTable}
 					title={t`Numbered List`}
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
@@ -4014,6 +4681,7 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}
+					disabled={editorState.isInTable}
 					title={t`Quote`}
 				>
 					<Quotes className="h-4 w-4" aria-hidden="true" />
@@ -4021,10 +4689,30 @@ function EditorToolbar({
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
 					active={editorState.isCodeBlock}
+					disabled={editorState.isInTable}
 					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				<ToolbarButton
+					onClick={onInsertImage}
+					disabled={editorState.isInTable}
+					title={t`Insert Image`}
+				>
+					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton
+					onClick={() => insertHtmlBlock(editor)}
+					disabled={editorState.isInTable}
+					title={t`Insert HTML`}
+				>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+			</ToolbarGroup>
+
+			<ToolbarSeparator />
+			<ToolbarGroup>
+				<TableToolbarControl editor={editor} editable={editable} onRun={onTableAction} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
@@ -4032,22 +4720,25 @@ function EditorToolbar({
 			{/* Text alignment */}
 			<ToolbarGroup>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().setTextAlign("left").run()}
-					active={editorState.isAlignLeft}
+					onClick={() => setSelectionTextAlignment(editor, "left")}
+					active={editorState.alignLeftState}
+					disabled={editorState.isTableAlignmentUnavailable}
 					title={t`Align Left`}
 				>
 					<TextAlignLeft className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().setTextAlign("center").run()}
-					active={editorState.isAlignCenter}
+					onClick={() => setSelectionTextAlignment(editor, "center")}
+					active={editorState.alignCenterState}
+					disabled={editorState.isTableAlignmentUnavailable}
 					title={t`Align Center`}
 				>
 					<TextAlignCenter className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 				<ToolbarButton
-					onClick={() => editor.chain().focus().setTextAlign("right").run()}
-					active={editorState.isAlignRight}
+					onClick={() => setSelectionTextAlignment(editor, "right")}
+					active={editorState.alignRightState}
+					disabled={editorState.isTableAlignmentUnavailable}
 					title={t`Align Right`}
 				>
 					<TextAlignRight className="h-4 w-4" aria-hidden="true" />
@@ -4066,7 +4757,7 @@ function EditorToolbar({
 					}}
 				>
 					<Tooltip
-						content={t`Insert Link`}
+						content={editorState.isImage ? t`Image link` : t`Insert Link`}
 						side="bottom"
 						render={
 							<Popover.Trigger
@@ -4077,11 +4768,12 @@ function EditorToolbar({
 										shape="square"
 										className={cn(
 											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
-											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+											(editorState.isLink || editorState.imageHasLink) &&
+												"bg-kumo-interact/50 text-kumo-default",
 										)}
 										onMouseDown={(event) => event.preventDefault()}
-										aria-label={t`Insert Link`}
-										aria-pressed={editorState.isLink}
+										aria-label={editorState.isImage ? t`Image link` : t`Insert Link`}
+										aria-pressed={editorState.isLink || editorState.imageHasLink}
 									>
 										<LinkIcon className="h-4 w-4" aria-hidden="true" />
 									</Button>
@@ -4091,19 +4783,15 @@ function EditorToolbar({
 					/>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
 						<div className="flex flex-col gap-2">
-							<label className="text-xs font-medium text-kumo-subtle">{t`URL`}</label>
-							<div className="flex items-center gap-1">
-								<Input
-									ref={linkInputRef}
-									type="url"
-									placeholder={t`https://...`}
-									value={linkUrl}
-									onChange={(e) => setLinkUrl(e.target.value)}
-									onKeyDown={handleLinkKeyDown}
-									className="h-8 w-52 text-sm"
-									aria-label={t`URL`}
-								/>
-							</div>
+							<label className="text-xs font-medium text-kumo-subtle">{t`Link`}</label>
+							<LinkDestinationInput
+								className="w-80"
+								value={linkUrl}
+								onValueChange={setLinkUrl}
+								onSubmit={handleSetLink}
+								onPick={applyLinkHref}
+								onEscape={closeLinkPopover}
+							/>
 							<div className="flex justify-between">
 								<Button
 									type="button"
@@ -4117,7 +4805,7 @@ function EditorToolbar({
 									{t`Cancel`}
 								</Button>
 								<div className="flex gap-1">
-									{editorState.isLink && (
+									{(editorState.isLink || editorState.imageHasLink) && (
 										<Button
 											type="button"
 											variant="ghost"
@@ -4158,19 +4846,6 @@ function EditorToolbar({
 					<ArrowUUpRight className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
-
-			<ToolbarSeparator aria-hidden="true" />
-
-			{/* Focus mode */}
-			<ToolbarGroup>
-				<ToolbarButton
-					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
-					active={focusMode === "spotlight"}
-					title={focusMode === "spotlight" ? t`Exit Spotlight Mode` : t`Spotlight Mode`}
-				>
-					<Eye className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-			</ToolbarGroup>
 		</div>
 	);
 
@@ -4187,7 +4862,7 @@ function ToolbarSeparator() {
 
 interface ToolbarButtonProps {
 	onClick?: () => void;
-	active?: boolean;
+	active?: AlignmentButtonState;
 	disabled?: boolean;
 	title: string; // Required for accessibility
 	children: React.ReactNode;
@@ -4205,7 +4880,8 @@ function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarBu
 					shape="square"
 					className={cn(
 						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
-						active && "bg-kumo-interact/50 text-kumo-default",
+						active === true && "bg-kumo-interact/50 text-kumo-default",
+						active === "mixed" && "bg-kumo-tint text-kumo-default ring-1 ring-inset ring-kumo-line",
 					)}
 					onMouseDown={(e) => e.preventDefault()}
 					onClick={onClick}

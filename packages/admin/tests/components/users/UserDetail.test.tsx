@@ -1,6 +1,6 @@
-import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { UserDetail } from "../../../src/components/users/UserDetail";
 import type { UserDetail as UserDetailType } from "../../../src/lib/api";

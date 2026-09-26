@@ -1,14 +1,40 @@
 import { z } from "zod";
 
+import { MAX_COLLECTION_GROUP_LENGTH, MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
 // ---------------------------------------------------------------------------
 // Schema (collections & fields): Input schemas
 // ---------------------------------------------------------------------------
 
-const collectionSupportValues = z.enum(["drafts", "revisions", "preview", "scheduling", "search"]);
+const collectionSupportValues = z.enum([
+	"drafts",
+	"revisions",
+	"preview",
+	"scheduling",
+	"search",
+	"seo",
+]);
 
 const collectionSourcePattern = /^(template:.+|import:.+|manual|discovered|seed)$/;
+
+const collectionListColumns = z.array(
+	z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"),
+);
+
+const collectionAdminInputConfig = z.object({
+	listColumns: collectionListColumns
+		.max(
+			MAX_COLLECTION_LIST_COLUMNS,
+			`At most ${MAX_COLLECTION_LIST_COLUMNS} list columns are allowed`,
+		)
+		.optional(),
+});
+
+const collectionAdminResponseConfig = z.object({
+	listColumns: collectionListColumns.optional(),
+});
 
 const fieldTypeValues = z.enum([
 	"string",
@@ -27,6 +53,7 @@ const fieldTypeValues = z.enum([
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ]);
 
 const repeaterSubFieldSchema = z.object({
@@ -47,6 +74,17 @@ const repeaterSubFieldSchema = z.object({
 	label: z.string().min(1),
 	required: z.boolean().optional(),
 	options: z.array(z.string()).optional(),
+});
+
+const urlPatternValue = z.string().superRefine((pattern, ctx) => {
+	try {
+		compileUrlPattern(pattern);
+	} catch {
+		ctx.addIssue({
+			code: "custom",
+			message: "Invalid URL pattern",
+		});
+	}
 });
 
 const fieldValidation = z
@@ -70,10 +108,58 @@ const fieldValidation = z
 			.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
+		// Reference fields: the picker targets a collection and may allow more
+		// than one entry. Without these keys Zod strips them and the create
+		// handler rejects the field for a missing target collection.
+		targetCollection: z.string().min(1).optional(),
+		multiple: z.boolean().optional(),
+		// Reference fields: bind to an existing relation instead of creating one,
+		// and say which of its ends this collection sits on.
+		relation: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(slugPattern, "Invalid relation slug format")
+			.optional(),
+		relationSide: z.enum(["parent", "child"]).optional(),
+		allowedTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
+		retiredTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
+	})
+	.superRefine((validation, ctx) => {
+		for (const [minimum, maximum] of [
+			["min", "max"],
+			["minLength", "maxLength"],
+			["minItems", "maxItems"],
+		] as const) {
+			const minimumValue = validation[minimum];
+			const maximumValue = validation[maximum];
+			if (minimumValue !== undefined && maximumValue !== undefined && minimumValue > maximumValue) {
+				ctx.addIssue({
+					code: "custom",
+					path: [maximum],
+					message: `${maximum} must be greater than or equal to ${minimum}`,
+				});
+			}
+		}
+
+		if (validation.pattern !== undefined) {
+			try {
+				RegExp(validation.pattern);
+			} catch {
+				ctx.addIssue({
+					code: "custom",
+					path: ["pattern"],
+					message: "Invalid validation pattern",
+				});
+			}
+		}
 	})
 	.optional();
 
 const fieldWidgetOptions = z.record(z.string(), z.unknown()).optional();
+
+/** Admin sidebar folder label; an empty string clears it like `null`. */
+const navGroupValue = z.string().trim().max(MAX_COLLECTION_GROUP_LENGTH);
 
 export const createCollectionBody = z
 	.object({
@@ -82,10 +168,16 @@ export const createCollectionBody = z
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
+		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
-		urlPattern: z.string().optional(),
+		urlPattern: urlPatternValue.optional(),
+		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
+		hidden: z.boolean().optional(),
+		sortOrder: z.number().int().nullish(),
+		editLocking: z.boolean().optional(),
+		group: navGroupValue.nullish(),
 	})
 	.meta({ id: "CreateCollectionBody" });
 
@@ -95,13 +187,21 @@ export const updateCollectionBody = z
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
+		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: z.string().nullish(),
+		urlPattern: urlPatternValue.nullish(),
+		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
+		hidden: z.boolean().optional(),
+		sortOrder: z.number().int().nullish(),
+		group: navGroupValue.nullish(),
 		commentsEnabled: z.boolean().optional(),
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
 		commentsClosedAfterDays: z.number().int().min(0).optional(),
 		commentsAutoApproveUsers: z.boolean().optional(),
+		editLocking: z.boolean().optional(),
+		titleField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
+		dateField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
 	})
 	.meta({ id: "UpdateCollectionBody" });
 
@@ -118,6 +218,7 @@ export const createFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "CreateFieldBody" });
@@ -134,6 +235,7 @@ export const updateFieldBody = z
 		options: fieldWidgetOptions,
 		sortOrder: z.number().int().min(0).optional(),
 		searchable: z.boolean().optional(),
+		indexed: z.boolean().optional(),
 		translatable: z.boolean().optional(),
 	})
 	.meta({ id: "UpdateFieldBody" });
@@ -143,6 +245,13 @@ export const fieldReorderBody = z
 		fieldSlugs: z.array(z.string().min(1)),
 	})
 	.meta({ id: "FieldReorderBody" });
+
+export const collectionReorderBody = z
+	.object({
+		/** Full desired sidebar order. Collections left out fall back to alphabetical. */
+		slugs: z.array(z.string().min(1)),
+	})
+	.meta({ id: "CollectionReorderBody" });
 
 export const orphanRegisterBody = z
 	.object({
@@ -155,6 +264,80 @@ export const orphanRegisterBody = z
 export const schemaExportQuery = z.object({
 	format: z.string().optional(),
 });
+
+const blockFieldTypeValues = z.enum([
+	"string",
+	"text",
+	"url",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+	"portableText",
+	"image",
+	"file",
+	"repeater",
+]);
+
+const blockFieldValidation = z
+	.object({
+		min: z.number().optional(),
+		max: z.number().optional(),
+		minLength: z.number().int().min(0).optional(),
+		maxLength: z.number().int().min(0).optional(),
+		pattern: z.string().optional(),
+		options: z.array(z.string()).optional(),
+		subFields: z.array(repeaterSubFieldSchema).min(1).optional(),
+		minItems: z.number().int().min(0).optional(),
+		maxItems: z.number().int().min(1).optional(),
+		allowedMimeTypes: z.array(z.string()).min(1).max(64).optional(),
+	})
+	.strict()
+	.optional();
+
+export const blockFieldDefinitionSchema = z
+	.object({
+		slug: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"),
+		label: z.string().min(1).max(200),
+		type: blockFieldTypeValues,
+		required: z.boolean().optional(),
+		defaultValue: z.unknown().optional(),
+		validation: blockFieldValidation,
+		options: z.object({ darkVariant: z.boolean().optional() }).strict().optional(),
+	})
+	.strict();
+
+export const createBlockTypeBody = z
+	.object({
+		slug: z.string().min(1).max(63).regex(slugPattern, "Invalid block type slug format"),
+		label: z.string().min(1).max(200),
+		description: z.string().optional(),
+		icon: z.string().optional(),
+		category: z.string().optional(),
+		fields: z.array(blockFieldDefinitionSchema),
+	})
+	.strict()
+	.meta({ id: "CreateBlockTypeBody" });
+
+export const updateBlockTypeBody = z
+	.object({
+		expectedFingerprint: z.string().min(1),
+		label: z.string().min(1).max(200).optional(),
+		description: z.string().nullish(),
+		icon: z.string().nullish(),
+		category: z.string().nullish(),
+		fields: z.array(blockFieldDefinitionSchema).optional(),
+		breaking: z.boolean().optional(),
+	})
+	.strict()
+	.meta({ id: "UpdateBlockTypeBody" });
+
+export const activateBlockTypeVersionBody = z
+	.object({ expectedFingerprint: z.string().min(1) })
+	.strict()
+	.meta({ id: "ActivateBlockTypeVersionBody" });
 
 export const collectionGetQuery = z.object({
 	includeFields: z
@@ -175,12 +358,20 @@ export const collectionSchema = z
 		labelSingular: z.string().nullable(),
 		description: z.string().nullable(),
 		icon: z.string().nullable(),
+		admin: collectionAdminResponseConfig.optional(),
 		supports: z.array(z.string()),
 		source: z.string().nullable(),
 		urlPattern: z.string().nullable(),
+		routable: z.boolean(),
 		hasSeo: z.boolean(),
+		hidden: z.boolean(),
+		sortOrder: z.number().int().nullable(),
+		editLocking: z.boolean(),
+		group: z.string().nullish(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
+		titleField: z.string().nullish(),
+		dateField: z.string().nullish(),
 	})
 	.meta({ id: "Collection" });
 
@@ -197,8 +388,11 @@ export const fieldSchema = z
 		validation: z.record(z.string(), z.unknown()).nullable(),
 		widget: z.string().nullable(),
 		options: z.record(z.string(), z.unknown()).nullable(),
+		blockTypes: z.array(z.lazy(() => blockTypeSchema)).optional(),
+		blockTypeFingerprint: z.string().optional(),
 		sortOrder: z.number().int(),
 		searchable: z.boolean(),
+		indexed: z.boolean(),
 		translatable: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
@@ -224,6 +418,44 @@ export const fieldResponseSchema = z.object({ item: fieldSchema }).meta({ id: "F
 export const fieldListResponseSchema = z
 	.object({ items: z.array(fieldSchema) })
 	.meta({ id: "FieldListResponse" });
+
+export const blockTypeVersionSchema = z
+	.object({
+		id: z.string(),
+		blockTypeId: z.string(),
+		version: z.number().int().positive(),
+		fields: z.array(blockFieldDefinitionSchema),
+		fingerprint: z.string(),
+		active: z.boolean(),
+		unsupportedTypes: z.array(z.object({ type: z.string(), path: z.string() }).strict()).optional(),
+		createdAt: z.string(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "BlockTypeVersion" });
+
+export const blockTypeSchema = z
+	.object({
+		id: z.string(),
+		slug: z.string(),
+		label: z.string(),
+		description: z.string().optional(),
+		icon: z.string().optional(),
+		category: z.string().optional(),
+		currentVersion: z.number().int().positive(),
+		source: z.enum(["user", "seed"]),
+		versions: z.array(blockTypeVersionSchema),
+		createdAt: z.string(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "BlockType" });
+
+export const blockTypeResponseSchema = z
+	.object({ item: blockTypeSchema })
+	.meta({ id: "BlockTypeResponse" });
+
+export const blockTypeListResponseSchema = z
+	.object({ items: z.array(blockTypeSchema) })
+	.meta({ id: "BlockTypeListResponse" });
 
 export const orphanedTableSchema = z
 	.object({

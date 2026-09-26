@@ -12,9 +12,9 @@ import {
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
 
-import { compareDigestBytes, decodeMultihash } from "./checksum.js";
+import { unsupportedAuthDetails, UNSUPPORTED_AUTH_MESSAGE } from "./auth.js";
+import { compareDigestBytes, decodeMultihash, multihashFromBlobCid } from "./checksum.js";
 import type { VerificationErrorCode } from "./errors.js";
-import { GitHubProvenanceVerifier } from "./provenance.js";
 import type { ProvenanceVerifier, VerifiedProvenance } from "./provenance.js";
 import { canonicalizeRepositoryUrl } from "./repository.js";
 
@@ -27,6 +27,7 @@ export interface NormalizedReleasePolicy {
 export interface ProvenanceEvidence {
 	document: Uint8Array;
 	artifactDigest: Uint8Array;
+	artifactDigests?: readonly Uint8Array[];
 	verifier?: ProvenanceVerifier;
 }
 
@@ -35,10 +36,17 @@ export interface RecordVerificationInput {
 	package: string;
 	version: string;
 	rkey: string;
+	/** CID from the verified profile record envelope, not from profile content. */
+	profileCid?: string;
 	profile: unknown;
 	release: unknown;
 	provenance?: ProvenanceEvidence;
 }
+
+export type RecordInspectionInput = Omit<RecordVerificationInput, "provenance">;
+export type RecordVerificationInputWithVerifier = Omit<RecordVerificationInput, "provenance"> & {
+	provenance?: ProvenanceEvidence & { verifier: ProvenanceVerifier };
+};
 
 export type RecordVerificationCode =
 	| VerificationErrorCode
@@ -52,6 +60,11 @@ export type ProvenanceStatus =
 	| "verified"
 	| "failed";
 
+export interface RecordVerificationDetails {
+	hint?: string;
+	hintUrl?: string;
+}
+
 export interface RecordVerificationReason {
 	code: RecordVerificationCode;
 	message: string;
@@ -60,13 +73,22 @@ export interface RecordVerificationReason {
 export interface VerifiedRecordContext {
 	profile: PackageProfile.Main;
 	release: PackageRelease.Main;
-	profileExtension: PackageProfileExtension.Main;
+	profileExtension: PackageProfileExtension.Main | null;
 	releaseExtension: PackageReleaseExtension.Main;
-	repository: string;
+	repository: string | null;
 	policy: NormalizedReleasePolicy;
 	declaredAccess: CanonicalDeclaredAccess;
 	verifiedProvenance?: VerifiedProvenance;
 }
+
+export type RecordVerificationFailure = {
+	success: false;
+	status: "failed";
+	code: VerificationErrorCode;
+	reasons: RecordVerificationReason[];
+	provenance: { status: ProvenanceStatus };
+	details?: RecordVerificationDetails;
+};
 
 export type RecordVerificationReport =
 	| {
@@ -77,13 +99,18 @@ export type RecordVerificationReport =
 			provenance: { status: "verified" | "absent-optional" };
 			value: VerifiedRecordContext;
 	  }
+	| RecordVerificationFailure;
+
+export type RecordInspectionReport =
 	| {
-			success: false;
-			status: "failed";
-			code: VerificationErrorCode;
+			success: true;
+			status: "inspected";
+			code: "VERIFIED";
 			reasons: RecordVerificationReason[];
-			provenance: { status: ProvenanceStatus };
-	  };
+			provenance: { status: "not-checked" };
+			value: VerifiedRecordContext;
+	  }
+	| RecordVerificationFailure;
 
 const DEFAULT_POLICY: NormalizedReleasePolicy = {
 	requireProvenance: false,
@@ -91,10 +118,10 @@ const DEFAULT_POLICY: NormalizedReleasePolicy = {
 	approvers: [],
 };
 
-/** Validate signed profile/release records and apply the complete provenance policy. */
-export async function verifyPackageReleaseRecords(
-	input: RecordVerificationInput,
-): Promise<RecordVerificationReport> {
+/** Validate signed profile/release records without evaluating provenance evidence. */
+export async function inspectPackageReleaseRecords(
+	input: RecordInspectionInput,
+): Promise<RecordInspectionReport> {
 	const profile = await parseLexicon(PackageProfile.mainSchema, input.profile);
 	if (!profile) return failed("PROFILE_LEXICON_INVALID", "The package profile is malformed.");
 
@@ -112,33 +139,34 @@ export async function verifyPackageReleaseRecords(
 		);
 	}
 
-	if (profile.extensions === undefined) {
-		return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
-	}
-	if (!isRecord(profile.extensions)) {
-		return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-	}
-	const profileExtensions = profile.extensions;
-	const rawProfileExtension = profileExtensions[NSID.packageProfileExtension];
+	let profileExtension: PackageProfileExtension.Main | null = null;
+	let repository: string | null = null;
+	let policy: NormalizedReleasePolicy = { ...DEFAULT_POLICY, approvers: [] };
+	const rawProfileExtension = isRecord(profile.extensions)
+		? profile.extensions[NSID.packageProfileExtension]
+		: undefined;
 	if (rawProfileExtension === undefined) {
-		return failed("PROFILE_EXTENSION_MISSING", "The signed repository extension is absent.");
+		if (profile.extensions !== undefined && !isRecord(profile.extensions)) {
+			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
+		}
+	} else {
+		profileExtension = await parseLexicon(PackageProfileExtension.mainSchema, rawProfileExtension);
+		if (!profileExtension) {
+			return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
+		}
+		repository = canonicalizeRepositoryUrl(profileExtension.repository);
+		if (!repository || repository !== profileExtension.repository) {
+			return failed(
+				"PROFILE_REPOSITORY_INVALID",
+				"The signed repository anchor is not canonical HTTPS.",
+			);
+		}
+		const normalizedPolicy = normalizePolicy(profileExtension.releasePolicy);
+		if (!normalizedPolicy) {
+			return failed("PROFILE_POLICY_INVALID", "The signed release policy is invalid.");
+		}
+		policy = normalizedPolicy;
 	}
-	const profileExtension = await parseLexicon(
-		PackageProfileExtension.mainSchema,
-		rawProfileExtension,
-	);
-	if (!profileExtension) {
-		return failed("PROFILE_EXTENSION_INVALID", "The signed repository extension is malformed.");
-	}
-	const repository = canonicalizeRepositoryUrl(profileExtension.repository);
-	if (!repository || repository !== profileExtension.repository) {
-		return failed(
-			"PROFILE_REPOSITORY_INVALID",
-			"The signed repository anchor is not canonical HTTPS.",
-		);
-	}
-	const policy = normalizePolicy(profileExtension.releasePolicy);
-	if (!policy) return failed("PROFILE_POLICY_INVALID", "The signed release policy is invalid.");
 
 	const release = await parseLexicon(PackageRelease.mainSchema, input.release);
 	if (!release) return failed("RELEASE_LEXICON_INVALID", "The package release is malformed.");
@@ -163,6 +191,14 @@ export async function verifyPackageReleaseRecords(
 			"The release record key does not match package and version.",
 		);
 	}
+	const artifactFailure = validateArtifacts(release);
+	if (artifactFailure) {
+		return failed(artifactFailure.code, artifactFailure.message);
+	}
+	const authFailure = unsupportedAuth(release);
+	if (authFailure) {
+		return failed(authFailure.code, authFailure.message, "not-checked", authFailure.details);
+	}
 
 	if (release.extensions === undefined) {
 		return failed("RELEASE_EXTENSION_MISSING", "The EmDash release extension is absent.");
@@ -184,6 +220,33 @@ export async function verifyPackageReleaseRecords(
 	}
 	const declaredAccess = canonicalizeDeclaredAccess(releaseExtension.declaredAccess);
 
+	return {
+		success: true,
+		status: "inspected",
+		code: "VERIFIED",
+		reasons: [{ code: "VERIFIED", message: "The signed package records are valid." }],
+		provenance: { status: "not-checked" },
+		value: {
+			profile,
+			release,
+			profileExtension,
+			releaseExtension,
+			repository,
+			policy,
+			declaredAccess,
+		},
+	};
+}
+
+async function verifyPackageReleaseRecordsInternal(
+	input: RecordVerificationInput,
+	defaultVerifier: ProvenanceVerifier | null,
+): Promise<RecordVerificationReport> {
+	const inspection = await inspectPackageReleaseRecords(input);
+	if (!inspection.success) return inspection;
+	const context = inspection.value;
+	const { policy, release, releaseExtension, repository } = context;
+
 	if (!releaseExtension.provenance) {
 		if (policy.requireProvenance) {
 			return failed(
@@ -203,16 +266,15 @@ export async function verifyPackageReleaseRecords(
 				},
 			],
 			provenance: { status: "absent-optional" },
-			value: {
-				profile,
-				release,
-				profileExtension,
-				releaseExtension,
-				repository,
-				policy,
-				declaredAccess,
-			},
+			value: context,
 		};
+	}
+	if (repository === null) {
+		return failed(
+			"PROVENANCE_UNVERIFIABLE",
+			"The release supplies provenance, but its signed profile has no repository anchor.",
+			"failed",
+		);
 	}
 
 	if (!input.provenance) {
@@ -233,13 +295,21 @@ export async function verifyPackageReleaseRecords(
 			"failed",
 		);
 	}
-	const verifier = input.provenance.verifier ?? new GitHubProvenanceVerifier();
+	const verifier = input.provenance.verifier ?? defaultVerifier;
+	if (!verifier) {
+		return failed(
+			"PROVENANCE_UNVERIFIABLE",
+			"The supplied provenance verifier is unavailable.",
+			"failed",
+		);
+	}
 	let provenanceResult: Awaited<ReturnType<ProvenanceVerifier["verify"]>>;
 	try {
 		provenanceResult = await verifier.verify({
 			document: input.provenance.document,
 			reference: releaseExtension.provenance,
 			artifactDigest: input.provenance.artifactDigest,
+			artifactDigests: input.provenance.artifactDigests,
 			profileRepository: repository,
 		});
 	} catch {
@@ -260,16 +330,23 @@ export async function verifyPackageReleaseRecords(
 		reasons: [{ code: "VERIFIED", message: "The signed records and provenance are valid." }],
 		provenance: { status: "verified" },
 		value: {
-			profile,
-			release,
-			profileExtension,
-			releaseExtension,
-			repository,
-			policy,
-			declaredAccess,
+			...context,
 			verifiedProvenance: provenanceResult.value,
 		},
 	};
+}
+
+export function verifyPackageReleaseRecordsWithVerifier(
+	input: RecordVerificationInputWithVerifier,
+): Promise<RecordVerificationReport> {
+	return verifyPackageReleaseRecordsInternal(input, null);
+}
+
+export function verifyPackageReleaseRecordsWithDefaultVerifier(
+	input: RecordVerificationInput,
+	defaultVerifier: ProvenanceVerifier,
+): Promise<RecordVerificationReport> {
+	return verifyPackageReleaseRecordsInternal(input, defaultVerifier);
 }
 
 function normalizePolicy(
@@ -302,13 +379,78 @@ function failed(
 	code: VerificationErrorCode,
 	message: string,
 	provenance: ProvenanceStatus = "not-checked",
-): RecordVerificationReport {
+	details?: RecordVerificationDetails,
+): RecordVerificationFailure {
 	return {
 		success: false,
 		status: "failed",
 		code,
 		reasons: [{ code, message }],
 		provenance: { status: provenance },
+		...(details === undefined ? {} : { details }),
+	};
+}
+
+function validateArtifacts(
+	release: PackageRelease.Main,
+): { code: VerificationErrorCode; message: string } | null {
+	const artifacts: unknown[] = [
+		release.artifacts.package,
+		release.artifacts.icon,
+		release.artifacts.banner,
+		...(release.artifacts.screenshots ?? []),
+	];
+	for (const value of artifacts) {
+		if (value === undefined) continue;
+		if (!isRecord(value)) {
+			return { code: "RELEASE_LEXICON_INVALID", message: "A release artifact is malformed." };
+		}
+		const hasUrl = typeof value.url === "string" && value.url.length > 0;
+		const blob = value.blob;
+		const hasBlob = isRecord(blob);
+		if (!hasUrl && !hasBlob) {
+			return {
+				code: "RELEASE_ARTIFACT_SOURCE_MISSING",
+				message: "Every release artifact must provide a blob or URL.",
+			};
+		}
+		if (hasBlob) {
+			const ref = blob.ref;
+			const cid = isRecord(ref) ? ref.$link : undefined;
+			if (typeof cid !== "string") {
+				return { code: "BLOB_REF_INVALID", message: "The blob reference CID is malformed." };
+			}
+			const expected = multihashFromBlobCid(cid);
+			if (!expected.success) return expected.error;
+			if (value.checksum !== expected.value) {
+				return {
+					code: "CHECKSUM_MISMATCH",
+					message: "The artifact checksum does not match its blob reference CID.",
+				};
+			}
+		}
+	}
+	return null;
+}
+
+function unsupportedAuth(release: PackageRelease.Main): {
+	code: "AUTH_METHOD_UNSUPPORTED";
+	message: string;
+	details?: RecordVerificationDetails;
+} | null {
+	const gated = [
+		release.artifacts.package,
+		release.artifacts.icon,
+		release.artifacts.banner,
+		...(release.artifacts.screenshots ?? []),
+	].some((artifact) => artifact?.requiresAuth === true);
+	if (release.auth === undefined && !gated) return null;
+
+	const details = unsupportedAuthDetails(release.auth);
+	return {
+		code: "AUTH_METHOD_UNSUPPORTED",
+		message: UNSUPPORTED_AUTH_MESSAGE,
+		...(details === undefined ? {} : { details }),
 	};
 }
 

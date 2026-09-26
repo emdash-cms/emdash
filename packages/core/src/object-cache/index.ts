@@ -25,6 +25,8 @@
  * fork them (same pattern as `request-context.ts`).
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { after } from "../after.js";
 import { getRequestContext } from "../request-context.js";
 import { decode, encode } from "./codec.js";
@@ -46,6 +48,8 @@ interface BackendHolder {
 	backend: ObjectCacheBackend | null;
 	/** In-flight initialization promise (dedupes concurrent first calls). */
 	initPromise: Promise<ObjectCacheBackend | null> | null;
+	/** `Date.now()` when the in-flight initialization started. */
+	initPromiseAt?: number;
 	config: Required<Pick<ObjectCacheRuntimeConfig, "keyPrefix">> & {
 		defaultTtl: number;
 		revalidate: number;
@@ -128,9 +132,24 @@ function raceInFlightEpochRead(
 	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Bound a waiter on another request's backend initialization. */
+function raceInFlightBackendInit(
+	promise: Promise<ObjectCacheBackend | null>,
+	ms: number,
+): Promise<ObjectCacheBackend | null> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<ObjectCacheBackend | null>((resolve) => {
+		timer = setTimeout(resolve, Math.max(ms, 1), null);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 const BACKEND_KEY = Symbol.for("emdash:object-cache:backend");
 const EPOCH_KEY = Symbol.for("emdash:object-cache:epochs");
 const PENDING_KEY = Symbol.for("emdash:object-cache:pending-bumps");
+const LAST_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:last-content-write");
+const PENDING_CONTENT_WRITE_KEY = Symbol.for("emdash:object-cache:pending-content-write");
+const WRITE_SCOPE_KEY = Symbol.for("emdash:object-cache:write-scope");
 const g = globalThis as Record<symbol, unknown>;
 
 const holder: BackendHolder =
@@ -172,6 +191,56 @@ const pendingBumps: Set<string> =
 	})();
 
 /**
+ * Isolate-local ms-epoch of the last content-namespace invalidation, plus a
+ * cached backend read (same revalidate window as epochs). Adapters that need
+ * to prefer fresh SQL after a publish (e.g. Hyperdrive `cachedBinding`) read
+ * this via {@link getLastContentWriteAt}.
+ */
+interface LastContentWriteState {
+	/** Local / merged stamp; 0 if never set in this isolate. */
+	value: number;
+	/** `Date.now()` when `value` was last confirmed from the backend (or local stamp). */
+	at: number;
+	promise?: Promise<number>;
+	promiseAt?: number;
+}
+
+const lastContentWrite: LastContentWriteState =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[LAST_CONTENT_WRITE_KEY] as LastContentWriteState | undefined) ??
+	(() => {
+		const s: LastContentWriteState = { value: 0, at: 0 };
+		g[LAST_CONTENT_WRITE_KEY] = s;
+		return s;
+	})();
+
+/** Whether a backend persist of the content-write stamp is already scheduled. */
+const contentWritePersist: { pending: boolean } =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[PENDING_CONTENT_WRITE_KEY] as { pending: boolean } | undefined) ??
+	(() => {
+		const s = { pending: false };
+		g[PENDING_CONTENT_WRITE_KEY] = s;
+		return s;
+	})();
+
+/** Backend writes held by {@link coalesceObjectCacheWrites} until its work ends. */
+interface WriteScope {
+	/** Each write persists the latest local value when it runs, so one per key suffices. */
+	held: Map<string, () => void>;
+	closed: boolean;
+}
+
+const writeScopes: AsyncLocalStorage<WriteScope> =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[WRITE_SCOPE_KEY] as AsyncLocalStorage<WriteScope> | undefined) ??
+	(() => {
+		const als = new AsyncLocalStorage<WriteScope>();
+		g[WRITE_SCOPE_KEY] = als;
+		return als;
+	})();
+
+/**
  * Resolve (once per isolate) the configured object-cache backend.
  *
  * Loads `virtual:emdash/object-cache`, which exports `createObjectCache`
@@ -180,8 +249,15 @@ const pendingBumps: Set<string> =
  */
 async function getBackend(): Promise<ObjectCacheBackend | null> {
 	if (holder.initialized) return holder.backend;
-	if (holder.initPromise) return holder.initPromise;
+	if (holder.initPromise) {
+		const age = Date.now() - (holder.initPromiseAt ?? 0);
+		const deadline = epochReadDeadline();
+		if (age < deadline) {
+			return raceInFlightBackendInit(holder.initPromise, deadline - age);
+		}
+	}
 
+	holder.initPromiseAt = Date.now();
 	holder.initPromise = (async () => {
 		try {
 			const mod: {
@@ -223,10 +299,19 @@ async function getBackend(): Promise<ObjectCacheBackend | null> {
 		}
 		holder.initialized = true;
 		holder.initPromise = null;
+		holder.initPromiseAt = undefined;
 		return holder.backend;
 	})();
 
-	return holder.initPromise;
+	const started = holder.initPromise;
+	after(() =>
+		started.then(
+			() => undefined,
+			() => undefined,
+		),
+	);
+
+	return started;
 }
 
 /**
@@ -243,9 +328,26 @@ export function __setObjectCacheBackendForTests(
 ): void {
 	holder.initialized = true;
 	holder.initPromise = null;
+	holder.initPromiseAt = undefined;
 	holder.backend = backend;
 	holder.config = { ...holder.config, ...config };
 	epochCache.clear();
+	lastContentWrite.value = 0;
+	lastContentWrite.at = 0;
+	lastContentWrite.promise = undefined;
+	lastContentWrite.promiseAt = undefined;
+	contentWritePersist.pending = false;
+}
+
+/** @internal */
+export function __setObjectCacheBackendInitForTests(
+	promise: Promise<ObjectCacheBackend | null>,
+	startedAt: number,
+): void {
+	holder.initialized = false;
+	holder.backend = null;
+	holder.initPromise = promise;
+	holder.initPromiseAt = startedAt;
 }
 
 /** Build the backend key for a namespace's epoch anchor. */
@@ -253,6 +355,14 @@ function epochKey(namespace: string): string {
 	return `${holder.config.keyPrefix}:epoch:${namespace}`;
 }
 
+/** Backend key for the shared "last content write" stamp (no short TTL). */
+function lastContentWriteKey(): string {
+	return `${holder.config.keyPrefix}:last-content-write-at`;
+}
+
+function isContentNamespace(namespace: string): boolean {
+	return namespace.startsWith("content:");
+}
 /**
  * Build the (epoch-independent) backend key for a cached value.
  *
@@ -470,12 +580,109 @@ export async function isObjectCacheActive(): Promise<boolean> {
 }
 
 /**
+ * Stamp the isolate-local + backend "last content write" marker when a
+ * content collection namespace is invalidated. Used by DB adapters (Hyperdrive)
+ * to briefly prefer uncached SQL after a publish so edge/object caches are not
+ * reseeded from a stale query-cache hit.
+ */
+function stampLastContentWrite(): void {
+	const stamp = Math.max(lastContentWrite.value + 1, Date.now());
+	lastContentWrite.value = stamp;
+	lastContentWrite.at = stamp;
+	// Drop any in-flight backend read so it cannot lower a fresher local stamp.
+	lastContentWrite.promise = undefined;
+	lastContentWrite.promiseAt = undefined;
+
+	scheduleBackendWrite("last-content-write", persistLastContentWrite);
+}
+
+function persistLastContentWrite(): void {
+	if (contentWritePersist.pending) return;
+	contentWritePersist.pending = true;
+	after(async () => {
+		contentWritePersist.pending = false;
+		try {
+			const backend = await getBackend();
+			if (!backend) return;
+			const latest = lastContentWrite.value;
+			// Persistent (no TTL) — same contract as epoch anchors.
+			await backend.set(lastContentWriteKey(), String(latest));
+		} catch (error) {
+			console.error("[object-cache] last-content-write stamp failed:", error);
+		}
+	});
+}
+
+/**
+ * ms-epoch of the last content-namespace invalidation (`content:*`), or `0`
+ * if unknown. Returns `max(local, backend)` so a warm isolate that just
+ * published is immediately correct, and cold isolates learn within their
+ * `revalidate` window after another isolate stamped the backend.
+ */
+export async function getLastContentWriteAt(): Promise<number> {
+	const local = lastContentWrite.value;
+	const now = Date.now();
+	// Cache a confirmed miss (`0`) the same way as a positive stamp — otherwise
+	// every logged-out request re-reads the backend until the first content write.
+	if (now - lastContentWrite.at < holder.config.revalidate) {
+		return local;
+	}
+
+	const backend = await getBackend();
+	if (!backend) return local;
+
+	if (lastContentWrite.promise) {
+		const age = now - (lastContentWrite.promiseAt ?? 0);
+		const deadline = epochReadDeadline();
+		if (age < deadline) {
+			return raceInFlightEpochRead(lastContentWrite.promise, deadline - age, local);
+		}
+	}
+
+	const promise = (async () => {
+		let value: number;
+		try {
+			const raw = await withTimeout(
+				backend.get(lastContentWriteKey()),
+				holder.config.timeout,
+				"last-content-write read",
+			);
+			const parsed = raw === null ? 0 : Number(raw);
+			value = Number.isFinite(parsed) ? parsed : 0;
+		} catch {
+			value = lastContentWrite.value;
+		}
+		const merged = Math.max(value, lastContentWrite.value);
+		lastContentWrite.value = merged;
+		lastContentWrite.at = Date.now();
+		lastContentWrite.promise = undefined;
+		lastContentWrite.promiseAt = undefined;
+		return merged;
+	})();
+
+	after(() =>
+		promise.then(
+			() => undefined,
+			() => undefined,
+		),
+	);
+
+	lastContentWrite.promise = promise;
+	lastContentWrite.promiseAt = now;
+	return promise;
+}
+
+/**
  * Invalidate every cached value in `namespace` by bumping its epoch.
  *
  * Sync and non-blocking: the local epoch is stamped immediately (so the
  * writing isolate is instantly consistent) and the backend write is deferred
- * via `after`. Other isolates pick up the new epoch within their `revalidate`
- * window. No-ops when the cache is disabled.
+ * via `after`, or held until the work ends inside
+ * {@link coalesceObjectCacheWrites}. Other isolates pick up the new epoch
+ * within their `revalidate` window after that write. No-ops when the cache is
+ * disabled.
+ *
+ * Content namespaces (`content:*`) also stamp {@link getLastContentWriteAt}.
  */
 export function invalidateObjectCache(namespace: string): void {
 	// Monotonic so two writes in the same millisecond still produce distinct
@@ -486,8 +693,16 @@ export function invalidateObjectCache(namespace: string): void {
 	// Optimistic local bump: keep this isolate consistent without a round-trip.
 	epochCache.set(namespace, { value: stamp, at: stamp });
 
-	// Coalesce repeated bumps of the same namespace within a tick (e.g. a bulk
-	// publish loop) into a single backend write that persists the latest epoch.
+	if (isContentNamespace(namespace)) {
+		stampLastContentWrite();
+	}
+
+	scheduleBackendWrite(`epoch:${namespace}`, () => persistEpoch(namespace, stamp));
+}
+
+function persistEpoch(namespace: string, stamp: number): void {
+	// Coalesce repeated bumps of the same namespace within a tick into a single
+	// backend write that persists the latest epoch.
 	if (pendingBumps.has(namespace)) return;
 	pendingBumps.add(namespace);
 	after(async () => {
@@ -503,6 +718,40 @@ export function invalidateObjectCache(namespace: string): void {
 			console.error("[object-cache] epoch bump failed for", namespace, error);
 		}
 	});
+}
+
+function scheduleBackendWrite(key: string, write: () => void): void {
+	const scope = writeScopes.getStore();
+	if (scope && !scope.closed) {
+		scope.held.set(key, write);
+		return;
+	}
+	write();
+}
+
+/**
+ * Run a bulk write, such as applying a seed, with its backend epoch writes held
+ * until it settles. Invalidations inside `fn` still stamp the local epochs
+ * immediately; the backend then receives one write per namespace, carrying the
+ * latest epoch, whether `fn` resolves or throws. Without this, every entry
+ * rewrites the same few keys, and KV accepts about one write per second per key.
+ *
+ * Other isolates see none of these invalidations until `fn` ends, so don't wrap
+ * work that purges edge-cached pages part-way through: a page rebuilt after
+ * such a purge would still read the old epoch. If the invocation is killed
+ * before `fn` settles, the held writes are lost with it, and other isolates
+ * keep their cached values until those expire.
+ */
+export async function coalesceObjectCacheWrites<T>(fn: () => Promise<T>): Promise<T> {
+	const scope: WriteScope = { held: new Map(), closed: false };
+	try {
+		return await writeScopes.run(scope, fn);
+	} finally {
+		// Deferred work started inside `fn` can still invalidate after this point;
+		// it sees the closed scope and writes through.
+		scope.closed = true;
+		for (const write of scope.held.values()) write();
+	}
 }
 
 /**

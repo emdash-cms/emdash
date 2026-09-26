@@ -14,7 +14,7 @@
  *   - `wp:category` -> EmDash `category` taxonomy (seeded by migration 006).
  *   - `wp:tag`      -> EmDash `tag` taxonomy.
  *   - `wp:term`     -> matching EmDash taxonomy by `name` (case-sensitive).
- *                      If no matching def exists in the target locale, the
+ *                      If the taxonomy isn't defined in any locale, the
  *                      term is skipped — we don't auto-create defs because
  *                      the user controls their schema through the admin.
  *   - Terms are created idempotently by `(taxonomy, slug, locale)`. Existing
@@ -28,9 +28,12 @@
 import type { Kysely } from "kysely";
 
 import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../cli/wxr/parser.js";
+import {
+	findTaxonomyStructure,
+	selectTaxonomyDefs,
+} from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
 import type { Database } from "../database/types.js";
-import { resolveLocaleChain } from "../i18n/resolve.js";
 import { invalidateTermCache } from "../taxonomies/index.js";
 
 /**
@@ -128,22 +131,6 @@ function rememberTerm(
 	bySlug.set(slug, termId);
 }
 
-/**
- * Look up an EmDash taxonomy def by name. Definitions are per-locale but
- * a def is conceptually site-wide -- the per-locale row carries only the
- * label translations.
- *
- * Match the runtime helper `getTaxonomyDef` (in `src/taxonomies/index.ts`):
- * walk `resolveLocaleChain(locale)` so the importer picks the same def the
- * runtime would later resolve to. When the chain is empty (i18n disabled)
- * or every locale in the chain misses, fall through to the lowest-locale
- * row so single-locale installs still see seeded defs that were inserted
- * at some non-empty locale value.
- *
- * Without this fallback, a user importing into a non-default locale would
- * see every category dropped as `missingTaxonomies` even though the seeded
- * defs exist (just at the site's default locale).
- */
 function parseDefCollections(raw: string | null): string[] {
 	if (!raw) return [];
 	try {
@@ -155,47 +142,6 @@ function parseDefCollections(raw: string | null): string[] {
 		// malformed JSON in the def -- treat as "no collection filter"
 	}
 	return [];
-}
-
-async function findTaxonomyDef(
-	db: Kysely<Database>,
-	name: string,
-	locale: string | undefined,
-): Promise<{ id: string; collections: string[] } | null> {
-	const chain = resolveLocaleChain(locale);
-
-	if (chain.length === 0) {
-		// i18n disabled and no explicit locale. The runtime treats this
-		// as "no locale filter" and picks the lowest-locale row. We do the
-		// same so the importer agrees with how the runtime later reads
-		// the def.
-		const row = await db
-			.selectFrom("_emdash_taxonomy_defs")
-			.selectAll()
-			.where("name", "=", name)
-			.orderBy("locale", "asc")
-			.executeTakeFirst();
-		return row ? { id: row.id, collections: parseDefCollections(row.collections) } : null;
-	}
-
-	// Non-empty chain: walk it in order, return null if every entry misses.
-	// This matches `getTaxonomyDef` exactly. We deliberately do NOT fall
-	// through to any-locale lookup: doing so would let the importer pick a
-	// def at a locale the runtime would never resolve to, producing
-	// content the user can't see in the admin or on the rendered site.
-	for (const tryLocale of chain) {
-		const row = await db
-			.selectFrom("_emdash_taxonomy_defs")
-			.selectAll()
-			.where("name", "=", name)
-			.where("locale", "=", tryLocale)
-			.executeTakeFirst();
-		if (row) {
-			return { id: row.id, collections: parseDefCollections(row.collections) };
-		}
-	}
-
-	return null;
 }
 
 /**
@@ -212,11 +158,7 @@ async function findTaxonomyDef(
 export async function loadTaxonomyPlanFromDb(db: Kysely<Database>): Promise<TaxonomyImportPlan> {
 	const state = makeState();
 
-	const defs = await db
-		.selectFrom("_emdash_taxonomy_defs")
-		.select(["name", "collections"])
-		.orderBy("locale", "asc")
-		.execute();
+	const defs = await selectTaxonomyDefs(db).orderBy("d.locale", "asc").execute();
 	for (const def of defs) {
 		if (!state.plan.collectionsByTaxonomy.has(def.name)) {
 			state.plan.collectionsByTaxonomy.set(def.name, new Set(parseDefCollections(def.collections)));
@@ -330,12 +272,14 @@ export async function preImportWxrTaxonomies(
 	const repo = new TaxonomyRepository(db);
 
 	// Cache def lookups for the duration of the import. Keyed by name; value
-	// is `null` when we've already determined the def is missing in this
-	// locale (so we only report the "missing" warning once per taxonomy).
+	// is `null` when we've already determined the taxonomy is missing (so we
+	// only report the "missing" warning once per taxonomy).
 	const defCache = new Map<string, { id: string; collections: string[] } | null>();
 	const lookupDef = async (name: string): Promise<{ id: string; collections: string[] } | null> => {
 		if (defCache.has(name)) return defCache.get(name) ?? null;
-		const def = await findTaxonomyDef(db, name, locale);
+		// A taxonomy's structure is the same in every locale, so a definition in
+		// any locale counts, as it does for the runtime's `getTaxonomyDef`.
+		const def = await findTaxonomyStructure(db, name);
 		defCache.set(name, def);
 		if (def) {
 			state.plan.collectionsByTaxonomy.set(name, new Set(def.collections));
@@ -549,26 +493,21 @@ export async function attachPostTaxonomies(
 ): Promise<number> {
 	const repo = new TaxonomyRepository(db);
 	const resolved = resolvePostTermAssignments(collection, post, plan);
-
-	let attached = 0;
+	const groups = new Set<string>();
 	for (const [, termIds] of resolved) {
 		for (const termId of termIds) {
-			const wrote = await attachToEntryCountingInserts(db, repo, plan, collection, entryId, termId);
-			if (wrote) attached++;
+			const group = await termTranslationGroup(repo, plan, termId);
+			if (group) groups.add(group);
 		}
 	}
-	return attached;
+	return repo.attachGroupsToEntry(collection, entryId, [...groups]);
 }
 
 /**
  * Replace assignments per-taxonomy from a parsed WXR post. Used for
- * translations: WPML's "Translate Independently" mode lets translators
- * override term assignments per-taxonomy, not per-post. A translation that
- * overrides `category` shouldn't lose its inherited `tag` or `genre`. We
- * only call `setTermsForEntry(name, ids)` for taxonomies where the
- * translation actually resolved at least one term -- taxonomies with no
- * resolvable+permitted terms are left alone so inherited rows from
- * `copyEntryTerms` stay intact.
+ * translations. Assignments belong to the content translation_group, so a
+ * translated item's explicit taxonomy replaces that taxonomy for every
+ * locale. Taxonomies with no resolvable permitted terms are left unchanged.
  *
  * Returns the number of pivot rows after replacement (sum of `termIds`
  * lists across taxonomies actually touched). Note this counts logical
@@ -610,41 +549,6 @@ async function termTranslationGroup(
 	const group = term?.translationGroup ?? null;
 	plan.translationGroupByTermId.set(termId, group);
 	return group;
-}
-
-/**
- * Wrapper around `TaxonomyRepository.attachToEntry` that returns whether
- * an actual row was inserted (vs. silently skipped by the `ON CONFLICT DO
- * NOTHING` branch). Lets the importer's `assignments` counter reflect real
- * writes rather than re-import no-ops.
- *
- * Best-effort: we check pivot existence first, then call `attachToEntry`.
- * A concurrent insert between the check and the attach would make us
- * report `false` while a row was in fact inserted -- the count is for
- * summary display only, never correctness.
- */
-async function attachToEntryCountingInserts(
-	db: Kysely<Database>,
-	repo: TaxonomyRepository,
-	plan: TaxonomyImportPlan,
-	collection: string,
-	entryId: string,
-	termId: string,
-): Promise<boolean> {
-	const group = await termTranslationGroup(repo, plan, termId);
-	if (!group) return false;
-
-	const existing = await db
-		.selectFrom("content_taxonomies")
-		.select("collection")
-		.where("collection", "=", collection)
-		.where("entry_id", "=", entryId)
-		.where("taxonomy_id", "=", group)
-		.executeTakeFirst();
-	if (existing) return false;
-
-	await repo.attachToEntry(collection, entryId, termId);
-	return true;
 }
 
 /**

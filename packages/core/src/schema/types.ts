@@ -5,6 +5,8 @@
  * They are the source of truth for all collections and fields.
  */
 
+import type { BlockType } from "./block-types.js";
+
 /**
  * Supported field types
  */
@@ -24,7 +26,8 @@ export type FieldType =
 	| "reference"
 	| "json"
 	| "slug"
-	| "repeater";
+	| "repeater"
+	| "blocks";
 
 /**
  * Array of all field types for validation
@@ -46,7 +49,25 @@ export const FIELD_TYPES: readonly FieldType[] = [
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ] as const;
+
+/** Scalar field types that can be backed by a content-list query index. */
+export const INDEXABLE_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"url",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"reference",
+	"slug",
+]);
+
+export function isIndexableFieldType(type: FieldType): boolean {
+	return INDEXABLE_FIELD_TYPES.has(type);
+}
 
 /**
  * SQLite column types that map from field types
@@ -73,7 +94,52 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 	slug: "TEXT",
 	url: "TEXT",
 	repeater: "JSON",
+	blocks: "JSON",
 };
+
+export const MAX_BLOCKS_ITEMS = 100;
+
+/**
+ * Field types that *can* persist no `ec_*` column — see `isStoragelessField`
+ * for whether a given row actually does. The `FIELD_TYPE_TO_COLUMN` entry above
+ * is retained deliberately: it doubles as the `isFieldType` guard.
+ */
+export const STORAGELESS_FIELD_TYPES: ReadonlySet<string> = new Set<FieldType>(["reference"]);
+
+/**
+ * Whether a field row keeps its values outside the content table.
+ *
+ * Storage-less is a property of the row, not of the type. A `reference` field
+ * is storage-less once it is bound to a relation: the selection lives as edges
+ * in `_emdash_content_references`. A reference field created before relations
+ * existed — or one whose target collection could not be resolved — still owns a
+ * TEXT column holding an entry id, and behaves like a string field until
+ * something wires it.
+ */
+export function isStoragelessField(field: {
+	type: string;
+	validation?: FieldValidation | null;
+}): boolean {
+	if (!STORAGELESS_FIELD_TYPES.has(field.type)) return false;
+	return typeof field.validation?.relation === "string" && field.validation.relation.length > 0;
+}
+
+/**
+ * `isStoragelessField` for a raw `_emdash_fields` row, whose `validation` is
+ * unparsed JSON. Malformed JSON reads as unwired: a field nothing can resolve a
+ * relation for keeps its column.
+ */
+export function isStoragelessFieldRow(row: { type: string; validation: string | null }): boolean {
+	if (!STORAGELESS_FIELD_TYPES.has(row.type) || !row.validation) return false;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(row.validation);
+	} catch {
+		return false;
+	}
+	if (typeof parsed !== "object" || parsed === null) return false;
+	return isStoragelessField({ type: row.type, validation: parsed });
+}
 
 /**
  * Features a collection can support
@@ -142,6 +208,21 @@ export interface FieldValidation {
 	minItems?: number; // For repeater fields
 	maxItems?: number; // For repeater fields
 	allowedMimeTypes?: string[];
+	/** Reference fields: the relation's slug. */
+	relation?: string;
+	/**
+	 * Reference fields: which end of the relation this collection sits on.
+	 * `parent` picks children and controls their order; `child` picks parents
+	 * and is unordered, since `sort_order` is scoped to a parent.
+	 */
+	relationSide?: "parent" | "child";
+	/** Reference fields: the collection on the *other* end (derived from the
+	 * relation and the side, denormalized here). */
+	targetCollection?: string;
+	/** Reference fields: allow selecting more than one entry (UI constraint). */
+	multiple?: boolean;
+	allowedTypes?: string[]; // For blocks fields
+	retiredTypes?: string[]; // Server-owned retained types for blocks fields
 }
 
 /**
@@ -150,9 +231,26 @@ export interface FieldValidation {
 export interface FieldWidgetOptions {
 	rows?: number; // For textarea
 	showPreview?: boolean; // For image/file
+	darkVariant?: boolean; // For image: offer a second slot for a dark-color-scheme counterpart
 	collection?: string; // For reference - which collection to reference
 	allowMultiple?: boolean; // For reference
 	[key: string]: unknown;
+}
+
+export interface UnsupportedFieldType {
+	type: string;
+	path: string;
+}
+
+export const MAX_COLLECTION_LIST_COLUMNS = 4;
+
+/** Longest admin sidebar folder label a collection may declare. */
+export const MAX_COLLECTION_GROUP_LENGTH = 100;
+
+/** Collection-level admin presentation options. */
+export interface CollectionAdminConfig {
+	/** Custom field slugs to show in the content list. */
+	listColumns?: string[];
 }
 
 /**
@@ -165,12 +263,38 @@ export interface Collection {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports: CollectionSupport[];
 	source?: CollectionSource;
 	/** Whether this collection has SEO metadata fields enabled */
 	hasSeo: boolean;
+	/** Field slug powering the admin list Title column. Defaults to the standard title display. */
+	titleField?: string;
+	/** Field slug powering the admin list Date column. Must be a `datetime` field. Defaults to last-updated. */
+	dateField?: string;
 	/** URL pattern with {slug} placeholder (e.g. "/{slug}", "/blog/{slug}") */
 	urlPattern?: string;
+	/** Whether published entries require a public slug. Defaults to true. */
+	routable?: boolean;
+	/**
+	 * Omit this collection's auto-generated sidebar entry and dashboard quick
+	 * action. The collection stays fully functional everywhere else (API, MCP,
+	 * hooks, direct `/content/:collection` URLs), so a plugin that owns the
+	 * collection can point editors at its own admin UI.
+	 */
+	hidden: boolean;
+	/**
+	 * Explicit position in the admin sidebar. Collections with a `sortOrder`
+	 * come first, in ascending order; the rest keep the alphabetical-by-slug
+	 * order and follow. `undefined` means "no explicit position".
+	 */
+	sortOrder?: number;
+	/**
+	 * Admin sidebar folder. Collections sharing a group render under one
+	 * collapsible entry labelled with the group; `undefined` keeps the
+	 * collection inline.
+	 */
+	group?: string;
 	/** Whether comments are enabled for this collection */
 	commentsEnabled: boolean;
 	/** Moderation strategy: "all" | "first_time" | "none" */
@@ -179,6 +303,8 @@ export interface Collection {
 	commentsClosedAfterDays: number;
 	/** Auto-approve comments from authenticated CMS users */
 	commentsAutoApproveUsers: boolean;
+	/** Whether opening an entry takes an edit lock. Defaults to true. */
+	editLocking: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -192,6 +318,10 @@ export interface Field {
 	slug: string;
 	label: string;
 	type: FieldType;
+	/** Raw stored type metadata that this runtime cannot safely interpret. */
+	unsupportedType?: UnsupportedFieldType;
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
 	columnType: ColumnType;
 	required: boolean;
 	unique: boolean;
@@ -201,6 +331,8 @@ export interface Field {
 	options?: FieldWidgetOptions;
 	sortOrder: number;
 	searchable: boolean;
+	/** Whether this field has a physical index for structured list queries. */
+	indexed: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable: boolean;
 	createdAt: string;
@@ -215,11 +347,21 @@ export interface CreateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
 	source?: CollectionSource;
 	urlPattern?: string;
+	routable?: boolean;
 	hasSeo?: boolean;
+	/** Omit the auto-generated sidebar entry and dashboard quick action (defaults to false) */
+	hidden?: boolean;
+	/** Explicit admin sidebar position (omit for the alphabetical fallback) */
+	sortOrder?: number | null;
+	/** Admin sidebar folder shared with other collections of the same group */
+	group?: string | null;
 	commentsEnabled?: boolean;
+	/** Take an edit lock when an entry is opened (defaults to true) */
+	editLocking?: boolean;
 }
 
 /**
@@ -230,13 +372,27 @@ export interface UpdateCollectionInput {
 	labelSingular?: string;
 	description?: string;
 	icon?: string;
+	admin?: CollectionAdminConfig;
 	supports?: CollectionSupport[];
-	urlPattern?: string;
+	urlPattern?: string | null;
+	routable?: boolean;
 	hasSeo?: boolean;
+	/** Omit the auto-generated sidebar entry and dashboard quick action */
+	hidden?: boolean;
+	/** Explicit admin sidebar position; `null` clears it back to alphabetical */
+	sortOrder?: number | null;
+	/** Admin sidebar folder; `null` moves the collection back inline */
+	group?: string | null;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	/** Take an edit lock when an entry is opened */
+	editLocking?: boolean;
+	/** Field slug for the Title column; `null`/`""` clears back to the default. */
+	titleField?: string | null;
+	/** Datetime field slug for the Date column; `null`/`""` clears back to the default. */
+	dateField?: string | null;
 }
 
 /**
@@ -255,6 +411,8 @@ export interface CreateFieldInput {
 	sortOrder?: number;
 	/** Whether this field should be indexed for search */
 	searchable?: boolean;
+	/** Create a physical index for structured sorting. */
+	indexed?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
 }
@@ -265,13 +423,9 @@ export interface CreateFieldInput {
 export interface UpdateFieldInput {
 	label?: string;
 	/**
-	 * Change the field's type. Only type changes that keep the same underlying
-	 * column type (per `FIELD_TYPE_TO_COLUMN`) are allowed — e.g. `string` to
-	 * `slug` (both TEXT). A change that would alter the column affinity (e.g.
-	 * `text` TEXT to `portableText` JSON) is rejected, because there is no
-	 * in-place column migration and silently rewriting the metadata would
-	 * desync `column_type` from the real `ec_*` column. Omit to keep the
-	 * current type.
+	 * Change the field's type. Only storage-compatible text aliases (`string`,
+	 * `text`, and `slug`) can be changed in place. Other changes require an
+	 * explicit content migration. Omit to keep the current type.
 	 */
 	type?: FieldType;
 	required?: boolean;
@@ -283,6 +437,8 @@ export interface UpdateFieldInput {
 	sortOrder?: number;
 	/** Whether this field should be indexed for search */
 	searchable?: boolean;
+	/** Create or remove the physical index used by structured sorting. */
+	indexed?: boolean;
 	/** Whether this field is translatable (default true). Non-translatable fields are synced across locales. */
 	translatable?: boolean;
 }
@@ -331,6 +487,12 @@ export const RESERVED_COLLECTION_SLUGS = [
 	"taxonomies",
 	"options",
 	"audit_logs",
+	// Shadowed by the static POST /schema/collections/reorder route: a
+	// collection with this slug could never be addressed at its own URL.
+	"reorder",
+	// Shadowed by the static /content-types/relations admin route, for the same
+	// reason: a collection with this slug would be unreachable in the admin.
+	"relations",
 ];
 
 /**

@@ -1,5 +1,15 @@
-import { sql, type Kysely, type SqlBool } from "kysely";
+import { sql, type Insertable, type Kysely, type SqlBool } from "kysely";
 
+import {
+	assertStorageKey,
+	assertStorageRevision,
+	serializeConditionalValue,
+} from "../../plugins/conditional-storage.js";
+import type {
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
+} from "../../plugins/types.js";
 import type { Database, OptionTable } from "../types.js";
 
 function escapeLike(value: string): string {
@@ -42,17 +52,26 @@ export class OptionsRepository {
 	 * Set an option value (creates or updates)
 	 */
 	async set<T = unknown>(name: string, value: T): Promise<void> {
-		const row: OptionTable = {
+		await this.setVersioned(name, value);
+	}
+
+	async setVersioned<T = unknown>(name: string, value: T): Promise<string> {
+		const revision = crypto.randomUUID();
+		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
+			revision,
 		};
 
 		// Upsert: insert or replace
 		await this.db
 			.insertInto("options")
 			.values(row)
-			.onConflict((oc) => oc.column("name").doUpdateSet({ value: row.value }))
+			.onConflict((oc) =>
+				oc.column("name").doUpdateSet({ value: row.value, revision: row.revision }),
+			)
 			.execute();
+		return revision;
 	}
 
 	/**
@@ -64,9 +83,10 @@ export class OptionsRepository {
 	 * existed (regardless of its value — even an empty string or null).
 	 */
 	async setIfAbsent<T = unknown>(name: string, value: T): Promise<boolean> {
-		const row: OptionTable = {
+		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
+			revision: crypto.randomUUID(),
 		};
 
 		const result = await this.db
@@ -80,6 +100,56 @@ export class OptionsRepository {
 		return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
 	}
 
+	async getVersioned<T = unknown>(name: string): Promise<VersionedValue<T> | null> {
+		assertStorageKey(name, 2048);
+		const row = await this.db
+			.selectFrom("options")
+			.select(["value", "revision"])
+			.where("name", "=", name)
+			.executeTakeFirst();
+		if (!row) return null;
+		return { value: JSON.parse(row.value), revision: row.revision };
+	}
+
+	async compareAndSet(
+		name: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult> {
+		assertStorageKey(name, 2048);
+		if (expectedRevision !== null) assertStorageRevision(expectedRevision);
+		const serialized = serializeConditionalValue(value);
+		const revision = crypto.randomUUID();
+		const row =
+			expectedRevision === null
+				? await this.db
+						.insertInto("options")
+						.values({ name, value: serialized, revision })
+						.onConflict((oc) => oc.column("name").doNothing())
+						.returning("revision")
+						.executeTakeFirst()
+				: await this.db
+						.updateTable("options")
+						.set({ value: serialized, revision })
+						.where("name", "=", name)
+						.where("revision", "=", expectedRevision)
+						.returning("revision")
+						.executeTakeFirst();
+		return row ? { applied: true, revision: row.revision } : { applied: false };
+	}
+
+	async compareAndDelete(name: string, expectedRevision: string): Promise<ConditionalDeleteResult> {
+		assertStorageKey(name, 2048);
+		assertStorageRevision(expectedRevision);
+		const row = await this.db
+			.deleteFrom("options")
+			.where("name", "=", name)
+			.where("revision", "=", expectedRevision)
+			.returning("name")
+			.executeTakeFirst();
+		return { applied: row !== undefined };
+	}
+
 	/**
 	 * Delete an option
 	 */
@@ -87,6 +157,18 @@ export class OptionsRepository {
 		const result = await this.db.deleteFrom("options").where("name", "=", name).executeTakeFirst();
 
 		return (result.numDeletedRows ?? 0) > 0;
+	}
+
+	/**
+	 * Delete multiple options in one statement.
+	 */
+	async deleteMany(names: string[]): Promise<number> {
+		if (names.length === 0) return 0;
+		const result = await this.db
+			.deleteFrom("options")
+			.where("name", "in", names)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
 	}
 
 	/**
@@ -150,13 +232,18 @@ export class OptionsRepository {
 	/**
 	 * Get all options matching a prefix
 	 */
-	async getByPrefix<T = unknown>(prefix: string): Promise<Map<string, T>> {
+	async getByPrefix<T = unknown>(
+		prefix: string,
+		options: { limit?: number } = {},
+	): Promise<Map<string, T>> {
 		const pattern = `${escapeLike(prefix)}%`;
-		const rows = await this.db
+		let query = this.db
 			.selectFrom("options")
 			.select(["name", "value"])
 			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
-			.execute();
+			.orderBy("name", "asc");
+		if (options.limit !== undefined) query = query.limit(Math.max(0, options.limit));
+		const rows = await query.execute();
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
@@ -164,6 +251,37 @@ export class OptionsRepository {
 			result.set(row.name, JSON.parse(row.value) as T);
 		}
 		return result;
+	}
+
+	async getVersionedByPrefix<T = unknown>(
+		prefix: string,
+		options: { limit?: number } = {},
+	): Promise<Map<string, VersionedValue<T>>> {
+		const pattern = `${escapeLike(prefix)}%`;
+		let query = this.db
+			.selectFrom("options")
+			.select(["name", "value", "revision"])
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
+			.orderBy("name", "asc");
+		if (options.limit !== undefined) query = query.limit(Math.max(0, options.limit));
+		const rows = await query.execute();
+
+		const result = new Map<string, VersionedValue<T>>();
+		for (const row of rows) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+			result.set(row.name, { value: JSON.parse(row.value) as T, revision: row.revision });
+		}
+		return result;
+	}
+
+	async countByPrefix(prefix: string): Promise<number> {
+		const pattern = `${escapeLike(prefix)}%`;
+		const row = await this.db
+			.selectFrom("options")
+			.select((eb) => eb.fn.countAll<number>().as("count"))
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
+			.executeTakeFirst();
+		return Number(row?.count ?? 0);
 	}
 
 	/**

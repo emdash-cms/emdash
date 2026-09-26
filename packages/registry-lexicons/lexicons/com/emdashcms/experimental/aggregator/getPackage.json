@@ -34,6 +34,10 @@
 				{
 					"name": "NotFound",
 					"description": "No package indexed under the given (did, slug). Aggregators that hard-delete on publisher deletion (rather than soft-deleting) return NotFound for both the never-indexed and the deleted cases — clients should treat them equivalently."
+				},
+				{
+					"name": "ListingUnavailable",
+					"description": "The package is indexed but has no profile revision available under the aggregator's listing policy. No publisher-controlled content is returned."
 				}
 			]
 		}

@@ -1,6 +1,7 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
+import { isSafePluginPagePath, normalizePluginPagePath } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { Gear, Palette, Storefront, Users } from "@phosphor-icons/react";
+import { Gear, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -8,6 +9,17 @@ import * as React from "react";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
+import {
+	groupNavItems,
+	taxonomyGroup,
+	type GroupableNavItem,
+	type NavEntry,
+	type NavFolder,
+} from "../lib/sidebar-groups.js";
+import {
+	resolveTaxonomyDefinitions,
+	type LocalizedTaxonomyDefinition,
+} from "../lib/taxonomy-definitions.js";
 import {
 	ADMIN_NAV_ICONS,
 	getCollectionNavIcon,
@@ -57,9 +69,24 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+/**
+ * Manifest collections that get an auto-generated sidebar entry and dashboard
+ * quick action, in manifest order. Pure function — exported so tests can pin
+ * the `hidden` contract without rendering the sidebar.
+ *
+ * A hidden collection is still shipped in the manifest and stays fully
+ * routable at `/content/:collection`, so a plugin that owns the collection end
+ * to end can steer editors to its own admin UI.
+ */
+export function visibleCollectionEntries<T extends { hidden?: boolean }>(
+	collections: Record<string, T>,
+): Array<[string, T]> {
+	return Object.entries(collections).filter(([, config]) => !config.hidden);
+}
+
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, { label: string; hidden?: boolean; group?: string }>;
 		plugins: Record<
 			string,
 			{
@@ -76,12 +103,17 @@ export interface SidebarNavProps {
 			}
 		>;
 		taxonomies: Array<{
+			id?: string;
 			name: string;
 			label: string;
+			collections?: string[];
+			locale?: string;
+			translationGroup?: string | null;
 		}>;
+		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		commit?: string;
-		marketplace?: string;
+		marketplace?: boolean;
 		registry?: {
 			aggregatorUrl: string;
 		};
@@ -93,15 +125,80 @@ export interface SidebarNavProps {
 	};
 }
 
-interface NavItem {
+/** Locale-normalized taxonomy rows used by the global Manage navigation. */
+export function getSidebarTaxonomies<T extends LocalizedTaxonomyDefinition>(
+	taxonomies: readonly T[],
+	activeLocale?: string,
+	defaultLocale?: string,
+): T[] {
+	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale);
+}
+
+export interface NavItem extends GroupableNavItem {
 	to: string;
 	label: string;
 	icon: React.ElementType;
 	params?: Record<string, string>;
+	search?: Record<string, string>;
 	/** Minimum role level required to see this item */
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
 	badge?: number;
+}
+
+/** Folder member order: collections, then their taxonomies. */
+const GROUP_RANK = { collection: 0, taxonomy: 1 } as const;
+
+const FOLDER_STATE_STORAGE_KEY = "emdash-sidebar-folders";
+
+type FolderState = Record<string, boolean>;
+
+/** Parse stored folder choices, dropping anything that is not a label → boolean map. */
+export function parseFolderState(raw: string | null): FolderState {
+	try {
+		const parsed: unknown = JSON.parse(raw ?? "{}");
+		if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+		const state: FolderState = {};
+		for (const [key, value] of Object.entries(parsed)) {
+			if (typeof value === "boolean") state[key] = value;
+		}
+		return state;
+	} catch {
+		return {};
+	}
+}
+
+function readFolderState(): FolderState {
+	if (typeof window === "undefined") return {};
+	try {
+		return parseFolderState(window.localStorage.getItem(FOLDER_STATE_STORAGE_KEY));
+	} catch {
+		return {};
+	}
+}
+
+function writeFolderState(state: FolderState): void {
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.setItem(FOLDER_STATE_STORAGE_KEY, JSON.stringify(state));
+	} catch {}
+}
+
+/**
+ * Open/closed choices the user made per folder label, remembered across
+ * visits. A folder without a stored choice opens while it contains the
+ * active item.
+ */
+export function useFolderState() {
+	const [state, setState] = React.useState<FolderState>(readFolderState);
+	const setOpen = React.useCallback((label: string, open: boolean) => {
+		setState((prev) => {
+			const next = { ...prev, [label]: open };
+			writeFolderState(next);
+			return next;
+		});
+	}, []);
+	return { state, setOpen };
 }
 
 /**
@@ -112,7 +209,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const { state } = useSidebar();
 	const Icon = item.icon;
 	function IconComponent({ className }: { className?: string }) {
-		return <NavIcon icon={Icon} className={className} />;
+		return <NavIcon icon={Icon} className={className} isActive={isActive} />;
 	}
 
 	return (
@@ -130,10 +227,94 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	);
 }
 
-function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className?: string }) {
+/**
+ * Collapsible folder of nav items. In the icon-only sidebar the folder links
+ * straight to its active member (or the first one), since sub-menus have no
+ * room to expand. The collapsible is fully controlled: only a click on the
+ * folder button changes the stored choice, so Kumo's focus-driven expansion
+ * is not recorded as a preference.
+ */
+export function NavFolderMenu({
+	folder,
+	currentPath,
+	open,
+	onToggle,
+}: {
+	folder: NavFolder<NavItem>;
+	currentPath: string;
+	open: boolean;
+	onToggle: () => void;
+}) {
+	const { state } = useSidebar();
+	const Icon = ADMIN_NAV_ICONS.folder;
+	const members = folder.items.map((item) => {
+		const path = resolveItemPath(item);
+		return { item, path, active: isItemActive(path, currentPath) };
+	});
+	const target = members.find((member) => member.active) ?? members[0];
+	if (!target) return null;
+	const containsActive = target.active;
+
+	if (state === "collapsed") {
+		return (
+			<NavMenuLink
+				item={{ ...target.item, label: folder.label, icon: Icon }}
+				isActive={containsActive}
+			/>
+		);
+	}
+
+	function IconComponent({ className }: { className?: string }) {
+		return <NavIcon icon={Icon} className={className} isActive={containsActive} />;
+	}
+
 	return (
-		<React.Suspense fallback={<ADMIN_NAV_ICONS.plugins className={className} aria-hidden="true" />}>
-			<Icon className={className} aria-hidden="true" />
+		<KumoSidebar.MenuItem>
+			<KumoSidebar.Collapsible open={open}>
+				<KumoSidebar.CollapsibleTrigger
+					render={
+						<KumoSidebar.MenuButton
+							icon={IconComponent}
+							active={containsActive && !open}
+							onClick={onToggle}
+						>
+							{folder.label}
+							<KumoSidebar.MenuChevron />
+						</KumoSidebar.MenuButton>
+					}
+				/>
+				<KumoSidebar.CollapsibleContent>
+					<KumoSidebar.MenuSub>
+						{members.map(({ item, path, active }) => (
+							<KumoSidebar.MenuSubButton key={path} href={path} active={active}>
+								{item.label}
+							</KumoSidebar.MenuSubButton>
+						))}
+					</KumoSidebar.MenuSub>
+				</KumoSidebar.CollapsibleContent>
+			</KumoSidebar.Collapsible>
+		</KumoSidebar.MenuItem>
+	);
+}
+
+export function NavIcon({
+	icon: Icon,
+	className,
+	isActive,
+}: {
+	icon: React.ElementType;
+	className?: string;
+	isActive: boolean;
+}) {
+	const weight = isActive ? "fill" : "regular";
+
+	return (
+		<React.Suspense
+			fallback={
+				<ADMIN_NAV_ICONS.plugins className={className} weight={weight} aria-hidden="true" />
+			}
+		>
+			<Icon className={className} weight={weight} aria-hidden="true" />
 		</React.Suspense>
 	);
 }
@@ -162,21 +343,26 @@ export function resolvePluginPageLabel(
 }
 
 /** Resolves a nav item's route path by substituting $param placeholders. */
-function resolveItemPath(item: NavItem): string {
+export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
 	if (item.params) {
 		for (const [key, value] of Object.entries(item.params)) {
 			path = path.replace(`$${key}`, value);
 		}
 	}
+	if (item.search && Object.keys(item.search).length > 0) {
+		path += `?${new URLSearchParams(item.search).toString()}`;
+	}
 	return path;
 }
 
 /** Checks if a nav item is active based on the current router path. */
-function isItemActive(itemPath: string, currentPath: string): boolean {
-	return itemPath === "/"
+export function isItemActive(itemPath: string, currentPath: string): boolean {
+	const queryIndex = itemPath.indexOf("?");
+	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	return path === "/"
 		? currentPath === "/"
-		: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+		: currentPath === path || currentPath.startsWith(`${path}/`);
 }
 
 /**
@@ -186,6 +372,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const { t, i18n } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
+	const routeLocale =
+		new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined;
 	const pluginAdmins = usePluginAdmins();
 
 	const { data: user } = useCurrentUser();
@@ -205,15 +393,21 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const contentItems: NavItem[] = [
 		{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard },
 	];
-	for (const [name, config] of Object.entries(manifest.collections)) {
+	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,
 			icon: getCollectionNavIcon(name),
+			group: config.group,
+			groupRank: GROUP_RANK.collection,
 			params: { collection: name },
 		});
 	}
 	contentItems.push({ to: "/media", label: t`Media`, icon: ADMIN_NAV_ICONS.media });
+
+	const collectionGroups = new Map(
+		visibleCollectionEntries(manifest.collections).map(([name, config]) => [name, config.group]),
+	);
 
 	const manageItems: NavItem[] = [
 		{
@@ -232,15 +426,28 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		},
 		{ to: "/widgets", label: t`Widgets`, icon: ADMIN_NAV_ICONS.widgets, minRole: ROLE_EDITOR },
 		{ to: "/sections", label: t`Sections`, icon: ADMIN_NAV_ICONS.sections, minRole: ROLE_EDITOR },
-		...manifest.taxonomies.map((tax) => ({
-			to: "/taxonomies/$taxonomy" as const,
+		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
+	];
+	for (const tax of getSidebarTaxonomies(
+		manifest.taxonomies,
+		routeLocale,
+		manifest.i18n?.defaultLocale,
+	)) {
+		const item: NavItem = {
+			to: "/taxonomies/$taxonomy",
 			label: tax.label,
 			icon: getTaxonomyNavIcon(tax.name),
 			params: { taxonomy: tax.name },
+			search: routeLocale ? { locale: routeLocale } : undefined,
 			minRole: ROLE_EDITOR,
-		})),
-		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
-	];
+		};
+		const group = taxonomyGroup(tax.collections ?? [], collectionGroups);
+		if (group) {
+			contentItems.push({ ...item, group, groupRank: GROUP_RANK.taxonomy });
+		} else {
+			manageItems.splice(manageItems.length - 1, 0, item);
+		}
+	}
 
 	const adminItems: NavItem[] = [
 		{
@@ -261,25 +468,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	if (manifest.registry) {
 		adminItems.push({
-			to: "/plugins/marketplace",
+			to: "/plugins/registry",
 			label: t`Registry`,
 			icon: Storefront,
-			minRole: ROLE_ADMIN,
-		});
-	} else if (manifest.marketplace) {
-		adminItems.push({
-			to: "/plugins/marketplace",
-			label: t`Marketplace`,
-			icon: Storefront,
-			minRole: ROLE_ADMIN,
-		});
-	}
-
-	if (manifest.marketplace) {
-		adminItems.push({
-			to: "/themes/marketplace",
-			label: t`Themes`,
-			icon: Palette,
 			minRole: ROLE_ADMIN,
 		});
 	}
@@ -302,9 +493,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
+				if (!isSafePluginPagePath(page.path)) continue;
 				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
 				pluginItems.push({
-					to: `/plugins/${pluginId}${page.path}`,
+					to: `/plugins/${pluginId}${normalizePluginPagePath(page.path)}`,
 					label,
 					icon: resolveNavIcon(page.icon),
 				});
@@ -312,16 +504,47 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		}
 	}
 
-	const visibleContent = filterNavItemsByRole(contentItems, userRole);
+	const visibleContent = groupNavItems(
+		filterNavItemsByRole(contentItems, userRole).filter((i) => i.to !== "/"),
+	);
 	const visibleManage = filterNavItemsByRole(manageItems, userRole);
 	const visibleAdmin = filterNavItemsByRole(adminItems, userRole);
 	const visiblePlugins = filterNavItemsByRole(pluginItems, userRole);
+
+	const folders = useFolderState();
 
 	function renderNavItems(items: NavItem[]) {
 		return items.map((item, index) => {
 			const itemPath = resolveItemPath(item);
 			const active = isItemActive(itemPath, currentPath);
 			return <NavMenuLink key={`${item.to}-${index}`} item={item} isActive={active} />;
+		});
+	}
+
+	function renderNavEntries(entries: NavEntry<NavItem>[]) {
+		return entries.map((entry, index) => {
+			if (entry.kind === "item") {
+				const itemPath = resolveItemPath(entry.item);
+				return (
+					<NavMenuLink
+						key={`${entry.item.to}-${index}`}
+						item={entry.item}
+						isActive={isItemActive(itemPath, currentPath)}
+					/>
+				);
+			}
+			const open =
+				folders.state[entry.label] ??
+				entry.items.some((item) => isItemActive(resolveItemPath(item), currentPath));
+			return (
+				<NavFolderMenu
+					key={`folder-${entry.label}`}
+					folder={entry}
+					currentPath={currentPath}
+					open={open}
+					onToggle={() => folders.setOpen(entry.label, !open)}
+				/>
+			);
 		});
 	}
 
@@ -363,9 +586,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				{visibleContent.length > 1 && (
 					<KumoSidebar.Group>
 						<KumoSidebar.GroupLabel>{t`Content`}</KumoSidebar.GroupLabel>
-						<KumoSidebar.Menu>
-							{renderNavItems(visibleContent.filter((i) => i.to !== "/"))}
-						</KumoSidebar.Menu>
+						<KumoSidebar.Menu>{renderNavEntries(visibleContent)}</KumoSidebar.Menu>
 					</KumoSidebar.Group>
 				)}
 

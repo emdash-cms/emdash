@@ -1,0 +1,350 @@
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { installedCliVersion } from "../src/package-version.js";
+import {
+	DEFAULT_RELEASE_ACTION_REF,
+	DEFAULT_RELEASE_SERVICE_URL,
+	detectChangesets,
+	RELEASE_WORKFLOW_PATH,
+	resolveReleaseTrigger,
+	setupReleaseWorkflow,
+} from "../src/release-setup.js";
+
+const FIXTURE = fileURLToPath(new URL("./fixtures/minimal-plugin", import.meta.url));
+const PUBLISHER_DID = "did:plc:ewvi7nxzyoun6zhxrhs64oiz";
+
+describe("setupReleaseWorkflow", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "emdash-release-setup-"));
+		await cp(FIXTURE, dir, { recursive: true });
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	it("creates a shared package-tag and manual release workflow with provenance", async () => {
+		const resolvePublisherDid = vi.fn(async () => PUBLISHER_DID);
+		const cliVersion = await installedCliVersion();
+
+		const result = await setupReleaseWorkflow({ dir, resolvePublisherDid });
+		const workflow = await readFile(result.path, "utf8");
+
+		expect(resolvePublisherDid).toHaveBeenCalledWith("fixture.example.com");
+		expect(result.publisherDid).toBe(PUBLISHER_DID);
+		expect(workflow).toContain('name: "Publish EmDash plugins"');
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).toContain('tags:\n      - "*@*"');
+		expect(workflow).toContain('description: "Plugin ID to publish"');
+		expect(workflow).toContain("id-token: write");
+		expect(workflow).toContain("attestations: write");
+		expect(workflow).toContain("group: emdash-release-${{ github.workflow }}-${{ github.ref }}");
+		expect(workflow).toContain("persist-credentials: false");
+		expect(workflow).toContain("if: ${{ github.event.repository.visibility != 'public' }}");
+		expect(workflow).toContain(
+			"EmDash releases currently require a public GitHub repository because private and internal repository attestations cannot yet be verified.",
+		);
+		expect(workflow).toContain(
+			"uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0",
+		);
+		expect(workflow).toContain(
+			"uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4",
+		);
+		expect(workflow).toContain(
+			"uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6",
+		);
+		expect(workflow).toContain("id: prepare\n        shell: bash");
+		expect(workflow).toContain(
+			`pnpm dlx @emdash-cms/plugin-cli@${cliVersion} release prepare "\${EMDASH_RELEASE_SELECTOR}" --dir . --out-dir .emdash-release`,
+		);
+		expect(workflow).toContain(
+			"uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3",
+		);
+		expect(workflow).toContain("subject-path: ${{ steps.prepare.outputs.bundle-file }}");
+		expect(workflow).toContain(
+			`uses: emdash-cms/emdash/apps/release-action@${DEFAULT_RELEASE_ACTION_REF}`,
+		);
+		expect(workflow).toContain(`service-url: ${DEFAULT_RELEASE_SERVICE_URL}`);
+		expect(workflow).toContain("publisher-did: ${{ steps.prepare.outputs.publisher-did }}");
+		expect(workflow).not.toContain("connection-invitation:");
+		expect(workflow).not.toContain("EMDASH_CONNECTION_INVITATION");
+		expect(workflow).toContain("bundle-file: ${{ steps.prepare.outputs.bundle-file }}");
+		expect(workflow).toContain("provenance-file: ${{ steps.attest.outputs.bundle-path }}");
+		expect(workflow).not.toMatch(/git push|gh pr|gh repo/i);
+	});
+
+	it("writes one shared workflow at the repository root for a nested plugin", async () => {
+		const repository = await mkdtemp(join(tmpdir(), "emdash-release-repository-"));
+		try {
+			await writeFile(join(repository, ".git"), "gitdir: /tmp/example.git\n", "utf8");
+			const pluginDir = join(repository, "packages", "fixture-minimal");
+			await cp(FIXTURE, pluginDir, { recursive: true });
+
+			const result = await setupReleaseWorkflow({
+				dir: pluginDir,
+				resolvePublisherDid: async () => PUBLISHER_DID,
+			});
+			const workflow = await readFile(result.path, "utf8");
+
+			expect(result.path).toBe(join(repository, RELEASE_WORKFLOW_PATH));
+			expect(workflow).toContain('tags:\n      - "*@*"');
+			expect(workflow).not.toContain("EMDASH_CONNECTION_INVITATION");
+			expect(workflow).not.toContain("connection-invitation:");
+		} finally {
+			await rm(repository, { recursive: true, force: true });
+		}
+	});
+
+	it("pins every generated CLI invocation to the installed CLI version", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(
+			join(dir, ".changeset", "config.json"),
+			JSON.stringify({ privatePackages: { version: true, tag: true } }),
+			"utf8",
+		);
+
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "changesets",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+		const cliVersion = await installedCliVersion();
+		const pinnedVersions = Array.from(
+			workflow.matchAll(/pnpm dlx @emdash-cms\/plugin-cli@(\S+) release/g),
+			(match) => match[1],
+		);
+
+		expect(pinnedVersions).toEqual([cliVersion, cliVersion, cliVersion]);
+	});
+
+	it("detects Changesets at the repository root and resolves the automatic trigger", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(
+			join(dir, ".changeset", "config.json"),
+			JSON.stringify({ baseBranch: "develop", privatePackages: { version: true, tag: true } }),
+			"utf8",
+		);
+
+		await expect(detectChangesets(dir)).resolves.toEqual({
+			baseBranch: "develop",
+			privatePackagesTag: true,
+			privatePackagesVersion: true,
+		});
+		expect(resolveReleaseTrigger("auto", true)).toBe("changesets");
+		expect(resolveReleaseTrigger("auto", false)).toBe("tags");
+		expect(() => resolveReleaseTrigger("invalid", true)).toThrow(
+			"--trigger must be auto, changesets, tags, or manual",
+		);
+	});
+
+	it("creates one Changesets caller and manual workflow without inferring branch releases", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(
+			join(dir, ".changeset", "config.json"),
+			JSON.stringify({ baseBranch: "main" }),
+			"utf8",
+		);
+
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "changesets",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+
+		expect(result.trigger).toBe("changesets");
+		expect(result.warnings).toContain(
+			"Changesets must version and tag private plugin packages. Set privatePackages.version and privatePackages.tag to true in .changeset/config.json before relying on Changesets releases.",
+		);
+		expect(workflow).toContain("workflow_call:");
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).toContain("published-packages:");
+		expect(workflow).not.toContain("tags:");
+		expect(workflow).not.toContain("push:");
+		expect(workflow).toContain('release plan --published-packages "${EMDASH_PUBLISHED_PACKAGES}"');
+		expect(workflow).toContain('release plan --package "${EMDASH_RELEASE_SELECTOR}"');
+		expect(workflow).toContain("selector: ${{ fromJSON(needs.plan.outputs.selectors) }}");
+		expect(workflow).toContain('EMDASH_RELEASE_SELECTOR: "${{ matrix.selector }}"');
+		expect(workflow.match(/persist-credentials: false/g)).toHaveLength(2);
+	});
+
+	it("creates a manual-only workflow when requested", async () => {
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "manual",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+
+		expect(result.trigger).toBe("manual");
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).not.toContain("push:");
+	});
+
+	it("allows an explicit tag trigger when an unrelated Changesets config is invalid", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(join(dir, ".changeset", "config.json"), "not json\n", "utf8");
+
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "tags",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+
+		expect(result.trigger).toBe("tags");
+		await expect(readFile(result.path, "utf8")).resolves.toContain('tags:\n      - "*@*"');
+	});
+
+	it("pins a manifest DID without doing a handle lookup", async () => {
+		await writeFile(
+			join(dir, "emdash-plugin.jsonc"),
+			`{
+	"slug": "fixture-minimal",
+	"publisher": "${PUBLISHER_DID}",
+	"license": "MIT",
+	"author": { "name": "Test Author" },
+	"security": { "email": "security@example.com" },
+	"capabilities": ["content:read"],
+	"allowedHosts": ["api.example.com"]
+}\n`,
+			"utf8",
+		);
+		const resolvePublisherDid = vi.fn(async () => {
+			throw new Error("DID must not be resolved as a handle");
+		});
+
+		const result = await setupReleaseWorkflow({ dir, resolvePublisherDid });
+
+		expect(result.publisherDid).toBe(PUBLISHER_DID);
+		expect(resolvePublisherDid).not.toHaveBeenCalled();
+	});
+
+	it("reports a handle that cannot be resolved without writing a workflow", async () => {
+		await expect(
+			setupReleaseWorkflow({
+				dir,
+				resolvePublisherDid: async () => {
+					throw new Error("DNS lookup failed");
+				},
+			}),
+		).rejects.toMatchObject({
+			name: "ReleaseSetupError",
+			code: "PUBLISHER_UNRESOLVED",
+			message: expect.stringContaining("fixture.example.com"),
+		});
+		await expect(readFile(join(dir, ".github/workflows/emdash-release.yml"))).rejects.toMatchObject(
+			{
+				code: "ENOENT",
+			},
+		);
+	});
+
+	it("prepares the package profile before writing the workflow", async () => {
+		const beforeWrite = vi.fn(async () => undefined);
+		const result = await setupReleaseWorkflow({
+			dir,
+			resolvePublisherDid: async () => PUBLISHER_DID,
+			beforeWrite,
+		});
+
+		expect(beforeWrite).toHaveBeenCalledWith({ publisherDid: PUBLISHER_DID, pluginDir: dir });
+		await expect(readFile(result.path, "utf8")).resolves.toContain(
+			'name: "Publish EmDash plugins"',
+		);
+	});
+
+	it("does not write the workflow when package profile setup fails", async () => {
+		await expect(
+			setupReleaseWorkflow({
+				dir,
+				resolvePublisherDid: async () => PUBLISHER_DID,
+				beforeWrite: async () => {
+					throw new Error("profile setup failed");
+				},
+			}),
+		).rejects.toThrow("profile setup failed");
+		await expect(readFile(join(dir, RELEASE_WORKFLOW_PATH))).rejects.toMatchObject({
+			code: "ENOENT",
+		});
+	});
+
+	it("supports an alternate service origin and Action ref", async () => {
+		const result = await setupReleaseWorkflow({
+			dir,
+			serviceUrl: "https://release.example.com",
+			actionRef: "releases/v1",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+
+		expect(workflow).toContain("service-url: https://release.example.com");
+		expect(workflow).toContain("uses: emdash-cms/emdash/apps/release-action@releases/v1");
+	});
+
+	it("refuses to overwrite an existing workflow", async () => {
+		const first = await setupReleaseWorkflow({
+			dir,
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		await writeFile(first.path, "keep me\n", "utf8");
+		const beforeWrite = vi.fn(async () => undefined);
+
+		await expect(
+			setupReleaseWorkflow({
+				dir,
+				resolvePublisherDid: async () => PUBLISHER_DID,
+				beforeWrite,
+			}),
+		).rejects.toMatchObject({
+			name: "ReleaseSetupError",
+			code: "WORKFLOW_EXISTS",
+		});
+		expect(beforeWrite).not.toHaveBeenCalled();
+		expect(await readFile(first.path, "utf8")).toBe("keep me\n");
+	});
+
+	it("overwrites the workflow only with force", async () => {
+		const first = await setupReleaseWorkflow({
+			dir,
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		await writeFile(first.path, "old workflow\n", "utf8");
+
+		await setupReleaseWorkflow({
+			dir,
+			force: true,
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+
+		expect(await readFile(first.path, "utf8")).toContain('name: "Publish EmDash plugins"');
+	});
+
+	it("rejects a manifest without a publisher", async () => {
+		const manifestPath = join(dir, "emdash-plugin.jsonc");
+		const manifest = await readFile(manifestPath, "utf8");
+		await writeFile(manifestPath, manifest.replace(/\s*"publisher":.*\n/, "\n"), "utf8");
+
+		await expect(setupReleaseWorkflow({ dir })).rejects.toMatchObject({
+			name: "BuildPipelineError",
+			code: "MANIFEST_INVALID",
+		});
+	});
+
+	it("rejects unsafe Action refs before writing a workflow", async () => {
+		await expect(
+			setupReleaseWorkflow({
+				dir,
+				actionRef: "main\npermissions: write-all",
+				resolvePublisherDid: async () => PUBLISHER_DID,
+			}),
+		).rejects.toMatchObject({ code: "INVALID_ACTION_REF" });
+	});
+});

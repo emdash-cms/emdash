@@ -9,11 +9,24 @@
 // review. The app needs `pull_requests: write`, `checks: write`, and
 // `contents: read`.
 
+import { limitUtf8Text } from "./byte-budget.js";
+import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
 const USER_AGENT = "emdash-flue-review";
 const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
+const REVIEW_RATE_LIMIT_RETRIES = 3;
+const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
+const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
+const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
+const INLINE_PERMIT_WAIT_MS = 5_000;
+export const POST_MODEL_PERMIT_WAIT_MS = REVIEW_RATE_LIMIT_MAX_DELAY_MS;
+const RATE_LIMIT_ERROR = /\brate limit\b/i;
+const AUTO_FORMAT_MESSAGE = "style: format";
+const EMDASH_BOT_LOGIN = "emdashbot[bot]";
+const AUTO_FORMAT_NAME = "emdashbot[bot]";
+const AUTO_FORMAT_EMAIL = "emdashbot[bot]@users.noreply.github.com";
 const GITHUB_HEADERS = {
 	accept: "application/vnd.github+json",
 	"content-type": "application/json",
@@ -21,11 +34,258 @@ const GITHUB_HEADERS = {
 	"x-github-api-version": "2022-11-28",
 };
 
-function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
-	return fetch(input, {
+export interface GitHubRateLimitGate {
+	permit(category: string, consumer: string): Promise<{ allowed: boolean; retryAt: number }>;
+	getInstallationToken(): Promise<string>;
+	record(
+		category: string,
+		consumer: string,
+		metadata: {
+			status: number;
+			limit: number | null;
+			remaining: number | null;
+			resetAt: number | null;
+			retryAfterAt: number | null;
+		},
+	): Promise<void>;
+}
+
+class ExternalGitHubRateLimitGate implements GitHubRateLimitGate {
+	constructor(private readonly stub: DurableObjectStub) {}
+
+	async permit(category: string, consumer: string) {
+		const response = await this.stub.fetch("http://github-rate-limit/permit", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ category, consumer }),
+		});
+		if (!response.ok) throw new Error(`GitHub coordinator permit failed: ${response.status}`);
+		const payload = await response.json<unknown>();
+		if (!payload || typeof payload !== "object")
+			throw new Error("GitHub coordinator permit was invalid");
+		const value = Object.fromEntries(Object.entries(payload));
+		if (typeof value.allowed !== "boolean" || typeof value.retryAt !== "number") {
+			throw new Error("GitHub coordinator permit was invalid");
+		}
+		return { allowed: value.allowed, retryAt: value.retryAt };
+	}
+
+	async getInstallationToken(): Promise<string> {
+		const response = await this.stub.fetch("http://github-rate-limit/token");
+		if (!response.ok) throw new Error(`GitHub token broker failed: ${response.status}`);
+		const payload = await response.json<unknown>();
+		if (!payload || typeof payload !== "object" || !("token" in payload)) {
+			throw new Error("GitHub token broker response was invalid");
+		}
+		const token = payload.token;
+		if (typeof token !== "string" || token.length === 0) {
+			throw new Error("GitHub token broker response was invalid");
+		}
+		return token;
+	}
+
+	async record(
+		category: string,
+		consumer: string,
+		metadata: Parameters<GitHubRateLimitGate["record"]>[2],
+	): Promise<void> {
+		const response = await this.stub.fetch("http://github-rate-limit/record", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ category, consumer, metadata }),
+		});
+		if (!response.ok) throw new Error(`GitHub coordinator record failed: ${response.status}`);
+	}
+}
+
+export function githubRateLimitGate(env: Env): GitHubRateLimitGate {
+	return new ExternalGitHubRateLimitGate(
+		env.GITHUB_RATE_LIMIT.getByName(`installation:${env.GITHUB_APP_INSTALLATION_ID}`),
+	);
+}
+
+export type GitHubToken =
+	| string
+	| {
+			readonly token: string;
+			readonly gate: GitHubRateLimitGate;
+			readonly consumer: string;
+			readonly maxPermitWaitMs?: number;
+	  };
+
+function tokenValue(token: GitHubToken): string {
+	return typeof token === "string" ? token : token.token;
+}
+
+function responseMetadata(response: Response, now = Date.now()) {
+	const numberHeader = (name: string) => {
+		const header = response.headers.get(name);
+		if (header === null) return null;
+		const value = Number(header);
+		return Number.isFinite(value) && value >= 0 ? value : null;
+	};
+	const retryAfter = response.headers.get("retry-after")?.trim() ?? "";
+	const retrySeconds = Number(retryAfter);
+	const retryDate = Date.parse(retryAfter);
+	return {
+		status: response.status,
+		limit: numberHeader("x-ratelimit-limit"),
+		remaining: numberHeader("x-ratelimit-remaining"),
+		resetAt: (() => {
+			const seconds = numberHeader("x-ratelimit-reset");
+			return seconds === null ? null : seconds * 1_000;
+		})(),
+		retryAfterAt: retryAfter
+			? Number.isFinite(retrySeconds)
+				? now + retrySeconds * 1_000
+				: Number.isFinite(retryDate)
+					? retryDate
+					: null
+			: null,
+	};
+}
+
+async function acquireGitHubPermit(
+	gate: GitHubRateLimitGate,
+	category: string,
+	consumer: string,
+	maxWaitMs = INLINE_PERMIT_WAIT_MS,
+) {
+	const deadline = Date.now() + maxWaitMs;
+	for (;;) {
+		const permit = await gate.permit(category, consumer);
+		if (permit.allowed) return permit;
+		const now = Date.now();
+		if (now >= deadline || permit.retryAt > deadline) return permit;
+		await sleep(Math.max(1, permit.retryAt - now));
+	}
+}
+
+async function githubFetch(
+	input: string,
+	init: RequestInit = {},
+	token?: GitHubToken,
+): Promise<Response> {
+	const coordinated = token && typeof token !== "string" ? token : null;
+	const category = new URL(input).pathname === "/graphql" ? "graphql" : "review-rest";
+	if (coordinated) {
+		const permit = await acquireGitHubPermit(
+			coordinated.gate,
+			category,
+			coordinated.consumer,
+			coordinated.maxPermitWaitMs,
+		);
+		if (!permit.allowed) {
+			throw new GitHubRateLimitError(
+				`GitHub request suppressed until ${new Date(permit.retryAt).toISOString()}`,
+				Math.max(1_000, permit.retryAt - Date.now()),
+			);
+		}
+	}
+	const response = await fetch(input, {
 		...init,
 		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
 	});
+	if (coordinated) {
+		await coordinated.gate.record(category, coordinated.consumer, responseMetadata(response));
+	}
+	return response;
+}
+
+function coordinatedFetch(token: GitHubToken, input: string, init: RequestInit = {}) {
+	return githubFetch(input, init, token);
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(value: string | null, now: number): number | undefined {
+	if (value === null) return undefined;
+	const seconds = Number(value);
+	if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000;
+	const retryAt = Date.parse(value);
+	if (Number.isNaN(retryAt)) return undefined;
+	return Math.max(0, retryAt - now);
+}
+
+function rateLimitRetryDelayMs(
+	response: Response,
+	errorBody: string,
+	retryCount: number,
+	now = Date.now(),
+): number | undefined {
+	const retryAfter = response.headers.get("retry-after");
+	const reset = response.headers.get("x-ratelimit-reset");
+	const remaining = response.headers.get("x-ratelimit-remaining");
+	const rateLimited =
+		response.status === 429 ||
+		(response.status === 403 &&
+			(retryAfter !== null ||
+				reset !== null ||
+				remaining === "0" ||
+				RATE_LIMIT_ERROR.test(errorBody)));
+	if (!rateLimited) return undefined;
+
+	const retryAfterDelay = retryAfterMs(retryAfter, now);
+	if (retryAfterDelay !== undefined) {
+		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, retryAfterDelay));
+	}
+	const resetSeconds = Number(reset);
+	if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
+		const resetDelay = resetSeconds * 1_000 - now + REVIEW_RATE_LIMIT_RESET_BUFFER_MS;
+		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, resetDelay));
+	}
+	return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, REVIEW_RATE_LIMIT_FALLBACK_MS * 2 ** retryCount);
+}
+
+export class GitHubRateLimitError extends Error {
+	constructor(
+		message: string,
+		readonly retryDelayMs: number,
+		readonly hasRetryHint = true,
+	) {
+		super(message);
+		this.name = "GitHubRateLimitError";
+	}
+}
+
+interface ReviewRetryOptions {
+	pullRequestAuthorLogin?: string;
+	beforeRetry?: (input: {
+		retry: number;
+		maxRetries: number;
+		delayMs: number;
+	}) => Promise<GitHubToken | undefined>;
+}
+
+async function postReviewRequest(
+	url: string,
+	token: GitHubToken,
+	body: unknown,
+	options?: ReviewRetryOptions,
+): Promise<{ response: Response; errorBody: string }> {
+	let currentToken = token;
+	for (let retryCount = 0; ; retryCount++) {
+		const response = await coordinatedFetch(currentToken, url, {
+			method: "POST",
+			headers: { ...GITHUB_HEADERS, authorization: `Bearer ${tokenValue(currentToken)}` },
+			body: JSON.stringify(body),
+		});
+		if (response.ok) return { response, errorBody: "" };
+		const errorBody = await response.text();
+		const delayMs = rateLimitRetryDelayMs(response, errorBody, retryCount);
+		if (delayMs === undefined || retryCount >= REVIEW_RATE_LIMIT_RETRIES) {
+			return { response, errorBody };
+		}
+		await sleep(delayMs);
+		const refreshedToken = await options?.beforeRetry?.({
+			retry: retryCount + 1,
+			maxRetries: REVIEW_RATE_LIMIT_RETRIES,
+			delayMs,
+		});
+		if (refreshedToken) currentToken = refreshedToken;
+	}
 }
 
 export interface GitHubAppCreds {
@@ -94,7 +354,10 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 }
 
 /** Mint a short-lived installation access token. */
-export async function mintInstallationToken(creds: GitHubAppCreds): Promise<string> {
+export async function mintInstallationToken(
+	creds: GitHubAppCreds,
+	coordinationToken?: GitHubToken,
+): Promise<string> {
 	const jwt = await signAppJwt(creds);
 	const res = await githubFetch(
 		`${GITHUB_API}/app/installations/${creds.installationId}/access_tokens`,
@@ -107,17 +370,18 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 				"x-github-api-version": "2022-11-28",
 			},
 		},
+		coordinationToken,
 	);
 	if (!res.ok) {
-		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
+		await requireGitHubResponse(res, "installation token mint");
 	}
 	const json = await res.json<{ token?: string }>();
 	if (!json.token) throw new Error("installation token response had no token");
 	return json.token;
 }
 
-function installationHeaders(token: string): Record<string, string> {
-	return { ...GITHUB_HEADERS, authorization: `Bearer ${token}` };
+function installationHeaders(token: GitHubToken): Record<string, string> {
+	return { ...GITHUB_HEADERS, authorization: `Bearer ${tokenValue(token)}` };
 }
 
 function pullRequestUrl(owner: string, repo: string, prNumber: number, files = false): string {
@@ -125,16 +389,43 @@ function pullRequestUrl(owner: string, repo: string, prNumber: number, files = f
 }
 
 async function requireGitHubResponse(res: Response, operation: string): Promise<void> {
-	if (!res.ok) throw new Error(`${operation} failed: ${res.status} ${await res.text()}`);
+	if (res.ok) return;
+	const retryDelay = rateLimitRetryDelayMs(res, "", 0);
+	const message = `${operation} failed: ${res.status}`;
+	if (retryDelay !== undefined) {
+		const hasRetryHint =
+			res.headers.get("retry-after") !== null || res.headers.get("x-ratelimit-reset") !== null;
+		throw new GitHubRateLimitError(message, retryDelay, hasRetryHint);
+	}
+	throw new Error(message);
+}
+
+export async function getPullRequestHeadSha(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<string> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`,
+		{
+			headers: installationHeaders(token),
+		},
+	);
+	await requireGitHubResponse(res, "read pull request head");
+	const body = await res.json<{ head?: { sha?: string } }>();
+	if (!body.head?.sha) throw new Error("read pull request head response had no SHA");
+	return body.head.sha;
 }
 
 export async function createReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	input: { headSha: string; attemptId: string; prNumber: number },
 ): Promise<number> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs`, {
+	const res = await coordinatedFetch(token, `${GITHUB_API}/repos/${owner}/${repo}/check-runs`, {
 		method: "POST",
 		headers: installationHeaders(token),
 		body: JSON.stringify({
@@ -159,7 +450,7 @@ export async function createReviewCheck(
 }
 
 export async function findReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	headSha: string,
@@ -170,7 +461,8 @@ export async function findReviewCheck(
 		filter: "all",
 		per_page: "100",
 	});
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${owner}/${repo}/commits/${encodeURIComponent(headSha)}/check-runs?${query.toString()}`,
 		{ headers: installationHeaders(token) },
 	);
@@ -229,7 +521,7 @@ function renderReviewProgress(stage: string, runId: string): string {
 }
 
 export async function updateReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	checkRunId: number,
@@ -255,16 +547,20 @@ export async function updateReviewCheck(
 		},
 	};
 	if (input.runId) body.external_id = input.runId;
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-		method: "PATCH",
-		headers: installationHeaders(token),
-		body: JSON.stringify(body),
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+		{
+			method: "PATCH",
+			headers: installationHeaders(token),
+			body: JSON.stringify(body),
+		},
+	);
 	await requireGitHubResponse(res, "update review check");
 }
 
 export async function completeReviewCheck(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	checkRunId: number,
@@ -281,29 +577,34 @@ export async function completeReviewCheck(
 			: input.conclusion === "timed_out"
 				? `Review timed out for PR #${input.prNumber}`
 				: `Review failed for PR #${input.prNumber}`;
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`, {
-		method: "PATCH",
-		headers: installationHeaders(token),
-		body: JSON.stringify({
-			status: "completed",
-			conclusion: input.conclusion,
-			completed_at: new Date().toISOString(),
-			details_url: pullRequestUrl(owner, repo, input.prNumber),
-			external_id: input.runId,
-			output: { title, summary: input.summary, text: `Run: \`${input.runId}\`` },
-		}),
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/check-runs/${checkRunId}`,
+		{
+			method: "PATCH",
+			headers: installationHeaders(token),
+			body: JSON.stringify({
+				status: "completed",
+				conclusion: input.conclusion,
+				completed_at: new Date().toISOString(),
+				details_url: pullRequestUrl(owner, repo, input.prNumber),
+				external_id: input.runId,
+				output: { title, summary: input.summary, text: `Run: \`${input.runId}\`` },
+			}),
+		},
+	);
 	await requireGitHubResponse(res, "complete review check");
 }
 
 export async function removePullRequestLabel(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 	label: string,
 ): Promise<void> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent(label)}`,
 		{
 			method: "DELETE",
@@ -323,7 +624,7 @@ export async function fetchUnifiedDiff(
 	owner: string,
 	repo: string,
 	prNumber: number,
-	token?: string,
+	token?: GitHubToken,
 	baseSha?: string,
 	headSha?: string,
 ): Promise<string> {
@@ -332,50 +633,206 @@ export async function fetchUnifiedDiff(
 		"user-agent": USER_AGENT,
 		"x-github-api-version": "2022-11-28",
 	};
-	if (token) headers.authorization = `Bearer ${token}`;
+	if (token) headers.authorization = `Bearer ${tokenValue(token)}`;
 	const path =
 		baseSha && headSha
 			? `/repos/${owner}/${repo}/compare/${encodeURIComponent(baseSha)}...${encodeURIComponent(headSha)}`
 			: `/repos/${owner}/${repo}/pulls/${prNumber}`;
-	const res = await githubFetch(`${GITHUB_API}${path}`, { headers });
+	const res = token
+		? await coordinatedFetch(token, `${GITHUB_API}${path}`, { headers })
+		: await githubFetch(`${GITHUB_API}${path}`, { headers });
 	if (!res.ok) {
-		throw new Error(`unified diff fetch failed: ${res.status} ${await res.text()}`);
+		throw new Error(`unified diff fetch failed: ${res.status}`);
 	}
 	return res.text();
 }
 
-export async function fetchPullRequestHeadSha(
-	token: string,
+export async function fetchPullRequestRevision(
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
-): Promise<string> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
-		headers: installationHeaders(token),
-	});
-	await requireGitHubResponse(res, "fetch pull request head");
-	const pull = await res.json<{ head?: { sha?: string } }>();
-	if (!pull.head?.sha) throw new Error("Pull request response did not include a head SHA");
-	return pull.head.sha;
+): Promise<PullRequestRevision> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`,
+		{
+			headers: installationHeaders(token),
+		},
+	);
+	await requireGitHubResponse(res, "fetch pull request revision");
+	const pull = await res.json<{ head?: { sha?: string }; base?: { sha?: string } }>();
+	if (!pull.head?.sha || !pull.base?.sha) {
+		throw new Error("Pull request response did not include base and head SHAs");
+	}
+	return { headSha: pull.head.sha, baseSha: pull.base.sha };
+}
+
+interface ComparisonCommit {
+	author?: { login?: string; type?: string } | null;
+	commit?: {
+		author?: { name?: string; email?: string } | null;
+		message?: string;
+	};
+}
+
+function isAutoFormatCommit(commit: ComparisonCommit): boolean {
+	return (
+		commit.commit?.message?.split("\n", 1)[0] === AUTO_FORMAT_MESSAGE &&
+		commit.author?.login === EMDASH_BOT_LOGIN &&
+		commit.author.type === "Bot" &&
+		commit.commit.author?.name === AUTO_FORMAT_NAME &&
+		commit.commit.author.email === AUTO_FORMAT_EMAIL
+	);
+}
+
+export async function classifyPullRequestHeadMove(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	fromHeadSha: string,
+	toHeadSha: string,
+): Promise<ReviewHeadMove> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/compare/${encodeURIComponent(fromHeadSha)}...${encodeURIComponent(toHeadSha)}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "compare pull request heads");
+	const comparison = await res.json<{
+		status?: string;
+		total_commits?: number;
+		commits?: ComparisonCommit[];
+	}>();
+	if (
+		comparison.status !== "ahead" ||
+		!Number.isInteger(comparison.total_commits) ||
+		!comparison.total_commits ||
+		comparison.commits?.length !== comparison.total_commits
+	) {
+		return "substantive";
+	}
+	return comparison.commits.every(isAutoFormatCommit) ? "format_only" : "substantive";
+}
+
+const REVIEWER_LOGIN = "emdashbot[bot]";
+const PRIOR_FINDINGS_MAX_CHARS = 30_000;
+const PRIOR_COMMENT_MAX_BYTES = 4_000;
+const REVIEW_COMMENTS_PAGE_SIZE = 100;
+const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/;
+
+interface ReviewComment {
+	id?: number;
+	in_reply_to_id?: number | null;
+	user?: { login?: string } | null;
+	author_association?: string | null;
+	body?: string;
+	path?: string;
+	line?: number | null;
+	original_line?: number | null;
+	created_at?: string;
+}
+
+async function fetchNewestReviewComments(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<ReviewComment[]> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/comments?sort=created&direction=desc&per_page=${REVIEW_COMMENTS_PAGE_SIZE}`,
+		{ headers: installationHeaders(token) },
+		token,
+	);
+	await requireGitHubResponse(res, "list review comments");
+	return res.json<ReviewComment[]>();
 }
 
 /**
- * Fetch the most recent emdashbot[bot] review body for a re-review, so the
- * agent can avoid re-flagging already-addressed findings. Returns undefined on
- * a first review or any failure (non-fatal: we just review fresh).
+ * Quoted, so a line inside a comment body cannot pass for a reply header of
+ * its own.
+ */
+function quote(text: string, spaces: number): string {
+	const pad = " ".repeat(spaces);
+	return limitUtf8Text(text.trim(), PRIOR_COMMENT_MAX_BYTES, " … (truncated)")
+		.split(LINE_BREAK)
+		.map((line) => `${pad}> ${line}`)
+		.join("\n");
+}
+
+function byCreated(a: ReviewComment, b: ReviewComment): number {
+	return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+}
+
+function renderPriorFindings(comments: readonly ReviewComment[]): string {
+	const findings: ReviewComment[] = [];
+	const replies = new Map<number, ReviewComment[]>();
+	for (const comment of comments) {
+		if (typeof comment.in_reply_to_id === "number") {
+			replies.set(comment.in_reply_to_id, [
+				...(replies.get(comment.in_reply_to_id) ?? []),
+				comment,
+			]);
+		} else if (comment.user?.login === REVIEWER_LOGIN) {
+			findings.push(comment);
+		}
+	}
+	if (findings.length === 0) return "";
+	const threads = findings
+		.toSorted((a, b) => byCreated(b, a))
+		.map((finding) => {
+			// GitHub reports `line: null` once a push has changed the code under
+			// the comment; `original_line` then numbers an older commit.
+			const anchor =
+				typeof finding.line === "number"
+					? `${finding.path}:${finding.line}`
+					: `${finding.path}:${finding.original_line} (outdated: the code under it has changed since)`;
+			const lines = [`- \`${anchor}\``, quote(finding.body ?? "", 2)];
+			const thread = finding.id === undefined ? [] : (replies.get(finding.id) ?? []);
+			for (const reply of thread.toSorted(byCreated)) {
+				const author = `${reply.user?.login ?? "unknown"} (${reply.author_association ?? "NONE"})`;
+				lines.push(`  - Reply from ${author}:`, quote(reply.body ?? "", 4));
+			}
+			return lines.join("\n");
+		});
+	const kept: string[] = [];
+	let length = 0;
+	for (const thread of threads) {
+		length += thread.length + 2;
+		if (kept.length > 0 && length > PRIOR_FINDINGS_MAX_CHARS) break;
+		kept.push(
+			thread.length > PRIOR_FINDINGS_MAX_CHARS
+				? `${thread.slice(0, PRIOR_FINDINGS_MAX_CHARS)} … (thread truncated)`
+				: thread,
+		);
+	}
+	const omitted =
+		kept.length < threads.length || comments.length >= REVIEW_COMMENTS_PAGE_SIZE
+			? "\n\n(older findings omitted)"
+			: "";
+	return `\n\n### Your inline findings, newest first, with the replies to each\n\n${kept.join("\n\n")}${omitted}`;
+}
+
+/**
+ * Fetch the most recent emdashbot[bot] review body, plus the bot's inline
+ * findings and the replies to them, for a re-review, so the agent can avoid
+ * re-flagging findings that were addressed or answered. Returns undefined on a
+ * first review or when the reviews can't be read (non-fatal: we just review
+ * fresh); unreadable threads only leave the findings out.
  */
 export async function fetchPriorReview(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 ): Promise<string | undefined> {
 	try {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
 			{
 				headers: {
-					authorization: `Bearer ${token}`,
+					authorization: `Bearer ${tokenValue(token)}`,
 					accept: "application/vnd.github+json",
 					"user-agent": USER_AGENT,
 					"x-github-api-version": "2022-11-28",
@@ -392,11 +849,15 @@ export async function fetchPriorReview(
 			}>
 		>();
 		const ours = reviews
-			.filter((r) => r.user?.login === "emdashbot[bot]" && r.body)
+			.filter((r) => r.user?.login === REVIEWER_LOGIN && r.body)
 			.toSorted((a, b) => (a.submitted_at ?? "").localeCompare(b.submitted_at ?? ""));
 		const latest = ours.at(-1);
 		if (!latest) return undefined;
-		return `Your previous review (state: ${latest.state ?? "unknown"}):\n\n${latest.body}`;
+		const findings = await fetchNewestReviewComments(token, owner, repo, prNumber).then(
+			renderPriorFindings,
+			() => "",
+		);
+		return `Your previous review (state: ${latest.state ?? "unknown"}):\n\n${latest.body}${findings}`;
 	} catch {
 		return undefined;
 	}
@@ -408,18 +869,19 @@ export async function fetchPriorReview(
  * progress marker should never block a review.
  */
 export async function addEyesReaction(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 ): Promise<number | undefined> {
 	try {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions`,
 			{
 				method: "POST",
 				headers: {
-					authorization: `Bearer ${token}`,
+					authorization: `Bearer ${tokenValue(token)}`,
 					accept: "application/vnd.github+json",
 					"content-type": "application/json",
 					"user-agent": USER_AGENT,
@@ -438,19 +900,20 @@ export async function addEyesReaction(
 
 /** Remove a previously-added reaction (the in-progress marker). Non-fatal. */
 export async function removeReaction(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 	reactionId: number,
 ): Promise<void> {
 	try {
-		await githubFetch(
+		await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${owner}/${repo}/issues/${prNumber}/reactions/${reactionId}`,
 			{
 				method: "DELETE",
 				headers: {
-					authorization: `Bearer ${token}`,
+					authorization: `Bearer ${tokenValue(token)}`,
 					accept: "application/vnd.github+json",
 					"user-agent": USER_AGENT,
 					"x-github-api-version": "2022-11-28",
@@ -516,7 +979,7 @@ type ReviewLookup =
 const REVIEW_LOOKUP_MAX_PAGES = 10;
 
 async function reviewWasPosted(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
@@ -526,7 +989,8 @@ async function reviewWasPosted(
 	try {
 		for (let page = 1; page <= REVIEW_LOOKUP_MAX_PAGES; page++) {
 			const suffix = page === 1 ? "" : `&page=${page}`;
-			const res = await githubFetch(
+			const res = await coordinatedFetch(
+				token,
 				`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100${suffix}`,
 				{ headers: installationHeaders(token) },
 			);
@@ -565,16 +1029,20 @@ async function reviewWasPosted(
  * The body is always non-empty -- GitHub 422s a blank COMMENT review body.
  */
 export async function postReview(
-	token: string,
+	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
 	result: ReviewResult,
 	commitId?: string,
 	attemptId?: string,
+	retryOptions?: ReviewRetryOptions,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews`;
-	const event = verdictToEvent(result.verdict);
+	const event =
+		retryOptions?.pullRequestAuthorLogin === EMDASH_BOT_LOGIN
+			? "COMMENT"
+			: verdictToEvent(result.verdict);
 	const marker = attemptId ? `<!-- emdash-review-attempt:${attemptId} -->` : undefined;
 	const summary = `${result.summary.trim() || FALLBACK_SUMMARY}${marker ? `\n\n${marker}` : ""}`;
 	if (commitId && marker) {
@@ -582,14 +1050,6 @@ export async function postReview(
 		if (lookup.status === "present") return;
 		if (lookup.status === "unavailable") throw lookup.error;
 	}
-	const headers = {
-		authorization: `Bearer ${token}`,
-		accept: "application/vnd.github+json",
-		"content-type": "application/json",
-		"user-agent": USER_AGENT,
-		"x-github-api-version": "2022-11-28",
-	};
-
 	const withComments = {
 		body: summary,
 		event,
@@ -598,7 +1058,7 @@ export async function postReview(
 	};
 	let res: Response;
 	try {
-		res = await githubFetch(url, { method: "POST", headers, body: JSON.stringify(withComments) });
+		({ response: res } = await postReviewRequest(url, token, withComments, retryOptions));
 	} catch (error) {
 		if (commitId && marker) {
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
@@ -611,13 +1071,12 @@ export async function postReview(
 	// Most likely cause: a comment anchors to a line outside the diff
 	// ("Path could not be resolved"). Fall back to a body-only review that
 	// carries the summary AND the findings inline, so the review still lands.
-	const firstError = await res.text();
 	if (res.status !== 422) {
 		if (commitId && marker) {
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
 			if (lookup.status === "present") return;
 		}
-		throw new Error(`postReview failed: ${res.status} ${firstError}`);
+		throw new Error(`postReview failed: ${res.status}`);
 	}
 	const bodyOnly = {
 		body: summary + renderFindingsMarkdown(result.findings),
@@ -625,7 +1084,7 @@ export async function postReview(
 		...(commitId ? { commit_id: commitId } : {}),
 	};
 	try {
-		res = await githubFetch(url, { method: "POST", headers, body: JSON.stringify(bodyOnly) });
+		({ response: res } = await postReviewRequest(url, token, bodyOnly, retryOptions));
 	} catch (error) {
 		if (commitId && marker) {
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
@@ -638,8 +1097,6 @@ export async function postReview(
 			const lookup = await reviewWasPosted(token, owner, repo, prNumber, commitId, marker);
 			if (lookup.status === "present") return;
 		}
-		throw new Error(
-			`postReview failed (with comments: ${firstError}); body-only retry: ${res.status} ${await res.text()}`,
-		);
+		throw new Error(`postReview failed after body-only retry: ${res.status}`);
 	}
 }

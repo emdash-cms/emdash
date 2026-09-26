@@ -58,13 +58,13 @@ export function BlockKitMediaPickerField({
 
 	return (
 		<div>
-			<label className="text-sm font-medium mb-1.5 block">{label}</label>
+			<label className="mb-1.5 block text-base font-medium text-kumo-default">{label}</label>
 			{canPreview ? (
 				imageBroken ? (
 					<div className="relative group min-h-20">
-						<div className="min-h-20 w-full rounded-md border border-kumo-line bg-kumo-muted flex items-center justify-center gap-2 text-kumo-subtle">
+						<div className="flex min-h-20 w-full items-center justify-center gap-2 rounded-md border border-kumo-line bg-kumo-tint text-kumo-subtle">
 							<ImageBroken className="h-5 w-5" />
-							<span className="text-sm">{t`Image not found`}</span>
+							<span className="text-xs leading-4">{t`Image not found`}</span>
 						</div>
 						<div className="absolute top-2 end-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto transition-opacity flex gap-1">
 							<Button
@@ -92,7 +92,7 @@ export function BlockKitMediaPickerField({
 						<img
 							src={url}
 							alt=""
-							className="max-h-40 min-h-20 w-full rounded-md border border-kumo-line object-contain bg-kumo-muted"
+							className="emdash-media-transparency-grid max-h-40 min-h-20 w-full rounded-md border border-kumo-line object-contain"
 							referrerPolicy="no-referrer"
 							loading="lazy"
 							onError={() => setImageBroken(true)}
@@ -128,7 +128,7 @@ export function BlockKitMediaPickerField({
 				>
 					<div className="flex flex-col items-center gap-1.5 text-kumo-subtle">
 						<ImageIcon className="h-6 w-6" />
-						<span className="text-sm">{placeholder ?? t`Select media`}</span>
+						<span className="text-base">{placeholder ?? t`Select media`}</span>
 					</div>
 				</Button>
 			)}

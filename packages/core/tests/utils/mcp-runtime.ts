@@ -15,16 +15,18 @@
 import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import type { EmDashHandlers } from "../../src/astro/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
-import { createMcpServer } from "../../src/mcp/server.js";
+import { createMcpServer, type PluginMcpRegistration } from "../../src/mcp/server.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
 import { invalidateUrlPatternCache } from "../../src/query.js";
+import type { Storage } from "../../src/storage/types.js";
 
 // ---------------------------------------------------------------------------
 // Auth-injecting transport
@@ -69,6 +71,8 @@ function createAuthenticatedPair(authInfo: {
 	userId: string;
 	userRole: RoleLevel;
 	tokenScopes?: string[];
+	tokenId?: string;
+	cache?: APIContext["cache"];
 }): [AuthInjectingTransport, InMemoryTransport] {
 	const clientTransport = new AuthInjectingTransport(authInfo);
 	const serverTransport = new InMemoryTransport();
@@ -96,6 +100,8 @@ export interface TestRuntimeOptions {
 	plugins?: ResolvedPlugin[];
 	/** Optional partial config override. Default: empty config. */
 	config?: Partial<EmDashConfig>;
+	/** Optional storage backend for tools that stage or read files. Default: none. */
+	storage?: Storage | null;
 }
 
 /**
@@ -135,7 +141,7 @@ export function createTestRuntime(
 
 	return new EmDashRuntime({
 		db,
-		storage: null,
+		storage: opts.storage ?? null,
 		configuredPlugins: plugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
@@ -188,6 +194,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		handleMediaList: runtime.handleMediaList.bind(runtime),
 		handleMediaGet: runtime.handleMediaGet.bind(runtime),
 		handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
+		handleMediaRegisterUpload: runtime.handleMediaRegisterUpload.bind(runtime),
 		handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
 		handleMediaDelete: runtime.handleMediaDelete.bind(runtime),
 
@@ -249,7 +256,13 @@ export interface ConnectMcpOptions {
 	userId: string;
 	userRole: RoleLevel;
 	tokenScopes?: string[];
+	/** Id of the token the caller authenticated with, as the MCP route passes it. */
+	tokenId?: string;
+	/** Route cache handed to the tools, as the MCP route passes Astro's `cache`. */
+	cache?: APIContext["cache"];
 	runtimeOptions?: TestRuntimeOptions;
+	/** Plugin tools to register, as the MCP route passes the enabled ones. */
+	pluginTools?: PluginMcpRegistration[];
 }
 
 /**
@@ -263,12 +276,17 @@ export async function connectMcpHarness(opts: ConnectMcpOptions): Promise<McpHar
 	const runtime = createTestRuntime(opts.db, opts.runtimeOptions);
 	const handlers = handlersFromRuntime(runtime);
 
-	const server = createMcpServer();
+	const server = createMcpServer(
+		opts.pluginTools,
+		new Request("http://localhost/_emdash/api/mcp", { method: "POST" }),
+	);
 	const [clientTransport, serverTransport] = createAuthenticatedPair({
 		emdash: handlers,
 		userId: opts.userId,
 		userRole: opts.userRole,
 		tokenScopes: opts.tokenScopes,
+		tokenId: opts.tokenId,
+		cache: opts.cache,
 	});
 
 	const client = new Client({ name: "test", version: "1.0" });
@@ -307,6 +325,28 @@ export function extractText(result: unknown): string {
 	const r = result as ToolResult;
 	const block = r.content?.[0];
 	return typeof block?.text === "string" ? block.text : "";
+}
+
+/** The `_rev` a content tool returned, for the next write in a chain. */
+export function revOf(result: unknown): string {
+	return extractJson<{ _rev: string }>(result)._rev;
+}
+
+/** Reads an item's current `_rev`, for tests whose subject is not concurrency. */
+export async function currentRev(
+	client: {
+		callTool: (req: { name: string; arguments: Record<string, unknown> }) => Promise<unknown>;
+	},
+	collection: string,
+	id: string,
+	locale?: string,
+): Promise<string> {
+	return revOf(
+		await client.callTool({
+			name: "content_get",
+			arguments: locale ? { collection, id, locale } : { collection, id },
+		}),
+	);
 }
 
 /** Parse the JSON success payload of a tool result. Throws if the call errored. */

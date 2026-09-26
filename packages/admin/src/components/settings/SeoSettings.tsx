@@ -18,12 +18,17 @@ import { Upload, WarningCircle, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type MediaItem, type SiteSettings } from "../../lib/api";
+import {
+	fetchSettings,
+	updateSettings,
+	type MediaItem,
+	type SiteSettingsUpdate,
+} from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-function seoSettingsSnapshot(settings: Partial<SiteSettings>) {
+function seoSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
 		titleSeparator: settings.seo?.titleSeparator || "|",
 		defaultOgImage: settings.seo?.defaultOgImage ?? null,
@@ -48,8 +53,8 @@ export function SeoSettings() {
 		staleTime: Infinity,
 	});
 
-	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
+	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
+	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [ogImagePickerOpen, setOgImagePickerOpen] = React.useState(false);
 
 	React.useEffect(() => {
@@ -65,7 +70,7 @@ export function SeoSettings() {
 	);
 
 	const saveMutation = useMutation({
-		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
+		mutationFn: (data: SiteSettingsUpdate) => updateSettings(data),
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -110,7 +115,7 @@ export function SeoSettings() {
 	const handleDefaultOgImageRemove = () => {
 		setFormData((prev) => ({
 			...prev,
-			seo: { ...prev.seo, defaultOgImage: undefined },
+			seo: { ...prev.seo, defaultOgImage: null },
 		}));
 	};
 
@@ -179,7 +184,7 @@ export function SeoSettings() {
 										<img
 											src={formData.seo.defaultOgImage.url}
 											alt={formData.seo.defaultOgImage.alt || t`Default social image`}
-											className="h-32 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2"
+											className="emdash-media-transparency-grid h-32 max-w-full rounded border border-kumo-line object-contain p-2"
 										/>
 									) : (
 										<div
@@ -281,7 +286,7 @@ export function SeoSettings() {
 				onSelect={handleDefaultOgImageSelect}
 				mimeTypeFilters={["image/jpeg", "image/png", "image/webp", "image/gif"]}
 				localOnly
-				title={t`Select Default Social Image`}
+				title={t`Select default social image`}
 			/>
 		</SettingsFrame>
 	);

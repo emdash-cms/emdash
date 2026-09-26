@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { LOCALE_CODE_PATTERN } from "../../i18n/config.js";
+
 // ---------------------------------------------------------------------------
 // Role level
 // ---------------------------------------------------------------------------
@@ -49,7 +51,6 @@ const HTTP_SCHEME_RE = /^https?:\/\//i;
 
 /** Validates that a URL string uses http or https scheme. Rejects javascript:/data: URI XSS vectors. */
 export const httpUrl = z
-	.string()
 	.url()
 	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
@@ -58,7 +59,7 @@ export const httpUrl = z
  * Validation is case-insensitive, but the value is preserved verbatim because the site config, stored
  * `locale` columns, and public query path all keep the raw BCP-47 casing.
  */
-export const localeCode = z.string().regex(/^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i, "Invalid locale code");
+export const localeCode = z.string().regex(LOCALE_CODE_PATTERN, "Invalid locale code");
 
 /** Shared `?locale=xx` query shape for endpoints that filter by locale. */
 export const localeFilterQuery = z
@@ -76,7 +77,9 @@ export const apiErrorSchema = z
 	.object({
 		success: z.literal(false).meta({ description: "Discriminant: always false for errors" }),
 		error: z.object({
-			code: z.string().meta({ description: "Machine-readable error code", example: "NOT_FOUND" }),
+			code: z
+				.string()
+				.meta({ description: "Machine-readable error code", examples: ["NOT_FOUND"] }),
 			message: z.string().meta({ description: "Human-readable error message" }),
 		}),
 	})
@@ -94,6 +97,11 @@ export function successEnvelope<T extends z.ZodType>(dataSchema: T) {
 export const deleteResponseSchema = z.object({ deleted: z.literal(true) }).meta({
 	id: "DeleteResponse",
 });
+
+/** Media delete response: `storageDeleted` is false when the stored file survived and is retried by cleanup */
+export const mediaDeleteResponseSchema = deleteResponseSchema
+	.extend({ storageDeleted: z.boolean() })
+	.meta({ id: "MediaDeleteResponse" });
 
 /** Standard count response */
 export const countResponseSchema = z

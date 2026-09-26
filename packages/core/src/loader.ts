@@ -16,10 +16,14 @@ import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
+import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
+import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
+import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
+import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -58,6 +62,12 @@ const SEO_ALIAS_COLUMNS = Object.values(SEO_COLUMN_ALIASES);
 /** Folded SEO JSON column name in the result set (expanded onto aliases in JS). */
 const SEO_FOLDED_COLUMN = "_emdash_seo";
 
+/** Folded boolean field slugs used to restore SQLite integer values. */
+const BOOLEAN_FIELDS_FOLDED_COLUMN = "_emdash_boolean_fields";
+
+/** Rank of a row among its translation group's variants, in {@link loadEntriesByGroups}. */
+const VARIANT_RANK_COLUMN = "_emdash_variant_rank";
+
 /**
  * System columns excluded from entry.data
  * Note: slug is intentionally NOT excluded - it's useful as data.slug in templates
@@ -90,6 +100,8 @@ const SYSTEM_COLUMNS = new Set([
 	"_emdash_bylines",
 	"_emdash_bylines_exist",
 	SEO_FOLDED_COLUMN,
+	BOOLEAN_FIELDS_FOLDED_COLUMN,
+	VARIANT_RANK_COLUMN,
 ]);
 
 /** Markers for byline/taxonomy hydration folded into the content query. */
@@ -123,23 +135,22 @@ function foldedHydrationSelects(db: Kysely<any>, type: string, outer: string) {
 	const agg = (inner: RawBuilder<unknown>) =>
 		pg ? sql`coalesce(json_agg(${inner}), '[]'::json)` : sql`json_group_array(${inner})`;
 
-	// Pin the join order for the per-entry hydration subqueries on SQLite (#1722).
-	// SQLite honours `CROSS JOIN` ordering, forcing the join to drive from the
-	// pivot (`content_taxonomies` / `_emdash_content_bylines`) by
-	// `(collection, entry_id)` and probe the term/byline table by
-	// `translation_group`. Without it, a stats-blind D1 planner (D1 never runs
-	// ANALYZE / maintains `sqlite_stat1`) is free to drive the correlated
-	// subquery from `taxonomies`/`_emdash_bylines` by `locale`, scanning every
-	// row in the locale per emitted entry. Postgres keeps statistics and rejects
-	// `CROSS JOIN … ON`, so it stays a plain `JOIN` there.
+	// Pin the byline join order on SQLite (#1722). Taxonomy hydration uses
+	// LEFT JOINs below, whose order is already fixed by SQL semantics. SQLite
+	// honours `CROSS JOIN` ordering, forcing the byline subquery to drive from
+	// its pivot by content reference and probe by translation_group. Postgres
+	// keeps statistics and rejects `CROSS JOIN … ON`, so it stays a plain JOIN.
 	const foldJoin = pg ? sql`JOIN` : sql`CROSS JOIN`;
 
 	const termObj = obj(
-		"'id', t.id, 'name', t.name, 'slug', t.slug, 'label', t.label, 'parent_id', t.parent_id, 'locale', t.locale, 'translation_group', t.translation_group",
+		"'id', coalesce(exact_term.id, default_term.id), 'name', coalesce(exact_term.name, default_term.name), 'slug', coalesce(exact_term.slug, default_term.slug), 'label', coalesce(exact_term.label, default_term.label), 'parent_id', coalesce(exact_term.parent_id, default_term.parent_id), 'locale', coalesce(exact_term.locale, default_term.locale), 'translation_group', coalesce(exact_term.translation_group, default_term.translation_group)",
 	);
-	// Filter terms to the entry's own locale (matches #1441: terms render in the
-	// entry's resolved locale, not all locale variants of the attached group).
-	const terms = sql`(SELECT ${agg(termObj)} FROM ${sql.ref("content_taxonomies")} AS ct ${foldJoin} ${sql.ref("taxonomies")} AS t ON t.translation_group = ct.taxonomy_id WHERE ct.collection = ${type} AND ct.entry_id = ${o}.id AND t.locale = ${o}.locale) AS ${sql.ref("_emdash_terms")}`;
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? "en";
+	const selectedTermId = sql`coalesce(exact_term.id, default_term.id)`;
+	const termAgg = pg
+		? sql`coalesce(json_agg(${termObj}) FILTER (WHERE ${selectedTermId} IS NOT NULL), '[]'::json)`
+		: sql`json_group_array(${termObj}) FILTER (WHERE ${selectedTermId} IS NOT NULL)`;
+	const terms = sql`(SELECT ${termAgg} FROM ${sql.ref("content_taxonomies")} AS ct LEFT JOIN ${sql.ref("taxonomies")} AS exact_term ON exact_term.translation_group = ct.taxonomy_id AND exact_term.locale = ${o}.locale LEFT JOIN ${sql.ref("taxonomies")} AS default_term ON default_term.translation_group = ct.taxonomy_id AND default_term.locale = ${defaultLocale} WHERE ct.collection = ${type} AND ct.entry_id = ${o}.translation_group) AS ${sql.ref("_emdash_terms")}`;
 
 	const bylineInner = obj(
 		"'id', b.id, 'slug', b.slug, 'displayName', b.display_name, 'bio', b.bio, 'avatarMediaId', b.avatar_media_id, 'avatarStorageKey', m.storage_key, 'avatarAlt', m.alt, 'avatarBlurhash', m.blurhash, 'avatarDominantColor', m.dominant_color, 'websiteUrl', b.website_url, 'userId', b.user_id, 'isGuest', b.is_guest, 'createdAt', b.created_at, 'updatedAt', b.updated_at, 'locale', b.locale, 'translationGroup', b.translation_group",
@@ -185,6 +196,19 @@ function foldedSeoSelect(db: Kysely<any>, type: string, outer: string) {
 	return sql`(SELECT ${obj} FROM ${sql.ref("_emdash_seo")} AS s WHERE s.collection = ${type} AND s.content_id = ${o}.id LIMIT 1) AS ${sql.ref(SEO_FOLDED_COLUMN)}`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any Kysely instance
+function foldedBooleanFieldsSelect(db: Kysely<any>, type: string) {
+	const aggregate = isPostgres(db)
+		? sql`coalesce(json_agg(f.slug), '[]'::json)`
+		: sql`json_group_array(f.slug)`;
+	return sql`(
+		SELECT ${aggregate}
+		FROM ${sql.ref("_emdash_fields")} AS f
+		INNER JOIN ${sql.ref("_emdash_collections")} AS c ON c.id = f.collection_id
+		WHERE c.slug = ${type} AND f.type = ${"boolean"}
+	) AS ${sql.ref(BOOLEAN_FIELDS_FOLDED_COLUMN)}`;
+}
+
 /**
  * Expand the folded `_emdash_seo` JSON column onto the row using SEO_COLUMN_ALIASES,
  * so {@link extractSeo} reads it transparently. SQLite returns a JSON string
@@ -213,6 +237,26 @@ function expandFoldedSeo(row: Record<string, unknown>): void {
 	for (const [col, alias] of Object.entries(SEO_COLUMN_ALIASES)) {
 		row[alias] = parsed[col] ?? null;
 	}
+}
+
+export function creditsFromFoldedBylines(folded: unknown[]) {
+	return folded
+		.map((raw) => {
+			const credit = isPlainObject(raw) ? raw : {};
+			const byline = isPlainObject(credit.byline) ? credit.byline : {};
+			return {
+				roleLabel: typeof credit.roleLabel === "string" ? credit.roleLabel : null,
+				sortOrder: Number(credit.sortOrder ?? 0),
+				source: "explicit" as const,
+				byline: {
+					...byline,
+					isGuest: Boolean(byline.isGuest),
+					// Folded rows omit custom-field values.
+					customFields: {},
+				},
+			};
+		})
+		.toSorted((a, b) => a.sortOrder - b.sortOrder);
 }
 
 /**
@@ -249,6 +293,12 @@ function stashFolded(data: Record<string, unknown>, row: Record<string, unknown>
 			configurable: true,
 		});
 	}
+
+	const foldedBylines = Reflect.get(data, FOLDED_BYLINES);
+	if (!Array.isArray(foldedBylines)) return;
+	const credits = creditsFromFoldedBylines(foldedBylines);
+	data.bylines = credits;
+	data.byline = credits[0]?.byline ?? null;
 }
 
 /** Resolved SEO shape attached to `entry.data.seo`. Mirrors `ContentSeo`. */
@@ -293,44 +343,78 @@ function getTableName(type: string): string {
 }
 
 /**
- * Cache for taxonomy names (only used for the primary database).
- * Skipped when a per-request DB override is active (e.g. preview mode)
+ * Cache for taxonomy names by collection (only used for the primary database).
+ * Stored on globalThis so Vite SSR chunk duplication cannot create independent
+ * caches. Skipped when a per-request DB override is active (e.g. preview mode)
  * because the override DB may have different taxonomies.
  */
-let taxonomyNames: Set<string> | null = null;
+interface TaxonomyNamesHolder {
+	cache: Map<string, Set<string>> | null;
+}
+
+const TAXONOMY_NAMES_CACHE_KEY = Symbol.for("emdash:taxonomy-names");
+const taxonomyNamesStore = globalThis as Record<symbol, unknown>;
+const taxonomyNamesHolder: TaxonomyNamesHolder =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see taxonomies/index.ts)
+	(taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] as TaxonomyNamesHolder | undefined) ??
+	(() => {
+		const holder: TaxonomyNamesHolder = { cache: null };
+		taxonomyNamesStore[TAXONOMY_NAMES_CACHE_KEY] = holder;
+		return holder;
+	})();
+
+function setTaxonomyNamesCache(cache: Map<string, Set<string>> | null): void {
+	taxonomyNamesHolder.cache = cache;
+}
 
 /**
- * Get all taxonomy names (cached for the primary DB, bypassed only when
- * the per-request DB is an isolated instance — playground / DO preview).
- * Plain D1 Sessions routing shares schema with the singleton, so the
- * module-scoped cache stays valid.
+ * Get taxonomy names attached to a collection (cached for the primary DB,
+ * bypassed only when the per-request DB is an isolated instance — playground /
+ * DO preview). Plain D1 Sessions routing shares schema with the singleton, so
+ * the isolate-wide cache stays valid.
  */
-async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
+async function getTaxonomyNames(db: Kysely<Database>, collection: string): Promise<Set<string>> {
 	const hasIsolatedDb = getRequestContext()?.dbIsIsolated === true;
 
-	if (!hasIsolatedDb && taxonomyNames) {
-		return taxonomyNames;
+	if (!hasIsolatedDb && taxonomyNamesHolder.cache) {
+		return taxonomyNamesHolder.cache.get(collection) ?? new Set();
 	}
 
 	try {
-		const defs = await db.selectFrom("_emdash_taxonomy_defs").select("name").execute();
-		const names = new Set(defs.map((d) => d.name));
-		if (!hasIsolatedDb) {
-			taxonomyNames = names;
+		const defs = await selectTaxonomyDefs(db).execute();
+		const namesByCollection = new Map<string, Set<string>>();
+		for (const def of defs) {
+			let collections: unknown;
+			try {
+				collections = JSON.parse(def.collections ?? "[]");
+			} catch {
+				continue;
+			}
+			if (!Array.isArray(collections)) continue;
+			for (const attachedCollection of collections) {
+				if (typeof attachedCollection !== "string") continue;
+				const names = namesByCollection.get(attachedCollection) ?? new Set<string>();
+				names.add(def.name);
+				namesByCollection.set(attachedCollection, names);
+			}
 		}
-		return names;
-	} catch {
-		// Table doesn't exist yet, return empty set
+		if (!hasIsolatedDb) {
+			setTaxonomyNamesCache(namesByCollection);
+		}
+		return namesByCollection.get(collection) ?? new Set();
+	} catch (error) {
+		if (!isMissingTableError(error) && !isMissingColumnError(error)) throw error;
+
 		const empty = new Set<string>();
 		if (!hasIsolatedDb) {
-			taxonomyNames = empty;
+			setTaxonomyNamesCache(new Map());
 		}
 		return empty;
 	}
 }
 
 /**
- * Reset the module-scoped taxonomy-names cache.
+ * Reset the isolate-wide taxonomy-names cache.
  *
  * Called from `invalidateTaxonomyDefsCache()` so that creating or seeding a
  * taxonomy definition is reflected within the current isolate instead of
@@ -338,7 +422,7 @@ async function getTaxonomyNames(db: Kysely<Database>): Promise<Set<string>> {
  * isolate-wide taxonomy-defs cache in `taxonomies/index.ts`.
  */
 export function resetTaxonomyNamesCache(): void {
-	taxonomyNames = null;
+	setTaxonomyNamesCache(null);
 }
 
 /**
@@ -430,7 +514,10 @@ function normalizeLocalMediaValue(value: unknown): unknown {
  * Extracts content fields (non-system columns) and parses JSON where needed.
  * System columns needed for templates (id, status, dates) are included with camelCase names.
  */
-function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
+function mapRowToData(
+	row: Record<string, unknown>,
+	booleanFields: ReadonlySet<string>,
+): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
 	const rawDateValues: Record<string, string> = {};
 
@@ -452,6 +539,11 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 		}
 
 		if (SYSTEM_COLUMNS.has(key)) continue;
+
+		if (booleanFields.has(key) && (typeof value === "boolean" || value === 0 || value === 1)) {
+			data[key] = Boolean(value);
+			continue;
+		}
 
 		// Try to parse JSON strings (for portableText, json fields, etc.)
 		if (typeof value === "string") {
@@ -481,13 +573,135 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 }
 
 /**
+ * The entry id Astro addresses a row by: its slug, prefixed with the locale
+ * whenever i18n routing would prefix the URL. Shared by every path that builds
+ * a loader entry so a referenced entry carries the same id it would have been
+ * loaded under directly.
+ */
+function entryIdForRow(row: Record<string, unknown>): string {
+	const i18nConfig = virtualConfig?.i18n;
+	const slug = rowStr(row, "slug") || rowStr(row, "id");
+	const locale = rowStr(row, "locale");
+	const shouldPrefix =
+		i18nConfig &&
+		i18nConfig.locales.length > 1 &&
+		locale !== "" &&
+		(locale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
+	return shouldPrefix ? `${locale}/${slug}` : slug;
+}
+
+/** A loader entry as {@link emdashLoader} builds one, before the query layer wraps it. */
+export interface LoadedEntry {
+	id: string;
+	slug: string;
+	status: string;
+	data: Record<string, unknown>;
+	cacheHint: { tags: string[]; lastModified?: Date };
+}
+
+/**
+ * Load one locale variant of each translation group, in one query per
+ * `SQL_BATCH_SIZE` chunk of groups.
+ *
+ * A group's variant is the first of `localeChain` it has, or else its lowest
+ * locale code: a reference names a translation group, so a target that exists
+ * only outside the chain is still a real reference. Groups with no surviving
+ * variant are absent from the result.
+ *
+ * The rows go through the same {@link mapRowToData} as a direct entry load, so
+ * a referenced entry's `data` carries the same dates, booleans and normalized
+ * media values a caller would get from `getEmDashEntry`. Bylines and taxonomy
+ * terms are not hydrated; each would cost a correlated subquery per row.
+ */
+export async function loadEntriesByGroups(
+	type: string,
+	translationGroups: string[],
+	options: { publishedOnly?: boolean; localeChain?: readonly string[] } = {},
+): Promise<LoadedEntry[]> {
+	if (translationGroups.length === 0) return [];
+	const db = await getDb();
+	const tableName = getTableName(type);
+	const statusFilter = options.publishedOnly ? sql`AND status = ${"published"}` : sql``;
+	const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
+	const localeChain = options.localeChain ?? [];
+	const chainPosition =
+		localeChain.length > 0
+			? sql`CASE locale ${sql.join(
+					localeChain.map((locale, index) => sql`WHEN ${locale} THEN ${sql.lit(index)}`),
+					sql` `,
+				)} ELSE ${sql.lit(localeChain.length)} END,`
+			: sql``;
+
+	const entries: LoadedEntry[] = [];
+	try {
+		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM (
+					SELECT *, ${booleanFieldsSelect},
+						ROW_NUMBER() OVER (
+							PARTITION BY translation_group ORDER BY ${chainPosition} locale ASC
+						) AS ${sql.ref(VARIANT_RANK_COLUMN)}
+					FROM ${sql.ref(tableName)}
+					WHERE translation_group IN (${sql.join(chunk.map((group) => sql`${group}`))})
+					AND deleted_at IS NULL
+					${statusFilter}
+				) AS variants
+				WHERE ${sql.ref(VARIANT_RANK_COLUMN)} = 1
+				ORDER BY translation_group ASC
+			`.execute(db);
+			const booleanFields = parseFoldedBooleanFields(result.rows[0]);
+			for (const row of result.rows) {
+				entries.push({
+					id: entryIdForRow(row),
+					slug: rowStr(row, "slug"),
+					status: rowStr(row, "status", "draft"),
+					data: mapRowToData(row, booleanFields),
+					cacheHint: {
+						tags: [rowStr(row, "id")],
+						lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
+					},
+				});
+			}
+		}
+	} catch (error) {
+		if (isMissingTableError(error)) return [];
+		throw error;
+	}
+	return entries;
+}
+
+function parseFoldedBooleanFields(row: Record<string, unknown> | undefined): Set<string> {
+	const raw = row?.[BOOLEAN_FIELDS_FOLDED_COLUMN];
+	let values: unknown;
+	if (typeof raw === "string") {
+		try {
+			values = JSON.parse(raw);
+		} catch {
+			return new Set();
+		}
+	} else {
+		values = raw;
+	}
+
+	if (!Array.isArray(values)) return new Set();
+	return new Set(values.filter((value): value is string => typeof value === "string"));
+}
+
+/**
  * Map revision data (already-parsed JSON object) to entry data.
  * Strips _-prefixed metadata keys (e.g. _slug) used internally by revisions.
  */
-function mapRevisionData(data: Record<string, unknown>): Record<string, unknown> {
+function mapRevisionData(
+	data: Record<string, unknown>,
+	booleanFields: ReadonlySet<string>,
+): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(data)) {
 		if (key.startsWith("_")) continue; // revision metadata
+		if (booleanFields.has(key) && (typeof value === "boolean" || value === 0 || value === 1)) {
+			result[key] = Boolean(value);
+			continue;
+		}
 		result[key] = normalizeLocalMediaValue(value);
 	}
 	return result;
@@ -633,6 +847,48 @@ function isWhereRange(value: WhereValue): value is WhereRange {
 }
 
 /**
+ * Keys a `where` or `orderBy` can name that belong to the table rather than to
+ * a field. `slug` is one of them; {@link SYSTEM_COLUMNS} leaves it out because
+ * it is kept in `entry.data` for templates.
+ */
+const SYSTEM_QUERY_KEYS: ReadonlySet<string> = new Set([...SYSTEM_COLUMNS, "slug"]);
+
+/**
+ * The first of `keys` that names a reference field bound to a relation, or
+ * undefined.
+ *
+ * Such a field has no column: a `WHERE` on it fails with "no such column", which
+ * the catch below reads as an empty collection, and a field bound after its
+ * column existed answers from values it stopped writing. Both read to a template
+ * as "nothing matched", so the key has to be caught before the query is built.
+ *
+ * System columns are answered without a lookup, and the lookup itself is cached
+ * per request and in the schema object-cache namespace, so a render that filters
+ * by an ordinary field pays for this at most once between schema changes, and a
+ * render that filters by nothing never pays at all.
+ */
+async function findStoragelessQueryKey(
+	collection: string,
+	keys: string[],
+): Promise<string | undefined> {
+	const candidates = keys.filter((key) => !SYSTEM_QUERY_KEYS.has(key));
+	if (candidates.length === 0) return undefined;
+	const { getReferenceFieldMap } = await import("./references/field-map.js");
+	const bound = await getReferenceFieldMap(collection);
+	return candidates.find((key) => bound.has(key));
+}
+
+/**
+ * A boolean field owns an INTEGER column (`FIELD_TYPE_TO_COLUMN`) and its
+ * values are written as 0/1, so binding a native `true` against one is a type
+ * error on PostgreSQL. SQLite accepts the boolean and compares it as 1, which
+ * is why filtering by a boolean field only ever broke on one dialect.
+ */
+function bindableFilterValue(value: unknown): unknown {
+	return typeof value === "boolean" ? (value ? 1 : 0) : value;
+}
+
+/**
  * Build AND conditions for non-taxonomy field filters.
  * Returns an array of sql fragments; empty if no field filters apply.
  * Field names are validated against FIELD_NAME_PATTERN to prevent injection.
@@ -652,16 +908,19 @@ function buildFieldConditions(
 		const ref = tablePrefix ? sql.ref(`${tablePrefix}.${key}`) : sql.ref(key);
 
 		if (isWhereRange(value)) {
-			if (value.gt !== undefined) conditions.push(sql`${ref} > ${value.gt}`);
-			if (value.gte !== undefined) conditions.push(sql`${ref} >= ${value.gte}`);
-			if (value.lt !== undefined) conditions.push(sql`${ref} < ${value.lt}`);
-			if (value.lte !== undefined) conditions.push(sql`${ref} <= ${value.lte}`);
+			const { gt, gte, lt, lte } = value;
+			if (gt !== undefined) conditions.push(sql`${ref} > ${bindableFilterValue(gt)}`);
+			if (gte !== undefined) conditions.push(sql`${ref} >= ${bindableFilterValue(gte)}`);
+			if (lt !== undefined) conditions.push(sql`${ref} < ${bindableFilterValue(lt)}`);
+			if (lte !== undefined) conditions.push(sql`${ref} <= ${bindableFilterValue(lte)}`);
 		} else if (Array.isArray(value)) {
 			if (value.length > 0) {
-				conditions.push(sql`${ref} IN (${sql.join(value.map((v) => sql`${v}`))})`);
+				conditions.push(
+					sql`${ref} IN (${sql.join(value.map((v) => sql`${bindableFilterValue(v)}`))})`,
+				);
 			}
 		} else {
-			conditions.push(sql`${ref} = ${value}`);
+			conditions.push(sql`${ref} = ${bindableFilterValue(value)}`);
 		}
 	}
 
@@ -764,18 +1023,13 @@ export interface TaxonomyPivotQueryOptions {
 /**
  * Build the pivot-driven taxonomy listing query (#1834).
  *
- * Drives from a pivot-only CTE (`picked`) that carries the sort column, seeks
- * the term on a `(taxonomy_id, collection, deleted_at, [locale,] <sort> DESC,
- * entry_id DESC)` index, and lets `LIMIT` short-circuit; then joins `ec_*` by primary
- * key to hydrate the page **and re-checks the real filter predicates on the
- * joined row** — the pivot columns are advisory (non-atomic re-stamp on D1), so
- * `ec_*` is authoritative for membership. Ordering stays pivot-driven to keep
- * the early-`LIMIT`.
+ * Drives from the term pivot and joins content translations through their
+ * shared translation_group. Content columns remain authoritative for locale,
+ * visibility, sorting, and cursor predicates.
  *
  * Two shapes:
  * - **Indexed sort** (`published_at`/`created_at`, single sort field): the
- *   pivot index is covering for `(entry_id, sortval)`, so `LIMIT` lives in
- *   `picked` and short-circuits.
+ *   `LIMIT` lives in `picked`.
  * - **Temp-sort** (`updated_at` or any other field, or multi-field sort): no
  *   pivot sort index applies, so `picked` collects the tagged candidate set and
  *   the outer query sorts the joined rows. Bounded to tagged rows — no
@@ -813,14 +1067,6 @@ export function buildTaxonomyPivotQuery(
 	const restGroups = groupSets.slice(1);
 	const multiGroup = firstGroups.length > 1;
 
-	// Pivot-local narrowing predicates (advisory — re-checked on `ec_*` below).
-	// `status === undefined` means an all-statuses shape (admin), so the status
-	// condition is dropped entirely.
-	const deletedCt = deletedIsNull ? sql`ct.deleted_at IS NULL` : sql`ct.deleted_at IS NOT NULL`;
-	const statusCt =
-		status !== undefined ? sql`AND ${buildStatusCondition(db, status, "ct")}` : sql``;
-	const localeCt = locale ? sql`AND ct.locale = ${locale}` : sql``;
-
 	// Multi-term AND: one residual pivot-PK EXISTS per additional taxonomy.
 	const residual =
 		restGroups.length > 0
@@ -837,22 +1083,30 @@ export function buildTaxonomyPivotQuery(
 				)}`
 			: sql``;
 
-	// Byline filter keeps its EXISTS, correlated on `ct.entry_id`.
+	// Byline assignments remain keyed to a locale-specific content row.
 	const bylineCt = bylineGroups
 		? sql`AND EXISTS (
 				SELECT 1 FROM _emdash_content_bylines cb
 				WHERE cb.collection_slug = ${collection}
-					AND cb.content_id = ct.entry_id
+					AND cb.content_id = r.id
 					AND cb.byline_id IN (${sql.join(bylineGroups.map((g) => sql`${g}`))})
 			)`
 		: sql``;
 
 	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
+	// A plain JOIN lets SQLite reorder the `picked` CTE. For indexed sorts
+	// (`published_at`/`created_at`) the planner can then drive from the
+	// `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`, probe the pivot
+	// by primary key, and short-circuit at `LIMIT`. A `CROSS JOIN` pin would
+	// force `content_taxonomies` as the outer table and require a temp sort,
+	// producing a full nested loop over the collection on D1.
+	const pivotContentJoin = sql`JOIN`;
 	const {
 		terms: termsSelect,
 		bylines: bylinesSelect,
 		bylinesExist: bylinesExistSelect,
 	} = foldedHydrationSelects(db, collection, "r");
+	const booleanFieldsSelect = foldedBooleanFieldsSelect(db, collection);
 
 	// Authoritative re-check on the joined `ec_*` row.
 	const deletedR = deletedIsNull ? sql`r.deleted_at IS NULL` : sql`r.deleted_at IS NOT NULL`;
@@ -860,15 +1114,15 @@ export function buildTaxonomyPivotQuery(
 	const localeR = locale ? sql`AND r.locale = ${locale}` : sql``;
 
 	if (isIndexedSort) {
-		const sortRef = sql.ref(`ct.${primary.field}`);
+		const sortRef = sql.ref(`r.${primary.field}`);
 		const sortval = multiGroup ? sql`MAX(${sortRef})` : sortRef;
-		const groupByClause = multiGroup ? sql`GROUP BY ct.entry_id` : sql``;
+		const groupByClause = multiGroup ? sql`GROUP BY r.id` : sql``;
 
 		let cursorClause = sql``;
 		let havingClause = sql``;
 		if (cursor) {
 			const { orderValue, id } = decodeCursor(cursor);
-			const cond = sql`(${sortval} ${cmp} ${orderValue} OR (${sortval} = ${orderValue} AND ct.entry_id ${cmp} ${id}))`;
+			const cond = sql`(${sortval} ${cmp} ${orderValue} OR (${sortval} = ${orderValue} AND r.id ${cmp} ${id}))`;
 			// A GROUP BY makes `sortval` an aggregate → cursor goes in HAVING.
 			if (multiGroup) havingClause = sql`HAVING ${cond}`;
 			else cursorClause = sql`AND ${cond}`;
@@ -878,22 +1132,23 @@ export function buildTaxonomyPivotQuery(
 
 		return sql<Record<string, unknown>>`
 			WITH picked AS (
-				SELECT ct.entry_id AS entry_id, ${sortval} AS sortval
+				SELECT r.id AS entry_id, ${sortval} AS sortval
 				FROM content_taxonomies ct
+				${pivotContentJoin} ${sql.ref(tableName)} AS r ON r.translation_group = ct.entry_id
 				WHERE ct.collection = ${collection}
 					AND ${firstGroupCond}
-					AND ${deletedCt}
-					${statusCt}
-					${localeCt}
+					AND ${deletedR}
+					${statusR}
+					${localeR}
 					${residual}
 					${bylineCt}
 					${cursorClause}
 				${groupByClause}
 				${havingClause}
-				ORDER BY sortval ${dir}, ct.entry_id ${dir}
+				ORDER BY sortval ${dir}, r.id ${dir}
 				${limitClause}
 			)
-			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 			FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 			WHERE ${deletedR} ${statusR} ${localeR}
 			ORDER BY picked.sortval ${dir}, picked.entry_id ${dir}
@@ -906,17 +1161,18 @@ export function buildTaxonomyPivotQuery(
 	const limitClause = buildPivotLimitOffset(db, fetchLimit, offset);
 	return sql<Record<string, unknown>>`
 		WITH picked AS (
-			SELECT DISTINCT ct.entry_id AS entry_id
+			SELECT DISTINCT r.id AS entry_id
 			FROM content_taxonomies ct
+			${pivotContentJoin} ${sql.ref(tableName)} AS r ON r.translation_group = ct.entry_id
 			WHERE ct.collection = ${collection}
 				AND ${firstGroupCond}
-				AND ${deletedCt}
-				${statusCt}
-				${localeCt}
+				AND ${deletedR}
+				${statusR}
+				${localeR}
 				${residual}
 				${bylineCt}
 		)
-		SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+		SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 		FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 		WHERE ${deletedR} ${statusR} ${localeR}
 			${cursorCond}
@@ -1064,6 +1320,20 @@ export async function getDb(): Promise<Kysely<Database>> {
 	return dbInstance;
 }
 
+/** @internal Date projection for published archive entries. */
+export async function loadPublishedDates(type: string, locale?: string) {
+	const tableName = getTableName(type);
+	const db = await getDb();
+	const result = await sql<{ published_at: string | null; updated_at: string | null }>`
+		SELECT published_at, updated_at FROM ${sql.ref(tableName)}
+		WHERE deleted_at IS NULL
+		AND ${buildStatusCondition(db, "published")}
+		${locale ? sql`AND locale = ${locale}` : sql``}
+		ORDER BY published_at DESC, id DESC
+	`.execute(db);
+	return result.rows;
+}
+
 /**
  * Create an EmDash Live Collections loader
  *
@@ -1153,7 +1423,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const fieldFilters: Record<string, WhereValue> = {};
 
 				if (where && Object.keys(where).length > 0) {
-					const taxNames = await getTaxonomyNames(db);
+					const taxNames = await getTaxonomyNames(db, type);
 
 					for (const [key, value] of Object.entries(where)) {
 						if (value == null) continue;
@@ -1179,6 +1449,19 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							fieldFilters[key] = value;
 						}
 					}
+				}
+
+				const storagelessKey = await findStoragelessQueryKey(type, [
+					...Object.keys(fieldFilters),
+					...Object.keys(orderBy ?? {}),
+				]);
+				if (storagelessKey) {
+					const message = `Cannot filter or sort "${type}" by "${storagelessKey}": it is a reference field bound to a relation, and its links are not stored on the entry. Read them with getEmDashEntry(..., { references }) or getEmDashReferences().`;
+					// Warned as well as returned, the way the missing-column catch
+					// below warns: a template that renders `entries` without reading
+					// `error` would otherwise see the same empty list this replaced.
+					console.warn(`[emdash] where filter: ${message}`);
+					return { error: new Error(message) };
 				}
 
 				// A byline or taxonomy filter with no values matches nothing —
@@ -1256,7 +1539,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							SELECT 1 FROM content_taxonomies ct
 							INNER JOIN taxonomies t ON t.translation_group = ct.taxonomy_id
 							WHERE ct.collection = ${type}
-								AND ct.entry_id = ${sql.ref(tableName)}.id
+								AND ct.entry_id = ${sql.ref(tableName)}.translation_group
 								AND t.name = ${f.name}
 								AND t.slug IN (${sql.join(f.slugs.map((s) => sql`${s}`))})
 							${locale ? sql`AND t.locale = ${locale}` : sql``}
@@ -1284,6 +1567,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						bylines: bylinesSelect,
 						bylinesExist: bylinesExistSelect,
 					} = foldedHydrationSelects(db, type, tableName);
+					const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
 
 					// LIMIT/OFFSET clause. SQLite only accepts OFFSET when a
 					// LIMIT is present, so a bare offset uses `LIMIT -1`
@@ -1299,7 +1583,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							: sql`LIMIT -1 OFFSET ${offset}`;
 					}
 					result = await sql<Record<string, unknown>>`
-						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect} FROM ${sql.ref(tableName)}
+						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
@@ -1317,17 +1601,10 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
 
 				// Map rows to entries
-				const i18nConfig = virtualConfig?.i18n;
-				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
+				const booleanFields = parseFoldedBooleanFields(rows[0]);
 				const entries = rows.map((row) => {
-					const slug = rowStr(row, "slug") || rowStr(row, "id");
-					const rowLocale = rowStr(row, "locale");
-					const shouldPrefix =
-						i18nEnabled &&
-						rowLocale !== "" &&
-						(rowLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
-					const id = shouldPrefix ? `${rowLocale}/${slug}` : slug;
-					const data = mapRowToData(row);
+					const id = entryIdForRow(row);
+					const data = mapRowToData(row, booleanFields);
 					stashFolded(data, row);
 					return {
 						id,
@@ -1441,16 +1718,26 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					bylinesExist: bylinesExistSelect,
 				} = foldedHydrationSelects(db, type, "c");
 				const seoSelect = foldedSeoSelect(db, type, "c");
+				const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
+				// Keep collection-wide metadata in one result column for wide D1 collections.
+				const jsonObject = isPostgres(db) ? sql`json_build_object` : sql`json_object`;
+				const metadataSelect = sql`(
+					SELECT ${jsonObject}(
+						'bylinesExist', _emdash_bylines_exist,
+						'booleanFields', _emdash_boolean_fields
+					)
+					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}) AS metadata
+				) AS _emdash_entry_metadata`;
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})
@@ -1462,6 +1749,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					return undefined;
 				}
 
+				const rawMetadata = row._emdash_entry_metadata;
+				const metadata: unknown =
+					typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
+				delete row._emdash_entry_metadata;
+				if (isPlainObject(metadata)) {
+					row._emdash_bylines_exist = metadata.bylinesExist;
+					row[BOOLEAN_FIELDS_FOLDED_COLUMN] = metadata.booleanFields;
+				}
+
 				// Expand the folded SEO JSON column onto SEO_COLUMN_ALIASES so
 				// extractSeo() reads it transparently. Missing/null SEO is a
 				// no-op: extractSeo() returns null when the aliases are absent.
@@ -1469,13 +1765,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				const i18nConfig = virtualConfig?.i18n;
 				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
-				const entrySlug = rowStr(row, "slug") || rowStr(row, "id");
-				const entryLocale = rowStr(row, "locale");
-				const shouldPrefixEntry =
-					i18nEnabled &&
-					entryLocale !== "" &&
-					(entryLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
-				const entryId = shouldPrefixEntry ? `${entryLocale}/${entrySlug}` : entrySlug;
+				const entryId = entryIdForRow(row);
 
 				// Preview mode: override content fields with revision data,
 				// keeping system metadata from the content table row.
@@ -1515,10 +1805,16 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						const revEntryData: Record<string, unknown> = {
 							...systemData,
 							slug,
-							...mapRevisionData(parsed),
+							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
 						};
 						const revSeo = extractSeo(row);
-						if (revSeo) revEntryData.seo = revSeo;
+						if (revSeo) {
+							revEntryData.seo = revSeo;
+							// SEO comes from the content row, so the panel data is
+							// valid for the entry regardless of the revision shown.
+							primeSeoPanel(type, rowStr(row, "id"), revSeo);
+						}
+						stashFolded(revEntryData, row);
 						return {
 							id: revId,
 							slug,
@@ -1532,9 +1828,16 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
-				const entryData = mapRowToData(row);
+				const entryData = mapRowToData(row, parseFoldedBooleanFields(row));
 				const entrySeo = extractSeo(row);
-				if (entrySeo) entryData.seo = entrySeo;
+				if (entrySeo) {
+					entryData.seo = entrySeo;
+					// Prime the request cache so <EmDashHead> can apply the panel
+					// values without its own _emdash_seo query. Keyed by the
+					// content-row id — the same value templates pass as
+					// page.content.id.
+					primeSeoPanel(type, rowStr(row, "id"), entrySeo);
+				}
 				stashFolded(entryData, row);
 				return {
 					id: entryId,

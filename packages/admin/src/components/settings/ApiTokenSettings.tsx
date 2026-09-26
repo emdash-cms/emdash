@@ -21,6 +21,7 @@ import {
 	type ApiTokenScopeValue,
 } from "../../lib/api/api-tokens.js";
 import { fetchPlugins } from "../../lib/api/plugins.js";
+import { parseTimestamp } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
@@ -36,7 +37,7 @@ const EXPIRY_OPTIONS = [
 	{ value: "365d", label: msg`1 year` },
 ] as const;
 
-const API_TOKEN_SCOPE_VALUES: {
+export const API_TOKEN_SCOPE_VALUES: {
 	scope: ApiTokenScopeValue;
 	label: MessageDescriptor;
 	description: MessageDescriptor;
@@ -95,6 +96,21 @@ const API_TOKEN_SCOPE_VALUES: {
 		scope: API_TOKEN_SCOPES.McpTools,
 		label: msg`Plugin MCP Tools`,
 		description: msg`Invoke MCP tools from all enabled plugins`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.TransferExport,
+		label: msg`Site Export`,
+		description: msg`Download a copy of the entire site, including drafts, media, settings, and author emails. Admin includes this; choose it instead of Admin to give an agent narrower access.`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.TransferAnalyze,
+		label: msg`Site Import Analysis`,
+		description: msg`Upload site packages and check whether they can be imported. Admin includes this; choose it instead of Admin to give an agent narrower access.`,
+	},
+	{
+		scope: API_TOKEN_SCOPES.TransferExecute,
+		label: msg`Site Import`,
+		description: msg`Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access.`,
 	},
 	{
 		scope: API_TOKEN_SCOPES.Admin,
@@ -356,7 +372,7 @@ export function ApiTokenSettings() {
 												<div className="flex gap-1.5">
 													<dt>{t`Created`}</dt>
 													<dd className="tabular-nums">
-														{i18n.date(new Date(token.createdAt), { dateStyle: "medium" })}
+														{i18n.date(parseTimestamp(token.createdAt), { dateStyle: "medium" })}
 													</dd>
 												</div>
 												{token.expiresAt && (

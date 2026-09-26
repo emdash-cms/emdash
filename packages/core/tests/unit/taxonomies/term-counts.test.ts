@@ -16,6 +16,10 @@ import { ContentRepository } from "../../../src/database/repositories/content.js
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";
 import { runWithContext } from "../../../src/request-context.js";
+import {
+	primeRegisteredCollections,
+	setRegisteredCollectionsRevalidateWindowForTests,
+} from "../../../src/schema/collection-slugs-cache.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { fetchVisibleTermCounts } from "../../../src/taxonomies/term-counts.js";
 import {
@@ -49,7 +53,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		// The migration-seeded defs declare `["posts"]`; counts are scoped to
 		// the declared collections, so point them at the test collections.
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();
@@ -195,7 +199,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		expect(tagCounts.get(tag.translationGroup ?? tag.id)).toBe(1);
 	});
 
-	it("counts per entry row across locales, keyed by translation_group", async () => {
+	it("counts one logical content group once for each assigned term group", async () => {
 		// Defs are per-locale — translate the seeded `category` def into FR so
 		// the FR widget view resolves (same declared collections).
 		const enDef = await ctx.db
@@ -216,7 +220,6 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 				translation_group: enDef.translation_group ?? enDef.id,
 			})
 			.execute();
-
 		const enTerm = await taxRepo.create({
 			name: "category",
 			slug: "news",
@@ -229,6 +232,12 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			label: "Actualités",
 			locale: "fr",
 			translationOf: enTerm.id,
+		});
+		const featured = await taxRepo.create({
+			name: "category",
+			slug: "featured",
+			label: "Featured",
+			locale: "en",
 		});
 
 		const enPost = await contentRepo.create({
@@ -248,24 +257,58 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		});
 		// Attaching via either locale's term id resolves to the shared group.
 		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
-		await taxRepo.attachToEntry("post", frPost.id, frTerm.id);
+		await taxRepo.attachToEntry("post", frPost.id, featured.id);
 
 		const counts = await fetchVisibleTermCounts(ctx.db, "category", ["post"]);
-		// One count per entry row, shared by every locale variant of the term.
-		expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(2);
+		expect(counts.get(enTerm.translationGroup ?? enTerm.id)).toBe(1);
+		expect(counts.get(featured.translationGroup ?? featured.id)).toBe(1);
 
 		// Both locale views of the taxonomy surface the same group count.
 		const enTerms = await getTaxonomyTerms("category", { locale: "en" });
 		const frTerms = await getTaxonomyTerms("category", { locale: "fr" });
-		expect(enTerms[0]!.count).toBe(2);
-		expect(frTerms[0]!.count).toBe(2);
+		expect(enTerms.find((term) => term.id === enTerm.id)?.count).toBe(1);
+		expect(frTerms.find((term) => term.id === frTerm.id)?.count).toBe(1);
+	});
+
+	it("counts only entry rows in the requested locale, keyed by translation_group", async () => {
+		const enTerm = await taxRepo.create({
+			name: "category",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		const enPost = await contentRepo.create({
+			type: "post",
+			slug: "hello",
+			status: "published",
+			data: { title: "Hello" },
+			locale: "en",
+		});
+		await contentRepo.create({
+			type: "post",
+			slug: "bonjour",
+			status: "published",
+			data: { title: "Bonjour" },
+			locale: "fr",
+			translationOf: enPost.id,
+		});
+		await taxRepo.attachToEntry("post", enPost.id, enTerm.id);
+
+		const enCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "en");
+		const frCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "fr");
+		const deCounts = await fetchVisibleTermCounts(ctx.db, "category", ["post"], "de");
+		const group = enTerm.translationGroup ?? enTerm.id;
+
+		expect(enCounts.get(group)).toBe(1);
+		expect(frCounts.get(group)).toBe(1);
+		expect(deCounts.has(group)).toBe(false);
 	});
 
 	it("skips missing ec_* tables and returns a partial count", async () => {
 		// A declared collection whose table was never created (pre-migration
 		// drift) must not break counting for the collections that do exist.
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["ghost", "post"]) })
 			.where("name", "=", "category")
 			.execute();
@@ -304,8 +347,20 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		});
 
 		const post = await createEntry("post", "p1");
-		const page1 = await createEntry("page", "g1");
-		const page2 = await createEntry("page", "g2");
+		const page1 = await contentRepo.create({
+			type: "page",
+			slug: "g1",
+			status: "published",
+			data: { title: "g1" },
+			locale: "fr",
+		});
+		const page2 = await contentRepo.create({
+			type: "page",
+			slug: "g2",
+			status: "published",
+			data: { title: "g2" },
+			locale: "fr",
+		});
 		await taxRepo.attachToEntry("post", post.id, enTerm.id);
 		await taxRepo.attachToEntry("page", page1.id, enTerm.id);
 		await taxRepo.attachToEntry("page", page2.id, enTerm.id);
@@ -317,6 +372,47 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 			expect(enTerms[0]!.count).toBe(1);
 			expect(frTerms[0]!.count).toBe(2);
 		});
+
+		const frList = await handleTermList(ctx.db, "drifty", { locale: "fr" });
+		if (!frList.success) throw new Error(frList.error.message);
+		expect(frList.data.terms[0]!.count).toBe(2);
+
+		const frTerm = await handleTermGet(ctx.db, "drifty", "partage", { locale: "fr" });
+		if (!frTerm.success) throw new Error(frTerm.error.message);
+		expect(frTerm.data.term.count).toBe(2);
+	});
+
+	it("falls back to an existing definition when the requested locale has none", async () => {
+		await insertDef("partial", ["post"], "en");
+		const enTerm = await taxRepo.create({
+			name: "partial",
+			slug: "shared",
+			label: "Shared",
+			locale: "en",
+		});
+		const frTerm = await taxRepo.create({
+			name: "partial",
+			slug: "partage",
+			label: "Partagé",
+			locale: "fr",
+			translationOf: enTerm.id,
+		});
+		const frPost = await contentRepo.create({
+			type: "post",
+			slug: "bonjour",
+			status: "published",
+			data: { title: "Bonjour" },
+			locale: "fr",
+		});
+		await taxRepo.attachToEntry("post", frPost.id, frTerm.id);
+
+		const list = await handleTermList(ctx.db, "partial", { locale: "fr" });
+		const term = await handleTermGet(ctx.db, "partial", "partage", { locale: "fr" });
+
+		expect([list, term]).toMatchObject([
+			{ success: true, data: { terms: [{ slug: "partage", count: 1 }] } },
+			{ success: true, data: { term: { slug: "partage", count: 1 } } },
+		]);
 	});
 
 	it("returns an empty map when the taxonomy declares no collections", async () => {
@@ -410,11 +506,17 @@ describe("visible term counts past the compound-SELECT ceiling", () => {
 
 	it("still skips a missing ec_* table when it falls beyond the first batch", async () => {
 		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
-		const existing = collectionSlugs(D1_COMPOUND_SELECT_LIMIT);
-		const term = await seedTaxonomy([...existing, "ghost"], existing);
+		const slugs = collectionSlugs(D1_COMPOUND_SELECT_LIMIT + 1);
+		const term = await seedTaxonomy(slugs, slugs);
 
-		const counts = await fetchVisibleTermCounts(db, "topic", [...existing, "ghost"]);
-		expect(counts.get(term.translationGroup ?? term.id)).toBe(existing.length);
+		// Fill the slug cache, then lose the last table behind the registry's
+		// back so the missing table sits in the second chunk and the count
+		// reaches it through the runBatch backstop, not the slug filter.
+		await fetchVisibleTermCounts(db, "topic", slugs);
+		await sql`DROP TABLE ${sql.ref(`ec_${slugs.at(-1)}`)}`.execute(db);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", slugs);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(slugs.length - 1);
 	});
 
 	it("takes a single statement on a backend that declares no ceiling", async () => {
@@ -425,5 +527,98 @@ describe("visible term counts past the compound-SELECT ceiling", () => {
 		const counts = await fetchVisibleTermCounts(db, "topic", slugs);
 		expect(counts.get(term.translationGroup ?? term.id)).toBe(slugs.length);
 		expect(countStatements()).toBe(1);
+	});
+
+	it("never sends a statement referencing a declared collection that was never created", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "ghost"], ["real"]);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "ghost"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
+		expect(statements.some((source) => source.includes("ec_ghost"))).toBe(false);
+	});
+
+	it("counts a collection created on this isolate immediately", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "later"], ["real"]);
+
+		// Populate the slug cache while `later` does not exist yet.
+		await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "later", label: "later", labelSingular: "later" });
+		await registry.createField("later", { slug: "title", label: "Title", type: "string" });
+		const contentRepo = new ContentRepository(db);
+		const taxRepo = new TaxonomyRepository(db);
+		const entry = await contentRepo.create({
+			type: "later",
+			slug: "later-entry",
+			status: "published",
+			data: { title: "later" },
+		});
+		await taxRepo.attachToEntry("later", entry.id, term.id);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(2);
+	});
+
+	it("revalidates a stale slug set so another isolate's create is counted within the window", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "later"], ["real"]);
+		await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "later", label: "later", labelSingular: "later" });
+		await registry.createField("later", { slug: "title", label: "Title", type: "string" });
+		const contentRepo = new ContentRepository(db);
+		const taxRepo = new TaxonomyRepository(db);
+		const entry = await contentRepo.create({
+			type: "later",
+			slug: "later-entry",
+			status: "published",
+			data: { title: "later" },
+		});
+		await taxRepo.attachToEntry("later", entry.id, term.id);
+
+		// Restore the pre-create view, as if the create happened on another
+		// isolate, and let the revalidation window elapse immediately.
+		primeRegisteredCollections(["real"]);
+		setRegisteredCollectionsRevalidateWindowForTests(-1);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "later"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(2);
+	});
+
+	it("stops querying a collection deleted on another isolate within the window", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "gone"], ["real", "gone"]);
+		await fetchVisibleTermCounts(db, "topic", ["real", "gone"]);
+
+		// Cross-isolate delete: table and registry row vanish without a local
+		// cache reset.
+		await sql`DROP TABLE ${sql.ref("ec_gone")}`.execute(db);
+		await db.deleteFrom("_emdash_collections").where("slug", "=", "gone").execute();
+		setRegisteredCollectionsRevalidateWindowForTests(-1);
+
+		// This render hits the missing-table backstop and flags the stale set.
+		await fetchVisibleTermCounts(db, "topic", ["real", "gone"]);
+
+		statements.length = 0;
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "gone"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
+		expect(statements.some((source) => source.includes("ec_gone"))).toBe(false);
+	});
+
+	it("degrades to a partial count when a registered collection's table is missing (drift backstop)", async () => {
+		await useDatabase(D1_COMPOUND_SELECT_LIMIT);
+		const term = await seedTaxonomy(["real", "phantom"], ["real", "phantom"]);
+
+		// Fill the slug cache, then drop the table behind the registry's back —
+		// the shape a partially applied D1 create/delete leaves behind.
+		await fetchVisibleTermCounts(db, "topic", ["real", "phantom"]);
+		await sql`DROP TABLE ${sql.ref("ec_phantom")}`.execute(db);
+
+		const counts = await fetchVisibleTermCounts(db, "topic", ["real", "phantom"]);
+		expect(counts.get(term.translationGroup ?? term.id)).toBe(1);
 	});
 });

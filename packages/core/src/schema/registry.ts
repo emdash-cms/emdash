@@ -1,23 +1,62 @@
-import type { ColumnDataType, CreateTableBuilder, Insertable, Kysely, Selectable } from "kysely";
+import type {
+	ColumnDataType,
+	CreateTableBuilder,
+	Insertable,
+	Kysely,
+	Selectable,
+	Updateable,
+} from "kysely";
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
-import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
+import { refreshDevTypes } from "../astro/dev-typegen.js";
+import {
+	columnExists,
+	currentTimestamp,
+	isPostgres,
+	listTablesLike,
+	tableExists,
+} from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import {
+	canResumeMediaUsageCollectionCapture,
+	finalizeMediaUsageCollectionCapture,
+	installPreparedMediaUsageCollectionCapture,
+	markMediaUsageCollectionCaptureReady,
+	prepareMediaUsageCollectionCapture,
+} from "../media/usage/activation.js";
+import {
+	deleteActivatedMediaUsageCollection,
+	isMediaUsageCollectionSlugDeleting,
+} from "../media/usage/collection-deletion.js";
+import {
 	deleteContentMediaUsageCollection,
+	invalidateContentMediaUsageSchemaChange,
 	markContentMediaUsageCollectionStaleSafely,
 } from "../media/usage/content-refresh.js";
 import { FTSManager } from "../search/fts-manager.js";
+import { getPortableTableSpec } from "../transfer/format/columns.js";
+import { canonicalDigest } from "../transfer/format/digest.js";
+import type { CollectionRecord, FieldRecord } from "../transfer/format/kinds.js";
+import { encodeRecord, firstDifference, recordCodecs } from "../transfer/import/rows.js";
+import { insertRows } from "../transfer/import/sql.js";
+import type {
+	ImportCollectionOptions,
+	ImportCollectionResult,
+} from "../transfer/schema-importer.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { resetRegisteredCollectionsCache } from "./collection-slugs-cache.js";
 import {
 	type Collection,
+	type CollectionAdminConfig,
 	type CollectionSource,
 	type CollectionSupport,
 	type ColumnType,
 	type Field,
+	type FieldValidation,
+	type UnsupportedFieldType,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -25,8 +64,12 @@ import {
 	type CollectionWithFields,
 	type FieldType,
 	FIELD_TYPE_TO_COLUMN,
+	REPEATER_SUB_FIELD_TYPES,
+	isIndexableFieldType,
+	isStoragelessField,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
+	MAX_BLOCKS_ITEMS,
 } from "./types.js";
 
 // Regex patterns for schema registry
@@ -35,6 +78,7 @@ const EC_PREFIX_PATTERN = /^ec_/;
 const SINGLE_QUOTE_PATTERN = /'/g;
 const UNDERSCORE_PATTERN = /_/g;
 const WORD_BOUNDARY_PATTERN = /\b\w/g;
+const FIELD_ID_PATTERN = /^[0-9A-Z]{26}$/;
 
 /** Valid column types for runtime validation */
 const COLUMN_TYPES: ReadonlySet<string> = new Set(["TEXT", "REAL", "INTEGER", "JSON"]);
@@ -44,6 +88,10 @@ const COLUMN_TYPE_TO_DATA_TYPE = {
 	INTEGER: "integer",
 	JSON: "json",
 } satisfies Record<ColumnType, ColumnDataType>;
+const TEXT_ALIAS_FIELD_TYPES: ReadonlySet<FieldType> = new Set(["string", "text", "slug"]);
+
+/** Field types usable as a `titleField` — plain text that reads well as a title. */
+const TITLE_FIELD_TYPES: ReadonlySet<string> = new Set(["string", "text", "slug"]);
 
 /** Valid collection source prefixes/values */
 const VALID_SOURCES: ReadonlySet<string> = new Set(["manual", "discovered", "seed"]);
@@ -60,6 +108,26 @@ function isColumnType(value: string): value is ColumnType {
 	return COLUMN_TYPES.has(value);
 }
 
+const REPEATER_SUB_FIELD_TYPE_SET: ReadonlySet<string> = new Set(REPEATER_SUB_FIELD_TYPES);
+
+function findUnsupportedRepeaterSubFieldType(
+	validation: unknown,
+): UnsupportedFieldType | undefined {
+	if (!validation || typeof validation !== "object") return undefined;
+	const subFields = "subFields" in validation ? validation.subFields : undefined;
+	if (!Array.isArray(subFields)) return undefined;
+
+	for (const [index, subField] of subFields.entries()) {
+		if (!subField || typeof subField !== "object") continue;
+		const type = "type" in subField ? subField.type : undefined;
+		if (typeof type === "string" && !REPEATER_SUB_FIELD_TYPE_SET.has(type)) {
+			return { type, path: `validation.subFields[${index}].type` };
+		}
+	}
+
+	return undefined;
+}
+
 const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport>([
 	"drafts",
 	"revisions",
@@ -69,9 +137,48 @@ const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport
 	"seo",
 ]);
 
-// Each _emdash_fields row uses 15 bound parameters. Six rows keep every
+// Each _emdash_fields row uses 16 bound parameters. Six rows keep every
 // multi-row INSERT below D1's 100-parameter statement limit.
 const SEED_FIELD_INSERT_BATCH_SIZE = 6;
+
+/**
+ * Rank given to collections without an explicit `sort_order`. SQLite sorts
+ * NULL first on ASC while Postgres sorts it last, so the fallback is
+ * materialised with COALESCE rather than left to the dialect.
+ */
+const UNORDERED_COLLECTION_RANK = 2147483647;
+
+/**
+ * Collection ordering shared by every list read: explicit `sort_order`
+ * first (ascending), then alphabetically by slug.
+ */
+const collectionOrder = sql<number>`coalesce(sort_order, ${sql.lit(UNORDERED_COLLECTION_RANK)})`;
+
+function assertIndexableField(
+	field: { type: FieldType; validation?: FieldValidation | null },
+	indexed: boolean | undefined,
+	slug: string,
+): void {
+	if (!indexed) return;
+	if (!isIndexableFieldType(field.type)) {
+		throw new SchemaError(
+			`Field "${slug}" cannot be indexed because type "${field.type}" is not a scalar query type`,
+			"FIELD_NOT_INDEXABLE",
+		);
+	}
+	if (isStoragelessField(field)) {
+		throw new SchemaError(
+			`Field "${slug}" cannot be indexed because it stores no column to index`,
+			"FIELD_NOT_INDEXABLE",
+		);
+	}
+}
+
+/** A field record's `validation`, which the package carries as any JSON value. */
+function importFieldValidation(value: unknown): FieldValidation | undefined {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+	return value;
+}
 
 function isCollectionSupport(value: unknown): value is CollectionSupport {
 	return typeof value === "string" && VALID_COLLECTION_SUPPORTS.has(value);
@@ -90,6 +197,109 @@ function parseSupports(raw: string | null | undefined): CollectionSupport[] {
 	const parsed: unknown = JSON.parse(raw);
 	if (!Array.isArray(parsed)) return [];
 	return parsed.filter(isCollectionSupport);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseCollectionAdmin(raw: string | null | undefined): CollectionAdminConfig | undefined {
+	if (!raw) return undefined;
+	const parsed: unknown = JSON.parse(raw);
+	if (!isRecord(parsed)) return undefined;
+	const listColumns = parsed.listColumns;
+	return {
+		listColumns: Array.isArray(listColumns)
+			? listColumns.filter((value): value is string => typeof value === "string")
+			: undefined,
+	};
+}
+
+export async function buildSeedCollectionCaptureFingerprint(
+	input: Omit<CreateCollectionInput, "source">,
+	fields: readonly CreateFieldInput[],
+): Promise<string> {
+	const supports = input.supports ?? ["drafts", "revisions"];
+	const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
+	let maxSortOrder = -1;
+	const definitions = fields.map((field) => {
+		const sortOrder = field.sortOrder ?? maxSortOrder + 1;
+		maxSortOrder = Math.max(maxSortOrder, sortOrder);
+		return {
+			slug: field.slug,
+			label: field.label,
+			type: field.type,
+			required: field.required ?? false,
+			unique: field.unique ?? false,
+			defaultValue: field.defaultValue === undefined ? null : JSON.stringify(field.defaultValue),
+			validation: field.validation ? JSON.stringify(field.validation) : null,
+			widget: field.widget ?? null,
+			options: field.options ? JSON.stringify(field.options) : null,
+			sortOrder,
+			searchable: field.searchable ?? false,
+			translatable: field.translatable ?? true,
+		};
+	});
+	const payload = JSON.stringify(
+		canonicalizeFingerprintValue({
+			version: 1,
+			collection: {
+				slug: input.slug,
+				label: input.label,
+				labelSingular: input.labelSingular ?? null,
+				description: input.description ?? null,
+				icon: input.icon ?? null,
+				admin: input.admin ?? null,
+				supports,
+				hasSeo,
+				hidden: input.hidden ?? false,
+				sortOrder: input.sortOrder ?? null,
+				...(input.group ? { group: input.group } : {}),
+				commentsEnabled: input.commentsEnabled ?? false,
+				...(input.editLocking === false ? { editLocking: false } : {}),
+				urlPattern: input.urlPattern ?? null,
+				routable: input.routable ?? true,
+			},
+			fields: definitions,
+		}),
+	);
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+	const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
+	return `media-usage-seed:v1:sha256:${hex}`;
+}
+
+function canonicalizeFingerprintValue(value: unknown): unknown {
+	if (value === undefined) return { __emdashUndefined: true };
+	if (Array.isArray(value)) return value.map(canonicalizeFingerprintValue);
+	if (typeof value !== "object" || value === null) return value;
+
+	const canonical: Record<string, unknown> = {};
+	for (const [key, entry] of Object.entries(value).toSorted(([a], [b]) => a.localeCompare(b))) {
+		canonical[key] = canonicalizeFingerprintValue(entry);
+	}
+	return canonical;
+}
+
+/**
+ * Media-usage capture fingerprint for an imported collection, so an
+ * interrupted import resumes only the capture lifecycle it started.
+ */
+async function importCaptureFingerprint(
+	record: CollectionRecord,
+	fields: readonly FieldRecord[],
+): Promise<string> {
+	return `media-usage-import:v1:${await canonicalDigest({ collection: record, fields })}`;
+}
+
+/** Search stays disabled until the import's rebuild stage builds the index. */
+function importSearchConfig(config: CollectionRecord["searchConfig"]): string | null {
+	if (config === undefined) return null;
+	if (isRecord(config) && config.enabled === true) {
+		return JSON.stringify({ ...config, enabled: false });
+	}
+	return JSON.stringify(config);
 }
 
 /**
@@ -115,6 +325,13 @@ export class SchemaError extends Error {
 export class SchemaRegistry {
 	constructor(private db: Kysely<Database>) {}
 
+	/**
+	 * Notify the dev typegen hook that the schema has changed.
+	 */
+	private notifyTypegen(): void {
+		refreshDevTypes(this.db);
+	}
+
 	// ============================================
 	// Collection Operations
 	// ============================================
@@ -126,6 +343,7 @@ export class SchemaRegistry {
 		const rows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy(collectionOrder, "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -177,6 +395,7 @@ export class SchemaRegistry {
 		const collectionRows = await this.db
 			.selectFrom("_emdash_collections")
 			.selectAll()
+			.orderBy(collectionOrder, "asc")
 			.orderBy("slug", "asc")
 			.execute();
 
@@ -213,6 +432,61 @@ export class SchemaRegistry {
 	}
 
 	/**
+	 * Validate `titleField`/`dateField` against the collection's fields:
+	 * `titleField` must be a text-like field; `dateField` must be a `datetime` field.
+	 * Only truthy values are checked (undefined = unchanged, null/"" = cleared).
+	 */
+	private async validateTitleDateFields(
+		collectionId: string,
+		collectionSlug: string,
+		input: { titleField?: string | null; dateField?: string | null },
+		db: Kysely<Database> = this.db,
+	): Promise<void> {
+		const slugs = [input.titleField, input.dateField].filter((slug): slug is string => !!slug);
+		if (slugs.length === 0) return;
+
+		const rows = await db
+			.selectFrom("_emdash_fields")
+			.where("collection_id", "=", collectionId)
+			.where("slug", "in", slugs)
+			.select(["slug", "type"])
+			.execute();
+		const typeBySlug = new Map(rows.map((row) => [row.slug, row.type]));
+
+		if (input.titleField) {
+			const type = typeBySlug.get(input.titleField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`titleField "${input.titleField}" is not a field on "${collectionSlug}"`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+			if (!TITLE_FIELD_TYPES.has(type)) {
+				throw new SchemaError(
+					`titleField "${input.titleField}" must be a text field (got "${type}")`,
+					"INVALID_TITLE_FIELD",
+				);
+			}
+		}
+
+		if (input.dateField) {
+			const type = typeBySlug.get(input.dateField);
+			if (type === undefined) {
+				throw new SchemaError(
+					`dateField "${input.dateField}" is not a field on "${collectionSlug}"`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+			if (type !== "datetime") {
+				throw new SchemaError(
+					`dateField "${input.dateField}" must be a datetime field (got "${type}")`,
+					"INVALID_DATE_FIELD",
+				);
+			}
+		}
+	}
+
+	/**
 	 * Create a new collection
 	 */
 	async createCollection(input: CreateCollectionInput): Promise<Collection> {
@@ -221,14 +495,26 @@ export class SchemaRegistry {
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
-
-		// Check if collection already exists
-		const existing = await this.getCollection(input.slug);
-		if (existing) {
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
 			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
 		}
 
-		const id = ulid();
+		// Check if collection already exists
+		const existing = await this.getCollection(input.slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+		if (
+			existing &&
+			!(await canResumeMediaUsageCollectionCapture(this.db, {
+				collectionId: existing.id,
+				collectionSlug: existing.slug,
+			}))
+		) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+
+		const proposedId = existing?.id ?? ulid();
 
 		// Default `supports` to drafts + revisions when the caller didn't
 		// specify it. Explicit empty array (`[]`) is preserved as an opt-out
@@ -244,24 +530,54 @@ export class SchemaRegistry {
 		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
 
 		await withTransaction(this.db, async (trx) => {
-			await trx
-				.insertInto("_emdash_collections")
-				.values({
-					id,
-					slug: input.slug,
-					label: input.label,
-					label_singular: input.labelSingular ?? null,
-					description: input.description ?? null,
-					icon: input.icon ?? null,
-					supports: JSON.stringify(supports),
-					source: input.source ?? "manual",
-					has_seo: hasSeo ? 1 : 0,
-					comments_enabled: input.commentsEnabled ? 1 : 0,
-					url_pattern: input.urlPattern ?? null,
-				})
-				.execute();
+			const capture = await prepareMediaUsageCollectionCapture(trx, {
+				collectionId: proposedId,
+				collectionSlug: input.slug,
+				registeredCollectionId: existing?.id,
+			});
+			const values: Insertable<CollectionTable> = {
+				id: capture.collectionId,
+				slug: input.slug,
+				label: input.label,
+				label_singular: input.labelSingular ?? null,
+				description: input.description ?? null,
+				icon: input.icon ?? null,
+				admin_config: input.admin ? JSON.stringify(input.admin) : null,
+				supports: JSON.stringify(supports),
+				source: input.source ?? "manual",
+				has_seo: hasSeo ? 1 : 0,
+				routable: input.routable === false ? 0 : 1,
+				hidden: input.hidden ? 1 : 0,
+				sort_order: input.sortOrder ?? null,
+				nav_group: input.group?.trim() || null,
+				comments_enabled: input.commentsEnabled ? 1 : 0,
+				edit_locking: input.editLocking === false ? 0 : 1,
+				url_pattern: input.urlPattern ?? null,
+			};
 
-			// Create the content table for this collection
+			if (capture.captureRequired) {
+				await this.createContentTable(input.slug, trx, [], {
+					ifNotExists: capture.resuming,
+				});
+				await installPreparedMediaUsageCollectionCapture(trx, {
+					collectionId: capture.collectionId,
+					collectionSlug: input.slug,
+				});
+				await markMediaUsageCollectionCaptureReady(trx, {
+					collectionId: capture.collectionId,
+					collectionSlug: input.slug,
+				});
+				if (!capture.registrationExists) {
+					await trx.insertInto("_emdash_collections").values(values).execute();
+				}
+				await finalizeMediaUsageCollectionCapture(trx, {
+					collectionId: capture.collectionId,
+					collectionSlug: input.slug,
+				});
+				return;
+			}
+
+			await trx.insertInto("_emdash_collections").values(values).execute();
 			await this.createContentTable(input.slug, trx);
 		});
 
@@ -270,6 +586,8 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create collection", "CREATE_FAILED");
 		}
 
+		resetRegisteredCollectionsCache();
+		this.notifyTypegen();
 		return collection;
 	}
 
@@ -291,15 +609,15 @@ export class SchemaRegistry {
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
-
-		const existing = await this.getCollection(input.slug);
-		if (existing) {
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
 			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
 		}
 
 		const fieldSlugs = new Set<string>();
+		const normalizedFields: CreateFieldInput[] = [];
 		for (const field of fields) {
 			this.validateSlug(field.slug, "field");
+			assertIndexableField(field, field.indexed, field.slug);
 			if (RESERVED_FIELD_SLUGS.includes(field.slug)) {
 				throw new SchemaError(`Field slug "${field.slug}" is reserved`, "RESERVED_SLUG");
 			}
@@ -310,19 +628,53 @@ export class SchemaRegistry {
 				);
 			}
 			fieldSlugs.add(field.slug);
+			normalizedFields.push(
+				field.type === "blocks"
+					? {
+							...field,
+							// oxlint-disable-next-line no-await-in-loop -- every block definition must resolve before seed mutation starts
+							validation: await this.normalizeBlocksFieldValidation(
+								input.slug,
+								field,
+								undefined,
+								this.db,
+								false,
+							),
+						}
+					: { ...field },
+			);
 		}
 
-		const collectionId = ulid();
 		const supports = input.supports ?? ["drafts", "revisions"];
 		const hasSeo = input.hasSeo ?? supports.includes("seo") ?? false;
+		const creationFingerprint = await buildSeedCollectionCaptureFingerprint(
+			input,
+			normalizedFields,
+		);
+		const existing = await this.getCollection(input.slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, input.slug)) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+		if (
+			existing &&
+			!(await canResumeMediaUsageCollectionCapture(this.db, {
+				collectionId: existing.id,
+				collectionSlug: existing.slug,
+				creationFingerprint,
+			}))
+		) {
+			throw new SchemaError(`Collection "${input.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+
+		const proposedCollectionId = existing?.id ?? ulid();
 		let maxSortOrder = -1;
-		const fieldRows: Insertable<FieldTable>[] = fields.map((field) => {
+		const fieldRows: Insertable<FieldTable>[] = normalizedFields.map((field) => {
 			const sortOrder = field.sortOrder ?? maxSortOrder + 1;
 			maxSortOrder = Math.max(maxSortOrder, sortOrder);
 
 			return {
 				id: ulid(),
-				collection_id: collectionId,
+				collection_id: proposedCollectionId,
 				slug: field.slug,
 				label: field.label,
 				type: field.type,
@@ -335,6 +687,7 @@ export class SchemaRegistry {
 				options: field.options ? JSON.stringify(field.options) : null,
 				sort_order: sortOrder,
 				searchable: field.searchable ? 1 : 0,
+				indexed: field.indexed ? 1 : 0,
 				translatable: field.translatable === false ? 0 : 1,
 			};
 		});
@@ -342,28 +695,85 @@ export class SchemaRegistry {
 		let schemaMutated = false;
 		try {
 			await withTransaction(this.db, async (trx) => {
-				await trx
-					.insertInto("_emdash_collections")
-					.values({
-						id: collectionId,
-						slug: input.slug,
-						label: input.label,
-						label_singular: input.labelSingular ?? null,
-						description: input.description ?? null,
-						icon: input.icon ?? null,
-						supports: JSON.stringify(supports),
-						source: "seed",
-						has_seo: hasSeo ? 1 : 0,
-						comments_enabled: input.commentsEnabled ? 1 : 0,
-						url_pattern: input.urlPattern ?? null,
-					})
-					.execute();
-				schemaMutated = true;
+				const capture = await prepareMediaUsageCollectionCapture(trx, {
+					collectionId: proposedCollectionId,
+					collectionSlug: input.slug,
+					creationFingerprint,
+					registeredCollectionId: existing?.id,
+				});
+				const collectionValues: Insertable<CollectionTable> = {
+					id: capture.collectionId,
+					slug: input.slug,
+					label: input.label,
+					label_singular: input.labelSingular ?? null,
+					description: input.description ?? null,
+					icon: input.icon ?? null,
+					admin_config: input.admin ? JSON.stringify(input.admin) : null,
+					supports: JSON.stringify(supports),
+					source: "seed",
+					has_seo: hasSeo ? 1 : 0,
+					routable: input.routable === false ? 0 : 1,
+					hidden: input.hidden ? 1 : 0,
+					sort_order: input.sortOrder ?? null,
+					nav_group: input.group?.trim() || null,
+					comments_enabled: input.commentsEnabled ? 1 : 0,
+					edit_locking: input.editLocking === false ? 0 : 1,
+					url_pattern: input.urlPattern ?? null,
+				};
+				const rows = fieldRows.map((row) => ({
+					...row,
+					collection_id: capture.collectionId,
+				}));
 
-				await this.createContentTable(input.slug, trx, fields);
+				if (capture.captureRequired) {
+					await this.createContentTable(input.slug, trx, normalizedFields, {
+						ifNotExists: capture.resuming,
+					});
+					await installPreparedMediaUsageCollectionCapture(trx, {
+						collectionId: capture.collectionId,
+						collectionSlug: input.slug,
+					});
+					await markMediaUsageCollectionCaptureReady(trx, {
+						collectionId: capture.collectionId,
+						collectionSlug: input.slug,
+					});
+					if (!capture.registrationExists) {
+						await trx.insertInto("_emdash_collections").values(collectionValues).execute();
+						schemaMutated = true;
+					}
+				} else {
+					await trx.insertInto("_emdash_collections").values(collectionValues).execute();
+					schemaMutated = true;
+					await this.createContentTable(input.slug, trx, normalizedFields);
+				}
 
-				for (const fieldBatch of chunks(fieldRows, SEED_FIELD_INSERT_BATCH_SIZE)) {
-					await trx.insertInto("_emdash_fields").values(fieldBatch).execute();
+				for (const fieldBatch of chunks(rows, SEED_FIELD_INSERT_BATCH_SIZE)) {
+					let insert = trx.insertInto("_emdash_fields").values(fieldBatch);
+					if (capture.resuming) {
+						insert = insert.onConflict((conflict) =>
+							conflict.columns(["collection_id", "slug"]).doNothing(),
+						);
+					}
+					await insert.execute();
+				}
+				let indexedRows: readonly { id: string; slug: string; indexed?: number }[] = rows;
+				if (capture.resuming) {
+					indexedRows = await this.assertSeedFieldDefinitions(
+						capture.collectionId,
+						normalizedFields,
+						trx,
+					);
+				}
+				for (const field of indexedRows) {
+					if (field.indexed === 1) {
+						await this.createFieldIndex(input.slug, field.id, field.slug, trx);
+					}
+				}
+				if (capture.captureRequired) {
+					await finalizeMediaUsageCollectionCapture(trx, {
+						collectionId: capture.collectionId,
+						collectionSlug: input.slug,
+					});
 				}
 			});
 
@@ -377,69 +787,317 @@ export class SchemaRegistry {
 				);
 			}
 			throw error;
+		} finally {
+			if (schemaMutated) resetRegisteredCollectionsCache();
 		}
+		this.notifyTypegen();
+	}
+
+	/**
+	 * Write a site-package collection and its fields with their exact ids and
+	 * every column (see `CollectionImporter` in `transfer/schema-importer.ts`).
+	 *
+	 * Every statement is idempotent and none runs in a transaction, so a call
+	 * interrupted after any statement (D1 has no transactions) can be repeated
+	 * until it completes. Rows are inserted with `ON CONFLICT DO NOTHING` and
+	 * then read back; a stored row that differs from the record throws
+	 * `IMPORT_MISMATCH`.
+	 */
+	async importCollection(
+		record: CollectionRecord,
+		fieldRecords: readonly FieldRecord[],
+		_options: ImportCollectionOptions,
+	): Promise<ImportCollectionResult> {
+		this.validateSlug(record.slug, "collection");
+		if (RESERVED_COLLECTION_SLUGS.includes(record.slug)) {
+			throw new SchemaError(`Collection slug "${record.slug}" is reserved`, "RESERVED_SLUG");
+		}
+		const fields = this.importFieldInputs(record, fieldRecords);
+
+		const conflicting = await this.db
+			.selectFrom("_emdash_collections")
+			.select(["id", "slug"])
+			.where((eb) => eb.or([eb("id", "=", record.id), eb("slug", "=", record.slug)]))
+			.execute();
+		if (conflicting.some((row) => row.id !== record.id || row.slug !== record.slug)) {
+			throw new SchemaError(`Collection "${record.slug}" already exists`, "COLLECTION_EXISTS");
+		}
+		const registered = conflicting.length > 0;
+		if (await isMediaUsageCollectionSlugDeleting(this.db, record.slug)) {
+			throw new SchemaError(`Collection "${record.slug}" is being deleted`, "COLLECTION_EXISTS");
+		}
+
+		const identity = { collectionId: record.id, collectionSlug: record.slug };
+		const lifecycle = await this.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select(["collection_id", "capture_state"])
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("scope_key", "=", record.slug)
+			.executeTakeFirst();
+		const captureFinalized =
+			lifecycle?.collection_id === record.id && lifecycle.capture_state === "active";
+		let captureRequired = captureFinalized;
+		if (!captureFinalized) {
+			const capture = await prepareMediaUsageCollectionCapture(this.db, {
+				...identity,
+				creationFingerprint: await importCaptureFingerprint(record, fieldRecords),
+				registeredCollectionId: registered ? record.id : undefined,
+			});
+			captureRequired = capture.captureRequired;
+		}
+
+		await this.createContentTable(record.slug, this.db, fields, { ifNotExists: true });
+		if (captureRequired && !captureFinalized) {
+			await installPreparedMediaUsageCollectionCapture(this.db, identity);
+			await markMediaUsageCollectionCaptureReady(this.db, identity);
+		}
+
+		const collectionSpec = getPortableTableSpec("_emdash_collections");
+		const fieldSpec = getPortableTableSpec("_emdash_fields");
+		if (!collectionSpec || !fieldSpec) {
+			throw new SchemaError("Missing transfer column registry", "IMPORT_MISMATCH");
+		}
+		const collectionRow = {
+			...encodeRecord(this.db, collectionSpec.columns, record, {
+				kind: "collection",
+				id: record.id,
+			}),
+			search_config: importSearchConfig(record.searchConfig),
+		};
+		const insertedCollection = { ...collectionRow, title_field: null, date_field: null };
+		const collectionCreated =
+			(await insertRows(this.db, "_emdash_collections", Object.keys(insertedCollection), [
+				insertedCollection,
+			])) > 0;
+
+		const fieldRows = fieldRecords.map((field) =>
+			encodeRecord(this.db, fieldSpec.columns, field, { kind: "field", id: field.id }),
+		);
+		const fieldsCreated = await insertRows(
+			this.db,
+			"_emdash_fields",
+			Object.keys(recordCodecs(fieldSpec.columns)),
+			fieldRows,
+		);
+
+		const float4 = isPostgres(this.db);
+		const storedFields = await this.db
+			.selectFrom("_emdash_fields")
+			.selectAll()
+			.where("collection_id", "=", record.id)
+			.execute();
+		const fieldCodecs = recordCodecs(fieldSpec.columns);
+		const storedById = new Map(storedFields.map((row) => [row.id, row]));
+		if (storedFields.length !== fieldRows.length) {
+			throw new SchemaError(`Imported fields of "${record.slug}" do not match`, "IMPORT_MISMATCH");
+		}
+		fieldRecords.forEach((field, index) => {
+			const row = fieldRows[index];
+			const stored = storedById.get(field.id);
+			if (
+				!row ||
+				!stored ||
+				firstDifference(this.db, fieldCodecs, row, stored, { float4 }) !== null
+			) {
+				throw new SchemaError(`Imported field "${field.slug}" does not match`, "IMPORT_MISMATCH", {
+					fieldId: field.id,
+				});
+			}
+		});
+
+		for (const field of fieldRecords) {
+			if (field.indexed) await this.createFieldIndex(record.slug, field.id, field.slug);
+		}
+		if (captureRequired && !captureFinalized) {
+			await finalizeMediaUsageCollectionCapture(this.db, identity);
+		}
+
+		await this.db
+			.updateTable("_emdash_collections")
+			.set({ title_field: record.titleField ?? null, date_field: record.dateField ?? null })
+			.where("id", "=", record.id)
+			.execute();
+		const storedCollection = await this.db
+			.selectFrom("_emdash_collections")
+			.selectAll()
+			.where("id", "=", record.id)
+			.executeTakeFirst();
+		const expectedCollection = {
+			...collectionRow,
+			title_field: record.titleField ?? null,
+			date_field: record.dateField ?? null,
+		};
+		if (
+			!storedCollection ||
+			firstDifference(
+				this.db,
+				recordCodecs(collectionSpec.columns),
+				expectedCollection,
+				storedCollection,
+				{
+					float4,
+				},
+			) !== null
+		) {
+			throw new SchemaError(
+				`Imported collection "${record.slug}" does not match`,
+				"IMPORT_MISMATCH",
+			);
+		}
+
+		resetRegisteredCollectionsCache();
+		this.notifyTypegen();
+		return { collectionCreated, fieldsCreated };
+	}
+
+	private importFieldInputs(
+		record: CollectionRecord,
+		fieldRecords: readonly FieldRecord[],
+	): CreateFieldInput[] {
+		const slugs = new Set<string>();
+		return fieldRecords.map((field) => {
+			if (field.collectionId !== record.id) {
+				throw new SchemaError(
+					`Field "${field.slug}" does not belong to "${record.slug}"`,
+					"IMPORT_MISMATCH",
+				);
+			}
+			this.validateSlug(field.slug, "field");
+			if (RESERVED_FIELD_SLUGS.includes(field.slug)) {
+				throw new SchemaError(`Field slug "${field.slug}" is reserved`, "RESERVED_SLUG");
+			}
+			if (slugs.has(field.slug)) {
+				throw new SchemaError(
+					`Field "${field.slug}" already exists in collection "${record.slug}"`,
+					"FIELD_EXISTS",
+				);
+			}
+			slugs.add(field.slug);
+			if (!isFieldType(field.type) || FIELD_TYPE_TO_COLUMN[field.type] !== field.columnType) {
+				throw new SchemaError(
+					`Field "${field.slug}" has an unsupported type or column type`,
+					"INVALID_FIELD_TYPE",
+				);
+			}
+			const validation = importFieldValidation(field.validation);
+			assertIndexableField({ type: field.type, validation }, field.indexed, field.slug);
+			if (field.indexed) this.getFieldIndexName(field.id);
+			return {
+				slug: field.slug,
+				label: field.label,
+				type: field.type,
+				required: field.required,
+				defaultValue: field.defaultValue,
+				validation,
+			};
+		});
+	}
+
+	private async assertSeedFieldDefinitions(
+		collectionId: string,
+		fields: readonly CreateFieldInput[],
+		db: Kysely<Database>,
+	): Promise<Selectable<FieldTable>[]> {
+		const stored = await db
+			.selectFrom("_emdash_fields")
+			.selectAll()
+			.where("collection_id", "=", collectionId)
+			.execute();
+		if (stored.length !== fields.length) {
+			throw new SchemaError("Interrupted seed collection fields do not match", "CREATE_FAILED");
+		}
+
+		let maxSortOrder = -1;
+		for (const field of fields) {
+			const sortOrder = field.sortOrder ?? maxSortOrder + 1;
+			maxSortOrder = Math.max(maxSortOrder, sortOrder);
+			const row = stored.find((candidate) => candidate.slug === field.slug);
+			if (
+				!row ||
+				row.label !== field.label ||
+				row.type !== field.type ||
+				row.column_type !== FIELD_TYPE_TO_COLUMN[field.type] ||
+				row.required !== (field.required ? 1 : 0) ||
+				row.unique !== (field.unique ? 1 : 0) ||
+				row.default_value !==
+					(field.defaultValue !== undefined ? JSON.stringify(field.defaultValue) : null) ||
+				row.validation !== (field.validation ? JSON.stringify(field.validation) : null) ||
+				row.widget !== (field.widget ?? null) ||
+				row.options !== (field.options ? JSON.stringify(field.options) : null) ||
+				row.sort_order !== sortOrder ||
+				row.searchable !== (field.searchable ? 1 : 0) ||
+				row.indexed !== (field.indexed ? 1 : 0) ||
+				row.translatable !== (field.translatable === false ? 0 : 1)
+			) {
+				throw new SchemaError("Interrupted seed collection fields do not match", "CREATE_FAILED");
+			}
+		}
+		return stored;
 	}
 
 	/**
 	 * Update a collection
 	 */
 	async updateCollection(slug: string, input: UpdateCollectionInput): Promise<Collection> {
-		const existing = await this.getCollection(slug);
-		if (!existing) {
-			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
-		}
+		const updated = await withTransaction(this.db, async (trx) => {
+			const existingRow = await trx
+				.selectFrom("_emdash_collections")
+				.where("slug", "=", slug)
+				.selectAll()
+				.executeTakeFirst();
+			if (!existingRow) {
+				throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
+			}
+			const existing = this.mapCollectionRow(existingRow);
+			await this.validateTitleDateFields(
+				existing.id,
+				slug,
+				{
+					titleField: input.titleField,
+					dateField: input.dateField,
+				},
+				trx,
+			);
+			const updates: Updateable<CollectionTable> = {};
 
-		const now = new Date().toISOString();
+			if (input.label !== undefined) updates.label = input.label;
+			if (input.labelSingular !== undefined) updates.label_singular = input.labelSingular;
+			if (input.description !== undefined) updates.description = input.description;
+			if (input.icon !== undefined) updates.icon = input.icon;
+			if (input.admin !== undefined) updates.admin_config = JSON.stringify(input.admin);
+			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
+			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;
+			if (input.routable !== undefined) updates.routable = input.routable ? 1 : 0;
+			if (input.hasSeo !== undefined) {
+				updates.has_seo = input.hasSeo ? 1 : 0;
+			} else if (input.supports !== undefined) {
+				updates.has_seo = input.supports.includes("seo") ? 1 : 0;
+			}
+			if (input.hidden !== undefined) updates.hidden = input.hidden ? 1 : 0;
+			if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
+			if (input.group !== undefined) updates.nav_group = input.group?.trim() || null;
+			if (input.titleField !== undefined) updates.title_field = input.titleField || null;
+			if (input.dateField !== undefined) updates.date_field = input.dateField || null;
+			if (input.commentsEnabled !== undefined) {
+				updates.comments_enabled = input.commentsEnabled ? 1 : 0;
+			}
+			if (input.commentsModeration !== undefined) {
+				updates.comments_moderation = input.commentsModeration;
+			}
+			if (input.commentsClosedAfterDays !== undefined) {
+				updates.comments_closed_after_days = input.commentsClosedAfterDays;
+			}
+			if (input.commentsAutoApproveUsers !== undefined) {
+				updates.comments_auto_approve_users = input.commentsAutoApproveUsers ? 1 : 0;
+			}
+			if (input.editLocking !== undefined) updates.edit_locking = input.editLocking ? 1 : 0;
 
-		// Derive hasSeo from supports array if supports is being updated and hasSeo not explicitly set
-		const supportsArray = input.supports ?? existing.supports;
-		const hasSeo =
-			input.hasSeo !== undefined
-				? input.hasSeo
-				: input.supports !== undefined
-					? supportsArray.includes("seo")
-					: existing.hasSeo;
-
-		return withTransaction(this.db, async (trx) => {
+			updates.updated_at = new Date().toISOString();
 			await trx
 				.updateTable("_emdash_collections")
-				.set({
-					label: input.label ?? existing.label,
-					label_singular: input.labelSingular ?? existing.labelSingular ?? null,
-					description: input.description ?? existing.description ?? null,
-					icon: input.icon ?? existing.icon ?? null,
-					supports: input.supports
-						? JSON.stringify(input.supports)
-						: JSON.stringify(existing.supports),
-					url_pattern:
-						input.urlPattern !== undefined
-							? (input.urlPattern ?? null)
-							: (existing.urlPattern ?? null),
-					has_seo: hasSeo ? 1 : 0,
-					comments_enabled:
-						input.commentsEnabled !== undefined
-							? input.commentsEnabled
-								? 1
-								: 0
-							: existing.commentsEnabled
-								? 1
-								: 0,
-					comments_moderation: input.commentsModeration ?? existing.commentsModeration,
-					comments_closed_after_days:
-						input.commentsClosedAfterDays !== undefined
-							? input.commentsClosedAfterDays
-							: existing.commentsClosedAfterDays,
-					comments_auto_approve_users:
-						input.commentsAutoApproveUsers !== undefined
-							? input.commentsAutoApproveUsers
-								? 1
-								: 0
-							: existing.commentsAutoApproveUsers
-								? 1
-								: 0,
-					updated_at: now,
-				})
-				.where("slug", "=", slug)
+				.set(updates)
+				.where("id", "=", existing.id)
 				.execute();
 
 			const row = await trx
@@ -463,26 +1121,51 @@ export class SchemaRegistry {
 
 			return this.mapCollectionRow(row);
 		});
+		this.notifyTypegen();
+		return updated;
+	}
+
+	/**
+	 * The content guard {@link deleteCollection} refuses on, on its own.
+	 *
+	 * A caller that has to cascade before deleting — relations, whose edges point
+	 * at rows the drop is about to take — needs to know the delete is acceptable
+	 * before it changes anything, since the cascade cannot be rolled back on D1.
+	 */
+	async assertCollectionDeletable(slug: string, options?: { force?: boolean }): Promise<void> {
+		if (options?.force) return;
+		const existing = await this.getCollection(slug);
+		if (existing && (await this.collectionHasContent(slug))) {
+			throw new SchemaError(
+				`Collection "${slug}" has content. Use force: true to delete.`,
+				"COLLECTION_HAS_CONTENT",
+			);
+		}
 	}
 
 	/**
 	 * Delete a collection
 	 */
 	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
+		await this.assertCollectionDeletable(slug, options);
 		const existing = await this.getCollection(slug);
+		const activated = await deleteActivatedMediaUsageCollection(this.db, {
+			collectionId: existing?.id,
+			collectionSlug: slug,
+			forceDelete: options?.force === true,
+		});
+		if (activated === "has_content") {
+			throw new SchemaError(
+				`Collection "${slug}" has content. Use force: true to delete.`,
+				"COLLECTION_HAS_CONTENT",
+			);
+		}
+		if (activated === "in_progress") {
+			throw new SchemaError(`Collection "${slug}" deletion is already in progress`, "CONFLICT");
+		}
+		if (activated === "deleted") return;
 		if (!existing) {
 			throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
-		}
-
-		// Check if collection has content
-		if (!options?.force) {
-			const hasContent = await this.collectionHasContent(slug);
-			if (hasContent) {
-				throw new SchemaError(
-					`Collection "${slug}" has content. Use force: true to delete.`,
-					"COLLECTION_HAS_CONTENT",
-				);
-			}
 		}
 
 		let contentTableDropped = false;
@@ -506,7 +1189,13 @@ export class SchemaRegistry {
 				await deleteContentMediaUsageCollection(this.db, slug);
 			}
 			throw error;
+		} finally {
+			// Even a failed delete may have dropped the ec_* table (D1 has no
+			// real transactions) — over-invalidation is harmless, a stale set
+			// is not.
+			if (contentTableDropped) resetRegisteredCollectionsCache();
 		}
+		this.notifyTypegen();
 	}
 
 	// ============================================
@@ -570,7 +1259,12 @@ export class SchemaRegistry {
 		}
 
 		const id = ulid();
+		const validation =
+			input.type === "blocks"
+				? await this.normalizeBlocksFieldValidation(collectionSlug, input, undefined, this.db)
+				: input.validation;
 		const columnType = FIELD_TYPE_TO_COLUMN[input.type];
+		assertIndexableField(input, input.indexed, input.slug);
 
 		// Get max sort order
 		const maxSort = await this.db
@@ -580,6 +1274,10 @@ export class SchemaRegistry {
 			.executeTakeFirst();
 
 		const sortOrder = input.sortOrder ?? (maxSort?.max ?? -1) + 1;
+		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+			this.db,
+			collectionSlug,
+		);
 
 		let schemaMutated = false;
 		try {
@@ -598,27 +1296,36 @@ export class SchemaRegistry {
 						unique: input.unique ? 1 : 0,
 						default_value:
 							input.defaultValue !== undefined ? JSON.stringify(input.defaultValue) : null,
-						validation: input.validation ? JSON.stringify(input.validation) : null,
+						validation: validation ? JSON.stringify(validation) : null,
 						widget: input.widget ?? null,
 						options: input.options ? JSON.stringify(input.options) : null,
 						sort_order: sortOrder,
 						searchable: input.searchable ? 1 : 0,
+						indexed: input.indexed ? 1 : 0,
 						translatable: input.translatable === false ? 0 : 1,
 					})
 					.execute();
 				schemaMutated = true;
 
-				// Add column to content table — pass trx to stay on the same connection
-				await this.addColumn(
-					collectionSlug,
-					input.slug,
-					input.type,
-					{
-						required: input.required,
-						defaultValue: input.defaultValue,
-					},
-					trx,
-				);
+				// Add column to content table — pass trx to stay on the same connection.
+				// A storage-less field persists no column; its values live in a side
+				// table (see `isStoragelessField`). Insert the field row only.
+				if (!isStoragelessField(input)) {
+					await this.addColumn(
+						collectionSlug,
+						input.slug,
+						input.type,
+						{
+							required: input.required,
+							defaultValue: input.defaultValue,
+						},
+						trx,
+					);
+				}
+
+				if (input.indexed) {
+					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
+				}
 
 				// Read the created field via trx (not this.db) to avoid connection mutex deadlock
 				const fieldRow = await trx
@@ -641,19 +1348,28 @@ export class SchemaRegistry {
 
 				return field;
 			});
-			await markContentMediaUsageCollectionStaleSafely(
-				this.db,
-				collectionSlug,
-				"CONTENT_USAGE_STALE",
-			);
-			return created;
-		} catch (error) {
-			if (schemaMutated) {
+			if (activeCoverageInvalidated) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+			} else {
 				await markContentMediaUsageCollectionStaleSafely(
 					this.db,
 					collectionSlug,
 					"CONTENT_USAGE_STALE",
 				);
+			}
+			this.notifyTypegen();
+			return created;
+		} catch (error) {
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
 			}
 			throw error;
 		}
@@ -667,87 +1383,170 @@ export class SchemaRegistry {
 		fieldSlug: string,
 		input: UpdateFieldInput,
 	): Promise<Field> {
-		const field = await this.getField(collectionSlug, fieldSlug);
-		if (!field) {
-			throw new SchemaError(
-				`Field "${fieldSlug}" not found in collection "${collectionSlug}"`,
-				"FIELD_NOT_FOUND",
-			);
-		}
-
-		// `input.validation === undefined` means "no change" (keep existing);
-		// an explicit `null` clears the column.
-		const nextValidation = input.validation === undefined ? field.validation : input.validation;
-
-		// A field-type change is only safe when the underlying column type stays
-		// the same. There is no in-place column migration (only addColumn/
-		// dropColumn), so a change that would alter the SQLite column affinity
-		// (e.g. `text` TEXT -> `portableText` JSON) is rejected rather than
-		// silently rewriting only the metadata — which would leave `column_type`
-		// pointing at a column type the real `ec_*` column doesn't have (#1397).
-		let nextType = field.type;
-		let nextColumnType = field.columnType;
-		if (input.type !== undefined && input.type !== field.type) {
-			const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
-			if (newColumnType !== field.columnType) {
-				throw new SchemaError(
-					`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
-						`"${field.type}" to "${input.type}": the underlying column type would change from ` +
-						`${field.columnType} to ${newColumnType}, which requires a manual content migration. ` +
-						`Drop and re-create the field, or migrate the column data, before changing its type.`,
-					"FIELD_TYPE_COLUMN_CHANGE",
-				);
-			}
-			nextType = input.type;
-			nextColumnType = newColumnType;
-		}
-
+		let activeCoverageInvalidated = false;
 		let schemaMutated = false;
 		try {
 			const updatedField = await withTransaction(this.db, async (trx) => {
-				await trx
-					.updateTable("_emdash_fields")
-					.set({
-						type: nextType,
-						column_type: nextColumnType,
-						label: input.label ?? field.label,
-						required:
-							input.required !== undefined ? (input.required ? 1 : 0) : field.required ? 1 : 0,
-						unique: input.unique !== undefined ? (input.unique ? 1 : 0) : field.unique ? 1 : 0,
-						searchable:
-							input.searchable !== undefined
-								? input.searchable
-									? 1
-									: 0
-								: field.searchable
-									? 1
-									: 0,
-						translatable:
-							input.translatable !== undefined
-								? input.translatable
-									? 1
-									: 0
-								: field.translatable
-									? 1
-									: 0,
-						default_value:
-							input.defaultValue !== undefined
-								? JSON.stringify(input.defaultValue)
-								: field.defaultValue !== undefined
-									? JSON.stringify(field.defaultValue)
-									: null,
-						validation: nextValidation ? JSON.stringify(nextValidation) : null,
-						widget: input.widget ?? field.widget ?? null,
-						options: input.options
-							? JSON.stringify(input.options)
-							: field.options
-								? JSON.stringify(field.options)
-								: null,
-						sort_order: input.sortOrder ?? field.sortOrder,
-					})
-					.where("id", "=", field.id)
-					.execute();
-				schemaMutated = true;
+				const collectionRow = await trx
+					.selectFrom("_emdash_collections")
+					.where("slug", "=", collectionSlug)
+					.select(["id", "title_field", "date_field"])
+					.executeTakeFirst();
+				const fieldRow = collectionRow
+					? await trx
+							.selectFrom("_emdash_fields")
+							.where("collection_id", "=", collectionRow.id)
+							.where("slug", "=", fieldSlug)
+							.selectAll()
+							.executeTakeFirst()
+					: undefined;
+				if (!fieldRow) {
+					throw new SchemaError(
+						`Field "${fieldSlug}" not found in collection "${collectionSlug}"`,
+						"FIELD_NOT_FOUND",
+					);
+				}
+				const field = this.mapFieldRow(fieldRow);
+				if (field.unsupportedType) {
+					throw new SchemaError(
+						`Field "${fieldSlug}" in collection "${collectionSlug}" uses unsupported field type "${field.unsupportedType.type}" at "${field.unsupportedType.path}"`,
+						"UNSUPPORTED_FIELD_TYPE",
+					);
+				}
+				const updates: Updateable<FieldTable> = {};
+				let nextType = field.type;
+				const nextValidation =
+					field.type === "blocks"
+						? await this.normalizeBlocksFieldValidation(
+								collectionSlug,
+								{
+									...input,
+									slug: field.slug,
+									label: input.label ?? field.label,
+									type: field.type,
+								},
+								field,
+								trx,
+							)
+						: input.validation !== undefined
+							? input.validation
+							: field.validation;
+
+				if (input.type !== undefined && input.type !== field.type) {
+					// A change into or out of storage-less is never a no-op column change:
+					// string -> reference both map to TEXT and would slip past the affinity
+					// check below, yet one has a column and the other does not. An unwired
+					// reference field is column-backed, so its refusal comes from the
+					// text-alias check instead.
+					const storagelessBefore = isStoragelessField(field);
+					const storagelessAfter = isStoragelessField({
+						type: input.type,
+						validation: nextValidation,
+					});
+					if (storagelessBefore !== storagelessAfter) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" between ` +
+								`storage-less and column-backed types ("${field.type}" -> "${input.type}").`,
+							"FIELD_TYPE_COLUMN_CHANGE",
+						);
+					}
+
+					const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
+					if (newColumnType !== field.columnType) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
+								`"${field.type}" to "${input.type}": the underlying column type would change from ` +
+								`${field.columnType} to ${newColumnType}, which requires a manual content migration.`,
+							"FIELD_TYPE_COLUMN_CHANGE",
+						);
+					}
+					if (!TEXT_ALIAS_FIELD_TYPES.has(field.type) || !TEXT_ALIAS_FIELD_TYPES.has(input.type)) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" from type ` +
+								`"${field.type}" to "${input.type}" without a manual content migration.`,
+							"FIELD_TYPE_CHANGE_REQUIRES_MIGRATION",
+						);
+					}
+					if (collectionRow?.title_field === fieldSlug && !TITLE_FIELD_TYPES.has(input.type)) {
+						throw new SchemaError(
+							`titleField "${fieldSlug}" must stay a text field, not "${input.type}"`,
+							"INVALID_TITLE_FIELD",
+						);
+					}
+					if (collectionRow?.date_field === fieldSlug && input.type !== "datetime") {
+						throw new SchemaError(
+							`dateField "${fieldSlug}" must stay a datetime field, not "${input.type}"`,
+							"INVALID_DATE_FIELD",
+						);
+					}
+					nextType = input.type;
+					updates.type = input.type;
+					updates.column_type = newColumnType;
+				}
+
+				if (input.required !== undefined && input.required !== field.required) {
+					throw new SchemaError(
+						`Changing required for field "${fieldSlug}" requires a manual content migration.`,
+						"FIELD_UPDATE_REQUIRES_MIGRATION",
+					);
+				}
+				if (input.unique !== undefined && input.unique !== field.unique) {
+					throw new SchemaError(
+						`Changing unique for field "${fieldSlug}" requires a manual content migration.`,
+						"FIELD_UPDATE_REQUIRES_MIGRATION",
+					);
+				}
+				if (input.translatable === false && field.translatable) {
+					throw new SchemaError(
+						`Changing field "${fieldSlug}" to non-translatable requires a manual content migration.`,
+						"FIELD_UPDATE_REQUIRES_MIGRATION",
+					);
+				}
+
+				if (input.label !== undefined) updates.label = input.label;
+				if (input.required !== undefined) updates.required = input.required ? 1 : 0;
+				if (input.unique !== undefined) updates.unique = input.unique ? 1 : 0;
+				if (input.searchable !== undefined) updates.searchable = input.searchable ? 1 : 0;
+				const indexedChanged = input.indexed !== undefined && input.indexed !== field.indexed;
+				if (indexedChanged) updates.indexed = input.indexed ? 1 : 0;
+				if (input.translatable !== undefined) {
+					updates.translatable = input.translatable ? 1 : 0;
+				}
+				if (input.defaultValue !== undefined) {
+					updates.default_value = JSON.stringify(input.defaultValue);
+				}
+				if (input.validation !== undefined || field.type === "blocks") {
+					updates.validation = nextValidation ? JSON.stringify(nextValidation) : null;
+				}
+				if (input.widget !== undefined) updates.widget = input.widget;
+				if (input.options !== undefined) updates.options = JSON.stringify(input.options);
+				if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
+
+				assertIndexableField(
+					{ type: nextType, validation: nextValidation },
+					input.indexed ?? field.indexed,
+					fieldSlug,
+				);
+				if (Object.keys(updates).length === 0) return field;
+
+				activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+					trx,
+					collectionSlug,
+				);
+
+				if (Object.keys(updates).length > 0) {
+					await trx.updateTable("_emdash_fields").set(updates).where("id", "=", field.id).execute();
+					schemaMutated = true;
+				}
+
+				if (indexedChanged) {
+					if (input.indexed) {
+						await this.createFieldIndex(collectionSlug, field.id, fieldSlug, trx);
+					} else {
+						await this.dropFieldIndex(field.id, trx);
+					}
+					schemaMutated = true;
+				}
 
 				// Read the updated field via trx (not this.db) to avoid connection mutex deadlock
 				const updatedRow = await trx
@@ -765,26 +1564,37 @@ export class SchemaRegistry {
 
 				// If searchable changed, sync FTS state for this collection
 				const searchableChanged =
-					input.searchable !== undefined && input.searchable !== field.searchable;
+					schemaMutated && input.searchable !== undefined && input.searchable !== field.searchable;
 				if (searchableChanged) {
 					await this.syncSearchState(collectionSlug, trx);
 				}
 
 				return updated;
 			});
-			await markContentMediaUsageCollectionStaleSafely(
-				this.db,
-				collectionSlug,
-				"CONTENT_USAGE_STALE",
-			);
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
+			}
+			this.notifyTypegen();
 			return updatedField;
 		} catch (error) {
 			if (schemaMutated) {
-				await markContentMediaUsageCollectionStaleSafely(
-					this.db,
-					collectionSlug,
-					"CONTENT_USAGE_STALE",
-				);
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
 			}
 			throw error;
 		}
@@ -844,6 +1654,17 @@ export class SchemaRegistry {
 				"FIELD_NOT_FOUND",
 			);
 		}
+		const activeCoverageInvalidated = await invalidateContentMediaUsageSchemaChange(
+			this.db,
+			collectionSlug,
+		);
+
+		// If this field powers the collection's titleField/dateField,
+		// clear that reference in the same transaction — otherwise the metadata
+		// would point at a dropped column and later crash the content list sort.
+		const collection = await this.getCollection(collectionSlug);
+		const clearTitle = collection?.titleField === fieldSlug;
+		const clearDate = collection?.dateField === fieldSlug;
 
 		let schemaMutated = false;
 		try {
@@ -856,29 +1677,120 @@ export class SchemaRegistry {
 				await trx.deleteFrom("_emdash_fields").where("id", "=", field.id).execute();
 				schemaMutated = true;
 
+				if (clearTitle || clearDate) {
+					await trx
+						.updateTable("_emdash_collections")
+						.set({
+							...(clearTitle ? { title_field: null } : {}),
+							...(clearDate ? { date_field: null } : {}),
+							updated_at: new Date().toISOString(),
+						})
+						.where("slug", "=", collectionSlug)
+						.execute();
+				}
+
 				// If the deleted field was searchable, sync FTS state (removes old triggers)
 				if (field.searchable) {
 					await this.syncSearchState(collectionSlug, trx);
 				}
 
-				// Drop column from content table — safe now because FTS triggers are gone
-				await this.dropColumn(collectionSlug, fieldSlug, trx);
+				if (field.indexed) {
+					await this.dropFieldIndex(field.id, trx);
+				}
+
+				// Drop column from content table — safe now because FTS triggers are gone.
+				// Whether a field is storage-less is a property of the row rather than of
+				// its type: reference fields created before they became storage-less
+				// still carry a column, and skipping the DDL would strand it and block
+				// the slug from ever being reused.
+				const hasColumn = await columnExists(
+					trx,
+					this.getTableName(collectionSlug),
+					this.getColumnName(fieldSlug),
+				);
+				if (hasColumn) {
+					await this.dropColumn(collectionSlug, fieldSlug, trx);
+				}
 			});
-			await markContentMediaUsageCollectionStaleSafely(
-				this.db,
-				collectionSlug,
-				"CONTENT_USAGE_STALE",
-			);
-		} catch (error) {
-			if (schemaMutated) {
+			if (activeCoverageInvalidated) {
+				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+			} else {
 				await markContentMediaUsageCollectionStaleSafely(
 					this.db,
 					collectionSlug,
 					"CONTENT_USAGE_STALE",
 				);
 			}
+		} catch (error) {
+			if (schemaMutated) {
+				if (activeCoverageInvalidated) {
+					await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
+				} else {
+					await markContentMediaUsageCollectionStaleSafely(
+						this.db,
+						collectionSlug,
+						"CONTENT_USAGE_STALE",
+					);
+				}
+			}
 			throw error;
 		}
+		this.notifyTypegen();
+	}
+
+	/**
+	 * Reorder collections in the admin sidebar.
+	 *
+	 * `slugs` is the full desired order: every listed collection gets its
+	 * index as `sort_order`, and any collection left out has its explicit
+	 * position cleared, dropping it back to the alphabetical tail. Unknown or
+	 * duplicate slugs throw before anything is written.
+	 */
+	async reorderCollections(slugs: string[]): Promise<void> {
+		const known = new Set((await this.listCollections()).map((collection) => collection.slug));
+
+		const unknown = slugs.filter((slug) => !known.has(slug));
+		if (unknown.length > 0) {
+			throw new SchemaError(
+				`Unknown collection${unknown.length > 1 ? "s" : ""}: ${unknown.join(", ")}`,
+				"COLLECTION_NOT_FOUND",
+				{ slugs: unknown },
+			);
+		}
+
+		const duplicates = slugs.filter((slug, index) => slugs.indexOf(slug) !== index);
+		if (duplicates.length > 0) {
+			throw new SchemaError(
+				`Duplicate collection${duplicates.length > 1 ? "s" : ""}: ${[...new Set(duplicates)].join(", ")}`,
+				"DUPLICATE_SLUG",
+				{ slugs: [...new Set(duplicates)] },
+			);
+		}
+
+		const now = new Date().toISOString();
+		const ordered = new Set(slugs);
+
+		await withTransaction(this.db, async (trx) => {
+			for (const [index, slug] of slugs.entries()) {
+				await trx
+					.updateTable("_emdash_collections")
+					.set({ sort_order: index, updated_at: now })
+					.where("slug", "=", slug)
+					.execute();
+			}
+
+			const cleared = [...known].filter((slug) => !ordered.has(slug));
+			// Chunked to stay under D1's bound-parameter limit; typical sites
+			// clear far fewer than one chunk.
+			for (const slugChunk of chunks(cleared, SQL_BATCH_SIZE)) {
+				await trx
+					.updateTable("_emdash_collections")
+					.set({ sort_order: null, updated_at: now })
+					.where("slug", "in", slugChunk)
+					.execute();
+			}
+		});
+		this.notifyTypegen();
 	}
 
 	/**
@@ -899,6 +1811,7 @@ export class SchemaRegistry {
 				.where("slug", "=", fieldSlugs[i])
 				.execute();
 		}
+		this.notifyTypegen();
 	}
 
 	// ============================================
@@ -912,6 +1825,7 @@ export class SchemaRegistry {
 		slug: string,
 		db?: Kysely<Database>,
 		fields: readonly CreateFieldInput[] = [],
+		options: { ifNotExists?: boolean } = {},
 	): Promise<void> {
 		const conn = db ?? this.db;
 		const tableName = this.getTableName(slug);
@@ -933,11 +1847,15 @@ export class SchemaRegistry {
 			.addColumn("draft_revision_id", "text", (col) => col.references("revisions.id"))
 			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
 			.addColumn("translation_group", "text");
+		if (options.ifNotExists) table = table.ifNotExists();
 
 		for (const field of fields) {
+			if (isStoragelessField(field)) continue;
+
 			const columnName = this.getColumnName(field.slug);
 			const columnType = COLUMN_TYPE_TO_DATA_TYPE[FIELD_TYPE_TO_COLUMN[field.type]];
 			table = table.addColumn(columnName, columnType, (column) => {
+				if (field.type === "blocks") return column.notNull().defaultTo("[]");
 				if (!field.required) return column;
 
 				const defaultValue =
@@ -952,40 +1870,49 @@ export class SchemaRegistry {
 			.addUniqueConstraint(`${tableName}_slug_locale_unique`, ["slug", "locale"])
 			.execute();
 
+		const createIndex = options.ifNotExists ? sql`CREATE INDEX IF NOT EXISTS` : sql`CREATE INDEX`;
+		const createUniqueIndex = options.ifNotExists
+			? sql`CREATE UNIQUE INDEX IF NOT EXISTS`
+			: sql`CREATE UNIQUE INDEX`;
+
 		// Create standard indexes
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_slug`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_slug`)}
 			ON ${sql.ref(tableName)} (slug)
 		`.execute(conn);
 
+		// Name must stay identical to migration 074. `deleted_at` leads so the
+		// scheduled-publishing sweep can seek it and walk `scheduled_at` for both
+		// its range and its ORDER BY; a `scheduled_at`-only index leaves a
+		// stats-blind planner reading every live row.
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_scheduled`)}
-			ON ${sql.ref(tableName)} (scheduled_at)
+			${createIndex} ${sql.ref(`idx_${tableName}_del_sched`)}
+			ON ${sql.ref(tableName)} (deleted_at, scheduled_at)
 			WHERE scheduled_at IS NOT NULL
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_live_revision`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_live_revision`)}
 			ON ${sql.ref(tableName)} (live_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_draft_revision`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_draft_revision`)}
 			ON ${sql.ref(tableName)} (draft_revision_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_author`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_author`)}
 			ON ${sql.ref(tableName)} (author_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_primary_byline`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_primary_byline`)}
 			ON ${sql.ref(tableName)} (primary_byline_id)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_locale`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_locale`)}
 			ON ${sql.ref(tableName)} (locale)
 		`.execute(conn);
 
@@ -994,33 +1921,39 @@ export class SchemaRegistry {
 		// (menu and reference resolution) need the first; reads that do need the
 		// second.
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_tg_locale`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_tg_locale`)}
 			ON ${sql.ref(tableName)} (translation_group, locale)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_del_tg_locale`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_del_tg_locale`)}
 			ON ${sql.ref(tableName)} (deleted_at, translation_group, locale)
+		`.execute(conn);
+
+		await sql`
+			${createUniqueIndex} ${sql.ref(`uidx_${tableName}_active_tg_locale`)}
+			ON ${sql.ref(tableName)} (translation_group, lower(locale))
+			WHERE deleted_at IS NULL AND translation_group IS NOT NULL
 		`.execute(conn);
 
 		// Composite indexes for optimized query performance (see migration 033)
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_updated_id`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_updated_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, updated_at DESC, id DESC)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_status`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_status`)}
 			ON ${sql.ref(tableName)} (deleted_at, status)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_created_id`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_created_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, created_at DESC, id DESC)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_deleted_published_id`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_deleted_published_id`)}
 			ON ${sql.ref(tableName)} (deleted_at, published_at DESC, id DESC)
 		`.execute(conn);
 
@@ -1029,14 +1962,65 @@ export class SchemaRegistry {
 		// inside Postgres's 63-byte identifier limit for long slugs; keep these
 		// names identical to migration 041.
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_loc_upd`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_loc_upd`)}
 			ON ${sql.ref(tableName)} (deleted_at, locale, updated_at DESC, id DESC)
 		`.execute(conn);
 
 		await sql`
-			CREATE INDEX ${sql.ref(`idx_${tableName}_loc_crt`)}
+			${createIndex} ${sql.ref(`idx_${tableName}_loc_crt`)}
 			ON ${sql.ref(tableName)} (deleted_at, locale, created_at DESC, id DESC)
 		`.execute(conn);
+	}
+
+	private getFieldIndexName(fieldId: string): string {
+		if (!FIELD_ID_PATTERN.test(fieldId)) {
+			throw new SchemaError(`Invalid field id "${fieldId}"`, "INVALID_FIELD_ID");
+		}
+		return `idx_cf_${fieldId.toLowerCase()}`;
+	}
+
+	private getLocaleFieldIndexName(fieldId: string): string {
+		return `${this.getFieldIndexName(fieldId)}_loc`;
+	}
+
+	private async createFieldIndex(
+		collectionSlug: string,
+		fieldId: string,
+		fieldSlug: string,
+		db?: Kysely<Database>,
+	): Promise<void> {
+		const conn = db ?? this.db;
+		const tableName = this.getTableName(collectionSlug);
+		const columnName = this.getColumnName(fieldSlug);
+		const indexName = this.getFieldIndexName(fieldId);
+		const localeIndexName = this.getLocaleFieldIndexName(fieldId);
+
+		await sql`
+			CREATE INDEX IF NOT EXISTS ${sql.ref(indexName)}
+			ON ${sql.ref(tableName)} (
+				(${sql.ref(columnName)} IS NOT NULL),
+				${sql.ref(columnName)},
+				id
+			)
+			WHERE deleted_at IS NULL
+		`.execute(conn);
+
+		await sql`
+			CREATE INDEX IF NOT EXISTS ${sql.ref(localeIndexName)}
+			ON ${sql.ref(tableName)} (
+				locale,
+				(${sql.ref(columnName)} IS NOT NULL),
+				${sql.ref(columnName)},
+				id
+			)
+			WHERE deleted_at IS NULL
+		`.execute(conn);
+	}
+
+	private async dropFieldIndex(fieldId: string, db?: Kysely<Database>): Promise<void> {
+		const conn = db ?? this.db;
+		await sql`DROP INDEX IF EXISTS ${sql.ref(this.getFieldIndexName(fieldId))}`.execute(conn);
+		await sql`DROP INDEX IF EXISTS ${sql.ref(this.getLocaleFieldIndexName(fieldId))}`.execute(conn);
 	}
 
 	/**
@@ -1056,7 +2040,12 @@ export class SchemaRegistry {
 
 		// Build ALTER TABLE statement
 		// Note: SQLite requires DEFAULT for NOT NULL columns in ALTER TABLE
-		if (options?.required && options?.defaultValue !== undefined) {
+		if (fieldType === "blocks") {
+			await sql`
+				ALTER TABLE ${sql.ref(tableName)}
+				ADD COLUMN ${sql.ref(columnName)} ${sql.raw(columnType)} NOT NULL DEFAULT '[]'
+			`.execute(conn);
+		} else if (options?.required && options?.defaultValue !== undefined) {
 			const defaultVal = this.formatDefaultValue(options.defaultValue, fieldType);
 			await sql`
 				ALTER TABLE ${sql.ref(tableName)}
@@ -1101,18 +2090,185 @@ export class SchemaRegistry {
 	/**
 	 * Check if a collection has any content
 	 */
-	private async collectionHasContent(slug: string): Promise<boolean> {
+	private async collectionHasContent(
+		slug: string,
+		db: Kysely<Database> = this.db,
+	): Promise<boolean> {
 		const tableName = this.getTableName(slug);
 		try {
 			const result = await sql<{ count: number }>`
 				SELECT COUNT(*) as count FROM ${sql.ref(tableName)}
 				WHERE deleted_at IS NULL
-			`.execute(this.db);
+			`.execute(db);
 			return (result.rows[0]?.count ?? 0) > 0;
 		} catch {
 			// Table might not exist
 			return false;
 		}
+	}
+
+	private async normalizeBlocksFieldValidation(
+		collectionSlug: string,
+		input: CreateFieldInput,
+		existing: Field | undefined,
+		db: Kysely<Database>,
+		checkContent = true,
+	): Promise<FieldValidation> {
+		if (input.required) {
+			throw new SchemaError("Blocks fields cannot be required", "VALIDATION_ERROR", {
+				path: "required",
+			});
+		}
+		if (input.unique) {
+			throw new SchemaError("Blocks fields cannot be unique", "VALIDATION_ERROR", {
+				path: "unique",
+			});
+		}
+		if (input.indexed) {
+			throw new SchemaError("Blocks fields cannot be indexed", "FIELD_NOT_INDEXABLE", {
+				path: "indexed",
+			});
+		}
+		if (input.searchable) {
+			throw new SchemaError("Blocks fields cannot be searchable", "VALIDATION_ERROR", {
+				path: "searchable",
+			});
+		}
+		if (input.widget !== undefined) {
+			throw new SchemaError("Blocks fields cannot use custom widgets", "VALIDATION_ERROR", {
+				path: "widget",
+			});
+		}
+		if (input.options !== undefined) {
+			throw new SchemaError("Blocks fields do not accept widget options", "VALIDATION_ERROR", {
+				path: "options",
+			});
+		}
+		if (
+			input.defaultValue !== undefined &&
+			(!Array.isArray(input.defaultValue) || input.defaultValue.length > 0)
+		) {
+			throw new SchemaError("Blocks field defaults must be an empty array", "VALIDATION_ERROR", {
+				path: "defaultValue",
+			});
+		}
+
+		const requested = input.validation ?? existing?.validation ?? {};
+		const allowedTypes = requested.allowedTypes ?? [];
+		if (!Array.isArray(allowedTypes) || allowedTypes.some((slug) => typeof slug !== "string")) {
+			throw new SchemaError(
+				"allowedTypes must be an array of block type slugs",
+				"VALIDATION_ERROR",
+				{
+					path: "validation.allowedTypes",
+				},
+			);
+		}
+		if (new Set(allowedTypes).size !== allowedTypes.length) {
+			throw new SchemaError("allowedTypes must not contain duplicates", "VALIDATION_ERROR", {
+				path: "validation.allowedTypes",
+			});
+		}
+
+		const previousAllowed = existing?.validation?.allowedTypes ?? [];
+		const previousRetired = existing?.validation?.retiredTypes ?? [];
+		const requestedRetired = existing ? previousRetired : (requested.retiredTypes ?? []);
+		if (
+			!Array.isArray(requestedRetired) ||
+			requestedRetired.some((slug) => typeof slug !== "string")
+		) {
+			throw new SchemaError(
+				"retiredTypes must be an array of block type slugs",
+				"VALIDATION_ERROR",
+				{
+					path: "validation.retiredTypes",
+				},
+			);
+		}
+		const retiredTypes = [
+			...new Set([
+				...requestedRetired,
+				...previousAllowed.filter((slug) => !allowedTypes.includes(slug)),
+			]),
+		].filter((slug) => !allowedTypes.includes(slug));
+
+		const minItems = requested.minItems ?? 0;
+		const maxItems = requested.maxItems ?? MAX_BLOCKS_ITEMS;
+		if (!Number.isInteger(minItems) || minItems < 0) {
+			throw new SchemaError("minItems must be a non-negative integer", "VALIDATION_ERROR", {
+				path: "validation.minItems",
+			});
+		}
+		if (!Number.isInteger(maxItems) || maxItems < 1 || maxItems > MAX_BLOCKS_ITEMS) {
+			throw new SchemaError(
+				`maxItems must be an integer between 1 and ${MAX_BLOCKS_ITEMS}`,
+				"VALIDATION_ERROR",
+				{ path: "validation.maxItems" },
+			);
+		}
+		if (minItems > maxItems) {
+			throw new SchemaError("minItems cannot exceed maxItems", "VALIDATION_ERROR", {
+				path: "validation.minItems",
+			});
+		}
+		const previousMin = existing?.validation?.minItems ?? 0;
+		if (
+			checkContent &&
+			minItems > previousMin &&
+			minItems > 0 &&
+			(await this.collectionHasContent(collectionSlug, db))
+		) {
+			throw new SchemaError(
+				"Raising minItems on a populated collection requires a content migration",
+				"FIELD_UPDATE_REQUIRES_MIGRATION",
+				{ path: "validation.minItems" },
+			);
+		}
+
+		const referenced = [...new Set([...allowedTypes, ...retiredTypes])];
+		if (referenced.length > 0) {
+			const types = await db
+				.selectFrom("_emdash_block_types")
+				.select(["id", "slug", "current_version"])
+				.where("slug", "in", referenced)
+				.execute();
+			const bySlug = new Map(types.map((type) => [type.slug, type]));
+			for (const slug of referenced) {
+				if (!bySlug.has(slug)) {
+					throw new SchemaError(`Block type "${slug}" not found`, "BLOCK_TYPE_NOT_FOUND", {
+						slug,
+					});
+				}
+			}
+			const allowedRows = allowedTypes.map((slug) => bySlug.get(slug)!);
+			if (allowedRows.length > 0) {
+				const activeVersions = await db
+					.selectFrom("_emdash_block_type_versions")
+					.select(["block_type_id", "version"])
+					.where(
+						"block_type_id",
+						"in",
+						allowedRows.map((type) => type.id),
+					)
+					.execute();
+				for (const type of allowedRows) {
+					if (
+						!activeVersions.some(
+							(version) =>
+								version.block_type_id === type.id && version.version === type.current_version,
+						)
+					) {
+						throw new SchemaError(
+							`Block type "${type.slug}" has no active version ${type.current_version}`,
+							"BLOCK_TYPE_VERSION_CONFLICT",
+							{ slug: type.slug, version: type.current_version },
+						);
+					}
+				}
+			}
+		}
+
+		return { allowedTypes, retiredTypes, minItems, maxItems };
 	}
 
 	/**
@@ -1212,6 +2368,7 @@ export class SchemaRegistry {
 	 * Get empty default for a field type
 	 */
 	private getEmptyDefault(fieldType: FieldType): string {
+		if (fieldType === "blocks") return "'[]'";
 		const columnType = FIELD_TYPE_TO_COLUMN[fieldType];
 
 		switch (columnType) {
@@ -1238,10 +2395,19 @@ export class SchemaRegistry {
 			labelSingular: row.label_singular ?? undefined,
 			description: row.description ?? undefined,
 			icon: row.icon ?? undefined,
+			admin: parseCollectionAdmin(row.admin_config),
 			supports: parseSupports(row.supports),
 			source: row.source && isCollectionSource(row.source) ? row.source : undefined,
 			hasSeo: row.has_seo === 1,
+			// Raw value; undefined when unset. The admin list resolves the
+			// default (title fallback chain / updatedAt) at the point of use.
+			titleField: row.title_field ?? undefined,
+			dateField: row.date_field ?? undefined,
 			urlPattern: row.url_pattern ?? undefined,
+			routable: row.routable !== 0,
+			hidden: row.hidden === 1,
+			sortOrder: row.sort_order ?? undefined,
+			group: row.nav_group ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,
 			commentsModeration:
 				moderation === "all" || moderation === "first_time" || moderation === "none"
@@ -1249,6 +2415,7 @@ export class SchemaRegistry {
 					: "first_time",
 			commentsClosedAfterDays: row.comments_closed_after_days ?? 90,
 			commentsAutoApproveUsers: row.comments_auto_approve_users === 1,
+			editLocking: row.edit_locking !== 0,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		};
@@ -1258,21 +2425,29 @@ export class SchemaRegistry {
 	 * Map a field row to a Field object
 	 */
 	private mapFieldRow = (row: Selectable<FieldTable>): Field => {
+		const validation = row.validation ? JSON.parse(row.validation) : undefined;
+		const unsupportedType = isFieldType(row.type)
+			? row.type === "repeater"
+				? findUnsupportedRepeaterSubFieldType(validation)
+				: undefined
+			: { type: row.type, path: "type" };
 		return {
 			id: row.id,
 			collectionId: row.collection_id,
 			slug: row.slug,
 			label: row.label,
 			type: isFieldType(row.type) ? row.type : "string",
+			unsupportedType,
 			columnType: isColumnType(row.column_type) ? row.column_type : "TEXT",
 			required: row.required === 1,
 			unique: row.unique === 1,
 			defaultValue: row.default_value ? JSON.parse(row.default_value) : undefined,
-			validation: row.validation ? JSON.parse(row.validation) : undefined,
+			validation,
 			widget: row.widget ?? undefined,
 			options: row.options ? JSON.parse(row.options) : undefined,
 			sortOrder: row.sort_order,
 			searchable: row.searchable === 1,
+			indexed: row.indexed === 1,
 			translatable: row.translatable !== 0,
 			createdAt: row.created_at,
 		};
@@ -1352,6 +2527,9 @@ export class SchemaRegistry {
 	): Promise<Collection> {
 		// Verify table exists
 		const tableName = this.getTableName(slug);
+		if (await isMediaUsageCollectionSlugDeleting(this.db, slug)) {
+			throw new SchemaError(`Collection "${slug}" is already registered`, "COLLECTION_EXISTS");
+		}
 		const exists = await tableExists(this.db, tableName);
 
 		if (!exists) {
@@ -1360,38 +2538,71 @@ export class SchemaRegistry {
 
 		// Check if already registered
 		const existing = await this.getCollection(slug);
-		if (existing) {
+		if (await isMediaUsageCollectionSlugDeleting(this.db, slug)) {
+			throw new SchemaError(`Collection "${slug}" is already registered`, "COLLECTION_EXISTS");
+		}
+		if (
+			existing &&
+			!(await canResumeMediaUsageCollectionCapture(this.db, {
+				collectionId: existing.id,
+				collectionSlug: existing.slug,
+			}))
+		) {
 			throw new SchemaError(`Collection "${slug}" is already registered`, "COLLECTION_EXISTS");
 		}
 
 		// Create collection entry
-		const id = ulid();
+		const proposedId = existing?.id ?? ulid();
 		const label = options?.label || this.slugToLabel(slug);
 
 		let collectionRegistered = false;
 		try {
-			await this.db
-				.insertInto("_emdash_collections")
-				.values({
-					id,
-					slug,
-					label,
-					label_singular: options?.labelSingular ?? null,
-					description: options?.description ?? null,
-					icon: null,
-					supports: JSON.stringify([]),
-					source: "discovered",
-					has_seo: 0,
-					url_pattern: null,
-				})
-				.execute();
-			collectionRegistered = true;
+			const capture = await prepareMediaUsageCollectionCapture(this.db, {
+				collectionId: proposedId,
+				collectionSlug: slug,
+				registeredCollectionId: existing?.id,
+			});
+			if (capture.captureRequired) {
+				await installPreparedMediaUsageCollectionCapture(this.db, {
+					collectionId: capture.collectionId,
+					collectionSlug: slug,
+				});
+				await markMediaUsageCollectionCaptureReady(this.db, {
+					collectionId: capture.collectionId,
+					collectionSlug: slug,
+				});
+			}
+			if (!capture.registrationExists) {
+				await this.db
+					.insertInto("_emdash_collections")
+					.values({
+						id: capture.collectionId,
+						slug,
+						label,
+						label_singular: options?.labelSingular ?? null,
+						description: options?.description ?? null,
+						icon: null,
+						supports: JSON.stringify([]),
+						source: "discovered",
+						has_seo: 0,
+						url_pattern: null,
+					})
+					.execute();
+				collectionRegistered = true;
+			}
+			if (capture.captureRequired) {
+				await finalizeMediaUsageCollectionCapture(this.db, {
+					collectionId: capture.collectionId,
+					collectionSlug: slug,
+				});
+			}
 
 			const collection = await this.getCollection(slug);
 			if (!collection) {
 				throw new SchemaError("Failed to register orphaned table", "REGISTER_FAILED");
 			}
 			await markContentMediaUsageCollectionStaleSafely(this.db, slug, "CONTENT_USAGE_STALE");
+			this.notifyTypegen();
 
 			return collection;
 		} catch (error) {

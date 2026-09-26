@@ -23,7 +23,11 @@ const { items: results } = query
 		<h1 class="search-title">Search</h1>
 
 		<form method="get" action="/search" class="search-form">
+			<label for="site-search-query" class="visually-hidden"
+				>Search blog posts</label
+			>
 			<input
+				id="site-search-query"
 				type="search"
 				name="q"
 				value={query}
@@ -53,9 +57,7 @@ const { items: results } = query
 								href={`/posts/${result.slug ?? result.id}`}
 								class="result-link"
 							>
-								<h2 class="result-title">
-									{result.title ?? "Untitled"}
-								</h2>
+								<h2 class="result-title">{result.title ?? "Untitled"}</h2>
 								{result.snippet && (
 									<p class="result-snippet" set:html={result.snippet} />
 								)}
@@ -75,6 +77,18 @@ const { items: results } = query
 		max-width: var(--max-width);
 		margin: 0 auto;
 		padding: var(--spacing-8) var(--spacing-6) var(--spacing-16);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	.search-title {

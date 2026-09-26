@@ -1,10 +1,15 @@
-import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { CompiledQuery, Kysely, KyselyPlugin } from "kysely";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
-import { EmDashValidationError } from "../../../../src/database/repositories/types.js";
+import {
+	ContentMutationConflictError,
+	EmDashValidationError,
+} from "../../../../src/database/repositories/types.js";
 import type { Database } from "../../../../src/database/types.js";
+import { SchemaRegistry } from "../../../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../../utils/test-db.js";
 
@@ -21,6 +26,7 @@ describe("ContentRepository", () => {
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		await teardownTestDatabase(db);
 	});
 
@@ -319,6 +325,51 @@ describe("ContentRepository", () => {
 			expect(updated.updatedAt).not.toBe(created.updatedAt);
 		});
 
+		it("should normalize a non-UTC scheduledAt offset", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+
+			const updated = await repo.update("post", created.id, {
+				scheduledAt: "2099-01-01T21:00:00+09:00",
+			});
+
+			expect(updated.scheduledAt).toBe("2099-01-01T12:00:00.000Z");
+		});
+
+		it("should normalize scheduledAt when staging a draft-aware update", async () => {
+			const created = await repo.create(createPostFixture());
+
+			const updated = await repo.updateDraftAware("post", created.id, {
+				data: { title: "Scheduled revision" },
+				scheduledAt: "2099-01-01T07:00:00-05:00",
+			});
+
+			expect(updated.draftRevisionId).not.toBeNull();
+			expect(updated.scheduledAt).toBe("2099-01-01T12:00:00.000Z");
+		});
+
+		it("should clear scheduledAt when set to null", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+			await repo.update("post", created.id, { scheduledAt: future });
+
+			const updated = await repo.update("post", created.id, {
+				scheduledAt: null,
+			});
+
+			expect(updated.scheduledAt).toBeNull();
+		});
+
+		it("should reject an invalid scheduledAt string", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+
+			await expect(repo.update("post", created.id, { scheduledAt: "not-a-date" })).rejects.toThrow(
+				EmDashValidationError,
+			);
+		});
+
 		it("should throw error for non-existent content", async () => {
 			await expect(repo.update("post", "01J9FAKE0000000000000000", { data: {} })).rejects.toThrow(
 				"Content not found",
@@ -434,6 +485,19 @@ describe("ContentRepository", () => {
 			expect(updated.scheduledAt).toBe(future);
 		});
 
+		it("rejects a stale revision after a concurrent content change", async () => {
+			const post = await repo.create(createPostFixture());
+			await repo.update("post", post.id, { data: { title: "Concurrent edit" } });
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+
+			await expect(
+				repo.schedule("post", post.id, future, new Date(), {
+					version: post.version,
+					updatedAt: post.updatedAt,
+				}),
+			).rejects.toThrow(ContentMutationConflictError);
+		});
+
 		it("should reject dates in the past", async () => {
 			const post = await repo.create(createPostFixture());
 			const past = new Date(Date.now() - 86_400_000).toISOString();
@@ -445,6 +509,42 @@ describe("ContentRepository", () => {
 			const post = await repo.create(createPostFixture());
 
 			await expect(repo.schedule("post", post.id, "not-a-date")).rejects.toThrow(
+				EmDashValidationError,
+			);
+		});
+
+		it.each([
+			["positive", "2030-01-01T21:00:00+09:00"],
+			["negative", "2030-01-01T07:00:00-05:00"],
+		])("should publish a %s offset at the represented instant", async (_offset, scheduledAt) => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
+			const post = await repo.create(createPostFixture());
+			const updated = await repo.schedule("post", post.id, scheduledAt);
+			expect(updated.scheduledAt).toBe("2030-01-01T12:00:00.000Z");
+
+			vi.setSystemTime(new Date("2030-01-01T11:59:59.999Z"));
+			expect(await repo.findReadyToPublish("post")).toEqual([]);
+
+			vi.setSystemTime(new Date("2030-01-01T12:00:00.000Z"));
+			expect((await repo.findReadyToPublish("post")).map((item) => item.id)).toEqual([post.id]);
+		});
+
+		it("resolves direct site-local schedules with the configured timezone", async () => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
+			await new OptionsRepository(db).set("site:timezone", "America/New_York");
+			const post = await repo.create(createPostFixture());
+
+			const updated = await repo.schedule("post", post.id, "2030-01-01T08:00");
+
+			expect(updated.scheduledAt).toBe("2030-01-01T13:00:00.000Z");
+		});
+
+		it("rejects ambiguous direct site-local schedules", async () => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
+			await new OptionsRepository(db).set("site:timezone", "America/New_York");
+			const post = await repo.create(createPostFixture());
+
+			await expect(repo.schedule("post", post.id, "2030-11-03T01:30")).rejects.toThrow(
 				EmDashValidationError,
 			);
 		});
@@ -472,6 +572,21 @@ describe("ContentRepository", () => {
 
 			expect(updated.status).toBe("published");
 			expect(updated.scheduledAt).toBeNull();
+		});
+
+		it("rejects a stale revision without clearing the schedule", async () => {
+			const post = await repo.create(createPostFixture());
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+			const scheduled = await repo.schedule("post", post.id, future);
+			await repo.update("post", post.id, { data: { title: "Concurrent edit" } });
+
+			await expect(
+				repo.unschedule("post", post.id, {
+					version: scheduled.version,
+					updatedAt: scheduled.updatedAt,
+				}),
+			).rejects.toThrow(ContentMutationConflictError);
+			await expect(repo.findById("post", post.id)).resolves.toMatchObject({ scheduledAt: future });
 		});
 	});
 
@@ -660,6 +775,95 @@ describe("ContentRepository", () => {
 			const count = await repo.countScheduled("post");
 
 			expect(count).toBe(2);
+		});
+	});
+
+	describe("with a datetime context cache", () => {
+		async function contextLookupsDuring(run: (cached: ContentRepository) => Promise<unknown>) {
+			const queries: CompiledQuery[] = [];
+			const recorder: KyselyPlugin = {
+				transformQuery(args) {
+					queries.push(db.getExecutor().compileQuery(args.node, args.queryId));
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			};
+			await run(new ContentRepository(db.withPlugin(recorder), new Map()));
+			return {
+				timezone: queries.filter((query) => query.parameters.includes("site:timezone")).length,
+				fields: queries.filter((query) => query.sql.includes('from "_emdash_fields"')).length,
+			};
+		}
+
+		async function createPosts(count: number) {
+			const ids: string[] = [];
+			for (let i = 0; i < count; i++) {
+				ids.push((await repo.create(createPostFixture({ slug: `post-${i}` }))).id);
+			}
+			return ids;
+		}
+
+		it("reads the timezone and datetime fields once when publishing several entries without promoting a revision", async () => {
+			const ids = await createPosts(3);
+
+			const lookups = await contextLookupsDuring(async (cached) => {
+				for (const id of ids) await cached.publish("post", id, undefined, false, undefined, false);
+			});
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
+		});
+
+		it("reads the timezone and datetime fields once when unpublishing several entries", async () => {
+			const ids = await createPosts(3);
+			for (const id of ids) await repo.publish("post", id);
+
+			const lookups = await contextLookupsDuring(async (cached) => {
+				for (const id of ids) await cached.unpublish("post", id);
+			});
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
+		});
+
+		it("reads the timezone and datetime fields once when staging drafts for several entries", async () => {
+			const ids = await createPosts(3);
+
+			const lookups = await contextLookupsDuring(async (cached) => {
+				for (const id of ids) {
+					await cached.updateDraftAware("post", id, { data: { title: "Staged" } });
+				}
+			});
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
+		});
+
+		it("reads the timezone and datetime fields once when syncing a field to several translations", async () => {
+			await new SchemaRegistry(db).createField("post", {
+				slug: "sku",
+				label: "SKU",
+				type: "string",
+				translatable: false,
+			});
+			const source = await repo.create(createPostFixture({ data: { title: "Hello", sku: "A" } }));
+			for (const locale of ["de", "fr"]) {
+				const translation = await repo.create(
+					createPostFixture({
+						data: { title: "Hello", sku: "A" },
+						locale,
+						translationOf: source.id,
+					}),
+				);
+				await repo.publish("post", translation.id);
+			}
+
+			const lookups = await contextLookupsDuring((cached) =>
+				cached.syncNonTranslatableFields("post", source.id, source.translationGroup ?? source.id, {
+					sku: "B",
+				}),
+			);
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
 		});
 	});
 });

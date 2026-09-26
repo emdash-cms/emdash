@@ -19,7 +19,7 @@ import { createMcpServer } from "#mcp/server.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
 
 	if (!emdash) {
@@ -48,9 +48,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				scopes: [],
 				extra: {
 					emdash,
+					user,
 					userId: user.id,
 					userRole: user.role,
 					tokenScopes: locals.tokenScopes,
+					tokenId: locals.tokenId,
+					cache,
 				},
 			},
 		});

@@ -11,10 +11,7 @@ import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api
 import { handleCommentGet } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { commentStatusBody } from "#api/schemas.js";
-import { getSiteBaseUrl } from "#api/site-url.js";
-import { lookupContentAuthor, sendCommentNotification } from "#comments/notifications.js";
-import { moderateComment, type CommentHookRunner } from "#comments/service.js";
-import type { ModerationDecision } from "#plugins/types.js";
+import { CommentStatusConflictError } from "#comments/service.js";
 
 export const prerender = false;
 
@@ -38,78 +35,45 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 		const newStatus = body.status;
 
-		// Build hook runner for the service
-		const hookRunner: CommentHookRunner = {
-			async runBeforeCreate(event) {
-				return emdash.hooks.runCommentBeforeCreate(event);
-			},
-			async runModerate(event) {
-				const result = await emdash.hooks.invokeExclusiveHook("comment:moderate", event);
-				if (!result) return { status: "pending" as const, reason: "No moderator configured" };
-				if (result.error) return { status: "pending" as const, reason: "Moderation error" };
-				return result.result as ModerationDecision;
-			},
-			fireAfterCreate(event) {
-				emdash.hooks
-					.runCommentAfterCreate(event)
-					.catch((err) =>
-						console.error(
-							"[comments] afterCreate error:",
-							err instanceof Error ? err.message : err,
-						),
-					);
-			},
-			fireAfterModerate(event) {
-				emdash.hooks
-					.runCommentAfterModerate(event)
-					.catch((err) =>
-						console.error(
-							"[comments] afterModerate error:",
-							err instanceof Error ? err.message : err,
-						),
-					);
-			},
-		};
-
 		// Read the comment before updating so we know the previous status
 		const existing = await handleCommentGet(emdash.db, id);
 		if (!existing.success) {
 			return unwrapResult(existing);
 		}
 		const previousStatus = existing.data.status;
+		if (!emdash.handleCommentModerate) {
+			return apiError("COMMENT_MODERATION_UNAVAILABLE", "Comment moderation is unavailable", 500);
+		}
 
-		const updated = await moderateComment(
-			emdash.db,
+		const updated = await emdash.handleCommentModerate(
 			id,
 			newStatus,
 			{ id: user!.id, name: user!.name ?? null },
-			hookRunner,
+			previousStatus,
+			request,
 		);
 
 		if (!updated) {
 			return apiError("NOT_FOUND", "Comment not found", 404);
 		}
 
-		// Send notification when a comment is newly approved
-		if (newStatus === "approved" && previousStatus !== "approved" && emdash.email) {
-			try {
-				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
-				const content = await lookupContentAuthor(emdash.db, updated.collection, updated.contentId);
-				if (content?.author) {
-					await sendCommentNotification({
-						email: emdash.email,
-						comment: updated,
-						contentAuthor: content.author,
-						adminBaseUrl,
-					});
-				}
-			} catch (err) {
-				console.error("[comments] notification error:", err instanceof Error ? err.message : err);
-			}
-		}
-
 		return apiSuccess(updated);
 	} catch (error) {
+		if (error instanceof CommentStatusConflictError) {
+			return apiError(error.code, error.message, 409, { currentStatus: error.currentStatus });
+		}
+		if (
+			typeof error === "object" &&
+			error !== null &&
+			"code" in error &&
+			error.code === "COMMENT_MODERATION_IN_PROGRESS"
+		) {
+			return apiError(
+				"COMMENT_MODERATION_IN_PROGRESS",
+				"Comment moderation is already in progress",
+				409,
+			);
+		}
 		return handleError(error, "Failed to update comment status", "COMMENT_STATUS_ERROR");
 	}
 };

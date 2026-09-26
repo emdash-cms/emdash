@@ -6,6 +6,7 @@ dist/
 
 # Astro
 .astro/
+.emdash/migrations.json
 
 # Data
 data.db

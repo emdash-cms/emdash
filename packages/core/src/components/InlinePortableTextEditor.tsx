@@ -18,6 +18,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import Underline from "@tiptap/extension-underline";
+import { Plugin } from "@tiptap/pm/state";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -25,6 +26,7 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { resolveImageMedia } from "../content/converters/gallery.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -65,11 +67,17 @@ interface PTTextBlock {
 	textAlign?: "left" | "center" | "right" | "justify";
 }
 
-type PTBlock = PTTextBlock | { _type: string; _key: string; [key: string]: unknown };
+type PTTableBlock = { _type: "table"; [key: string]: unknown };
+type PTBlock = PTTextBlock | PTTableBlock | { _type: string; _key: string; [key: string]: unknown };
+const TABLE_BLOCK_PLACEHOLDER_HTML = /<[^>]+\bdata-emdash-table-block(?:\s|=|>)/i;
 
 /** Type guard for PTTextBlock */
 function isPTTextBlock(block: PTBlock): block is PTTextBlock {
 	return block._type === "block";
+}
+
+function isPTTableBlock(value: unknown): value is PTTableBlock {
+	return typeof value === "object" && value !== null && "_type" in value && value._type === "table";
 }
 
 /** Type guard for ProseMirror JSON document node */
@@ -83,6 +91,48 @@ function isPMNode(value: unknown): value is PMNode {
 
 function k(): string {
 	return Math.random().toString(36).substring(2, 11);
+}
+
+function getUnsupportedFileGuidance(locale: string): string {
+	if (locale.toLowerCase().startsWith("ar")) {
+		return "لا يمكن إفلات الملفات أو لصقها هنا. اكتب /image لاختيار صورة من مكتبة الوسائط.";
+	}
+	return "Files can’t be dropped or pasted here. Type /image to choose an image from the media library.";
+}
+
+function hasTransferredFiles(transfer: DataTransfer | null): boolean {
+	if (!transfer) return false;
+	if (transfer.files.length > 0) return true;
+	for (let index = 0; index < transfer.items.length; index++) {
+		if (transfer.items[index]?.kind === "file") return true;
+	}
+	return false;
+}
+
+function createUnsupportedFileHandlers(showGuidance: () => void) {
+	const keepFileDragInEditor = (_view: unknown, event: DragEvent): boolean => {
+		if (!hasTransferredFiles(event.dataTransfer)) return false;
+		event.preventDefault();
+		return true;
+	};
+	return {
+		handleDOMEvents: {
+			dragenter: keepFileDragInEditor,
+			dragover: keepFileDragInEditor,
+			drop: (_view: unknown, event: DragEvent): boolean => {
+				if (!hasTransferredFiles(event.dataTransfer)) return false;
+				event.preventDefault();
+				showGuidance();
+				return true;
+			},
+			paste: (_view: unknown, event: ClipboardEvent): boolean => {
+				if (!hasTransferredFiles(event.clipboardData)) return false;
+				event.preventDefault();
+				showGuidance();
+				return true;
+			},
+		},
+	};
 }
 
 // ── ProseMirror → Portable Text ────────────────────────────────────
@@ -111,6 +161,10 @@ function attrStrOpt(attrs: Record<string, unknown> | undefined, key: string): st
 function attrNum(attrs: Record<string, unknown> | undefined, key: string): number | undefined {
 	const v = attrs?.[key];
 	return typeof v === "number" ? v : undefined;
+}
+
+function canonicalMediaProviderId(provider: string | undefined): string | undefined {
+	return provider === "external-url" ? "external" : provider;
 }
 
 function pmToPortableText(doc: PMNode): PTBlock[] {
@@ -238,16 +292,22 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 		}
 		case "horizontalRule":
 			return { _type: "break", _key: k(), style: "lineBreak" };
+		case "table": {
+			const rawTable = node.attrs?.rawTable;
+			if (isPTTableBlock(rawTable)) return rawTable;
+			return null;
+		}
 		case "pluginBlock": {
 			// Spread the captured data back out so the block round-trips losslessly.
-			// `data` holds every field except _type / _key / id (which live on
-			// dedicated attrs).
-			const { blockType, id, data } = node.attrs ?? {};
+			// `data` holds every field except _type / _key and the identity field
+			// (`id` or `url`, named by `identityField`), which live on dedicated attrs.
+			const { blockType, id, identityField, data } = node.attrs ?? {};
+			const field = identityField === "url" || identityField === "" ? identityField : "id";
 			return {
 				...(data && typeof data === "object" ? data : {}),
 				_type: typeof blockType === "string" ? blockType : "embed",
 				_key: k(),
-				id: typeof id === "string" ? id : "",
+				...(field ? { [field]: typeof id === "string" ? id : "" } : {}),
 			};
 		}
 		default:
@@ -485,9 +545,10 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 	}
 	if (block._type === "code") {
 		const cb = block as PTBlock & { code?: string; language?: string };
+		const language = typeof cb.language === "string" && cb.language.length > 0 ? cb.language : null;
 		return {
 			type: "codeBlock",
-			attrs: { language: cb.language || null },
+			attrs: { language },
 			content: cb.code ? [{ type: "text", text: cb.code }] : undefined,
 		};
 	}
@@ -520,8 +581,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
-		const asset = ib.asset;
-		const meta = asset?.meta;
+		const meta = ib.asset?.meta;
+		const { asset, alt, width, height } = resolveImageMedia(ib);
 		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
 		const blurhash =
 			typeof ib.blurhash === "string"
@@ -538,14 +599,14 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return {
 			type: "image",
 			attrs: {
-				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
-				alt: ib.alt || "",
+				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
+				alt: alt || "",
 				title: ib.caption || "",
 				caption: ib.caption || "",
-				mediaId: asset?._ref,
-				provider: asset?.provider,
-				width: ib.width,
-				height: ib.height,
+				mediaId: asset._ref || undefined,
+				provider: canonicalMediaProviderId(asset.provider),
+				width,
+				height,
 				blurhash,
 				dominantColor,
 				displayWidth: ib.displayWidth,
@@ -553,21 +614,31 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			},
 		};
 	}
+	if (block._type === "table") {
+		return {
+			type: "table",
+			attrs: { rawTable: block },
+		};
+	}
 	// Unknown block types — treat as plugin blocks. Capture every field other
 	// than the well-known ones into `data` so the block round-trips losslessly,
 	// even if no plugin currently registers this type. Matches the admin
-	// editor's behaviour at PortableTextEditor.tsx:572-588.
-	const { _type, _key, id, url, ...rest } = block as { _type: string; _key: string } & Record<
-		string,
-		unknown
-	>;
+	// editor's `convertCustomBlock`.
+	// The identity lives under whichever of `id` / `url` the block arrived with,
+	// so the PM → PT direction can write it back under the same key.
+	const identityField =
+		typeof block.id === "string" ? "id" : typeof block.url === "string" ? "url" : "";
+	const identity = identityField ? block[identityField] : undefined;
 	// Filter out _-prefixed keys to prevent accumulation across edit cycles.
-	const data = Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
+	const data = Object.fromEntries(
+		Object.entries(block).filter(([key]) => !key.startsWith("_") && key !== identityField),
+	);
 	return {
 		type: "pluginBlock",
 		attrs: {
-			blockType: typeof _type === "string" ? _type : "embed",
-			id: typeof id === "string" ? id : typeof url === "string" ? url : "",
+			blockType: typeof block._type === "string" ? block._type : "embed",
+			id: typeof identity === "string" ? identity : "",
+			identityField,
 			data,
 		},
 	};
@@ -1053,6 +1124,76 @@ const HtmlBlockNode = Node.create({
 	},
 });
 
+const TableBlockNode = Node.create<{ placeholder: string }>({
+	name: "table",
+	group: "block",
+	atom: true,
+	selectable: true,
+	draggable: true,
+
+	addOptions() {
+		return { placeholder: "Table (edit in admin)" };
+	},
+
+	addAttributes() {
+		return {
+			rawTable: { default: null, rendered: false, parseHTML: () => null },
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'div[data-emdash-table-block="true"]' }];
+	},
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				props: {
+					handleDOMEvents: {
+						cut: (view, event) => {
+							let hasTable = false;
+							view.state.selection.content().content.descendants((node) => {
+								hasTable ||= node.type.name === "table";
+							});
+							if (!hasTable) return false;
+							event.preventDefault();
+							return true;
+						},
+					},
+					handlePaste: (_view, event, slice) => {
+						const html = event.clipboardData?.getData("text/html") ?? "";
+						if (!TABLE_BLOCK_PLACEHOLDER_HTML.test(html)) return false;
+
+						let hasTable = false;
+						let hasMissingPayload = false;
+						slice.content.descendants((node) => {
+							if (node.type.name !== "table") return;
+							hasTable = true;
+							if (!isPTTableBlock(node.attrs.rawTable)) hasMissingPayload = true;
+						});
+						if (hasTable && !hasMissingPayload) return false;
+
+						event.preventDefault();
+						return true;
+					},
+				},
+			}),
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			"div",
+			mergeAttributes(HTMLAttributes, {
+				"data-emdash-table-block": "true",
+				class: "emdash-plugin-block-placeholder",
+				contenteditable: "false",
+			}),
+			this.options.placeholder,
+		];
+	},
+});
+
 /**
  * Minimal `pluginBlock` TipTap node for the inline (visual-editing) editor.
  *
@@ -1077,13 +1218,14 @@ const PluginBlockNode = Node.create({
 	draggable: true,
 
 	addAttributes() {
-		// All three attributes are stored on the ProseMirror node but not
+		// These attributes are stored on the ProseMirror node but not
 		// rendered as DOM attributes — they're metadata for the round-trip,
 		// not styling or behaviour the placeholder DOM needs to expose.
 		const noDom = { rendered: false, parseHTML: () => null };
 		return {
 			blockType: { default: "", ...noDom },
 			id: { default: "", ...noDom },
+			identityField: { default: "id", ...noDom },
 			data: { default: {}, ...noDom },
 		};
 	},
@@ -1953,6 +2095,7 @@ export interface InlinePortableTextEditorProps {
 	collection: string;
 	entryId: string;
 	field: string;
+	tablePlaceholder?: string;
 }
 
 export function InlinePortableTextEditor({
@@ -1960,13 +2103,33 @@ export function InlinePortableTextEditor({
 	collection,
 	entryId,
 	field,
+	tablePlaceholder = TableBlockNode.options.placeholder,
 }: InlinePortableTextEditorProps) {
 	const initialRef = React.useRef(value);
+	// The editor document last known to be stored: the one the loaded content
+	// produced, then the one each successful save sent. `save()` does nothing
+	// while the current document is structurally equal to it (`Node.eq`).
+	const savedDocRef = React.useRef<Editor["state"]["doc"] | null>(null);
 	const savingRef = React.useRef(false);
 	const editorRef = React.useRef<ReturnType<typeof useEditor>>(null);
 
 	// Media picker state
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+	const [unsupportedFileGuidance, setUnsupportedFileGuidance] = React.useState<{
+		message: string;
+		version: number;
+	} | null>(null);
+	const showUnsupportedFileGuidance = React.useCallback(() => {
+		const locale = document.documentElement.lang || navigator.language;
+		setUnsupportedFileGuidance((current) => ({
+			message: getUnsupportedFileGuidance(locale),
+			version: (current?.version ?? 0) + 1,
+		}));
+	}, []);
+	const unsupportedFileHandlers = React.useMemo(
+		() => createUnsupportedFileHandlers(showUnsupportedFileGuidance),
+		[showUnsupportedFileGuidance],
+	);
 
 	// Listen for the slash command's media picker event
 	React.useEffect(() => {
@@ -2010,9 +2173,9 @@ export function InlinePortableTextEditor({
 			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
-			const current = JSON.stringify(getBlocks());
-			const initial = JSON.stringify(initialRef.current);
-			if (current === initial) return;
+			const doc = editorRef.current?.state.doc;
+			if (!doc || !savedDocRef.current || doc.eq(savedDocRef.current)) return;
+			const blocks = getBlocks();
 
 			savingRef.current = true;
 			try {
@@ -2022,13 +2185,14 @@ export function InlinePortableTextEditor({
 						method: "PUT",
 						credentials: "same-origin",
 						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-						body: JSON.stringify({ data: { [field]: getBlocks() } }),
+						body: JSON.stringify({ data: { [field]: blocks } }),
 						keepalive: options?.keepalive ?? false,
 					},
 				);
 
 				if (res.ok) {
-					initialRef.current = getBlocks();
+					initialRef.current = blocks;
+					savedDocRef.current = doc;
 					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
 					document.dispatchEvent(
 						new CustomEvent("emdash:content-changed", {
@@ -2122,6 +2286,7 @@ export function InlinePortableTextEditor({
 			}),
 			Typography,
 			HtmlBlockNode,
+			TableBlockNode.configure({ placeholder: tablePlaceholder }),
 			PluginBlockNode,
 			slashCommandsExtension,
 		],
@@ -2132,15 +2297,17 @@ export function InlinePortableTextEditor({
 				class: "prose prose-sm sm:prose-base dark:prose-invert max-w-none emdash-inline-editor",
 				dir: "auto",
 			},
+			...unsupportedFileHandlers,
 		},
 		onUpdate: () => {
 			document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "unsaved" } }));
 		},
 	});
 
-	// Store editor ref for getBlocks
+	// Store editor ref for getBlocks, and record the loaded document as saved.
 	React.useEffect(() => {
 		editorRef.current = editor;
+		if (editor && !savedDocRef.current) savedDocRef.current = editor.state.doc;
 	}, [editor]);
 
 	// Slash menu command handler
@@ -2166,6 +2333,7 @@ export function InlinePortableTextEditor({
 					src,
 					alt: item.alt || item.filename || "",
 					mediaId: item.id,
+					provider: canonicalMediaProviderId(item.provider) || "local",
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
@@ -2184,6 +2352,8 @@ export function InlinePortableTextEditor({
 			if (mediaPickerOpen) return;
 			const related = e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
 			if (related && e.currentTarget.contains(related)) return;
+			// The copy fallback briefly moves focus to its textarea before restoring the editor.
+			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
 			// Don't save if focus moved to the slash menu (portalled to body)
 			if (related?.closest(".emdash-slash-menu")) return;
 			if (related?.closest(".emdash-media-picker")) return;
@@ -2198,6 +2368,17 @@ export function InlinePortableTextEditor({
 		<div onBlur={handleBlur}>
 			<InlineBubbleMenu editor={editor} />
 			<EditorContent editor={editor} />
+			{unsupportedFileGuidance ? (
+				<div
+					key={unsupportedFileGuidance.version}
+					className="emdash-inline-editor-guidance"
+					role="status"
+					aria-live="polite"
+					dir="auto"
+				>
+					{unsupportedFileGuidance.message}
+				</div>
+			) : null}
 			<InlineSlashMenu
 				state={slashMenuState}
 				onCommand={handleSlashCommand}
@@ -2214,6 +2395,132 @@ export function InlinePortableTextEditor({
 				onSelect={handleMediaSelect}
 			/>
 			<style>{`
+				.emdash-inline-code-block {
+					position: relative;
+					margin-block: 1rem;
+					--emdash-code-background: var(--emdash-inline-code-background, #f7f7f5);
+					--emdash-code-foreground: var(--emdash-inline-code-foreground, #24292f);
+					--emdash-code-muted: var(--emdash-inline-code-muted, #57606a);
+					--emdash-code-keyword: var(--emdash-inline-code-keyword, #b8172a);
+					--emdash-code-string: var(--emdash-inline-code-string, #0a3069);
+					--emdash-code-number: var(--emdash-inline-code-number, #0550ae);
+					--emdash-code-title: var(--emdash-inline-code-title, #7545c7);
+					--emdash-code-border: var(--emdash-inline-code-border, #7d8590);
+					--emdash-code-control-background: var(
+						--emdash-inline-code-control-background,
+						var(--emdash-inline-bg, #ffffff)
+					);
+					--emdash-code-control-foreground: var(
+						--emdash-inline-code-control-foreground,
+						#24292f
+					);
+					--emdash-code-focus: var(--emdash-inline-code-focus, #0550ae);
+				}
+				.emdash-inline-code-block .emdash-code-block {
+					margin: 0;
+					padding: 1rem;
+					padding-block: 30px !important;
+					border: 0 !important;
+					border-radius: 0.5rem;
+					background: var(--emdash-code-background) !important;
+					color: var(--emdash-code-foreground) !important;
+					caret-color: var(--emdash-code-foreground) !important;
+					overflow-x: auto;
+				}
+				.emdash-inline-code-block .emdash-code-block code {
+					background: transparent !important;
+					color: inherit !important;
+					font-size: 13px !important;
+				}
+				.emdash-inline-code-block :is(.hljs-comment, .hljs-quote) {
+					color: var(--emdash-code-muted);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-link, .hljs-deletion) {
+					color: var(--emdash-code-keyword);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-string, .hljs-attr, .hljs-attribute, .hljs-symbol, .hljs-bullet, .hljs-addition) {
+					color: var(--emdash-code-string);
+				}
+				.emdash-inline-code-block :is(.hljs-number, .hljs-meta) {
+					color: var(--emdash-code-number);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-selector-id, .hljs-selector-class) {
+					color: var(--emdash-code-title);
+				}
+				.emdash-inline-code-block-popover,
+				.emdash-inline-code-block-chip {
+					box-sizing: border-box;
+					border: 1px solid var(--emdash-code-border);
+					background: var(--emdash-code-control-background);
+					color: var(--emdash-code-control-foreground);
+				}
+				.emdash-inline-code-block-controls-wrap {
+					position: absolute;
+					inset-block-start: 0;
+					inset-inline-end: 0.25rem;
+					z-index: 100;
+					max-inline-size: min(calc(100% - 0.25rem), calc(100vw - 1rem));
+					opacity: 0;
+					pointer-events: none;
+					user-select: none;
+					transition: opacity 120ms ease-out;
+				}
+				.emdash-inline-code-block:hover .emdash-inline-code-block-controls-wrap,
+				.emdash-inline-code-block:focus-within .emdash-inline-code-block-controls-wrap,
+				.emdash-inline-code-block-controls-wrap[data-persistent="true"] {
+					opacity: 1;
+					pointer-events: auto;
+				}
+				.emdash-inline-code-block-popover {
+					inline-size: min(14rem, 100%, calc(100vw - 1rem));
+				}
+				.emdash-inline-code-block-language-input {
+					min-inline-size: 0;
+					flex: 1;
+					border: 1px solid var(--emdash-code-border);
+					background: transparent;
+					color: inherit;
+				}
+				.emdash-inline-code-block-controls-wrap button:focus-visible,
+				.emdash-inline-code-block-language-input:focus-visible {
+					outline: 2px solid var(--emdash-code-focus);
+					outline-offset: 2px;
+				}
+				@media (hover: none), (pointer: coarse) {
+					.emdash-inline-code-block-controls-wrap {
+						opacity: 1;
+						pointer-events: auto;
+					}
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.emdash-inline-code-block-controls-wrap {
+						transition: none;
+					}
+				}
+				@media (prefers-color-scheme: dark) {
+					.emdash-inline-code-block {
+						--emdash-code-background: var(--emdash-inline-code-background, #202020);
+						--emdash-code-foreground: var(--emdash-inline-code-foreground, #f0f3f6);
+						--emdash-code-muted: var(--emdash-inline-code-muted, #c9d1d9);
+						--emdash-code-keyword: var(--emdash-inline-code-keyword, #ffc1bb);
+						--emdash-code-string: var(--emdash-inline-code-string, #b9ddff);
+						--emdash-code-number: var(--emdash-inline-code-number, #a8d5ff);
+						--emdash-code-title: var(--emdash-inline-code-title, #e5ccff);
+						--emdash-code-border: var(--emdash-inline-code-border, #6e7681);
+						--emdash-code-control-background: var(
+							--emdash-inline-code-control-background,
+							var(--emdash-inline-bg, #161b22)
+						);
+						--emdash-code-control-foreground: var(
+							--emdash-inline-code-control-foreground,
+							#f0f3f6
+						);
+						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
+					}
+				}
 				.emdash-bubble-menu {
 					z-index: 100;
 					display: flex;
@@ -2323,6 +2630,19 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
+				.emdash-inline-editor-guidance {
+					margin-block-start: 0.75rem;
+					padding-block: 0.625rem;
+					padding-inline: 0.875rem;
+					border: 1px solid #bfdbfe;
+					border-radius: 0.5rem;
+					background: #eff6ff;
+					color: #1e3a8a;
+					font-size: 0.875rem;
+					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+					line-height: 1.4;
+					text-align: start;
+				}
 				.emdash-plugin-block-placeholder {
 					margin: 0.75rem 0;
 					padding: 0.625rem 0.875rem;
@@ -2335,6 +2655,11 @@ export function InlinePortableTextEditor({
 					user-select: none;
 				}
 				@media (prefers-color-scheme: dark) {
+					.emdash-inline-editor-guidance {
+						border-color: #1e40af;
+						background: #172554;
+						color: #dbeafe;
+					}
 					.emdash-plugin-block-placeholder {
 						border-color: #374151;
 						background: #111827;
@@ -2346,6 +2671,8 @@ export function InlinePortableTextEditor({
 	);
 }
 
-// Test-only exports for unit tests of the conversion functions.
+// Test-only exports for unit tests.
 export { pmToPortableText as _pmToPortableText };
 export { portableTextToPM as _portableTextToPM };
+export { createUnsupportedFileHandlers as _createUnsupportedFileHandlers };
+export { TableBlockNode as _InlineTableBlockNode };

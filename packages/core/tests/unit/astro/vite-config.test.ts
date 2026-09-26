@@ -1,11 +1,17 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createViteConfig, linguiMacroPlugin } from "../../../src/astro/integration/vite-config.js";
+import {
+	createViteConfig,
+	linguiMacroPlugin,
+	pathToImportUrl,
+} from "../../../src/astro/integration/vite-config.js";
 
 // Vite/Rollup type hook fields as `T | { handler: T; order?: ... }`. This
 // plugin always uses the plain-function form, so unwrap that shape to get a
@@ -181,75 +187,168 @@ describe("createViteConfig use-sync-external-store shim aliasing", () => {
 	}
 });
 
-// Regression: on Windows, `path.resolve()` returns backslash-separated
-// paths, but Vite always normalizes module ids/importers to forward
-// slashes — even on Windows. `linguiMacroPlugin` used to compare an
-// `adminSourcePath` straight out of `resolve()` against those ids with
-// `id.startsWith(adminSourcePath)`, which is silently always `false` on
-// Windows. The plugin's hooks became permanent no-ops there: Lingui macro
-// calls (`@lingui/core/macro`) shipped uncompiled to the browser, which
-// then failed to hydrate the admin UI entirely (it never got past the
-// "Loading EmDash..." screen). These tests reproduce that mismatch
-// directly, with a synthetic backslash `adminSourcePath` — independent of
-// the host OS running the test — so they fail on the pre-fix
-// `id.startsWith(adminSourcePath)` comparison on any platform, not just
-// Windows CI.
-describe("linguiMacroPlugin Windows path-separator handling", () => {
+describe("linguiMacroPlugin path handling", () => {
 	const require = createRequire(import.meta.url);
 	const adminDistPath = dirname(require.resolve("@emdash-cms/admin"));
-	// Derive both separator styles deterministically from the real (OS-native)
-	// path so this test proves the same thing whether it runs on Windows,
-	// macOS, or Linux. `adminSourcePathPosix` stands in for what Vite always
-	// hands hooks (forward slashes); `adminSourcePathWindows` stands in for
-	// what `path.resolve()` returns on win32 (backslashes) — on a real
-	// Windows host these would otherwise be identical and this test would
-	// prove nothing.
-	const adminSourceDirNative = resolve(adminDistPath, "..", "src");
-	const adminSourcePathPosix = adminSourceDirNative.replaceAll("\\", "/");
-	const adminSourcePathWindows = adminSourcePathPosix.replaceAll("/", "\\");
+	const macroCode = [
+		'import { t } from "@lingui/core/macro";',
+		"export const label = t`Hello`;",
+	].join("\n");
 
-	const plugin = linguiMacroPlugin(adminSourcePathWindows, adminDistPath);
-
-	it("compiles away @lingui macro calls in admin source files", async () => {
-		const id = `${adminSourcePathPosix}/components/Example.tsx`;
-		const code = ['import { t } from "@lingui/core/macro";', "t`Hello`;", ""].join("\n");
-
-		const transform = unwrapHook(plugin.transform);
-		const result = await transform.call(
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test-only stand-in for Rollup's TransformPluginContext, which the hook never touches.
+	async function transform(adminSourcePath: string, id: string) {
+		const plugin = linguiMacroPlugin(adminSourcePath, adminDistPath);
+		const hook = unwrapHook(plugin.transform);
+		const result = await hook.call(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the hook does not use its Rollup context.
 			{} as never,
-			code,
+			macroCode,
 			id,
 		);
+		return typeof result === "string" ? result : (result?.code ?? "");
+	}
 
-		expect(result).toBeTruthy();
-		const output = typeof result === "string" ? result : (result?.code ?? "");
+	it("transforms macros for a Windows source path and Vite module id", async () => {
+		const output = await transform(
+			"C:\\workspace\\emdash\\packages\\admin\\src",
+			"C:/workspace/emdash/packages/admin/src/components/Example.tsx",
+		);
+
+		expect(output).toContain("i18n._");
 		expect(output).not.toContain("@lingui/core/macro");
 	});
 
-	it("redirects locale catalog imports from admin source to dist/locales", () => {
-		const importer = `${adminSourcePathPosix}/locales/loadMessages.ts`;
+	it("keeps transforming POSIX Vite module ids", async () => {
+		const output = await transform(
+			"/workspace/emdash/packages/admin/src",
+			"/workspace/emdash/packages/admin/src/components/Example.tsx",
+		);
 
-		const resolveId = unwrapHook(plugin.resolveId);
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test-only stand-in for Rollup's PluginContext, which the hook never touches.
-		const resolved = resolveId.call({} as never, "./de/messages.mjs", importer, {
-			attributes: {},
-			isEntry: false,
-		});
-
-		expect(resolved).toBeTruthy();
-		const resolvedPath = typeof resolved === "string" ? resolved : (resolved as { id: string })?.id;
-		expect(resolvedPath).toContain(resolve(adminDistPath, "locales", "de", "messages.mjs"));
+		expect(output).toContain("i18n._");
+		expect(output).not.toContain("@lingui/core/macro");
 	});
 
-	it("does not match files outside admin source", async () => {
-		const id = `${adminDistPath}/index.js`;
-		const code = 'import { t } from "@lingui/core/macro";';
+	it("converts drive-letter module paths to file URLs", () => {
+		const url = new URL(
+			pathToImportUrl("E:\\workspace\\emdash\\node_modules\\@babel\\core\\lib\\index.js"),
+		);
 
-		const transform = unwrapHook(plugin.transform);
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- test-only stand-in for Rollup's TransformPluginContext, which the hook never touches.
-		const result = await transform.call({} as never, code, id);
+		expect(url.protocol).toBe("file:");
+		expect(url.pathname).toBe("/E:/workspace/emdash/node_modules/@babel/core/lib/index.js");
+	});
+
+	it("redirects locale catalog imports from a Windows Vite importer", () => {
+		const plugin = linguiMacroPlugin("C:\\workspace\\emdash\\packages\\admin\\src", adminDistPath);
+		const resolveId = unwrapHook(plugin.resolveId);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the hook does not use its Rollup context.
+		const resolved = resolveId.call(
+			{} as never,
+			"./de/messages.mjs",
+			"C:/workspace/emdash/packages/admin/src/locales/loadMessages.ts",
+			{ attributes: {}, isEntry: false },
+		);
+
+		const resolvedPath = typeof resolved === "string" ? resolved : (resolved as { id: string })?.id;
+		expect(resolvedPath).toBe(resolve(adminDistPath, "locales", "de", "messages.mjs"));
+	});
+
+	it("does not transform files outside admin source", async () => {
+		const plugin = linguiMacroPlugin("C:\\workspace\\emdash\\packages\\admin\\src", adminDistPath);
+		const hook = unwrapHook(plugin.transform);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the hook does not use its Rollup context.
+		const result = await hook.call(
+			{} as never,
+			macroCode,
+			"C:/workspace/emdash/packages/admin/dist/index.js",
+		);
 
 		expect(result).toBeFalsy();
+	});
+});
+
+describe("createViteConfig inline Portable Text hydration deps", () => {
+	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
+	const externalProjectRoot = new URL("file:///workspace/emdash-site/");
+
+	function buildConfig(root: URL) {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root,
+					adapter: { name: "@astrojs/node" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	it("pre-bundles lowlight and highlight.js in source-mode dev", () => {
+		const config = buildConfig(monorepoDemoRoot);
+		const include = config.optimizeDeps?.include ?? [];
+
+		expect(include).toContain("emdash > lowlight");
+		expect(include).toContain("emdash > highlight.js");
+		expect(include).toContain("emdash > highlight.js/lib/core");
+	});
+
+	it("pre-bundles lowlight and highlight.js in external dist-mode dev", () => {
+		const config = buildConfig(externalProjectRoot);
+		const include = config.optimizeDeps?.include ?? [];
+
+		expect(include).toContain("emdash > lowlight");
+		expect(include).toContain("emdash > highlight.js");
+		expect(include).toContain("emdash > highlight.js/lib/core");
+	});
+});
+
+describe("createViteConfig Astro logger optimization", () => {
+	const astroSevenRoot = new URL("../../../../../demos/cloudflare/", import.meta.url);
+	let projectWithoutConsoleLoggerRoot: URL;
+	let projectWithoutConsoleLoggerDir: string;
+
+	beforeAll(() => {
+		projectWithoutConsoleLoggerDir = mkdtempSync(join(tmpdir(), "emdash-astro-no-logger-"));
+		const astroDir = join(projectWithoutConsoleLoggerDir, "node_modules", "astro");
+		mkdirSync(astroDir, { recursive: true });
+		writeFileSync(join(projectWithoutConsoleLoggerDir, "package.json"), '{"private":true}');
+		writeFileSync(
+			join(astroDir, "package.json"),
+			'{"name":"astro","version":"6.0.0","exports":{".":"./index.js"}}',
+		);
+		writeFileSync(join(astroDir, "index.js"), "export {};\n");
+		projectWithoutConsoleLoggerRoot = pathToFileURL(`${projectWithoutConsoleLoggerDir}/`);
+	});
+
+	afterAll(() => {
+		rmSync(projectWithoutConsoleLoggerDir, { recursive: true, force: true });
+	});
+
+	function buildConfig(root: URL) {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root,
+					adapter: { name: "@astrojs/cloudflare" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	it("pre-bundles the public logger export for Astro 7", () => {
+		const config = buildConfig(astroSevenRoot);
+
+		expect(config.ssr?.optimizeDeps?.include).toContain("astro/logger/console");
+	});
+
+	it("does not require the logger when the project does not export it", () => {
+		const config = buildConfig(projectWithoutConsoleLoggerRoot);
+
+		expect(config.ssr?.optimizeDeps?.include).not.toContain("astro/logger/console");
 	});
 });

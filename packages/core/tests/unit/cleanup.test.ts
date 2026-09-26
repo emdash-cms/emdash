@@ -1,20 +1,14 @@
-/**
- * Tests for the cleanup subsystems.
- *
- * Note: runSystemCleanup() is not tested directly here because it imports
- * from @emdash-cms/auth/adapters/kysely, which requires the auth package to
- * be built. Instead, we test each subsystem independently:
- * - cleanupExpiredChallenges: tested in auth/challenge-store.test.ts
- * - deleteExpiredTokens: tested below using direct DB operations
- * - cleanupPendingUploads: tested below via MediaRepository
- * - pruneOldRevisions: tested below via RevisionRepository
- */
+/** Tests for cleanup subsystems and scheduled cleanup orchestration. */
 
-import type { Kysely } from "kysely";
+import BetterSqlite3 from "better-sqlite3";
+import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { runSystemCleanup } from "../../src/cleanup.js";
+import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaRepository } from "../../src/database/repositories/media.js";
+import { MAX_404_LOG_ROWS } from "../../src/database/repositories/redirect.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
 import { setupTestDatabase, setupTestDatabaseWithCollections } from "../utils/test-db.js";
@@ -132,6 +126,158 @@ describe("Revision Pruning", () => {
 	});
 });
 
+describe("Scheduled system cleanup", () => {
+	it("caps the 404 log outside the anonymous request path", async () => {
+		const db = await setupTestDatabase();
+		const rows = Array.from({ length: MAX_404_LOG_ROWS + 2 }, (_, index) => ({
+			id: ulid(),
+			path: `/missing-${index}`,
+			referrer: null,
+			user_agent: null,
+			ip: null,
+			hits: 1,
+			last_seen_at: new Date(index).toISOString(),
+			created_at: new Date(index).toISOString(),
+		}));
+
+		try {
+			for (let offset = 0; offset < rows.length; offset += 250) {
+				await db
+					.insertInto("_emdash_404_log")
+					.values(rows.slice(offset, offset + 250))
+					.execute();
+			}
+			const result = await runSystemCleanup(db);
+			expect(result.notFoundLog).toBe(2);
+			expect(
+				Number(
+					(
+						await db
+							.selectFrom("_emdash_404_log")
+							.select((eb) => eb.fn.countAll<number>().as("c"))
+							.executeTakeFirstOrThrow()
+					).c,
+				),
+			).toBe(MAX_404_LOG_ROWS);
+		} finally {
+			await db.destroy();
+		}
+	});
+
+	it("prunes revision entries queued by revision writes", async () => {
+		const db = await setupTestDatabaseWithCollections();
+		const revisionRepo = new RevisionRepository(db);
+		const entryId = ulid();
+		const { sql } = await import("kysely");
+
+		try {
+			await sql`
+				INSERT INTO ec_post (id, slug, status, created_at, updated_at, version)
+				VALUES (${entryId}, ${"queued-history"}, ${"draft"}, ${new Date().toISOString()}, ${new Date().toISOString()}, ${1})
+			`.execute(db);
+			for (let i = 0; i < 51; i++) {
+				await revisionRepo.create({
+					collection: "post",
+					entryId,
+					data: { title: `Version ${i + 1}` },
+				});
+			}
+
+			const result = await runSystemCleanup(db);
+
+			expect(result.revisionsPruned).toBe(1);
+			expect(await revisionRepo.countByEntry("post", entryId)).toBe(50);
+			expect(
+				await db.selectFrom("_emdash_revision_prune_queue").select("entry_id").execute(),
+			).toEqual([]);
+		} finally {
+			await db.destroy();
+		}
+	});
+
+	it("processes the oldest queued revision entries first", async () => {
+		const db = await setupTestDatabaseWithCollections();
+		const revisionRepo = new RevisionRepository(db);
+		const { sql } = await import("kysely");
+		const entryIds = ["z-old", ...Array.from({ length: 10 }, (_, index) => `a0${index}`)];
+
+		try {
+			for (const entryId of entryIds) {
+				await sql`
+					INSERT INTO ec_post (id, slug, status, created_at, updated_at, version)
+					VALUES (${entryId}, ${entryId}, ${"draft"}, ${new Date().toISOString()}, ${new Date().toISOString()}, ${1})
+				`.execute(db);
+				await revisionRepo.create({
+					collection: "post",
+					entryId,
+					data: { title: entryId },
+				});
+			}
+
+			await runSystemCleanup(db);
+
+			const remaining = await db
+				.selectFrom("_emdash_revision_prune_queue")
+				.select("entry_id")
+				.execute();
+			expect(remaining).toHaveLength(1);
+			expect(remaining[0]?.entry_id).toMatch(/^a/);
+			expect(remaining).not.toContainEqual({ entry_id: "z-old" });
+		} finally {
+			await db.destroy();
+		}
+	});
+
+	it("does not query the full revision history", async () => {
+		const sqlite = new BetterSqlite3(":memory:");
+		const queries: string[] = [];
+		const db = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: sqlite }),
+			log: (event) => {
+				if (event.level === "query") queries.push(event.query.sql);
+			},
+		});
+
+		try {
+			await runMigrations(db);
+			queries.length = 0;
+			await runSystemCleanup(db);
+
+			const revisionQueries = queries.filter((query) =>
+				/\b(?:from|delete from)\s+["`]?revisions\b/i.test(query),
+			);
+			expect(revisionQueries).toHaveLength(0);
+		} finally {
+			await db.destroy();
+		}
+	});
+});
+
+describe("Media upload-attempt cleanup", () => {
+	it("moves failed keys behind the rest of the cleanup batch", async () => {
+		vi.useFakeTimers({ now: new Date("2026-01-01T00:00:00.000Z") });
+		const db = await setupTestDatabase();
+		const repo = new MediaRepository(db);
+		try {
+			for (let i = 0; i < 3; i++) {
+				await repo.trackStorageKeyForCleanup(`media-${i}`, `failed-${i}.png`);
+			}
+			vi.advanceTimersByTime(1_000);
+			await repo.trackStorageKeyForCleanup("media-new", "newer.png");
+			vi.advanceTimersByTime(1_000);
+
+			for (let i = 0; i < 3; i++) {
+				await repo.deferUploadAttemptCleanup(`failed-${i}.png`);
+			}
+
+			expect(await repo.findUploadAttemptsForCleanup(0, 1)).toEqual(["newer.png"]);
+		} finally {
+			vi.useRealTimers();
+			await db.destroy();
+		}
+	});
+});
+
 describe("MediaRepository.cleanupPendingUploads", () => {
 	let db: Kysely<Database>;
 	let mediaRepo: MediaRepository;
@@ -166,6 +312,27 @@ describe("MediaRepository.cleanupPendingUploads", () => {
 		for (let i = 0; i < 10; i++) {
 			expect(deletedKeys).toContain(`uploads/pending-${i}.jpg`);
 		}
+
+		vi.useRealTimers();
+	});
+
+	it("withholds a stale pending key that another media record still references", async () => {
+		vi.useFakeTimers();
+
+		await mediaRepo.createPending({
+			filename: "stale.jpg",
+			mimeType: "image/jpeg",
+			storageKey: "uploads/shared.jpg",
+		});
+		vi.advanceTimersByTime(61 * 60 * 1000);
+		await mediaRepo.create({
+			filename: "keeper.jpg",
+			mimeType: "image/jpeg",
+			storageKey: "uploads/shared.jpg",
+		});
+
+		const deletedKeys = await mediaRepo.cleanupPendingUploads();
+		expect(deletedKeys).toHaveLength(0);
 
 		vi.useRealTimers();
 	});

@@ -86,7 +86,8 @@ export interface PortableTextBlock {
 		_ref?: string;
 		url?: string;
 	};
-	link?: string;
+	/** Linked-image target: legacy string, or `{ href, blank? }` from the editor */
+	link?: string | { href?: string; blank?: boolean };
 	// For nested content like galleries
 	images?: PortableTextBlock[];
 	columns?: Array<{ content?: PortableTextBlock[] }>;
@@ -116,11 +117,17 @@ export function rewritePortableTextUrls(
 			}
 		}
 
-		// Handle image link URLs (for linked images)
+		// Handle image link URLs (for linked images). The link is a bare string on
+		// freshly imported content and `{ href, blank? }` once edited in the editor.
 		if (block._type === "image" && block.link) {
-			const newUrl = findMatchingUrl(block.link, exactMap, baseMap);
+			const linkHref = typeof block.link === "string" ? block.link : block.link.href;
+			const newUrl = linkHref ? findMatchingUrl(linkHref, exactMap, baseMap) : null;
 			if (newUrl) {
-				block.link = newUrl;
+				if (typeof block.link === "string") {
+					block.link = newUrl;
+				} else {
+					block.link.href = newUrl;
+				}
 				changed = true;
 				urlsRewritten++;
 			}

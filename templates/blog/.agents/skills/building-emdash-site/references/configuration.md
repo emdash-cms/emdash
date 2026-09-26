@@ -90,9 +90,9 @@ Requires a `wrangler.jsonc` with D1 and R2 bindings:
 ```jsonc
 {
 	"name": "my-site",
+	"main": "./src/worker.ts",
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
-	"assets": { "directory": "./dist" },
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -105,7 +105,23 @@ Requires a `wrangler.jsonc` with D1 and R2 bindings:
 			"bucket_name": "my-site-media",
 		},
 	],
+	"triggers": {
+		"crons": ["* * * * *"],
+	},
 }
+```
+
+Use the EmDash Worker entry point so scheduled publishing and maintenance run through the same deployment:
+
+```typescript
+import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+
+export { PluginBridge };
+
+export default {
+	...handler,
+	scheduled: createScheduledHandler(),
+} satisfies ExportedHandler;
 ```
 
 ### Plugins
@@ -196,12 +212,12 @@ Key dependencies for a Node.js site:
 ```json
 {
 	"dependencies": {
-		"astro": "^6.0.0",
+		"astro": "^7.0.0",
 		"emdash": "workspace:*",
-		"@astrojs/node": "^9.0.0",
+		"@astrojs/node": "^11.0.0",
 		"@astrojs/react": "^4.0.0",
-		"react": "^18.0.0",
-		"react-dom": "^18.0.0"
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
 	}
 }
 ```
@@ -211,8 +227,8 @@ For Cloudflare, replace `@astrojs/node` with `@astrojs/cloudflare` and add `@emd
 ## Dev Server
 
 ```bash
-npx emdash dev              # Start dev server (runs migrations, applies seed)
-npx emdash dev --types      # Start and generate types from schema
+pnpm dev                    # Start the Astro dev server
+npx emdash types            # Refresh types from the running site
 ```
 
-The admin UI is at `http://localhost:4321/_emdash/admin`. On first run, you'll go through setup to create an admin account.
+The runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`. On first run, you'll go through setup to create an admin account.

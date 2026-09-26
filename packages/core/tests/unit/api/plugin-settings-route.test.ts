@@ -16,6 +16,8 @@ import {
 	GET as settingsGet,
 	PUT as settingsPut,
 } from "../../../src/astro/routes/api/admin/plugins/[id]/settings.js";
+import { generateEncryptionKey } from "../../../src/config/secrets.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
 import type { ResolvedPlugin, SettingField } from "../../../src/plugins/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -50,10 +52,12 @@ describe("plugin settings route", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", generateEncryptionKey());
 		db = await setupTestDatabase();
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
 		await teardownTestDatabase(db);
 	});
 
@@ -162,7 +166,10 @@ describe("plugin settings route", () => {
 		};
 		expect(body.values.siteKey).toBe("abc");
 		expect(body.secretsSet).toEqual({ secretKey: true });
-		// The secret round-trips into storage but never back to the client.
+		// The secret round-trips into encrypted storage but never back to the client.
 		expect("secretKey" in body.values).toBe(false);
+		const stored = await new OptionsRepository(db).get("plugin:emdash-forms:settings:secretKey");
+		expect(stored).toMatchObject({ v: 1, kid: expect.any(String) });
+		expect(JSON.stringify(stored)).not.toContain("shh");
 	});
 });

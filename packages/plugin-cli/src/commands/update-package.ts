@@ -46,6 +46,7 @@ import {
 	SectionError,
 } from "../manifest/translate.js";
 import { resumeSession } from "../oauth.js";
+import { formatPackageIdentifier, formatPublisherIdentifier } from "../package-identifier.js";
 import {
 	updatePackage,
 	UpdatePackageError,
@@ -111,7 +112,9 @@ async function runUpdatePackage(args: UpdatePackageArgs): Promise<void> {
 			"NOT_LOGGED_IN",
 		);
 	}
-	consola.info(`Editing as ${pc.bold(session.handle ?? session.did)} (${pc.dim(session.did)})`);
+	consola.info(
+		`Publisher: ${pc.bold(formatPublisherIdentifier(session.handle ?? session.did))} (${pc.dim(session.did)})`,
+	);
 
 	try {
 		const check = await checkPublisher({
@@ -154,7 +157,11 @@ async function runUpdatePackage(args: UpdatePackageArgs): Promise<void> {
 		return;
 	}
 
-	renderResult(result, args.yes ?? false);
+	renderResult(
+		result,
+		args.yes ?? false,
+		formatPackageIdentifier(session.handle ?? session.did, manifestLoad.manifest.slug),
+	);
 }
 
 /**
@@ -276,9 +283,10 @@ function packageUpdateInputFromManifest(
 	return input;
 }
 
-function renderResult(result: UpdatePackageResult, applied: boolean): void {
+function renderResult(result: UpdatePackageResult, applied: boolean, identifier: string): void {
 	if (result.diffs.length === 0) {
-		consola.success(`Package at ${pc.dim(result.profileUri)} is already up to date.`);
+		consola.success(`${pc.bold(identifier)} is already up to date.`);
+		consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
 		return;
 	}
 
@@ -290,7 +298,8 @@ function renderResult(result: UpdatePackageResult, applied: boolean): void {
 	console.log();
 
 	if (applied && result.written) {
-		consola.success(`Updated package: ${pc.dim(result.profileUri)}`);
+		consola.success(`Updated ${pc.bold(identifier)}`);
+		consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
 		if (result.cid) {
 			consola.info(`New CID: ${pc.dim(result.cid)}`);
 		}

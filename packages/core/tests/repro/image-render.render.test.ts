@@ -8,6 +8,7 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, test } from "vitest";
 
 import EmDashImage from "../../src/components/EmDashImage.astro";
+import EmDashMedia from "../../src/components/EmDashMedia.astro";
 import Image from "../../src/components/Image.astro";
 import OverrideImage from "./OverrideImage.astro";
 
@@ -53,6 +54,7 @@ const locals = {
 
 const imgSrc = (html: string) => html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1] ?? "(no <img>)";
 const imgTag = (html: string) => html.match(/<img\b[^>]*>/)?.[0] ?? "";
+const anchorTag = (html: string) => html.match(/<a\b[^>]*>/)?.[0] ?? "";
 const attr = (tag: string, name: string) =>
 	tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]?.replaceAll("&amp;", "&");
 const compact = (html: string) => html.replace(/\s+/g, " ").trim();
@@ -72,6 +74,11 @@ async function renderImage(
 async function renderEmDashImage(props: Record<string, unknown>) {
 	const c = await AstroContainer.create();
 	return c.renderToString(EmDashImage, { props, locals });
+}
+
+async function renderEmDashMedia(props: Record<string, unknown>) {
+	const c = await AstroContainer.create();
+	return c.renderToString(EmDashMedia, { props, locals });
 }
 
 describe("faithful render of migrated image node", () => {
@@ -127,6 +134,33 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(html).toContain("<figcaption");
 		expect(html).toContain("A caption");
+	});
+
+	test("linked image wraps the figure body in a sanitized anchor", async () => {
+		const html = await renderImage({
+			...node,
+			link: { href: "https://example.com/promo", blank: true },
+		});
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/promo");
+		expect(attr(a, "target")).toBe("_blank");
+		expect(attr(a, "rel")).toBe("noopener noreferrer");
+		expect(compact(html)).toMatch(/<a\b[^>]*>\s*<img\b/);
+	});
+
+	test("same-page anchor links never open in a new tab", async () => {
+		const html = await renderImage({ ...node, link: { href: "#gallery", blank: true } });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("#gallery");
+		expect(attr(a, "target")).toBeUndefined();
+		expect(attr(a, "rel")).toBeUndefined();
+	});
+
+	test("legacy string links from WordPress imports still render", async () => {
+		const html = await renderImage({ ...node, link: "https://example.com/legacy" });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/legacy");
+		expect(attr(a, "target")).toBeUndefined();
 	});
 
 	test("bare local media ref falls back to the media file route", async () => {
@@ -237,6 +271,33 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "width")).toBe("640");
 		expect(attr(tag, "height")).toBe("360");
 		expect(attr(tag, "class")).toContain("emdash-image-media");
+	});
+
+	test.each([
+		{
+			name: "canonical direct URL",
+			value: {
+				id: "",
+				provider: "external",
+				src: "https://media.example/canonical.jpg",
+			},
+			expectedSrc: "https://media.example/canonical.jpg",
+		},
+		{
+			name: "legacy external URL",
+			value: {
+				id: "",
+				provider: "external-url",
+				previewUrl: "https://media.example/legacy.jpg",
+			},
+			expectedSrc: "https://media.example/legacy.jpg",
+		},
+	])("public media components render a $name value", async ({ value: mediaValue, expectedSrc }) => {
+		const imageHtml = await renderEmDashImage({ image: mediaValue, alt: "Remote image" });
+		const mediaHtml = await renderEmDashMedia({ value: mediaValue, alt: "Remote image" });
+
+		expect(attr(imgTag(imageHtml), "src")).toBe(expectedSrc);
+		expect(attr(imgTag(mediaHtml), "src")).toBe(expectedSrc);
 	});
 
 	test("public EmDashImage uses Astro Image for same-origin local media", async () => {

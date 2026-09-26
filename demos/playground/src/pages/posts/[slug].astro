@@ -60,7 +60,7 @@ const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
 const seo = getSeoMeta(post, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
-	path: `/posts/${slug}`,
+	path: Astro.url.pathname.replace(/\/$/, ""),
 	defaultOgImage: featuredImageUrl,
 });
 
@@ -269,6 +269,7 @@ const publishDate =
 									readingTime={getReadingTime(p.data.content)}
 									tags={postTags.map((t) => ({ slug: t.slug, label: t.label }))}
 									bylines={postBylines}
+									edit={p.edit}
 								/>
 							)
 						)}

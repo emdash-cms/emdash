@@ -18,6 +18,7 @@ import {
 } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
+import { taxonomyTag } from "#cache/chrome-tags.js";
 
 export const prerender = false;
 
@@ -53,7 +54,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { name, slug } = params;
 	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
@@ -82,6 +83,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			locale: body.locale,
 			translationOf: source.data.term.id,
 		});
+		if (!result.success) return unwrapResult(result, 201);
+		if (cache?.enabled) await cache.invalidate({ tags: [taxonomyTag(name)] });
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create term translation", "TERM_TRANSLATION_CREATE_ERROR");

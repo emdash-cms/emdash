@@ -4,9 +4,8 @@
  * On stats-blind SQLite/D1 (no ANALYZE, no `sqlite_stat1`) the old EXISTS shape
  * drove the scan from the collection's order index and probed a taxonomy EXISTS
  * per row — a full `ec_*` walk for a selective term. The restructure seeks the
- * term on a `(taxonomy_id, collection, deleted_at, [locale,] <sort> DESC,
- * entry_id)` pivot index, lets `LIMIT` short-circuit, and touches `ec_*` only by
- * primary key.
+ * term on the group-keyed pivot, then seeks matching content translations by
+ * `translation_group`. Sorting is bounded to the tagged candidates.
  *
  * This asserts the plan, not the output (output is covered by
  * loader-taxonomy-pivot). SQLite-only: `EXPLAIN QUERY PLAN` is a SQLite concern
@@ -21,7 +20,7 @@ import { runMigrations } from "../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 
@@ -48,6 +47,12 @@ beforeEach(async () => {
 
 	// Deliberately no ANALYZE: matches D1, which never maintains sqlite_stat1.
 	await runMigrations(db);
+	await db
+		.updateTable("_emdash_taxonomy_def_groups")
+		.set({ collections: JSON.stringify(["post"]) })
+		.where("name", "in", ["category", "tag"])
+		.execute();
+	resetTaxonomyNamesCache();
 	const registry = new SchemaRegistry(db);
 	await registry.createCollection({ slug: "post", label: "Posts", labelSingular: "Post" });
 	await registry.createField("post", { slug: "title", label: "Title", type: "string" });
@@ -90,11 +95,20 @@ function explain(query: CapturedQuery): string {
 	return rows.map((r) => r.detail).join("\n");
 }
 
-/** The pivot-drive query is the one with the `picked` CTE. */
+/** The pivot-driven query is the one with the `picked` CTE. */
 function pivotQueryPlan(): string {
 	const query = captured.find((q) => q.sql.includes("picked"));
-	expect(query, "expected the loader to emit a pivot-drive query").toBeDefined();
+	expect(query, "expected the loader to emit a pivot-driven query").toBeDefined();
 	return explain(query!);
+}
+
+/** Returns just the `picked` CTE plan (between `CO-ROUTINE picked` and `SCAN picked`). */
+function pickedCtePlan(plan: string): string {
+	const start = plan.indexOf("CO-ROUTINE picked\n");
+	expect(start, "expected a CO-ROUTINE picked section").toBeGreaterThan(-1);
+	const end = plan.indexOf("\nSCAN picked", start);
+	if (end === -1) return plan.slice(start);
+	return plan.slice(start, end);
 }
 
 async function runLoad(extra: Record<string, unknown>): Promise<void> {
@@ -107,39 +121,41 @@ async function runLoad(extra: Record<string, unknown>): Promise<void> {
 	);
 }
 
-it("seeks the term via idx_content_taxonomies_pub for a published_at sort", async () => {
+it("seeks group assignments for a published_at sort using the deleted-published index", async () => {
 	await runLoad({ orderBy: { published_at: "desc" } });
 	const plan = pivotQueryPlan();
-	expect(plan).toContain("idx_content_taxonomies_pub");
-	// No full scan of the content table — it is reached only by primary key.
+	const picked = pickedCtePlan(plan);
+	expect(picked).toContain("idx_ec_post_deleted_published_id");
+	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
 	expect(plan).not.toContain("SCAN r");
-	// The `entry_id DESC` tiebreaker lets the index satisfy the whole ORDER BY,
-	// so the LIMIT short-circuits without buffering an equal-sortval block.
-	expect(plan).not.toContain("TEMP B-TREE");
+	expect(plan).not.toContain("SCAN ct");
 });
 
-it("seeks via idx_content_taxonomies_crt for the default created_at sort", async () => {
+it("seeks group assignments for the default created_at sort using the deleted-created index", async () => {
 	await runLoad({});
 	const plan = pivotQueryPlan();
-	expect(plan).toContain("idx_content_taxonomies_crt");
+	const picked = pickedCtePlan(plan);
+	expect(picked).toContain("idx_ec_post_deleted_created_id");
+	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
 	expect(plan).not.toContain("SCAN r");
-	expect(plan).not.toContain("TEMP B-TREE");
+	expect(plan).not.toContain("SCAN ct");
 });
 
-it("uses the locale-variant index (loc_pub) when locale-filtered + published_at", async () => {
+it("seeks group assignments and the requested content locale without a temp sort", async () => {
 	await runLoad({ orderBy: { published_at: "desc" }, locale: "en" });
 	const plan = pivotQueryPlan();
-	expect(plan).toContain("idx_content_taxonomies_loc_pub");
+	const picked = pickedCtePlan(plan);
+	expect(picked).toContain("idx_ec_post_deleted_published_id");
+	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
 	expect(plan).not.toContain("SCAN r");
-	expect(plan).not.toContain("TEMP B-TREE");
+	expect(plan).not.toContain("SCAN ct");
 });
 
 it("updated_at sort seeks the term via the pivot and does not full-scan the content table", async () => {
 	await runLoad({ orderBy: { updated_at: "desc" } });
 	const plan = pivotQueryPlan();
-	// A pivot index seek on taxonomy_id (any composite is prefixed by it), not a
-	// full pivot scan and not a full ec_* scan.
-	expect(plan).toContain("idx_content_taxonomies");
-	expect(plan).not.toContain("SCAN ct");
+	const picked = pickedCtePlan(plan);
+	expect(picked).toContain("content_taxonomies");
+	expect(picked).not.toContain("SCAN ct");
 	expect(plan).not.toContain("SCAN r");
 });

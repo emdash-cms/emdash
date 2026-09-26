@@ -71,7 +71,7 @@ export interface CreateTaxonomyInput {
 }
 
 export interface CreateTermInput {
-	slug: string;
+	slug?: string;
 	label: string;
 	parentId?: string;
 	description?: string;
@@ -88,6 +88,37 @@ export interface UpdateTermInput {
 
 export interface LocaleOptions {
 	locale?: string;
+}
+
+export interface FetchTermsOptions extends LocaleOptions {
+	includeCounts?: boolean;
+	resolveFallback?: boolean;
+}
+
+export type BulkTagSource = { collection: string; id: string } | { url: string };
+
+export interface BulkTagResult {
+	input: BulkTagSource;
+	status: "ready" | "added" | "skipped" | "unmatched" | "failed";
+	reason?: "not_found" | "ambiguous" | "save_failed";
+	entry?: { collection: string; id: string; title: string; locale: string };
+}
+
+export async function bulkTagPosts(
+	termId: string,
+	items: BulkTagSource[],
+	apply = false,
+	refreshOnly = false,
+): Promise<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/bulk-tag`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ termId, items, apply, ...(refreshOnly ? { refreshOnly: true } : {}) }),
+	});
+	return parseApiResponse<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }>(
+		response,
+		"Failed to add tag to posts",
+	);
 }
 
 export function withLocale(path: string, locale?: string): string {
@@ -136,15 +167,30 @@ export async function createTaxonomy(input: CreateTaxonomyInput): Promise<Taxono
 }
 
 /**
+ * Delete a taxonomy definition, its terms, and their content assignments.
+ *
+ * Takes no locale — the route removes the taxonomy in every language.
+ */
+export async function deleteTaxonomy(name: string): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/${name}`, { method: "DELETE" });
+	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete taxonomy`));
+}
+
+/**
  * Fetch terms for a taxonomy
  */
 export async function fetchTerms(
 	taxonomyName: string,
-	options: LocaleOptions = {},
+	options: FetchTermsOptions = {},
 ): Promise<TaxonomyTerm[]> {
-	const response = await apiFetch(
-		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms`, options.locale),
-	);
+	const params = new URLSearchParams();
+	if (options.locale) params.set("locale", options.locale);
+	if (options.includeCounts !== undefined)
+		params.set("includeCounts", String(options.includeCounts));
+	if (options.resolveFallback !== undefined)
+		params.set("resolveFallback", String(options.resolveFallback));
+	const query = params.size > 0 ? `?${params}` : "";
+	const response = await apiFetch(`${API_BASE}/taxonomies/${taxonomyName}/terms${query}`);
 	const data = await parseApiResponse<{ terms: TaxonomyTerm[] }>(response, "Failed to fetch terms");
 	return data.terms;
 }
@@ -184,6 +230,26 @@ export async function updateTerm(
 	);
 	const data = await parseApiResponse<{ term: TaxonomyTerm }>(response, "Failed to update term");
 	return data.term;
+}
+
+/**
+ * Set the manual order of one sibling group.
+ *
+ * `ids` and `parentId` are translation groups: a term holds one position across
+ * every locale, so there is no locale to pass. `ids` may name only the terms
+ * this locale renders — the server permutes them within the positions they
+ * already occupy and leaves untranslated members where they are.
+ */
+export async function reorderTerms(
+	taxonomyName: string,
+	input: { parentId: string | null; ids: string[] },
+): Promise<void> {
+	const response = await apiFetch(`${API_BASE}/taxonomies/${taxonomyName}/reorder`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(input),
+	});
+	await parseApiResponse<{ reordered: true }>(response, "Failed to reorder terms");
 }
 
 /**

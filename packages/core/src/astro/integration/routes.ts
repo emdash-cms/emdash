@@ -90,6 +90,31 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/manifest.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/health",
+		entrypoint: resolveRoute("api/health.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/openapi.json",
+		entrypoint: resolveRoute("api/openapi.json.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/action-token",
+		entrypoint: resolveRoute("api/visual-editing/action-token.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/toolbar-labels",
+		entrypoint: resolveRoute("api/visual-editing/toolbar-labels.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/content/[collection]/[id]/publish",
+		entrypoint: resolveRoute("api/visual-editing/content/[collection]/[id]/publish.ts"),
+	});
+
 	// Auth mode endpoint (public — used by the login page to pick the right UI)
 	injectRoute({
 		pattern: "/_emdash/api/auth/mode",
@@ -102,6 +127,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]",
+		entrypoint: resolveRoute("api/admin/scheduled-policy-rejections/[collection]/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]",
 		entrypoint: resolveRoute("api/content/[collection]/index.ts"),
 	});
@@ -109,6 +139,14 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]",
 		entrypoint: resolveRoute("api/content/[collection]/[id].ts"),
+	});
+
+	injectRoute({
+		pattern:
+			"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]",
+		entrypoint: resolveRoute(
+			"api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId].ts",
+		),
 	});
 
 	injectRoute({
@@ -169,6 +207,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/content/[collection]/[id]/compare.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/lock",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/lock.ts"),
+	});
+
 	// i18n translation routes
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/translations",
@@ -179,6 +222,17 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/schedule",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/schedule.ts"),
+	});
+
+	// Reference field edge routes (children = parent side, parents = backlinks)
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/references/[relation]/children",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/references/[relation]/children.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/references/[relation]/parents",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/references/[relation]/parents.ts"),
 	});
 
 	// Revision management routes (for restore, etc.)
@@ -209,6 +263,21 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/asset/[id]/[filename]",
+		entrypoint: resolveRoute("api/media/asset/[id]/[filename].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/media/folders",
+		entrypoint: resolveRoute("api/media/folders/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/media/folders/[id]",
+		entrypoint: resolveRoute("api/media/folders/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/[id]",
 		entrypoint: resolveRoute("api/media/[id].ts"),
 	});
@@ -226,6 +295,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/media/[id]/upload",
 		entrypoint: resolveRoute("api/media/[id]/upload.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/media/[id]/replace",
+		entrypoint: resolveRoute("api/media/[id]/replace.ts"),
 	});
 
 	// Media provider routes
@@ -247,6 +321,32 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/admin/media-usage/repair",
 		entrypoint: resolveRoute("api/admin/media-usage/repair.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/work",
+		entrypoint: resolveRoute("api/admin/media-usage/work/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/work/retry",
+		entrypoint: resolveRoute("api/admin/media-usage/work/retry.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/activation",
+		entrypoint: resolveRoute("api/admin/media-usage/activation.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/progress",
+		entrypoint: resolveRoute("api/admin/media-usage/progress.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/collection-deletions",
+		entrypoint: resolveRoute("api/admin/media-usage/collection-deletions/index.ts"),
+	});
+	injectRoute({
+		pattern: "/_emdash/api/admin/media-usage/collection-deletions/retry",
+		entrypoint: resolveRoute("api/admin/media-usage/collection-deletions/retry.ts"),
 	});
 
 	// Import API routes
@@ -314,6 +414,30 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/schema/block-types",
+		entrypoint: resolveRoute("api/schema/block-types/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types/[slug]/versions/[version]/activate",
+		entrypoint: resolveRoute("api/schema/block-types/[slug]/versions/[version]/activate.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/schema/block-types/[slug]",
+		entrypoint: resolveRoute("api/schema/block-types/[slug]/index.ts"),
+	});
+
+	// Order matters: the static `reorder` route must precede the dynamic
+	// `[slug]` route so Astro's resolver dispatches POST
+	// /schema/collections/reorder to the reorder handler instead of treating
+	// "reorder" as a collection slug.
+	injectRoute({
+		pattern: "/_emdash/api/schema/collections/reorder",
+		entrypoint: resolveRoute("api/schema/collections/reorder.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/schema/collections/[slug]",
 		entrypoint: resolveRoute("api/schema/collections/[slug]/index.ts"),
 	});
@@ -377,6 +501,12 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/settings/backups/archives/[name].ts"),
 	});
 
+	// Site transfer routes
+	injectRoute({
+		pattern: "/_emdash/api/admin/transfer/[...path]",
+		entrypoint: resolveRoute("api/admin/transfer/[...path].ts"),
+	});
+
 	// Snapshot route (for DO preview database population)
 	injectRoute({
 		pattern: "/_emdash/api/snapshot",
@@ -387,6 +517,26 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/taxonomies",
 		entrypoint: resolveRoute("api/taxonomies/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/taxonomies/bulk-tag",
+		entrypoint: resolveRoute("api/taxonomies/bulk-tag.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]",
+		entrypoint: resolveRoute("api/taxonomies/[name].ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/translations",
+		entrypoint: resolveRoute("api/taxonomies/[name]/translations.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/taxonomies/[name]/reorder",
+		entrypoint: resolveRoute("api/taxonomies/[name]/reorder.ts"),
 	});
 
 	injectRoute({
@@ -407,6 +557,17 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/terms/[taxonomy]",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/terms/[taxonomy].ts"),
+	});
+
+	// Relation definition routes (reference field relations)
+	injectRoute({
+		pattern: "/_emdash/api/relations",
+		entrypoint: resolveRoute("api/relations/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/relations/[id]",
+		entrypoint: resolveRoute("api/relations/[id]/index.ts"),
 	});
 
 	// Plugin management routes (under /admin to avoid conflict with plugin API routes)
@@ -467,8 +628,28 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/verify",
+		entrypoint: resolveRoute("api/admin/plugins/registry/verify.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/admin/plugins/registry/artifact",
 		entrypoint: resolveRoute("api/admin/plugins/registry/artifact.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/publisher-handle",
+		entrypoint: resolveRoute("api/admin/plugins/registry/publisher-handle.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/[id]/update",
+		entrypoint: resolveRoute("api/admin/plugins/registry/[id]/update.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/admin/plugins/registry/[id]/uninstall",
+		entrypoint: resolveRoute("api/admin/plugins/registry/[id]/uninstall.ts"),
 	});
 
 	injectRoute({
@@ -842,10 +1023,12 @@ export function injectCoreRoutes(
 		});
 	}
 
-	injectRoute({
-		pattern: "/sitemap-[collection].xml",
-		entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
-	});
+	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "sitemap-[collection].xml")) {
+		injectRoute({
+			pattern: "/sitemap-[collection].xml",
+			entrypoint: resolveRoute("sitemap-[collection].xml.ts"),
+		});
+	}
 
 	if (!options.srcDir || !hasUserDefinedPublicRoute(options.srcDir, "robots.txt")) {
 		injectRoute({

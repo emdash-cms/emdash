@@ -10,11 +10,15 @@
  *
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
+import { inspectContentPolicyDecision } from "./content-policy.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import type {
 	ResolvedPlugin,
 	ResolvedHook,
 	PluginContext,
+	ActorInfo,
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentStateChangeEvent,
@@ -30,6 +34,9 @@ import type {
 	ContentBeforeSaveHandler,
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
+	ContentBeforePublishHandler,
+	ContentBeforeScheduleHandler,
+	ContentBeforeUnpublishHandler,
 	ContentAfterDeleteHandler,
 	ContentAfterPublishHandler,
 	ContentAfterRestoreHandler,
@@ -55,6 +62,9 @@ import type {
 	PageFragmentEvent,
 	PageFragmentHandler,
 	PageFragmentContribution,
+	ContentPolicyEvent,
+	ContentPolicyDecision,
+	ContentSchedulePolicyEvent,
 } from "./types.js";
 
 // Hook name type for v2
@@ -67,6 +77,9 @@ type HookNameV2 =
 	| "content:afterSave"
 	| "content:beforeDelete"
 	| "content:afterDelete"
+	| "content:beforePublish"
+	| "content:beforeSchedule"
+	| "content:beforeUnpublish"
 	| "content:afterPublish"
 	| "content:afterUnpublish"
 	| "content:afterRestore"
@@ -95,6 +108,21 @@ type ContentStateChangeHookName =
 	| "content:afterSchedule"
 	| "content:afterUnschedule";
 
+type ContentPolicyHookName =
+	| "content:beforePublish"
+	| "content:beforeSchedule"
+	| "content:beforeUnpublish";
+
+type ContentPolicyRunResult = {
+	cancellation?: { pluginId: string; reason: string };
+	results: HookResult<void>[];
+};
+
+type ContentPolicyHandler<TEvent extends ContentPolicyEvent> = (
+	event: TEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
 interface HookHandlerMap {
 	"plugin:install": LifecycleHandler;
 	"plugin:activate": LifecycleHandler;
@@ -104,6 +132,9 @@ interface HookHandlerMap {
 	"content:afterSave": ContentAfterSaveHandler;
 	"content:beforeDelete": ContentBeforeDeleteHandler;
 	"content:afterDelete": ContentAfterDeleteHandler;
+	"content:beforePublish": ContentBeforePublishHandler;
+	"content:beforeSchedule": ContentBeforeScheduleHandler;
+	"content:beforeUnpublish": ContentBeforeUnpublishHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
 	"content:afterRestore": ContentAfterRestoreHandler;
@@ -132,6 +163,18 @@ export interface HookResult<T> {
 	error?: Error;
 	pluginId: string;
 	duration: number;
+}
+
+type ContentSaveHookName = "content:beforeSave" | "content:afterSave";
+const CONTENT_SAVE_HOOK_CONTEXT_KEY = Symbol.for("emdash:content-save-hook-context");
+const contentSaveHookContext =
+	((globalThis as Record<symbol, unknown>)[CONTENT_SAVE_HOOK_CONTEXT_KEY] as
+		| AsyncLocalStorage<ContentSaveHookName>
+		| undefined) ?? new AsyncLocalStorage<ContentSaveHookName>();
+(globalThis as Record<symbol, unknown>)[CONTENT_SAVE_HOOK_CONTEXT_KEY] = contentSaveHookContext;
+
+export function getActiveContentSaveHookName(): ContentSaveHookName | undefined {
+	return contentSaveHookContext.getStore();
 }
 
 /**
@@ -234,6 +277,9 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "content:afterSave");
 			this.registerPluginHook(plugin, "content:beforeDelete");
 			this.registerPluginHook(plugin, "content:afterDelete");
+			this.registerPluginHook(plugin, "content:beforePublish");
+			this.registerPluginHook(plugin, "content:beforeSchedule");
+			this.registerPluginHook(plugin, "content:beforeUnpublish");
 			this.registerPluginHook(plugin, "content:afterPublish");
 			this.registerPluginHook(plugin, "content:afterUnpublish");
 			this.registerPluginHook(plugin, "content:afterRestore");
@@ -281,6 +327,9 @@ export class HookPipeline {
 		["content:afterSave", "content:read"],
 		["content:beforeDelete", "content:read"],
 		["content:afterDelete", "content:read"],
+		["content:beforePublish", "hooks.content-policy:register"],
+		["content:beforeSchedule", "hooks.content-policy:register"],
+		["content:beforeUnpublish", "hooks.content-policy:register"],
 		["content:afterPublish", "content:read"],
 		["content:afterUnpublish", "content:read"],
 		["content:afterRestore", "content:read"],
@@ -487,12 +536,16 @@ export class HookPipeline {
 
 	/**
 	 * Run content:beforeSave hooks
-	 * Returns modified content from the pipeline
+	 * Returns modified content from the pipeline. `id` is the existing item's
+	 * ID when updating. `actor` is the authenticated user that triggered the
+	 * save, when one is available.
 	 */
 	async runContentBeforeSave(
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		id?: string,
+		actor?: ActorInfo,
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
@@ -508,11 +561,15 @@ export class HookPipeline {
 				collection,
 				isNew,
 			};
+			if (id !== undefined) event.id = id;
+			if (actor !== undefined) event.actor = { ...actor };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
 			try {
-				const result = await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				const result = await contentSaveHookContext.run("content:beforeSave", () =>
+					this.executeWithTimeout(() => handler(event, ctx), hook.timeout),
+				);
 				// Handler can return modified content or void (keep current)
 				if (result !== undefined) {
 					currentContent = result;
@@ -547,18 +604,24 @@ export class HookPipeline {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		actor?: ActorInfo,
+		excludePluginId?: string,
 	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterSave");
 		const results: HookResult<void>[] = [];
 
 		for (const hook of hooks) {
+			if (hook.pluginId === excludePluginId) continue;
 			const { handler } = hook;
 			const event: ContentHookEvent = { content, collection, isNew };
+			if (actor !== undefined) event.actor = { ...actor };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
 			try {
-				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				await contentSaveHookContext.run("content:afterSave", () =>
+					this.executeWithTimeout(() => handler(event, ctx), hook.timeout),
+				);
 				results.push({
 					success: true,
 					pluginId: hook.pluginId,
@@ -667,6 +730,79 @@ export class HookPipeline {
 		}
 
 		return results;
+	}
+
+	runContentPolicy(
+		name: "content:beforePublish",
+		event: ContentPolicyEvent,
+	): Promise<ContentPolicyRunResult>;
+	runContentPolicy(
+		name: "content:beforeSchedule",
+		event: ContentSchedulePolicyEvent,
+	): Promise<ContentPolicyRunResult>;
+	runContentPolicy(
+		name: "content:beforeUnpublish",
+		event: ContentPolicyEvent,
+	): Promise<ContentPolicyRunResult>;
+	runContentPolicy(
+		name: ContentPolicyHookName,
+		event: ContentPolicyEvent | ContentSchedulePolicyEvent,
+	): Promise<ContentPolicyRunResult>;
+	async runContentPolicy(
+		name: ContentPolicyHookName,
+		event: ContentPolicyEvent | ContentSchedulePolicyEvent,
+	): Promise<ContentPolicyRunResult> {
+		if (name === "content:beforeSchedule") {
+			if (!("scheduledAt" in event)) {
+				throw new Error("content:beforeSchedule requires scheduledAt");
+			}
+			return this.runContentPolicyHooks(name, this.getTypedHooks(name), event);
+		}
+		return this.runContentPolicyHooks(name, this.getTypedHooks(name), event);
+	}
+
+	private async runContentPolicyHooks<TEvent extends ContentPolicyEvent>(
+		name: ContentPolicyHookName,
+		hooks: Array<ResolvedHook<ContentPolicyHandler<TEvent>>>,
+		event: TEvent,
+	): Promise<ContentPolicyRunResult> {
+		const results: HookResult<void>[] = [];
+
+		for (const hook of hooks) {
+			const ctx = this.getContext(hook.pluginId);
+			const start = Date.now();
+			try {
+				const value = await this.executeWithTimeout(() => hook.handler(event, ctx), hook.timeout);
+				const decision = inspectContentPolicyDecision(value);
+				if (decision.kind === "invalid") {
+					throw new Error(`Plugin "${hook.pluginId}" returned an invalid ${name} decision`);
+				}
+				results.push({
+					success: true,
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+				if (decision.kind === "cancel") {
+					return {
+						cancellation: { pluginId: hook.pluginId, reason: decision.reason },
+						results,
+					};
+				}
+			} catch (error) {
+				results.push({
+					success: false,
+					error: error instanceof Error ? error : new Error(String(error)),
+					pluginId: hook.pluginId,
+					duration: Date.now() - start,
+				});
+				if (hook.errorPolicy === "abort") throw error;
+				console.error(
+					`[content-policy] Plugin "${hook.pluginId}" failed ${name}; continuing by policy`,
+				);
+			}
+		}
+
+		return { results };
 	}
 
 	/**
@@ -1346,6 +1482,13 @@ export interface ExclusiveHookResolutionOptions {
 	 * Used as a tiebreaker when no DB selection exists and multiple providers are active.
 	 */
 	preferredHints?: Map<string, string[]>;
+	/**
+	 * Plugin IDs of built-in providers that give way to a plugin. When no
+	 * selection is stored, a fallback is auto-selected only if no other
+	 * provider of the hook is active, and that selection is not stored, so a
+	 * plugin provider that becomes active later is selected in its place.
+	 */
+	fallbackProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
@@ -1357,13 +1500,24 @@ const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * Shared algorithm used by both PluginManager and EmDashRuntime:
  * 1. If a DB selection exists and that plugin is active → keep it.
  * 2. If DB selection is stale (plugin inactive/gone) → clear it.
- * 3. If no selection and only one active provider → auto-select it.
+ * 3. If no selection and only one active provider → auto-select it. Fallback
+ *    providers are not counted when another provider is active, so a single
+ *    plugin provider is selected over a built-in fallback. A fallback
+ *    selection is kept in memory only.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
-	const { pipeline, isActive, getOption, getOptions, setOption, deleteOption, preferredHints } =
-		opts;
+	const {
+		pipeline,
+		isActive,
+		getOption,
+		getOptions,
+		setOption,
+		deleteOption,
+		preferredHints,
+		fallbackProviders,
+	} = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
 
@@ -1418,12 +1572,18 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		}
 
 		// Auto-select if only one active provider
-		if (activeProviderIds.size === 1) {
-			const [onlyProvider] = activeProviderIds;
-			try {
-				await setOption(key, onlyProvider);
-			} catch {
-				// Non-fatal
+		const candidates =
+			activeProviderIds.size > 1 && fallbackProviders
+				? [...activeProviderIds].filter((id) => !fallbackProviders.has(id))
+				: [...activeProviderIds];
+		if (candidates.length === 1) {
+			const [onlyProvider] = candidates;
+			if (!fallbackProviders?.has(onlyProvider)) {
+				try {
+					await setOption(key, onlyProvider);
+				} catch {
+					// Non-fatal
+				}
 			}
 			pipeline.setExclusiveSelection(hookName, onlyProvider);
 			continue;

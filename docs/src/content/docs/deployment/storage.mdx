@@ -1,23 +1,23 @@
 ---
-title: Storage Options
-description: Configure media storage with R2, S3, or local filesystem.
+title: Choose media storage
+description: Choose and configure R2, S3-compatible, or local media storage for EmDash.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash stores uploaded media (images, documents, videos) in a configurable storage backend. Choose based on your deployment platform and requirements.
+Choose one storage adapter for uploaded media. A database backup contains media metadata, not the stored files, so back up the storage backend separately.
 
 ## Overview
 
-| Storage        | Best For           | Features                    |
-| -------------- | ------------------ | --------------------------- |
-| **R2 Binding** | Cloudflare Workers | Zero-config, fast           |
-| **S3**         | Any platform       | Signed uploads, CDN support |
-| **Local**      | Development        | Simple filesystem storage   |
+| Storage        | Use it when                                                   | Signed uploads |
+| -------------- | ------------------------------------------------------------- | -------------- |
+| **R2 binding** | The site runs on Cloudflare Workers                            | No             |
+| **S3**         | A Node.js site uses AWS S3, R2's S3 API, MinIO, or compatible storage | Yes      |
+| **Local**      | A Node.js site has one writable persistent volume              | No             |
 
-## Cloudflare R2 (Binding)
+## Cloudflare R2 binding
 
-Use R2 bindings when deploying to Cloudflare Workers for the fastest integration.
+Use the R2 binding adapter on Cloudflare Workers. The binding supplies access at runtime, so the site does not need R2 access keys.
 
 ```js title="astro.config.mjs"
 import emdash from "emdash/astro";
@@ -65,33 +65,27 @@ Add the R2 binding to your Wrangler configuration:
   </TabItem>
 </Tabs>
 
-### Public Access
+### Public access
 
-For public media URLs, enable public access on your R2 bucket:
-
-1. Go to Cloudflare Dashboard > R2 > your bucket
-2. Enable public access under Settings
-3. Add the public URL to your config:
+To serve media from a public bucket, connect a [custom domain](https://developers.cloudflare.com/r2/buckets/public-buckets/#custom-domains) with the Cloudflare API, then set its origin as `publicUrl`. Cloudflare's `r2.dev` development URL is rate-limited and is not intended for production traffic.
 
 ```js
 storage: r2({
 	binding: "MEDIA",
-	publicUrl: "https://pub-xxxx.r2.dev",
+	publicUrl: "https://media.example.com",
 });
 ```
 
-<Aside type="tip">
-	Connect a custom domain to R2 for branded URLs like `https://media.example.com`.
-</Aside>
+If the same bucket stores automatic JSON backups, a public bucket origin can expose objects under `backups/`. Use a private bucket and EmDash's media route, or restrict the public origin to media objects. See [Backups](/guides/backups/#automatic-backups-to-storage).
 
 <Aside type="note">
 	R2 bindings do not support signed upload URLs. If you need direct client uploads, use the S3
 	adapter with R2 credentials instead.
 </Aside>
 
-## S3-Compatible Storage
+## S3-compatible storage
 
-The S3 adapter works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
+The S3 adapter works on Node.js with Cloudflare R2's S3 API, AWS S3, MinIO, and compatible services.
 
 <Aside type="caution" title="Install the AWS SDK first">
 	EmDash uses the AWS SDK at runtime for the S3 adapter but does not bundle it — core is
@@ -108,7 +102,7 @@ The S3 adapter works with Cloudflare R2 (via S3 API), MinIO, and other S3-compat
 
 </Aside>
 
-The following configuration points EmDash at an S3-compatible bucket:
+The following configuration resolves the endpoint, bucket, credentials, region, and optional public URL from `S3_*` variables when the Node.js process starts:
 
 ```js title="astro.config.mjs"
 import emdash, { s3 } from "emdash/astro";
@@ -116,14 +110,7 @@ import emdash, { s3 } from "emdash/astro";
 export default defineConfig({
 	integrations: [
 		emdash({
-			storage: s3({
-				endpoint: process.env.S3_ENDPOINT,
-				bucket: process.env.S3_BUCKET,
-				accessKeyId: process.env.S3_ACCESS_KEY_ID,
-				secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-				region: "auto", // Optional, defaults to "auto"
-				publicUrl: process.env.S3_PUBLIC_URL, // Optional CDN URL
-			}),
+			storage: s3(),
 		}),
 	],
 });
@@ -179,54 +166,32 @@ export default defineConfig({
 });
 ```
 
-<Aside type="note" title="Cloudflare Workers">
-	This runtime resolution does not work on Cloudflare Workers. Worker secrets and variables
-	are exposed through the `env` parameter of the fetch handler (or `import { env } from
-	"cloudflare:workers"`), not through `process.env` — even with the `nodejs_compat` flag
-	enabled. For Workers deployments:
-
-    - If you are using R2, use the [`r2()` adapter](#cloudflare-r2-binding) from
-      `@emdash-cms/cloudflare`. This is the recommended path.
-    - If you need a non-R2 S3-compatible backend on Workers, pass explicit values to
-      `s3({...})` in `astro.config.mjs`. Note that `astro.config.mjs` runs at build time,
-      so Worker secrets are not directly accessible there; you will need to inject values
-      through your build pipeline.
-
+<Aside type="caution" title="Do not put Worker secrets in Astro config">
+	The S3 adapter resolves `S3_*` variables from `process.env` at Node.js runtime. It does not resolve Worker bindings from `cloudflare:workers`. Do not inject S3 credentials into `astro.config.mjs` during a Worker build because Vite can embed them in the server bundle. Use the R2 binding adapter on Workers.
 </Aside>
 
 ### R2 via S3 API
 
-Use S3 credentials with R2 for features like signed upload URLs:
+Use the S3 adapter on Node.js when direct signed uploads to R2 are required. Create scoped R2 API credentials with the Cloudflare API or CLI, then set the following runtime variables:
 
-```js
-storage: s3({
-	endpoint: "https://<account-id>.r2.cloudflarestorage.com",
-	bucket: "emdash-media",
-	accessKeyId: process.env.R2_ACCESS_KEY_ID,
-	secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-	publicUrl: "https://pub-xxxx.r2.dev",
-});
+```dotenv title=".env.example"
+S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+S3_BUCKET=emdash-media
+S3_ACCESS_KEY_ID=<r2-access-key-id>
+S3_SECRET_ACCESS_KEY=<r2-secret-access-key>
+S3_REGION=auto
+S3_PUBLIC_URL=https://media.example.com
 ```
 
-Generate R2 API credentials in the Cloudflare dashboard under R2 > Manage R2 API Tokens.
+Keep the real values in the Node.js hosting platform's secret manager. The public URL is optional and does not replace the S3 API endpoint used for uploads.
 
 ### MinIO
 
-Point the S3 adapter at a MinIO endpoint with its access credentials:
+Point the same runtime variables at MinIO. Set `S3_ENDPOINT` to the MinIO API origin, `S3_BUCKET` to the bucket name, and the two credential variables to a scoped MinIO access key. Set `S3_PUBLIC_URL` only when that origin serves the bucket's objects publicly.
 
-```js
-storage: s3({
-	endpoint: "https://minio.example.com",
-	bucket: "emdash-media",
-	accessKeyId: process.env.MINIO_ACCESS_KEY,
-	secretAccessKey: process.env.MINIO_SECRET_KEY,
-	publicUrl: "https://minio.example.com/emdash-media",
-});
-```
+## Local filesystem
 
-## Local Filesystem
-
-Use local storage for development. Files are stored in a directory on disk.
+Use local storage for development or a single Node.js server with a persistent disk. Files are stored in a directory on that disk.
 
 ```js title="astro.config.mjs"
 import emdash, { local } from "emdash/astro";
@@ -257,12 +222,12 @@ The `baseUrl` should match EmDash's media file endpoint (`/_emdash/api/media/fil
 	may be slower for large files.
 </Aside>
 
-## Environment-Based Configuration
+## Use separate storage for separate environments
 
-Switch storage backends based on environment:
+The following configuration uses a local directory during development and R2 in the Cloudflare production build:
 
 ```js title="astro.config.mjs"
-import emdash, { s3, local } from "emdash/astro";
+import emdash, { local } from "emdash/astro";
 import { r2 } from "@emdash-cms/cloudflare";
 
 const storage = import.meta.env.PROD
@@ -277,7 +242,7 @@ export default defineConfig({
 });
 ```
 
-## Signed Uploads
+## Signed uploads
 
 The S3 adapter supports signed upload URLs, allowing clients to upload directly to storage without passing through your server. This improves performance for large files.
 
@@ -292,7 +257,7 @@ Adapters that do not support signed uploads:
 - **R2 binding** (use S3 adapter with R2 credentials instead)
 - **Local**
 
-## Storage Interface
+## Storage interface
 
 All storage adapters implement the same interface:
 

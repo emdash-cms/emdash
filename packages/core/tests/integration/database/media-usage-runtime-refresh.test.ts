@@ -7,6 +7,10 @@ import { RevisionRepository } from "../../../src/database/repositories/revision.
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
+	activateMediaUsageCapture,
+	continueMediaUsageActivation,
+} from "../../../src/media/usage/activation.js";
+import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../../src/media/usage/content-refresh.js";
@@ -352,7 +356,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			success: true,
 			data: {
 				[mediaId]: {
-					count: 0,
+					count: null,
 					coverage: { scope: "all_content_collections", status: "stale" },
 				},
 			},
@@ -751,6 +755,38 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		);
 	});
 
+	it("refreshes every i18n sibling while incremental capture is active", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "active-shared-image", {
+			enSharedHero: "media-active-old-en",
+			frSharedHero: "media-active-old-fr",
+		});
+		await activateAllCollections(ctx.db);
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { shared_hero: mediaRef("media-active-new") },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-active-new")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: enId, sourceVariant: "columns" }),
+				}),
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: frId, sourceVariant: "columns" }),
+				}),
+			]),
+		);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_work")
+				.select("content_id")
+				.where("content_id", "in", [enId, frId])
+				.execute(),
+		).toEqual([]);
+	});
+
 	it("does not refresh i18n siblings for translatable image updates", async () => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
 		const { enId, frId } = await createLocalizedPostsPair(runtime, "translatable-image", {
@@ -825,6 +861,8 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		});
 		expect(fr.success).toBe(true);
 		if (!fr.success) throw new Error(fr.error.message);
+		expect(fr.data.item.data.shared_hero).toEqual(mediaRef("media-draft-sibling-old-en"));
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-fr")).toEqual([]);
 		const frSourceBefore = await usageRepo.findSource(
 			sourceKey("posts", fr.data.item.id, "columns"),
 		);
@@ -843,18 +881,116 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 				}),
 			}),
 		]);
-		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-fr")).toEqual([
-			expect.objectContaining({
-				source: expect.objectContaining({
-					contentId: fr.data.item.id,
-					sourceVariant: "columns",
+		expect(await usageRepo.findCurrentUsageByMediaId("media-draft-sibling-old-en")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: en.data.item.id,
+						sourceVariant: "columns",
+					}),
 				}),
-			}),
-		]);
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: fr.data.item.id,
+						sourceVariant: "columns",
+					}),
+				}),
+			]),
+		);
 		expect(
 			(await usageRepo.findSource(sourceKey("posts", fr.data.item.id, "columns")))
 				?.currentGeneration,
 		).toBe(frSourceBefore?.currentGeneration);
+	});
+
+	it("refreshes i18n siblings when publishing a non-translatable image", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const en = await runtime.handleContentCreate("posts", {
+			slug: "publish-sibling-en",
+			locale: "en",
+			data: {
+				title: "English Publish Sibling",
+				shared_hero: mediaRef("media-publish-sibling-old-en"),
+			},
+		});
+		expect(en.success).toBe(true);
+		if (!en.success) throw new Error(en.error.message);
+		const fr = await runtime.handleContentCreate("posts", {
+			slug: "publish-sibling-fr",
+			locale: "fr",
+			translationOf: en.data.item.id,
+			data: {
+				title: "French Publish Sibling",
+				shared_hero: mediaRef("media-publish-sibling-old-fr"),
+			},
+		});
+		expect(fr.success).toBe(true);
+		if (!fr.success) throw new Error(fr.error.message);
+		expect(fr.data.item.data.shared_hero).toEqual(mediaRef("media-publish-sibling-old-en"));
+		await runtime.handleContentPublish("posts", en.data.item.id);
+		await runtime.handleContentPublish("posts", fr.data.item.id);
+		await runtime.handleContentUpdate("posts", en.data.item.id, {
+			data: { shared_hero: mediaRef("media-publish-sibling-new") },
+		});
+
+		const published = await runtime.handleContentPublish("posts", en.data.item.id);
+
+		expect(published.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-publish-sibling-old-en")).toEqual([]);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-publish-sibling-new")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: en.data.item.id,
+						sourceVariant: "columns",
+					}),
+				}),
+				expect.objectContaining({
+					source: expect.objectContaining({
+						contentId: fr.data.item.id,
+						sourceVariant: "columns",
+					}),
+				}),
+			]),
+		);
+	});
+
+	it("refreshes i18n siblings when publishing a cleared non-translatable image", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const en = await runtime.handleContentCreate("posts", {
+			slug: "clear-sibling-en",
+			locale: "en",
+			data: {
+				title: "English Clear Sibling",
+				shared_hero: mediaRef("media-clear-sibling-old-en"),
+			},
+		});
+		expect(en.success).toBe(true);
+		if (!en.success) throw new Error(en.error.message);
+		const fr = await runtime.handleContentCreate("posts", {
+			slug: "clear-sibling-fr",
+			locale: "fr",
+			translationOf: en.data.item.id,
+			data: {
+				title: "French Clear Sibling",
+				shared_hero: mediaRef("media-clear-sibling-old-fr"),
+			},
+		});
+		expect(fr.success).toBe(true);
+		if (!fr.success) throw new Error(fr.error.message);
+		expect(fr.data.item.data.shared_hero).toEqual(mediaRef("media-clear-sibling-old-en"));
+		await runtime.handleContentPublish("posts", en.data.item.id);
+		await runtime.handleContentPublish("posts", fr.data.item.id);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-en")).toHaveLength(2);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-fr")).toEqual([]);
+		await runtime.handleContentUpdate("posts", en.data.item.id, {
+			data: { shared_hero: null },
+		});
+
+		const published = await runtime.handleContentPublish("posts", en.data.item.id);
+
+		expect(published.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-clear-sibling-old-en")).toEqual([]);
 	});
 
 	it("refreshes trashed i18n siblings when non-translatable fields sync to them", async () => {
@@ -913,6 +1049,14 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		);
 	});
 });
+
+async function activateAllCollections(db: DialectTestContext["db"]): Promise<void> {
+	let result = await activateMediaUsageCapture(db, { writersDrained: true });
+	while (result.outcome === "activating") {
+		result = await continueMediaUsageActivation(db);
+	}
+	if (result.outcome !== "active") throw new Error(`Activation stopped at ${result.outcome}`);
+}
 
 async function createLocalizedPostsPair(
 	runtime: EmDashRuntime,

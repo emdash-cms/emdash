@@ -2,15 +2,15 @@ import { Badge, Button, Dialog, Input, Label, Select, Switch } from "@cloudflare
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	MagnifyingGlass,
 	Plus,
 	ArrowsLeftRight,
+	FileX,
 	Trash,
 	PencilSimple,
 	WarningCircle,
 	X,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import {
@@ -31,6 +31,8 @@ import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { PageHeader } from "./PageHeader.js";
+import { TableToolbarSearch } from "./TableToolbar.js";
 
 // ---------------------------------------------------------------------------
 // Redirect form dialog (create + edit)
@@ -65,7 +67,7 @@ function RedirectFormDialog({
 	const createMutation = useMutation({
 		mutationFn: (input: CreateRedirectInput) => createRedirect(input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			onClose();
 		},
 	});
@@ -73,7 +75,7 @@ function RedirectFormDialog({
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateRedirectInput) => updateRedirect(redirect!.id, input),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			onClose();
 		},
 	});
@@ -295,15 +297,18 @@ export function Redirects() {
 	const enabledFilter = filterEnabled === "all" ? undefined : filterEnabled === "true";
 	const autoFilter = filterAuto === "all" ? undefined : filterAuto === "true";
 
-	const redirectsQuery = useQuery({
+	const redirectsQuery = useInfiniteQuery({
 		queryKey: ["redirects", debouncedSearch, enabledFilter, autoFilter],
-		queryFn: () =>
+		queryFn: ({ pageParam }) =>
 			fetchRedirects({
 				search: debouncedSearch || undefined,
 				enabled: enabledFilter,
 				auto: autoFilter,
+				cursor: pageParam,
 				limit: 100,
 			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
 	});
 
 	const notFoundQuery = useQuery({
@@ -316,7 +321,7 @@ export function Redirects() {
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteRedirect(id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 			setDeleteId(null);
 		},
 	});
@@ -326,10 +331,10 @@ export function Redirects() {
 		mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
 			updateRedirect(id, { enabled }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 		onError: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 	});
 
@@ -338,7 +343,7 @@ export function Redirects() {
 		mutationFn: (path: string) =>
 			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["redirects"] });
+			void queryClient.resetQueries({ queryKey: ["redirects"] });
 		},
 	});
 
@@ -348,87 +353,96 @@ export function Redirects() {
 		setTab("redirects");
 	}
 
-	const redirects = redirectsQuery.data?.items ?? [];
-	const loopRedirectIds = new Set(redirectsQuery.data?.loopRedirectIds ?? []);
+	const redirects = redirectsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+	const loopRedirectIds = new Set(
+		redirectsQuery.data?.pages.flatMap((page) => page.loopRedirectIds ?? []) ?? [],
+	);
+	const searchPlaceholder = t`Search source or destination...`;
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-semibold leading-tight">{t`Redirects`}</h1>
-					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Manage URL redirects and view 404 errors.`}
-					</p>
-				</div>
-				<Button icon={<Plus />} onClick={() => setShowCreate(true)}>
-					{t`New Redirect`}
-				</Button>
-			</div>
-
-			{/* Tabs */}
-			<div className="flex gap-1 border-b">
-				<button
-					onClick={() => setTab("redirects")}
-					className={cn(
-						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-						tab === "redirects"
-							? "border-kumo-brand text-kumo-link"
-							: "border-transparent text-kumo-subtle hover:text-kumo-default",
-					)}
-				>
-					{t`Redirects`}
-					{redirectsQuery.data && (
-						<Badge variant="secondary" className="ms-2">
-							{redirectsQuery.data.items.length}
-							{redirectsQuery.data.nextCursor ? "+" : ""}
-						</Badge>
-					)}
-				</button>
-				<button
-					onClick={() => setTab("404s")}
-					className={cn(
-						"px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
-						tab === "404s"
-							? "border-kumo-brand text-kumo-link"
-							: "border-transparent text-kumo-subtle hover:text-kumo-default",
-					)}
-				>
-					{t`404 Errors`}
-				</button>
-			</div>
+			<PageHeader
+				title={t`Redirects`}
+				description={t`Manage URL redirects and view 404 errors.`}
+				value={tab}
+				onValueChange={(value) => {
+					if (value === "redirects" || value === "404s") setTab(value);
+				}}
+				actions={
+					<Button variant="primary" icon={<Plus />} onClick={() => setShowCreate(true)}>
+						{t`New Redirect`}
+					</Button>
+				}
+				tools={
+					tab === "redirects" ? (
+						<>
+							<TableToolbarSearch
+								size="base"
+								placeholder={searchPlaceholder}
+								aria-label={searchPlaceholder}
+								value={search}
+								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+							/>
+							<div className="grid grid-cols-2 gap-2 sm:flex">
+								<Select
+									className="w-full sm:w-auto"
+									value={filterEnabled}
+									onValueChange={(v) => setFilterEnabled(v ?? "all")}
+									items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
+									aria-label={t`Filter by status`}
+								/>
+								<Select
+									className="w-full sm:w-auto"
+									value={filterAuto}
+									onValueChange={(v) => setFilterAuto(v ?? "all")}
+									items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
+									aria-label={t`Filter by type`}
+								/>
+							</div>
+						</>
+					) : undefined
+				}
+				tabs={[
+					{
+						value: "redirects",
+						className: "flex-1 justify-center text-sm sm:flex-none",
+						label: (
+							<span className="flex items-center gap-1.5">
+								<ArrowsLeftRight
+									className="size-4 shrink-0"
+									weight={tab === "redirects" ? "fill" : "regular"}
+									aria-hidden="true"
+								/>
+								{t`Redirects`}
+								{redirectsQuery.data && (
+									<Badge variant="secondary">
+										{redirects.length}
+										{redirectsQuery.hasNextPage ? "+" : ""}
+									</Badge>
+								)}
+							</span>
+						),
+					},
+					{
+						value: "404s",
+						className: "flex-1 justify-center text-sm sm:flex-none",
+						label: (
+							<span className="flex items-center gap-1.5">
+								<FileX
+									className="size-4 shrink-0"
+									weight={tab === "404s" ? "fill" : "regular"}
+									aria-hidden="true"
+								/>
+								{t`404 Errors`}
+							</span>
+						),
+					},
+				]}
+			/>
 
 			{/* Tab content */}
 			{tab === "redirects" && (
 				<>
-					{/* Filters */}
-					<div className="flex items-center gap-4">
-						<div className="relative flex-1 max-w-md">
-							<MagnifyingGlass
-								className="absolute start-3 top-1/2 -translate-y-1/2 text-kumo-subtle"
-								size={16}
-							/>
-							<Input
-								placeholder={t`Search source or destination...`}
-								className="ps-10"
-								value={search}
-								onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-							/>
-						</div>
-						<Select
-							value={filterEnabled}
-							onValueChange={(v) => setFilterEnabled(v ?? "all")}
-							items={{ all: t`All statuses`, true: t`Enabled`, false: t`Disabled` }}
-							aria-label={t`Filter by status`}
-						/>
-						<Select
-							value={filterAuto}
-							onValueChange={(v) => setFilterAuto(v ?? "all")}
-							items={{ all: t`All types`, false: t`Manual`, true: t`Auto (slug change)` }}
-							aria-label={t`Filter by type`}
-						/>
-					</div>
-
 					{/* Loop warning banner */}
 					{loopRedirectIds.size > 0 && (
 						<div
@@ -458,92 +472,105 @@ export function Redirects() {
 					{redirectsQuery.isLoading ? (
 						<div className="py-12 text-center text-kumo-subtle">{t`Loading redirects...`}</div>
 					) : redirects.length === 0 ? (
-						<div className="py-12 text-center text-kumo-subtle">
-							<ADMIN_NAV_ICONS.redirects size={48} className="mx-auto mb-4 opacity-30" />
-							<p className="text-lg font-medium">{t`No redirects yet`}</p>
+						<div className="py-10 text-center text-kumo-subtle">
+							<ADMIN_NAV_ICONS.redirects size={40} className="mx-auto mb-3 opacity-30" />
+							<p className="text-base font-medium">{t`No redirects yet`}</p>
 							<p className="text-sm mt-1">{t`Create redirect rules to manage URL changes.`}</p>
 						</div>
 					) : (
-						<div className="border rounded-lg">
-							<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
-								<div className="flex-1">{t`Source`}</div>
-								<div className="w-8 text-center" />
-								<div className="flex-1">{t`Destination`}</div>
-								<div className="w-14 text-center">{t`Code`}</div>
-								<div className="w-16 text-end">{t`Hits`}</div>
-								<div className="w-20 text-center">{t`Status`}</div>
-								<div className="w-20" />
-							</div>
-							{redirects.map((r) => (
-								<div
-									key={r.id}
-									className={cn(
-										"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
-										!r.enabled && "opacity-50",
-									)}
-								>
-									<div className="flex-1 font-mono text-xs truncate" title={r.source}>
-										{r.source}
-									</div>
-									<div className="w-8 text-center text-kumo-subtle">
-										<ArrowNext size={14} />
-									</div>
-									<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
-										{r.destination}
-									</div>
-									<div className="w-14 text-center">
-										<Badge variant="secondary">{r.type}</Badge>
-									</div>
-									<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
-									<div className="w-20 text-center">
-										<Switch
-											checked={r.enabled}
-											onCheckedChange={(checked) =>
-												toggleMutation.mutate({
-													id: r.id,
-													enabled: checked,
-												})
-											}
-											aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
-										/>
-									</div>
-									<div className="w-20 flex items-center justify-end gap-1">
-										{loopRedirectIds.has(r.id) && (
-											<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
-												<WarningCircle
-													size={14}
-													weight="fill"
-													className="text-kumo-warning"
-													role="img"
-													aria-label={t`Part of a redirect loop`}
-												/>
-											</span>
-										)}
-										{r.auto && (
-											<Badge variant="outline" className="me-1 text-xs">
-												{t`auto`}
-											</Badge>
-										)}
-										<button
-											onClick={() => setEditRedirect(r)}
-											className="p-1 text-kumo-subtle hover:text-kumo-default"
-											title={t`Edit redirect`}
-											aria-label={t`Edit redirect ${r.source}`}
-										>
-											<PencilSimple size={14} />
-										</button>
-										<button
-											onClick={() => setDeleteId(r.id)}
-											className="p-1 text-kumo-subtle hover:text-kumo-danger"
-											title={t`Delete redirect`}
-											aria-label={t`Delete redirect ${r.source}`}
-										>
-											<Trash size={14} />
-										</button>
-									</div>
+						<>
+							<div className="border rounded-lg">
+								<div className="flex items-center gap-4 py-2 px-4 border-b bg-kumo-tint/50 text-sm font-medium text-kumo-subtle">
+									<div className="flex-1">{t`Source`}</div>
+									<div className="w-8 text-center" />
+									<div className="flex-1">{t`Destination`}</div>
+									<div className="w-14 text-center">{t`Code`}</div>
+									<div className="w-16 text-end">{t`Hits`}</div>
+									<div className="w-20 text-center">{t`Status`}</div>
+									<div className="w-20" />
 								</div>
-							))}
-						</div>
+								{redirects.map((r) => (
+									<div
+										key={r.id}
+										className={cn(
+											"flex items-center gap-4 py-2 px-4 border-b last:border-0 text-sm",
+											!r.enabled && "opacity-50",
+										)}
+									>
+										<div className="flex-1 font-mono text-xs truncate" title={r.source}>
+											{r.source}
+										</div>
+										<div className="w-8 text-center text-kumo-subtle">
+											<ArrowNext size={14} />
+										</div>
+										<div className="flex-1 font-mono text-xs truncate" title={r.destination}>
+											{r.destination}
+										</div>
+										<div className="w-14 text-center">
+											<Badge variant="secondary">{r.type}</Badge>
+										</div>
+										<div className="w-16 text-end tabular-nums text-kumo-subtle">{r.hits}</div>
+										<div className="w-20 text-center">
+											<Switch
+												checked={r.enabled}
+												onCheckedChange={(checked) =>
+													toggleMutation.mutate({
+														id: r.id,
+														enabled: checked,
+													})
+												}
+												aria-label={r.enabled ? t`Disable redirect` : t`Enable redirect`}
+											/>
+										</div>
+										<div className="w-20 flex items-center justify-end gap-1">
+											{loopRedirectIds.has(r.id) && (
+												<span title={t`Part of a redirect loop`} className="me-1 inline-flex">
+													<WarningCircle
+														size={14}
+														weight="fill"
+														className="text-kumo-warning"
+														role="img"
+														aria-label={t`Part of a redirect loop`}
+													/>
+												</span>
+											)}
+											{r.auto && (
+												<Badge variant="outline" className="me-1 text-xs">
+													{t`auto`}
+												</Badge>
+											)}
+											<button
+												onClick={() => setEditRedirect(r)}
+												className="p-1 text-kumo-subtle hover:text-kumo-default"
+												title={t`Edit redirect`}
+												aria-label={t`Edit redirect ${r.source}`}
+											>
+												<PencilSimple size={14} />
+											</button>
+											<button
+												onClick={() => setDeleteId(r.id)}
+												className="p-1 text-kumo-subtle hover:text-kumo-danger"
+												title={t`Delete redirect`}
+												aria-label={t`Delete redirect ${r.source}`}
+											>
+												<Trash size={14} />
+											</button>
+										</div>
+									</div>
+								))}
+							</div>
+							{redirectsQuery.hasNextPage && (
+								<div className="flex justify-center">
+									<Button
+										variant="outline"
+										onClick={() => void redirectsQuery.fetchNextPage()}
+										disabled={redirectsQuery.isFetchingNextPage}
+									>
+										{redirectsQuery.isFetchingNextPage ? t`Loading...` : t`Load more`}
+									</Button>
+								</div>
+							)}
+						</>
 					)}
 				</>
 			)}
