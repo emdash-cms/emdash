@@ -81,7 +81,7 @@ export interface StorageCollectionDeclaration {
 	uniqueIndexes?: string[];
 }
 
-export interface PluginDescriptor<TOptions = Record<string, unknown>> {
+export interface PluginDescriptor<TOptions = object> {
 	/** Unique plugin identifier */
 	id: string;
 	/** Plugin version (semver) */
@@ -169,8 +169,7 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
  * These run in isolated V8 isolates via Worker Loader on Cloudflare.
  * The `entrypoint` is resolved to a file and bundled at build time.
  */
-export type SandboxedPluginDescriptor<TOptions = Record<string, unknown>> =
-	PluginDescriptor<TOptions>;
+export type SandboxedPluginDescriptor<TOptions = object> = PluginDescriptor<TOptions>;
 
 export interface EmDashConfig {
 	/**
