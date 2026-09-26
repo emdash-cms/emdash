@@ -1452,6 +1452,7 @@ export class EmDashRuntime {
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
 						editorPanels: bundle.manifest.admin?.editorPanels,
 						editorActions: bundle.manifest.admin?.editorActions,
+						mcp: bundle.manifest.mcp,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -2445,6 +2446,7 @@ export class EmDashRuntime {
 					fieldWidgets: entry.fieldWidgets,
 					editorPanels: entry.editorPanels,
 					editorActions: entry.editorActions,
+					mcp: entry.mcp,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -2822,6 +2824,7 @@ export class EmDashRuntime {
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
 						editorPanels: bundle.manifest.admin?.editorPanels,
 						editorActions: bundle.manifest.admin?.editorActions,
+						mcp: bundle.manifest.mcp,
 					});
 					resolved.push(adapted);
 					console.log(

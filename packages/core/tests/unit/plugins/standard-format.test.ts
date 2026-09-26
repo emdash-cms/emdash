@@ -17,11 +17,18 @@
  * there.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";
 import { generatePluginsModule } from "../../../src/astro/integration/virtual-modules.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 
 describe("definePlugin()", () => {
 	it("returns a resolved native plugin for input with id + version", () => {
@@ -207,5 +214,70 @@ describe("generatePluginsModule() standard format", () => {
 		expect(code).toContain('"capabilities":["content:read","network:request"]');
 		expect(code).toContain('"allowedHosts":["api.example.com"]');
 		expect(code).toContain('"storage":{"events":{"indexes":["timestamp"]}}');
+	});
+});
+
+describe("generatePluginsModule() for a built standard plugin", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "emdash-plugins-module-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	it("registers the MCP tools its descriptor declares", async () => {
+		// `emdash-plugin build` drops `mcp` from the runtime module and ships
+		// the tools as JSON Schema in the descriptor instead.
+		const entrypoint = join(dir, "plugin.mjs");
+		await writeFile(
+			entrypoint,
+			`export default { routes: { "events/list": { permission: "content:read", handler: async () => ({ items: [] }) } } };`,
+		);
+		const code = generatePluginsModule([
+			{
+				id: "events",
+				version: "1.0.0",
+				entrypoint,
+				format: "standard",
+				mcp: {
+					tools: [
+						{
+							name: "list_events",
+							description: "List upcoming events.",
+							route: "events/list",
+							permission: "content:read",
+							destructive: false,
+							inputSchema: z.toJSONSchema(z.object({ limit: z.number().int().max(50) }), {
+								target: "draft-7",
+							}),
+							outputSchema: z.toJSONSchema(z.object({ items: z.array(z.string()) }), {
+								target: "draft-7",
+							}),
+						},
+					],
+				},
+			},
+		]);
+		const adapter = fileURLToPath(
+			new URL("../../../src/plugins/adapt-sandbox-entry.ts", import.meta.url),
+		);
+		const module = join(dir, "plugins.mjs");
+		await writeFile(module, code.replace("emdash/plugins/adapt-sandbox-entry", adapter));
+
+		const { plugins } = (await import(module)) as { plugins: ResolvedPlugin[] };
+		const tool = plugins[0]!.mcp?.tools.list_events;
+
+		expect(tool).toMatchObject({
+			description: "List upcoming events.",
+			route: "events/list",
+			destructive: false,
+		});
+		expect(tool!.input.safeParse({ limit: 10 }).success).toBe(true);
+		expect(tool!.input.safeParse({ limit: 500 }).success).toBe(false);
+		expect(tool!.output?.safeParse({ items: [] }).success).toBe(true);
+		expect(tool!.output?.safeParse({ items: [1] }).success).toBe(false);
 	});
 });
