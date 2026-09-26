@@ -515,6 +515,13 @@ export class SchemaRegistry {
 		}
 
 		const proposedId = existing?.id ?? ulid();
+		const tableName = this.getTableName(input.slug);
+		if (!existing && (await tableExists(this.db, tableName))) {
+			throw new SchemaError(
+				`Collection table "${tableName}" exists but is not registered`,
+				"COLLECTION_TABLE_ORPHANED",
+			);
+		}
 
 		// Default `supports` to drafts + revisions when the caller didn't
 		// specify it. Explicit empty array (`[]`) is preserved as an opt-out
