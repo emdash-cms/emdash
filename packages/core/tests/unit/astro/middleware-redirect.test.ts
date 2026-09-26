@@ -495,3 +495,82 @@ describe("redirect middleware — trailing-slash normalisation (issue #1271)", (
 		expect(r2.headers.get("Location")).toBe("/newer");
 	});
 });
+
+describe("redirect middleware — non-ASCII source paths (issue #3239)", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	it("fires for a redirect whose stored source is raw Unicode", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/domácí-zvířata",
+			destination: "/stitek/domaci-zvirata",
+			type: 301,
+		});
+
+		// The browser sends the path percent-encoded, so `context.url.pathname`
+		// arrives encoded while the stored source is raw Unicode.
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí-zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/stitek/domaci-zvirata");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("still fires when the stored source is already percent-encoded", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/stitek/dom%C3%A1c%C3%AD-zv%C3%AD%C5%99ata",
+			destination: "/stitek/domaci-zvirata",
+			type: 301,
+		});
+
+		const { context, redirect } = buildContext({ pathname: "/stitek/domácí-zvířata" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		// Normalization must not double-encode a source an author already
+		// encoded by hand (the documented workaround).
+		expect(redirect).toHaveBeenCalledWith("/stitek/domaci-zvirata", 301);
+	});
+
+	it("matches a pattern whose literal segment contains non-ASCII characters", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/články/[...slug]",
+			destination: "/articles/[...slug]",
+			type: 301,
+			isPattern: true,
+		});
+
+		const { context, redirect } = buildContext({ pathname: "/články/hello" });
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/articles/hello", 301);
+	});
+});
