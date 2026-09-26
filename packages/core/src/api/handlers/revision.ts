@@ -14,6 +14,7 @@ import type { ApiResult, ContentResponse } from "../types.js";
 import {
 	applyStagedReferences,
 	readStagedReferences,
+	STAGED_REFERENCES_BASELINE_KEY,
 	validateStagedReferences,
 } from "./staged-references.js";
 
@@ -134,10 +135,12 @@ export async function handleRevisionRestore(
 			}
 		}
 
+		const restoredData = { ...revision.data };
+		delete restoredData[STAGED_REFERENCES_BASELINE_KEY];
 		const { item, revisionId: queuedRevisionId } = await new ContentRepository(db).restoreRevision(
 			revision.collection,
 			revision.entryId,
-			revision.data,
+			restoredData,
 			callerUserId,
 		);
 
@@ -145,6 +148,9 @@ export async function handleRevisionRestore(
 		// fence leaves the live links untouched. The restore's own revision carries
 		// the selection, so restoring it again retries a promotion that failed here.
 		if (stagedReferences && item.translationGroup) {
+			// Restoring a revision means replacing the current live selection with the
+			// revision's selection, not merging a diff. The queued restored revision
+			// also omits the old draft baseline so publishing it keeps this behavior.
 			await applyStagedReferences(db, revision.collection, item.translationGroup, stagedReferences);
 		}
 

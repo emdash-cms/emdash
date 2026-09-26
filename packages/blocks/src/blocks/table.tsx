@@ -88,7 +88,7 @@ export function TableBlockComponent({
 							<th
 								key={col.key}
 								className={cn(
-									"px-3 py-2 text-sm font-medium text-kumo-subtle",
+									"px-3 py-2 text-start text-sm font-medium text-kumo-subtle",
 									col.sortable && "cursor-pointer select-none",
 									col.format === "element" && "text-end",
 								)}
