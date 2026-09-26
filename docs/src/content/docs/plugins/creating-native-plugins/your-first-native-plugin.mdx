@@ -170,6 +170,37 @@ policy, and compatibility defaults.
 	Capabilities gate the APIs exposed through `ctx`, but a native plugin has no isolation boundary. It can import host packages, access environment variables, call `fetch()` directly, and affect the host process. Install native packages only from publishers you trust.
 </Aside>
 
+## Read secrets and bindings
+
+Hook and route handlers in a native plugin receive the plugin context, not the Astro context, so `Astro.locals` is not available in them. Read secrets and platform bindings from the runtime environment.
+
+Read deployment secrets from `process.env`. On Node.js, the hosting platform's secret manager supplies them. On Cloudflare Workers, secrets set with `wrangler secret put` reach `process.env` through the `nodejs_compat` flag with a compatibility date of 2025-04-01 or later, as described in [Worker secrets](/deployment/cloudflare/#worker-secrets).
+
+For a credential that a site administrator enters, declare a `secret` field in the [generated settings form](/plugins/creating-native-plugins/react-admin/#generated-settings-form) instead. EmDash encrypts the value with [`EMDASH_ENCRYPTION_KEY`](/deployment/secrets/#the-encryption-key) before storing it, so set that key before an administrator saves the field. The plugin reads the value with `ctx.settings.get()`.
+
+On Cloudflare Workers, bindings such as a queue, an R2 bucket, or `send_email` are objects on `env` from `cloudflare:workers`. Astro loads `astro.config.mjs` in Node.js, and that file imports the plugin package for the descriptor factory. Node.js cannot load `cloudflare:workers`, so import it inside the handler rather than at the top of the module. The following hook sends each saved entry's ID to a queue bound as `ACTIVITY_QUEUE`:
+
+```typescript title="src/index.ts"
+hooks: {
+	"content:afterSave": async (event) => {
+		const { env } = await import("cloudflare:workers");
+		await env.ACTIVITY_QUEUE.send({ contentId: event.content.id });
+	},
+},
+```
+
+The `cloudflare:workers` module resolves only in the Workers runtime, so a plugin that imports it works only on sites that use the Cloudflare adapter.
+
+To type-check the import, add [`@cloudflare/workers-types`](https://developers.cloudflare.com/workers/languages/typescript/) to the package's `devDependencies` and to `compilerOptions.types` in `tsconfig.json`. Then declare each binding the plugin reads on the `Cloudflare.Env` interface. The following declaration types the queue from the previous example:
+
+```typescript title="src/env.d.ts"
+declare namespace Cloudflare {
+	interface Env {
+		ACTIVITY_QUEUE: Queue;
+	}
+}
+```
+
 ## Add another surface
 
 - [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) covers settings, custom pages, dashboard widgets, editor panels, and list columns.
