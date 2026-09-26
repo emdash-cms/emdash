@@ -30,7 +30,7 @@ import * as React from "react";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
-import { ContentEditor } from "./components/ContentEditor";
+import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
 	ContentList,
 	EMPTY_DATE_FILTER,
@@ -188,10 +188,40 @@ interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
 	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "references" | "_rev">;
+	referenceRows?: Record<string, ReferenceEntryRow[]>;
 }
 
 function isSaveConflict(error: unknown): boolean {
 	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
+/**
+ * The editor's reference pages once an autosave has written `saved`: fields the
+ * save left alone keep their cached page, and each saved field holds exactly the
+ * entries that were sent.
+ */
+function withAutosavedReferences(
+	cached: ContentItem["references"],
+	saved: Record<string, ReferenceEntryRow[]> | undefined,
+	fields: Record<string, { validation?: Record<string, unknown> }>,
+): ContentItem["references"] {
+	if (!saved) return cached;
+	const next = { ...cached };
+	for (const [field, rows] of Object.entries(saved)) {
+		const targetCollection = fields[field]?.validation?.targetCollection;
+		if (typeof targetCollection !== "string") continue;
+		next[field] = {
+			children: rows.map((row) => ({
+				id: row.id,
+				slug: row.slug,
+				collection: targetCollection,
+				title: row.title ?? null,
+				locale: row.locale ?? null,
+				translationGroup: row.translationGroup ?? null,
+			})),
+		};
+	}
+	return next;
 }
 
 function patchAutosaveQueries(
@@ -204,9 +234,11 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
+		referenceRows?: Record<string, ReferenceEntryRow[]>;
+		fields: Record<string, { validation?: Record<string, unknown> }>;
 	},
 ) {
-	const { collection, id, savedItem, payload } = params;
+	const { collection, id, savedItem, payload, referenceRows, fields } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -235,7 +267,14 @@ function patchAutosaveQueries(
 	// editor reads `{ locale: activeLocale }`, undefined when i18n is off, while the
 	// saved item carries the DB default "en". An exact key would write to an entry
 	// nobody observes, leaving the editor on stale revision pointers.
-	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, savedItem);
+	// The save response carries no `references` (only the editor GET hydrates
+	// them), and an entry reopened from this cache would show its reference
+	// fields empty, so the cached pages are carried over.
+	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, (cached) => ({
+		...savedItem,
+		references:
+			savedItem.references ?? withAutosavedReferences(cached?.references, referenceRows, fields),
+	}));
 }
 
 // Create a base root route without Shell for setup
@@ -934,13 +973,13 @@ function ContentEditPage() {
 	// that runs before the next render still sees the conflict.
 	const conflictedEntryIdRef = React.useRef("");
 	const serializeEditorSave = React.useCallback(
-		<T,>(operation: () => Promise<T>, { explicitSave = false } = {}) => {
+		<T,>(operation: () => Promise<T>, { explicitSave = false, allowConflict = false } = {}) => {
 			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
 			const result = editorSaveQueueRef.current.then(() => {
 				// The token the recovery fetched is only for a save the writer starts
 				// while the conflict shows; anything else would write over a version
 				// they have not seen.
-				if (!savesOverConflict && conflictedEntryIdRef.current === id) {
+				if (!savesOverConflict && !allowConflict && conflictedEntryIdRef.current === id) {
 					throw new Error(
 						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
 					);
@@ -1188,16 +1227,20 @@ function ContentEditPage() {
 			const savedItem = await updateContent(
 				collection,
 				id,
-				{ publishedAt },
+				{ publishedAt, _rev: revisionTokensRef.current.get(id) },
 				{ locale: rawItem?.locale ?? activeLocale },
 			);
 			revisionTokensRef.current.set(id, savedItem._rev);
 			return savedItem;
 		},
 		onSuccess: () => {
+			setConflictedEntryId((current) => (current === id ? "" : current));
 			handleContentUpdateSuccess(id);
 		},
-		onError: (error) => handleContentUpdateError(error, id),
+		onError: async (error) => {
+			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
+			handleContentUpdateError(error, id);
+		},
 	});
 
 	// Autosave mutation - skips revision creation
@@ -1223,6 +1266,8 @@ function ContentEditPage() {
 					data: variables.changes.data,
 					slug: variables.changes.slug,
 				},
+				referenceRows: variables.referenceRows,
+				fields: collectionFields,
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
@@ -1242,17 +1287,26 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: (revision: string | undefined) =>
+		mutationFn: ({ revision }: { revision: string | undefined; savedReferences: boolean }) =>
 			publishContent(collection, id, {
 				locale: rawItem?.locale ?? activeLocale,
 				_rev: revision,
 			}),
-		onSuccess: (publishedItem) => {
+		onSuccess: (publishedItem, { savedReferences }) => {
 			revisionTokensRef.current.set(id, publishedItem._rev);
+			// A selection the preceding save sent is in no cached page yet, so the
+			// entry is read again instead of keeping the pages from before it.
 			queryClient.setQueriesData<ContentItem>(
 				{ queryKey: ["content", collection, id] },
-				publishedItem,
+				(cached) => ({
+					...publishedItem,
+					references:
+						publishedItem.references ?? (savedReferences ? undefined : cached?.references),
+				}),
 			);
+			if (savedReferences) {
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			}
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -1314,7 +1368,11 @@ function ContentEditPage() {
 		},
 	});
 	const applyScheduleChange = React.useCallback(
-		async (changedItem: ContentItem, savedItem?: ContentItem) => {
+		async (
+			changedItem: ContentItem,
+			savedItem?: ContentItem,
+			savedPayload?: { references?: Record<string, string[]> },
+		) => {
 			await queryClient.cancelQueries({ queryKey: ["content", collection, id] });
 			const currentChangedItem = changedItem._rev
 				? changedItem
@@ -1334,10 +1392,18 @@ function ContentEditPage() {
 								slug: currentItem.slug,
 								byline: currentItem.byline ?? existing?.byline,
 								bylines: currentItem.bylines ?? existing?.bylines,
+								references: savedPayload?.references
+									? undefined
+									: (currentItem.references ?? existing?.references),
 							}
 						: currentChangedItem;
 				},
 			);
+			// The save's own refetch was cancelled above, so a selection it sent is
+			// in no cached page yet.
+			if (savedPayload?.references) {
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			}
 		},
 		[activeLocale, collection, id, queryClient, rawItem?.locale],
 	);
@@ -1466,12 +1532,15 @@ function ContentEditPage() {
 			slug?: string;
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
+			referenceRows?: Record<string, ReferenceEntryRow[]>;
 		}) => {
+			const { referenceRows, ...changes } = payload;
 			void serializeEditorSave(() =>
 				autosaveMutation.mutateAsync({
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
-					changes: payload,
+					changes,
+					referenceRows,
 				}),
 			).catch(() => undefined);
 		},
@@ -1497,15 +1566,18 @@ function ContentEditPage() {
 				bylines?: BylineCreditInput[];
 			},
 		) => {
-			await serializeEditorSave(async () => {
-				if (!payload) return;
-				return updateMutation.mutateAsync({
-					targetId: id,
-					targetLocale: rawItem?.locale ?? activeLocale,
-					source: "editor",
-					changes: payload,
-				});
-			});
+			await serializeEditorSave(
+				async () => {
+					if (!payload) return;
+					return updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					});
+				},
+				{ allowConflict: !payload },
+			);
 			await publishedAtMutation.mutateAsync(publishedAt);
 		},
 		[
@@ -1531,7 +1603,12 @@ function ContentEditPage() {
 	);
 
 	const handlePublish = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			if (publishRequestRef.current) return publishRequestRef.current;
 
 			const request = (async () => {
@@ -1543,7 +1620,10 @@ function ContentEditPage() {
 						changes: payload,
 					}),
 				);
-				await publishMutation.mutateAsync(savedItem._rev);
+				await publishMutation.mutateAsync({
+					revision: savedItem._rev,
+					savedReferences: Boolean(payload.references),
+				});
 			})();
 			publishRequestRef.current = request;
 			void request
@@ -1611,6 +1691,7 @@ function ContentEditPage() {
 				data: Record<string, unknown>;
 				slug?: string;
 				bylines?: BylineCreditInput[];
+				references?: Record<string, string[]>;
 			},
 		) => {
 			const savedItem = await serializeEditorSave(async () => {
@@ -1623,7 +1704,7 @@ function ContentEditPage() {
 				});
 			});
 			const scheduledItem = await scheduleMutation.mutateAsync(scheduledAt);
-			await applyScheduleChange(scheduledItem, savedItem);
+			await applyScheduleChange(scheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,
@@ -1640,6 +1721,7 @@ function ContentEditPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) => {
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
@@ -1651,7 +1733,7 @@ function ContentEditPage() {
 				});
 			});
 			const unscheduledItem = await unscheduleMutation.mutateAsync();
-			await applyScheduleChange(unscheduledItem, savedItem);
+			await applyScheduleChange(unscheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,

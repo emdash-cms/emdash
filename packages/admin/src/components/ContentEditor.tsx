@@ -317,6 +317,8 @@ export interface ContentEditorProps {
 		slug?: string;
 		bylines?: BylineCreditInput[];
 		references?: Record<string, string[]>;
+		/** The entries behind `references`, for callers that cache the saved selection. */
+		referenceRows?: Record<string, ReferenceEntryRow[]>;
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
@@ -336,6 +338,7 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void | Promise<void>;
 	onUnpublish?: (payload?: {
 		data: Record<string, unknown>;
@@ -353,6 +356,7 @@ export interface ContentEditorProps {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		},
 	) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
@@ -360,6 +364,7 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void | Promise<void>;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
@@ -680,12 +685,11 @@ export function ContentEditor({
 				pendingAutosaveKeyRef.current = null;
 				setRejectedAutosaveState(null);
 			}
-			// Re-seed references only when the item carries hydrated references.
-			// Autosave patches the content cache with a server item that has no
-			// `references` key (hydration is opt-in on the editor GET route only) —
-			// re-seeding from that would wipe the staged rows. The autosave baseline
-			// reset instead runs off `autosaveCompletionToken` below.
-			if (item.references) {
+			// Re-seed only from an item read with its references. An item without them
+			// is waiting on a refetch, and an autosave's item holds the selection as it
+			// was sent, so re-seeding from either would drop what the editor holds. The
+			// autosave baseline reset instead runs off `autosaveCompletionToken` below.
+			if (item.references && !autosaveJustCompleted) {
 				setReferenceState(seedReferenceState(item));
 				pendingAutosaveReferencesRef.current = null;
 			}
@@ -1074,13 +1078,14 @@ export function ContentEditor({
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload = createSavePayload();
+			let referenceRows: Record<string, ReferenceEntryRow[]> | undefined;
 			if (payload.references) {
 				// Remember what we sent so the baseline can advance on resolve.
-				const snapshot: Record<string, ReferenceEntryRow[]> = {};
+				referenceRows = {};
 				for (const group of Object.keys(payload.references)) {
-					snapshot[group] = referenceStateRef.current[group]?.current ?? [];
+					referenceRows[group] = referenceStateRef.current[group]?.current ?? [];
 				}
-				pendingAutosaveReferencesRef.current = snapshot;
+				pendingAutosaveReferencesRef.current = referenceRows;
 			}
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
@@ -1091,7 +1096,7 @@ export function ContentEditor({
 				pendingAutosaveStateRef.current,
 				payload.references,
 			);
-			onAutosave(payload);
+			onAutosave(referenceRows ? { ...payload, referenceRows } : payload);
 		}, AUTOSAVE_DELAY);
 
 		return () => {
@@ -1186,8 +1191,10 @@ export function ContentEditor({
 				data: Record<string, unknown>;
 				slug?: string;
 				bylines?: BylineCreditInput[];
+				references?: Record<string, string[]>;
 			}) => void | Promise<void>,
 			invalidFieldsMessage?: string,
+			{ allowUnmodifiedConflict = false }: { allowUnmodifiedConflict?: boolean } = {},
 		) => {
 			if (isPublishingRef.current) {
 				return Promise.reject(new Error(t`A publishing action is already in progress`));
@@ -1197,7 +1204,7 @@ export function ContentEditor({
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
 				);
 			}
-			if (hasSaveConflictRef.current) {
+			if (hasSaveConflictRef.current && (!allowUnmodifiedConflict || hasPendingSaveRef.current)) {
 				return Promise.reject(
 					new Error(
 						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
@@ -1251,6 +1258,7 @@ export function ContentEditor({
 				? runScheduleChange(
 						(payload) => onPublishedAtChange(publishedAt, payload),
 						t`Fix invalid fields before changing the publication date`,
+						{ allowUnmodifiedConflict: true },
 					)
 				: undefined,
 		[onPublishedAtChange, runScheduleChange, t],

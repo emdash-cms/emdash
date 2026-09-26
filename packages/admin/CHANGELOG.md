@@ -1,5 +1,23 @@
 # @emdash-cms/admin
 
+## 0.41.0
+
+### Minor Changes
+
+- [#1928](https://github.com/emdash-cms/emdash/pull/1928) [`a5b4504`](https://github.com/emdash-cms/emdash/commit/a5b450497443ca4b2e236675ab1ba59d15845900) Thanks [@MA2153](https://github.com/MA2153)! - Adds a working reference field, and a screen for the relationships behind it. A reference field is an entry picker: search for, pick and reorder linked entries in the entry editor, saved with the entry in one request. To answer "what points at this entry", bind a field to the other end of the same relationship — it lists the entries pointing here and can edit that list.
+  
+  Content Types links to a new Relations page listing every relationship on the site — the content types it joins, the fields bound to each end and which end they pick from, and how many links it holds — and each content type repeats the ones it is an end of in a panel under its fields. A new reference field starts from its relationship: pick one, and the label, slug and the rest of the field follow from the side the field views. Deletion dialogs name what goes with a deletion, including the field on the other content type. A reference field created before this release keeps rendering as the text box it has always been, and its dialog offers the collection picker that converts it. The [Relations guide](https://docs.emdashcms.com/guides/relations/) walks through the screens.
+
+### Patch Changes
+
+- [#3479](https://github.com/emdash-cms/emdash/pull/3479) [`35a55a4`](https://github.com/emdash-cms/emdash/commit/35a55a48e5bb5c06f03a2a180f58a6ca3eb6ebad) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates the empty Plugins screen to open the registry when sandboxed plugin installation is available, or link to the plugin installation guide when it is not.
+
+- [#3295](https://github.com/emdash-cms/emdash/pull/3295) [`078f167`](https://github.com/emdash-cms/emdash/commit/078f1673456690fe33c7407d8691fa896b296135) Thanks [@ascorbic](https://github.com/ascorbic)! - Shows the permissions a CLI or agent is requesting on the admin device authorization page (`/_emdash/admin/device`) before you approve its code. The page lists the permissions that approval will grant, and separately lists any requested permissions your role does not allow. The Authorize button stays disabled until the code is confirmed valid and at least one requested permission can be granted.
+  
+  A new authenticated `GET /_emdash/api/oauth/device/authorize?user_code=XXXX-XXXX` endpoint returns a pending code's `requestedScopes` and the `grantedScopes` an approval by the current user would receive. Unknown, already-used and expired codes return `INVALID_CODE` or `EXPIRED_CODE`.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.41.0
+
 ## 0.40.1
 
 ### Patch Changes

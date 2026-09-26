@@ -43,6 +43,16 @@ const MEDIA_ID = "01MEDIA";
 // Mock EmDashHandlers
 // ---------------------------------------------------------------------------
 
+let db: Kysely<Database>;
+
+beforeAll(async () => {
+	db = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(db);
+});
+
 /** Create a minimal mock EmDashHandlers that returns content owned by `ownerId`. */
 function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	const contentItem = {
@@ -64,7 +74,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	};
 
 	return {
-		db: {} as EmDashHandlers["db"],
+		db,
 		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
 			success: true,

@@ -1,5 +1,55 @@
 # emdash
 
+## 0.41.0
+
+### Minor Changes
+
+- [#3294](https://github.com/emdash-cms/emdash/pull/3294) [`f6d7c7a`](https://github.com/emdash-cms/emdash/commit/f6d7c7a205e622b7ff444d222765b4252888ab15) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `emdash export-seed` output so it survives `emdash seed` on a fresh database, and adds `--media-base-url` so exported media can be imported.
+  
+  - Exports sections and redirect rules. Anything a seed cannot represent is left out with a warning on stderr: redirect rules with status 410 or 451, duplicate redirect sources kept from older databases, and imported sections whose slug contains characters other than lowercase letters, digits, and hyphens.
+  - Menu items that link to exported content now point at the restored entries instead of losing their link. `emdash seed` also restores links to entries in custom collections and collection archive links.
+  - Scheduled entries are exported as drafts instead of being published on import.
+  - Exports each collection's comments setting and its title and date fields, and whether each field is translatable. Seed fields accept `translatable`, and sections accept `source: "user"`.
+  - Exports file fields and image sub-fields of repeaters as `$media` references, as well as image fields.
+  
+  `$media` URLs are site-relative by default, and `emdash seed` cannot download a relative URL, so those fields came back empty. Pass the source site's public URL to write absolute URLs:
+  
+  ```sh
+  npx emdash export-seed --with-content=all --media-base-url=https://example.com > seed.json
+  ```
+  
+  Without `--media-base-url`, the export warns when it writes relative media URLs. Images inside Portable Text fields are not converted and still refer to the source site's media.
+
+- [#1928](https://github.com/emdash-cms/emdash/pull/1928) [`a5b4504`](https://github.com/emdash-cms/emdash/commit/a5b450497443ca4b2e236675ab1ba59d15845900) Thanks [@MA2153](https://github.com/MA2153)! - Adds relations, and makes `reference` fields entry pickers that link through them. A relation joins two collections under a site-unique slug, with a label and an optional link limit for each side; a reference field shows one side of it. An entry's selection is shared by all its translations, and on collections with revisions it goes live when the entry is published. Send selections under `references` on entry create and update, keyed by field slug. To render them, pass the field slugs in the `references` option of `getEmDashEntry`, and use `getEmDashReferences` to page past the first 50. `emdash types` generates a `{Collection}References` interface, seeds accept a top-level `relations` array, and `emdash export-seed --with-content` exports each entry's links. See the [Relations guide](https://docs.emdashcms.com/guides/relations/).
+  
+  Upgrading changes existing data and APIs:
+  
+  - A reference field that names a target collection becomes a picker and keeps its entries. Fields with no target, fields marked searchable or indexed, and fields whose locales select different entries keep working as before; convert them by hand under Content Types.
+  - Relations are no longer translated. A relation with different labels per locale keeps one set of labels. The relations API uses `slug` instead of `name`, requires `parentCollection` and `childCollection` on create, and no longer accepts `locale` or `translationOf`. `GET /_emdash/api/relations/:id/translations` is removed, and `GET /_emdash/api/relations` takes `collection` instead of `locale`.
+  - `POST /_emdash/api/content/:collection/:id/references/:relation/children` is removed. Write selections through `references` on the content create and update routes instead.
+  - `relations` is now a reserved collection slug. An existing collection with that slug keeps its content and API, but the admin no longer opens it.
+  
+  See [Reference fields bind to relations](https://docs.emdashcms.com/deployment/updating/#changed-reference-fields-bind-to-relations) for how existing fields are converted.
+
+### Patch Changes
+
+- [#3479](https://github.com/emdash-cms/emdash/pull/3479) [`35a55a4`](https://github.com/emdash-cms/emdash/commit/35a55a48e5bb5c06f03a2a180f58a6ca3eb6ebad) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates the empty Plugins screen to open the registry when sandboxed plugin installation is available, or link to the plugin installation guide when it is not.
+
+- [#3295](https://github.com/emdash-cms/emdash/pull/3295) [`078f167`](https://github.com/emdash-cms/emdash/commit/078f1673456690fe33c7407d8691fa896b296135) Thanks [@ascorbic](https://github.com/ascorbic)! - Shows the permissions a CLI or agent is requesting on the admin device authorization page (`/_emdash/admin/device`) before you approve its code. The page lists the permissions that approval will grant, and separately lists any requested permissions your role does not allow. The Authorize button stays disabled until the code is confirmed valid and at least one requested permission can be granted.
+  
+  A new authenticated `GET /_emdash/api/oauth/device/authorize?user_code=XXXX-XXXX` endpoint returns a pending code's `requestedScopes` and the `grantedScopes` an approval by the current user would receive. Unknown, already-used and expired codes return `INVALID_CODE` or `EXPIRED_CODE`.
+
+- [#3478](https://github.com/emdash-cms/emdash/pull/3478) [`67ef29d`](https://github.com/emdash-cms/emdash/commit/67ef29d42f82dd567666e9fff6691369162b25e2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes registry plugin installs, updates, and media previews failing on Cloudflare Workers with errors such as `The publisher DID document could not be fetched.` Registry HTTPS requests now use the Workers Fetch API instead of unsupported raw TCP sockets.
+
+- [#3456](https://github.com/emdash-cms/emdash/pull/3456) [`eee003f`](https://github.com/emdash-cms/emdash/commit/eee003ff2c9e23c01f60b76d28a1cb04485a4e6a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes cached pages continuing to show stale widget areas after an editor changes their widgets. `<WidgetArea>` now registers its cache dependency automatically, so templates do not need a separate widget-area query to receive invalidation.
+
+- [#3451](https://github.com/emdash-cms/emdash/pull/3451) [`73103f3`](https://github.com/emdash-cms/emdash/commit/73103f32b9ad3631ad5edd13fdb1e6469af6082d) Thanks [@swissky](https://github.com/swissky)! - Fixes `getEmDashEntry` stopping at the first locale that lacks an entry instead of continuing through the locale fallback chain. When the requested locale has no entry, it now returns the entry from the next locale in the chain, with `fallbackLocale` set, including in preview and visual-editing mode. An entry that exists in no locale now returns `entry: null` without an `error`, so pages that check `error` before `entry` show their not-found page instead of a 500 error.
+- Updated dependencies [[`35a55a4`](https://github.com/emdash-cms/emdash/commit/35a55a48e5bb5c06f03a2a180f58a6ca3eb6ebad), [`078f167`](https://github.com/emdash-cms/emdash/commit/078f1673456690fe33c7407d8691fa896b296135), [`a5b4504`](https://github.com/emdash-cms/emdash/commit/a5b450497443ca4b2e236675ab1ba59d15845900)]:
+  - @emdash-cms/admin@0.41.0
+  - @emdash-cms/auth@0.41.0
+  - @emdash-cms/blocks@0.41.0
+  - @emdash-cms/gutenberg-to-portable-text@0.41.0
+
 ## 0.40.1
 
 ### Patch Changes

@@ -129,6 +129,37 @@ function waitForPort(host, port, timeoutMs = 120_000) {
 	});
 }
 
+/**
+ * Resolve once nothing accepts connections on (host, port), or reject if
+ * something still does after the timeout. Anything left listening there
+ * would answer the measured requests in place of the server under test.
+ */
+function waitForPortFree(host, port, timeoutMs = 5_000) {
+	const deadline = Date.now() + timeoutMs;
+	return new Promise((resolveFree, rejectFree) => {
+		const attempt = () => {
+			const socket = createConnection({ host, port });
+			socket.once("connect", () => {
+				socket.destroy();
+				if (Date.now() > deadline) {
+					rejectFree(
+						new Error(
+							`${host}:${port} is already in use. Stop the process listening there (for example an astro dev or preview server left over from an earlier run) and retry.`,
+						),
+					);
+					return;
+				}
+				setTimeout(attempt, 100);
+			});
+			socket.once("error", () => {
+				socket.destroy();
+				resolveFree();
+			});
+		};
+		attempt();
+	});
+}
+
 function parseArgs(argv) {
 	const out = { target: "sqlite", update: false, skipBuild: false, skipSeed: false };
 	for (let i = 0; i < argv.length; i++) {
@@ -217,13 +248,21 @@ function seedSqliteCli() {
 	}
 }
 
+// Long-lived astro servers start from the fixture's bin shim, not through
+// `pnpm exec`: when the global pnpm differs from `packageManager`, `pnpm` is
+// a launcher that runs the pinned pnpm as a separate process, so stopping the
+// spawned child would orphan the server. The shim execs node in place, and
+// the dev server needs the NODE_PATH it sets to resolve its Babel plugins.
+const astroBin = resolve(fixtureDir, "node_modules/.bin/astro");
+
 // D1: the CLI can't reach D1 over the Workers protocol, so we seed by
 // running astro dev once (dev-bypass is gated on import.meta.env.DEV
 // and is stripped from prod builds) and hitting the dev-bypass endpoint.
 // Local D1 state persists in .wrangler/state across dev → preview.
 async function seedD1ViaDevBypass(events) {
 	process.stdout.write(`--- seeding via astro dev + dev-bypass ---\n`);
-	const child = spawn("pnpm", ["exec", "astro", "dev", "--host", HOST, "--port", String(PORT)], {
+	await waitForPortFree(HOST, PORT);
+	const child = spawn(astroBin, ["dev", "--host", HOST, "--port", String(PORT)], {
 		cwd: fixtureDir,
 		env: {
 			...process.env,
@@ -275,22 +314,24 @@ async function seedD1ViaDevBypass(events) {
 }
 
 /**
- * Spawn the prod server for the current target. Returns { ready, stop }.
+ * Spawn the prod server for the current target. Resolves to { ready, stop }.
  *   sqlite: node ./dist/server/entry.mjs (HOST/PORT env)
  *   d1:     astro preview (cloudflare adapter → wrangler dev)
  * `ready` resolves on a successful TCP connection — no HTTP probing,
  * so a fresh workerd isolate stays cold until our first tagged request.
  */
-function startServer({ collectedEvents, streamEndSnapshots = [] }) {
+async function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 	let cmd;
 	let args;
 	if (target === "sqlite") {
 		cmd = "node";
 		args = ["./dist/server/entry.mjs"];
 	} else {
-		cmd = "pnpm";
-		args = ["exec", "astro", "preview", "--host", HOST, "--port", String(PORT)];
+		cmd = astroBin;
+		args = ["preview", "--host", HOST, "--port", String(PORT)];
 	}
+
+	await waitForPortFree(HOST, PORT);
 
 	const child = spawn(cmd, args, {
 		cwd: fixtureDir,
@@ -510,7 +551,7 @@ async function runSqlite(events, streamEndSnapshots) {
 	}
 	if (skipBuild) assertExistingBuildMatchesTarget();
 	else buildFixture();
-	const server = startServer({ collectedEvents: events, streamEndSnapshots });
+	const server = await startServer({ collectedEvents: events, streamEndSnapshots });
 	try {
 		await server.ready;
 		await warmup();
@@ -543,7 +584,7 @@ async function runD1(events, streamEndSnapshots) {
 
 	for (const [m, p, accept] of ROUTES) {
 		process.stdout.write(`--- fresh isolate for ${m} ${p} ---\n`);
-		const server = startServer({ collectedEvents: events, streamEndSnapshots });
+		const server = await startServer({ collectedEvents: events, streamEndSnapshots });
 		try {
 			await server.ready;
 			await hit(m, p, accept, "cold");
@@ -578,6 +619,7 @@ function reportStreamEnd(snapshots) {
 }
 
 async function main() {
+	await waitForPortFree(HOST, PORT);
 	const events = [];
 	const streamEndSnapshots = [];
 	if (target === "sqlite") await runSqlite(events, streamEndSnapshots);

@@ -1244,6 +1244,8 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			});
 
 			if (baseError) {
+				// Astro reports a missing entry as an error; try the next locale.
+				if (baseError.name === "LiveEntryNotFoundError") continue;
 				return { entry: null, error: baseError, isPreview: serveDrafts, cacheHint: {} };
 			}
 
@@ -1312,6 +1314,8 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 
 			const { entry, error, cacheHint } = await getLiveEntry(COLLECTION_NAME, { type, id, locale });
 			if (error) {
+				// Astro reports a missing entry as an error; try the next locale.
+				if (error.name === "LiveEntryNotFoundError") continue;
 				return { entry: null, error, isPreview: false, cacheHint: {} };
 			}
 
