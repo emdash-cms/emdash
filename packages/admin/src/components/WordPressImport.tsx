@@ -344,9 +344,10 @@ export function WordPressImport() {
 	// Import mutation
 	const importMutation = useMutation({
 		mutationFn: ({ file, config }: { file: File; config: ImportConfig }) =>
-			executeWxrImport(file, config),
+			executeWxrImport(file, config, setWpImportProgress),
 		onSuccess: (data) => {
 			setImportError(null);
+			setWpImportProgress(null);
 			setResult(data);
 			if (analysis && analysis.attachments.count > 0) {
 				setStep("media");
@@ -355,6 +356,7 @@ export function WordPressImport() {
 			}
 		},
 		onError: (error) => {
+			setWpImportProgress(null);
 			setImportError(error instanceof Error ? error.message : t`Failed to execute import`);
 			setStep("review");
 		},
@@ -913,6 +915,7 @@ export function WordPressImport() {
 					{wpImportProgress ? (
 						<>
 							<p className="mt-4 text-kumo-subtle">
+								{wpImportProgress.phase === "taxonomy" && t`Preparing categories and tags...`}
 								{wpImportProgress.phase === "content" &&
 									(totalSelectedPosts > 0
 										? t`Importing content... ${wpImportProgress.processed} of ${totalSelectedPosts}`
@@ -920,6 +923,7 @@ export function WordPressImport() {
 								{wpImportProgress.phase === "comments" &&
 									t`Importing comments... ${wpImportProgress.comments}`}
 								{wpImportProgress.phase === "finalize" && t`Importing menus and site settings...`}
+								{wpImportProgress.phase === "sections" && t`Importing reusable blocks...`}
 							</p>
 							{totalSelectedPosts > 0 && wpImportProgress.phase === "content" && (
 								<div className="mx-auto mt-4 h-2 w-64 overflow-hidden rounded-full bg-kumo-fill">

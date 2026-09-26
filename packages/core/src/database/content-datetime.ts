@@ -6,6 +6,7 @@ import {
 	normalizeDatetime,
 	type DatetimeFieldDescriptor,
 } from "../datetime-normalization.js";
+import { requestCached } from "../request-cache.js";
 import type { RepeaterSubField } from "../schema/types.js";
 import { EmDashValidationError } from "./repositories/types.js";
 import type { Database } from "./types.js";
@@ -54,13 +55,18 @@ export class ContentDatetimeNormalizer {
 	) {}
 
 	private context(collection: string): Promise<DatetimeContext> {
-		if (!this.contexts) return this.loadContext(collection);
-		let context = this.contexts.get(collection);
-		if (!context) {
-			context = this.loadContext(collection);
-			this.contexts.set(collection, context);
+		if (this.contexts) {
+			let context = this.contexts.get(collection);
+			if (!context) {
+				context = this.loadContext(collection);
+				this.contexts.set(collection, context);
+			}
+			return context;
 		}
-		return context;
+		// Fall back to the per-request cache so repeated writes in the same
+		// invocation (e.g. bulk imports) do not re-query field/timezone metadata
+		// for every item.
+		return requestCached(`datetimeContext:${collection}`, () => this.loadContext(collection));
 	}
 
 	private async loadContext(collection: string): Promise<DatetimeContext> {
