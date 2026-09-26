@@ -1042,9 +1042,10 @@ function referenceTargets(
  * `$ref` into a collection further down resolves to nothing and is stored
  * verbatim.
  *
- * Depth-first, with the caller's order as the tie-break so an export without
- * references keeps the collection order it had. A cycle has no valid order;
- * the collections on it stay where they were rather than failing the export.
+ * Depth-first post-order, with the caller's order as the tie-break so an
+ * export without references keeps the collection order it had. A cycle has no
+ * valid order; the algorithm still terminates and emits a deterministic order
+ * rather than failing the export.
  */
 function orderByReferenceTargets(slugs: string[], targets: Map<string, Set<string>>): string[] {
 	const exported = new Set(slugs);
