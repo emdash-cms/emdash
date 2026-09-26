@@ -28,6 +28,7 @@ export type {
 	LinkElement,
 	LinkTarget,
 	NavigationElement,
+	MenuElement,
 	ActionElement,
 	TextInputElement,
 	NumberInputElement,

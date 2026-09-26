@@ -395,8 +395,23 @@ const plugin: SandboxedPlugin = {
 								columns: [
 									{ key: "surface", label: "Surface" },
 									{ key: "status", label: "Status" },
+									{ key: "action", label: "Actions", format: "element" },
 								],
-								rows: [{ surface: "sandbox", status: "ready" }],
+								rows: [
+									{
+										surface: "sandbox",
+										status: "ready",
+										action: {
+											type: "menu",
+											label: "Run",
+											action_id: "row-action",
+											items: [
+												{ label: "Check", value: "check" },
+												{ label: "Reset", value: "reset" },
+											],
+										},
+									},
+								],
 								page_action_id: "page-components",
 								empty_text: "No diagnostics",
 							},
