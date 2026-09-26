@@ -239,6 +239,7 @@ export interface EmDashManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
 		favicon?: string;
 	};
 }

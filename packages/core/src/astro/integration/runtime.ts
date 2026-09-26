@@ -628,6 +628,7 @@ export interface EmDashConfig {
 	 *   admin: {
 	 *     logo: "/images/agency-logo.webp",
 	 *     siteName: "AgencyX CMS",
+	 *     footerLabel: "AgencyX",
 	 *     favicon: "/favicon.ico",
 	 *   },
 	 * })
@@ -636,8 +637,10 @@ export interface EmDashConfig {
 	admin?: {
 		/** URL or path to a custom logo image for the admin UI (login page, sidebar). */
 		logo?: string;
-		/** Custom name displayed in the admin sidebar and browser tab. */
+		/** Custom name displayed in the admin sidebar header and browser tab. */
 		siteName?: string;
+		/** Label displayed beside the version in the sidebar footer. Set to false to hide it. */
+		footerLabel?: string | false;
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};
