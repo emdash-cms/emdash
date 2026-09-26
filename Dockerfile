@@ -53,8 +53,13 @@ FROM node:22-slim
 WORKDIR /app
 COPY --from=build /deploy .
 
-RUN mkdir -p data uploads \
-    && ln -s /app/node_modules/.pnpm/node_modules/kysely /app/node_modules/kysely
+# A site built with postgres() or libsql() imports its driver (pg or
+# @libsql/kysely-libsql) from the bundled server by bare name, but the legacy
+# deploy leaves both only under .pnpm/node_modules.
+RUN mkdir -p data uploads /app/node_modules/@libsql \
+    && ln -s /app/node_modules/.pnpm/node_modules/kysely /app/node_modules/kysely \
+    && ln -s /app/node_modules/.pnpm/node_modules/pg /app/node_modules/pg \
+    && ln -s /app/node_modules/.pnpm/node_modules/@libsql/kysely-libsql /app/node_modules/@libsql/kysely-libsql
 
 ENV HOST=0.0.0.0
 ENV PORT=4321
