@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 
 const BATCH_SIZE = 100;
+const ISO_TIMEZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/;
 
 export async function up(db: Kysely<unknown>): Promise<void> {
 	let cursor = "";
@@ -15,7 +16,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 		if (rows.rows.length === 0) break;
 		for (const row of rows.rows) {
-			const parsed = new Date(row.next_run_at);
+			const normalized = row.next_run_at.replace(" ", "T");
+			const input = ISO_TIMEZONE_PATTERN.test(normalized) ? normalized : `${normalized}Z`;
+			const parsed = new Date(input);
 			if (Number.isNaN(parsed.getTime())) continue;
 			const canonical = parsed.toISOString();
 			if (canonical === row.next_run_at) continue;

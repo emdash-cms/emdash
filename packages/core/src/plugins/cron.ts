@@ -388,7 +388,8 @@ export function isOneShot(schedule: string): boolean {
 
 function oneShotTime(schedule: string): string {
 	const withoutZone = ISO_DATETIME_PATTERN.test(schedule) && !ISO_TIMEZONE_PATTERN.test(schedule);
-	const input = withoutZone ? `${schedule.replace(" ", "T")}Z` : schedule;
+	const normalized = ISO_DATETIME_PATTERN.test(schedule) ? schedule.replace(" ", "T") : schedule;
+	const input = withoutZone ? `${normalized}Z` : normalized;
 	return new Date(input).toISOString();
 }
 

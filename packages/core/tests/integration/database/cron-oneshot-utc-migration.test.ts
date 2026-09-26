@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect } from "vitest";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 
 import { up } from "../../../src/database/migrations/088_cron_oneshot_utc.js";
 import {
@@ -18,14 +18,18 @@ describeEachDialect("cron one-shot UTC migration", (dialect) => {
 
 	afterEach(async () => {
 		await teardownForDialect(ctx);
+		vi.unstubAllEnvs();
 	});
 
-	it("normalizes offset rows and can resume after partial completion", async () => {
+	it("normalizes offset and no-offset rows and can resume after partial completion", async () => {
+		vi.stubEnv("TZ", "America/New_York");
 		await sql`
 			INSERT INTO _emdash_cron_tasks
 				(id, plugin_id, task_name, schedule, is_oneshot, data, next_run_at, status, enabled)
 			VALUES
 				('negative', 'plugin', 'negative', '2030-01-02T03:04:05-03:00', 1, NULL, '2030-01-02T03:04:05-03:00', 'idle', 1),
+				('no-zone-space', 'plugin', 'no-zone-space', '2030-01-02 03:04:05', 1, NULL, '2030-01-02 03:04:05', 'idle', 1),
+				('no-zone-t', 'plugin', 'no-zone-t', '2030-01-02T03:04:05', 1, NULL, '2030-01-02T03:04:05', 'idle', 1),
 				('positive', 'plugin', 'positive', '2030-01-02T03:04:05+02:00', 1, NULL, '2030-01-02T03:04:05+02:00', 'idle', 1),
 				('canonical', 'plugin', 'canonical', '2030-01-02T03:04:05Z', 1, NULL, '2030-01-02T03:04:05.000Z', 'idle', 1),
 				('recurring', 'plugin', 'recurring', '@daily', 0, NULL, '2030-01-02T03:04:05+02:00', 'idle', 1)
@@ -45,6 +49,8 @@ describeEachDialect("cron one-shot UTC migration", (dialect) => {
 		expect(rows.rows).toEqual([
 			{ id: "canonical", next_run_at: "2030-01-02T03:04:05.000Z" },
 			{ id: "negative", next_run_at: "2030-01-02T06:04:05.000Z" },
+			{ id: "no-zone-space", next_run_at: "2030-01-02T03:04:05.000Z" },
+			{ id: "no-zone-t", next_run_at: "2030-01-02T03:04:05.000Z" },
 			{ id: "positive", next_run_at: "2030-01-02T01:04:05.000Z" },
 			{ id: "recurring", next_run_at: "2030-01-02T03:04:05+02:00" },
 		]);
