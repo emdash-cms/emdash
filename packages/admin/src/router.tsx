@@ -973,13 +973,13 @@ function ContentEditPage() {
 	// that runs before the next render still sees the conflict.
 	const conflictedEntryIdRef = React.useRef("");
 	const serializeEditorSave = React.useCallback(
-		<T,>(operation: () => Promise<T>, { explicitSave = false } = {}) => {
+		<T,>(operation: () => Promise<T>, { explicitSave = false, allowConflict = false } = {}) => {
 			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
 			const result = editorSaveQueueRef.current.then(() => {
 				// The token the recovery fetched is only for a save the writer starts
 				// while the conflict shows; anything else would write over a version
 				// they have not seen.
-				if (!savesOverConflict && conflictedEntryIdRef.current === id) {
+				if (!savesOverConflict && !allowConflict && conflictedEntryIdRef.current === id) {
 					throw new Error(
 						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
 					);
@@ -1566,15 +1566,18 @@ function ContentEditPage() {
 				bylines?: BylineCreditInput[];
 			},
 		) => {
-			await serializeEditorSave(async () => {
-				if (!payload) return;
-				return updateMutation.mutateAsync({
-					targetId: id,
-					targetLocale: rawItem?.locale ?? activeLocale,
-					source: "editor",
-					changes: payload,
-				});
-			});
+			await serializeEditorSave(
+				async () => {
+					if (!payload) return;
+					return updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					});
+				},
+				{ allowConflict: !payload },
+			);
 			await publishedAtMutation.mutateAsync(publishedAt);
 		},
 		[
