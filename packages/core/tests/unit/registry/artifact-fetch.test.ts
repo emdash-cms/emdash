@@ -111,9 +111,27 @@ describe("registry artifact fetch", () => {
 
 		expect(workerFetch).toHaveBeenCalledWith(
 			new URL("https://cdn.example/artifact.tgz?release=1"),
-			expect.objectContaining({ redirect: "manual" }),
+			expect.objectContaining({
+				redirect: "manual",
+				headers: { "Accept-Encoding": "identity" },
+			}),
 		);
 		expect(await response.text()).toBe("artifact");
+	});
+
+	it("limits Workers Fetch response bodies", async () => {
+		setDefaultDnsResolver(async () => ["93.184.216.34"]);
+		vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
+		vi.stubGlobal("fetch", async () => new Response("artifact"));
+
+		const response = await fetchRegistryArtifactUrl("https://cdn.example/artifact.tgz", {
+			signal: new AbortController().signal,
+			maxResponseBytes: 4,
+		});
+
+		await expect(response.arrayBuffer()).rejects.toThrow(
+			"Registry artifact response exceeds its byte limit",
+		);
 	});
 
 	it.each([true, false])(

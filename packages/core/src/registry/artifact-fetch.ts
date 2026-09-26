@@ -144,8 +144,12 @@ export function createWorkersRegistryArtifactTransport(
 			const response = await workerFetch(input.url, {
 				redirect: "manual",
 				signal: input.signal,
+				headers: { "Accept-Encoding": "identity" },
 			});
-			return { response, connectedAddress: null };
+			return {
+				response: limitResponseBody(response, input.maxResponseBytes),
+				connectedAddress: null,
+			};
 		},
 	};
 }
@@ -156,6 +160,28 @@ function isCloudflareWorkersRuntime(): boolean {
 		typeof navigator.userAgent === "string" &&
 		navigator.userAgent.includes("Cloudflare-Workers")
 	);
+}
+
+function limitResponseBody(response: Response, maxBytes: number): Response {
+	if (!response.body) return response;
+	let received = 0;
+	const body = response.body.pipeThrough(
+		new TransformStream<Uint8Array, Uint8Array>({
+			transform(chunk, controller) {
+				received += chunk.byteLength;
+				if (received > maxBytes) {
+					controller.error(new RangeError("Registry artifact response exceeds its byte limit"));
+					return;
+				}
+				controller.enqueue(chunk);
+			},
+		}),
+	);
+	return new Response(body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: response.headers,
+	});
 }
 
 export type RegistryArtifactNodeRequest = (
