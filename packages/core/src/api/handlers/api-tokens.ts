@@ -272,3 +272,17 @@ export async function resolveOAuthToken(
 		tokenId: `oauth:${hashApiToken(row.refresh_token_hash ?? hash)}`,
 	};
 }
+
+/**
+ * Delete expired OAuth access and refresh tokens. Each row is judged by its
+ * own expiry: an access token issued shortly before its refresh token expired
+ * stays usable until it expires itself.
+ */
+export async function cleanupExpiredOAuthTokens(db: Kysely<Database>): Promise<number> {
+	const result = await db
+		.deleteFrom("_emdash_oauth_tokens")
+		.where("expires_at", "<", new Date().toISOString())
+		.executeTakeFirst();
+
+	return Number(result.numDeletedRows);
+}

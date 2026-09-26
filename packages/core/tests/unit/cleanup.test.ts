@@ -5,13 +5,21 @@ import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { handleDeviceTokenExchange } from "../../src/api/handlers/device-flow.js";
 import { runSystemCleanup } from "../../src/cleanup.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaRepository } from "../../src/database/repositories/media.js";
 import { MAX_404_LOG_ROWS } from "../../src/database/repositories/redirect.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import type { Database } from "../../src/database/types.js";
-import { setupTestDatabase, setupTestDatabaseWithCollections } from "../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialect,
+	setupTestDatabase,
+	setupTestDatabaseWithCollections,
+	teardownForDialect,
+	type DialectTestContext,
+} from "../utils/test-db.js";
 
 describe("Revision Pruning", () => {
 	let db: Kysely<Database>;
@@ -478,5 +486,172 @@ describe("Expired token cleanup", () => {
 
 		expect(remaining).toHaveLength(5);
 		expect(remaining.every((r) => r.hash.startsWith("valid-"))).toBe(true);
+	});
+});
+
+describeEachDialect("Expired OAuth token cleanup", (dialect) => {
+	let ctx: DialectTestContext;
+	const userId = "cleanup-user";
+	const past = () => new Date(Date.now() - 60 * 1000).toISOString();
+	const future = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+		const now = new Date().toISOString();
+		await ctx.db
+			.insertInto("users")
+			.values({
+				id: userId,
+				email: "cleanup@example.com",
+				name: "Cleanup",
+				avatar_url: null,
+				role: 50,
+				email_verified: 1,
+				disabled: 0,
+				data: null,
+				created_at: now,
+				updated_at: now,
+			})
+			.execute();
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	function oauthToken(
+		tokenHash: string,
+		tokenType: "access" | "refresh",
+		expiresAt: string,
+		refreshTokenHash: string | null = null,
+	) {
+		return {
+			token_hash: tokenHash,
+			token_type: tokenType,
+			user_id: userId,
+			scopes: '["content:read"]',
+			client_type: "cli",
+			expires_at: expiresAt,
+			refresh_token_hash: refreshTokenHash,
+			client_id: null,
+		};
+	}
+
+	it("deletes expired OAuth tokens and keeps unexpired ones", async () => {
+		await ctx.db
+			.insertInto("_emdash_oauth_tokens")
+			.values([
+				oauthToken("expired-refresh", "refresh", past()),
+				oauthToken("expired-access-of-expired-refresh", "access", past(), "expired-refresh"),
+				oauthToken("live-refresh", "refresh", future()),
+				oauthToken("expired-access-of-live-refresh", "access", past(), "live-refresh"),
+				oauthToken("live-access", "access", future(), "live-refresh"),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_oauth_tokens")
+			.select("token_hash")
+			.orderBy("token_hash")
+			.execute();
+		expect(remaining.map((row) => row.token_hash)).toEqual(["live-access", "live-refresh"]);
+		expect(result.oauthTokens).toBe(3);
+	});
+
+	function deviceCode(code: string, status: string, expiresAt: string) {
+		return {
+			device_code: code,
+			user_code: code.toUpperCase(),
+			scopes: '["content:read"]',
+			user_id: status === "authorized" ? userId : null,
+			status,
+			expires_at: expiresAt,
+			interval: 5,
+			last_polled_at: null,
+		};
+	}
+
+	// Device codes get a one-hour grace after expiry, so these are past it.
+	const pastDeviceCodeGrace = () => new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+	it("deletes device codes expired past the grace period whatever their status", async () => {
+		await ctx.db
+			.insertInto("_emdash_device_codes")
+			.values([
+				deviceCode("expired-pending", "pending", pastDeviceCodeGrace()),
+				deviceCode("expired-authorized", "authorized", pastDeviceCodeGrace()),
+				deviceCode("live-pending", "pending", future()),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_device_codes")
+			.select("device_code")
+			.execute();
+		expect(remaining.map((row) => row.device_code)).toEqual(["live-pending"]);
+		expect(result.deviceCodes).toBe(2);
+	});
+
+	it("keeps a device code that expired within the grace period, so a poll still gets expired_token", async () => {
+		await ctx.db
+			.insertInto("_emdash_device_codes")
+			.values([
+				deviceCode("recently-expired", "pending", past()),
+				deviceCode("long-expired", "pending", pastDeviceCodeGrace()),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_device_codes")
+			.select("device_code")
+			.execute();
+		expect(remaining.map((row) => row.device_code)).toEqual(["recently-expired"]);
+		expect(result.deviceCodes).toBe(1);
+
+		const grantType = "urn:ietf:params:oauth:grant-type:device_code";
+		const recentPoll = await handleDeviceTokenExchange(ctx.db, {
+			device_code: "recently-expired",
+			grant_type: grantType,
+		});
+		expect(recentPoll).toMatchObject({ success: false, deviceFlowError: "expired_token" });
+
+		const latePoll = await handleDeviceTokenExchange(ctx.db, {
+			device_code: "long-expired",
+			grant_type: grantType,
+		});
+		expect(latePoll).toMatchObject({ success: false, error: { code: "INVALID_GRANT" } });
+	});
+
+	it("deletes expired authorization codes", async () => {
+		const authorizationCode = (codeHash: string, expiresAt: string) => ({
+			code_hash: codeHash,
+			client_id: "https://client.example/metadata.json",
+			redirect_uri: "https://client.example/callback",
+			user_id: userId,
+			scopes: '["content:read"]',
+			code_challenge: "challenge",
+			code_challenge_method: "S256",
+			resource: null,
+			expires_at: expiresAt,
+		});
+		await ctx.db
+			.insertInto("_emdash_authorization_codes")
+			.values([authorizationCode("expired-code", past()), authorizationCode("live-code", future())])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_authorization_codes")
+			.select("code_hash")
+			.execute();
+		expect(remaining.map((row) => row.code_hash)).toEqual(["live-code"]);
+		expect(result.authorizationCodes).toBe(1);
 	});
 });

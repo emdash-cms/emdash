@@ -757,3 +757,30 @@ export async function handleTokenRevoke(
 		};
 	}
 }
+
+/**
+ * How long an expired device code is kept before cleanup deletes it.
+ *
+ * RFC 8628 §3.5 answers a poll for an expired code with `expired_token`, which
+ * tells the client to stop polling and start a new login. That answer needs the
+ * row: once it is gone, the same poll gets `invalid_grant`. A client polls at
+ * least once every `MAX_SLOW_DOWN_INTERVAL` seconds, and
+ * `handleDeviceTokenExchange` deletes the code itself when it answers
+ * `expired_token`, so an hour is far longer than any client keeps polling after
+ * expiry, while abandoned codes still leave the table.
+ */
+const DEVICE_CODE_CLEANUP_GRACE_MS = 60 * 60 * 1000;
+
+/**
+ * Delete device codes that expired more than `DEVICE_CODE_CLEANUP_GRACE_MS`
+ * ago, whatever their status.
+ */
+export async function cleanupExpiredDeviceCodes(db: Kysely<Database>): Promise<number> {
+	const cutoff = new Date(Date.now() - DEVICE_CODE_CLEANUP_GRACE_MS).toISOString();
+	const result = await db
+		.deleteFrom("_emdash_device_codes")
+		.where("expires_at", "<", cutoff)
+		.executeTakeFirst();
+
+	return Number(result.numDeletedRows);
+}
