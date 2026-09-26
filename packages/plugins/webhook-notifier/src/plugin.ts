@@ -314,7 +314,7 @@ export default {
 					values?: Record<string, unknown>;
 				};
 
-				if (interaction.type === "page_load" && interaction.page === "widget:webhook-status") {
+				if (interaction.type === "page_load" && interaction.page === "widget:status") {
 					return buildStatusWidget(ctx);
 				}
 				if (interaction.type === "page_load" && interaction.page === "/settings") {
@@ -565,7 +565,7 @@ async function buildSettingsPage(ctx: PluginContext) {
 					elements: [
 						{
 							type: "button",
-							text: "Test Webhook",
+							label: "Test Webhook",
 							action_id: "test_webhook",
 							style: "primary",
 						},
@@ -597,7 +597,7 @@ async function saveSettings(ctx: PluginContext, values: Record<string, unknown>)
 	} catch (error) {
 		ctx.log.error("Failed to save settings", error);
 		return {
-			blocks: [{ type: "banner", style: "error", text: "Failed to save settings" }],
+			blocks: [{ type: "banner", variant: "error", title: "Failed to save settings" }],
 			toast: { message: "Failed to save settings", type: "error" },
 		};
 	}
@@ -607,7 +607,7 @@ async function testWebhook(ctx: PluginContext) {
 	const url = await ctx.kv.get<string>("settings:webhookUrl");
 	if (!url) {
 		return {
-			blocks: [{ type: "banner", style: "warning", text: "Enter a webhook URL first." }],
+			blocks: [{ type: "banner", variant: "alert", title: "Enter a webhook URL first." }],
 			toast: { message: "No webhook URL configured", type: "error" },
 		};
 	}
