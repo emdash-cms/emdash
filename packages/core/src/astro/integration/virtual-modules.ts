@@ -295,6 +295,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
+					mcp: descriptor.mcp,
 				})})`,
 			);
 		} else {

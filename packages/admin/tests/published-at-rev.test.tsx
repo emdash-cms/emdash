@@ -221,6 +221,7 @@ describe("ContentEditPage publication date", () => {
 			const puts = server?.requests.filter((request) => request.method === "PUT");
 			expect(puts).toHaveLength(2);
 			expect(puts?.at(-1)?.body).toMatchObject({ _rev: "rev-moved" });
+			expect(puts?.at(-1)?.body).not.toHaveProperty("data");
 		});
 	});
 });

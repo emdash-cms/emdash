@@ -454,6 +454,7 @@ export interface EmDashHandlers {
 		url?: string;
 		contentType?: string;
 		alt?: string;
+		caption?: string;
 		authorId?: string;
 		maxUploadSize?: number;
 	}) => Promise<HandlerResponse>;
