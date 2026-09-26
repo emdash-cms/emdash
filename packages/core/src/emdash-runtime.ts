@@ -252,7 +252,14 @@ import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
+import { createCloudflareEmailPlugin } from "./plugins/email-cloudflare.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
+import {
+	createSmtpEmailDeliverFromDb,
+	isSmtpConfigComplete,
+	loadSmtpConfigFromEnv,
+	SMTP_EMAIL_PLUGIN_ID,
+} from "./plugins/email-smtp.js";
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
@@ -1785,6 +1792,53 @@ export class EmDashRuntime {
 			}
 		}
 
+		// Register the built-in SMTP email provider, even unconfigured, so it
+		// appears in the Settings → Email provider list. The handler loads its
+		// config (DB first, env fallback) on every send. Only env config makes
+		// it an auto-select candidate; saving DB config also stores the selection.
+		// Secrets read process.env only — import.meta.env is statically inlined
+		// at build time and would bake the build machine's key into the bundle.
+		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
+		try {
+			let smtpEnvConfigured = false;
+			try {
+				smtpEnvConfigured = isSmtpConfigComplete(loadSmtpConfigFromEnv());
+			} catch {
+				// Invalid env config (e.g. port 25) — surfaced at delivery time.
+			}
+			const smtpPlugin = definePlugin({
+				id: SMTP_EMAIL_PLUGIN_ID,
+				version: "1.0.0",
+				capabilities: ["hooks.email-transport:register"],
+				hooks: {
+					"email:deliver": {
+						exclusive: true,
+						autoSelect: smtpEnvConfigured,
+						// SMTP over public internet (EHLO → STARTTLS → AUTH → DATA)
+						// needs far more than the 5s default hook timeout.
+						timeout: 30_000,
+						handler: createSmtpEmailDeliverFromDb(db, encryptionKey ?? null),
+					},
+				},
+			});
+			allPipelinePlugins.push(smtpPlugin);
+			enabledPlugins.add(smtpPlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register SMTP email provider:", error);
+		}
+
+		// Register the built-in Cloudflare Email provider. Always registered
+		// (even unconfigured) so it appears in the Settings → Email list; the
+		// handler loads config (DB first, env fallback) lazily per send and
+		// checks the send_email binding at delivery time with a clear error.
+		try {
+			const cloudflarePlugin = createCloudflareEmailPlugin(db);
+			allPipelinePlugins.push(cloudflarePlugin);
+			enabledPlugins.add(cloudflarePlugin.id);
+		} catch (error) {
+			console.warn("[email] Failed to register Cloudflare Email provider:", error);
+		}
+
 		// Register built-in default comment moderator.
 		// Always present as a fallback: exclusive hook resolution selects a
 		// single plugin moderator (e.g. AI moderation) over it unless the site
@@ -2878,10 +2932,8 @@ export class EmDashRuntime {
 			getOption: (key) => optionsRepo.get<string>(key),
 			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
-			deleteOption: async (key) => {
-				await optionsRepo.delete(key);
-			},
 			preferredHints,
+			ephemeralProviders: new Set([DEV_CONSOLE_EMAIL_PLUGIN_ID]),
 			fallbackProviders: new Set([DEFAULT_COMMENT_MODERATOR_PLUGIN_ID]),
 		});
 	}
