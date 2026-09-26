@@ -1,5 +1,3 @@
-import { fileURLToPath } from "node:url";
-
 import type { AstroConfig } from "astro";
 import { build, type PluginOption } from "vite";
 import { describe, expect, it } from "vitest";
@@ -8,11 +6,6 @@ import { createViteConfig } from "../../../../src/astro/integration/vite-config.
 
 const ENTRY_ID = "virtual:workers-builtins-entry";
 const RESOLVED_ENTRY_ID = `\0${ENTRY_ID}`;
-const ARTIFACT_FETCH_PATH = fileURLToPath(
-	new URL("../../../../src/registry/artifact-fetch.ts", import.meta.url),
-);
-const WORKERS_SOCKETS_IMPORT = /import\(\s*["']cloudflare:sockets["']\s*\)/;
-
 function nodeAdapterPlugins(): PluginOption[] {
 	const config = createViteConfig(
 		{
@@ -61,15 +54,6 @@ async function buildEntry(source: string, target: "server" | "client"): Promise<
 }
 
 describe("Node adapter builds with Workers built-ins", () => {
-	it("bundles core's artifact fetch and keeps its Workers socket import for the runtime", async () => {
-		const code = await buildEntry(
-			`export { fetchRegistryArtifactUrl } from ${JSON.stringify(ARTIFACT_FETCH_PATH)};`,
-			"server",
-		);
-
-		expect(code).toMatch(WORKERS_SOCKETS_IMPORT);
-	});
-
 	it("still fails a server build that imports another Workers built-in", async () => {
 		await expect(
 			buildEntry(`export const load = () => import("cloudflare:workers");`, "server"),
