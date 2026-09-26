@@ -75,12 +75,30 @@ describe("handleMediaUpload (#620)", () => {
 		expect(item.filename).toBe("pixel.png");
 		expect(item.mimeType).toBe("image/png");
 		expect(item.alt).toBe("a pixel");
+		expect(item.caption).toBeNull();
 		expect(item.authorId).toBe("user_1");
 		expect(item.width).toBe(1);
 		expect(item.height).toBe(1);
 		expect(item.storageKey).toMatch(/\.png$/);
 		expect(item.url).toBe(`/_emdash/api/media/file/${item.storageKey}`);
 		expect(storage.uploads.get(item.storageKey)).toEqual(PNG_BYTES);
+	});
+
+	it("stores caption alongside alt on the media record", async () => {
+		const result = await handleMediaUpload(db, storage, {
+			filename: "pixel.png",
+			base64: PNG_BASE64,
+			contentType: "image/png",
+			alt: "a pixel",
+			caption: "Photo: probe caption",
+			authorId: "user_1",
+		});
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		const { item } = result.data;
+		expect(item.alt).toBe("a pixel");
+		expect(item.caption).toBe("Photo: probe caption");
 	});
 
 	it("deduplicates identical bytes by content hash", async () => {

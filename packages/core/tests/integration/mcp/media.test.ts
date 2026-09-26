@@ -35,6 +35,10 @@ const AUTHOR_ID = "user_author";
 const OTHER_AUTHOR_ID = "user_other_author";
 const SUBSCRIBER_ID = "user_subscriber";
 
+// 1x1 transparent PNG
+const PNG_BASE64 =
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
 async function seedMedia(
 	db: Kysely<Database>,
 	overrides: Partial<{
@@ -143,6 +147,111 @@ describe("media_list", () => {
 		const result = await harness.client.callTool({
 			name: "media_list",
 			arguments: {},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// media_upload
+// ---------------------------------------------------------------------------
+
+describe("media_upload", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+	let storage: MemoryStorage;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		storage = createMemoryStorage();
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("MCP exposes media_upload", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: { storage },
+		});
+		const tools = await harness.client.listTools();
+		const names = new Set(tools.tools.map((t) => t.name));
+		expect(names.has("media_upload")).toBe(true);
+	});
+
+	it("uploads base64 data and stores caption with alt", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+		const result = await harness.client.callTool({
+			name: "media_upload",
+			arguments: {
+				filename: "probe.png",
+				base64: PNG_BASE64,
+				contentType: "image/png",
+				alt: "Accessible description",
+				caption: "Photo: probe caption",
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<{
+			item: { id: string; filename: string; alt: string; caption: string; url: string };
+		}>(result);
+		expect(data.item.filename).toBe("probe.png");
+		expect(data.item.alt).toBe("Accessible description");
+		expect(data.item.caption).toBe("Photo: probe caption");
+		expect(data.item.url).toMatch(/\/_emdash\/api\/media\/file\//);
+
+		const fetched = await harness.client.callTool({
+			name: "media_get",
+			arguments: { id: data.item.id },
+		});
+		const fetchedData = extractJson<{ item: { caption: string } }>(fetched);
+		expect(fetchedData.item.caption).toBe("Photo: probe caption");
+	});
+
+	it("omitting caption leaves it null", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: AUTHOR_ID,
+			userRole: Role.AUTHOR,
+			runtimeOptions: { storage },
+		});
+		const result = await harness.client.callTool({
+			name: "media_upload",
+			arguments: {
+				filename: "probe.png",
+				base64: PNG_BASE64,
+				contentType: "image/png",
+				alt: "Accessible description",
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<{ item: { caption: string | null } }>(result);
+		expect(data.item.caption).toBeNull();
+	});
+
+	it("CONTRIBUTOR can upload media", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: "user_contributor",
+			userRole: Role.CONTRIBUTOR,
+			runtimeOptions: { storage },
+		});
+		const result = await harness.client.callTool({
+			name: "media_upload",
+			arguments: {
+				filename: "probe.png",
+				base64: PNG_BASE64,
+				contentType: "image/png",
+			},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
 	});

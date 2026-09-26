@@ -2591,6 +2591,7 @@ export function createMcpServer(
 					.regex(CONTENT_TYPE_RE, "Invalid content type")
 					.describe("MIME type (e.g. 'image/png')."),
 				alt: z.string().optional().describe("Alt text for accessibility"),
+				caption: z.string().optional().describe("Caption text"),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -2608,6 +2609,7 @@ export function createMcpServer(
 						base64: args.base64,
 						contentType: args.contentType,
 						alt: args.alt,
+						caption: args.caption,
 						authorId: userId,
 						maxUploadSize: emdash.config.maxUploadSize,
 					}),
