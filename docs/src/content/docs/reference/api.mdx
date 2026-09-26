@@ -18,12 +18,13 @@ The maintained templates call these runtime helpers:
 | `decodeSlug` | Decoding a dynamic route parameter before lookup |
 | `getEmDashCollection` | Reading and filtering entries in a collection |
 | `getEmDashEntry` | Reading one entry by ID or slug |
-| `getMenu` | Rendering a navigation menu and its resolved links |
+| `getMenuWithCacheHint` | Rendering a navigation menu with cache invalidation |
 | `getSeoMeta` | Resolving an entry's SEO panel values and template fallbacks |
 | `getSiteSettings` | Reading public site identity and other global settings |
-| `getTaxonomyTerms` | Rendering taxonomy navigation, filters, and term indexes |
-| `getTerm` | Reading one taxonomy term for an archive page |
+| `getSiteSettingsWithCacheHint` | Reading global settings with cache invalidation |
+| `getTaxonomyTermsWithCacheHint` | Rendering taxonomy filters with cache invalidation |
 | `getTermsForEntries` | Batch-loading one taxonomy for a list of entries |
+| `sanitizeHref` | Rejecting unsafe URL schemes before rendering stored links |
 | `search` | Searching published content across collections |
 
 ## Content queries
@@ -149,17 +150,19 @@ if (!post) {
 | ------------ | -------- | ---------------- |
 | `collection` | `string` | Collection slug  |
 | `slugOrId`   | `string` | Entry slug or ID |
-| `options`    | `{ locale?: string }` | Optional. Locale for slug resolution |
+| `options`    | `{ locale?: string; references?: ReferenceSelection }` | Optional. Locale for slug resolution, and the reference fields to load |
 
-Preview mode is handled automatically: when the request has a valid `_preview` token, the query serves draft content. The optional `options` parameter only accepts a `locale` for slug resolution; preview state requires no parameter.
+Preview mode is handled automatically: when the request has a valid `_preview` token, the query serves draft content. Preview state requires no parameter.
+
+`references` names the reference fields to load, keyed by field slug. `true` requests the first page at the default limit of 50 entries; the object form takes a `limit` (at most 100) and the `cursor` from a previous page. Fields left out are not read, and a call that omits the option runs no reference queries.
 
 #### Returns
 
 The function resolves to an `EntryResult`:
 
 ```ts
-interface EntryResult<T> {
-	entry: ContentEntry<T> | null; // null if not found
+interface EntryResult<T, R> {
+	entry: ContentEntry<T, R> | null; // null if not found
 	error?: Error; // Set only for actual errors, not "not found"
 	isPreview: boolean; // true if draft content is being served
 	fallbackLocale?: string; // Set when locale fallback returned another locale
@@ -237,9 +240,10 @@ It returns `{ collection, id, field }` for an annotated value, or `undefined` wh
 Query functions return entries in the following shape:
 
 ```ts
-interface ContentEntry<T = Record<string, unknown>> {
+interface ContentEntry<T = Record<string, unknown>, R = ReferencePages> {
 	id: string;
 	data: T;
+	references?: R; // One page per reference field requested; absent otherwise
 	edit: EditProxy; // Visual editing annotations
 }
 ```
@@ -255,6 +259,47 @@ The `data` object contains all content fields plus system fields:
 - `updatedAt` - Last update time as a `Date`
 - `publishedAt` - Publication time as a `Date`, or `null`; retained when content is unpublished
 - Plus all custom fields defined in your collection schema
+
+### `ReferencePage`
+
+`entry.references` holds one page per reference field that `getEmDashEntry` was asked for, keyed by field slug:
+
+```ts
+interface ReferencePage<T = Record<string, unknown>> {
+	entries: ContentEntry<T>[];
+	nextCursor?: string; // Set when the field holds more entries than the limit
+}
+```
+
+Each entry is mapped the way a directly loaded entry is, with one exception: bylines and taxonomy terms are not hydrated, so `data.bylines` and `data.terms` are absent.
+
+### `getEmDashReferences()`
+
+Fetch one page of a single reference field, without re-reading the entry it hangs off. Use it to walk past the first page with the `nextCursor` that page returned.
+
+| Parameter    | Type     | Description      |
+| ------------ | -------- | ---------------- |
+| `collection` | `string` | Collection slug of the entry that holds the field |
+| `slugOrId`   | `string` | Entry slug or ID |
+| `field`      | `string` | Reference field slug |
+| `options`    | `{ limit?: number; cursor?: string; locale?: string }` | Optional. Defaults to 50 entries, at most 100 |
+
+The following example loads the next 20 linked entries:
+
+```ts
+import { getEmDashReferences } from "emdash";
+
+const { entries, nextCursor, error } = await getEmDashReferences(
+	"posts",
+	post.id,
+	"related_posts",
+	{ cursor, limit: 20 },
+);
+```
+
+`error` is set only for actual errors. An unknown field, a missing entry, or one the request may not see all resolve to an empty `entries` array.
+
+The result also carries a `cacheHint` naming the rows the page read. A route that caches what it renders should merge it into its own hint, the way `getEmDashEntry({ references })` folds in the first page's, so that writing to one of those entries expires the page.
 
 ## URL helpers
 

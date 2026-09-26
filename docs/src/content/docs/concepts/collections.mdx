@@ -95,9 +95,13 @@ Indexes are available for `string`, `url`, `number`, `integer`, `boolean`, `date
 `reference`, and `slug` fields. Rich text, JSON, repeaters, and multiple-choice values contain more
 complex data and cannot use this kind of index.
 
-References store the target entry's ID. Configure a reference with the target collection, and enable
-multiple values only when the field should hold several entry IDs. A reference lets code load or
-identify related content; it does not copy the target entry into the source entry.
+A reference field stores nothing in the collection's own table. Configure it with the target
+collection, and allow multiple values only when the field should link several entries. EmDash keeps
+the links separately and returns the linked entries under `references` rather than in `data`, so a
+reference lets code load or identify related content without copying the target entry into the
+source entry. See [`reference`](/reference/field-types/#reference) for the stored shape and the
+behavior of a field with no target collection, and [Relations](/guides/relations/) for the workflow
+around it.
 
 ## Changing fields later
 

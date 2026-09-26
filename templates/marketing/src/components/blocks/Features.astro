@@ -1,21 +1,13 @@
 ---
 import { Icon } from "astro-iconset/components";
+import type { BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-interface Props {
-	node: {
-		_key?: string;
-		headline?: string;
-		subheadline?: string;
-		features: Array<{
-			icon: string;
-			title: string;
-			description: string;
-		}>;
-	};
-}
+type FeaturesBlock = Extract<PageContentBlock, { _type: "marketing_features" }>;
+type Props = BlockComponentProps<FeaturesBlock>;
 
-const { node } = Astro.props;
-const { _key, headline, subheadline, features } = node;
+const { value } = Astro.props;
+const { anchor_id, headline, subheadline, features } = value;
 
 const iconMap: Record<string, string> = {
 	zap: "ph:lightning",
@@ -33,7 +25,7 @@ const iconMap: Record<string, string> = {
 };
 ---
 
-<section class="features section" id={_key}>
+<section class="features section" id={anchor_id || undefined}>
 	<div class="container">
 		{(headline || subheadline) && (
 			<header class="section-header">

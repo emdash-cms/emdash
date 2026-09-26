@@ -1092,4 +1092,155 @@ describe("Zod Generator", () => {
 			expect(ts).toContain(`specs: { "name": string }[];`);
 		});
 	});
+
+	describe("reference fields", () => {
+		/** A `posts` collection with one reference field carrying `validation`. */
+		function makeReferenceCollection(validation: Field["validation"]): CollectionWithFields {
+			return {
+				id: "c1",
+				slug: "posts",
+				label: "Posts",
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [
+					{
+						id: "f1",
+						collectionId: "c1",
+						slug: "author",
+						label: "Author",
+						type: "reference",
+						columnType: "TEXT",
+						required: false,
+						unique: false,
+						sortOrder: 0,
+						createdAt: new Date().toISOString(),
+						validation,
+					},
+				],
+			};
+		}
+
+		const WIRED = { relation: "posts_author", relationSide: "parent", targetCollection: "authors" };
+
+		it("validates a field with no relation as the entry id string it stores", () => {
+			const schema = generateZodSchema(makeReferenceCollection(undefined));
+
+			expect(schema.parse({ author: "entry-id" })).toEqual({ author: "entry-id" });
+			expect(() => schema.parse({ author: 42 })).toThrow();
+		});
+
+		it("leaves a field bound to a relation out of the data schema", () => {
+			const schema = generateZodSchema(makeReferenceCollection(WIRED));
+
+			expect(Object.keys(schema.shape)).not.toContain("author");
+		});
+
+		it("types a field with no relation as a string and omits a bound one", () => {
+			expect(generateTypeScript(makeReferenceCollection(undefined))).toContain("author?: string;");
+			expect(generateTypeScript(makeReferenceCollection(WIRED))).not.toContain("author");
+		});
+	});
+
+	describe("reference interfaces in the generated file", () => {
+		function makeAuthors(): CollectionWithFields {
+			return {
+				id: "c2",
+				slug: "authors",
+				label: "Authors",
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [
+					{
+						id: "f2",
+						collectionId: "c2",
+						slug: "name",
+						label: "Name",
+						type: "string",
+						columnType: "TEXT",
+						required: true,
+						unique: false,
+						sortOrder: 0,
+						createdAt: new Date().toISOString(),
+					},
+				],
+			};
+		}
+
+		/** A `posts` collection whose `author` field carries the given validation. */
+		function makePosts(validation: Field["validation"]): CollectionWithFields {
+			return {
+				id: "c1",
+				slug: "posts",
+				label: "Posts",
+				supports: [],
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+				fields: [
+					{
+						id: "f1",
+						collectionId: "c1",
+						slug: "author",
+						label: "Author",
+						type: "reference",
+						columnType: "TEXT",
+						required: false,
+						unique: false,
+						sortOrder: 0,
+						createdAt: new Date().toISOString(),
+						validation,
+					},
+				],
+			};
+		}
+
+		const WIRED = {
+			relation: "posts_author",
+			relationSide: "parent" as const,
+			targetCollection: "authors",
+		};
+
+		it("emits a page per bound field, typed to the target collection", () => {
+			const ts = generateTypesFile([makePosts(WIRED), makeAuthors()]);
+
+			expect(ts).toContain("export interface PostReferences {");
+			expect(ts).toContain("author: ReferencePage<Author>;");
+		});
+
+		it("registers the references interface under EmDashCollectionReferences", () => {
+			const ts = generateTypesFile([makePosts(WIRED), makeAuthors()]);
+
+			expect(ts).toContain("interface EmDashCollectionReferences {");
+			// Keyed by slug, the way `getEmDashEntry`'s first argument names it.
+			expect(ts).toContain("posts: PostReferences;");
+		});
+
+		it("imports ReferencePage only when a bound reference field exists", () => {
+			expect(generateTypesFile([makePosts(WIRED), makeAuthors()])).toContain(
+				'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, ReferencePage } from "emdash";',
+			);
+			expect(generateTypesFile([makePosts(undefined), makeAuthors()])).toContain(
+				'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";',
+			);
+		});
+
+		it("emits nothing for a collection whose reference fields are all unbound", () => {
+			// An unbound field still owns its column, so it stays a string in the
+			// data interface and has no page to read.
+			const ts = generateTypesFile([makePosts(undefined), makeAuthors()]);
+
+			expect(ts).not.toContain("PostReferences");
+			expect(ts).not.toContain("EmDashCollectionReferences");
+			expect(ts).toContain("author?: string;");
+		});
+
+		it("leaves the page un-narrowed when the target is not in the file", () => {
+			// A relation whose other end was dropped: naming an interface that the
+			// file never declares would not compile.
+			const ts = generateTypesFile([makePosts(WIRED)]);
+
+			expect(ts).toContain("author: ReferencePage;");
+		});
+	});
 });

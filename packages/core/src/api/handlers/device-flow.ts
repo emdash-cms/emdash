@@ -12,7 +12,7 @@
 import { clampScopes } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
 import { generateCodeVerifier } from "arctic";
-import type { Kysely } from "kysely";
+import type { Kysely, Selectable } from "kysely";
 
 import {
 	generatePrefixedToken,
@@ -21,7 +21,7 @@ import {
 	TOKEN_PREFIXES,
 } from "../../auth/api-tokens.js";
 import { withTransaction } from "../../database/transaction.js";
-import type { Database } from "../../database/types.js";
+import type { Database, DeviceCodeTable } from "../../database/types.js";
 import type { ApiResult } from "../types.js";
 import { lookupOAuthClient } from "./oauth-clients.js";
 import { lookupUserRoleAndStatus } from "./oauth-user-lookup.js";
@@ -112,7 +112,33 @@ function normalizeScopes(requested?: string[]): string[] {
 	if (!requested || requested.length === 0) {
 		return [...DEFAULT_SCOPES];
 	}
-	return requested.filter(isValidScope);
+	return [...new Set(requested.filter(isValidScope))];
+}
+
+/**
+ * Scopes an approval by a user with `role` would grant:
+ * requested_scopes ∩ scopesForRole(role). Approval and the approval-page
+ * lookup must agree, so both go through here.
+ */
+function grantableScopes(requested: string[], role: RoleLevel): string[] {
+	return clampScopes(requested, role);
+}
+
+/** Find a pending device code by user code, ignoring hyphens and case. Does not check expiry. */
+async function findPendingDeviceCode(
+	db: Kysely<Database>,
+	userCode: string,
+): Promise<Selectable<DeviceCodeTable> | undefined> {
+	const chars = userCode.replace(HYPHEN_PATTERN, "").toUpperCase();
+	if (chars.length !== 8) return undefined;
+
+	// Stored codes always have the generateUserCode() shape.
+	return db
+		.selectFrom("_emdash_device_codes")
+		.selectAll()
+		.where("user_code", "=", `${chars.slice(0, 4)}-${chars.slice(4)}`)
+		.where("status", "=", "pending")
+		.executeTakeFirst();
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +420,49 @@ export async function handleDeviceTokenExchange(
 }
 
 /**
+ * GET /oauth/device/authorize
+ *
+ * Returns the scopes a pending device code requested, and the subset an
+ * approval by this user would grant, so the approval page can show them
+ * before the user approves. Reveals nothing else about the device code.
+ */
+export async function handleDeviceCodeLookup(
+	db: Kysely<Database>,
+	userRole: RoleLevel,
+	input: { user_code: string },
+): Promise<ApiResult<{ requestedScopes: string[]; grantedScopes: string[] }>> {
+	try {
+		const match = await findPendingDeviceCode(db, input.user_code);
+
+		if (!match) {
+			return {
+				success: false,
+				error: { code: "INVALID_CODE", message: "Invalid or expired code" },
+			};
+		}
+
+		if (new Date(match.expires_at) < new Date()) {
+			return {
+				success: false,
+				error: { code: "EXPIRED_CODE", message: "This code has expired" },
+			};
+		}
+
+		const requestedScopes = JSON.parse(match.scopes) as string[];
+
+		return {
+			success: true,
+			data: { requestedScopes, grantedScopes: grantableScopes(requestedScopes, userRole) },
+		};
+	} catch {
+		return {
+			success: false,
+			error: { code: "DEVICE_CODE_LOOKUP_ERROR", message: "Failed to look up device code" },
+		};
+	}
+}
+
+/**
  * POST /oauth/device/authorize
  *
  * The user submits the user_code after logging in via the browser.
@@ -413,20 +482,7 @@ export async function handleDeviceAuthorize(
 	},
 ): Promise<ApiResult<{ authorized: boolean }>> {
 	try {
-		// Normalize user code (strip hyphens, uppercase)
-		const normalizedCode = input.user_code.replace(HYPHEN_PATTERN, "").toUpperCase();
-
-		// Look up the device code by user_code
-		const row = await db
-			.selectFrom("_emdash_device_codes")
-			.selectAll()
-			.where("status", "=", "pending")
-			.execute();
-
-		// Find the matching code (strip hyphens for comparison)
-		const match = row.find(
-			(r) => r.user_code.replace(HYPHEN_PATTERN, "").toUpperCase() === normalizedCode,
-		);
+		const match = await findPendingDeviceCode(db, input.user_code);
 
 		if (!match) {
 			return {
@@ -460,10 +516,7 @@ export async function handleDeviceAuthorize(
 			return { success: true, data: { authorized: false } };
 		}
 
-		// Clamp requested scopes to those the user's role permits.
-		// effective_scopes = requested_scopes ∩ scopesForRole(user.role)
-		const requestedScopes = JSON.parse(match.scopes) as string[];
-		const effectiveScopes = clampScopes(requestedScopes, userRole);
+		const effectiveScopes = grantableScopes(JSON.parse(match.scopes) as string[], userRole);
 
 		if (effectiveScopes.length === 0) {
 			return {

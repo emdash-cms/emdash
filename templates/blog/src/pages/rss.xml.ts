@@ -4,7 +4,7 @@ import { getEmDashCollection, getSiteSettings } from "emdash";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
 
 export const GET: APIRoute = async ({ site, url }) => {
-	const siteUrl = site?.toString() || url.origin;
+	const siteUrl = site ?? new URL(url.origin);
 	const { siteTitle, siteTagline } = resolveBlogSiteIdentity(await getSiteSettings());
 
 	const { entries: posts } = await getEmDashCollection("posts", {
@@ -17,7 +17,7 @@ export const GET: APIRoute = async ({ site, url }) => {
 			if (!post.data.publishedAt) return null;
 			const pubDate = post.data.publishedAt.toUTCString();
 
-			const postUrl = `${siteUrl}/posts/${post.id}`;
+			const postUrl = new URL(`/posts/${post.id}`, siteUrl).href;
 			const title = escapeXml(post.data.title || "Untitled");
 			const description = escapeXml(post.data.excerpt || "");
 
@@ -37,8 +37,8 @@ export const GET: APIRoute = async ({ site, url }) => {
   <channel>
     <title>${escapeXml(siteTitle)}</title>
     <description>${escapeXml(siteTagline)}</description>
-    <link>${siteUrl}</link>
-    <atom:link href="${siteUrl}/rss.xml" rel="self" type="application/rss+xml"/>
+	<link>${siteUrl.href}</link>
+	<atom:link href="${new URL("/rss.xml", siteUrl).href}" rel="self" type="application/rss+xml"/>
     <language>en-us</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
 ${items}

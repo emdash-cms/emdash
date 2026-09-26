@@ -23,6 +23,7 @@ interface SiteCase {
 	frontendStatuses?: number[];
 	requireDoctype?: boolean;
 	verifyMcp?: boolean;
+	frontendExpectations?: Array<{ path: string; text: string }>;
 }
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
@@ -68,12 +69,20 @@ const SITE_MATRIX: SiteCase[] = [
 		dir: resolve(WORKSPACE_ROOT, "templates/marketing"),
 		port: 4614,
 		startupTimeoutMs: 90_000,
+		frontendExpectations: [
+			{ path: "/", text: "Build products people actually want" },
+			{ path: "/pricing", text: "Simple, transparent pricing" },
+		],
 	},
 	{
 		name: "templates/marketing-cloudflare",
 		dir: resolve(WORKSPACE_ROOT, "templates/marketing-cloudflare"),
 		port: 4615,
 		startupTimeoutMs: 120_000,
+		frontendExpectations: [
+			{ path: "/", text: "Build products people actually want" },
+			{ path: "/pricing", text: "Simple, transparent pricing" },
+		],
 	},
 	{
 		name: "templates/portfolio",
@@ -344,6 +353,11 @@ describe.sequential("Site runtime verification", () => {
 					const body = await frontendRes.text();
 					if (requireDoctype) {
 						expect(body).toContain("<!DOCTYPE html>");
+					}
+					for (const expectation of site.frontendExpectations ?? []) {
+						const response = await fetchWithRetry(`${server.baseUrl}${expectation.path}`);
+						expect(response.status).toBe(200);
+						expect(await response.text()).toContain(expectation.text);
 					}
 					if (site.verifyMcp && mcpToken) {
 						await verifyCoreMcp(server.baseUrl, mcpToken);

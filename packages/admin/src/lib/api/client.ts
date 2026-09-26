@@ -283,6 +283,8 @@ export interface AdminManifest {
 	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry. Defaults to the hosted aggregator when
 	 * the plugin sandbox is enabled, or reflects an explicit registry config.
