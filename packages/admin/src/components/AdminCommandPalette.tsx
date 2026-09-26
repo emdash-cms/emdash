@@ -25,7 +25,7 @@ import {
 	getTaxonomyNavIcon,
 	resolveNavIcon,
 } from "./admin-navigation-icons.js";
-import { resolvePluginPageLabel } from "./Sidebar.js";
+import { declaredLabelTranslator, resolvePluginPageLabel } from "./Sidebar.js";
 
 /** Subset of manifest fields used by the palette (matches `Shell` props shape). */
 type CommandPaletteManifest = {
@@ -262,8 +262,8 @@ export function buildNavItems(
 		if (config.adminPages && config.adminPages.length > 0) {
 			for (const page of config.adminPages) {
 				if (!isSafePluginPagePath(page.path)) continue;
-				// Same treatment as the sidebar: declared labels go through the
-				// shared i18n instance so plugin catalogs can localize them.
+				// Plugin page labels are translated only when the catalog has
+				// an entry for them; otherwise they render as declared.
 				const label = resolvePluginPageLabel(page.label, pluginId, translateLabel);
 
 				items.push({
@@ -329,8 +329,8 @@ export function AdminCommandPalette({ manifest }: AdminCommandPaletteProps) {
 
 	// Build navigation items
 	const allNavItems = React.useMemo(
-		() => buildNavItems(manifest, userRole, translateDynamic),
-		[manifest, userRole, translateDynamic, i18n.locale],
+		() => buildNavItems(manifest, userRole, declaredLabelTranslator(i18n, translateDynamic)),
+		[manifest, userRole, translateDynamic, i18n, i18n.locale],
 	);
 
 	// Filter nav items based on query
