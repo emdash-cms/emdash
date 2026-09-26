@@ -263,7 +263,7 @@ function recordVerificationSummary(
 /**
  * Bytes-per-artifact cap on the gzipped tarball we'll download before
  * decompression. RFC 0001 caps a sandboxed plugin bundle at 256 KiB
- * decompressed (see `MAX_BUNDLE_SIZE` in cli/commands/bundle-utils.ts);
+ * decompressed (see `MAX_BUNDLE_SIZE` in @emdash-cms/plugin-cli);
  * gzip on a mix of JSON manifest + JS code typically gives 0.3-0.6
  * ratio, so compressed bundles are well under 200 KiB in practice.
  * 512 KiB leaves margin for unusual file mixes that compress poorly
