@@ -141,6 +141,16 @@ export function RepeaterField({
 		});
 	};
 
+	// The bulk control offers the one action that is useful for the current
+	// state: collapse while any row is open, expand once every row is closed.
+	// Deriving it from the items rather than from the set's size keeps keys
+	// left behind by removed rows from flipping the label.
+	const allCollapsed = items.length > 0 && items.every((item) => collapsedItems.has(item._key));
+
+	const setAllCollapsed = (collapsed: boolean) => {
+		setCollapsedItems(collapsed ? new Set(items.map((item) => item._key)) : new Set());
+	};
+
 	const canAdd = !maxItems || items.length < maxItems;
 	const canRemove = items.length > minItems;
 
@@ -155,11 +165,18 @@ export function RepeaterField({
 						</span>
 					)}
 				</label>
-				{canAdd && (
-					<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd}>
-						{t`Add Item`}
-					</Button>
-				)}
+				<div className="flex items-center gap-1">
+					{items.length > 0 && (
+						<Button variant="ghost" size="sm" onClick={() => setAllCollapsed(!allCollapsed)}>
+							{allCollapsed ? t`Expand all` : t`Collapse all`}
+						</Button>
+					)}
+					{canAdd && (
+						<Button variant="outline" size="sm" icon={<Plus />} onClick={handleAdd}>
+							{t`Add Item`}
+						</Button>
+					)}
+				</div>
 			</div>
 
 			{items.length === 0 ? (

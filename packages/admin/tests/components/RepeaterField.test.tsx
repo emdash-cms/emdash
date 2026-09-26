@@ -135,3 +135,96 @@ describe("RepeaterField sub-field types", () => {
 		await expect.element(input).toHaveValue("CT");
 	});
 });
+
+describe("RepeaterField bulk collapse", () => {
+describe("RepeaterField bulk collapse", () => {
+	const captionSubFields = [{ slug: "caption", type: "string", label: "Caption" }];
+
+	const subFieldInputs = (screen: { container: HTMLElement }) => [
+		...screen.container.querySelectorAll('input[id^="gallery."]'),
+	];
+
+	it("collapses every row at once and offers to expand them again", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[{ caption: "One" }, { caption: "Two" }, { caption: "Three" }]}
+				onChange={vi.fn()}
+				subFields={captionSubFields}
+			/>,
+		);
+
+		// Rows start expanded, so the editor sees the inputs they can edit.
+		expect(subFieldInputs(screen)).toHaveLength(3);
+
+		await screen.getByRole("button", { name: "Collapse all" }).click();
+
+		expect(subFieldInputs(screen)).toHaveLength(0);
+		// Summaries stay on screen, so the rows can still be told apart.
+		await expect.element(screen.getByText("One")).toBeVisible();
+		await expect.element(screen.getByText("Three")).toBeVisible();
+
+		await screen.getByRole("button", { name: "Expand all" }).click();
+
+		expect(subFieldInputs(screen)).toHaveLength(3);
+	});
+
+	it("keeps offering Collapse all while any row is still open", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[{ caption: "One" }, { caption: "Two" }]}
+				onChange={vi.fn()}
+				subFields={captionSubFields}
+			/>,
+		);
+
+		// Collapse one row through its own header; the rest stay open, so the
+		// useful bulk action is still to collapse.
+		await screen.getByText("One").click();
+
+		expect(subFieldInputs(screen)).toHaveLength(1);
+		await expect.element(screen.getByRole("button", { name: "Collapse all" })).toBeVisible();
+	});
+
+	it("opens a newly added row even when every row was collapsed", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[{ caption: "One" }]}
+				onChange={vi.fn()}
+				subFields={captionSubFields}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Collapse all" }).click();
+		expect(subFieldInputs(screen)).toHaveLength(0);
+
+		await screen.getByRole("button", { name: "Add Item" }).click();
+
+		// The new row needs its inputs immediately, so it arrives expanded and
+		// the bulk control flips back to collapsing.
+		expect(subFieldInputs(screen)).toHaveLength(1);
+		await expect.element(screen.getByRole("button", { name: "Collapse all" })).toBeVisible();
+	});
+
+	it("offers no bulk control while the repeater is empty", async () => {
+		const screen = await render(
+			<RepeaterField
+				label="Gallery"
+				id="gallery"
+				value={[]}
+				onChange={vi.fn()}
+				subFields={captionSubFields}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Add First Item" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: "Collapse all" }))
+			.not.toBeInTheDocument();
+	});
+});
