@@ -2274,6 +2274,8 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						displayWidth: { default: null },
+						displayHeight: { default: null },
 						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
