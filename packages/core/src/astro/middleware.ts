@@ -57,7 +57,7 @@ import {
 } from "../emdash-runtime.js";
 import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
-import { createPublicMediaUrlResolver } from "../media/url.js";
+import { createPublicMediaFilenameResolver, createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
 import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
@@ -778,6 +778,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
 							collectPageFragments: runtime.collectPageFragments.bind(runtime),
 							getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+							getPublicMediaFilename: createPublicMediaFilenameResolver(runtime.db),
 							// Exposed so the wrapped image endpoint (`/_image`) can read media
 							// bytes from storage on the anonymous fast path -- public `<img>`
 							// requests carry no session.
@@ -1005,6 +1006,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 						return runtime.db;
 					},
 					getPublicMediaUrl: createPublicMediaUrlResolver(runtime.storage),
+					getPublicMediaFilename: createPublicMediaFilenameResolver(runtime.db),
 					hooks: runtime.hooks,
 					email: runtime.email,
 					configuredPlugins: runtime.configuredPlugins,
