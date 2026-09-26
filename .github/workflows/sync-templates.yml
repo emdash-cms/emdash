@@ -28,9 +28,11 @@ jobs:
           repositories: templates
           owner: emdash-cms
           # Push the sync branch (contents) and open/update the sync PR via
-          # `gh pr create` (pull-requests) on emdash-cms/templates. Nothing else.
+          # `gh pr create` (pull-requests) on emdash-cms/templates. Updating
+          # the template CI matrix also requires workflow-file write access.
           permission-contents: write
           permission-pull-requests: write
+          permission-workflows: write
 
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
