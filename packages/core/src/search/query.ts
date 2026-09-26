@@ -63,7 +63,9 @@ function decodeSearchOffset(cursor: string): number {
 
 /** Pattern to split on whitespace for query term extraction */
 const WHITESPACE_SPLIT_PATTERN = /\s+/;
-const FTS_OPERATORS_PATTERN = /\b(AND|OR|NOT|NEAR)\b/i;
+// FTS5 operators are uppercase-only; a case-insensitive match would treat
+// ordinary words as syntax and skip the safe quoting path below.
+const FTS_OPERATORS_PATTERN = /\b(AND|OR|NOT|NEAR)\b/;
 const DOUBLE_QUOTE_PATTERN = /"/g;
 
 /**
