@@ -477,6 +477,39 @@ describe("ContentList", () => {
 			});
 		});
 
+		it("offers Clear filters for a term filter alone and clears it", async () => {
+			const onTermFilterChange = vi.fn();
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem()]}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					termFilter={{ category: ["news"] }}
+					onTermFilterChange={onTermFilterChange}
+				/>,
+			);
+
+			await screen.getByRole("button", { name: "Clear filters" }).click();
+			expect(onTermFilterChange).toHaveBeenCalledWith({});
+		});
+
+		it("does not offer Clear filters when no term is selected", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[makeItem()]}
+					statusFilter="all"
+					onStatusFilterChange={vi.fn()}
+					termFilter={{}}
+					onTermFilterChange={vi.fn()}
+				/>,
+			);
+
+			await expect.element(screen.getByText("Hello World")).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Clear filters" }).elements()).toHaveLength(0);
+		});
+
 		it("uses the active admin locale and direction in the calendar", async () => {
 			const previousLocale = i18n.locale;
 			i18n.load("ar", {});
