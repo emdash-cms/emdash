@@ -2420,4 +2420,200 @@ describe("applySeed", () => {
 			expect(localEs?.parentId).toBe(news?.translationGroup);
 		});
 	});
+
+	it.each(["skip", "update"] as const)(
+		"honors %s for trashed slugless seed IDs",
+		async (onConflict) => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "blocks",
+						label: "Blocks",
+						routable: false,
+						fields: [{ slug: "title", type: "string", label: "Title" }],
+					},
+				],
+				content: { blocks: [{ id: "hero", data: { title: "Original" } }] },
+			};
+			await applySeed(db, seed, { includeContent: true });
+			const repo = new ContentRepository(db);
+			await repo.delete("blocks", "hero");
+			seed.content!.blocks![0]!.data.title = "Replacement";
+			const apply = applySeed(db, seed, { includeContent: true, onConflict });
+			expect((await apply).content).toEqual({ created: 0, skipped: 1, updated: 0 });
+			expect(await repo.findById("blocks", "hero")).toBeNull();
+			expect((await repo.findByIdIncludingTrashed("blocks", "hero"))?.data.title).toBe("Original");
+		},
+	);
+
+	describe("content conflicts with trashed entries", () => {
+		async function setupTrashedEntry(): Promise<string> {
+			const registry = new SchemaRegistry(db);
+			await registry.createCollection({
+				slug: "posts",
+				label: "Posts",
+				labelSingular: "Post",
+			});
+			await registry.createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+
+			const contentRepo = new ContentRepository(db);
+			const created = await contentRepo.create({
+				type: "posts",
+				slug: "hello",
+				status: "published",
+				data: { title: "Hello" },
+				locale: "en",
+			});
+			await contentRepo.delete("posts", created.id);
+			return created.id;
+		}
+
+		const seed: SeedFile = {
+			version: "1",
+			content: {
+				posts: [{ id: "post-1", slug: "hello", data: { title: "Hello again" } }],
+			},
+		};
+
+		it("skips entries whose slug collides with a trashed row (onConflict: skip)", async () => {
+			const trashedId = await setupTrashedEntry();
+
+			const result = await applySeed(db, seed, { includeContent: true, onConflict: "skip" });
+
+			expect(result.content.created).toBe(0);
+			expect(result.content.skipped).toBe(1);
+
+			// The trashed row is untouched — not resurrected, not duplicated.
+			const rows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["id", "deleted_at"] as never)
+				.execute();
+			expect(rows).toHaveLength(1);
+			expect((rows[0] as { id: string }).id).toBe(trashedId);
+			expect((rows[0] as { deleted_at: string | null }).deleted_at).not.toBeNull();
+		});
+
+		it("does not resurrect trashed content (onConflict: update)", async () => {
+			await setupTrashedEntry();
+
+			const result = await applySeed(db, seed, { includeContent: true, onConflict: "update" });
+
+			expect(result.content.created).toBe(0);
+			expect(result.content.updated).toBe(0);
+			expect(result.content.skipped).toBe(1);
+
+			const rows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["title", "deleted_at"] as never)
+				.execute();
+			expect(rows).toHaveLength(1);
+			// Field data unchanged — the seed's "Hello again" must not overwrite
+			// content an operator deliberately deleted.
+			expect((rows[0] as { title: string }).title).toBe("Hello");
+			expect((rows[0] as { deleted_at: string | null }).deleted_at).not.toBeNull();
+		});
+
+		it("reports a clear conflict for trashed collisions (onConflict: error)", async () => {
+			await setupTrashedEntry();
+
+			await expect(
+				applySeed(db, seed, { includeContent: true, onConflict: "error" }),
+			).rejects.toThrow(/already exists/);
+		});
+
+		it("does not resolve references through a skipped trashed entry", async () => {
+			await setupTrashedEntry();
+
+			const seedWithTranslation: SeedFile = {
+				version: "1",
+				content: {
+					posts: [
+						{ id: "post-1", slug: "hello", data: { title: "Hello again" } },
+						{
+							id: "post-2",
+							slug: "hola",
+							locale: "es",
+							translationOf: "post-1",
+							data: { title: "Hola" },
+						},
+					],
+				},
+			};
+
+			const result = await applySeed(db, seedWithTranslation, {
+				includeContent: true,
+				onConflict: "skip",
+			});
+
+			expect(result.content.skipped).toBe(1);
+			expect(result.content.created).toBe(1);
+
+			// The sibling exists but is not linked to the trashed row's
+			// translation group.
+			const contentRepo = new ContentRepository(db);
+			const sibling = await contentRepo.findBySlug("posts", "hola", "es");
+			expect(sibling).not.toBeNull();
+
+			const trashedRows = await db
+				.selectFrom("ec_posts" as never)
+				.select(["slug", "translation_group"] as never)
+				.execute();
+			const trashed = (trashedRows as { slug: string; translation_group: string }[]).find(
+				(r) => r.slug === "hello",
+			);
+			expect(sibling!.translationGroup).not.toBe(trashed?.translation_group);
+		});
+
+		it("does not create relation edges to a skipped trashed entry", async () => {
+			await setupTrashedEntry();
+
+			const result = await applySeed(
+				db,
+				{
+					version: "1",
+					collections: [
+						{
+							slug: "posts",
+							label: "Posts",
+							fields: [
+								{ slug: "title", label: "Title", type: "string" },
+								{
+									slug: "related",
+									label: "Related",
+									type: "reference",
+									validation: { targetCollection: "posts" },
+								},
+							],
+						},
+					],
+					content: {
+						posts: [
+							{ id: "post-1", slug: "hello", data: { title: "Hello again" } },
+							{
+								id: "post-2",
+								slug: "referrer",
+								data: { title: "Referrer", related: "$ref:post-1" },
+							},
+						],
+					},
+				},
+				{ includeContent: true, onConflict: "update" },
+			);
+
+			expect(result.content).toMatchObject({ created: 1, skipped: 1 });
+			const repo = new ContentRepository(db);
+			const referrer = await repo.findBySlug("posts", "referrer");
+			const relation = await new RelationRepository(db).findBySlug("posts_related");
+			const children = await new RelationRepository(db).getChildrenPage(
+				relation!.id,
+				referrer!.translationGroup!,
+			);
+			expect(children.items).toEqual([]);
+		});
+	});
 });

@@ -813,10 +813,38 @@ async function applySeedWrites(
 					entries,
 					defaultLocale,
 				);
+				const entriesWithoutLiveMatch = entries.filter((entry) => {
+					const { slug, locale } = seedEntryIdentity(entry, defaultLocale);
+					return !existingEntries.has(seedEntryKey(entry, slug, locale));
+				});
+				const trashedEntries = await findExistingSeedEntries(
+					contentRepo,
+					collectionSlug,
+					entriesWithoutLiveMatch,
+					defaultLocale,
+					true,
+				);
 				for (const entry of entries) {
 					const { slug: entrySlug, locale: entryLocale } = seedEntryIdentity(entry, defaultLocale);
 					const entryKey = seedEntryKey(entry, entrySlug, entryLocale);
 					const existing = existingEntries.get(entryKey);
+
+					if (!existing) {
+						const trashed = trashedEntries.get(entryKey);
+						if (trashed) {
+							if (onConflict === "error") {
+								throw new Error(
+									`Conflict: content "${entrySlug ?? entry.id}" in "${collectionSlug}" already exists (in trash)`,
+								);
+							}
+							console.warn(
+								`content.${collectionSlug}: "${entrySlug ?? entry.id}" (${entryLocale}) exists in the trash — skipping`,
+							);
+							result.content.skipped++;
+							progress.done++;
+							continue;
+						}
+					}
 
 					if (existing) {
 						if (onConflict === "error") {
@@ -1563,6 +1591,7 @@ async function findExistingSeedEntries(
 	collectionSlug: string,
 	entries: SeedContentEntry[],
 	defaultLocale: string,
+	includeTrashed = false,
 ): Promise<Map<string, ContentItem>> {
 	const identities = entries.map((entry) => ({
 		entry,
@@ -1578,11 +1607,15 @@ async function findExistingSeedEntries(
 
 	const bySlug = new Map<string, Map<string, ContentItem>>();
 	for (const [locale, slugs] of slugsByLocale) {
-		bySlug.set(locale, await repo.findManyBySlugsInLocale(collectionSlug, slugs, locale));
+		bySlug.set(
+			locale,
+			await repo.findManyBySlugsInLocale(collectionSlug, slugs, locale, { includeTrashed }),
+		);
 	}
 	const byId = await repo.findManyByIds(
 		collectionSlug,
 		identities.filter(({ slug }) => slug === null).map(({ entry }) => entry.id),
+		{ includeTrashed },
 	);
 
 	const existing = new Map<string, ContentItem>();
