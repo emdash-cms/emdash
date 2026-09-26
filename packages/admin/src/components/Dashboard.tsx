@@ -19,6 +19,7 @@ import {
 	CONTENT_STATUS_ICONS,
 	type ContentStatusState,
 } from "./ContentStatusBadge.js";
+import { CoreUpdateBanner } from "./CoreUpdateBanner.js";
 import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
@@ -69,6 +70,8 @@ export function Dashboard({ manifest }: DashboardProps) {
 				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
+
+			<CoreUpdateBanner />
 
 			{isError && <DashboardDataError />}
 
