@@ -928,6 +928,31 @@ function buildFieldConditions(
 }
 
 /**
+ * Pivot rows from which a term counts as large. Seeking the pivot reads every
+ * assignment of the term; walking `ec_*` in sort order reads about
+ * `collection size / term size` rows per match. The walk wins only for large
+ * terms, and the size probe reads at most this many pivot index entries.
+ *
+ * The walk estimate assumes the term's entries are spread over the sort order
+ * and the requested locale. A term clustered in time, a deep page or a narrow
+ * byline filter makes the walk read up to the whole collection; the seek would
+ * still read every assignment of the term.
+ */
+export const LARGE_TERM_ASSIGNMENTS = 200;
+
+/** A single `published_at`/`created_at` sort, which an `ec_*` index serves in order. */
+function isIndexedPivotSort(orderBy: OrderBySpec | undefined): boolean {
+	const validSortKeys = orderBy
+		? Object.keys(orderBy).filter((k) => FIELD_NAME_PATTERN.test(k))
+		: [];
+	const primary = getPrimarySort(orderBy);
+	return (
+		validSortKeys.length <= 1 &&
+		(primary.field === "published_at" || primary.field === "created_at")
+	);
+}
+
+/**
  * Resolve a taxonomy filter (`name` + one or more `slug`s, optionally scoped to
  * `locale`) to the set of `translation_group`s the pivot stores in
  * `content_taxonomies.taxonomy_id`. Exact terms only — no subtree expansion.
@@ -937,26 +962,46 @@ function buildFieldConditions(
  * name/slug in the active locale. Resolving to explicit values (rather than an
  * `IN (subquery)`) keeps the single-term case a plain equality on the pivot
  * index, which is what gives the clean early-`LIMIT` seek.
+ *
+ * With `probeCollection`, `large` reports whether a resolved term has at least
+ * {@link LARGE_TERM_ASSIGNMENTS} pivot rows in that collection. The capped
+ * probe rides in this query; a query of its own would add a round trip to
+ * every listing.
  */
 async function resolveTermGroups(
 	db: Kysely<Database>,
 	name: string,
 	slugs: string[],
 	locale: string | undefined,
-): Promise<string[]> {
+	probeCollection?: string,
+): Promise<{ groups: string[]; large: boolean }> {
 	let query = db
 		.selectFrom("taxonomies")
 		.select("translation_group")
 		.distinct()
 		.where("name", "=", name)
-		.where("slug", "in", slugs);
+		.where("slug", "in", slugs)
+		.$if(probeCollection !== undefined, (qb) =>
+			qb.select((eb) =>
+				eb
+					.selectFrom("content_taxonomies")
+					.select(sql<number>`1`.as("hit"))
+					.where("content_taxonomies.collection", "=", probeCollection!)
+					.whereRef("content_taxonomies.taxonomy_id", "=", "taxonomies.translation_group")
+					.limit(1)
+					.offset(LARGE_TERM_ASSIGNMENTS - 1)
+					.as("large"),
+			),
+		);
 	if (locale) query = query.where("locale", "=", locale);
 	const rows = await query.execute();
 	const groups = new Set<string>();
+	let large = false;
 	for (const row of rows) {
 		if (row.translation_group) groups.add(row.translation_group);
+		if (row.large != null) large = true;
 	}
-	return [...groups];
+	return { groups: [...groups], large };
 }
 
 /** Equality (single) or `IN` (multiple) condition on a pivot group column. */
@@ -1018,18 +1063,27 @@ export interface TaxonomyPivotQueryOptions {
 	bylineGroups: string[] | null;
 	fetchLimit: number | undefined;
 	offset: number | undefined;
+	/**
+	 * SQLite only: walk `ec_*` in sort order and probe the pivot per row until
+	 * `LIMIT` rows match, instead of seeking the term and sorting its candidates.
+	 * Set it only for a single large term (see {@link LARGE_TERM_ASSIGNMENTS})
+	 * under an indexed sort with a `LIMIT`; any other shape makes the walk read
+	 * most of the collection.
+	 */
+	driveFromContent?: boolean;
 }
 
 /**
  * Build the pivot-driven taxonomy listing query (#1834).
  *
- * Drives from the term pivot and joins content translations through their
- * shared translation_group. Content columns remain authoritative for locale,
+ * Joins the term pivot to content translations through their shared
+ * translation_group. Content columns remain authoritative for locale,
  * visibility, sorting, and cursor predicates.
  *
  * Two shapes:
  * - **Indexed sort** (`published_at`/`created_at`, single sort field): the
- *   `LIMIT` lives in `picked`.
+ *   `LIMIT` lives in `picked`, which either sorts the term's candidates or,
+ *   with `driveFromContent`, walks the `ec_*` sort index and stops at `LIMIT`.
  * - **Temp-sort** (`updated_at` or any other field, or multi-field sort): no
  *   pivot sort index applies, so `picked` collects the tagged candidate set and
  *   the outer query sorts the joined rows. Bounded to tagged rows — no
@@ -1051,15 +1105,11 @@ export function buildTaxonomyPivotQuery(
 		bylineGroups,
 		fetchLimit,
 		offset,
+		driveFromContent = false,
 	} = opts;
 
 	const primary = getPrimarySort(orderBy);
-	const validSortKeys = orderBy
-		? Object.keys(orderBy).filter((k) => FIELD_NAME_PATTERN.test(k))
-		: [];
-	const singleSort = validSortKeys.length <= 1;
-	const isIndexedSort =
-		singleSort && (primary.field === "published_at" || primary.field === "created_at");
+	const isIndexedSort = isIndexedPivotSort(orderBy);
 	const dir = primary.direction === "asc" ? sql`ASC` : sql`DESC`;
 	const cmp = primary.direction === "asc" ? sql.raw(">") : sql.raw("<");
 
@@ -1094,13 +1144,12 @@ export function buildTaxonomyPivotQuery(
 		: sql``;
 
 	const firstGroupCond = pivotGroupCondition("ct.taxonomy_id", firstGroups);
-	// A plain JOIN lets SQLite reorder the `picked` CTE. For indexed sorts
-	// (`published_at`/`created_at`) the planner can then drive from the
-	// `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`, probe the pivot
-	// by primary key, and short-circuit at `LIMIT`. A `CROSS JOIN` pin would
-	// force `content_taxonomies` as the outer table and require a temp sort,
-	// producing a full nested loop over the collection on D1.
-	const pivotContentJoin = sql`JOIN`;
+	// D1 keeps no planner statistics, so SQLite's join order is chosen here.
+	// `CROSS JOIN` keeps the pivot as the outer table. A plain `JOIN` lets the
+	// planner walk the `(deleted_at, <sort> DESC, id DESC)` index on `ec_*`
+	// whatever the term's size, which reads most of the collection for a
+	// small term.
+	const pivotContentJoin = isPostgres(db) || driveFromContent ? sql`JOIN` : sql`CROSS JOIN`;
 	const {
 		terms: termsSelect,
 		bylines: bylinesSelect,
@@ -1483,14 +1532,35 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					// below (field predicates live on `ec_*`, not the pivot). A byline
 					// filter rides along inside the pivot CTE (see the builder).
 					const groupSets: string[][] = [];
+
+					// Walking `ec_*` fills a page quickly only for one large term group
+					// under an indexed sort with a `LIMIT`. With a second taxonomy or
+					// several groups it reads far more rows than the pivot seek, so
+					// only a single slug of a single taxonomy pays for the size probe.
+					const probeCollection =
+						!isPostgres(db) &&
+						taxonomyFilters.length === 1 &&
+						taxonomyFilters[0]?.slugs.length === 1 &&
+						fetchLimit != null &&
+						isIndexedPivotSort(orderBy)
+							? type
+							: undefined;
+					let driveFromContent = false;
 					for (const taxFilter of taxonomyFilters) {
-						const groups = await resolveTermGroups(db, taxFilter.name, taxFilter.slugs, locale);
+						const { groups, large } = await resolveTermGroups(
+							db,
+							taxFilter.name,
+							taxFilter.slugs,
+							locale,
+							probeCollection,
+						);
 						// A slug that resolves to no term matches nothing; since taxonomy
 						// filters AND together, one empty set empties the whole result.
 						if (groups.length === 0) {
 							return { entries: [], cacheHint: { tags: [type] } };
 						}
 						groupSets.push(groups);
+						driveFromContent = large && groups.length === 1;
 					}
 
 					result = await buildTaxonomyPivotQuery({
@@ -1507,6 +1577,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						bylineGroups: bylineFilter ? bylineFilter.groups : null,
 						fetchLimit,
 						offset,
+						driveFromContent,
 					}).execute(db);
 				} else {
 					// Taxonomy and byline filters are applied as correlated

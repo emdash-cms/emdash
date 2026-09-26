@@ -3,9 +3,11 @@
  *
  * On stats-blind SQLite/D1 (no ANALYZE, no `sqlite_stat1`) the old EXISTS shape
  * drove the scan from the collection's order index and probed a taxonomy EXISTS
- * per row — a full `ec_*` walk for a selective term. The restructure seeks the
- * term on the group-keyed pivot, then seeks matching content translations by
- * `translation_group`. Sorting is bounded to the tagged candidates.
+ * per row — a full `ec_*` walk for a selective term. A small term is sought on
+ * the group-keyed pivot instead, then matching content translations by
+ * `translation_group`, with sorting bounded to the tagged candidates. Only a
+ * large term under an indexed sort walks the order index, where a page fills
+ * after a few rows.
  *
  * This asserts the plan, not the output (output is covered by
  * loader-taxonomy-pivot). SQLite-only: `EXPLAIN QUERY PLAN` is a SQLite concern
@@ -13,14 +15,14 @@
  */
 
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { Kysely, SqliteDialect, sql } from "kysely";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
-import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
+import { emdashLoader, LARGE_TERM_ASSIGNMENTS, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 
@@ -62,8 +64,7 @@ beforeEach(async () => {
 	const content = new ContentRepository(anyDb);
 	const tax = new TaxonomyRepository(anyDb);
 	const term = await tax.create({ name: "category", slug: "news", label: "News", locale: "en" });
-	// A selective term: one tagged entry among many. The plan is stats-blind so
-	// the ratio is immaterial — the point is that the seek short-circuits.
+	// A small term: one tagged entry among many.
 	for (let i = 0; i < 30; i++) {
 		const post = await content.create({
 			type: "post",
@@ -102,60 +103,138 @@ function pivotQueryPlan(): string {
 	return explain(query!);
 }
 
-/** Returns just the `picked` CTE plan (between `CO-ROUTINE picked` and `SCAN picked`). */
+/** The term lookup is the query that resolves the filter's slugs to translation groups. */
+function termLookupPlan(): string {
+	const query = captured.find((q) => q.sql.startsWith('select distinct "translation_group"'));
+	expect(query, "expected the loader to emit a term lookup").toBeDefined();
+	return explain(query!);
+}
+
+/**
+ * Returns just the `picked` CTE plan (between `CO-ROUTINE picked` and `SCAN picked`),
+ * or the whole plan when SQLite flattened the CTE into the outer query.
+ */
 function pickedCtePlan(plan: string): string {
 	const start = plan.indexOf("CO-ROUTINE picked\n");
-	expect(start, "expected a CO-ROUTINE picked section").toBeGreaterThan(-1);
+	if (start === -1) return plan;
 	const end = plan.indexOf("\nSCAN picked", start);
 	if (end === -1) return plan.slice(start);
 	return plan.slice(start, end);
 }
 
-async function runLoad(extra: Record<string, unknown>): Promise<void> {
+async function runLoad(
+	where: Record<string, unknown>,
+	extra: Record<string, unknown> = {},
+): Promise<void> {
 	captured = [];
 	const loader = emdashLoader();
 	await runWithContext({ editMode: false, db }, () =>
 		loader.loadCollection!({
-			filter: { type: "post", where: { category: "news" } as never, limit: 5, ...extra },
+			filter: { type: "post", where: where as never, limit: 5, ...extra },
 		}),
 	);
 }
 
-it("seeks group assignments for a published_at sort using the deleted-published index", async () => {
-	await runLoad({ orderBy: { published_at: "desc" } });
-	const plan = pivotQueryPlan();
+/** `picked` seeks the term's assignments on the pivot and sorts their content rows. */
+function expectPivotSeek(plan: string): void {
 	const picked = pickedCtePlan(plan);
-	expect(picked).toContain("idx_ec_post_deleted_published_id");
-	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
+	expect(picked).toContain("SEARCH ct USING COVERING INDEX idx_content_taxonomies_group_lookup");
+	expect(picked).not.toMatch(/SEARCH r USING INDEX idx_ec_post_deleted_(published|created)_id/);
 	expect(plan).not.toContain("SCAN r");
+}
+
+/** `picked` walks the content order index and stops at `LIMIT`, with no sort. */
+function expectContentWalk(plan: string, orderIndex: string): void {
+	const picked = pickedCtePlan(plan);
+	expect(picked).toContain(`SEARCH r USING INDEX ${orderIndex} (deleted_at=?)`);
+	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
 	expect(plan).not.toContain("SCAN ct");
+}
+
+it("seeks a small term on the pivot for a published_at sort", async () => {
+	await runLoad({ category: "news" }, { orderBy: { published_at: "desc" } });
+	expectPivotSeek(pivotQueryPlan());
 });
 
-it("seeks group assignments for the default created_at sort using the deleted-created index", async () => {
-	await runLoad({});
-	const plan = pivotQueryPlan();
-	const picked = pickedCtePlan(plan);
-	expect(picked).toContain("idx_ec_post_deleted_created_id");
-	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
-	expect(plan).not.toContain("SCAN r");
-	expect(plan).not.toContain("SCAN ct");
+it("seeks a small term on the pivot for the default created_at sort", async () => {
+	await runLoad({ category: "news" });
+	expectPivotSeek(pivotQueryPlan());
 });
 
-it("seeks group assignments and the requested content locale without a temp sort", async () => {
-	await runLoad({ orderBy: { published_at: "desc" }, locale: "en" });
+it("seeks a small term and the requested content locale", async () => {
+	await runLoad({ category: "news" }, { orderBy: { published_at: "desc" }, locale: "en" });
 	const plan = pivotQueryPlan();
-	const picked = pickedCtePlan(plan);
-	expect(picked).toContain("idx_ec_post_deleted_published_id");
-	expect(picked).not.toContain("USE TEMP B-TREE FOR ORDER BY");
-	expect(plan).not.toContain("SCAN r");
-	expect(plan).not.toContain("SCAN ct");
+	expectPivotSeek(plan);
+	expect(pickedCtePlan(plan)).toContain("idx_ec_post_del_tg_locale");
 });
 
-it("updated_at sort seeks the term via the pivot and does not full-scan the content table", async () => {
-	await runLoad({ orderBy: { updated_at: "desc" } });
-	const plan = pivotQueryPlan();
-	const picked = pickedCtePlan(plan);
-	expect(picked).toContain("content_taxonomies");
-	expect(picked).not.toContain("SCAN ct");
-	expect(plan).not.toContain("SCAN r");
+it("seeks a small term on the pivot for an updated_at sort", async () => {
+	await runLoad({ category: "news" }, { orderBy: { updated_at: "desc" } });
+	expectPivotSeek(pivotQueryPlan());
+});
+
+describe("a large term", () => {
+	beforeEach(async () => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema vs Database type
+		const tax = new TaxonomyRepository(db as any);
+		const big = await tax.create({ name: "category", slug: "big", label: "Big", locale: "en" });
+		const bigGroup = big.translationGroup ?? big.id;
+		await sql`
+			WITH RECURSIVE seq(i) AS (
+				SELECT 1 UNION ALL SELECT i + 1 FROM seq WHERE i < ${LARGE_TERM_ASSIGNMENTS}
+			)
+			INSERT INTO ec_post (id, slug, status, locale, translation_group, created_at, updated_at, published_at, title)
+			SELECT printf('big%04d', i), printf('big-%04d', i), 'published', 'en', printf('big%04d', i),
+				datetime('2024-01-01', printf('+%d minutes', i)),
+				datetime('2024-01-01', printf('+%d minutes', i)),
+				datetime('2024-01-01', printf('+%d minutes', i)),
+				printf('Big %d', i)
+			FROM seq
+		`.execute(db);
+		await sql`
+			INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id)
+			SELECT 'post', translation_group, ${bigGroup} FROM ec_post WHERE id LIKE 'big%'
+		`.execute(db);
+		const featured = await tax.create({
+			name: "tag",
+			slug: "featured",
+			label: "Featured",
+			locale: "en",
+		});
+		await tax.attachToEntry("post", "big0001", featured.id);
+	});
+
+	it("walks the published_at index", async () => {
+		await runLoad({ category: "big" }, { orderBy: { published_at: "desc" } });
+		expectContentWalk(pivotQueryPlan(), "idx_ec_post_deleted_published_id");
+	});
+
+	it("walks the created_at index for the default sort", async () => {
+		await runLoad({ category: "big" });
+		expectContentWalk(pivotQueryPlan(), "idx_ec_post_deleted_created_id");
+	});
+
+	it("reads no pivot rows in the term lookup for a second slug", async () => {
+		await runLoad({ category: ["big", "news"] });
+		expect(termLookupPlan()).not.toContain("content_taxonomies");
+	});
+
+	it("is sought on the pivot when one slug names terms in two locales", async () => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema vs Database type
+		const tax = new TaxonomyRepository(db as any);
+		const other = await tax.create({ name: "category", slug: "big", label: "Groß", locale: "de" });
+		await tax.attachToEntry("post", "big0002", other.id);
+		await runLoad({ category: "big" });
+		expectPivotSeek(pivotQueryPlan());
+	});
+
+	it.each([
+		["an updated_at sort", { category: "big" }, { orderBy: { updated_at: "desc" } }],
+		["a second slug", { category: ["big", "news"] }, {}],
+		["a second taxonomy", { tag: "featured", category: "big" }, {}],
+		["no limit", { category: "big" }, { limit: undefined }],
+	])("is sought on the pivot with %s", async (_shape, where, extra) => {
+		await runLoad(where, extra);
+		expectPivotSeek(pivotQueryPlan());
+	});
 });
