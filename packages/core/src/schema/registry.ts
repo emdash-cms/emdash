@@ -22,6 +22,7 @@ import type { CollectionTable, Database, FieldTable } from "../database/types.js
 import { validateIdentifier } from "../database/validate.js";
 import {
 	canResumeMediaUsageCollectionCapture,
+	findResumableMediaUsageCollectionCaptureId,
 	finalizeMediaUsageCollectionCapture,
 	installPreparedMediaUsageCollectionCapture,
 	markMediaUsageCollectionCaptureReady,
@@ -516,7 +517,13 @@ export class SchemaRegistry {
 
 		const proposedId = existing?.id ?? ulid();
 		const tableName = this.getTableName(input.slug);
-		if (!existing && (await tableExists(this.db, tableName))) {
+		if (
+			!existing &&
+			(await tableExists(this.db, tableName)) &&
+			!(await findResumableMediaUsageCollectionCaptureId(this.db, {
+				collectionSlug: input.slug,
+			}))
+		) {
 			throw new SchemaError(
 				`Collection table "${tableName}" exists but is not registered`,
 				"COLLECTION_TABLE_ORPHANED",
