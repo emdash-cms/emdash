@@ -322,7 +322,7 @@ const { entry } = slug ? await getEmDashEntry("posts", slug) : { entry: null };
 
 ### `sanitizeHref()` and `isSafeHref()`
 
-These helpers reject unsafe link schemes such as `javascript:`. `isSafeHref(value)` returns a boolean. `sanitizeHref(value)` returns the original safe URL or `"#"` when the value is empty or unsafe.
+These helpers accept `http:`, `https:`, `mailto:`, `tel:`, site-relative paths, and fragments. They reject script-capable schemes, protocol-relative URLs, backslash-prefixed forms that browsers resolve to another site, and control characters. `isSafeHref(value)` returns a boolean. `sanitizeHref(value)` returns the original safe URL or `"#"` when the value is empty or unsafe.
 
 ```ts
 import { sanitizeHref } from "emdash";

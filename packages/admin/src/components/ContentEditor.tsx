@@ -2958,6 +2958,7 @@ function UrlFieldEditor({
 				id={id}
 				type="text"
 				inputMode="url"
+				dir="ltr"
 				value={value}
 				onChange={(e) => {
 					if (error) setError(null);

@@ -7,7 +7,7 @@ import {
 	type DatetimeFieldDescriptor,
 } from "../datetime-normalization.js";
 import type { FieldType, RepeaterSubField } from "../schema/types.js";
-import { hasUnsafeUrlScheme } from "../utils/url.js";
+import { isSafeUrlFieldWriteValue } from "../utils/url.js";
 import { EmDashValidationError } from "./repositories/types.js";
 import type { Database } from "./types.js";
 
@@ -116,9 +116,9 @@ export class ContentDatetimeNormalizer {
 
 	/**
 	 * Normalizes datetimes in incoming field values and rejects `url` values
-	 * that a browser would resolve to a script-capable scheme. Values already
-	 * stored are not checked, so restoring or syncing existing data goes
-	 * through {@link normalizeData} instead.
+	 * with unsafe schemes, control characters, or off-site path forms. Values
+	 * already stored are not checked, so restoring or syncing existing data
+	 * goes through {@link normalizeData} instead.
 	 */
 	async normalizeInput(
 		collection: string,
@@ -192,9 +192,9 @@ function repeaterRows(value: unknown): unknown[] | undefined {
 }
 
 function assertSafeUrl(path: string, value: unknown): void {
-	if (typeof value === "string" && hasUnsafeUrlScheme(value)) {
+	if (typeof value === "string" && !isSafeUrlFieldWriteValue(value)) {
 		throw new EmDashValidationError(
-			`Field "${path}" must use http, https, mailto, or tel, or be a site-relative path`,
+			`Field "${path}" must use http, https, mailto, or tel, or be a safe relative path or fragment`,
 			{ path },
 		);
 	}

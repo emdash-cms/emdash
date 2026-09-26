@@ -10,7 +10,10 @@ import {
 	type BlockTypeVersionRecord,
 	type BylineFieldRecord,
 	type BylineFieldValueRecord,
+	type EntryRecord,
+	type FieldRecord,
 	type RedirectRecord,
+	type RevisionRecord,
 	type SitePackageRecord,
 } from "../../../../src/transfer/format/kinds.js";
 import type { SiteImportPlan } from "../../../../src/transfer/format/plan.js";
@@ -418,6 +421,73 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 	});
 
 	describe("URLs and URL patterns", () => {
+		it("blocks unsafe URL fields in entries, revisions, repeaters, and blocks", async () => {
+			const websiteField = `${ids.postTitle}u`;
+			const plan = await planFor({
+				mutate: (records) => {
+					const title = records.field.find((record) => record.id === ids.postTitle) as FieldRecord;
+					records.field.push({
+						...title,
+						id: websiteField,
+						slug: "website",
+						label: "Website",
+						type: "url",
+						columnType: "TEXT",
+						sortOrder: 8,
+					});
+					records.field.sort((a, b) => compareIds(a.id, b.id));
+					update<FieldRecord>(records.field, ids.postGallery, (field) => ({
+						...field,
+						validation: {
+							subFields: [
+								{ slug: "photo", type: "image", label: "Photo" },
+								{ slug: "caption", type: "string", label: "Caption" },
+								{ slug: "href", type: "url", label: "Href" },
+							],
+						},
+					}));
+					update<BlockTypeVersionRecord>(records.block_type_version, ids.calloutV2, (version) => ({
+						...version,
+						fields: [...version.fields, { slug: "href", label: "Href", type: "url" }],
+					}));
+					const unsafeFields = (fields: unknown) => ({
+						...(typeof fields === "object" && fields !== null && !Array.isArray(fields)
+							? fields
+							: {}),
+						website: "/\\evil.example/path",
+						gallery: [{ href: "\t//evil.example/path" }],
+						blocks: [{ _type: "callout", _version: 2, _key: "unsafe", href: "//evil.example" }],
+					});
+					update<EntryRecord>(records.entry, ids.hello, (entry) => ({
+						...entry,
+						fields: unsafeFields(entry.fields),
+					}));
+					update<RevisionRecord>(records.revision, ids.helloLive, (revision) => ({
+						...revision,
+						data: unsafeFields(revision.data),
+					}));
+				},
+			});
+
+			const unsafe = plan.blockers
+				.filter(
+					(blocker) =>
+						blocker.code === "value_constraint_violation" &&
+						(blocker.kind === "entry" || blocker.kind === "revision"),
+				)
+				.map((blocker) => [blocker.kind, blocker.detail?.property, blocker.detail?.field]);
+			expect(unsafe).toEqual(
+				expect.arrayContaining([
+					["entry", "fields", "website"],
+					["entry", "fields", "gallery.0.href"],
+					["entry", "fields", "blocks.0.href"],
+					["revision", "data", "website"],
+					["revision", "data", "gallery.0.href"],
+					["revision", "data", "blocks.0.href"],
+				]),
+			);
+		});
+
 		it("blocks URLs and URL patterns the admin API would refuse, without echoing them", async () => {
 			const urlField = `${ids.bylineTwitter}u`;
 			const plan = await planFor({

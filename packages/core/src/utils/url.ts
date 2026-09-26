@@ -16,7 +16,26 @@
  * - Protocol-relative URLs are NOT allowed (starting with //) as they can
  *   redirect to attacker-controlled hosts.
  */
-const SAFE_URL_SCHEME_RE = /^(https?:|mailto:|tel:|\/(?!\/)|#)/i;
+const SAFE_ABSOLUTE_URL_RE = /^(https?:|mailto:|tel:)/i;
+const SITE_RELATIVE_HREF_RE = /^(\/(?![/\\])|#)/;
+const URL_SCHEME_RE = /^([a-z][a-z0-9+.-]*):/i;
+const URL_BASE = new URL("https://emdash.invalid/");
+
+function containsHrefControl(value: string): boolean {
+	for (const character of value) {
+		const codePoint = character.codePointAt(0);
+		if (codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)) return true;
+	}
+	return false;
+}
+
+function resolvesOnSite(value: string): boolean {
+	try {
+		return new URL(value, URL_BASE).origin === URL_BASE.origin;
+	} catch {
+		return false;
+	}
+}
 
 /**
  * Returns the URL unchanged if it uses a safe scheme, otherwise returns "#".
@@ -37,35 +56,41 @@ const SAFE_URL_SCHEME_RE = /^(https?:|mailto:|tel:|\/(?!\/)|#)/i;
  */
 export function sanitizeHref(url: string | undefined | null): string {
 	if (!url) return "#";
-	return SAFE_URL_SCHEME_RE.test(url) ? url : "#";
+	return isSafeHref(url) ? url : "#";
 }
 
 /**
  * Returns true if the URL uses a safe scheme for rendering in href attributes.
  */
 export function isSafeHref(url: string): boolean {
-	return SAFE_URL_SCHEME_RE.test(url);
+	if (containsHrefControl(url)) return false;
+	if (SAFE_ABSOLUTE_URL_RE.test(url)) return URL.canParse(url);
+	return SITE_RELATIVE_HREF_RE.test(url) && resolvesOnSite(url);
 }
 
-// A backslash after the leading slash is read as "//", making the path protocol-relative.
-const RELATIVE_HREF_RE = /^(\/(?![/\\])|#)/;
-const HREF_WHITESPACE_RE = /[\t\n\r]/;
-const URL_SCHEME_RE = /^([a-z][a-z0-9+.-]*):/i;
 const ALLOWED_URL_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
-const HREF_STRIPPED_CHARS_RE = /[\t\n\r]/g;
 
 /**
  * Returns true if the value names a URL scheme other than http, https,
  * mailto, or tel, as a browser would resolve it in an href.
  */
 export function hasUnsafeUrlScheme(value: string): boolean {
-	// Browsers drop tabs and newlines anywhere, and leading control characters and
-	// spaces, before resolving an href, so "\tjava\nscript:" still runs script.
-	const stripped = value.replace(HREF_STRIPPED_CHARS_RE, "");
-	let start = 0;
-	while (start < stripped.length && stripped.charCodeAt(start) <= 0x20) start++;
-	const scheme = URL_SCHEME_RE.exec(stripped.slice(start))?.[1];
+	const stripped = value.replace(/[\t\n\r]/g, "").trimStart();
+	const scheme = URL_SCHEME_RE.exec(stripped)?.[1];
 	return scheme !== undefined && !ALLOWED_URL_SCHEMES.has(scheme.toLowerCase());
+}
+
+/**
+ * Returns true when a repository write may keep the value. Repository callers
+ * preserve legacy scheme-less values, but reject anything a browser resolves
+ * off-site or to a script-capable scheme.
+ */
+export function isSafeUrlFieldWriteValue(value: string): boolean {
+	if (containsHrefControl(value) || hasUnsafeUrlScheme(value)) return false;
+	const candidate = value.trimStart();
+	const scheme = URL_SCHEME_RE.exec(candidate)?.[1];
+	if (scheme !== undefined) return ALLOWED_URL_SCHEMES.has(scheme.toLowerCase());
+	return resolvesOnSite(candidate);
 }
 
 /**
@@ -74,6 +99,5 @@ export function hasUnsafeUrlScheme(value: string): boolean {
  * absolute URL.
  */
 export function isSafeUrlFieldValue(value: string): boolean {
-	if (!isSafeHref(value) || HREF_WHITESPACE_RE.test(value)) return false;
-	return RELATIVE_HREF_RE.test(value) || URL.canParse(value);
+	return isSafeHref(value);
 }

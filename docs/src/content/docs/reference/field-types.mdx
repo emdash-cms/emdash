@@ -97,7 +97,7 @@ A link target. A value must be one of:
 - a `mailto:` or `tel:` link
 - a site-relative path, such as `/about`, or a fragment, such as `#contact`
 
-The content API and the admin editor reject anything else, including protocol-relative URLs (`//example.com`) and schemes that can run script, such as `javascript:` and `data:`.
+The content API and the admin editor reject anything else, including protocol-relative URLs (`//example.com`), backslash forms that browsers resolve the same way (`/\\example.com`), control characters, and schemes that can run script, such as `javascript:` and `data:`.
 
 ```ts
 {
@@ -108,9 +108,9 @@ The content API and the admin editor reject anything else, including protocol-re
 }
 ```
 
-URL fields are stored as text. Seeds and plugin content updates are not format-checked. They still reject a value that uses any scheme other than `http:`, `https:`, `mailto:`, or `tel:`.
+URL fields are stored as text. Seeds and plugin content updates preserve scheme-less values such as `www.example.com`, but reject unsafe schemes and values that a browser resolves to another site. Site imports apply the same checks to URL fields in entries, revisions, repeaters, and blocks.
 
-Entries saved by earlier EmDash releases can hold a `url` value with some other scheme. Those values stay stored and queries return them unchanged. A write that sends the value again is rejected until the value is corrected. This includes an admin save of that entry and duplicating it. To render such values safely, pass `url` values through [`sanitizeHref()`](/reference/api/#sanitizehref-and-issafehref) before putting them in an `href`.
+Entries saved by earlier EmDash releases can hold an unsafe `url` value. Those values stay stored and queries return them unchanged. A write that sends the value again is rejected until the value is corrected. This includes an admin save of that entry and duplicating it. To render such values safely, pass `url` values through [`sanitizeHref()`](/reference/api/#sanitizehref-and-issafehref) before putting them in an `href`.
 
 ### `slug`
 

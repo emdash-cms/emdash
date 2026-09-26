@@ -703,6 +703,24 @@ describe("ContentEditor", () => {
 			},
 		);
 
+		it("keeps URL values left-to-right inside an RTL editor", async () => {
+			document.documentElement.dir = "rtl";
+			try {
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ data: { title: "Test", website: "/about" } }),
+					fields: {
+						title: { kind: "string", label: "Title", required: true },
+						website: { kind: "url", label: "Website" },
+					},
+				});
+
+				await expect.element(screen.getByLabelText("Website")).toHaveAttribute("dir", "ltr");
+			} finally {
+				document.documentElement.dir = "ltr";
+			}
+		});
+
 		it("multiSelect checkboxes reflect existing values", async () => {
 			const item = makeItem({
 				data: { title: "Test", tags: ["news", "sports"] },
