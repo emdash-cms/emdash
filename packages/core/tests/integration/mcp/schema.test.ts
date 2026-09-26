@@ -441,6 +441,31 @@ describe("schema_update_collection", () => {
 		expect((await new SchemaRegistry(db).getCollection("post"))?.urlPattern).toBeUndefined();
 	});
 
+	it("round-trips an unchanged legacy URL pattern but rejects a changed invalid pattern", async () => {
+		await db
+			.updateTable("_emdash_collections")
+			.set({ url_pattern: "/{slug}-{id}" })
+			.where("slug", "=", "post")
+			.execute();
+
+		const unchanged = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", label: "Articles", urlPattern: "/{slug}-{id}" },
+		});
+		expect(unchanged.isError, extractText(unchanged)).toBeFalsy();
+
+		const changed = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", urlPattern: "/{year}{slug}" },
+		});
+		expect(changed.isError).toBe(true);
+		expect(extractText(changed)).toContain("[INVALID_URL_PATTERN]");
+		expect(await new SchemaRegistry(db).getCollection("post")).toMatchObject({
+			label: "Articles",
+			urlPattern: "/{slug}-{id}",
+		});
+	});
+
 	it("derives SEO when supports changes without hasSeo", async () => {
 		const result = await harness.client.callTool({
 			name: "schema_update_collection",

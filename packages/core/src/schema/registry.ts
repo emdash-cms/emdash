@@ -1052,7 +1052,6 @@ export class SchemaRegistry {
 			if (!existingRow) {
 				throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
 			}
-			// A stored pattern that fails validation must survive round-trips of unrelated edits.
 			if (input.urlPattern !== existingRow.url_pattern) this.validateUrlPattern(input.urlPattern);
 			const existing = this.mapCollectionRow(existingRow);
 			await this.validateTitleDateFields(

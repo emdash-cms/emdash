@@ -459,7 +459,7 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 					}));
 					update(records.collection, ids.posts, (collection) => ({
 						...collection,
-						urlPattern: `/blog/{slug}/${SENTINEL}}`,
+						urlPattern: `/blog/{slug}{id}/${SENTINEL}`,
 					}));
 					update(records.seo, `posts:${ids.hello}`, (seo) => ({
 						...seo,

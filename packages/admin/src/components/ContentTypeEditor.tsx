@@ -221,7 +221,9 @@ export function ContentTypeEditor({
 	// relationship it views is finished too.
 	const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true);
 
-	const urlPatternSharesSegment = MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern);
+	const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? "");
+	const urlPatternSharesSegment =
+		urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern);
 	const urlPatternValid =
 		!urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment);
 
@@ -520,7 +522,7 @@ export function ContentTypeEditor({
 								)}
 								{urlPatternSharesSegment && (
 									<p className="text-xs text-kumo-danger mt-2">
-										{t`Each placeholder needs its own path segment, e.g. ${"/{year}/{slug}"}`}
+										{t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`}
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">

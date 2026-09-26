@@ -189,7 +189,7 @@ export const updateCollectionBody = z
 		icon: z.string().optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: urlPatternValue.nullish(),
+		urlPattern: z.string().nullish(),
 		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
