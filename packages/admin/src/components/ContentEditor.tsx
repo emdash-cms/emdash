@@ -1194,6 +1194,7 @@ export function ContentEditor({
 				references?: Record<string, string[]>;
 			}) => void | Promise<void>,
 			invalidFieldsMessage?: string,
+			{ allowUnmodifiedConflict = false }: { allowUnmodifiedConflict?: boolean } = {},
 		) => {
 			if (isPublishingRef.current) {
 				return Promise.reject(new Error(t`A publishing action is already in progress`));
@@ -1203,7 +1204,7 @@ export function ContentEditor({
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
 				);
 			}
-			if (hasSaveConflictRef.current) {
+			if (hasSaveConflictRef.current && (!allowUnmodifiedConflict || hasPendingSaveRef.current)) {
 				return Promise.reject(
 					new Error(
 						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
@@ -1257,6 +1258,7 @@ export function ContentEditor({
 				? runScheduleChange(
 						(payload) => onPublishedAtChange(publishedAt, payload),
 						t`Fix invalid fields before changing the publication date`,
+						{ allowUnmodifiedConflict: true },
 					)
 				: undefined,
 		[onPublishedAtChange, runScheduleChange, t],
