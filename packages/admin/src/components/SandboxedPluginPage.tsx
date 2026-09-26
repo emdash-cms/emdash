@@ -23,6 +23,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const { t } = useLingui();
 	const [blocks, setBlocks] = useState<Block[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [toast, setToast] = useState<BlockResponse["toast"] | null>(null);
 	const requestGeneration = useRef(0);
@@ -38,6 +39,8 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 			if (showLoading) {
 				setLoading(true);
 				setError(null);
+			} else {
+				setPending(true);
 			}
 			try {
 				const requestInteraction =
@@ -74,7 +77,10 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 					setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
 				}
 			} finally {
-				if (showLoading && generation === requestGeneration.current) setLoading(false);
+				if (generation === requestGeneration.current) {
+					if (showLoading) setLoading(false);
+					setPending(false);
+				}
 			}
 		},
 		[page, pluginId, t],
@@ -136,11 +142,24 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				</div>
 			)}
 
-			<BlockRenderer
-				blocks={blocks}
-				onAction={handleAction}
-				resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
-			/>
+			<div
+				aria-busy={pending || undefined}
+				className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}
+			>
+				<BlockRenderer
+					blocks={blocks}
+					onAction={handleAction}
+					resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+				/>
+			</div>
+			{pending && (
+				<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+					<CircleNotch className="h-6 w-6 animate-spin text-kumo-subtle" aria-hidden="true" />
+				</div>
+			)}
+			<span role="status" className="sr-only">
+				{pending ? t`Updating...` : ""}
+			</span>
 		</div>
 	);
 }
