@@ -46,15 +46,12 @@ describe("PluginDescriptor options", () => {
 		expectTypeOf(descriptors).toEqualTypeOf<PluginDescriptor[]>();
 	});
 
-	it("still rejects options that are not an object", () => {
-		const descriptor: PluginDescriptor<string> = {
-			id: "string-options",
-			version: "1.0.0",
-			entrypoint: "@example/string-options",
-			options: "enabled",
-		};
+	it("rejects options that are not an object where the descriptor is declared", () => {
 		// @ts-expect-error -- plugin options must be an object
-		const config: EmDashConfig = { plugins: [descriptor] };
-		expectTypeOf(config).not.toBeNever();
+		type StringOptionsDescriptor = PluginDescriptor<string>;
+		// @ts-expect-error -- plugin options must be an object
+		type StringOptionsSandboxed = SandboxedPluginDescriptor<string>;
+		expectTypeOf<StringOptionsDescriptor>().not.toBeNever();
+		expectTypeOf<StringOptionsSandboxed>().not.toBeNever();
 	});
 });
