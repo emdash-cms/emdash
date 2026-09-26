@@ -31,6 +31,8 @@ export interface MediaUploadInput {
 	contentType: string;
 	/** Alt text stored on the media record. */
 	alt?: string;
+	/** Caption stored on the media record. */
+	caption?: string;
 	authorId?: string;
 	/** Upload size limit in bytes (defaults to DEFAULT_MAX_UPLOAD_SIZE). */
 	maxUploadSize?: number;
@@ -161,6 +163,7 @@ export async function handleMediaUpload(
 				width: enriched.width,
 				height: enriched.height,
 				alt: input.alt,
+				caption: input.caption,
 				storageKey,
 				contentHash,
 				blurhash: enriched.blurhash,
