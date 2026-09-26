@@ -5195,6 +5195,26 @@ export class EmDashRuntime {
 		return { context: { surface, locale, direction: getLocaleDir(locale) } };
 	}
 
+	/**
+	 * UI context for a configured plugin's Block Kit page or widget. An
+	 * undeclared surface yields no context and no error: configured plugins
+	 * are not held to their declarations, so rejecting here would break
+	 * configured plugins that serve undeclared pages.
+	 */
+	private resolveTrustedUiContext(
+		plugin: ResolvedPlugin,
+		routeKey: string,
+		body: unknown,
+		request: Request,
+	): PluginUiContext | undefined {
+		if (routeKey !== "admin") return undefined;
+		const surfaces = {
+			pages: (plugin.admin.pages ?? []).map((page) => normalizePluginPagePath(page.path)),
+			widgets: (plugin.admin.widgets ?? []).map((widget) => widget.id),
+		};
+		return this.resolvePluginUiContext(surfaces, body, request).context;
+	}
+
 	private validateSandboxedAdminResponse(
 		pluginId: string,
 		definition: { policy: BlockValidationPolicy },
@@ -5458,7 +5478,10 @@ export class EmDashRuntime {
 				request,
 				body,
 				user: caller,
-				ui: editorDispatch?.ui ?? uiResult.context,
+				ui:
+					editorDispatch?.ui ??
+					uiResult.context ??
+					this.resolveTrustedUiContext(trustedPlugin, routeKey, body, request),
 			});
 			return editorDispatch
 				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
