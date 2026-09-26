@@ -2,7 +2,8 @@
  * EmDash Request Context Middleware
  *
  * Sets up AsyncLocalStorage-based request context for query functions.
- * Skips ALS entirely for logged-out users with no CMS signals (fast path).
+ * Skips ALS for logged-out users with no CMS signals unless a configured
+ * object cache must be fenced off during a route-cache render.
  *
  * Handles:
  * - Preview tokens: _preview query param with signed HMAC token
@@ -209,13 +210,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	// No CMS signals and not an editor → skip everything (zero overhead in
-	// server mode; client mode injects the identical-for-everyone bootstrap)
+	// No CMS signals and not an editor. Route-cache renders get a context so
+	// object-cache reads cannot seed a fresh response with stale data; other
+	// requests retain the anonymous fast path.
 	if (!hasEditCookie && !hasPreviewToken && !isEditor) {
-		if (toolbarMode === "client") {
-			return injectBootstrap(await next());
+		const render = async () => {
+			const response = await next();
+			return toolbarMode === "client" ? injectBootstrap(response) : response;
+		};
+		if (virtualConfig?.objectCacheEnabled && context.cache?.enabled) {
+			const parent = getRequestContext();
+			return runWithContext({ ...parent, editMode: false, routeCacheFill: true }, render);
 		}
-		return next();
+		return render();
 	}
 
 	// Determine edit mode: cookie AND authenticated editor
