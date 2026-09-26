@@ -137,7 +137,7 @@ const { entries: posts } = await getEmDashCollection("posts");
 
 **Auth** -- Passkey-first (WebAuthn) with OAuth and magic link fallbacks. Role-based access control: Administrator, Editor, Author, Contributor.
 
-**Plugins** -- `definePlugin()` API with lifecycle hooks, KV storage, settings, admin pages, dashboard widgets, custom block types, and API routes. Sandboxed execution on Cloudflare via Dynamic Worker Loaders.
+**Plugins** -- `definePlugin()` API with lifecycle hooks, KV storage, settings, admin pages, dashboard widgets, custom block types, and API routes. Sandboxed execution on Cloudflare via Dynamic Worker Loaders, and on Node.js in a `workerd` child process.
 
 **Agents** -- Skill files for AI-assisted plugin and theme development. CLI for programmatic site management. Built-in MCP server for direct AI tool integration.
 
@@ -150,7 +150,7 @@ const { entries: posts } = await getEmDashCollection("posts");
 | Database | D1                          | SQLite, Turso/libSQL, PostgreSQL                    |
 | Storage  | R2                          | AWS S3, any S3-compatible service, local filesystem |
 | Sessions | KV                          | Redis, file-based                                   |
-| Plugins  | Worker isolates (sandboxed) | In-process (safe mode)                              |
+| Plugins  | Worker isolates (sandboxed) | `workerd` child process (sandboxed)                 |
 
 ## Status
 
