@@ -21,7 +21,8 @@ const CRON_TIMEZONE = "UTC";
 /** Stale lock threshold in minutes */
 const STALE_LOCK_MINUTES = 10;
 const ISO_DATETIME_PATTERN =
-	/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+	/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+const ISO_TIMEZONE_PATTERN = /(?:Z|[+-]\d{2}:?\d{2})$/;
 
 /**
  * Callback to invoke a plugin's cron hook.
@@ -114,7 +115,7 @@ export class CronExecutor {
 					);
 					await sql`
 						UPDATE _emdash_cron_tasks
-						SET status = 'idle', locked_at = NULL
+						SET status = 'idle', locked_at = NULL, enabled = 0
 						WHERE id = ${task.id}
 					`.execute(this.db);
 					continue;
@@ -177,7 +178,22 @@ export class CronExecutor {
 				}
 			} else {
 				// Recurring: compute next run and reset
-				const nextRun = nextCronTime(task.schedule, currentTime);
+				let nextRun: string;
+				try {
+					nextRun = nextCronTime(task.schedule, currentTime);
+				} catch (error) {
+					console.error(
+						`[cron] Disabling unsatisfiable schedule for ${task.plugin_id}:${task.task_name}:`,
+						error,
+					);
+					await sql`
+						UPDATE _emdash_cron_tasks
+						SET status = 'idle', locked_at = NULL, last_run_at = ${now}, enabled = 0
+						WHERE id = ${task.id}
+					`.execute(this.db);
+					processed++;
+					continue;
+				}
 				await sql`
 					UPDATE _emdash_cron_tasks
 					SET status = 'idle',
@@ -248,7 +264,7 @@ export class CronAccessImpl implements CronAccess {
 		validateSchedule(opts.schedule);
 
 		const oneshot = isOneShot(opts.schedule);
-		const nextRun = oneshot ? opts.schedule : nextCronTime(opts.schedule, this.now());
+		const nextRun = oneshot ? oneShotTime(opts.schedule) : nextCronTime(opts.schedule, this.now());
 		const dataJson = opts.data ? JSON.stringify(opts.data) : null;
 		const id = ulid();
 
@@ -368,6 +384,12 @@ export function isOneShot(schedule: string): boolean {
 	}
 	if (isCronExpression(schedule)) return false;
 	return !isNaN(Date.parse(schedule));
+}
+
+function oneShotTime(schedule: string): string {
+	const withoutZone = ISO_DATETIME_PATTERN.test(schedule) && !ISO_TIMEZONE_PATTERN.test(schedule);
+	const input = withoutZone ? `${schedule.replace(" ", "T")}Z` : schedule;
+	return new Date(input).toISOString();
 }
 
 /** Max length for a task name */
