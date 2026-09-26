@@ -1,5 +1,9 @@
 # @emdash-cms/blocks
 
+## 0.41.0
+
+No changes in this release.
+
 ## 0.40.1
 
 No changes in this release.
