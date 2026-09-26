@@ -142,10 +142,14 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 					redirect("6", { destination: "" }),
 					redirect("7", { type: 200 }),
 					redirect("8", { type: 410, destination: "" }),
+					redirect("9", { destination: `/\\${SENTINEL}.example/` }),
+					redirect("10", { destination: `/\t/${SENTINEL}.example/` }),
 				),
 			);
 			expect(blockedIds(plan, "redirect")).toEqual(
-				["1", "2", "3", "4", "5", "6", "7"].map((suffix) => `${ids.oldBlogRedirect}${suffix}`),
+				["1", "10", "2", "3", "4", "5", "6", "7", "9"].map(
+					(suffix) => `${ids.oldBlogRedirect}${suffix}`,
+				),
 			);
 			expect(JSON.stringify(plan)).not.toContain(SENTINEL);
 		});

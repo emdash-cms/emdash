@@ -19,6 +19,7 @@ import { defineMiddleware } from "astro:middleware";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
+import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 
 /** Paths that should never be intercepted by redirects */
@@ -31,6 +32,12 @@ type RedirectCode = 301 | 302 | 303 | 307 | 308;
 
 function isRedirectCode(code: number): code is RedirectCode {
 	return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
+}
+
+function warnUnsafeDestination(id: string): void {
+	console.warn(
+		`[emdash:redirects] Skipping redirect ${id}: destination is not a site-relative path`,
+	);
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -80,7 +87,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				return new Response(null, { status: exact.type });
 			}
 			const dest = exact.destination;
-			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
+			if (!isSiteRelativeDestination(dest)) {
+				warnUnsafeDestination(exact.id);
+				return next();
+			}
 			repo.recordHit(exact.id).catch(() => {});
 			const code = isRedirectCode(exact.type) ? exact.type : 301;
 			return context.redirect(dest, code);
@@ -95,7 +105,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				repo.recordHit(redirect.id).catch(() => {});
 				return new Response(null, { status: redirect.type });
 			}
-			if (destination.startsWith("//") || destination.startsWith("/\\")) return next();
+			if (!isSiteRelativeDestination(destination)) {
+				warnUnsafeDestination(redirect.id);
+				return next();
+			}
 			repo.recordHit(redirect.id).catch(() => {});
 			const code = isRedirectCode(redirect.type) ? redirect.type : 301;
 			return context.redirect(destination, code);

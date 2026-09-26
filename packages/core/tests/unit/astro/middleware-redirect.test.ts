@@ -495,3 +495,121 @@ describe("redirect middleware — trailing-slash normalisation (issue #1271)", (
 		expect(r2.headers.get("Location")).toBe("/newer");
 	});
 });
+
+describe("redirect middleware — only redirects to site-relative paths", () => {
+	let db: Kysely<Database>;
+	let warn: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+		warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+	});
+
+	afterEach(async () => {
+		warn.mockRestore();
+		await teardownTestDatabase(db);
+	});
+
+	async function runMiddleware(
+		context: MiddlewareContext,
+		next: () => Promise<Response>,
+	): Promise<Response> {
+		const result = await onRequest(context, next);
+		if (!(result instanceof Response)) {
+			throw new Error("Middleware returned void; expected a Response");
+		}
+		return result;
+	}
+
+	it.each([
+		"https://evil.example",
+		"http:/evil.example",
+		"javascript:alert(1)",
+		"evil.example/path",
+		"//evil.example",
+		"/\\evil.example",
+		"/\t/evil.example",
+		"/\n/evil.example",
+		"/ok\r\nSet-Cookie: a=b",
+		"/\u007f/evil.example",
+	])("skips a stored exact rule whose destination is %j", async (destination) => {
+		const repo = new RedirectRepository(db);
+		const rule = await repo.create({ source: "/away", destination, type: 301 });
+
+		const { context, redirect } = buildContext({ pathname: "/away" });
+		const next = vi.fn(async () => new Response("ok"));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+		expect((await repo.findById(rule.id))?.hits).toBe(0);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(rule.id));
+	});
+
+	it("skips a stored pattern rule that resolves to an external URL", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/out/[slug]",
+			destination: "https://evil.example/[slug]",
+			type: 302,
+			isPattern: true,
+		});
+
+		const { context, redirect } = buildContext({ pathname: "/out/page" });
+		const next = vi.fn(async () => new Response("ok"));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+	});
+
+	it("skips a pattern rule whose captured path makes the destination protocol-relative", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/go/[...rest]",
+			destination: "/[...rest]",
+			type: 301,
+			isPattern: true,
+		});
+
+		const { context, redirect } = buildContext({ pathname: "/go//evil.example" });
+		const next = vi.fn(async () => new Response("ok"));
+		await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(next).toHaveBeenCalledTimes(1);
+	});
+
+	it("still redirects to site-relative paths with a query string and fragment", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/find", destination: "/search?q=a%20b#results", type: 302 });
+
+		const { context, redirect } = buildContext({ pathname: "/find" });
+		const next = vi.fn(async () => new Response("ok"));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).toHaveBeenCalledWith("/search?q=a%20b#results", 302);
+		expect(response.status).toBe(302);
+	});
+
+	it("ignores a stored pattern rule whose source is not a valid pattern", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/[a][b][c]",
+			destination: "/elsewhere",
+			type: 301,
+			isPattern: true,
+		});
+
+		const { context, redirect } = buildContext({ pathname: "/abc" });
+		const next = vi.fn(async () => new Response("ok"));
+		const response = await runMiddleware(context, next);
+
+		expect(redirect).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+	});
+});

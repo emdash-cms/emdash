@@ -9,6 +9,7 @@ import { safeHref } from "../../api/schemas/menus.js";
 import { createRedirectBody } from "../../api/schemas/redirects.js";
 import { coerceFieldValue } from "../../database/repositories/byline.js";
 import { EmDashValidationError } from "../../database/repositories/types.js";
+import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { isPattern, validateDestinationParams, validatePattern } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { validateBlockFields } from "../../schema/block-type-contract.js";
@@ -59,6 +60,13 @@ function redirectIssues(record: RedirectRecord): ValueIssue[] {
 		for (const [property, message] of Object.entries(REDIRECT_BODY_MESSAGES)) {
 			if (properties.has(property)) issues.push(rejected(property, message));
 		}
+	}
+	if (
+		!isTerminalStatus(record.type) &&
+		!isSiteRelativeDestination(record.destination) &&
+		!issues.some((issue) => issue.property === "destination")
+	) {
+		issues.push(rejected("destination", REDIRECT_BODY_MESSAGES.destination));
 	}
 	const pattern = isPattern(record.source);
 	if (record.isPattern !== pattern) {

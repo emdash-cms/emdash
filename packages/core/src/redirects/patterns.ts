@@ -36,11 +36,8 @@ const OPEN_BRACKET = /\[/g;
 /** Count close brackets */
 const CLOSE_BRACKET = /\]/g;
 
-/** Split on capture groups in compiled regex string */
-const CAPTURE_GROUP_SPLIT = /(\([^)]+\))/;
-
 /** Escape regex-special characters in literal parts */
-const REGEX_SPECIAL_CHARS = /[.*+?^${}|\\]/g;
+const REGEX_SPECIAL_CHARS = /[.*+?^${}()|[\]\\]/g;
 
 export interface CompiledPattern {
 	regex: RegExp;
@@ -145,34 +142,19 @@ export function validateDestinationParams(source: string, destination: string): 
  */
 export function compilePattern(source: string): CompiledPattern {
 	const paramNames: string[] = [];
+	let regexStr = "";
+	let literalStart = 0;
 
-	// Replace [...splat] first (before [param]) since [...x] contains [x]
-	let regexStr = source.replace(SPLAT_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "(.+)";
-	});
-
-	// Then replace [param]
-	regexStr = regexStr.replace(PARAM_PATTERN, (_match, name: string) => {
-		paramNames.push(name);
-		return "([^/]+)";
-	});
-
-	// Escape any regex-special characters in the literal parts
-	// We need to be careful: the replacement groups are already valid regex
-	// Split on capture groups, escape literals, rejoin
-	const parts = regexStr.split(CAPTURE_GROUP_SPLIT);
-	const escaped = parts
-		.map((part, i) => {
-			// Odd indices are the capture groups -- leave them alone
-			if (i % 2 === 1) return part;
-			// Even indices are literal text -- escape special regex chars
-			return part.replace(REGEX_SPECIAL_CHARS, "\\$&");
-		})
-		.join("");
+	for (const match of source.matchAll(ANY_PLACEHOLDER)) {
+		regexStr += source.slice(literalStart, match.index).replace(REGEX_SPECIAL_CHARS, "\\$&");
+		paramNames.push(match[1]);
+		regexStr += match[0].startsWith("[...") ? "(.+)" : "([^/]+)";
+		literalStart = match.index + match[0].length;
+	}
+	regexStr += source.slice(literalStart).replace(REGEX_SPECIAL_CHARS, "\\$&");
 
 	return {
-		regex: new RegExp(`^${escaped}$`),
+		regex: new RegExp(`^${regexStr}$`),
 		paramNames,
 		source,
 	};

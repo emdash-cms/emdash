@@ -2,11 +2,13 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import {
 	compilePattern,
 	matchPattern,
 	interpolateDestination,
 	isPattern,
+	validatePattern,
 } from "../../redirects/patterns.js";
 import { currentTimestampValue, isPostgres } from "../dialect-helpers.js";
 import type { Database, RedirectTable } from "../types.js";
@@ -468,18 +470,21 @@ export class RedirectRepository {
 	async matchPath(path: string): Promise<RedirectMatch | null> {
 		// 1. Exact match (fast, indexed)
 		const exact = await this.findExactMatch(path);
-		if (exact) {
+		if (exact && isSiteRelativeDestination(exact.destination)) {
 			return { redirect: exact, resolvedDestination: exact.destination };
 		}
 
 		// 2. Pattern match
 		const patterns = await this.findEnabledPatternRules();
 		for (const redirect of patterns) {
+			if (validatePattern(redirect.source)) continue;
 			const compiled = compilePattern(redirect.source);
 			const params = matchPattern(compiled, path);
 			if (params) {
 				const resolved = interpolateDestination(redirect.destination, params);
-				return { redirect, resolvedDestination: resolved };
+				if (isSiteRelativeDestination(resolved)) {
+					return { redirect, resolvedDestination: resolved };
+				}
 			}
 		}
 
