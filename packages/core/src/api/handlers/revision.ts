@@ -145,6 +145,10 @@ export async function handleRevisionRestore(
 		// fence leaves the live links untouched. The restore's own revision carries
 		// the selection, so restoring it again retries a promotion that failed here.
 		if (stagedReferences && item.translationGroup) {
+			// Restoring a revision means replacing the current live selection with the
+			// revision's selection, not merging a diff. Live revisions carry no
+			// baseline and fall back to wholesale replacement; draft-revision
+			// restores intentionally keep that same behavior.
 			await applyStagedReferences(db, revision.collection, item.translationGroup, stagedReferences);
 		}
 

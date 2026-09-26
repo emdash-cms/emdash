@@ -25,6 +25,14 @@ import {
 export const STAGED_REFERENCES_KEY = "_references";
 
 /**
+ * The live selection each staged field was saved against. Promotion computes
+ * the diff between `_references` and this baseline, so a draft only adds or
+ * removes the links it actually intended rather than replacing the live set
+ * with a stale snapshot.
+ */
+export const STAGED_REFERENCES_BASELINE_KEY = "_referencesBaseline";
+
+/**
  * A staged selection, by field slug, holding `translation_group` values rather
  * than entry ids: an edge names a thing, not one locale's row of it, so the
  * group is what the link table stores and what survives an entry being
@@ -34,6 +42,9 @@ export const STAGED_REFERENCES_KEY = "_references";
  * Order is significant on the parent side, where it becomes `sort_order`.
  */
 export type StagedReferences = Record<string, string[]>;
+
+/** The live selection a staged field(s) was saved against, by field slug. */
+export type StagedReferenceBaselines = Record<string, string[]>;
 
 /** Default page size for one reference field, matching the list endpoints. */
 export const REFERENCE_PAGE_LIMIT = 50;
@@ -114,4 +125,33 @@ export function mergeStagedReferences(
 	incoming: StagedReferences,
 ): StagedReferences {
 	return { ...readStagedReferences(base), ...incoming };
+}
+
+/** The baseline selection inside a revision's data, if it carries one. */
+export function readStagedReferenceBaselines(
+	data: Record<string, unknown> | undefined,
+): StagedReferenceBaselines | undefined {
+	const baselines = data?.[STAGED_REFERENCES_BASELINE_KEY];
+	if (typeof baselines !== "object" || baselines === null || Array.isArray(baselines)) {
+		return undefined;
+	}
+
+	const result: StagedReferenceBaselines = {};
+	for (const [fieldSlug, groups] of Object.entries(baselines)) {
+		if (isGroupList(groups)) result[fieldSlug] = groups;
+	}
+	return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
+ * Fold a save's baselines into the previous draft's baselines. The baseline for
+ * a field is captured once, on the first save that stages it, so the diff stays
+ * anchored to the live selection the user was looking at.
+ */
+export function mergeStagedReferenceBaselines(
+	base: Record<string, unknown> | undefined,
+	incoming: StagedReferenceBaselines,
+): StagedReferenceBaselines {
+	const existing = readStagedReferenceBaselines(base) ?? {};
+	return { ...incoming, ...existing };
 }

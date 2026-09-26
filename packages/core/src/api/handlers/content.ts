@@ -67,6 +67,7 @@ import {
 	applyStagedReferences,
 	liveReferenceSelection,
 	pageStagedGroups,
+	readStagedReferenceBaselines,
 	readStagedReferences,
 	recordPublishedReferences,
 	STAGED_REFERENCES_KEY,
@@ -2342,7 +2343,14 @@ export async function handleContentPublish(
 						expectedScheduledAt: options.expectedScheduledAt,
 						expectedRevision,
 					});
-					await applyStagedReferences(trx, collection, existing.translationGroup, stagedReferences);
+					const stagedReferenceBaselines = readStagedReferenceBaselines(draftRevision?.data);
+					await applyStagedReferences(
+						trx,
+						collection,
+						existing.translationGroup,
+						stagedReferences,
+						stagedReferenceBaselines,
+					);
 				}
 			}
 

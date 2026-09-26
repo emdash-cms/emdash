@@ -30,8 +30,12 @@ import {
 } from "./api/handlers/media-upload.js";
 import { resolveReferenceSelection } from "./api/handlers/relations.js";
 import {
+	liveReferenceSelection,
+	mergeStagedReferenceBaselines,
 	mergeStagedReferences,
+	STAGED_REFERENCES_BASELINE_KEY,
 	STAGED_REFERENCES_KEY,
+	type StagedReferenceBaselines,
 	type StagedReferences,
 } from "./api/handlers/staged-references.js";
 import { validateRev } from "./api/rev.js";
@@ -3698,8 +3702,10 @@ export class EmDashRuntime {
 				// way a direct link write would, and publication has nothing left to
 				// resolve.
 				let stagedReferences: StagedReferences | undefined;
+				let stagedReferenceBaselines: StagedReferenceBaselines | undefined;
 				if (bodyWithoutRev.references) {
 					stagedReferences = {};
+					let entryGroup: string | undefined;
 					for (const [fieldSlug, selectedIds] of Object.entries(bodyWithoutRev.references)) {
 						const resolved = await resolveReferenceSelection(
 							this.db,
@@ -3712,6 +3718,14 @@ export class EmDashRuntime {
 							return { success: false as const, error: resolved.error };
 						}
 						stagedReferences[fieldSlug] = resolved.data.groups;
+						entryGroup = resolved.data.entryGroup;
+					}
+					if (entryGroup) {
+						const liveSelection = await liveReferenceSelection(this.db, collection, entryGroup);
+						stagedReferenceBaselines = {};
+						for (const fieldSlug of Object.keys(stagedReferences)) {
+							stagedReferenceBaselines[fieldSlug] = liveSelection[fieldSlug] ?? [];
+						}
 					}
 				}
 
@@ -3771,6 +3785,12 @@ export class EmDashRuntime {
 					}
 					if (stagedReferences) {
 						mergedData[STAGED_REFERENCES_KEY] = mergeStagedReferences(baseData, stagedReferences);
+					}
+					if (stagedReferenceBaselines) {
+						mergedData[STAGED_REFERENCES_BASELINE_KEY] = mergeStagedReferenceBaselines(
+							baseData,
+							stagedReferenceBaselines,
+						);
 					}
 
 					const revision = await revisionRepo.create({
