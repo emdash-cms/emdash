@@ -26,7 +26,6 @@ describe("media usage activation write fence", () => {
 		"/_emdash/api/admin/media-usage/repair",
 		"/_emdash/api/revisions/revision-1/restore",
 		"/_emdash/api/import/wordpress/execute",
-		"/_emdash/api/mcp",
 	])("rejects a state-changing %s request while activation is incomplete", async (pathname) => {
 		await setActivationState("activating");
 		const next = vi.fn(async () => new Response(null, { status: 204 }));
@@ -42,6 +41,14 @@ describe("media usage activation write fence", () => {
 			},
 		});
 		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("leaves MCP requests to the per-tool fence while activation is incomplete", async () => {
+		await setActivationState("activating");
+		const next = vi.fn(async () => new Response(null, { status: 204 }));
+
+		expect((await invoke("/_emdash/api/mcp", "POST", next)).status).toBe(204);
+		expect(next).toHaveBeenCalledOnce();
 	});
 
 	it.each(["expanded", "active"])("allows content writes while activation is %s", async (state) => {

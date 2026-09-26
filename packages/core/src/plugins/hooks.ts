@@ -1482,6 +1482,13 @@ export interface ExclusiveHookResolutionOptions {
 	 * Used as a tiebreaker when no DB selection exists and multiple providers are active.
 	 */
 	preferredHints?: Map<string, string[]>;
+	/**
+	 * Plugin IDs of built-in providers that give way to a plugin. When no
+	 * selection is stored, a fallback is auto-selected only if no other
+	 * provider of the hook is active, and that selection is not stored, so a
+	 * plugin provider that becomes active later is selected in its place.
+	 */
+	fallbackProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
@@ -1493,13 +1500,24 @@ const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
  * Shared algorithm used by both PluginManager and EmDashRuntime:
  * 1. If a DB selection exists and that plugin is active → keep it.
  * 2. If DB selection is stale (plugin inactive/gone) → clear it.
- * 3. If no selection and only one active provider → auto-select it.
+ * 3. If no selection and only one active provider → auto-select it. Fallback
+ *    providers are not counted when another provider is active, so a single
+ *    plugin provider is selected over a built-in fallback. A fallback
+ *    selection is kept in memory only.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
-	const { pipeline, isActive, getOption, getOptions, setOption, deleteOption, preferredHints } =
-		opts;
+	const {
+		pipeline,
+		isActive,
+		getOption,
+		getOptions,
+		setOption,
+		deleteOption,
+		preferredHints,
+		fallbackProviders,
+	} = opts;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
 
@@ -1554,12 +1572,18 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		}
 
 		// Auto-select if only one active provider
-		if (activeProviderIds.size === 1) {
-			const [onlyProvider] = activeProviderIds;
-			try {
-				await setOption(key, onlyProvider);
-			} catch {
-				// Non-fatal
+		const candidates =
+			activeProviderIds.size > 1 && fallbackProviders
+				? [...activeProviderIds].filter((id) => !fallbackProviders.has(id))
+				: [...activeProviderIds];
+		if (candidates.length === 1) {
+			const [onlyProvider] = candidates;
+			if (!fallbackProviders?.has(onlyProvider)) {
+				try {
+					await setOption(key, onlyProvider);
+				} catch {
+					// Non-fatal
+				}
 			}
 			pipeline.setExclusiveSelection(hookName, onlyProvider);
 			continue;

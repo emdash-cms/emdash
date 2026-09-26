@@ -18,7 +18,7 @@ export const TEST_LANES = [
 	"preview",
 ];
 
-const BROWSER_SUITES = ["browser_admin", "browser_release"];
+const BROWSER_SUITES = ["browser_admin", "browser_embeds", "browser_release"];
 const REPOSITORY_METADATA_PATTERN =
 	/^\.github\/(?:dependabot\.yml|bonk-models\.json|codeql-config\.yml|zizmor\.yml)$/;
 const UNIT_PACKAGE_PATH_PATTERN =
@@ -33,6 +33,7 @@ const UNIT_PACKAGE_BY_PATH = new Map([
 	["packages/marketplace/", "@emdash-cms/marketplace"],
 	["packages/plugin-cli/", "@emdash-cms/plugin-cli"],
 	["packages/plugin-types/", "@emdash-cms/plugin-types"],
+	["packages/plugins/embeds/", "@emdash-cms/plugin-embeds"],
 	["packages/plugins/forms/", "@emdash-cms/plugin-forms"],
 	["packages/registry-client/", "@emdash-cms/registry-client"],
 	["packages/registry-lexicons/", "@emdash-cms/registry-lexicons"],
@@ -137,6 +138,12 @@ const RULES = [
 		name: "forms plugin",
 		matches: (path) => path.startsWith("packages/plugins/forms/"),
 		lanes: ["unit", "preview"],
+	},
+	{
+		name: "embeds plugin",
+		matches: (path) => path.startsWith("packages/plugins/embeds/"),
+		lanes: ["unit", "integration", "browser", "browser_embeds"],
+		unitMode: "full",
 	},
 	{
 		name: "plugin fixtures",

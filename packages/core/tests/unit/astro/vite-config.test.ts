@@ -196,18 +196,18 @@ describe("createViteConfig inline Portable Text hydration deps", () => {
 		const config = buildConfig(monorepoDemoRoot);
 		const include = config.optimizeDeps?.include ?? [];
 
-		expect(include).toContain("lowlight");
-		expect(include).toContain("highlight.js");
-		expect(include).toContain("highlight.js/lib/core");
+		expect(include).toContain("emdash > lowlight");
+		expect(include).toContain("emdash > highlight.js");
+		expect(include).toContain("emdash > highlight.js/lib/core");
 	});
 
 	it("pre-bundles lowlight and highlight.js in external dist-mode dev", () => {
 		const config = buildConfig(externalProjectRoot);
 		const include = config.optimizeDeps?.include ?? [];
 
-		expect(include).toContain("lowlight");
-		expect(include).toContain("highlight.js");
-		expect(include).toContain("highlight.js/lib/core");
+		expect(include).toContain("emdash > lowlight");
+		expect(include).toContain("emdash > highlight.js");
+		expect(include).toContain("emdash > highlight.js/lib/core");
 	});
 });
 

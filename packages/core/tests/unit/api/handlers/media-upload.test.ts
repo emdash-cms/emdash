@@ -2,16 +2,15 @@
  * Tests for the programmatic media upload handler backing the
  * `media_upload` MCP tool (#620).
  *
- * Covers base64 and URL modes, input validation, the global MIME
- * allowlist, size limits, SSRF rejection, and content-hash dedupe.
+ * Covers base64 input validation, the global MIME allowlist, size limits,
+ * and content-hash dedupe.
  */
 
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { handleMediaUpload } from "../../../../src/api/handlers/media-upload.js";
 import type { Database } from "../../../../src/database/types.js";
-import { setDefaultDnsResolver } from "../../../../src/security/ssrf.js";
 import type { Storage } from "../../../../src/storage/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../../utils/test-db.js";
 
@@ -51,18 +50,13 @@ function createFakeStorage() {
 describe("handleMediaUpload (#620)", () => {
 	let db: Kysely<Database>;
 	let storage: ReturnType<typeof createFakeStorage>;
-	let previousResolver: ReturnType<typeof setDefaultDnsResolver>;
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
 		storage = createFakeStorage();
-		// Resolve every hostname to a public IP so ssrfSafeFetch doesn't hit DNS
-		previousResolver = setDefaultDnsResolver(async () => ["93.184.216.34"]);
 	});
 
 	afterEach(async () => {
-		setDefaultDnsResolver(previousResolver ?? null);
-		vi.unstubAllGlobals();
 		await teardownTestDatabase(db);
 	});
 
@@ -108,25 +102,20 @@ describe("handleMediaUpload (#620)", () => {
 		expect(storage.uploads.size).toBe(1);
 	});
 
-	it("rejects when neither or both of base64/url are provided", async () => {
-		const neither = await handleMediaUpload(db, storage, { filename: "x.png" });
-		const both = await handleMediaUpload(db, storage, {
+	it("rejects URL input instead of fetching it", async () => {
+		const result = await handleMediaUpload(db, storage, {
 			filename: "x.png",
-			base64: PNG_BASE64,
 			url: "https://example.com/x.png",
-			contentType: "image/png",
-		});
-		for (const result of [neither, both]) {
-			expect(result.success).toBe(false);
-			if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
-		}
+		} as never);
+		expect(result.success).toBe(false);
+		if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	it("requires contentType with base64 data", async () => {
 		const result = await handleMediaUpload(db, storage, {
 			filename: "x.png",
 			base64: PNG_BASE64,
-		});
+		} as never);
 		expect(result.success).toBe(false);
 		if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
 	});
@@ -154,26 +143,6 @@ describe("handleMediaUpload (#620)", () => {
 		expect(storage.uploads.size).toBe(0);
 	});
 
-	it("rejects a malformed Content-Type header from a remote host", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn(async () => {
-				const response = new Response(PNG_BYTES);
-				// Response normalizes header values, so inject the raw string
-				vi.spyOn(response.headers, "get").mockReturnValue("image/png\r\nX-Evil: 1");
-				return response;
-			}),
-		);
-
-		const result = await handleMediaUpload(db, storage, {
-			filename: "remote.png",
-			url: "https://example.com/remote.png",
-		});
-		expect(result.success).toBe(false);
-		if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
-		expect(storage.uploads.size).toBe(0);
-	});
-
 	it("rejects MIME types outside the global allowlist", async () => {
 		const result = await handleMediaUpload(db, storage, {
 			filename: "evil.exe",
@@ -194,52 +163,5 @@ describe("handleMediaUpload (#620)", () => {
 		});
 		expect(result.success).toBe(false);
 		if (!result.success) expect(result.error.code).toBe("PAYLOAD_TOO_LARGE");
-	});
-
-	it("fetches from a URL, using the response Content-Type", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn(async () => new Response(PNG_BYTES, { headers: { "Content-Type": "image/png" } })),
-		);
-
-		const result = await handleMediaUpload(db, storage, {
-			filename: "remote.png",
-			url: "https://example.com/remote.png",
-		});
-
-		expect(result.success).toBe(true);
-		if (!result.success) return;
-		expect(result.data.item.mimeType).toBe("image/png");
-		expect(storage.uploads.get(result.data.item.storageKey)).toEqual(PNG_BYTES);
-	});
-
-	it("surfaces HTTP errors from the remote host", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn(async () => new Response("nope", { status: 404 })),
-		);
-
-		const result = await handleMediaUpload(db, storage, {
-			filename: "missing.png",
-			url: "https://example.com/missing.png",
-		});
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.code).toBe("FETCH_ERROR");
-			expect(result.error.message).toContain("404");
-		}
-	});
-
-	it("rejects URLs that resolve to private addresses (SSRF)", async () => {
-		const fetchSpy = vi.fn();
-		vi.stubGlobal("fetch", fetchSpy);
-
-		const result = await handleMediaUpload(db, storage, {
-			filename: "metadata.json",
-			url: "http://169.254.169.254/latest/meta-data",
-		});
-		expect(result.success).toBe(false);
-		if (!result.success) expect(result.error.code).toBe("VALIDATION_ERROR");
-		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 });

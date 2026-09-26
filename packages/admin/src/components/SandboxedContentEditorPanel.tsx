@@ -216,7 +216,9 @@ export function SandboxedContentEditorPanel({
 
 	return (
 		<Collapsible.Root open={open} onOpenChange={handleOpenChange}>
-			<Collapsible.DefaultTrigger>{title}</Collapsible.DefaultTrigger>
+			<Collapsible.DefaultTrigger>
+				<span className="text-base font-semibold text-kumo-default">{title}</span>
+			</Collapsible.DefaultTrigger>
 			<Collapsible.DefaultPanel>
 				<div className="min-w-0 px-4 pb-4">
 					{loading && !loaded ? (
@@ -225,7 +227,7 @@ export function SandboxedContentEditorPanel({
 							<SkeletonLine blockHeight={20} minWidth={35} maxWidth={80} />
 						</div>
 					) : error ? (
-						<div role="alert" className="py-2 text-sm text-kumo-subtle">
+						<div role="alert" className="py-2 text-xs leading-4 text-kumo-subtle">
 							<p>{t`Plugin panel unavailable.`}</p>
 							<Button
 								type="button"

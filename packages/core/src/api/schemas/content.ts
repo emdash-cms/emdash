@@ -3,6 +3,7 @@ import { z } from "zod";
 import { SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { bylineSummarySchema, bylineCreditSchema, contentBylineInputSchema } from "./bylines.js";
 import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
+import { referenceChildrenResponseSchema } from "./relations.js";
 
 // ---------------------------------------------------------------------------
 // Content: Input schemas
@@ -136,9 +137,24 @@ const contentFieldFiltersQuery = z
 	})
 	.pipe(contentFieldFiltersSchema);
 
+/** Statuses the content list can filter by. */
+const CONTENT_STATUSES = [
+	"draft",
+	"published",
+	"scheduled",
+	"archived",
+	"pending",
+	"private",
+	"future",
+] as const;
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
-		status: z.string().optional(),
+		/** Filter by status; `all` (like omitting it) lists every status. */
+		status: z
+			.enum([...CONTENT_STATUSES, "all"])
+			.optional()
+			.transform((status) => (status === "all" ? undefined : status)),
 		orderBy: z.string().optional(),
 		order: z.enum(["asc", "desc"]).optional(),
 		locale: localeCode.optional(),
@@ -194,8 +210,14 @@ export const contentCreateBody = z
 			description:
 				"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }, resolved in the entry's locale.",
 		}),
+		references: z.record(z.string(), z.array(z.string()).max(1000)).optional().meta({
+			description:
+				"Reference selections as { fieldSlug: [entryId, ...] }, in display order. Written as content-reference links in the same transaction as the entry. A field bound to the child end of its relation selects the entries pointing at this one, which carry no order.",
+		}),
 		publishedAt: contentDateOverride,
 		createdAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentCreateBody" });
 
@@ -217,7 +239,13 @@ export const contentUpdateBody = z
 			description:
 				"Replace taxonomy assignments as { taxonomyName: [termSlug, ...] }. Only named taxonomies are touched; pass an empty array to clear a taxonomy.",
 		}),
+		references: z.record(z.string(), z.array(z.string()).max(1000)).optional().meta({
+			description:
+				"Reference selections as { fieldSlug: [entryId, ...] }, in display order. Written as content-reference links in the same transaction as the entry. A field bound to the child end of its relation selects the entries pointing at this one, which carry no order.",
+		}),
 		publishedAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentUpdateBody" });
 
@@ -244,6 +272,10 @@ export const contentRevisionConditionBody = z
 		overrideLock: overrideLockFlag,
 	})
 	.meta({ id: "ContentRevisionConditionBody" });
+
+export const revisionRestoreBody = z.object({
+	overrideLock: overrideLockFlag,
+});
 
 export const contentPublishBody = contentRevisionConditionBody
 	.extend({
@@ -355,6 +387,10 @@ export const contentItemSchema = z
 		locale: z.string().nullable(),
 		translationGroup: z.string().nullable(),
 		seo: contentSeoSchema.optional(),
+		// First page of each reference field's selection, keyed by field slug. Only
+		// present when the editor GET path opts into hydration
+		// (`referenceOptions`); omitted otherwise, so it's optional here.
+		references: z.record(z.string(), referenceChildrenResponseSchema).optional(),
 	})
 	.meta({ id: "ContentItem" });
 

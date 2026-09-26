@@ -41,9 +41,10 @@ class HttpError extends Error {
  * Create an HTTP request handler for the backing service.
  */
 export function createBackingServiceHandler(runner: WorkerdSandboxRunner): BackingServiceHandler {
-	// Cache bridge handlers per installed plugin version so an update cannot
-	// retain the previous manifest's capabilities, storage, or settings schema.
-	const handlerCache = new Map<string, (request: Request) => Promise<Response>>();
+	const handlerCache = new Map<
+		string,
+		{ token: string; handler: (request: Request) => Promise<Response> }
+	>();
 
 	const handler = async (req: IncomingMessage, res: ServerResponse) => {
 		try {
@@ -65,9 +66,9 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 
 			// Get or create bridge handler for this plugin
 			const cacheKey = `${claims.pluginId}:${claims.version}`;
-			let bridgeHandler = handlerCache.get(cacheKey);
-			if (!bridgeHandler) {
-				bridgeHandler = createBridgeHandler({
+			let cached = handlerCache.get(cacheKey);
+			if (!cached || cached.token !== token) {
+				const bridgeHandler = createBridgeHandler({
 					pluginId: claims.pluginId,
 					version: claims.version,
 					capabilities: claims.capabilities,
@@ -89,11 +90,16 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					httpFetch: runner.httpFetch,
 					storage: runner.mediaStorage,
 				});
-				handlerCache.set(cacheKey, bridgeHandler);
+				cached = { token, handler: bridgeHandler };
+				handlerCache.set(cacheKey, cached);
 			}
 
 			// Convert Node request to web Request
 			const body = await readBody(req);
+			// A request waiting for its body has not entered bridge dispatch yet.
+			if (!runner.validateToken(token)) {
+				throw new HttpError("Invalid auth token", 401);
+			}
 			const url = `http://bridge${req.url || "/"}`;
 			const webRequest = new Request(url, {
 				method: req.method || "POST",
@@ -102,7 +108,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 			});
 
 			// Dispatch through the shared bridge handler
-			const webResponse = await bridgeHandler(webRequest);
+			const webResponse = await cached.handler(webRequest);
 			const responseBody = await webResponse.text();
 
 			res.writeHead(webResponse.status, { "Content-Type": "application/json" });

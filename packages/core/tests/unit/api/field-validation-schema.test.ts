@@ -36,3 +36,20 @@ describe("createFieldBody repeater sub-field types", () => {
 		}
 	});
 });
+
+describe("createFieldBody reference config", () => {
+	it("preserves targetCollection and multiple on the parsed validation", () => {
+		const result = createFieldBody.safeParse({
+			slug: "author",
+			label: "Author",
+			type: "reference",
+			validation: { targetCollection: "authors", multiple: false },
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.data?.validation).toMatchObject({
+			targetCollection: "authors",
+			multiple: false,
+		});
+	});
+});

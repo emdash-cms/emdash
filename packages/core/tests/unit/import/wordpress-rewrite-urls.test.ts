@@ -108,4 +108,36 @@ describe("WordPress import URL rewriting", () => {
 			urlsRewritten: 1,
 		});
 	});
+
+	it("rewrites a legacy string image link", () => {
+		const baseMap = buildBaseUrlMap(urlMap);
+		const blocks = [
+			{
+				_type: "image",
+				asset: { _type: "reference", _ref: "/already/local.jpg", url: "/already/local.jpg" },
+				link: oldVariantUrl,
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, urlMap, baseMap);
+
+		expect(result).toEqual({ changed: true, urlsRewritten: 1 });
+		expect(blocks[0]?.link).toBe(newUrl);
+	});
+
+	it("rewrites an object image link in place and keeps its blank flag", () => {
+		const baseMap = buildBaseUrlMap(urlMap);
+		const blocks = [
+			{
+				_type: "image",
+				asset: { _type: "reference", _ref: "/already/local.jpg", url: "/already/local.jpg" },
+				link: { href: oldVariantUrl, blank: true },
+			},
+		];
+
+		const result = rewritePortableTextUrls(blocks, urlMap, baseMap);
+
+		expect(result).toEqual({ changed: true, urlsRewritten: 1 });
+		expect(blocks[0]?.link).toEqual({ href: newUrl, blank: true });
+	});
 });

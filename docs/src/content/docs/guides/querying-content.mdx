@@ -250,6 +250,63 @@ the site intends to trust.
 
 `PortableText` shows tables as read-only placeholders in edit mode. To localize their initial label, pass `tablePlaceholder={translatedLabel}`. It defaults to `"Table (edit in admin)"` and does not affect published table content.
 
+## Read reference fields
+
+A [`reference` field](/reference/field-types/#reference) links an entry to entries in another collection, and [Relations](/guides/relations/) covers defining one. Its value is not part of `data`. Pass a `references` option to `getEmDashEntry` naming the fields the page renders, keyed by field slug, and each one comes back as a page of entries:
+
+```astro title="src/pages/posts/[slug].astro"
+---
+import { getEmDashEntry } from "emdash";
+
+const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
+  references: { author: true, related_posts: { limit: 6 } },
+});
+
+if (!post) return Astro.redirect("/404");
+
+const author = post.references?.author.entries[0];
+---
+
+<article>
+  <h1>{post.data.title}</h1>
+  {author && <p>By {author.data.name}</p>}
+  <ul>
+    {post.references?.related_posts.entries.map((related) => (
+      <li><a href={`/posts/${related.data.slug}`}>{related.data.title}</a></li>
+    ))}
+  </ul>
+</article>
+```
+
+`true` requests the first page at the default limit of 50 entries. Use `{ limit, cursor }` for a field that holds more, up to 100 per page.
+
+Each referenced entry is a `ContentEntry` with the same shape as one loaded directly: an `id`, a `data` object with dates as `Date` objects and media values resolved, and an `edit` proxy scoped to the referenced entry, so clicking a card in visual editing opens the entry the card is about. Bylines and taxonomy terms are the exception — EmDash does not hydrate them onto referenced entries, so read `data.bylines` and `data.terms` from the entry itself.
+
+Entries arrive in the order the editor arranged them when the field sits on the parent end of its relation. A field on the child end lists the entries pointing at it, which have no order of their own.
+
+The option is opt-in in both directions. A call that passes no `references` runs no extra queries, and a field left out of the selection is not read. A call that selects fields costs one link query per field, plus one entry query per distinct target collection however many entries each field holds.
+
+### Paginate a reference field
+
+`getEmDashReferences` fetches the next page of a single field, using the cursor the previous page returned:
+
+```ts
+import { getEmDashReferences } from "emdash";
+
+const { entries, nextCursor } = await getEmDashReferences("posts", post.id, "related_posts", {
+	cursor,
+	limit: 20,
+});
+```
+
+It reads draft visibility from the same request context as `getEmDashEntry`, so a walk started in preview keeps seeing the pending selection. A page id carries its locale where i18n prefixes one (`fr/about`), and that is the id to pass back in.
+
+On a route that caches its output, merge the `cacheHint` the page returns into the route's own, so a write to one of the entries it named expires the page.
+
+### Reference fields in preview
+
+A public render sees published entries and the published selection. A preview of the entry, or an editor in visual editing, sees unpublished entries and the selection staged in the entry's draft, so a preview link shows the references the page will have once it is published.
+
 ## Apply SEO and editing features
 
 For a collection with SEO support, `getSeoMeta()` resolves the editor's SEO title, description,
@@ -302,6 +359,20 @@ npx emdash types --url https://cms.example.com
 
 The command accepts an API token or custom authentication headers. See
 [Generate types](/reference/cli/#emdash-types) for those options.
+
+Each collection that has a reference field bound to a relation gets a second interface,
+`{Collection}References`, registered under the same slug. `getEmDashEntry` narrows its result to the
+fields the `references` option named, and each page's entries carry the target collection's
+interface:
+
+```ts
+const { entry: post } = await getEmDashEntry("posts", "my-post", {
+	references: { author: true },
+});
+
+// post?.references?.author.entries[0] carries the Author interface
+// post?.references?.related_posts is a type error: it was not selected
+```
 
 ## Runtime rendering and caching
 

@@ -6,33 +6,59 @@
  */
 
 import { imageSize } from "image-size";
-import type { Kysely } from "kysely";
+import type {
+	Kysely,
+	KyselyPlugin,
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
 import mime from "mime/lite";
 import { ulid } from "ulidx";
 
+import { setReferenceSelection } from "../api/handlers/relations.js";
+import { bindReferenceField, createFieldRelation } from "../api/handlers/schema.js";
+import { sanitizeGalleryImages } from "../content/converters/gallery.js";
+import type { DatetimeContextCache } from "../database/content-datetime.js";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
+import {
+	findTaxonomyStructure,
+	saveTaxonomyStructure,
+} from "../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
+import type { ContentItem } from "../database/repositories/types.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { SchemaRegistry } from "../schema/registry.js";
+import { coalesceObjectCacheWrites } from "../object-cache/index.js";
+import { BlockTypeRegistry } from "../schema/block-type-registry.js";
+import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
+import { SchemaError, SchemaRegistry } from "../schema/registry.js";
+import type { CollectionWithFields, Field } from "../schema/types.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { invalidateSiteSettingsCache, setSiteSettings } from "../settings/index.js";
 import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import type {
 	SeedFile,
+	SeedField,
 	SeedApplyOptions,
 	SeedApplyResult,
+	SeedContentEntry,
 	SeedCollection,
+	SeedRelation,
+	SeedTaxonomy,
 	SeedTaxonomyTerm,
 	SeedMenuItem,
 	SeedWidget,
@@ -89,7 +115,9 @@ async function applyDisplayDateFields(
 }
 
 const FILE_EXTENSION_PATTERN = /\.([a-z0-9]+)(?:\?|$)/i;
-import { validateSeed } from "./validate.js";
+const SEED_RELATION_NAME_MAX_ATTEMPTS = 5;
+const SEED_RELATION_INSERT_BATCH_SIZE = 10;
+import { findTaxonomyStructureSource, validateSeed } from "./validate.js";
 
 /** Pattern to remove file extensions */
 const EXTENSION_PATTERN = /\.[^.]+$/;
@@ -102,6 +130,36 @@ const SANITIZE_PATTERN = /[^a-zA-Z0-9_-]/g;
 
 /** Pattern to collapse multiple hyphens */
 const MULTIPLE_HYPHENS_PATTERN = /-+/g;
+
+/** The `category` and `tag` defs that migrations insert on every new database. */
+const BUILT_IN_TAXONOMY_DEFS = new Map([
+	[
+		"taxdef_category",
+		{ label: "Categories", label_singular: "Category", hierarchical: 1, collections: '["posts"]' },
+	],
+	[
+		"taxdef_tag",
+		{ label: "Tags", label_singular: "Tag", hierarchical: 0, collections: '["posts"]' },
+	],
+]);
+
+/** Whether `def` is a built-in `category`/`tag` definition still holding its migration defaults. */
+function isUntouchedBuiltInTaxonomyDef(def: {
+	id: string;
+	label: string;
+	label_singular: string | null;
+	hierarchical: number | null;
+	collections: string | null;
+}): boolean {
+	const builtIn = BUILT_IN_TAXONOMY_DEFS.get(def.id);
+	return (
+		builtIn !== undefined &&
+		def.label === builtIn.label &&
+		def.label_singular === builtIn.label_singular &&
+		def.hierarchical === builtIn.hierarchical &&
+		def.collections === builtIn.collections
+	);
+}
 
 /**
  * Apply a seed file to the database
@@ -118,6 +176,90 @@ export async function applySeed(
 	seed: SeedFile,
 	options: SeedApplyOptions = {},
 ): Promise<SeedApplyResult> {
+	const { result } = await coalesceObjectCacheWrites(() =>
+		applySeedWrites(db, seed, options, null),
+	);
+	return result;
+}
+
+/** Per-call limits for `applySeedWithinBudget`. A limit that is left out is not checked. */
+export interface SeedApplyBudget {
+	queries?: number;
+	mediaDownloads?: number;
+}
+
+/** How many of a seed's items (taxonomy terms, bylines, content entries) exist after a call. */
+export interface SeedApplyProgress {
+	done: number;
+	total: number;
+}
+
+/**
+ * Apply a seed over several calls, for a platform that caps the queries or
+ * fetches of one request.
+ *
+ * The limits are thresholds, checked before each taxonomy term, byline and
+ * content entry is created and before the phases that follow content. Schema,
+ * taxonomy definitions and settings are applied in every call, the item that
+ * crosses a threshold finishes, and the phases after content (menus,
+ * redirects, widgets, sections) run in one call, so set the limits well below
+ * the platform's. A call that stops returns `complete: false`; applying the
+ * same seed again continues with the first item not yet created. A call
+ * creates at least one item before it stops, so repeated calls finish. A
+ * `$media` URL used by entries in different calls is downloaded and stored
+ * again, as a new media row, in each of those calls. Requires
+ * `onConflict: "skip"`.
+ */
+export async function applySeedWithinBudget(
+	db: Kysely<Database>,
+	seed: SeedFile,
+	options: SeedApplyOptions,
+	limits: SeedApplyBudget,
+): Promise<{ result: SeedApplyResult; complete: boolean; progress: SeedApplyProgress }> {
+	const budget = new SeedBudget(limits);
+	return coalesceObjectCacheWrites(() =>
+		applySeedWrites(db.withPlugin(budget), seed, options, budget),
+	);
+}
+
+/**
+ * Counts what a budgeted call spends. As a Kysely plugin it sees every query
+ * the call runs, including those inside transactions.
+ */
+class SeedBudget implements KyselyPlugin {
+	#queries = 0;
+	#mediaDownloads = 0;
+
+	constructor(private readonly limits: SeedApplyBudget) {}
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.#queries++;
+		return args.node;
+	}
+
+	transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return Promise.resolve(args.result);
+	}
+
+	countMediaDownload(): void {
+		this.#mediaDownloads++;
+	}
+
+	isSpent(): boolean {
+		const { queries, mediaDownloads } = this.limits;
+		return (
+			(queries !== undefined && this.#queries >= queries) ||
+			(mediaDownloads !== undefined && this.#mediaDownloads >= mediaDownloads)
+		);
+	}
+}
+
+async function applySeedWrites(
+	db: Kysely<Database>,
+	seed: SeedFile,
+	options: SeedApplyOptions,
+	budget: SeedBudget | null,
+): Promise<{ result: SeedApplyResult; complete: boolean; progress: SeedApplyProgress }> {
 	// Validate seed first
 	const validation = validateSeed(seed);
 	if (!validation.valid) {
@@ -131,11 +273,17 @@ export async function applySeed(
 		onConflict = "skip",
 	} = options;
 
+	if (budget && onConflict !== "skip") {
+		throw new Error('A seed budget requires onConflict: "skip"');
+	}
+
 	// Result counters
 	const result: SeedApplyResult = {
+		blockTypes: { created: 0, skipped: 0, updated: 0 },
 		collections: { created: 0, skipped: 0, updated: 0 },
 		fields: { created: 0, skipped: 0, updated: 0 },
-		taxonomies: { created: 0, terms: 0 },
+		relations: { created: 0, skipped: 0, updated: 0 },
+		taxonomies: { created: 0, skipped: 0, terms: 0 },
 		bylines: { created: 0, skipped: 0, updated: 0 },
 		menus: { created: 0, items: 0 },
 		redirects: { created: 0, skipped: 0, updated: 0 },
@@ -145,6 +293,13 @@ export async function applySeed(
 		content: { created: 0, skipped: 0, updated: 0 },
 		media: { created: 0, skipped: 0 },
 	};
+	let complete = true;
+	const progress: SeedApplyProgress = { done: 0, total: countSeedItems(seed, includeContent) };
+	// With a budget, `onConflict` is "skip", so these counters count creations only.
+	const mayCreateItem = (): boolean =>
+		!budget ||
+		result.taxonomies.terms + result.bylines.created + result.content.created === 0 ||
+		!budget.isSpent();
 
 	// Media context for $media resolution
 	const mediaContext: MediaContext = {
@@ -152,16 +307,18 @@ export async function applySeed(
 		storage: storage ?? null,
 		skipMediaDownload,
 		mediaCache: new Map(), // Cache downloaded media by URL to avoid re-downloading
+		budget,
 	};
 
 	// Apply order (critical for foreign keys and references):
 	// 1. Site settings
-	// 2. Collections + Fields
-	// 3. Taxonomy definitions + Terms
-	// 4. Content (so menu refs can resolve)
-	// 5. Menus + Menu items (can now resolve content refs)
-	// 6. Redirects
-	// 7. Widget areas + Widgets
+	// 2. Relations (so the fields that name them can resolve)
+	// 3. Collections + Fields
+	// 4. Taxonomy definitions + Terms
+	// 5. Content (so menu refs can resolve)
+	// 6. Menus + Menu items (can now resolve content refs)
+	// 7. Redirects
+	// 8. Widget areas + Widgets
 
 	// Track seed content IDs for reference resolution (shared across content and menus)
 	const seedIdMap = new Map<string, string>(); // seed id -> real entry id
@@ -208,9 +365,39 @@ export async function applySeed(
 		await applySiteSettings(db, seed.settings, onConflict, result);
 	}
 
-	// 2-3. Collections and Fields
+	// 2. Declared relations, before the fields that name them
+	if (seed.relations) {
+		await applySeedRelations(db, seed.relations, seed.collections ?? [], onConflict, result);
+	}
+
+	if (seed.blockTypes) {
+		const registry = new BlockTypeRegistry(db);
+		for (const blockType of seed.blockTypes) {
+			const existing = await registry.getBlockType(blockType.slug);
+			await registry.applySeedBlockType(blockType, onConflict);
+			if (!existing) result.blockTypes.created++;
+			else if (onConflict === "update") result.blockTypes.updated++;
+			else result.blockTypes.skipped++;
+		}
+	}
+
+	// 3. Collections and Fields
 	if (seed.collections) {
 		const registry = new SchemaRegistry(db);
+		const seedCollectionSlugs = new Set(seed.collections.map((collection) => collection.slug));
+		const knownRelations = await readRelationEnds(db);
+		const relationSlugs = new Set(knownRelations.keys());
+		const externalTargetExists = new Map<string, boolean>();
+		const pendingRelations: Array<{
+			id: string;
+			slug: string;
+			parent_collection: string;
+			child_collection: string;
+			parent_label: string;
+			parent_label_singular: string | null;
+			child_label: string;
+			max_children_per_parent: number | null;
+		}> = [];
 
 		for (const collection of seed.collections) {
 			// Check if collection exists
@@ -242,36 +429,9 @@ export async function applySeed(
 					// Update or create fields
 					for (const field of collection.fields) {
 						const existingField = await registry.getField(collection.slug, field.slug);
-						if (existingField) {
-							await registry.updateField(collection.slug, field.slug, {
-								label: field.label,
-								type: field.type,
-								required: field.required || false,
-								unique: field.unique || false,
-								searchable: field.searchable || false,
-								indexed: field.indexed || false,
-								defaultValue: field.defaultValue,
-								validation: field.validation,
-								widget: field.widget,
-								options: field.options,
-							});
-							result.fields.updated++;
-						} else {
-							await registry.createField(collection.slug, {
-								slug: field.slug,
-								label: field.label,
-								type: field.type,
-								required: field.required || false,
-								unique: field.unique || false,
-								searchable: field.searchable || false,
-								indexed: field.indexed || false,
-								defaultValue: field.defaultValue,
-								validation: field.validation,
-								widget: field.widget,
-								options: field.options,
-							});
-							result.fields.created++;
-						}
+						await upsertSeedField(db, collection.slug, field, existingField, knownRelations);
+						if (existingField) result.fields.updated++;
+						else result.fields.created++;
 					}
 
 					// Second write: display/date fields, now that fields exist.
@@ -285,19 +445,71 @@ export async function applySeed(
 				continue;
 			}
 
-			const fields = collection.fields.map((field) => ({
-				slug: field.slug,
-				label: field.label,
-				type: field.type,
-				required: field.required || false,
-				unique: field.unique || false,
-				searchable: field.searchable || false,
-				indexed: field.indexed || false,
-				defaultValue: field.defaultValue,
-				validation: field.validation,
-				widget: field.widget,
-				options: field.options,
-			}));
+			const fields = [];
+			for (const field of collection.fields) {
+				let fieldValidation = field.validation;
+				// A field naming a relation binds to it; one naming only a target
+				// collection gets a relation created for it below.
+				const bound = resolveSeedFieldRelation(collection.slug, field, knownRelations);
+				const targetCollection =
+					!bound &&
+					field.type === "reference" &&
+					typeof fieldValidation?.targetCollection === "string"
+						? fieldValidation.targetCollection
+						: undefined;
+				if (bound) {
+					fieldValidation = { ...fieldValidation, ...bound };
+				}
+				if (targetCollection) {
+					let targetExists = seedCollectionSlugs.has(targetCollection);
+					if (!targetExists) {
+						targetExists = externalTargetExists.get(targetCollection) ?? false;
+						if (!externalTargetExists.has(targetCollection)) {
+							targetExists = Boolean(await registry.getCollection(targetCollection));
+							externalTargetExists.set(targetCollection, targetExists);
+						}
+					}
+					if (!targetExists) {
+						throw new SchemaError(
+							`Target collection "${targetCollection}" not found`,
+							"COLLECTION_NOT_FOUND",
+						);
+					}
+
+					const relationId = ulid();
+					const relationSlug = allocateSeedRelationName(collection.slug, field.slug, relationSlugs);
+					pendingRelations.push({
+						id: relationId,
+						slug: relationSlug,
+						parent_collection: collection.slug,
+						child_collection: targetCollection,
+						parent_label: collection.label,
+						parent_label_singular: collection.labelSingular ?? null,
+						child_label: field.label,
+						max_children_per_parent: fieldValidation?.multiple ? null : 1,
+					});
+					fieldValidation = {
+						...fieldValidation,
+						relation: relationSlug,
+						relationSide: "parent",
+					};
+				}
+
+				fields.push({
+					slug: field.slug,
+					label: field.label,
+					type: field.type,
+					required: field.required || false,
+					unique: field.unique || false,
+					searchable: field.searchable || false,
+					indexed: field.indexed || false,
+					translatable: field.translatable,
+					defaultValue: field.defaultValue,
+					validation: fieldValidation,
+					widget: field.widget,
+					options: field.options,
+				});
+			}
 
 			// Create a fresh seed schema in bulk to stay within D1's query budget.
 			await registry.createSeedCollection(
@@ -323,59 +535,90 @@ export async function applySeed(
 			// the schema exists.
 			await applyDisplayDateFields(registry, collection);
 			result.collections.created++;
-			result.fields.created += fields.length;
+			result.fields.created += collection.fields.length;
+		}
+
+		for (const relationBatch of chunks(pendingRelations, SEED_RELATION_INSERT_BATCH_SIZE)) {
+			await db.insertInto("_emdash_relations").values(relationBatch).execute();
 		}
 	}
 
 	// 4-5. Taxonomies
 	if (seed.taxonomies) {
-		// seed-local id -> resolved info, used to wire `translationOf` refs.
-		const defSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 		const termSeedIdMap = new Map<string, string>();
-
+		const taxonomiesBySeedId = new Map<string, SeedTaxonomy>();
 		for (const taxonomy of seed.taxonomies) {
+			if (taxonomy.id) taxonomiesBySeedId.set(taxonomy.id, taxonomy);
+		}
+		// Read before any entry applies: a structure write rewrites every locale's
+		// definition, which would make a built-in look edited to later entries.
+		const untouchedBuiltInDefIds = new Set(
+			(
+				await db
+					.selectFrom("_emdash_taxonomy_defs")
+					.select(["id", "label", "label_singular", "hierarchical", "collections"])
+					.where("id", "in", [...BUILT_IN_TAXONOMY_DEFS.keys()])
+					.execute()
+			)
+				.filter(isUntouchedBuiltInTaxonomyDef)
+				.map((def) => def.id),
+		);
+		// Entries that declare their taxonomy's structure apply first: a translation's
+		// terms need the structure its source entry may still replace.
+		const declaresOwnStructure = (taxonomy: SeedTaxonomy) =>
+			findTaxonomyStructureSource(taxonomy, taxonomiesBySeedId) === taxonomy;
+		const orderedTaxonomies = [
+			...seed.taxonomies.filter(declaresOwnStructure),
+			...seed.taxonomies.filter((taxonomy) => !declaresOwnStructure(taxonomy)),
+		];
+
+		for (const taxonomy of orderedTaxonomies) {
 			const defLocale = resolveConfiguredLocale(taxonomy.locale ?? defaultLocale);
 
-			// (name, locale) is the UNIQUE key after migration 036.
-			const existingDef = await db
+			const defsOfName = await db
 				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
+				.select(["id", "locale"])
 				.where("name", "=", taxonomy.name)
-				.where("locale", "=", defLocale)
-				.executeTakeFirst();
+				.execute();
+			// (name, locale) is the UNIQUE key after migration 036.
+			const existingDef = defsOfName.find((def) => def.locale === defLocale);
+			const unclaimed = existingDef !== undefined && untouchedBuiltInDefIds.has(existingDef.id);
+			if (existingDef && onConflict === "error" && !unclaimed) {
+				throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
+			}
+			const replacesDef = onConflict === "update" || unclaimed;
 
-			let defId: string;
-			let defTranslationGroup: string;
+			// The structure belongs to the taxonomy, not the locale: a translation takes
+			// the one its source entry left, and an existing taxonomy's is rewritten only
+			// by a source entry that replaces its definition or finds nothing but untouched
+			// built-in definitions of it, in any locale.
+			const existingStructure = await findTaxonomyStructure(db, taxonomy.name);
+			const replacesStructure =
+				replacesDef || defsOfName.every((def) => untouchedBuiltInDefIds.has(def.id));
+			const writesStructure = !existingStructure || (replacesStructure && !taxonomy.translationOf);
+			const structure =
+				existingStructure && !writesStructure
+					? existingStructure
+					: {
+							hierarchical: taxonomy.hierarchical ?? existingStructure?.hierarchical ?? false,
+							collections: taxonomy.collections ?? existingStructure?.collections ?? [],
+						};
+			const defId = existingDef?.id ?? ulid();
+			const translationGroup = writesStructure
+				? await saveTaxonomyStructure(db, taxonomy.name, existingStructure?.id ?? defId, structure)
+				: existingStructure.id;
 
 			if (existingDef) {
-				defId = existingDef.id;
-				defTranslationGroup = existingDef.translation_group ?? existingDef.id;
-				if (onConflict === "error") {
-					throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
-				}
-				if (onConflict === "update") {
+				if (replacesDef) {
 					await db
 						.updateTable("_emdash_taxonomy_defs")
-						.set({
-							label: taxonomy.label,
-							label_singular: taxonomy.labelSingular ?? null,
-							hierarchical: taxonomy.hierarchical ? 1 : 0,
-							collections: JSON.stringify(taxonomy.collections),
-						})
+						.set({ label: taxonomy.label, label_singular: taxonomy.labelSingular ?? null })
 						.where("id", "=", existingDef.id)
 						.execute();
+				} else {
+					result.taxonomies.skipped++;
 				}
 			} else {
-				defId = ulid();
-				defTranslationGroup = defId;
-				if (taxonomy.translationOf) {
-					const source = defSeedIdMap.get(taxonomy.translationOf);
-					if (source) defTranslationGroup = source.translationGroup;
-					else
-						console.warn(
-							`taxonomy "${taxonomy.name}" (${defLocale}): translationOf "${taxonomy.translationOf}" not found yet; minting a fresh group.`,
-						);
-				}
 				await db
 					.insertInto("_emdash_taxonomy_defs")
 					.values({
@@ -383,51 +626,59 @@ export async function applySeed(
 						name: taxonomy.name,
 						label: taxonomy.label,
 						label_singular: taxonomy.labelSingular ?? null,
-						hierarchical: taxonomy.hierarchical ? 1 : 0,
-						collections: JSON.stringify(taxonomy.collections),
+						hierarchical: structure.hierarchical ? 1 : 0,
+						collections: JSON.stringify(structure.collections),
 						locale: defLocale,
-						translation_group: defTranslationGroup,
+						translation_group: translationGroup,
 					})
 					.execute();
 				result.taxonomies.created++;
 			}
 
-			if (taxonomy.id)
-				defSeedIdMap.set(taxonomy.id, { id: defId, translationGroup: defTranslationGroup });
-
 			// Create terms (if provided)
 			if (includeContent && taxonomy.terms && taxonomy.terms.length > 0) {
 				const termRepo = new TaxonomyRepository(db);
+				const existingTerms = await findExistingSeedTerms(db, taxonomy.name, taxonomy.terms);
 
-				if (taxonomy.hierarchical) {
-					await applyHierarchicalTerms(
+				if (structure.hierarchical) {
+					const applied = await applyHierarchicalTerms(
 						termRepo,
 						taxonomy.name,
 						defLocale,
 						taxonomy.terms,
+						existingTerms,
 						termSeedIdMap,
 						result,
 						onConflict,
+						mayCreateItem,
 					);
+					progress.done += applied.processed;
+					complete = applied.complete;
 				} else {
 					for (const term of taxonomy.terms) {
 						const termLocale = resolveConfiguredLocale(term.locale ?? defLocale);
-						const existing = await termRepo.findBySlug(taxonomy.name, term.slug, termLocale);
-						if (existing) {
+						const termKey = seedTermKey(termLocale, term.slug);
+						const existingId = existingTerms.get(termKey);
+						if (existingId) {
 							if (onConflict === "error") {
 								throw new Error(
 									`Conflict: taxonomy term "${term.slug}" in "${taxonomy.name}" (${termLocale}) already exists`,
 								);
 							}
 							if (onConflict === "update") {
-								await termRepo.update(existing.id, {
+								await termRepo.update(existingId, {
 									label: term.label,
 									data: term.description ? { description: term.description } : {},
 								});
 								result.taxonomies.terms++;
 							}
-							if (term.id) termSeedIdMap.set(term.id, existing.id);
+							if (term.id) termSeedIdMap.set(term.id, existingId);
+							progress.done++;
 						} else {
+							if (!mayCreateItem()) {
+								complete = false;
+								break;
+							}
 							const translationOf = term.translationOf
 								? termSeedIdMap.get(term.translationOf)
 								: undefined;
@@ -439,12 +690,15 @@ export async function applySeed(
 								locale: termLocale,
 								translationOf,
 							});
+							existingTerms.set(termKey, created.id);
 							if (term.id) termSeedIdMap.set(term.id, created.id);
 							result.taxonomies.terms++;
+							progress.done++;
 						}
 					}
 				}
 			}
+			if (!complete) break;
 		}
 
 		// Seeded/updated defs change which taxonomies exist — clear the
@@ -455,11 +709,15 @@ export async function applySeed(
 	}
 
 	// 6. Bylines
-	if (includeContent && seed.bylines) {
+	if (complete && includeContent && seed.bylines) {
 		const bylineRepo = new BylineRepository(db);
+		const existingBylines = await findExistingSeedBylines(
+			db,
+			seed.bylines.map((byline) => byline.slug),
+		);
 		for (const byline of seed.bylines) {
-			const existing = await bylineRepo.findBySlug(byline.slug);
-			if (existing) {
+			const existingId = existingBylines.get(byline.slug);
+			if (existingId) {
 				if (onConflict === "error") {
 					throw new Error(`Conflict: byline "${byline.slug}" already exists`);
 				}
@@ -471,7 +729,7 @@ export async function applySeed(
 					// one untouched.
 					const avatar = byline.avatar ? await resolveSeedBylineAvatar(db, byline.avatar) : null;
 					try {
-						const updated = await bylineRepo.update(existing.id, {
+						const updated = await bylineRepo.update(existingId, {
 							displayName: byline.displayName,
 							bio: byline.bio ?? null,
 							websiteUrl: byline.websiteUrl ?? null,
@@ -479,7 +737,7 @@ export async function applySeed(
 							...(avatar ? { avatarMediaId: avatar.id } : {}),
 						});
 						// update() returns null (no throw) if the row vanished between
-						// findBySlug and here; treat that as a failure so the catch
+						// the lookup and here; treat that as a failure so the catch
 						// cleans up any freshly-created avatar media instead of leaking it.
 						if (!updated) {
 							throw new Error(`Byline "${byline.slug}" disappeared during update`);
@@ -490,18 +748,24 @@ export async function applySeed(
 						if (avatar?.created) await deleteMediaRow(db, avatar.id);
 						throw error;
 					}
-					seedBylineIdMap.set(byline.id, existing.id);
+					seedBylineIdMap.set(byline.id, existingId);
 					result.bylines.updated++;
 					if (avatar?.created) result.media.created++;
+					progress.done++;
 					continue;
 				}
 
 				// skip
-				seedBylineIdMap.set(byline.id, existing.id);
+				seedBylineIdMap.set(byline.id, existingId);
 				result.bylines.skipped++;
+				progress.done++;
 				continue;
 			}
 
+			if (!mayCreateItem()) {
+				complete = false;
+				break;
+			}
 			const avatar = byline.avatar ? await resolveSeedBylineAvatar(db, byline.avatar) : null;
 			let createdId: string;
 			try {
@@ -518,35 +782,41 @@ export async function applySeed(
 				if (avatar?.created) await deleteMediaRow(db, avatar.id);
 				throw error;
 			}
+			existingBylines.set(byline.slug, createdId);
 			seedBylineIdMap.set(byline.id, createdId);
 			result.bylines.created++;
 			if (avatar?.created) result.media.created++;
+			progress.done++;
 		}
 	}
 
 	// 7. Content (created before menus so refs can resolve)
-	if (includeContent && seed.content) {
+	if (complete && includeContent && seed.content) {
 		const contentRepo = new ContentRepository(db);
 		const schemaRegistry = new SchemaRegistry(db);
+		// Settings and fields are all written above, so every entry can share the
+		// timezone and datetime fields read for its collection.
+		const datetimeContexts: DatetimeContextCache = new Map();
 
 		try {
 			// Create content entries
 			for (const [collectionSlug, entries] of Object.entries(seed.content)) {
-				const collectionRoutable =
-					(await schemaRegistry.getCollection(collectionSlug))?.routable !== false;
+				const collectionInfo = await schemaRegistry.getCollectionWithFields(collectionSlug);
+				const collectionRoutable = collectionInfo?.routable !== false;
+				const referenceFields = referenceFieldsOf(collectionInfo);
+				const resolvedBlockTypes = collectionInfo?.fields.some((field) => field.type === "blocks")
+					? await resolveBlockTypes(db)
+					: undefined;
+				const existingEntries = await findExistingSeedEntries(
+					contentRepo,
+					collectionSlug,
+					entries,
+					defaultLocale,
+				);
 				for (const entry of entries) {
-					const entrySlug =
-						typeof entry.slug === "string" && entry.slug.trim().length > 0 ? entry.slug : null;
-					// Resolve the entry's locale up front so a non-`en` single-locale
-					// export (which omits `locale`) is filed under the project default
-					// rather than `en` (#1421).
-					const entryLocale = resolveConfiguredLocale(entry.locale ?? defaultLocale);
-
-					// Slugful entries use the existing locale-aware key. Slugless seed
-					// entries persist their seed ID, which keeps re-application idempotent.
-					const existing = entrySlug
-						? await contentRepo.findBySlug(collectionSlug, entrySlug, entryLocale)
-						: await contentRepo.findById(collectionSlug, entry.id);
+					const { slug: entrySlug, locale: entryLocale } = seedEntryIdentity(entry, defaultLocale);
+					const entryKey = seedEntryKey(entry, entrySlug, entryLocale);
+					const existing = existingEntries.get(entryKey);
 
 					if (existing) {
 						if (onConflict === "error") {
@@ -557,11 +827,29 @@ export async function applySeed(
 
 						if (onConflict === "update") {
 							// Resolve $ref and $media in data
-							const resolvedData = await resolveReferences(
+							let resolvedData = await resolveReferences(
 								entry.data,
 								seedIdMap,
 								mediaContext,
 								result,
+							);
+							if (collectionInfo) {
+								resolvedData = await normalizeBlocksData(
+									db,
+									collectionInfo,
+									resolvedData,
+									existing.data,
+									{ restoreBlocks: true },
+									false,
+									resolvedBlockTypes,
+								);
+							}
+							// Reference fields are storage-less — route their resolved values to
+							// edges and keep them out of the column/revision data.
+							const { columnData, edges } = splitReferenceFields(
+								collectionSlug,
+								referenceFields,
+								resolvedData,
 							);
 
 							// Update content + bylines + taxonomies atomically
@@ -569,13 +857,13 @@ export async function applySeed(
 							let contentMutated = false;
 							try {
 								await withTransaction(db, async (trx) => {
-									const trxContentRepo = new ContentRepository(trx);
+									const trxContentRepo = new ContentRepository(trx, datetimeContexts);
 									const trxBylineRepo = new BylineRepository(trx);
-									const trxRevisionRepo = new RevisionRepository(trx);
+									const trxRevisionRepo = new RevisionRepository(trx, datetimeContexts);
 
 									await trxContentRepo.update(collectionSlug, existing.id, {
 										status,
-										data: resolvedData,
+										data: columnData,
 									});
 									contentMutated = true;
 
@@ -588,6 +876,7 @@ export async function applySeed(
 										true,
 									);
 									await applyContentTaxonomies(trx, collectionSlug, existing.id, entry, true);
+									await applyContentReferences(trx, collectionSlug, existing.id, edges);
 
 									// Seed is declarative — when status is "published", promote to a live
 									// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
@@ -600,7 +889,7 @@ export async function applySeed(
 										const draft = await trxRevisionRepo.create({
 											collection: collectionSlug,
 											entryId: existing.id,
-											data: resolvedData,
+											data: columnData,
 										});
 										try {
 											await trxContentRepo.setDraftRevision(collectionSlug, existing.id, draft.id);
@@ -637,6 +926,7 @@ export async function applySeed(
 
 							seedIdMap.set(entry.id, existing.id);
 							result.content.updated++;
+							progress.done++;
 							await markSeedContentCollectionStale(collectionSlug);
 							continue;
 						}
@@ -644,11 +934,35 @@ export async function applySeed(
 						// skip
 						result.content.skipped++;
 						seedIdMap.set(entry.id, existing.id);
+						progress.done++;
 						continue;
 					}
 
+					if (!mayCreateItem()) {
+						complete = false;
+						break;
+					}
+
 					// Resolve $ref and $media in data
-					const resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					let resolvedData = await resolveReferences(entry.data, seedIdMap, mediaContext, result);
+					if (collectionInfo) {
+						resolvedData = await normalizeBlocksData(
+							db,
+							collectionInfo,
+							resolvedData,
+							{},
+							{ restoreBlocks: true },
+							false,
+							resolvedBlockTypes,
+						);
+					}
+					// Reference fields are storage-less — route their resolved values to
+					// edges and keep them out of the column/revision data.
+					const { columnData, edges } = splitReferenceFields(
+						collectionSlug,
+						referenceFields,
+						resolvedData,
+					);
 
 					// Resolve translationOf: map from seed-local ID to real EmDash ID
 					let translationOf: string | undefined;
@@ -669,7 +983,7 @@ export async function applySeed(
 					let created: Awaited<ReturnType<ContentRepository["create"]>>;
 					try {
 						created = await withTransaction(db, async (trx) => {
-							const trxContentRepo = new ContentRepository(trx);
+							const trxContentRepo = new ContentRepository(trx, datetimeContexts);
 							const trxBylineRepo = new BylineRepository(trx);
 
 							const item = await trxContentRepo.create({
@@ -677,7 +991,7 @@ export async function applySeed(
 								type: collectionSlug,
 								slug: entrySlug,
 								status,
-								data: resolvedData,
+								data: columnData,
 								locale: entryLocale,
 								translationOf,
 								publishedAt: status === "published" ? new Date().toISOString() : null,
@@ -692,6 +1006,7 @@ export async function applySeed(
 								seedBylineIdMap,
 							);
 							await applyContentTaxonomies(trx, collectionSlug, item.id, entry, false);
+							await applyContentReferences(trx, collectionSlug, item.id, edges);
 
 							// Seed is declarative — when status is "published", promote to a live
 							// revision so the admin UI shows "Unpublish" instead of "Save & Publish"
@@ -716,13 +1031,24 @@ export async function applySeed(
 					}
 
 					seedIdMap.set(entry.id, created.id);
+					existingEntries.set(entryKey, created);
 					result.content.created++;
+					progress.done++;
 					await markSeedContentCollectionStale(collectionSlug);
 				}
+				if (!complete) break;
 			}
 		} finally {
 			await retryFailedSeedContentStaleMarks();
 		}
+	}
+
+	if (complete && !mayCreateItem()) {
+		complete = false;
+	}
+	if (!complete) {
+		await invalidateSeedCaches();
+		return { result, complete, progress };
 	}
 
 	// 8. Menus and Menu Items (after content so refs can resolve)
@@ -952,31 +1278,338 @@ export async function applySeed(
 		}
 	}
 
-	// Invalidate caches that may have been affected by seed data.
-	// Seed creates bylines, redirects, and collections, all of which
-	// have module-level caches in the hot path.
+	await invalidateSeedCaches();
+
+	return { result, complete, progress };
+}
+
+function countSeedItems(seed: SeedFile, includeContent: boolean): number {
+	if (!includeContent) return 0;
+	const terms = (seed.taxonomies ?? []).reduce(
+		(total, taxonomy) => total + (taxonomy.terms?.length ?? 0),
+		0,
+	);
+	const entries = Object.values(seed.content ?? {}).reduce(
+		(total, collectionEntries) => total + collectionEntries.length,
+		0,
+	);
+	return terms + (seed.bylines?.length ?? 0) + entries;
+}
+
+function seedTermKey(locale: string, slug: string): string {
+	return `${locale}::${slug}`;
+}
+
+/**
+ * Find which of a taxonomy's seed terms already exist, as term ids keyed by
+ * `seedTermKey`. Each query covers a batch of slugs.
+ */
+async function findExistingSeedTerms(
+	db: Kysely<Database>,
+	taxonomyName: string,
+	terms: SeedTaxonomyTerm[],
+): Promise<Map<string, string>> {
+	const existing = new Map<string, string>();
+	for (const batch of chunks([...new Set(terms.map((term) => term.slug))], SQL_BATCH_SIZE)) {
+		const rows = await db
+			.selectFrom("taxonomies")
+			.select(["id", "slug", "locale"])
+			.where("name", "=", taxonomyName)
+			.where("slug", "in", batch)
+			.execute();
+		for (const row of rows) existing.set(seedTermKey(row.locale, row.slug), row.id);
+	}
+	return existing;
+}
+
+/**
+ * Find which seed bylines already exist, as byline ids keyed by slug. A slug
+ * in several locales resolves to the lowest locale code, as
+ * `BylineRepository.findBySlug` does. Each query covers a batch of slugs.
+ */
+async function findExistingSeedBylines(
+	db: Kysely<Database>,
+	slugs: string[],
+): Promise<Map<string, string>> {
+	const existing = new Map<string, string>();
+	for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
+		const rows = await db
+			.selectFrom("_emdash_bylines")
+			.select(["id", "slug"])
+			.where("slug", "in", batch)
+			.orderBy("locale", "asc")
+			.execute();
+		for (const row of rows) {
+			if (!existing.has(row.slug)) existing.set(row.slug, row.id);
+		}
+	}
+	return existing;
+}
+
+/**
+ * Invalidate caches that may have been affected by seed data.
+ * Seed creates bylines, redirects, and collections, all of which
+ * have module-level caches in the hot path.
+ */
+async function invalidateSeedCaches(): Promise<void> {
 	const { invalidateBylineCache } = await import("../bylines/index.js");
 	const { invalidateRedirectCache } = await import("../redirects/cache.js");
 	const { invalidateUrlPatternCache } = await import("../query.js");
 	invalidateBylineCache();
 	invalidateRedirectCache();
 	invalidateUrlPatternCache();
+}
 
-	return result;
+function seedEntryIdentity(
+	entry: SeedContentEntry,
+	defaultLocale: string,
+): { slug: string | null; locale: string } {
+	return {
+		slug: typeof entry.slug === "string" && entry.slug.trim().length > 0 ? entry.slug : null,
+		// Resolve the entry's locale up front so a non-`en` single-locale
+		// export (which omits `locale`) is filed under the project default
+		// rather than `en`.
+		locale: resolveConfiguredLocale(entry.locale ?? defaultLocale),
+	};
+}
+
+/** Every relation the database knows, by slug, with the collections it joins. */
+type RelationEnds = Map<string, { parentCollection: string; childCollection: string }>;
+
+async function readRelationEnds(db: Kysely<Database>): Promise<RelationEnds> {
+	const rows = await db
+		.selectFrom("_emdash_relations")
+		.select(["slug", "parent_collection", "child_collection"])
+		.execute();
+	return new Map(
+		rows.map((row) => [
+			row.slug,
+			{ parentCollection: row.parent_collection, childCollection: row.child_collection },
+		]),
+	);
 }
 
 /**
- * Apply hierarchical taxonomy terms (parents before children)
+ * Resolve the relation a seed reference field names, and which end of it this
+ * collection sits on.
+ *
+ * `relationSide` is only needed for a self-referential relation, where both ends
+ * are this collection; otherwise the side follows from which end matches.
+ * `targetCollection` is the collection at the other end, derived rather than
+ * trusted, so a seed cannot declare a target the relation disagrees with.
+ */
+function resolveSeedFieldRelation(
+	collectionSlug: string,
+	field: SeedField,
+	knownRelations: RelationEnds,
+): { relation: string; relationSide: "parent" | "child"; targetCollection: string } | null {
+	if (field.type !== "reference") return null;
+	const named = field.validation?.relation;
+	if (typeof named !== "string" || named.length === 0) return null;
+
+	const relation = knownRelations.get(named);
+	if (!relation) {
+		throw new SchemaError(`Relation "${named}" not found`, "RELATION_NOT_FOUND");
+	}
+
+	const declared = field.validation?.relationSide;
+	const side =
+		declared === "parent" || declared === "child"
+			? declared
+			: relation.parentCollection === collectionSlug
+				? "parent"
+				: "child";
+
+	const end = side === "parent" ? relation.parentCollection : relation.childCollection;
+	if (end !== collectionSlug) {
+		throw new SchemaError(
+			`Relation "${named}" has no ${side} end on collection "${collectionSlug}"`,
+			"VALIDATION_ERROR",
+		);
+	}
+
+	return {
+		relation: named,
+		relationSide: side,
+		targetCollection: side === "parent" ? relation.childCollection : relation.parentCollection,
+	};
+}
+
+/**
+ * Create or update the relations a seed declares, before the fields that name
+ * them.
+ *
+ * A relation's two collections are fixed once it exists: changing one would
+ * leave its links pointing into a collection that is no longer an end of it, so
+ * a seed that names different ones fails rather than rewriting the row. Labels
+ * and limits are updated under `onConflict: "update"`.
+ */
+async function applySeedRelations(
+	db: Kysely<Database>,
+	relations: SeedRelation[],
+	seedCollections: SeedCollection[],
+	onConflict: "skip" | "update" | "error",
+	result: SeedApplyResult,
+): Promise<void> {
+	const existing = await readRelationEnds(db);
+	const known = new Set(seedCollections.map((collection) => collection.slug));
+	for (const row of await db.selectFrom("_emdash_collections").select("slug").execute()) {
+		known.add(row.slug);
+	}
+
+	const now = new Date().toISOString();
+	for (const relation of relations) {
+		for (const end of [relation.parentCollection, relation.childCollection]) {
+			if (!known.has(end)) {
+				throw new SchemaError(
+					`Relation "${relation.slug}" names collection "${end}", which does not exist`,
+					"COLLECTION_NOT_FOUND",
+				);
+			}
+		}
+
+		const current = existing.get(relation.slug);
+		if (current) {
+			if (
+				current.parentCollection !== relation.parentCollection ||
+				current.childCollection !== relation.childCollection
+			) {
+				throw new SchemaError(
+					`Relation "${relation.slug}" joins ${current.parentCollection} to ${current.childCollection}; ` +
+						`a relation's collections cannot change`,
+					"RELATION_COLLECTIONS_IMMUTABLE",
+				);
+			}
+			if (onConflict === "error") {
+				throw new Error(`Conflict: relation "${relation.slug}" already exists`);
+			}
+			if (onConflict !== "update") {
+				result.relations.skipped++;
+				continue;
+			}
+			await db
+				.updateTable("_emdash_relations")
+				.set({
+					parent_label: relation.parentLabel,
+					parent_label_singular: relation.parentLabelSingular ?? null,
+					child_label: relation.childLabel,
+					child_label_singular: relation.childLabelSingular ?? null,
+					max_children_per_parent: relation.maxChildrenPerParent ?? null,
+					max_parents_per_child: relation.maxParentsPerChild ?? null,
+					updated_at: now,
+				})
+				.where("slug", "=", relation.slug)
+				.execute();
+			result.relations.updated++;
+			continue;
+		}
+
+		await db
+			.insertInto("_emdash_relations")
+			.values({
+				id: ulid(),
+				slug: relation.slug,
+				parent_collection: relation.parentCollection,
+				child_collection: relation.childCollection,
+				parent_label: relation.parentLabel,
+				parent_label_singular: relation.parentLabelSingular ?? null,
+				child_label: relation.childLabel,
+				child_label_singular: relation.childLabelSingular ?? null,
+				max_children_per_parent: relation.maxChildrenPerParent ?? null,
+				max_parents_per_child: relation.maxParentsPerChild ?? null,
+				created_at: now,
+				updated_at: now,
+			})
+			.execute();
+		existing.set(relation.slug, {
+			parentCollection: relation.parentCollection,
+			childCollection: relation.childCollection,
+		});
+		result.relations.created++;
+	}
+}
+
+function allocateSeedRelationName(
+	collectionSlug: string,
+	fieldSlug: string,
+	usedNames: Set<string>,
+): string {
+	const baseName = `${collectionSlug}_${fieldSlug}`.slice(0, 63);
+	for (let attempt = 0; attempt < SEED_RELATION_NAME_MAX_ATTEMPTS; attempt++) {
+		const suffix = attempt === 0 ? "" : `_${attempt + 1}`;
+		const name = attempt === 0 ? baseName : `${baseName.slice(0, 63 - suffix.length)}${suffix}`;
+		if (!usedNames.has(name)) {
+			usedNames.add(name);
+			return name;
+		}
+	}
+	throw new SchemaError("Could not allocate a unique relation name", "RELATION_NAME_CONFLICT");
+}
+
+/**
+ * Slugful entries use the existing locale-aware key. Slugless seed entries
+ * persist their seed ID, which keeps re-application idempotent.
+ */
+function seedEntryKey(entry: SeedContentEntry, slug: string | null, locale: string): string {
+	return slug === null ? `id:${entry.id}` : `slug:${locale}:${slug}`;
+}
+
+/**
+ * Find which of a collection's seed entries already exist, keyed by
+ * `seedEntryKey`. Each query covers a batch of entries.
+ */
+async function findExistingSeedEntries(
+	repo: ContentRepository,
+	collectionSlug: string,
+	entries: SeedContentEntry[],
+	defaultLocale: string,
+): Promise<Map<string, ContentItem>> {
+	const identities = entries.map((entry) => ({
+		entry,
+		...seedEntryIdentity(entry, defaultLocale),
+	}));
+	const slugsByLocale = new Map<string, string[]>();
+	for (const { slug, locale } of identities) {
+		if (slug === null) continue;
+		const slugs = slugsByLocale.get(locale);
+		if (slugs) slugs.push(slug);
+		else slugsByLocale.set(locale, [slug]);
+	}
+
+	const bySlug = new Map<string, Map<string, ContentItem>>();
+	for (const [locale, slugs] of slugsByLocale) {
+		bySlug.set(locale, await repo.findManyBySlugsInLocale(collectionSlug, slugs, locale));
+	}
+	const byId = await repo.findManyByIds(
+		collectionSlug,
+		identities.filter(({ slug }) => slug === null).map(({ entry }) => entry.id),
+	);
+
+	const existing = new Map<string, ContentItem>();
+	for (const { entry, slug, locale } of identities) {
+		const item = slug === null ? byId.get(entry.id) : bySlug.get(locale)?.get(slug);
+		if (item) existing.set(seedEntryKey(entry, slug, locale), item);
+	}
+	return existing;
+}
+
+/**
+ * Apply hierarchical taxonomy terms (parents before children). Stops before
+ * creating a term once `mayCreate` returns false, and returns how many terms
+ * were found or created.
  */
 async function applyHierarchicalTerms(
 	termRepo: TaxonomyRepository,
 	taxonomyName: string,
 	defLocale: string,
 	terms: SeedTaxonomyTerm[],
+	existingTerms: Map<string, string>,
 	termSeedIdMap: Map<string, string>,
 	result: SeedApplyResult,
-	onConflict: "skip" | "update" | "error" = "skip",
-): Promise<void> {
+	onConflict: "skip" | "update" | "error",
+	mayCreate: () => boolean,
+): Promise<{ processed: number; complete: boolean }> {
+	let processed = 0;
 	// "locale::slug" -> id, so the same slug can resolve per locale.
 	const slugToId = new Map<string, string>();
 	const resolveTermLocale = (term: SeedTaxonomyTerm) =>
@@ -999,24 +1632,26 @@ async function applyHierarchicalTerms(
 			const parentId = term.parent ? slugToId.get(`${termLocale}::${term.parent}`) : undefined;
 			const translationOf = term.translationOf ? termSeedIdMap.get(term.translationOf) : undefined;
 
-			const existing = await termRepo.findBySlug(taxonomyName, term.slug, termLocale);
-			if (existing) {
+			const termKey = seedTermKey(termLocale, term.slug);
+			const existingId = existingTerms.get(termKey);
+			if (existingId) {
 				if (onConflict === "error") {
 					throw new Error(
 						`Conflict: taxonomy term "${term.slug}" in "${taxonomyName}" (${termLocale}) already exists`,
 					);
 				}
 				if (onConflict === "update") {
-					await termRepo.update(existing.id, {
+					await termRepo.update(existingId, {
 						label: term.label,
 						parentId,
 						data: term.description ? { description: term.description } : {},
 					});
 					result.taxonomies.terms++;
 				}
-				slugToId.set(`${termLocale}::${term.slug}`, existing.id);
-				if (term.id) termSeedIdMap.set(term.id, existing.id);
+				slugToId.set(termKey, existingId);
+				if (term.id) termSeedIdMap.set(term.id, existingId);
 			} else {
+				if (!mayCreate()) return { processed, complete: false };
 				const created = await termRepo.create({
 					name: taxonomyName,
 					slug: term.slug,
@@ -1026,10 +1661,12 @@ async function applyHierarchicalTerms(
 					locale: termLocale,
 					translationOf,
 				});
-				slugToId.set(`${termLocale}::${term.slug}`, created.id);
+				existingTerms.set(termKey, created.id);
+				slugToId.set(termKey, created.id);
 				if (term.id) termSeedIdMap.set(term.id, created.id);
 				result.taxonomies.terms++;
 			}
+			processed++;
 
 			processedThisPass.push(term.slug + "::" + termLocale);
 		}
@@ -1043,6 +1680,7 @@ async function applyHierarchicalTerms(
 	if (remaining.length > 0) {
 		console.warn(`Could not process ${remaining.length} terms due to missing parents/translations`);
 	}
+	return { processed, complete: true };
 }
 
 /**
@@ -1098,6 +1736,210 @@ async function applyContentBylines(
  * Apply taxonomy term assignments to a content entry.
  * In update mode, clears existing assignments before re-attaching.
  */
+/**
+ * Create or update a field from a seed.
+ *
+ * A reference field bound to a relation is storage-less: it persists no column
+ * and its edges live in `_emdash_content_references`. Seeds create fields
+ * through the registry (not the schema handler that owns the relation
+ * lifecycle), so this mirrors the handler — it creates the relation on first
+ * insert (field + relation in one transaction) and preserves the
+ * server-assigned `validation.relation`/`targetCollection` on re-apply, since a
+ * seed's field validation omits them and would otherwise orphan the relation. A
+ * reference field with no `targetCollection` cannot form a relation, so it is
+ * created column-backed, holding a plain entry id.
+ */
+async function upsertSeedField(
+	db: Kysely<Database>,
+	collectionSlug: string,
+	field: SeedField,
+	existing: Field | null,
+	knownRelations: RelationEnds,
+): Promise<void> {
+	const bound = resolveSeedFieldRelation(collectionSlug, field, knownRelations);
+
+	if (existing) {
+		const update = {
+			label: field.label,
+			type: field.type,
+			required: field.required || false,
+			unique: field.unique || false,
+			searchable: field.searchable || false,
+			indexed: field.indexed || false,
+			translatable: field.translatable,
+			defaultValue: field.defaultValue,
+			widget: field.widget,
+			options: field.options,
+		};
+
+		// A reference field from before relations existed has no relation to
+		// preserve, so a seed naming a target binds it the way the admin does
+		// rather than leaving it unbound forever.
+		if (
+			!bound &&
+			field.type === "reference" &&
+			!existing.validation?.relation &&
+			typeof field.validation?.targetCollection === "string"
+		) {
+			await bindReferenceField(
+				db,
+				collectionSlug,
+				existing,
+				{ ...update, validation: field.validation },
+				field.validation.targetCollection,
+			);
+			return;
+		}
+
+		// A field naming a relation binds to that one. Otherwise keep whatever
+		// relation the field is already bound to: a seed's field validation omits
+		// the server-assigned keys and would orphan the relation row.
+		const validation = bound
+			? { ...field.validation, ...bound }
+			: field.type === "reference" && existing.validation?.relation
+				? {
+						...field.validation,
+						relation: existing.validation.relation,
+						relationSide: existing.validation.relationSide,
+						targetCollection: existing.validation.targetCollection,
+					}
+				: field.validation;
+		const registry = new SchemaRegistry(db);
+		await registry.updateField(collectionSlug, field.slug, { ...update, validation });
+		return;
+	}
+
+	const input = {
+		slug: field.slug,
+		label: field.label,
+		type: field.type,
+		required: field.required || false,
+		unique: field.unique || false,
+		searchable: field.searchable || false,
+		indexed: field.indexed || false,
+		translatable: field.translatable,
+		defaultValue: field.defaultValue,
+		validation: field.validation,
+		widget: field.widget,
+		options: field.options,
+	};
+
+	if (bound) {
+		const registry = new SchemaRegistry(db);
+		await registry.createField(collectionSlug, {
+			...input,
+			validation: { ...field.validation, ...bound },
+		});
+		return;
+	}
+
+	const targetCollection =
+		field.type === "reference" && typeof field.validation?.targetCollection === "string"
+			? field.validation.targetCollection
+			: undefined;
+
+	if (targetCollection) {
+		await withTransaction(db, async (trx) => {
+			const relation = await createFieldRelation(
+				trx,
+				collectionSlug,
+				field.slug,
+				field.label,
+				targetCollection,
+				field.validation?.multiple ? null : 1,
+			);
+			const registry = new SchemaRegistry(trx);
+			await registry.createField(collectionSlug, {
+				...input,
+				validation: {
+					...field.validation,
+					relation: relation.slug,
+					relationSide: "parent" as const,
+				},
+			});
+		});
+		return;
+	}
+
+	const registry = new SchemaRegistry(db);
+	await registry.createField(collectionSlug, input);
+}
+
+/**
+ * Split resolved content `data` into the plain column data and the reference
+ * edge writes. A reference field bound to a relation is storage-less, so its key
+ * left in `data` would hit the column writer (and `syncDataColumns` on publish)
+ * and throw "no such column". Its `$ref:`-resolved value — a child entry id or
+ * an array of them — is captured as an edge write instead, keyed by the field's
+ * relation. A reference field with no relation still owns its column, so its
+ * resolved id is written there like any other string.
+ */
+/** One collection's reference fields by slug, read once per collection: the
+ * schema phase has finished by the time content is applied. */
+function referenceFieldsOf(collection: CollectionWithFields | null): Map<string, Field> {
+	return new Map(
+		(collection?.fields ?? []).filter((f) => f.type === "reference").map((f) => [f.slug, f]),
+	);
+}
+
+function splitReferenceFields(
+	collectionSlug: string,
+	referenceFields: Map<string, Field>,
+	data: Record<string, unknown>,
+): {
+	columnData: Record<string, unknown>;
+	edges: Array<{ fieldSlug: string; childIds: string[] }>;
+} {
+	if (referenceFields.size === 0) return { columnData: data, edges: [] };
+
+	const columnData: Record<string, unknown> = {};
+	const edges: Array<{ fieldSlug: string; childIds: string[] }> = [];
+	for (const [key, value] of Object.entries(data)) {
+		const field = referenceFields.get(key);
+		if (!field?.validation?.relation) {
+			columnData[key] = value;
+			continue;
+		}
+		const childIds: string[] = [];
+		for (const candidate of Array.isArray(value) ? value : [value]) {
+			if (typeof candidate !== "string" || candidate.length === 0) continue;
+			// `seedIdMap` fills forward-only, so a reference pointing at a collection
+			// emitted later in the file arrives here unresolved.
+			if (candidate.startsWith("$ref:")) {
+				console.warn(
+					`content.${collectionSlug}: reference "${candidate}" in field "${key}" did not resolve (not yet created or missing). Skipping.`,
+				);
+				continue;
+			}
+			childIds.push(candidate);
+		}
+		edges.push({ fieldSlug: key, childIds });
+	}
+	return { columnData, edges };
+}
+
+/**
+ * Write reference edges for a content entry, replacing any existing set per
+ * relation (so re-applying a seed is idempotent). Throws to abort the enclosing
+ * transaction if a child entry cannot be resolved — a half-written entry is
+ * worse than a failed apply.
+ */
+async function applyContentReferences(
+	trx: Kysely<Database>,
+	collectionSlug: string,
+	contentId: string,
+	edges: Array<{ fieldSlug: string; childIds: string[] }>,
+): Promise<void> {
+	for (const { fieldSlug, childIds } of edges) {
+		const result = await setReferenceSelection(trx, collectionSlug, contentId, fieldSlug, childIds);
+		if (!result.success) {
+			throw new Error(
+				`content.${collectionSlug}: failed to write references for "${contentId}": ${result.error.message}`,
+			);
+		}
+	}
+}
+
 async function applyContentTaxonomies(
 	db: Kysely<Database>,
 	collectionSlug: string,
@@ -1166,14 +2008,20 @@ async function applyMenuItems(
 		let referenceId: string | null = null;
 		let referenceCollection: string | null = null;
 
-		if (item.type === "page" || item.type === "post") {
-			// Try to resolve from seedIdMap
-			if (item.ref && seedIdMap.has(item.ref)) {
-				referenceId = seedIdMap.get(item.ref)!;
-				// Default to plural collection name (pages/posts) if not specified
-				referenceCollection = item.collection || `${item.type}s`;
+		if (item.type !== "custom" && item.type !== "taxonomy") {
+			const collection =
+				item.collection || (item.type === "page" || item.type === "post" ? `${item.type}s` : null);
+			if (item.ref) {
+				// An unresolved ref stays fully unset: a "collection" item that kept
+				// its collection would render as that collection's archive link.
+				const resolved = seedIdMap.get(item.ref);
+				if (resolved && collection) {
+					referenceId = resolved;
+					referenceCollection = collection;
+				}
+			} else {
+				referenceCollection = collection;
 			}
-			// If not in map, the content might not exist yet (will be broken link)
 		}
 
 		let translationGroup = itemId;
@@ -1265,6 +2113,7 @@ interface MediaContext {
 	storage: Storage | null;
 	skipMediaDownload: boolean;
 	mediaCache: Map<string, MediaValue>; // URL -> resolved MediaValue
+	budget: SeedBudget | null;
 }
 
 /**
@@ -1331,6 +2180,18 @@ async function resolveValue(
 		const resolved: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(value)) {
 			resolved[k] = await resolveValue(v, seedIdMap, mediaContext, result);
+		}
+		// Site components and other readers of saved blocks expect `asset._ref`/`asset.url`, not the MediaValue that `$media` yields.
+		if (resolved._type === "gallery" && Array.isArray(resolved.images)) {
+			resolved.images = sanitizeGalleryImages(resolved.images, ulid);
+		} else if (
+			resolved._type === "image" &&
+			"asset" in value &&
+			isSeedMediaReference(value.asset)
+		) {
+			// Merged over the block because the gallery image shape drops image-block fields such as `alignment`.
+			const [image] = sanitizeGalleryImages([resolved], ulid);
+			if (image) Object.assign(resolved, image);
 		}
 		return resolved;
 	}
@@ -1439,6 +2300,7 @@ async function resolveMedia(
 
 		// Download the media (ssrfSafeFetch re-validates redirect targets)
 		console.log(`  📥 Downloading: ${url}`);
+		ctx.budget?.countMediaDownload();
 		const response = await ssrfSafeFetch(url, {
 			headers: {
 				// Some services like Unsplash require a user-agent

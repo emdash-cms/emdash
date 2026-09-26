@@ -172,21 +172,14 @@ describe("validateSeed", () => {
 			expect(result.errors[0]).toContain('unsupported field type "invalid"');
 		});
 
-		it("should reject indexed fields whose type cannot be indexed", () => {
+		it("should reject indexed portableText fields", () => {
 			const result = validateSeed({
 				version: "1",
 				collections: [
 					{
 						slug: "posts",
 						label: "Posts",
-						fields: [
-							{
-								slug: "content",
-								label: "Content",
-								type: "portableText",
-								indexed: true,
-							},
-						],
+						fields: [{ slug: "content", label: "Content", type: "portableText", indexed: true }],
 					},
 				],
 			});
@@ -195,6 +188,58 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain(
 				'collections[0].fields[0].indexed: type "portableText" cannot be indexed',
 			);
+		});
+
+		it("should reject an indexed reference field that names a target collection", () => {
+			// The target makes the field storage-less on apply, leaving no column.
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "author",
+								label: "Author",
+								type: "reference",
+								indexed: true,
+								validation: { targetCollection: "authors" },
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"collections[0].fields[0].indexed: a reference field with a targetCollection stores no column to index",
+			);
+		});
+
+		it("should accept an indexed reference field with no target collection", () => {
+			// The shape a seed had before relations existed: a plain entry-id column,
+			// which a content-list filter can be served from.
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						fields: [
+							{
+								slug: "author",
+								label: "Author",
+								type: "reference",
+								indexed: true,
+								options: { collection: "authors" },
+							},
+						],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(true);
 		});
 
 		it("should reject non-boolean indexed values", () => {
@@ -329,6 +374,74 @@ describe("validateSeed", () => {
 		});
 	});
 
+	describe("relation validation", () => {
+		const relation = {
+			slug: "post_authors",
+			parentCollection: "posts",
+			childCollection: "authors",
+			parentLabel: "Posts",
+			childLabel: "Authors",
+		};
+
+		it("accepts a complete relation", () => {
+			const result = validateSeed({
+				version: "1",
+				relations: [{ ...relation, maxChildrenPerParent: 3, maxParentsPerChild: null }],
+			});
+
+			expect(result.valid).toBe(true);
+		});
+
+		it("requires both ends and both labels", () => {
+			const result = validateSeed({ version: "1", relations: [{ slug: "post_authors" }] });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("relations[0]: parentCollection is required");
+			expect(result.errors).toContain("relations[0]: childCollection is required");
+			expect(result.errors).toContain("relations[0]: parentLabel is required");
+			expect(result.errors).toContain("relations[0]: childLabel is required");
+		});
+
+		it("rejects a slug that is not usable as an identifier", () => {
+			const result = validateSeed({
+				version: "1",
+				relations: [{ ...relation, slug: "Post-Authors" }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]).toContain("relations[0].slug");
+		});
+
+		it("rejects a duplicate slug", () => {
+			const result = validateSeed({ version: "1", relations: [relation, { ...relation }] });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain('relations[1].slug: duplicate relation slug "post_authors"');
+		});
+
+		it("rejects a limit that is not a positive integer", () => {
+			const result = validateSeed({
+				version: "1",
+				relations: [{ ...relation, maxChildrenPerParent: 0, maxParentsPerChild: 1.5 }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain(
+				"relations[0].maxChildrenPerParent: must be a positive integer, or null for unlimited",
+			);
+			expect(result.errors).toContain(
+				"relations[0].maxParentsPerChild: must be a positive integer, or null for unlimited",
+			);
+		});
+
+		it("rejects relations that are not an array", () => {
+			const result = validateSeed({ version: "1", relations: {} });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("relations must be an array");
+		});
+	});
+
 	describe("taxonomy validation", () => {
 		it("should require taxonomy name", () => {
 			const result = validateSeed({
@@ -395,6 +508,181 @@ describe("validateSeed", () => {
 			});
 			expect(result.valid).toBe(false);
 			expect(result.errors).toContain('taxonomies[1].name: duplicate taxonomy name "category"');
+		});
+
+		it("lets a translation omit its structure only when it points at the same taxonomy", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "genre:en",
+						name: "genre",
+						label: "Genres",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{ name: "genre", label: "Géneros", locale: "es", translationOf: "genre:en" },
+					{ name: "gattung", label: "Gattungen", locale: "de", translationOf: "genre:en" },
+				],
+			});
+			expect(result.errors).toEqual([
+				'taxonomies[2].translationOf: "genre:en" is not an entry of taxonomy "gattung", so hierarchical and collections are required',
+			]);
+		});
+
+		it("checks a translation's term parents against its taxonomy's hierarchy", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+						terms: [{ slug: "news", label: "News" }],
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+						terms: [
+							{ slug: "noticias", label: "Noticias" },
+							{ slug: "local", label: "Local", parent: "noticias" },
+							{ slug: "mundo", label: "Mundo", parent: "missing" },
+						],
+					},
+				],
+			});
+			expect(result.warnings).toEqual([]);
+			expect(result.errors).toEqual([
+				'taxonomies[1].terms[2].parent: parent term "missing" not found in taxonomy',
+			]);
+		});
+
+		it("checks term parents against the hierarchy at the end of a translation chain", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						id: "topic:es",
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+					},
+					{
+						name: "topic",
+						label: "Sujets",
+						locale: "fr",
+						translationOf: "topic:es",
+						terms: [
+							{ slug: "actualites", label: "Actualités" },
+							{ slug: "locales", label: "Locales", parent: "actualites" },
+						],
+					},
+				],
+			});
+			expect(result.warnings).toEqual([]);
+			expect(result.errors).toEqual([]);
+		});
+
+		it("requires the structure when a translation chain loops", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						locale: "en",
+						translationOf: "topic:es",
+					},
+					{
+						id: "topic:es",
+						name: "topic",
+						label: "Temas",
+						locale: "es",
+						translationOf: "topic:en",
+					},
+				],
+			});
+			expect(result.errors).toEqual([
+				'taxonomies[0].translationOf: the translationOf chain from "topic:es" loops, so hierarchical and collections are required',
+				'taxonomies[1].translationOf: the translationOf chain from "topic:en" loops, so hierarchical and collections are required',
+			]);
+		});
+
+		it("warns when a translation declares a structure other than the one it takes", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						id: "topic:en",
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "en",
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						hierarchical: false,
+						collections: ["posts"],
+						locale: "es",
+						translationOf: "topic:en",
+					},
+				],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([
+				"taxonomies[1]: hierarchical and collections come from taxonomies[0], so the values declared here are ignored",
+			]);
+		});
+
+		it("warns when entries that declare one taxonomy's structure disagree", () => {
+			const result = validateSeed({
+				version: "1",
+				taxonomies: [
+					{
+						name: "topic",
+						label: "Topics",
+						hierarchical: true,
+						collections: ["posts", "pages"],
+						locale: "en",
+					},
+					{
+						name: "topic",
+						label: "Temas",
+						hierarchical: true,
+						collections: ["posts"],
+						locale: "es",
+					},
+					{
+						name: "topic",
+						label: "Sujets",
+						hierarchical: true,
+						collections: ["pages", "posts"],
+						locale: "fr",
+					},
+				],
+			});
+			expect(result.errors).toEqual([]);
+			expect(result.warnings).toEqual([
+				'taxonomies[1]: hierarchical and collections differ from taxonomies[0]; every locale of taxonomy "topic" shares them, so only one entry\'s values apply',
+			]);
 		});
 
 		it("should validate term properties", () => {

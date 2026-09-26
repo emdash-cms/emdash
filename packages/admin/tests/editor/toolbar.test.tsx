@@ -11,6 +11,8 @@ import {
 import type { MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
+import "../../src/styles.css";
+
 // ---------------------------------------------------------------------------
 // Mocks — heavy components that need network / Astro context
 // ---------------------------------------------------------------------------
@@ -92,6 +94,7 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 				height: { default: null },
 				displayWidth: { default: null },
 				displayHeight: { default: null },
+				link: { default: null },
 			};
 		},
 		parseHTML() {
@@ -317,6 +320,36 @@ describe("Toolbar Presence and Structure", () => {
 				"Heading 6",
 			]),
 		);
+	});
+
+	it("uses the light interaction surface for highlighted heading choices", async () => {
+		const root = document.documentElement;
+		const previousMode = root.getAttribute("data-mode");
+		const previousTheme = root.getAttribute("data-theme");
+		root.dataset.mode = "light";
+		root.dataset.theme = "classic";
+
+		try {
+			const { screen } = await renderEditor();
+			const { item } = await getHeadingMenuItem(screen, "Heading 1");
+			await userEvent.hover(item.element());
+
+			const tintReference = document.createElement("div");
+			tintReference.style.backgroundColor = "var(--color-kumo-tint)";
+			document.body.append(tintReference);
+			const expectedColor = getComputedStyle(tintReference).backgroundColor;
+			tintReference.remove();
+
+			await vi.waitFor(() => {
+				expect(item.element().hasAttribute("data-highlighted")).toBe(true);
+				expect(getComputedStyle(item.element()).backgroundColor).toBe(expectedColor);
+			});
+		} finally {
+			if (previousMode === null) root.removeAttribute("data-mode");
+			else root.setAttribute("data-mode", previousMode);
+			if (previousTheme === null) root.removeAttribute("data-theme");
+			else root.setAttribute("data-theme", previousTheme);
+		}
 	});
 
 	it("has all list buttons", async () => {
@@ -1879,6 +1912,50 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 		await vi.waitFor(() => {
 			expect(document.activeElement).toBe(lastButton);
+		});
+	});
+
+	it("keeps an image link's open-in-new-tab choice when only the URL changes", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.setImage({
+			src: "/img.jpg",
+			alt: "Example",
+			link: { href: "/old", blank: true },
+		});
+
+		let imagePos = -1;
+		editor.state.doc.descendants((node, pos) => {
+			if (node.type.name === "image") {
+				imagePos = pos;
+				return false;
+			}
+			return true;
+		});
+		expect(imagePos).toBeGreaterThanOrEqual(0);
+		editor.view.dispatch(
+			editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos)),
+		);
+		await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
+
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
+		await vi.waitFor(() => {
+			expect(document.querySelector('[role="combobox"]')).toBeTruthy();
+		});
+		const input = document.querySelector('[role="combobox"]') as HTMLInputElement;
+		// The popover is pre-populated from the image's current link.
+		expect(input.value).toBe("/old");
+
+		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+			HTMLInputElement.prototype,
+			"value",
+		)!.set!;
+		nativeInputValueSetter.call(input, "/new");
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+		screen.getByRole("button", { name: "Apply" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "/new", blank: true });
 		});
 	});
 });
