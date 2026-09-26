@@ -137,9 +137,10 @@ describe("Loader field filters", () => {
 		expect(result.entries).toHaveLength(2);
 	});
 
-	it("should handle empty WhereRange object (no conditions added)", async () => {
+	it("should warn and ignore a range object with no bounds", async () => {
 		await createPost("Post A");
 		await createPost("Post B");
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 		const loader = emdashLoader();
 		const result = await runWithContext({ editMode: false, db }, () =>
@@ -149,6 +150,123 @@ describe("Loader field filters", () => {
 		);
 
 		expect(result.entries).toHaveLength(2);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('"published_at"'));
+		warn.mockRestore();
+	});
+
+	it("should warn on an object filter that is not a range, such as { in: [...] }", async () => {
+		await createPost("Post A", { series: "alpha" });
+		await createPost("Post B", { series: "beta" });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			loader.loadCollection!({
+				filter: { type: "post", where: { series: { in: ["alpha"] } as never } },
+			}),
+		);
+
+		expect(result.entries).toHaveLength(2);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('"series"'));
+		warn.mockRestore();
+	});
+
+	/** Runs `fn` against `db`, recording the SQL and bound parameters of every collection read. */
+	async function captureReads<T>(fn: (target: Kysely<Database>) => Promise<T>) {
+		const reads: { sql: string; parameters: readonly unknown[] }[] = [];
+		const target = db.withPlugin({
+			transformQuery: (args) => args.node,
+			transformResult: async (args) => args.result,
+		});
+		const executor = target.getExecutor();
+		const execute = executor.executeQuery.bind(executor);
+		executor.executeQuery = ((
+			compiled: { sql: string; parameters: readonly unknown[] },
+			...rest: unknown[]
+		) => {
+			if (/^\s*SELECT \*/i.test(compiled.sql)) reads.push(compiled);
+			return (execute as (...args: unknown[]) => unknown)(compiled, ...rest);
+		}) as typeof executor.executeQuery;
+		const value = await fn(target);
+		return { value, reads };
+	}
+
+	it("binds a long IN list as one parameter, ordered and paged by the database", async () => {
+		const wanted: string[] = [];
+		for (let i = 0; i < 130; i++) {
+			const post = await createPost(`Post ${i}`, {
+				series: `s${i}`,
+				publishedAt: new Date(2020, 0, 1, 0, i).toISOString(),
+			});
+			// 110 values: more than D1's 100 bound parameters on their own.
+			if (i < 110) wanted.push(post.data.series as string);
+		}
+
+		const { value: page, reads } = await captureReads((target) =>
+			runWithContext({ editMode: false, db: target }, () =>
+				emdashLoader().loadCollection!({
+					filter: {
+						type: "post",
+						where: { series: wanted },
+						orderBy: { published_at: "asc" },
+						limit: 10,
+						offset: 5,
+					},
+				}),
+			),
+		);
+
+		expect(reads).toHaveLength(1);
+		expect(reads[0]!.parameters.length).toBeLessThan(100);
+		expect(page.entries.map((e) => e.data.series)).toEqual(
+			[5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((n) => `s${n}`),
+		);
+	});
+
+	it("keeps every array under the parameter budget when two arrays are long", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createField("post", { slug: "edition", label: "Edition", type: "string" });
+		const series: string[] = [];
+		const editions: string[] = [];
+		for (let i = 0; i < 80; i++) {
+			const result = await handleContentCreate(db, "post", {
+				data: { title: `Post ${i}`, series: `s${i}`, edition: `e${i}` },
+				status: "published",
+			});
+			if (!result.success) throw new Error("Failed to create post");
+			series.push(`s${i}`);
+			// Every other edition, so the two lists agree on 40 entries.
+			if (i % 2 === 0) editions.push(`e${i}`);
+		}
+
+		const { value: result, reads } = await captureReads((target) =>
+			runWithContext({ editMode: false, db: target }, () =>
+				emdashLoader().loadCollection!({
+					filter: { type: "post", where: { series, edition: editions }, limit: 100 },
+				}),
+			),
+		);
+
+		expect(reads).toHaveLength(1);
+		expect(reads[0]!.parameters.length).toBeLessThan(100);
+		expect(result.entries).toHaveLength(40);
+	});
+
+	it("binds short arrays one value per parameter, as before", async () => {
+		await createPost("Post A", { series: "alpha" });
+		await createPost("Post B", { series: "beta" });
+
+		const { reads } = await captureReads((target) =>
+			runWithContext({ editMode: false, db: target }, () =>
+				emdashLoader().loadCollection!({
+					filter: { type: "post", where: { series: ["alpha", "beta"] } },
+				}),
+			),
+		);
+
+		expect(reads).toHaveLength(1);
+		expect(reads[0]!.sql).not.toContain("json_each");
+		expect(reads[0]!.parameters).toEqual(expect.arrayContaining(["alpha", "beta"]));
 	});
 
 	it("should filter by gt (strict greater than)", async () => {

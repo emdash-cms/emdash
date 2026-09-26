@@ -16,6 +16,7 @@ import { Kysely, type RawBuilder, sql, type Dialect } from "kysely";
 
 import { buildStatusCondition, isPostgres } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
+import { jsonTextValues } from "./database/json-recordset.js";
 import { selectTaxonomyDefs } from "./database/repositories/taxonomy-def.js";
 import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
@@ -892,12 +893,33 @@ function bindableFilterValue(value: unknown): unknown {
  * Build AND conditions for non-taxonomy field filters.
  * Returns an array of sql fragments; empty if no field filters apply.
  * Field names are validated against FIELD_NAME_PATTERN to prevent injection.
+ *
+ * D1 allows 100 bound parameters per statement, and an array filter binds one
+ * per value. So when the arrays in `fields` hold more than `SQL_BATCH_SIZE`
+ * values between them, the longest arrays are bound as a single JSON parameter
+ * each (`IN (SELECT value FROM json_each(?))`, or `jsonb_array_elements_text`
+ * on PostgreSQL) until the rest fit. The statement stays one query, so
+ * ordering, cursors, limit and offset stay in the database. Values bound that
+ * way compare as text.
  */
 function buildFieldConditions(
+	db: Kysely<Database>,
 	fields: Record<string, WhereValue>,
 	tablePrefix?: string,
 ): ReturnType<typeof sql>[] {
 	const conditions: ReturnType<typeof sql>[] = [];
+
+	const arrayLengths = Object.entries(fields)
+		.filter((entry): entry is [string, string[]] => Array.isArray(entry[1]))
+		.map(([key, value]) => [key, value.length] as const)
+		.toSorted((a, b) => b[1] - a[1]);
+	let inlineValues = arrayLengths.reduce((sum, [, length]) => sum + length, 0);
+	const asJson = new Set<string>();
+	for (const [key, length] of arrayLengths) {
+		if (inlineValues <= SQL_BATCH_SIZE) break;
+		asJson.add(key);
+		inlineValues -= length;
+	}
 
 	for (const [key, value] of Object.entries(fields)) {
 		if (!FIELD_NAME_PATTERN.test(key)) {
@@ -909,12 +931,24 @@ function buildFieldConditions(
 
 		if (isWhereRange(value)) {
 			const { gt, gte, lt, lte } = value;
+			if (gt === undefined && gte === undefined && lt === undefined && lte === undefined) {
+				// An object with no bound (for example `{ in: [...] }`) would add no
+				// condition, and the query would return unfiltered rows.
+				console.warn(
+					`[emdash] where filter: "${key}" is an object with none of gt/gte/lt/lte and was ignored (use an array for IN)`,
+				);
+				continue;
+			}
 			if (gt !== undefined) conditions.push(sql`${ref} > ${bindableFilterValue(gt)}`);
 			if (gte !== undefined) conditions.push(sql`${ref} >= ${bindableFilterValue(gte)}`);
 			if (lt !== undefined) conditions.push(sql`${ref} < ${bindableFilterValue(lt)}`);
 			if (lte !== undefined) conditions.push(sql`${ref} <= ${bindableFilterValue(lte)}`);
 		} else if (Array.isArray(value)) {
-			if (value.length > 0) {
+			if (value.length === 0) continue;
+			if (asJson.has(key)) {
+				const values = value.map((v) => String(bindableFilterValue(v)));
+				conditions.push(sql`${ref} IN (${jsonTextValues(db, values)})`);
+			} else {
 				conditions.push(
 					sql`${ref} IN (${sql.join(value.map((v) => sql`${bindableFilterValue(v)}`))})`,
 				);
@@ -1523,7 +1557,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					const statusCondition = buildStatusCondition(db, status);
 					const localeFilter = locale ? sql`AND locale = ${locale}` : sql``;
 					const cursorCond = cursorCondition ? sql`AND ${cursorCondition}` : sql``;
-					const fieldConds = buildFieldConditions(fieldFilters);
+					const fieldConds = buildFieldConditions(db, fieldFilters);
 					const fieldCondsSQL =
 						fieldConds.length > 0 ? sql`${sql.join(fieldConds, sql` AND `)}` : null;
 
