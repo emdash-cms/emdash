@@ -16,6 +16,7 @@
 
 import { defineMiddleware } from "astro:middleware";
 
+import { after } from "../../after.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { getDb } from "../../loader.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
@@ -31,6 +32,16 @@ type RedirectCode = 301 | 302 | 303 | 307 | 308;
 
 function isRedirectCode(code: number): code is RedirectCode {
 	return code === 301 || code === 302 || code === 303 || code === 307 || code === 308;
+}
+
+function recordHitInBackground(repo: RedirectRepository, id: string): void {
+	after(async () => {
+		try {
+			await repo.recordHit(id);
+		} catch (error) {
+			console.error("[redirects] failed to record redirect hit:", error);
+		}
+	});
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -76,12 +87,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// Terminal statuses (410 Gone / 451): serve the status directly,
 			// with no Location header.
 			if (isTerminalStatus(exact.type)) {
-				repo.recordHit(exact.id).catch(() => {});
+				recordHitInBackground(repo, exact.id);
 				return new Response(null, { status: exact.type });
 			}
 			const dest = exact.destination;
 			if (dest.startsWith("//") || dest.startsWith("/\\")) return next();
-			repo.recordHit(exact.id).catch(() => {});
+			recordHitInBackground(repo, exact.id);
 			const code = isRedirectCode(exact.type) ? exact.type : 301;
 			return context.redirect(dest, code);
 		}
@@ -92,11 +103,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const { redirect, destination } = patternMatch;
 			// Terminal statuses (410 Gone / 451): serve the status directly.
 			if (isTerminalStatus(redirect.type)) {
-				repo.recordHit(redirect.id).catch(() => {});
+				recordHitInBackground(repo, redirect.id);
 				return new Response(null, { status: redirect.type });
 			}
 			if (destination.startsWith("//") || destination.startsWith("/\\")) return next();
-			repo.recordHit(redirect.id).catch(() => {});
+			recordHitInBackground(repo, redirect.id);
 			const code = isRedirectCode(redirect.type) ? redirect.type : 301;
 			return context.redirect(destination, code);
 		}
@@ -104,7 +115,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// No redirect matched -- proceed and check for 404
 		const response = await next();
 
-		// Log misses (fire-and-forget) under the path the visitor requested.
+		// Log misses under the path the visitor requested.
 		// Two shapes count as a miss: an unmatched route rendering the error
 		// page with status 404, and a matched route answering a content miss
 		// with a redirect to /404 (the documented template pattern) — there the
@@ -118,13 +129,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (missedDirectly || missedByRedirect) {
 			const referrer = context.request.headers.get("referer") ?? null;
 			const userAgent = context.request.headers.get("user-agent") ?? null;
-			repo
-				.log404({
-					path: pathname,
-					referrer,
-					userAgent,
-				})
-				.catch(() => {});
+			after(async () => {
+				try {
+					await repo.log404({
+						path: pathname,
+						referrer,
+						userAgent,
+					});
+				} catch (error) {
+					console.error("[redirects] failed to log 404:", error);
+				}
+			});
 		}
 
 		return response;

@@ -366,7 +366,7 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 
 		expect(log404).toHaveBeenCalledTimes(1);
 		expect(log404).toHaveBeenCalledWith(expect.objectContaining({ path: "/no-such-page" }));
-		// Await the fire-and-forget write before reading the table.
+		// Await the deferred write before reading the table.
 		await log404.mock.results[0]!.value;
 		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
 		expect(rows.map((r) => r.path)).toEqual(["/no-such-page"]);

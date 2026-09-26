@@ -628,7 +628,7 @@ export class RedirectRepository {
 	 *
 	 * This is called from the public redirect middleware on every 404 and
 	 * must never throw for an unauthenticated caller — failures bubble up to
-	 * the middleware, which swallows them.
+	 * the middleware, which catches and logs them.
 	 */
 	async log404(entry: {
 		path: string;
