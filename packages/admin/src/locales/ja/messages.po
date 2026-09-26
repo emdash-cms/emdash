@@ -13,14 +13,6 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:446
-msgid " - Guest"
-msgstr " - ゲスト"
-
-#: packages/admin/src/routes/bylines.tsx:446
-msgid " - Linked"
-msgstr " - リンク済み"
-
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
 msgid " (default)"
@@ -30,7 +22,7 @@ msgstr "（デフォルト）"
 msgid " (opens in new window)"
 msgstr "（新しいウィンドウで開く）"
 
-#: packages/admin/src/routes/bylines.tsx:706
+#: packages/admin/src/routes/bylines.tsx:930
 msgid "-- Select --"
 msgstr "選択してください"
 
@@ -1053,6 +1045,7 @@ msgstr "ACFフィールド"
 #: packages/admin/src/components/TaxonomyManager.tsx:1402
 #: packages/admin/src/components/TaxonomyManager.tsx:1455
 #: packages/admin/src/routes/byline-schema.tsx:249
+#: packages/admin/src/routes/bylines.tsx:512
 msgid "Actions"
 msgstr "操作"
 
@@ -1091,6 +1084,10 @@ msgstr "{0}を追加"
 #: packages/admin/src/components/settings/SecuritySettings.tsx:160
 msgid "Add a new passkey"
 msgstr "新しいパスキーを追加"
+
+#: packages/admin/src/routes/bylines.tsx:675
+msgid "Add a person or team to credit on your content."
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:571
 msgid "Add another byline"
@@ -1289,6 +1286,10 @@ msgstr ""
 msgid "Additional data to import."
 msgstr "インポートする追加データ。"
 
+#: packages/admin/src/routes/bylines.tsx:761
+msgid "Additional details"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1499
 msgid "admin"
 msgstr "管理者"
@@ -1368,7 +1369,7 @@ msgid "All authors"
 msgstr "すべての投稿者"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
-#: packages/admin/src/routes/bylines.tsx:412
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "All bylines"
 msgstr "すべての執筆者"
 
@@ -1744,6 +1745,10 @@ msgstr ""
 msgid "At most…"
 msgstr ""
 
+#: packages/admin/src/routes/bylines.tsx:724
+msgid "Attribution"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaPickerModal.tsx:385
@@ -1905,7 +1910,7 @@ msgstr "コンテンツタイプに戻る"
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
 #: packages/admin/src/components/LoginPage.tsx:313
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:90
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:92
 #: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
 msgstr "ログインに戻る"
@@ -1989,7 +1994,7 @@ msgstr ""
 msgid "Bing Verification"
 msgstr "Bing Webmaster Tools"
 
-#: packages/admin/src/routes/bylines.tsx:496
+#: packages/admin/src/routes/bylines.tsx:713
 msgid "Bio"
 msgstr "プロフィール"
 
@@ -2090,13 +2095,26 @@ msgstr ""
 msgid "Bullet List"
 msgstr "箇条書きリスト"
 
+#: packages/admin/src/routes/bylines.tsx:846
+msgid "byline"
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:290
+#: packages/admin/src/routes/bylines.tsx:506
 msgid "Byline"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:312
+msgid "Byline created"
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
 msgid "Byline credits"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:362
+msgid "Byline deleted"
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
@@ -2115,7 +2133,7 @@ msgid "Byline fields"
 msgstr ""
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:383
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Byline schema"
 msgstr "執筆者情報に追加する項目"
 
@@ -2123,13 +2141,17 @@ msgstr "執筆者情報に追加する項目"
 msgid "Byline Schema"
 msgstr "執筆者情報に追加する項目"
 
+#: packages/admin/src/routes/bylines.tsx:351
+msgid "Byline updated"
+msgstr ""
+
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1088
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1092
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:429
-#: packages/admin/src/routes/bylines.tsx:375
+#: packages/admin/src/routes/bylines.tsx:449
 msgid "Bylines"
 msgstr "執筆者"
 
@@ -2207,6 +2229,7 @@ msgstr "コンテンツを閲覧できます"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1933
+#: packages/admin/src/routes/bylines.tsx:824
 msgid "Cancel"
 msgstr "キャンセル"
 
@@ -2558,6 +2581,7 @@ msgstr "完了した項目を一覧から削除"
 #: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
+#: packages/admin/src/routes/bylines.tsx:631
 msgid "Clear filters"
 msgstr "フィルターをクリア"
 
@@ -2658,6 +2682,8 @@ msgstr ""
 #: packages/admin/src/components/Widgets.tsx:413
 #: packages/admin/src/components/Widgets.tsx:419
 #: packages/admin/src/components/Widgets.tsx:423
+#: packages/admin/src/routes/bylines.tsx:679
+#: packages/admin/src/routes/bylines.tsx:687
 msgid "Close"
 msgstr "閉じる"
 
@@ -2999,7 +3025,7 @@ msgid "Content Write"
 msgstr "コンテンツの書き込み"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:274
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:80
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:82
 #: packages/admin/src/components/SignupPage.tsx:109
 msgid "Continue"
 msgstr "続行"
@@ -3017,7 +3043,7 @@ msgstr "インポートを続行"
 msgid "Continue numbering"
 msgstr "番号を継続"
 
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:70
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
 msgstr ""
 
@@ -3171,7 +3197,7 @@ msgstr "執筆者情報の項目を読み込めませんでした。"
 msgid "Couldn't load content."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:547
+#: packages/admin/src/routes/bylines.tsx:782
 msgid "Couldn't load custom fields."
 msgstr "追加項目を読み込めませんでした。"
 
@@ -3244,7 +3270,7 @@ msgstr "件数"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:891
 #: packages/admin/src/components/Widgets.tsx:454
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Create"
 msgstr "作成"
 
@@ -3288,6 +3314,10 @@ msgstr ""
 msgid "Create a numbered list"
 msgstr "番号付きリストを作成"
 
+#: packages/admin/src/routes/bylines.tsx:616
+msgid "Create a profile for someone credited on your content."
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:979
 msgid "Create a reusable public profile, then add it to this post."
 msgstr ""
@@ -3301,7 +3331,6 @@ msgid "Create and add"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
-#: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "執筆者を作成"
 
@@ -3677,8 +3706,7 @@ msgstr "コードで定義"
 #: packages/admin/src/components/TaxonomyManager.tsx:1540
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:588
-#: packages/admin/src/routes/bylines.tsx:624
+#: packages/admin/src/routes/bylines.tsx:819
 msgid "Delete"
 msgstr "削除"
 
@@ -3722,8 +3750,10 @@ msgstr "{0}メニューを削除"
 msgid "Delete {0} widget area"
 msgstr "ウィジェットエリア「{0}」を削除"
 
+#. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
 #: packages/admin/src/components/TaxonomyManager.tsx:1520
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete {0}?"
 msgstr "{0}を削除しますか？"
 
@@ -3735,13 +3765,19 @@ msgstr "バックアップを削除しますか？"
 msgid "Delete block"
 msgstr ""
 
+#: packages/admin/src/routes/bylines.tsx:591
+#: packages/admin/src/routes/bylines.tsx:848
+msgid "Delete byline"
+msgstr ""
+
+#. placeholder {0}: item.displayName
+#: packages/admin/src/routes/bylines.tsx:588
+msgid "Delete byline {0}"
+msgstr ""
+
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
 msgstr "執筆者情報の項目を削除しますか？"
-
-#: packages/admin/src/routes/bylines.tsx:622
-msgid "Delete Byline?"
-msgstr "執筆者を削除しますか？"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
 msgid "Delete column"
@@ -3887,7 +3923,7 @@ msgstr "「{0}」を削除すると、すべての執筆者から{1, plural, one
 #: packages/admin/src/components/TaxonomyManager.tsx:1525
 #: packages/admin/src/components/TaxonomyManager.tsx:1541
 #: packages/admin/src/components/Widgets.tsx:717
-#: packages/admin/src/routes/bylines.tsx:625
+#: packages/admin/src/routes/bylines.tsx:849
 msgid "Deleting..."
 msgstr "削除中…"
 
@@ -4100,7 +4136,7 @@ msgstr "ナビゲーションメニューを表示"
 msgid "Display category list"
 msgstr "カテゴリーを一覧表示"
 
-#: packages/admin/src/routes/bylines.tsx:481
+#: packages/admin/src/routes/bylines.tsx:696
 msgid "Display name"
 msgstr "表示名"
 
@@ -4400,7 +4436,7 @@ msgstr "編集"
 #: packages/admin/src/components/TaxonomyManager.tsx:483
 #: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:476
+#: packages/admin/src/routes/bylines.tsx:565
 msgid "Edit {0}"
 msgstr "{0}を編集"
 
@@ -4429,6 +4465,10 @@ msgstr "{title}を編集"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:427
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:670
+msgid "Edit byline"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
@@ -5339,7 +5379,7 @@ msgid "Failed to load backup settings"
 msgstr "バックアップ設定を読み込めませんでした"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:365
+#: packages/admin/src/routes/bylines.tsx:407
 msgid "Failed to load bylines: {0}"
 msgstr "執筆者の読み込みに失敗しました：{0}"
 
@@ -5794,7 +5834,7 @@ msgstr "ステータスで絞り込む"
 msgid "Filter by type"
 msgstr "種類で絞り込む"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:488
 msgid "Filter byline type"
 msgstr "執筆者の種類で絞り込む"
 
@@ -6008,11 +6048,15 @@ msgstr "グループ（任意）"
 msgid "Group by"
 msgstr "表示単位"
 
-#: packages/admin/src/routes/bylines.tsx:555
+#: packages/admin/src/routes/bylines.tsx:542
+msgid "Guest"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:747
 msgid "Guest byline"
 msgstr "ゲスト執筆者"
 
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/routes/bylines.tsx:493
 msgid "Guest only"
 msgstr "ゲスト執筆者のみ"
 
@@ -6908,6 +6952,10 @@ msgstr ""
 msgid "Link expired"
 msgstr "リンクの有効期限が切れました"
 
+#: packages/admin/src/routes/bylines.tsx:726
+msgid "Link this byline to a user or mark it as a guest profile."
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:450
 msgid "Link to another content item"
 msgstr "別のコンテンツへのリンク"
@@ -6927,10 +6975,6 @@ msgstr "連携済みアカウント（{0}）"
 msgid "Linked from {0}"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:414
-msgid "Linked only"
-msgstr "リンク済みのみ"
-
 #: packages/admin/src/components/RelationForm.tsx:310
 msgid "Linked side (plural)"
 msgstr ""
@@ -6939,7 +6983,8 @@ msgstr ""
 msgid "Linked side (singular)"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:506
+#: packages/admin/src/routes/bylines.tsx:542
+#: packages/admin/src/routes/bylines.tsx:730
 msgid "Linked user"
 msgstr "リンク済みユーザー"
 
@@ -7002,7 +7047,7 @@ msgstr "ライブビュー"
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:650
 msgid "Load more"
 msgstr "さらに読み込む"
 
@@ -7176,7 +7221,7 @@ msgstr "ウィジェットを読み込み中…"
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:149
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:650
 msgid "Loading..."
 msgstr "読み込み中…"
 
@@ -7293,6 +7338,10 @@ msgstr "インストール済みプラグインを管理します。プラグイ
 #: packages/admin/src/components/MenuList.tsx:106
 msgid "Manage navigation menus for your site"
 msgstr "サイトのナビゲーションメニューを管理"
+
+#: packages/admin/src/routes/bylines.tsx:451
+msgid "Manage the people and teams credited on your content."
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
@@ -7632,11 +7681,12 @@ msgid "Monthly/yearly archives"
 msgstr "月別・年別のアーカイブを表示"
 
 #. placeholder {0}: byline.displayName
+#. placeholder {0}: item.displayName
 #. placeholder {0}: taxonomyDef.label
-#. placeholder {0}: term.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:862
 #: packages/admin/src/components/TaxonomyManager.tsx:322
 #: packages/admin/src/components/TaxonomyManager.tsx:1341
+#: packages/admin/src/routes/bylines.tsx:577
 msgid "More actions for {0}"
 msgstr ""
 
@@ -7886,10 +7936,6 @@ msgstr "ログイン履歴なし"
 msgid "new"
 msgstr "新規"
 
-#: packages/admin/src/routes/bylines.tsx:426
-msgid "New"
-msgstr "新規作成"
-
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
 msgstr "新規"
@@ -7897,6 +7943,12 @@ msgstr "新規"
 #: packages/admin/src/components/ContentEditor.tsx:1448
 msgid "New {itemLabel}"
 msgstr "新しい{itemLabel}"
+
+#: packages/admin/src/routes/bylines.tsx:473
+#: packages/admin/src/routes/bylines.tsx:631
+#: packages/admin/src/routes/bylines.tsx:670
+msgid "New byline"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
@@ -8079,9 +8131,12 @@ msgid "No bylines available."
 msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:150
-#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
 msgstr "一致する執筆者はありません"
+
+#: packages/admin/src/routes/bylines.tsx:611
+msgid "No bylines yet"
+msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:450
 msgid "No collections configured"
@@ -8193,7 +8248,7 @@ msgstr "項目はまだありません"
 msgid "No limit"
 msgstr "制限なし"
 
-#: packages/admin/src/routes/bylines.tsx:517
+#: packages/admin/src/routes/bylines.tsx:741
 msgid "No linked user"
 msgstr "リンク済みユーザーなし"
 
@@ -8207,6 +8262,10 @@ msgstr ""
 
 #: packages/admin/src/components/BlocksField.tsx:217
 msgid "No matching block types"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:611
+msgid "No matching bylines"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:549
@@ -8388,6 +8447,10 @@ msgstr "ウィジェットエリアを作成しましょう。"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
 msgid "No Windows Hello authenticator found"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:494
+msgid "Non-guest"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
@@ -10177,7 +10240,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/Widgets.tsx:983
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Save"
 msgstr "保存"
 
@@ -10265,7 +10328,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:888
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Saving..."
 msgstr "保存中…"
 
@@ -10425,7 +10488,8 @@ msgstr "名前またはメールアドレスで検索…"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:439
 #: packages/admin/src/components/BylineFilter.tsx:128
-#: packages/admin/src/routes/bylines.tsx:401
+#: packages/admin/src/routes/bylines.tsx:481
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Search bylines"
 msgstr "執筆者を検索"
 
@@ -11063,7 +11127,7 @@ msgid "Sign in with {0}"
 msgstr "{0}でログイン"
 
 #: packages/admin/src/components/LoginPage.tsx:231
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:61
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:63
 msgid "Sign in with email"
 msgstr "メールでログイン"
 
@@ -11085,7 +11149,7 @@ msgstr "{0}としてログイン中"
 msgid "Signed release verified"
 msgstr ""
 
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:54
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:56
 msgid "Signing in failed. Please try again."
 msgstr ""
 
@@ -11205,7 +11269,7 @@ msgstr "スキップ済み"
 #: packages/admin/src/components/TaxonomyManager.tsx:798
 #: packages/admin/src/components/TaxonomyManager.tsx:802
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/routes/bylines.tsx:702
 msgid "Slug"
 msgstr "識別名（スラッグ）"
 
@@ -12285,7 +12349,7 @@ msgstr "このリダイレクトルールは完全に削除されます。"
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "このリリースをインストールするには、サイトの実行環境を更新する必要があります。先に環境をアップグレードしてください。"
 
-#: packages/admin/src/routes/bylines.tsx:623
+#: packages/admin/src/routes/bylines.tsx:847
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "この執筆者情報を削除します。コンテンツとの関連付けと代表執筆者の設定も解除されます。"
 
@@ -12341,6 +12405,10 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:266
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
+msgstr ""
+
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:55
+msgid "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:320
@@ -12569,6 +12637,10 @@ msgstr "表示対象を広げるか、フィルターを解除してください
 msgid "Try a different search or collection filter."
 msgstr ""
 
+#: packages/admin/src/routes/bylines.tsx:615
+msgid "Try a different search or filter."
+msgstr ""
+
 #: packages/admin/src/components/ContentPickerModal.tsx:287
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
@@ -12661,6 +12733,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1224
 #: packages/admin/src/components/MediaLibrary.tsx:1206
 #: packages/admin/src/routes/byline-schema.tsx:240
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Type"
 msgstr "種類"
 
@@ -12735,6 +12808,10 @@ msgstr "不明"
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
 msgstr "不明なユーザー権限"
+
+#: packages/admin/src/routes/bylines.tsx:542
+msgid "Unlinked"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
@@ -12828,6 +12905,11 @@ msgstr "サイト設定を変更する"
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Update the {0} details"
 msgstr "{0}の詳細を編集"
+
+#. placeholder {0}: selected.displayName
+#: packages/admin/src/routes/bylines.tsx:674
+msgid "Update the profile for {0}."
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."
@@ -13326,10 +13408,11 @@ msgstr "このブラウザはWebAuthnに対応していません"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:246
 #: packages/admin/src/components/RegistryPluginDetail.tsx:780
+#: packages/admin/src/routes/bylines.tsx:509
 msgid "Website"
 msgstr "ウェブサイト"
 
-#: packages/admin/src/routes/bylines.tsx:491
+#: packages/admin/src/routes/bylines.tsx:708
 msgid "Website URL"
 msgstr "ウェブサイトのURL"
 
@@ -13597,7 +13680,7 @@ msgstr "自分のコンテンツを作成・編集できます。"
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "コンテンツ、メディア、メニュー、分類グループを管理できます。"
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:784
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "上記の基本項目は引き続き編集できます。保存しても、保存済みの追加項目には影響しません。"
 

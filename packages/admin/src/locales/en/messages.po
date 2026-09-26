@@ -13,14 +13,6 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:446
-msgid " - Guest"
-msgstr " - Guest"
-
-#: packages/admin/src/routes/bylines.tsx:446
-msgid " - Linked"
-msgstr " - Linked"
-
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
 msgid " (default)"
@@ -30,7 +22,7 @@ msgstr " (default)"
 msgid " (opens in new window)"
 msgstr " (opens in new window)"
 
-#: packages/admin/src/routes/bylines.tsx:706
+#: packages/admin/src/routes/bylines.tsx:930
 msgid "-- Select --"
 msgstr "-- Select --"
 
@@ -1053,6 +1045,7 @@ msgstr "ACF Fields"
 #: packages/admin/src/components/TaxonomyManager.tsx:1402
 #: packages/admin/src/components/TaxonomyManager.tsx:1455
 #: packages/admin/src/routes/byline-schema.tsx:249
+#: packages/admin/src/routes/bylines.tsx:512
 msgid "Actions"
 msgstr "Actions"
 
@@ -1091,6 +1084,10 @@ msgstr "Add {0}"
 #: packages/admin/src/components/settings/SecuritySettings.tsx:160
 msgid "Add a new passkey"
 msgstr "Add a new passkey"
+
+#: packages/admin/src/routes/bylines.tsx:675
+msgid "Add a person or team to credit on your content."
+msgstr "Add a person or team to credit on your content."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:571
 msgid "Add another byline"
@@ -1289,6 +1286,10 @@ msgstr "Adding…"
 msgid "Additional data to import."
 msgstr "Additional data to import."
 
+#: packages/admin/src/routes/bylines.tsx:761
+msgid "Additional details"
+msgstr "Additional details"
+
 #: packages/admin/src/components/WordPressImport.tsx:1499
 msgid "admin"
 msgstr "admin"
@@ -1368,7 +1369,7 @@ msgid "All authors"
 msgstr "All authors"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
-#: packages/admin/src/routes/bylines.tsx:412
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "All bylines"
 msgstr "All bylines"
 
@@ -1744,6 +1745,10 @@ msgstr "At most {max}"
 msgid "At most…"
 msgstr "At most…"
 
+#: packages/admin/src/routes/bylines.tsx:724
+msgid "Attribution"
+msgstr "Attribution"
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaPickerModal.tsx:385
@@ -1905,7 +1910,7 @@ msgstr "Back to Content Types"
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
 #: packages/admin/src/components/LoginPage.tsx:313
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:90
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:92
 #: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
 msgstr "Back to login"
@@ -1989,7 +1994,7 @@ msgstr "Between {min} and {max}"
 msgid "Bing Verification"
 msgstr "Bing Verification"
 
-#: packages/admin/src/routes/bylines.tsx:496
+#: packages/admin/src/routes/bylines.tsx:713
 msgid "Bio"
 msgstr "Bio"
 
@@ -2090,14 +2095,27 @@ msgstr "Build provenance verified"
 msgid "Bullet List"
 msgstr "Bullet List"
 
+#: packages/admin/src/routes/bylines.tsx:846
+msgid "byline"
+msgstr "byline"
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:290
+#: packages/admin/src/routes/bylines.tsx:506
 msgid "Byline"
 msgstr "Byline"
+
+#: packages/admin/src/routes/bylines.tsx:312
+msgid "Byline created"
+msgstr "Byline created"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
 msgid "Byline credits"
 msgstr "Byline credits"
+
+#: packages/admin/src/routes/bylines.tsx:362
+msgid "Byline deleted"
+msgstr "Byline deleted"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
 msgid "Byline field group values"
@@ -2115,7 +2133,7 @@ msgid "Byline fields"
 msgstr "Byline fields"
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:383
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Byline schema"
 msgstr "Byline schema"
 
@@ -2123,13 +2141,17 @@ msgstr "Byline schema"
 msgid "Byline Schema"
 msgstr "Byline Schema"
 
+#: packages/admin/src/routes/bylines.tsx:351
+msgid "Byline updated"
+msgstr "Byline updated"
+
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1088
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1092
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:429
-#: packages/admin/src/routes/bylines.tsx:375
+#: packages/admin/src/routes/bylines.tsx:449
 msgid "Bylines"
 msgstr "Bylines"
 
@@ -2207,6 +2229,7 @@ msgstr "Can view content"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1933
+#: packages/admin/src/routes/bylines.tsx:824
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -2558,6 +2581,7 @@ msgstr "Clear completed"
 #: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
+#: packages/admin/src/routes/bylines.tsx:631
 msgid "Clear filters"
 msgstr "Clear filters"
 
@@ -2658,6 +2682,8 @@ msgstr "Click this link to sign in to {siteName}:"
 #: packages/admin/src/components/Widgets.tsx:413
 #: packages/admin/src/components/Widgets.tsx:419
 #: packages/admin/src/components/Widgets.tsx:423
+#: packages/admin/src/routes/bylines.tsx:679
+#: packages/admin/src/routes/bylines.tsx:687
 msgid "Close"
 msgstr "Close"
 
@@ -2999,7 +3025,7 @@ msgid "Content Write"
 msgstr "Content Write"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:274
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:80
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:82
 #: packages/admin/src/components/SignupPage.tsx:109
 msgid "Continue"
 msgstr "Continue"
@@ -3017,7 +3043,7 @@ msgstr "Continue Import"
 msgid "Continue numbering"
 msgstr "Continue numbering"
 
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:70
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
 msgstr "Continue to finish signing in. The link works only once."
 
@@ -3171,7 +3197,7 @@ msgstr "Couldn't load byline fields."
 msgid "Couldn't load content."
 msgstr "Couldn't load content."
 
-#: packages/admin/src/routes/bylines.tsx:547
+#: packages/admin/src/routes/bylines.tsx:782
 msgid "Couldn't load custom fields."
 msgstr "Couldn't load custom fields."
 
@@ -3244,7 +3270,7 @@ msgstr "Count"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:891
 #: packages/admin/src/components/Widgets.tsx:454
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Create"
 msgstr "Create"
 
@@ -3288,6 +3314,10 @@ msgstr "Create a new {singularLabel}"
 msgid "Create a numbered list"
 msgstr "Create a numbered list"
 
+#: packages/admin/src/routes/bylines.tsx:616
+msgid "Create a profile for someone credited on your content."
+msgstr "Create a profile for someone credited on your content."
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:979
 msgid "Create a reusable public profile, then add it to this post."
 msgstr "Create a reusable public profile, then add it to this post."
@@ -3301,7 +3331,6 @@ msgid "Create and add"
 msgstr "Create and add"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
-#: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "Create byline"
 
@@ -3677,8 +3706,7 @@ msgstr "Defined in code"
 #: packages/admin/src/components/TaxonomyManager.tsx:1540
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:588
-#: packages/admin/src/routes/bylines.tsx:624
+#: packages/admin/src/routes/bylines.tsx:819
 msgid "Delete"
 msgstr "Delete"
 
@@ -3722,8 +3750,10 @@ msgstr "Delete {0} menu"
 msgid "Delete {0} widget area"
 msgstr "Delete {0} widget area"
 
+#. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
 #: packages/admin/src/components/TaxonomyManager.tsx:1520
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete {0}?"
 msgstr "Delete {0}?"
 
@@ -3735,13 +3765,19 @@ msgstr "Delete backup?"
 msgid "Delete block"
 msgstr "Delete block"
 
+#: packages/admin/src/routes/bylines.tsx:591
+#: packages/admin/src/routes/bylines.tsx:848
+msgid "Delete byline"
+msgstr "Delete byline"
+
+#. placeholder {0}: item.displayName
+#: packages/admin/src/routes/bylines.tsx:588
+msgid "Delete byline {0}"
+msgstr "Delete byline {0}"
+
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
 msgstr "Delete byline field?"
-
-#: packages/admin/src/routes/bylines.tsx:622
-msgid "Delete Byline?"
-msgstr "Delete Byline?"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
 msgid "Delete column"
@@ -3887,7 +3923,7 @@ msgstr "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other
 #: packages/admin/src/components/TaxonomyManager.tsx:1525
 #: packages/admin/src/components/TaxonomyManager.tsx:1541
 #: packages/admin/src/components/Widgets.tsx:717
-#: packages/admin/src/routes/bylines.tsx:625
+#: packages/admin/src/routes/bylines.tsx:849
 msgid "Deleting..."
 msgstr "Deleting..."
 
@@ -4100,7 +4136,7 @@ msgstr "Display a navigation menu"
 msgid "Display category list"
 msgstr "Display category list"
 
-#: packages/admin/src/routes/bylines.tsx:481
+#: packages/admin/src/routes/bylines.tsx:696
 msgid "Display name"
 msgstr "Display name"
 
@@ -4400,7 +4436,7 @@ msgstr "Edit"
 #: packages/admin/src/components/TaxonomyManager.tsx:483
 #: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:476
+#: packages/admin/src/routes/bylines.tsx:565
 msgid "Edit {0}"
 msgstr "Edit {0}"
 
@@ -4430,6 +4466,10 @@ msgstr "Edit {title}"
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
 msgstr "Edit asset"
+
+#: packages/admin/src/routes/bylines.tsx:670
+msgid "Edit byline"
+msgstr "Edit byline"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
@@ -5339,7 +5379,7 @@ msgid "Failed to load backup settings"
 msgstr "Failed to load backup settings"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:365
+#: packages/admin/src/routes/bylines.tsx:407
 msgid "Failed to load bylines: {0}"
 msgstr "Failed to load bylines: {0}"
 
@@ -5794,7 +5834,7 @@ msgstr "Filter by status"
 msgid "Filter by type"
 msgstr "Filter by type"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:488
 msgid "Filter byline type"
 msgstr "Filter byline type"
 
@@ -6008,11 +6048,15 @@ msgstr "Group (optional)"
 msgid "Group by"
 msgstr "Group by"
 
-#: packages/admin/src/routes/bylines.tsx:555
+#: packages/admin/src/routes/bylines.tsx:542
+msgid "Guest"
+msgstr "Guest"
+
+#: packages/admin/src/routes/bylines.tsx:747
 msgid "Guest byline"
 msgstr "Guest byline"
 
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/routes/bylines.tsx:493
 msgid "Guest only"
 msgstr "Guest only"
 
@@ -6908,6 +6952,10 @@ msgstr "Link"
 msgid "Link expired"
 msgstr "Link expired"
 
+#: packages/admin/src/routes/bylines.tsx:726
+msgid "Link this byline to a user or mark it as a guest profile."
+msgstr "Link this byline to a user or mark it as a guest profile."
+
 #: packages/admin/src/components/FieldEditor.tsx:450
 msgid "Link to another content item"
 msgstr "Link to another content item"
@@ -6927,10 +6975,6 @@ msgstr "Linked Accounts ({0})"
 msgid "Linked from {0}"
 msgstr "Linked from {0}"
 
-#: packages/admin/src/routes/bylines.tsx:414
-msgid "Linked only"
-msgstr "Linked only"
-
 #: packages/admin/src/components/RelationForm.tsx:310
 msgid "Linked side (plural)"
 msgstr "Linked side (plural)"
@@ -6939,7 +6983,8 @@ msgstr "Linked side (plural)"
 msgid "Linked side (singular)"
 msgstr "Linked side (singular)"
 
-#: packages/admin/src/routes/bylines.tsx:506
+#: packages/admin/src/routes/bylines.tsx:542
+#: packages/admin/src/routes/bylines.tsx:730
 msgid "Linked user"
 msgstr "Linked user"
 
@@ -7002,7 +7047,7 @@ msgstr "Live View"
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:650
 msgid "Load more"
 msgstr "Load more"
 
@@ -7176,7 +7221,7 @@ msgstr "Loading widgets..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:149
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:650
 msgid "Loading..."
 msgstr "Loading..."
 
@@ -7293,6 +7338,10 @@ msgstr "Manage installed plugins. Enable or disable plugins to control their fun
 #: packages/admin/src/components/MenuList.tsx:106
 msgid "Manage navigation menus for your site"
 msgstr "Manage navigation menus for your site"
+
+#: packages/admin/src/routes/bylines.tsx:451
+msgid "Manage the people and teams credited on your content."
+msgstr "Manage the people and teams credited on your content."
 
 #: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
@@ -7632,11 +7681,12 @@ msgid "Monthly/yearly archives"
 msgstr "Monthly/yearly archives"
 
 #. placeholder {0}: byline.displayName
+#. placeholder {0}: item.displayName
 #. placeholder {0}: taxonomyDef.label
-#. placeholder {0}: term.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:862
 #: packages/admin/src/components/TaxonomyManager.tsx:322
 #: packages/admin/src/components/TaxonomyManager.tsx:1341
+#: packages/admin/src/routes/bylines.tsx:577
 msgid "More actions for {0}"
 msgstr "More actions for {0}"
 
@@ -7886,10 +7936,6 @@ msgstr "Never"
 msgid "new"
 msgstr "new"
 
-#: packages/admin/src/routes/bylines.tsx:426
-msgid "New"
-msgstr "New"
-
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
 msgstr "NEW"
@@ -7897,6 +7943,12 @@ msgstr "NEW"
 #: packages/admin/src/components/ContentEditor.tsx:1448
 msgid "New {itemLabel}"
 msgstr "New {itemLabel}"
+
+#: packages/admin/src/routes/bylines.tsx:473
+#: packages/admin/src/routes/bylines.tsx:631
+#: packages/admin/src/routes/bylines.tsx:670
+msgid "New byline"
+msgstr "New byline"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
@@ -8079,9 +8131,12 @@ msgid "No bylines available."
 msgstr "No bylines available."
 
 #: packages/admin/src/components/BylineFilter.tsx:150
-#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
 msgstr "No bylines found"
+
+#: packages/admin/src/routes/bylines.tsx:611
+msgid "No bylines yet"
+msgstr "No bylines yet"
 
 #: packages/admin/src/components/Dashboard.tsx:450
 msgid "No collections configured"
@@ -8193,7 +8248,7 @@ msgstr "No items yet"
 msgid "No limit"
 msgstr "No limit"
 
-#: packages/admin/src/routes/bylines.tsx:517
+#: packages/admin/src/routes/bylines.tsx:741
 msgid "No linked user"
 msgstr "No linked user"
 
@@ -8208,6 +8263,10 @@ msgstr "No matches. Press Enter to use “{freeFormLanguage}”."
 #: packages/admin/src/components/BlocksField.tsx:217
 msgid "No matching block types"
 msgstr "No matching block types"
+
+#: packages/admin/src/routes/bylines.tsx:611
+msgid "No matching bylines"
+msgstr "No matching bylines"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:549
 msgid "No matching bylines."
@@ -8389,6 +8448,10 @@ msgstr "No widget areas yet. Create one to get started."
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
 msgid "No Windows Hello authenticator found"
 msgstr "No Windows Hello authenticator found"
+
+#: packages/admin/src/routes/bylines.tsx:494
+msgid "Non-guest"
+msgstr "Non-guest"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
 msgid "None"
@@ -10177,7 +10240,7 @@ msgstr "Sample content"
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/Widgets.tsx:983
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Save"
 msgstr "Save"
 
@@ -10265,7 +10328,7 @@ msgstr "Saving a collection here turns this field into an entry picker. Its stor
 #: packages/admin/src/components/TaxonomyManager.tsx:888
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Saving..."
 msgstr "Saving..."
 
@@ -10425,7 +10488,8 @@ msgstr "Search by name or email..."
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:439
 #: packages/admin/src/components/BylineFilter.tsx:128
-#: packages/admin/src/routes/bylines.tsx:401
+#: packages/admin/src/routes/bylines.tsx:481
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Search bylines"
 msgstr "Search bylines"
 
@@ -11063,7 +11127,7 @@ msgid "Sign in with {0}"
 msgstr "Sign in with {0}"
 
 #: packages/admin/src/components/LoginPage.tsx:231
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:61
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:63
 msgid "Sign in with email"
 msgstr "Sign in with email"
 
@@ -11085,7 +11149,7 @@ msgstr "Signed in as {0}"
 msgid "Signed release verified"
 msgstr "Signed release verified"
 
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:54
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:56
 msgid "Signing in failed. Please try again."
 msgstr "Signing in failed. Please try again."
 
@@ -11205,7 +11269,7 @@ msgstr "Skipped"
 #: packages/admin/src/components/TaxonomyManager.tsx:798
 #: packages/admin/src/components/TaxonomyManager.tsx:802
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/routes/bylines.tsx:702
 msgid "Slug"
 msgstr "Slug"
 
@@ -12285,7 +12349,7 @@ msgstr "This redirect rule will be permanently removed."
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "This release requires a newer environment than your site currently runs. Upgrade before installing."
 
-#: packages/admin/src/routes/bylines.tsx:623
+#: packages/admin/src/routes/bylines.tsx:847
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 
@@ -12342,6 +12406,10 @@ msgstr "This site has no content yet, so it can receive an import. Choose a .emd
 #: packages/admin/src/components/Dashboard.tsx:266
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
 msgstr "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
+
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:55
+msgid "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
+msgstr "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:320
 msgid "This site holds partial data from an earlier import"
@@ -12569,6 +12637,10 @@ msgstr "Try a broader media type or clear your filters."
 msgid "Try a different search or collection filter."
 msgstr "Try a different search or collection filter."
 
+#: packages/admin/src/routes/bylines.tsx:615
+msgid "Try a different search or filter."
+msgstr "Try a different search or filter."
+
 #: packages/admin/src/components/ContentPickerModal.tsx:287
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
@@ -12661,6 +12733,7 @@ msgstr "Two records have the same value where it must be unique"
 #: packages/admin/src/components/FieldEditor.tsx:1224
 #: packages/admin/src/components/MediaLibrary.tsx:1206
 #: packages/admin/src/routes/byline-schema.tsx:240
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Type"
 msgstr "Type"
 
@@ -12735,6 +12808,10 @@ msgstr "Unknown"
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
 msgstr "Unknown role"
+
+#: packages/admin/src/routes/bylines.tsx:542
+msgid "Unlinked"
+msgstr "Unlinked"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
@@ -12828,6 +12905,11 @@ msgstr "Update site settings"
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Update the {0} details"
 msgstr "Update the {0} details"
+
+#. placeholder {0}: selected.displayName
+#: packages/admin/src/routes/bylines.tsx:674
+msgid "Update the profile for {0}."
+msgstr "Update the profile for {0}."
 
 #: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."
@@ -13326,10 +13408,11 @@ msgstr "WebAuthn is not supported in this browser"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:246
 #: packages/admin/src/components/RegistryPluginDetail.tsx:780
+#: packages/admin/src/routes/bylines.tsx:509
 msgid "Website"
 msgstr "Website"
 
-#: packages/admin/src/routes/bylines.tsx:491
+#: packages/admin/src/routes/bylines.tsx:708
 msgid "Website URL"
 msgstr "Website URL"
 
@@ -13597,7 +13680,7 @@ msgstr "You can create and edit your own content."
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "You can manage content, media, menus, and taxonomies."
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:784
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 

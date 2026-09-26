@@ -95,6 +95,7 @@ import * as m084 from "./084_site_transfer.js";
 import * as m085 from "./085_taxonomy_def_groups.js";
 import * as m086 from "./086_relations_structural.js";
 import * as m087 from "./087_reference_field_relations.js";
+import * as m088 from "./088_cron_oneshot_utc.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -183,6 +184,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"085_taxonomy_def_groups": m085,
 	"086_relations_structural": m086,
 	"087_reference_field_relations": m087,
+	"088_cron_oneshot_utc": m088,
 });
 
 /** Ordered names from the statically registered migration set. */

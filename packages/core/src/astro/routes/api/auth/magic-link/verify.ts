@@ -21,6 +21,8 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkVerifyBody } from "#api/schemas.js";
 
+import { sessionUnavailableError } from "../../../../session-user.js";
+
 export const GET: APIRoute = async ({ url, redirect }) => {
 	const token = url.searchParams.get("token");
 	if (!token) {
@@ -39,6 +41,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	if (!session) return sessionUnavailableError();
 
 	try {
 		const body = await parseBody(request, magicLinkVerifyBody);
@@ -50,7 +53,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		// Fire-and-forget cleanup of expired tokens -- prevents accumulation
 		void adapter.deleteExpiredTokens().catch(() => {});
 
-		session?.set("user", { id: user.id });
+		session.set("user", { id: user.id });
 
 		return apiSuccess({ success: true });
 	} catch (error) {

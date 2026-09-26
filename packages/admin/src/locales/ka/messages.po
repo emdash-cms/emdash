@@ -13,14 +13,6 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: packages/admin/src/routes/bylines.tsx:446
-msgid " - Guest"
-msgstr " - სტუმარი"
-
-#: packages/admin/src/routes/bylines.tsx:446
-msgid " - Linked"
-msgstr " - დაკავშირებული"
-
 #: packages/admin/src/components/LocaleSwitcher.tsx:75
 #: packages/admin/src/components/TranslationsPanel.tsx:81
 msgid " (default)"
@@ -30,7 +22,7 @@ msgstr " (ნაგულისხმევი)"
 msgid " (opens in new window)"
 msgstr " (იხსნება ახალ ფანჯარაში)"
 
-#: packages/admin/src/routes/bylines.tsx:706
+#: packages/admin/src/routes/bylines.tsx:930
 msgid "-- Select --"
 msgstr "-- აირჩიეთ --"
 
@@ -1053,6 +1045,7 @@ msgstr "ACF ველები"
 #: packages/admin/src/components/TaxonomyManager.tsx:1402
 #: packages/admin/src/components/TaxonomyManager.tsx:1455
 #: packages/admin/src/routes/byline-schema.tsx:249
+#: packages/admin/src/routes/bylines.tsx:512
 msgid "Actions"
 msgstr "ქმედებები"
 
@@ -1091,6 +1084,10 @@ msgstr "{0}-ის დამატება"
 #: packages/admin/src/components/settings/SecuritySettings.tsx:160
 msgid "Add a new passkey"
 msgstr "ახალი პასკის დამატება"
+
+#: packages/admin/src/routes/bylines.tsx:675
+msgid "Add a person or team to credit on your content."
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:571
 msgid "Add another byline"
@@ -1289,6 +1286,10 @@ msgstr ""
 msgid "Additional data to import."
 msgstr "დამატებითი მონაცემები იმპორტისთვის."
 
+#: packages/admin/src/routes/bylines.tsx:761
+msgid "Additional details"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1499
 msgid "admin"
 msgstr "admin"
@@ -1368,7 +1369,7 @@ msgid "All authors"
 msgstr "ყველა ავტორი"
 
 #: packages/admin/src/components/BylineFilter.tsx:103
-#: packages/admin/src/routes/bylines.tsx:412
+#: packages/admin/src/routes/bylines.tsx:492
 msgid "All bylines"
 msgstr "ყველა ბაილაინი"
 
@@ -1744,6 +1745,10 @@ msgstr "მაქსიმუმ {max}"
 msgid "At most…"
 msgstr ""
 
+#: packages/admin/src/routes/bylines.tsx:724
+msgid "Attribution"
+msgstr ""
+
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaPickerModal.tsx:385
@@ -1905,7 +1910,7 @@ msgstr "დაბრუნება შიგთავსის ტიპებ�
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
 #: packages/admin/src/components/LoginPage.tsx:313
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:90
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:92
 #: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
 msgstr "დაბრუნება შესვლაზე"
@@ -1989,7 +1994,7 @@ msgstr "{min}-სა და {max}-ს შორის"
 msgid "Bing Verification"
 msgstr "Bing-ის ვერიფიკაცია"
 
-#: packages/admin/src/routes/bylines.tsx:496
+#: packages/admin/src/routes/bylines.tsx:713
 msgid "Bio"
 msgstr "ბიო"
 
@@ -2090,13 +2095,26 @@ msgstr ""
 msgid "Bullet List"
 msgstr "მარკირებული სია"
 
+#: packages/admin/src/routes/bylines.tsx:846
+msgid "byline"
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:290
+#: packages/admin/src/routes/bylines.tsx:506
 msgid "Byline"
 msgstr "ბაილაინი"
+
+#: packages/admin/src/routes/bylines.tsx:312
+msgid "Byline created"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:25
 #: packages/admin/src/components/settings/transfer/labels.ts:83
 msgid "Byline credits"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:362
+msgid "Byline deleted"
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:21
@@ -2115,7 +2133,7 @@ msgid "Byline fields"
 msgstr ""
 
 #: packages/admin/src/routes/byline-schema.tsx:218
-#: packages/admin/src/routes/bylines.tsx:383
+#: packages/admin/src/routes/bylines.tsx:469
 msgid "Byline schema"
 msgstr "ბაილაინის სქემა"
 
@@ -2123,13 +2141,17 @@ msgstr "ბაილაინის სქემა"
 msgid "Byline Schema"
 msgstr "ბაილაინის სქემა"
 
+#: packages/admin/src/routes/bylines.tsx:351
+msgid "Byline updated"
+msgstr ""
+
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1088
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1092
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:429
-#: packages/admin/src/routes/bylines.tsx:375
+#: packages/admin/src/routes/bylines.tsx:449
 msgid "Bylines"
 msgstr "ბაილაინები"
 
@@ -2207,6 +2229,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/users/InviteUserModal.tsx:198
 #: packages/admin/src/components/Widgets.tsx:451
 #: packages/admin/src/components/WordPressImport.tsx:1933
+#: packages/admin/src/routes/bylines.tsx:824
 msgid "Cancel"
 msgstr "გაუქმება"
 
@@ -2558,6 +2581,7 @@ msgstr "დასრულებულების გასუფთავე�
 #: packages/admin/src/components/ContentList.tsx:1023
 #: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
+#: packages/admin/src/routes/bylines.tsx:631
 msgid "Clear filters"
 msgstr "ფილტრების გასუფთავება"
 
@@ -2658,6 +2682,8 @@ msgstr ""
 #: packages/admin/src/components/Widgets.tsx:413
 #: packages/admin/src/components/Widgets.tsx:419
 #: packages/admin/src/components/Widgets.tsx:423
+#: packages/admin/src/routes/bylines.tsx:679
+#: packages/admin/src/routes/bylines.tsx:687
 msgid "Close"
 msgstr "დახურვა"
 
@@ -2999,7 +3025,7 @@ msgid "Content Write"
 msgstr "შიგთავსის ჩაწერა"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:274
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:80
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:82
 #: packages/admin/src/components/SignupPage.tsx:109
 msgid "Continue"
 msgstr "გაგრძელება"
@@ -3017,7 +3043,7 @@ msgstr "იმპორტის გაგრძელება"
 msgid "Continue numbering"
 msgstr "ნუმერაციის გაგრძელება"
 
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:70
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:72
 msgid "Continue to finish signing in. The link works only once."
 msgstr ""
 
@@ -3171,7 +3197,7 @@ msgstr "ბაილაინის ველების ჩატვირთ�
 msgid "Couldn't load content."
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:547
+#: packages/admin/src/routes/bylines.tsx:782
 msgid "Couldn't load custom fields."
 msgstr "მორგებული ველების ჩატვირთვა ვერ მოხერხდა."
 
@@ -3244,7 +3270,7 @@ msgstr "რაოდენობა"
 #: packages/admin/src/components/Sections.tsx:212
 #: packages/admin/src/components/TaxonomyManager.tsx:891
 #: packages/admin/src/components/Widgets.tsx:454
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Create"
 msgstr "შექმნა"
 
@@ -3288,6 +3314,10 @@ msgstr ""
 msgid "Create a numbered list"
 msgstr "დანომრილი სიის შექმნა"
 
+#: packages/admin/src/routes/bylines.tsx:616
+msgid "Create a profile for someone credited on your content."
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:979
 msgid "Create a reusable public profile, then add it to this post."
 msgstr "შექმენით მრავალჯერადი საჯარო პროფილი და დაამატეთ ის ამ პოსტს."
@@ -3301,7 +3331,6 @@ msgid "Create and add"
 msgstr "შექმნა და დამატება"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:975
-#: packages/admin/src/routes/bylines.tsx:476
 msgid "Create byline"
 msgstr "ბაილაინის შექმნა"
 
@@ -3677,8 +3706,7 @@ msgstr "კოდში განსაზღვრული"
 #: packages/admin/src/components/TaxonomyManager.tsx:1540
 #: packages/admin/src/components/Widgets.tsx:716
 #: packages/admin/src/routes/byline-schema.tsx:378
-#: packages/admin/src/routes/bylines.tsx:588
-#: packages/admin/src/routes/bylines.tsx:624
+#: packages/admin/src/routes/bylines.tsx:819
 msgid "Delete"
 msgstr "წაშლა"
 
@@ -3722,8 +3750,10 @@ msgstr "{0} მენიუს წაშლა"
 msgid "Delete {0} widget area"
 msgstr "{0} ვიჯეტის ზონის წაშლა"
 
+#. placeholder {0}: deleteTarget?.displayName ?? t`byline`
 #. placeholder {0}: taxonomyDef.labelSingular || "Term"
 #: packages/admin/src/components/TaxonomyManager.tsx:1520
+#: packages/admin/src/routes/bylines.tsx:846
 msgid "Delete {0}?"
 msgstr "წავშალოთ {0}?"
 
@@ -3735,13 +3765,19 @@ msgstr "წავშალოთ სარეზერვო ასლი?"
 msgid "Delete block"
 msgstr ""
 
+#: packages/admin/src/routes/bylines.tsx:591
+#: packages/admin/src/routes/bylines.tsx:848
+msgid "Delete byline"
+msgstr ""
+
+#. placeholder {0}: item.displayName
+#: packages/admin/src/routes/bylines.tsx:588
+msgid "Delete byline {0}"
+msgstr ""
+
 #: packages/admin/src/routes/byline-schema.tsx:358
 msgid "Delete byline field?"
 msgstr "წავშალოთ ბაილაინის ველი?"
-
-#: packages/admin/src/routes/bylines.tsx:622
-msgid "Delete Byline?"
-msgstr "წავშალოთ ბაილაინი?"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
 msgid "Delete column"
@@ -3887,7 +3923,7 @@ msgstr "„{0}“-ის წაშლა ასევე მოხსნის {
 #: packages/admin/src/components/TaxonomyManager.tsx:1525
 #: packages/admin/src/components/TaxonomyManager.tsx:1541
 #: packages/admin/src/components/Widgets.tsx:717
-#: packages/admin/src/routes/bylines.tsx:625
+#: packages/admin/src/routes/bylines.tsx:849
 msgid "Deleting..."
 msgstr "იშლება..."
 
@@ -4100,7 +4136,7 @@ msgstr "ნავიგაციის მენიუს ჩვენება"
 msgid "Display category list"
 msgstr "კატეგორიების სიის ჩვენება"
 
-#: packages/admin/src/routes/bylines.tsx:481
+#: packages/admin/src/routes/bylines.tsx:696
 msgid "Display name"
 msgstr "საჩვენებელი სახელი"
 
@@ -4400,7 +4436,7 @@ msgstr "რედაქტირება"
 #: packages/admin/src/components/TaxonomyManager.tsx:483
 #: packages/admin/src/components/TaxonomyManager.tsx:754
 #: packages/admin/src/routes/byline-schema.tsx:449
-#: packages/admin/src/routes/bylines.tsx:476
+#: packages/admin/src/routes/bylines.tsx:565
 msgid "Edit {0}"
 msgstr "{0}-ის რედაქტირება"
 
@@ -4430,6 +4466,10 @@ msgstr "{title}-ის რედაქტირება"
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
 msgstr "მედია ფაილის რედაქტირება"
+
+#: packages/admin/src/routes/bylines.tsx:670
+msgid "Edit byline"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "Edit byline field"
@@ -5339,7 +5379,7 @@ msgid "Failed to load backup settings"
 msgstr "სარეზერვო ასლის პარამეტრების ჩატვირთვა ვერ მოხერხდა"
 
 #. placeholder {0}: error.message
-#: packages/admin/src/routes/bylines.tsx:365
+#: packages/admin/src/routes/bylines.tsx:407
 msgid "Failed to load bylines: {0}"
 msgstr "ბაილაინების ჩატვირთვა ვერ მოხერხდა: {0}"
 
@@ -5794,7 +5834,7 @@ msgstr "სტატუსის მიხედვით ფილტრი"
 msgid "Filter by type"
 msgstr "ტიპის მიხედვით ფილტრი"
 
-#: packages/admin/src/routes/bylines.tsx:408
+#: packages/admin/src/routes/bylines.tsx:488
 msgid "Filter byline type"
 msgstr "ბაილაინის ტიპის ფილტრი"
 
@@ -6008,11 +6048,15 @@ msgstr "ჯგუფი (სურვილისამებრ)"
 msgid "Group by"
 msgstr "დაჯგუფება"
 
-#: packages/admin/src/routes/bylines.tsx:555
+#: packages/admin/src/routes/bylines.tsx:542
+msgid "Guest"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:747
 msgid "Guest byline"
 msgstr "სტუმრის ბაილაინი"
 
-#: packages/admin/src/routes/bylines.tsx:413
+#: packages/admin/src/routes/bylines.tsx:493
 msgid "Guest only"
 msgstr "მხოლოდ სტუმრები"
 
@@ -6908,6 +6952,10 @@ msgstr "ბმული"
 msgid "Link expired"
 msgstr "ბმულის ვადა გავიდა"
 
+#: packages/admin/src/routes/bylines.tsx:726
+msgid "Link this byline to a user or mark it as a guest profile."
+msgstr ""
+
 #: packages/admin/src/components/FieldEditor.tsx:450
 msgid "Link to another content item"
 msgstr "ბმული სხვა შიგთავსის ელემენტზე"
@@ -6927,10 +6975,6 @@ msgstr "დაკავშირებული ანგარიშები (
 msgid "Linked from {0}"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:414
-msgid "Linked only"
-msgstr "მხოლოდ დაკავშირებული"
-
 #: packages/admin/src/components/RelationForm.tsx:310
 msgid "Linked side (plural)"
 msgstr ""
@@ -6939,7 +6983,8 @@ msgstr ""
 msgid "Linked side (singular)"
 msgstr ""
 
-#: packages/admin/src/routes/bylines.tsx:506
+#: packages/admin/src/routes/bylines.tsx:542
+#: packages/admin/src/routes/bylines.tsx:730
 msgid "Linked user"
 msgstr "დაკავშირებული მომხმარებელი"
 
@@ -7002,7 +7047,7 @@ msgstr "ცოცხალი გადახედვა"
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:650
 msgid "Load more"
 msgstr "მეტის ჩატვირთვა"
 
@@ -7176,7 +7221,7 @@ msgstr "ვიჯეტები იტვირთება..."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:244
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:143
 #: packages/admin/src/components/users/UserList.tsx:149
-#: packages/admin/src/routes/bylines.tsx:468
+#: packages/admin/src/routes/bylines.tsx:650
 msgid "Loading..."
 msgstr "იტვირთება..."
 
@@ -7293,6 +7338,10 @@ msgstr "დაყენებული პლაგინების მარ�
 #: packages/admin/src/components/MenuList.tsx:106
 msgid "Manage navigation menus for your site"
 msgstr "საიტის ნავიგაციის მენიუების მართვა"
+
+#: packages/admin/src/routes/bylines.tsx:451
+msgid "Manage the people and teams credited on your content."
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:366
 msgid "Manage URL redirects and view 404 errors."
@@ -7632,11 +7681,12 @@ msgid "Monthly/yearly archives"
 msgstr "ყოველთვიური/წლიური არქივები"
 
 #. placeholder {0}: byline.displayName
+#. placeholder {0}: item.displayName
 #. placeholder {0}: taxonomyDef.label
-#. placeholder {0}: term.label
 #: packages/admin/src/components/BylineCreditsEditor.tsx:862
 #: packages/admin/src/components/TaxonomyManager.tsx:322
 #: packages/admin/src/components/TaxonomyManager.tsx:1341
+#: packages/admin/src/routes/bylines.tsx:577
 msgid "More actions for {0}"
 msgstr "მეტი მოქმედება: {0}"
 
@@ -7886,10 +7936,6 @@ msgstr "არასდროს"
 msgid "new"
 msgstr "ახალი"
 
-#: packages/admin/src/routes/bylines.tsx:426
-msgid "New"
-msgstr "ახალი"
-
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:262
 msgid "NEW"
 msgstr "ახალი"
@@ -7897,6 +7943,12 @@ msgstr "ახალი"
 #: packages/admin/src/components/ContentEditor.tsx:1448
 msgid "New {itemLabel}"
 msgstr "ახალი {itemLabel}"
+
+#: packages/admin/src/routes/bylines.tsx:473
+#: packages/admin/src/routes/bylines.tsx:631
+#: packages/admin/src/routes/bylines.tsx:670
+msgid "New byline"
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:209
 msgid "New byline field"
@@ -8079,9 +8131,12 @@ msgid "No bylines available."
 msgstr "ბაილაინები მიუწვდომელია."
 
 #: packages/admin/src/components/BylineFilter.tsx:150
-#: packages/admin/src/routes/bylines.tsx:452
 msgid "No bylines found"
 msgstr "ბაილაინები ვერ მოიძებნა"
+
+#: packages/admin/src/routes/bylines.tsx:611
+msgid "No bylines yet"
+msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:450
 msgid "No collections configured"
@@ -8193,7 +8248,7 @@ msgstr "ელემენტები ჯერ არ არის"
 msgid "No limit"
 msgstr "ლიმიტის გარეშე"
 
-#: packages/admin/src/routes/bylines.tsx:517
+#: packages/admin/src/routes/bylines.tsx:741
 msgid "No linked user"
 msgstr "დაკავშირებული მომხმარებელი არ არის"
 
@@ -8207,6 +8262,10 @@ msgstr ""
 
 #: packages/admin/src/components/BlocksField.tsx:217
 msgid "No matching block types"
+msgstr ""
+
+#: packages/admin/src/routes/bylines.tsx:611
+msgid "No matching bylines"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:549
@@ -8389,6 +8448,10 @@ msgstr "ვიჯეტის არეალები ჯერ არ არ�
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
 msgid "No Windows Hello authenticator found"
 msgstr "Windows Hello-ს ავთენტიფიკატორი ვერ მოიძებნა"
+
+#: packages/admin/src/routes/bylines.tsx:494
+msgid "Non-guest"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:274
 msgid "None"
@@ -10177,7 +10240,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:193
 #: packages/admin/src/components/SaveButton.tsx:32
 #: packages/admin/src/components/Widgets.tsx:983
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Save"
 msgstr "შენახვა"
 
@@ -10265,7 +10328,7 @@ msgstr ""
 #: packages/admin/src/components/TaxonomyManager.tsx:888
 #: packages/admin/src/components/users/UserDetail.tsx:311
 #: packages/admin/src/components/Widgets.tsx:983
-#: packages/admin/src/routes/bylines.tsx:579
+#: packages/admin/src/routes/bylines.tsx:831
 msgid "Saving..."
 msgstr "ინახება..."
 
@@ -10425,7 +10488,8 @@ msgstr "ძებნა სახელით ან ელფოსტით...
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:439
 #: packages/admin/src/components/BylineFilter.tsx:128
-#: packages/admin/src/routes/bylines.tsx:401
+#: packages/admin/src/routes/bylines.tsx:481
+#: packages/admin/src/routes/bylines.tsx:482
 msgid "Search bylines"
 msgstr "ბაილაინების ძებნა"
 
@@ -11063,7 +11127,7 @@ msgid "Sign in with {0}"
 msgstr "შესვლა {0}-ით"
 
 #: packages/admin/src/components/LoginPage.tsx:231
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:61
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:63
 msgid "Sign in with email"
 msgstr "შესვლა ელფოსტით"
 
@@ -11085,7 +11149,7 @@ msgstr "შესულია როგორც {0}"
 msgid "Signed release verified"
 msgstr ""
 
-#: packages/admin/src/components/MagicLinkConfirmPage.tsx:54
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:56
 msgid "Signing in failed. Please try again."
 msgstr ""
 
@@ -11205,7 +11269,7 @@ msgstr "გამოტოვებული"
 #: packages/admin/src/components/TaxonomyManager.tsx:798
 #: packages/admin/src/components/TaxonomyManager.tsx:802
 #: packages/admin/src/routes/byline-schema.tsx:237
-#: packages/admin/src/routes/bylines.tsx:486
+#: packages/admin/src/routes/bylines.tsx:702
 msgid "Slug"
 msgstr "სლაგი"
 
@@ -12285,7 +12349,7 @@ msgstr "ეს გადამისამართების წესი ს
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr "ეს რელიზი ითხოვს უფრო ახალ გარემოს, ვიდრე საიტი ამჟამად იყენებს. დაყენებამდე განაახლეთ."
 
-#: packages/admin/src/routes/bylines.tsx:623
+#: packages/admin/src/routes/bylines.tsx:847
 msgid "This removes the byline profile. Content byline links are removed and lead pointers are cleared."
 msgstr "ეს წაშლის ბაილაინის პროფილს. შიგთავსის ბაილაინის ბმულები მოიხსნება, ხოლო წამყვანი ბაილაინის მითითებები გასუფთავდება."
 
@@ -12341,6 +12405,10 @@ msgstr ""
 
 #: packages/admin/src/components/Dashboard.tsx:266
 msgid "This site has no content yet, so you can import a .emdash package exported from another EmDash site."
+msgstr ""
+
+#: packages/admin/src/components/MagicLinkConfirmPage.tsx:55
+msgid "This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs."
 msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:320
@@ -12569,6 +12637,10 @@ msgstr "სცადეთ მედიის უფრო ფართო ტ�
 msgid "Try a different search or collection filter."
 msgstr ""
 
+#: packages/admin/src/routes/bylines.tsx:615
+msgid "Try a different search or filter."
+msgstr ""
+
 #: packages/admin/src/components/ContentPickerModal.tsx:287
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
@@ -12661,6 +12733,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1224
 #: packages/admin/src/components/MediaLibrary.tsx:1206
 #: packages/admin/src/routes/byline-schema.tsx:240
+#: packages/admin/src/routes/bylines.tsx:507
 msgid "Type"
 msgstr "ტიპი"
 
@@ -12735,6 +12808,10 @@ msgstr "უცნობი"
 #: packages/admin/src/components/users/roleDefinitions.ts:62
 msgid "Unknown role"
 msgstr "უცნობი როლი"
+
+#: packages/admin/src/routes/bylines.tsx:542
+msgid "Unlinked"
+msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:693
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:694
@@ -12828,6 +12905,11 @@ msgstr "საიტის პარამეტრების განახ�
 #: packages/admin/src/components/TaxonomyManager.tsx:759
 msgid "Update the {0} details"
 msgstr "{0}-ის დეტალების განახლება"
+
+#. placeholder {0}: selected.displayName
+#: packages/admin/src/routes/bylines.tsx:674
+msgid "Update the profile for {0}."
+msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:112
 msgid "Update this redirect rule."
@@ -13326,10 +13408,11 @@ msgstr "WebAuthn ამ ბრაუზერში მხარდაჭერ�
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:246
 #: packages/admin/src/components/RegistryPluginDetail.tsx:780
+#: packages/admin/src/routes/bylines.tsx:509
 msgid "Website"
 msgstr "ვებსაიტი"
 
-#: packages/admin/src/routes/bylines.tsx:491
+#: packages/admin/src/routes/bylines.tsx:708
 msgid "Website URL"
 msgstr "ვებსაიტის URL"
 
@@ -13597,7 +13680,7 @@ msgstr "შეგიძლიათ შექმნათ და რედაქ
 msgid "You can manage content, media, menus, and taxonomies."
 msgstr "შეგიძლიათ მართოთ შიგთავსი, მედია, მენიუები და ტაქსონომიები."
 
-#: packages/admin/src/routes/bylines.tsx:549
+#: packages/admin/src/routes/bylines.tsx:784
 msgid "You can still edit the fixed fields above. Saving will not touch any stored custom-field values."
 msgstr "ზემოთ არსებული ფიქსირებული ველები კვლავ რედაქტირებადია. შენახვა არ შეეხება შენახულ მორგებული ველების მნიშვნელობებს."
 

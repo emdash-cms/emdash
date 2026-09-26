@@ -4,6 +4,7 @@ dist
 .emdash/migrations.json
 uploads
 data.db
+.wrangler
 
 # Environment / Wrangler secrets
 .env
