@@ -6,6 +6,7 @@ export const EXTENSION_TO_MIME: Readonly<Record<string, string>> = {
 	".gif": "image/gif",
 	".webp": "image/webp",
 	".avif": "image/avif",
+	".bmp": "image/bmp",
 	".svg": "image/svg+xml",
 	".mp3": "audio/mpeg",
 	".wav": "audio/wav",
