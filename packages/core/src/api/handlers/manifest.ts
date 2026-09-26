@@ -183,6 +183,7 @@ export async function buildManifestCollections(
 				dateField: collection.dateField,
 				...(collection.hidden ? { hidden: true } : {}),
 				...(collection.group ? { group: collection.group } : {}),
+				...(collection.admin?.quickCreate === false ? { quickCreate: false } : {}),
 				listColumns: listColumns.length > 0 ? listColumns : undefined,
 				fields,
 			};

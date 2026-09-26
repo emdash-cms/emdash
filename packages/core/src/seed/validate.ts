@@ -241,6 +241,13 @@ export function validateSeed(data: unknown): ValidationResult {
 							}
 						}
 					}
+					if (
+						isRecord(collection.admin) &&
+						collection.admin.quickCreate !== undefined &&
+						typeof collection.admin.quickCreate !== "boolean"
+					) {
+						errors.push(`${prefix}.admin.quickCreate: must be a boolean`);
+					}
 				}
 
 				// Validate fields

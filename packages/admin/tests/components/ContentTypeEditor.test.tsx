@@ -244,6 +244,32 @@ describe("ContentTypeEditor", () => {
 		});
 	});
 
+	it("creates a collection without a dashboard quick action when switched off", async () => {
+		const onSave = vi.fn();
+		const screen = await render(<ContentTypeEditor {...defaultProps({ onSave })} isNew />);
+
+		await screen.getByLabelText("Label (Plural)").fill("Sync runs");
+		await screen.getByRole("switch", { name: /Quick action on the dashboard/ }).click();
+		await screen.getByRole("button", { name: CREATE_CONTENT_TYPE_BUTTON_REGEX }).click();
+
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ admin: { quickCreate: false } }));
+	});
+
+	it("keeps existing admin settings when turning off the dashboard quick action", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ admin: { listColumns: ["event_date"] } });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByRole("switch", { name: /Quick action on the dashboard/ }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ admin: { listColumns: ["event_date"], quickCreate: false } }),
+		);
+	});
+
 	// ---- Field list displays existing fields with type and badges ----
 
 	it("displays custom fields with type and badges", async () => {

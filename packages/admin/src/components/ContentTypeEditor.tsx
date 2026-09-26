@@ -187,6 +187,7 @@ export function ContentTypeEditor({
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
 	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
 	const [group, setGroup] = React.useState(collection?.group ?? "");
+	const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true);
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -233,6 +234,7 @@ export function ContentTypeEditor({
 			routable !== (collection.routable ?? true) ||
 			editLocking !== (collection.editLocking ?? true) ||
 			group !== (collection.group ?? "") ||
+			quickCreate !== (collection.admin?.quickCreate ?? true) ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -252,6 +254,7 @@ export function ContentTypeEditor({
 		routable,
 		editLocking,
 		group,
+		quickCreate,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -300,6 +303,7 @@ export function ContentTypeEditor({
 				routable,
 				editLocking,
 				group: group.trim() || undefined,
+				admin: quickCreate ? undefined : { quickCreate: false },
 				supports,
 				hasSeo,
 			});
@@ -312,6 +316,10 @@ export function ContentTypeEditor({
 				routable,
 				editLocking,
 				group: group.trim() || null,
+				admin:
+					quickCreate !== (collection?.admin?.quickCreate ?? true)
+						? { ...collection?.admin, quickCreate: quickCreate ? undefined : false }
+						: undefined,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -533,6 +541,19 @@ export function ContentTypeEditor({
 										{t`Content types with the same group share a collapsible folder in the sidebar`}
 									</p>
 								</div>
+								<Switch
+									checked={quickCreate}
+									onCheckedChange={setQuickCreate}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`Quick action on the dashboard`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Shows a button for creating a new entry`}
+											</p>
+										</div>
+									}
+								/>
 							</div>
 
 							<div className="space-y-3">
