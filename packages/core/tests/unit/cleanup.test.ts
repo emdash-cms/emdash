@@ -5,6 +5,7 @@ import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { handleDeviceTokenExchange } from "../../src/api/handlers/device-flow.js";
 import { runSystemCleanup } from "../../src/cleanup.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaRepository } from "../../src/database/repositories/media.js";
@@ -559,8 +560,8 @@ describeEachDialect("Expired OAuth token cleanup", (dialect) => {
 		expect(result.oauthTokens).toBe(3);
 	});
 
-	it("deletes expired device codes whatever their status", async () => {
-		const deviceCode = (code: string, status: string, expiresAt: string) => ({
+	function deviceCode(code: string, status: string, expiresAt: string) {
+		return {
 			device_code: code,
 			user_code: code.toUpperCase(),
 			scopes: '["content:read"]',
@@ -569,12 +570,18 @@ describeEachDialect("Expired OAuth token cleanup", (dialect) => {
 			expires_at: expiresAt,
 			interval: 5,
 			last_polled_at: null,
-		});
+		};
+	}
+
+	// Device codes get a one-hour grace after expiry, so these are past it.
+	const pastDeviceCodeGrace = () => new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+
+	it("deletes device codes expired past the grace period whatever their status", async () => {
 		await ctx.db
 			.insertInto("_emdash_device_codes")
 			.values([
-				deviceCode("expired-pending", "pending", past()),
-				deviceCode("expired-authorized", "authorized", past()),
+				deviceCode("expired-pending", "pending", pastDeviceCodeGrace()),
+				deviceCode("expired-authorized", "authorized", pastDeviceCodeGrace()),
 				deviceCode("live-pending", "pending", future()),
 			])
 			.execute();
@@ -587,6 +594,38 @@ describeEachDialect("Expired OAuth token cleanup", (dialect) => {
 			.execute();
 		expect(remaining.map((row) => row.device_code)).toEqual(["live-pending"]);
 		expect(result.deviceCodes).toBe(2);
+	});
+
+	it("keeps a device code that expired within the grace period, so a poll still gets expired_token", async () => {
+		await ctx.db
+			.insertInto("_emdash_device_codes")
+			.values([
+				deviceCode("recently-expired", "pending", past()),
+				deviceCode("long-expired", "pending", pastDeviceCodeGrace()),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		const remaining = await ctx.db
+			.selectFrom("_emdash_device_codes")
+			.select("device_code")
+			.execute();
+		expect(remaining.map((row) => row.device_code)).toEqual(["recently-expired"]);
+		expect(result.deviceCodes).toBe(1);
+
+		const grantType = "urn:ietf:params:oauth:grant-type:device_code";
+		const recentPoll = await handleDeviceTokenExchange(ctx.db, {
+			device_code: "recently-expired",
+			grant_type: grantType,
+		});
+		expect(recentPoll).toMatchObject({ success: false, deviceFlowError: "expired_token" });
+
+		const latePoll = await handleDeviceTokenExchange(ctx.db, {
+			device_code: "long-expired",
+			grant_type: grantType,
+		});
+		expect(latePoll).toMatchObject({ success: false, error: { code: "INVALID_GRANT" } });
 	});
 
 	it("deletes expired authorization codes", async () => {
