@@ -157,10 +157,13 @@ describe("inline Portable Text editor saves", () => {
 		const body = puts[0]!.body as {
 			data: { body: Array<Record<string, unknown>> };
 		};
-		expect(body.data.body.find((block) => block._type === "image")).toMatchObject({
+		const image = body.data.body.find((block) => block._type === "image");
+		expect(image).toMatchObject({
 			displayWidth: 600,
 			displayHeight: 400,
 		});
+		expect(image).not.toHaveProperty("caption");
+		expect(image).not.toHaveProperty("title");
 	});
 
 	it("does not save an edit that was undone before focus left", async () => {

@@ -154,7 +154,7 @@ function attrStr(attrs: Record<string, unknown> | undefined, key: string): strin
 /** Safely extract an optional string attribute from ProseMirror attrs */
 function attrStrOpt(attrs: Record<string, unknown> | undefined, key: string): string | undefined {
 	const v = attrs?.[key];
-	return typeof v === "string" ? v : undefined;
+	return typeof v === "string" && v ? v : undefined;
 }
 
 /** Safely extract a number attribute from ProseMirror attrs */
