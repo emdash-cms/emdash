@@ -1,13 +1,13 @@
 ---
 title: Authentication
-description: Passkey-first authentication with pluggable providers for GitHub, Google, and the Atmosphere.
+description: Passkey-first authentication with pluggable providers for GitHub, Google, Microsoft, and the Atmosphere.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
 EmDash uses passkey authentication as its primary login method. Passkeys are phishing-resistant, don't require passwords, and work across devices through your browser or password manager.
 
-Beyond passkeys, you can add **pluggable login providers**. GitHub and Google are included with EmDash. The separately installed [Atmosphere provider](/guides/atmosphere-auth/) adds AT Protocol accounts, and the same provider interface is open to other packages. The documented GitHub, Google, and Atmosphere providers can create the first admin account or sign in a linked EmDash user.
+Beyond passkeys, you can add **pluggable login providers**. GitHub, Google, and Microsoft are included with EmDash. The separately installed [Atmosphere provider](/guides/atmosphere-auth/) adds AT Protocol accounts, and the same provider interface is open to other packages. The documented GitHub, Google, Microsoft, and Atmosphere providers can create the first admin account or sign in a linked EmDash user.
 
 For Cloudflare deployments, [Cloudflare Access](#cloudflare-access) is a separate, exclusive authentication mode in production. It validates Access credentials on protected EmDash routes rather than showing the EmDash login methods.
 
@@ -15,7 +15,7 @@ For Cloudflare deployments, [Cloudflare Access](#cloudflare-access) is a separat
 
 Passkeys use WebAuthn, a web standard that creates public-key credentials stored on your device or synced through your password manager. When you log in, your device proves possession of the credential without ever sending a password over the network.
 
-Passkeys are the default. GitHub, Google, and Atmosphere providers are additional login methods: each one authenticates the user, links or creates an EmDash account, and establishes the same EmDash session used by a passkey login.
+Passkeys are the default. GitHub, Google, Microsoft, and Atmosphere providers are additional login methods: each one authenticates the user, links or creates an EmDash account, and establishes the same EmDash session used by a passkey login.
 
 Passkey authentication provides:
 
@@ -94,9 +94,9 @@ If you cannot use your passkey, a magic link provides an alternative. The site m
 
 ## Configure login providers
 
-In addition to passkeys, EmDash supports pluggable login providers that appear on the login page and in the setup wizard. GitHub and Google are included with EmDash. Atmosphere and third-party providers are separate packages that register through the same interface.
+In addition to passkeys, EmDash supports pluggable login providers that appear on the login page and in the setup wizard. GitHub, Google, and Microsoft are included with EmDash. Atmosphere and third-party providers are separate packages that register through the same interface.
 
-Providers are additive — passkeys keep working when providers are enabled. GitHub and Google automatically link an existing EmDash user only when the provider supplies the same verified email address. Atmosphere accounts are linked by their decentralized identifier (DID), because EmDash's Atmosphere flow does not receive an email address. Each included provider can create the first user, so a fresh install can skip passkeys entirely.
+Providers are additive — passkeys keep working when providers are enabled. GitHub, Google, and Microsoft automatically link an existing EmDash user only when the provider supplies the same verified email address. Atmosphere accounts are linked by their decentralized identifier (DID), because EmDash's Atmosphere flow does not receive an email address. Each included provider can create the first user, so a fresh install can skip passkeys entirely.
 
 ### Add providers to Astro
 
@@ -157,6 +157,54 @@ Set credentials via environment variables. EmDash checks the prefixed names firs
 | `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET` / `GOOGLE_CLIENT_SECRET`  | OAuth app secret       |
 
 Configure your Google OAuth client's redirect URI as `https://your-site.example.com/_emdash/api/auth/oauth/google/callback`.
+
+### Microsoft
+
+The following example enables the Microsoft provider:
+
+```js
+import { microsoft } from "emdash/auth/providers/microsoft";
+
+emdash({ authProviders: [microsoft()] });
+```
+
+Register an app in the Microsoft Entra admin center, add a Web redirect URI of `https://your-site.example.com/_emdash/api/auth/oauth/microsoft/callback`, and create a client secret. Then set all three environment variables. EmDash checks the prefixed names first and falls back to the unprefixed ones:
+
+| Variable                                                              | Purpose                                                                  |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `EMDASH_OAUTH_MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_ID`            | Application (client) ID                                                  |
+| `EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET` / `MICROSOFT_CLIENT_SECRET`    | Client secret value                                                      |
+| `EMDASH_OAUTH_MICROSOFT_TENANT_ID` / `MICROSOFT_TENANT_ID`            | Directory (tenant) ID, or `common`, `organizations`, or `consumers`      |
+
+Client secrets created in the Microsoft Entra admin center expire after at most 24 months, and Microsoft sign-in stops working when the secret expires. Create a new secret and update `EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET` before then.
+
+Use the directory ID from the app's overview page. A domain name such as `contoso.onmicrosoft.com` is not accepted as the tenant. To use `common`, `organizations`, or `consumers`, register the app for the matching supported account types, because Microsoft refuses a sign-in that the registration does not allow.
+
+EmDash takes the address from the account's email, or from its sign-in name when the account has no email address. It links an existing user, accepts an invite, and allows self-signup, including the first admin account, only for an address it treats as verified.
+
+With a directory ID, the address of an account that signs in through that directory counts as verified when it is in the same domain as the account's sign-in name (user principal name), because Microsoft allows a sign-in name only in a domain the directory has verified. Addresses of accounts that sign in through another directory or identity provider, such as guests or the personal Microsoft account that created the directory, do not count as verified, and no address counts as verified when the tenant is `common`, `organizations`, or `consumers`.
+
+If your users' email addresses are in a different domain than their sign-in names, add `xms_edov` as an optional ID token claim in the app registration. EmDash then treats such an address as verified when the claim confirms that the directory has verified its domain.
+
+The following example treats every Microsoft address as verified:
+
+```js
+emdash({ authProviders: [microsoft({ emailVerified: true })] });
+```
+
+Set `emailVerified: true` only when you trust every directory whose accounts can sign in. Microsoft does not verify the email address it reports, and an administrator of an account's directory can change it. Set `emailVerified: false` to treat every address as unverified, so that only accounts already linked to an EmDash user can sign in.
+
+#### Manage Microsoft access
+
+To let only some accounts in the directory sign in, set **Assignment required** to **Yes** in the properties of the app's enterprise application in Microsoft Entra, then assign the users or groups that need access. Microsoft refuses everyone else before they reach EmDash. Assigning groups requires Microsoft Entra ID P1 or P2 and covers direct members only.
+
+Microsoft Entra decides who can sign in with Microsoft. EmDash keeps its own users, roles, and disabled-user flag, and changes in the directory do not reach it:
+
+- If an EmDash user already has the address, the first Microsoft sign-in with a verified address links to that user and keeps its role. A sign-in with an unverified address is refused.
+- If the user was invited, signing in with Microsoft from the invite link gives them the invited role. A sign-in without the link falls under the allowed domains.
+- When someone leaves, disable their EmDash user as well as their Microsoft account. A disabled or deleted Microsoft account stops new Microsoft sign-ins, but not an open EmDash session or the passkeys registered in EmDash.
+- If a new Microsoft account later receives the same address, it links to the existing EmDash user and gets that user's role. A disabled EmDash user stays disabled until an administrator enables it.
+- If a deleted Microsoft account is restored in Microsoft Entra, it signs in to the same EmDash user as before.
 
 ### Atmosphere (AT Protocol)
 
@@ -267,7 +315,7 @@ EmDash does not let a user remove their last passkey. Add a replacement before d
 
 ## Letting a group sign in without invites
 
-To let a group sign in without inviting each user, configure a [login provider](#configure-login-providers) with an allowlist. The Atmosphere provider accepts `allowedHandles` and `allowedDIDs` (see [Atmosphere login](/guides/atmosphere-auth/)); the [Cloudflare Access](#cloudflare-access) adapter provisions users from your identity provider via `autoProvision` and `roleMapping`. The documented GitHub, Google, and Atmosphere providers can also create the initial admin account.
+To let a group sign in without inviting each user, configure a [login provider](#configure-login-providers) with an allowlist. The Atmosphere provider accepts `allowedHandles` and `allowedDIDs` (see [Atmosphere login](/guides/atmosphere-auth/)); the [Cloudflare Access](#cloudflare-access) adapter provisions users from your identity provider via `autoProvision` and `roleMapping`. The documented GitHub, Google, Microsoft, and Atmosphere providers can also create the initial admin account.
 
 ## Sessions
 
@@ -417,7 +465,7 @@ When Access is enabled, these features are unavailable:
 
 - Login page (`/_emdash/admin/login`)
 - Passkey registration and management
-- GitHub, Google, and Atmosphere login
+- GitHub, Google, Microsoft, and Atmosphere login
 - Magic link login
 - Self-signup
 - User invites

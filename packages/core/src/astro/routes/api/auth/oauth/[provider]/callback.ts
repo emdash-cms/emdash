@@ -12,6 +12,7 @@ import {
 	handleOAuthCallback,
 	OAuthError,
 	Role,
+	isValidMicrosoftTenant,
 	type OAuthConsumerConfig,
 	type RoleLevel,
 } from "@emdash-cms/auth";
@@ -20,11 +21,12 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { getPublicOrigin } from "#api/public-url.js";
 import { finalizeSetup } from "#api/setup-complete.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
+import type { AuthProviderDescriptor } from "#auth/types.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
-type ProviderName = "github" | "google";
+type ProviderName = "github" | "google" | "microsoft";
 
-const VALID_PROVIDERS = new Set<string>(["github", "google"]);
+const VALID_PROVIDERS = new Set<string>(["github", "google", "microsoft"]);
 
 function isValidProvider(provider: string): provider is ProviderName {
 	return VALID_PROVIDERS.has(provider);
@@ -40,9 +42,30 @@ function envString(env: Record<string, unknown>, ...keys: string[]): string | un
 }
 
 /**
+ * The `emailVerified` option passed to `microsoft()` in the site config
+ */
+function getMicrosoftEmailVerified(
+	authProviders: AuthProviderDescriptor[] | undefined,
+): boolean | undefined {
+	const options = authProviders?.find((p) => p.id === "microsoft")?.config;
+	if (
+		options &&
+		typeof options === "object" &&
+		"emailVerified" in options &&
+		typeof options.emailVerified === "boolean"
+	) {
+		return options.emailVerified;
+	}
+	return undefined;
+}
+
+/**
  * Get OAuth config from environment variables
  */
-function getOAuthConfig(env: Record<string, unknown>): OAuthConsumerConfig["providers"] {
+function getOAuthConfig(
+	env: Record<string, unknown>,
+	microsoftEmailVerified: boolean | undefined,
+): OAuthConsumerConfig["providers"] {
 	const providers: OAuthConsumerConfig["providers"] = {};
 
 	// GitHub
@@ -70,6 +93,32 @@ function getOAuthConfig(env: Record<string, unknown>): OAuthConsumerConfig["prov
 		providers.google = {
 			clientId: googleClientId,
 			clientSecret: googleClientSecret,
+		};
+	}
+
+	// Microsoft
+	const microsoftClientId = envString(
+		env,
+		"EMDASH_OAUTH_MICROSOFT_CLIENT_ID",
+		"MICROSOFT_CLIENT_ID",
+	);
+	const microsoftClientSecret = envString(
+		env,
+		"EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET",
+		"MICROSOFT_CLIENT_SECRET",
+	);
+	const microsoftTenant = envString(env, "EMDASH_OAUTH_MICROSOFT_TENANT_ID", "MICROSOFT_TENANT_ID");
+	if (
+		microsoftClientId &&
+		microsoftClientSecret &&
+		microsoftTenant &&
+		isValidMicrosoftTenant(microsoftTenant)
+	) {
+		providers.microsoft = {
+			clientId: microsoftClientId,
+			clientSecret: microsoftClientSecret,
+			tenant: microsoftTenant,
+			emailVerified: microsoftEmailVerified,
 		};
 	}
 
@@ -126,7 +175,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 			env?: Record<string, unknown>;
 		};
 		const env = cfEnv ?? import.meta.env;
-		const providers = getOAuthConfig(env);
+		const providers = getOAuthConfig(env, getMicrosoftEmailVerified(emdash.config.authProviders));
 
 		if (!providers[provider]) {
 			return redirect(
@@ -241,6 +290,9 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 					break;
 				case "profile_fetch_failed":
 					message = "Failed to retrieve your profile. Please try again.";
+					break;
+				case "id_token_invalid":
+					message = "Could not verify your sign-in with the provider. Please try again.";
 					break;
 				default:
 					message = "Authentication failed. Please try again.";

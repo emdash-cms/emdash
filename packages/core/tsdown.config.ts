@@ -145,6 +145,7 @@ export default defineConfig({
 		"src/api/schemas/index.ts",
 		"src/auth/providers/github.ts",
 		"src/auth/providers/google.ts",
+		"src/auth/providers/microsoft.ts",
 		// Injected API/page routes are added via inputOptions below (their
 		// `[param]` filenames are hostile to tsdown's glob-based `entry`).
 	],

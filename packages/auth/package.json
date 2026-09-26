@@ -41,6 +41,7 @@
     "@oslojs/crypto": "catalog:",
     "@oslojs/encoding": "catalog:",
     "@oslojs/webauthn": "catalog:",
+    "jose": "^6.1.3",
     "ulidx": "^2.4.1",
     "zod": "catalog:"
   },

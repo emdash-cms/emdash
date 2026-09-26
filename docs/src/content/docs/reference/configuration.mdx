@@ -409,6 +409,7 @@ Built-in providers:
 
 - `github()` — reads `EMDASH_OAUTH_GITHUB_CLIENT_ID` / `EMDASH_OAUTH_GITHUB_CLIENT_SECRET` (or unprefixed fallbacks).
 - `google()` — reads `EMDASH_OAUTH_GOOGLE_CLIENT_ID` / `EMDASH_OAUTH_GOOGLE_CLIENT_SECRET`.
+- `microsoft()` — reads `EMDASH_OAUTH_MICROSOFT_CLIENT_ID` / `EMDASH_OAUTH_MICROSOFT_CLIENT_SECRET` / `EMDASH_OAUTH_MICROSOFT_TENANT_ID` (or unprefixed fallbacks). Accepts `{ emailVerified }`. See [Microsoft](/guides/authentication/#microsoft).
 - `atproto()` — Atmosphere account login (Bluesky and the wider AT Protocol network). No env vars needed. Accepts `{ allowedDIDs, allowedHandles, defaultRole }`. See the [Atmosphere login guide](/guides/atmosphere-auth/).
 
 Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
