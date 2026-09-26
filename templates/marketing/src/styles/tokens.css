@@ -1,71 +1,95 @@
 /*
-  tokens.css -- the design tokens for this template. These are the
-  defaults; to customize the site, override any variable in
-  src/styles/theme.css rather than editing this file. Declarations in
-  theme.css are unlayered, so they always beat these @layer base
-  defaults -- no specificity tricks needed.
+  tokens.css -- the public marketing template design tokens.
 
-  Colors use light-dark(): the first value applies in light mode, the
-  second in dark mode. Overriding a color with a plain value changes
-  both modes at once; use light-dark(<light>, <dark>) in an override to
-  keep them distinct.
-
-  The signature gradients are tokens too. Rebranding usually only needs
-  new --color-brand-* / --color-accent-* values -- the gradients follow.
-  For a flat, gradient-free brand, set the --gradient-* tokens to solid
-  colors.
-
-  --font-body is defined by the font pipeline in astro.config.mjs, not
-  here. To swap the loaded webfont, edit the fonts entry there. To use a
-  system font, or a different face for headings only, override
-  --font-body / --font-heading in theme.css.
+  The structure matches the EmDash public site's token system. Override
+  values in theme.css to rebrand the template without changing component
+  styles. The default palette replaces the source orange with blue and
+  shifts the neutral surfaces toward navy.
 */
 
 @layer base {
 	:root {
 		color-scheme: light dark;
 
-		/* Colors */
-		--color-bg: light-dark(#ffffff, #0f172a);
-		--color-text: light-dark(#0f172a, #f1f5f9);
-		--color-muted: light-dark(#64748b, #94a3b8);
-		--color-border: light-dark(#e2e8f0, #334155);
-		--color-surface: light-dark(#f8fafc, #1e293b);
-		--color-brand: light-dark(#6366f1, #818cf8);
-		--color-brand-strong: light-dark(#4f46e5, #6366f1);
-		--color-brand-soft: light-dark(#818cf8, #a5b4fc);
-		--color-accent: #f472b6; /* gradient partner to --color-brand */
-		--color-accent-soft: #f9a8d4;
-		--color-on-brand: white; /* text/icons on brand and gradient surfaces */
-		--color-brand-ring: color-mix(in srgb, var(--color-brand) 10%, transparent);
-		--color-success: #22c55e;
-		--color-warning: #f59e0b;
-		--color-danger: light-dark(#dc2626, #f87171);
+		/* Accent scale */
+		--heat-4: #0075de0a;
+		--heat-8: #0075de14;
+		--heat-12: #0075de1f;
+		--heat-16: #0075de29;
+		--heat-20: #0075de33;
+		--heat-40: #0075de66;
+		--heat-90: #0075dee6;
+		--heat-100: #0075deff;
 
-		/* Gradients */
-		--gradient-brand: linear-gradient(135deg, var(--color-brand), var(--color-accent));
-		--gradient-brand-strong: linear-gradient(
-			135deg,
-			var(--color-brand-strong),
-			var(--color-accent)
-		); /* CTA resting state; hovers to --gradient-brand */
-		--gradient-brand-soft: linear-gradient(
-			135deg,
-			var(--color-brand-soft),
-			var(--color-accent-soft)
-		); /* hero image glow */
-		--gradient-headline: linear-gradient(
-			135deg,
-			var(--color-text),
-			var(--color-muted)
-		); /* hero headline text fill */
+		/* Neutral scale */
+		--accent-black: #14213dff;
+		--accent-white: #ffffffff;
+		--surface: #ffffffff;
+		--surface-raised: #ffffffff;
+		--black-alpha-3: #14213d08;
+		--black-alpha-4: #14213d0a;
+		--black-alpha-6: #14213d0f;
+		--black-alpha-7: #14213d12;
+		--black-alpha-32: #14213d52;
+		--black-alpha-48: #14213d7a;
+		--black-alpha-56: #5c6b82ff;
+		--border-faint: #e8edf5ff;
+		--border-muted: #dbe3efff;
+		--border-loud: #ced8e7ff;
+		--background-base: #f7f9fcff;
+		--background-lighter: #fbfcfeff;
+
+		/* Semantic roles */
+		--color-bg: var(--background-base);
+		--color-text: var(--accent-black);
+		--color-muted: var(--black-alpha-56);
+		--color-border: var(--border-muted);
+		--color-surface: var(--surface);
+		--color-surface-raised: var(--surface-raised);
+		--color-primary: var(--heat-100);
+		--color-primary-dark: #005bab;
+		--color-primary-light: var(--heat-12);
+		--color-accent: #005bab;
+		--color-accent-light: var(--heat-12);
+		--color-success: #15803d;
+		--color-warning: #a16207;
+		--color-danger: #b91c1c;
+		--color-focus: var(--heat-100);
+
+		/* Public-template compatibility aliases */
+		--color-brand: var(--color-primary);
+		--color-brand-hover: var(--color-primary-dark);
+		--color-brand-strong: #005bab;
+		--color-brand-soft: #f2f9ff;
+		--color-on-brand: #ffffff;
+		--color-brand-ring: var(--heat-12);
+		--gradient-brand: var(--color-primary);
+		--gradient-brand-strong: var(--color-brand-strong);
+		--gradient-brand-soft: var(--color-brand-soft);
+		--gradient-headline: var(--color-text);
+
+		/* Button roles */
+		--button-radius: 10px;
+		--button-gap: 6px;
+		--button-padding-y: 8px;
+		--button-padding-x: 12px;
+		--button-primary-bg: var(--heat-100);
+		--button-primary-bg-hover: #006bcb;
+		--button-primary-bg-active: #005bab;
+		--button-primary-fg: var(--accent-white);
+		--button-secondary-bg: var(--black-alpha-4);
+		--button-secondary-bg-hover: var(--black-alpha-6);
+		--button-secondary-bg-active: var(--black-alpha-7);
+		--button-secondary-fg: var(--accent-black);
+		--button-disabled-bg: var(--black-alpha-3);
+		--button-disabled-fg: var(--black-alpha-48);
 
 		/* Typography */
+		--font-sans: var(--font-body);
 		--font-heading: var(--font-body);
-		--font-weight-heading: 700; /* h2-h6, card titles */
-		--font-weight-display: 800; /* hero and section headlines, logo */
-
-		/* Type scale */
+		--font-mono: ui-monospace, "SF Mono", monospace;
+		--font-weight-heading: 700;
+		--font-weight-display: 700;
 		--font-size-xs: 0.75rem;
 		--font-size-sm: 0.875rem;
 		--font-size-base: 1rem;
@@ -76,16 +100,12 @@
 		--font-size-4xl: 2.5rem;
 		--font-size-5xl: 3.5rem;
 		--font-size-6xl: 4.5rem;
-
-		/* Line heights */
-		--leading-tight: 1.1; /* hero headline */
-		--leading-snug: 1.2; /* headings */
-		--leading-normal: 1.6; /* body copy */
-		--leading-relaxed: 1.7; /* FAQ answers, long-form */
-
-		/* Letter spacing */
-		--tracking-tight: -0.03em; /* hero headline, logo, prices */
-		--tracking-snug: -0.02em; /* headings */
+		--leading-tight: 1.1;
+		--leading-snug: 1.2;
+		--leading-normal: 1.6;
+		--leading-relaxed: 1.7;
+		--tracking-tight: -0.03em;
+		--tracking-snug: -0.02em;
 
 		/* Spacing */
 		--spacing-xs: 0.25rem;
@@ -100,10 +120,12 @@
 
 		/* Layout */
 		--max-width: 720px;
+		--focused-width: 920px;
 		--wide-width: 1200px;
 		--radius-sm: 6px;
 		--radius: 10px;
 		--radius-lg: 16px;
+		--radius-xl: 18px;
 		--radius-full: 9999px;
 
 		/* Transitions */
@@ -112,28 +134,89 @@
 		--transition-slow: 300ms ease;
 
 		/* Shadows */
-		--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-		--shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-		--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-		--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+		--shadow-sm: 0 1px 2px rgba(15, 31, 61, 0.04);
+		--shadow: 0 2px 2px rgba(15, 31, 61, 0.04);
+		--shadow-lg: 0 8px 16px -12px rgba(15, 31, 61, 0.2);
+		--shadow-xl: 0 18px 32px -24px rgba(15, 31, 61, 0.28);
 	}
 
-	/*
-	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
-	 * Chrome < 123). Must mirror the light values above.
-	 */
-	@supports not (color: light-dark(#000, #fff)) {
-		:root {
-			color-scheme: light;
-			--color-bg: #ffffff;
-			--color-text: #0f172a;
-			--color-muted: #64748b;
-			--color-border: #e2e8f0;
-			--color-surface: #f8fafc;
-			--color-brand: #6366f1;
-			--color-brand-strong: #4f46e5;
-			--color-brand-soft: #818cf8;
-			--color-danger: #dc2626;
+	@media (prefers-color-scheme: dark) {
+		:root:not(.light) {
+			--accent-black: #f5f5f5ff;
+			--accent-white: #ffffffff;
+			--surface: #171717ff;
+			--surface-raised: #1f1f1fff;
+			--black-alpha-3: #ffffff08;
+			--black-alpha-4: #ffffff0a;
+			--black-alpha-6: #ffffff0f;
+			--black-alpha-7: #ffffff12;
+			--black-alpha-32: #ffffff52;
+			--black-alpha-48: #ffffff7a;
+			--black-alpha-56: #ffffff8f;
+			--border-faint: #2a2a2aff;
+			--border-muted: #333333ff;
+			--border-loud: #404040ff;
+			--background-base: #0a0a0aff;
+			--background-lighter: #141414ff;
+			--color-bg: var(--background-base);
+			--color-text: var(--accent-black);
+			--color-muted: var(--black-alpha-56);
+			--color-border: var(--border-muted);
+			--color-surface: var(--surface);
+			--color-surface-raised: var(--surface-raised);
+			--color-brand: #62aef0;
+			--color-brand-hover: #82c1f5;
+			--color-brand-strong: #62aef0;
+			--color-brand-soft: #1f1f1f;
+			--color-on-brand: #ffffff;
+			--button-secondary-bg: var(--black-alpha-4);
+			--button-secondary-bg-hover: var(--black-alpha-6);
+			--button-secondary-bg-active: var(--black-alpha-7);
+			--button-secondary-fg: var(--accent-black);
+			--button-disabled-bg: var(--black-alpha-3);
+			--button-disabled-fg: var(--black-alpha-48);
+			--color-success: #4ade80;
+			--color-warning: #facc15;
+			--color-danger: #f87171;
 		}
+	}
+
+	:root.dark {
+		--accent-black: #f5f5f5ff;
+		--accent-white: #ffffffff;
+		--surface: #171717ff;
+		--surface-raised: #1f1f1fff;
+		--black-alpha-3: #ffffff08;
+		--black-alpha-4: #ffffff0a;
+		--black-alpha-6: #ffffff0f;
+		--black-alpha-7: #ffffff12;
+		--black-alpha-32: #ffffff52;
+		--black-alpha-48: #ffffff7a;
+		--black-alpha-56: #ffffff8f;
+		--border-faint: #2a2a2aff;
+		--border-muted: #333333ff;
+		--border-loud: #404040ff;
+		--background-base: #0a0a0aff;
+		--background-lighter: #141414ff;
+		--color-bg: var(--background-base);
+		--color-text: var(--accent-black);
+		--color-muted: var(--black-alpha-56);
+		--color-border: var(--border-muted);
+		--color-surface: var(--surface);
+		--color-surface-raised: var(--surface-raised);
+		--color-brand: #62aef0;
+		--color-brand-hover: #82c1f5;
+		--color-brand-strong: #62aef0;
+		--color-brand-soft: #1f1f1f;
+		--color-on-brand: #ffffff;
+		--button-secondary-bg: var(--black-alpha-4);
+		--button-secondary-bg-hover: var(--black-alpha-6);
+		--button-secondary-bg-active: var(--black-alpha-7);
+		--button-secondary-fg: var(--accent-black);
+		--button-disabled-bg: var(--black-alpha-3);
+		--button-disabled-fg: var(--black-alpha-48);
+		--color-success: #4ade80;
+		--color-warning: #facc15;
+		--color-danger: #f87171;
 	}
 }

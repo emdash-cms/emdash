@@ -3,7 +3,7 @@
 
 /// <reference types="emdash/locals" />
 
-import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";
+import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
 export interface PageContentMarketingHeroV1Block {
   _type: "marketing_hero";
@@ -51,6 +51,7 @@ export interface PageContentMarketingPricingV1Block {
   _key: string;
   "anchor_id"?: string | null;
   "headline"?: string | null;
+  "subheadline"?: string | null;
   "plans": { "name": string; "price": string; "period"?: string | null; "description"?: string | null; "features"?: string | null; "cta_label": string; "cta_url": string; "highlighted"?: boolean | null }[];
 }
 
@@ -67,7 +68,23 @@ export interface PageContentMarketingFaqV1Block {
 
 export type PageContentMarketingFaqBlock = PageContentMarketingFaqV1Block;
 
-export type PageContentBlock = PageContentMarketingHeroBlock | PageContentMarketingFeaturesBlock | PageContentMarketingTestimonialsBlock | PageContentMarketingPricingBlock | PageContentMarketingFaqBlock;
+export interface PageContentMarketingCtaV1Block {
+  _type: "marketing_cta";
+  _version: 1;
+  _key: string;
+  "anchor_id"?: string | null;
+  "muted_headline"?: string | null;
+  "headline"?: string | null;
+  "body"?: string | null;
+  "primary_cta_label"?: string | null;
+  "primary_cta_url"?: string | null;
+  "secondary_cta_label"?: string | null;
+  "secondary_cta_url"?: string | null;
+}
+
+export type PageContentMarketingCtaBlock = PageContentMarketingCtaV1Block;
+
+export type PageContentBlock = PageContentMarketingHeroBlock | PageContentMarketingFeaturesBlock | PageContentMarketingTestimonialsBlock | PageContentMarketingPricingBlock | PageContentMarketingFaqBlock | PageContentMarketingCtaBlock;
 
 export interface Page {
   id: string;
@@ -83,8 +100,28 @@ export interface Page {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
+export interface Post {
+  id: string;
+  slug: string | null;
+  status: string;
+  title: string;
+  excerpt?: string;
+  category?: string;
+  featured?: boolean;
+  featured_image?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  cover_style?: string;
+  content?: PortableTextBlock[];
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 declare module "emdash" {
   interface EmDashCollections {
     pages: Page;
+    posts: Post;
   }
 }
