@@ -13,20 +13,23 @@
  * The fix calls `context.cache.set(false)` for requests carrying a
  * `_preview` param and for toolbar-injected editor responses.
  */
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
+vi.mock("virtual:emdash/config", () => ({ default: { objectCacheEnabled: true } }));
 
 import onRequest from "../../../src/astro/middleware/request-context.js";
+import { __setObjectCacheBackendForTests, cachedQuery } from "../../../src/object-cache/index.js";
+import { getRequestContext } from "../../../src/request-context.js";
 
 function buildContext(opts: {
 	pathname?: string;
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
-	cache: { set: (input: unknown) => void } | undefined;
+	cache: { enabled?: boolean; set: (input: unknown) => void } | undefined;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -48,7 +51,70 @@ const htmlResponse = () =>
 		headers: { "content-type": "text/html" },
 	});
 
-describe("route-cache opt-out for preview and toolbar responses", () => {
+afterEach(() => {
+	__setObjectCacheBackendForTests(null);
+});
+
+describe("route-cache request context", () => {
+	it("marks anonymous production cache renders as route-cache fills", async () => {
+		const cache = { enabled: true, set: vi.fn() };
+		const context = buildContext({ cache });
+		let routeCacheFill: boolean | undefined;
+
+		await onRequest(context, () => {
+			routeCacheFill = getRequestContext()?.routeCacheFill;
+			return htmlResponse();
+		});
+
+		expect(routeCacheFill).toBe(true);
+	});
+
+	it("rebuilds an anonymous route-cache fill from the loader", async () => {
+		const store = new Map<string, string>();
+		__setObjectCacheBackendForTests({
+			get: (key) => Promise.resolve(store.get(key) ?? null),
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		});
+		await cachedQuery({
+			namespace: "content:v2:posts",
+			key: "list",
+			load: () => Promise.resolve("Before publish"),
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		const context = buildContext({ cache: { enabled: true, set: vi.fn() } });
+		const response = await onRequest(context, async () => {
+			const title = await cachedQuery({
+				namespace: "content:v2:posts",
+				key: "list",
+				load: () => Promise.resolve("After publish"),
+			});
+			return new Response(title);
+		});
+
+		expect(await response.text()).toBe("After publish");
+	});
+
+	it("keeps the anonymous fast path when route caching is disabled", async () => {
+		const cache = { enabled: false, set: vi.fn() };
+		const context = buildContext({ cache });
+		let requestContext: ReturnType<typeof getRequestContext> = undefined;
+
+		await onRequest(context, () => {
+			requestContext = getRequestContext();
+			return htmlResponse();
+		});
+
+		expect(requestContext).toBeUndefined();
+	});
+
 	it("opts out of the route cache when a _preview param is present", async () => {
 		const cache = { set: vi.fn() };
 		// No emdash.db on locals — token can't be verified, but the response

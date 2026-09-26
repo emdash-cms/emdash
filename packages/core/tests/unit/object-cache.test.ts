@@ -122,6 +122,20 @@ describe("cachedQuery", () => {
 		expect(load).toHaveBeenCalledTimes(1);
 	});
 
+	it("loads from the database while a route-cache response is being filled", async () => {
+		const staleLoad = vi.fn(() => Promise.resolve({ title: "Before publish" }));
+		await cachedQuery({ namespace: "content:v2:posts", key: "list", load: staleLoad });
+		await flush();
+
+		const freshLoad = vi.fn(() => Promise.resolve({ title: "After publish" }));
+		const result = await runWithContext({ editMode: false, routeCacheFill: true }, () =>
+			cachedQuery({ namespace: "content:v2:posts", key: "list", load: freshLoad }),
+		);
+
+		expect(result).toEqual({ title: "After publish" });
+		expect(freshLoad).toHaveBeenCalledTimes(1);
+	});
+
 	it("serves the second call from cache without calling load", async () => {
 		const load = vi.fn(() => Promise.resolve({ n: Math.random() }));
 		const first = await cachedQuery({ namespace: "t", key: "k", load });

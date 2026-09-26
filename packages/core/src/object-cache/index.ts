@@ -398,13 +398,20 @@ function epochsMatch(stored: readonly number[], current: readonly number[]): boo
 
 /**
  * Requests that must always read live data and never populate the cache:
- * visual edit mode, preview tokens, and isolated databases (playground / DO
- * preview, whose schema and content diverge from the configured site).
+ * visual edit mode, preview tokens, isolated databases (playground / DO
+ * preview, whose schema and content diverge from the configured site), and
+ * Astro route-cache fills that must not rebuild a purged page from a stale
+ * object-cache snapshot.
  */
 function shouldBypass(): boolean {
 	const ctx = getRequestContext();
 	if (!ctx) return false;
-	return ctx.editMode === true || ctx.preview !== undefined || ctx.dbIsIsolated === true;
+	return (
+		ctx.editMode === true ||
+		ctx.preview !== undefined ||
+		ctx.dbIsIsolated === true ||
+		ctx.routeCacheFill === true
+	);
 }
 
 /**
@@ -782,11 +789,16 @@ function legacyContentNamespace(collection: string): string {
 }
 
 /**
- * Content epochs carried by current cache entries. The legacy epoch keeps
- * invalidation compatible with publishers from the previous release during a
- * rolling deployment; the versioned epoch makes old cached values unreachable.
+ * Content epochs carried by current cache entries. The versioned namespace
+ * makes snapshots written before the current cache format unreachable.
  */
 export function contentCacheNamespaces(collection: string): readonly string[] {
+	return [contentNamespace(collection)];
+}
+
+function contentInvalidationNamespaces(collection: string): readonly string[] {
+	// Keep bumping the legacy epoch so older readers remain safe during rolling
+	// deploys, but current readers no longer fetch that compatibility key.
 	return [contentNamespace(collection), legacyContentNamespace(collection)];
 }
 
@@ -803,7 +815,7 @@ export function contentNamespaces(collection: string): readonly string[] {
  * Call from every write path that mutates rows in `ec_<collection>`.
  */
 export function invalidateCollectionCache(collection: string): void {
-	for (const namespace of contentCacheNamespaces(collection)) {
+	for (const namespace of contentInvalidationNamespaces(collection)) {
 		invalidateObjectCache(namespace);
 	}
 }
