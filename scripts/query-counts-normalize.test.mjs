@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { normalizeSql } from "./query-counts-normalize.mjs";
 
-test("normalizes generated media-usage trigger identifiers", () => {
+await test("normalizes generated media-usage trigger identifiers", () => {
 	const first =
 		'CREATE TRIGGER "emdash_mu_cd1b792d0c2dccd0786492efd46cfd3c_ai" AFTER INSERT ON "ec_posts" BEGIN SELECT \'01M3FF8EHDMBBKRE803A4X5FAJ\'; END';
 	const second =
@@ -16,13 +16,13 @@ test("normalizes generated media-usage trigger identifiers", () => {
 	);
 });
 
-test("preserves ULID literals outside generated media-usage trigger DDL", () => {
+await test("preserves ULID literals outside generated media-usage trigger DDL", () => {
 	const sql = "SELECT * FROM entries WHERE id = '01M3FF8EHDMBBKRE803A4X5FAJ'";
 
 	assert.equal(normalizeSql(sql), sql);
 });
 
-test("keeps existing placeholder and whitespace normalization", () => {
+await test("keeps existing placeholder and whitespace normalization", () => {
 	assert.equal(
 		normalizeSql(" SELECT  *  FROM entries WHERE id IN (?, ?, ?) "),
 		"SELECT * FROM entries WHERE id in (...)",
