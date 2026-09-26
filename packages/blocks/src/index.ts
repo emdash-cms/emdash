@@ -26,6 +26,7 @@ export type {
 	LinkTarget,
 	LinkTargetResolver,
 	NavigationElement,
+	MenuElement,
 	ActionElement,
 	TextInputElement,
 	NumberInputElement,

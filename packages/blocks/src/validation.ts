@@ -37,11 +37,13 @@ const ELEMENT_TYPES = new Set([
 	"combobox",
 	"repeater",
 	"media_picker",
+	"menu",
 ]);
 
 const REPEATER_SUB_FIELD_TYPES = new Set(["text_input", "number_input", "select", "toggle"]);
 
-const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "code"]);
+const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "code", "element"]);
+const TABLE_CELL_ELEMENT_TYPES = new Set(["button", "link", "menu"]);
 
 const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 
@@ -549,6 +551,31 @@ function validateElement(
 			}
 			break;
 		}
+		case "menu": {
+			if (!Array.isArray(value.items) || value.items.length === 0) {
+				errors.push({
+					path: `${path}.items`,
+					message: "Required field 'items' must be a non-empty array",
+				});
+			} else {
+				value.items.forEach((item: unknown, i: number) => {
+					if (!isRecord(item) || typeof item.label !== "string" || typeof item.value !== "string") {
+						errors.push({
+							path: `${path}.items[${i}]`,
+							message: "Menu item must have string 'label' and 'value'",
+						});
+					}
+				});
+				validateOptionValues(value.items, `${path}.items`, errors);
+			}
+			if (value.style !== undefined && value.style !== "primary" && value.style !== "secondary") {
+				errors.push({
+					path: `${path}.style`,
+					message: "Field 'style' must be one of: primary, secondary",
+				});
+			}
+			break;
+		}
 		case "link": {
 			if ("action_id" in value) {
 				errors.push({
@@ -982,8 +1009,11 @@ function validateFormField(
 	validateElement(value, path, errors, policy);
 
 	if (!isRecord(value)) return;
-	if (value.type === "link") {
-		errors.push({ path: `${path}.type`, message: "Link elements cannot be used as form fields" });
+	if (value.type === "link" || value.type === "menu") {
+		errors.push({
+			path: `${path}.type`,
+			message: `${value.type === "link" ? "Link" : "Menu"} elements cannot be used as form fields`,
+		});
 		return;
 	}
 
@@ -1281,12 +1311,38 @@ function validateBlock(
 					message: "Required field 'rows' must be an array",
 				});
 			} else {
+				const elementKeys = Array.isArray(value.columns)
+					? value.columns.flatMap((col: unknown) =>
+							isRecord(col) && col.format === "element" && typeof col.key === "string"
+								? [col.key]
+								: [],
+						)
+					: [];
 				for (let i = 0; i < value.rows.length; i++) {
-					if (!isRecord(value.rows[i] as unknown)) {
+					const row = value.rows[i] as unknown;
+					if (!isRecord(row)) {
 						errors.push({
 							path: `${path}.rows[${i}]`,
 							message: "Row must be an object",
 						});
+						continue;
+					}
+					for (const key of elementKeys) {
+						const cell = row[key];
+						if (cell == null) continue;
+						const cellPath = `${path}.rows[${i}].${key}`;
+						if (
+							!isRecord(cell) ||
+							typeof cell.type !== "string" ||
+							!TABLE_CELL_ELEMENT_TYPES.has(cell.type)
+						) {
+							errors.push({
+								path: cellPath,
+								message: `Element cells must be one of: ${[...TABLE_CELL_ELEMENT_TYPES].join(", ")}`,
+							});
+							continue;
+						}
+						validateElement(cell, cellPath, errors, policy);
 					}
 				}
 			}
