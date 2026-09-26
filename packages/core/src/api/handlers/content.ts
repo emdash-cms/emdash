@@ -232,7 +232,7 @@ const SEO_DEFAULTS: ContentSeo = {
  * Check if a collection has SEO enabled.
  *
  * Cached per request so bulk imports do not re-query `_emdash_collections`
- * for every item they create. See issue #3210.
+ * for every item they create.
  */
 async function collectionHasSeo(db: Kysely<Database>, collection: string): Promise<boolean> {
 	return requestCached(`collectionHasSeo:${collection}`, async () => {
@@ -246,8 +246,7 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 }
 
 /**
- * Collection publication metadata. Cached per request for bulk imports; see
- * issue #3210.
+ * Collection publication metadata, cached per request for bulk imports.
  */
 async function getCollectionPublishConfig(
 	db: Kysely<Database>,

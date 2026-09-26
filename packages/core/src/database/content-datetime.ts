@@ -65,7 +65,7 @@ export class ContentDatetimeNormalizer {
 		}
 		// Fall back to the per-request cache so repeated writes in the same
 		// invocation (e.g. bulk imports) do not re-query field/timezone metadata
-		// for every item. See issue #3210.
+		// for every item.
 		return requestCached(`datetimeContext:${collection}`, () => this.loadContext(collection));
 	}
 

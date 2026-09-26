@@ -193,8 +193,8 @@ function termKey(taxonomyName: string, slug: string): string {
 /**
  * Find or create many terms in a small number of batched SELECTs instead of
  * one SELECT per term. This is the dominant fixed cost for WXR imports with
- * large category/tag vocabularies: a site with 100+ categories used to spend
- * one D1 round-trip per category before writing any posts. See issue #3210.
+ * large category/tag vocabularies: a site with 100+ categories would otherwise
+ * spend one D1 round-trip per category before writing any posts.
  *
  * Batching rules:
  *   - Descriptors already resolved in `state.plan.termIdByNameAndSlug` are

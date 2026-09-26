@@ -1,8 +1,3 @@
-/**
- * Regression coverage for issue #3210: WXR execute supports chunked importing
- * so large WXR files stay under the D1 per-invocation query budget.
- */
-
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { POST as executePost } from "../../../src/astro/routes/api/import/wordpress/execute.js";
@@ -65,6 +60,21 @@ function makeWxr(postCount: number): string {
 </rss>`;
 }
 
+function makeWxrWithReusableBlock(): string {
+	return makeWxr(0).replace(
+		"</channel>",
+		`<item>
+			<title>Call to action</title>
+			<wp:post_id>100</wp:post_id>
+			<wp:post_type>wp_block</wp:post_type>
+			<wp:status>publish</wp:status>
+			<wp:post_name>call-to-action</wp:post_name>
+			<content:encoded><![CDATA[<p>Subscribe</p>]]></content:encoded>
+		</item>
+	</channel>`,
+	);
+}
+
 function buildFormData(
 	wxrText: string,
 	extra: { phase?: string; cursor?: string; chunk?: string } = {},
@@ -95,7 +105,16 @@ function buildContext(formData: FormData, emdash: Harness["emdash"]) {
 	};
 }
 
-describe("WXR execute chunked import (#3210)", () => {
+async function prepareChunkedImport(wxr: string, emdash: Harness["emdash"]) {
+	const response = await executePost(
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion
+		buildContext(buildFormData(wxr, { phase: "taxonomy" }), emdash) as any,
+	);
+	expect(response.status).toBe(200);
+	return response.json();
+}
+
+describe("WXR execute chunked import", () => {
 	let harness: Harness;
 
 	beforeEach(async () => {
@@ -108,19 +127,26 @@ describe("WXR execute chunked import (#3210)", () => {
 
 	it("processes a large WXR in bounded chunks across multiple invocations", async () => {
 		const wxr = makeWxr(35);
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
 
-		// First chunk
 		const firstResponse = await executePost(
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion
-			buildContext(buildFormData(wxr, { phase: "content" }), harness.emdash) as any,
+			buildContext(
+				buildFormData(wxr, {
+					phase: "content",
+					cursor: JSON.stringify(prepared.data.cursor),
+					chunk: JSON.stringify(prepared.data.chunk),
+				}),
+				harness.emdash,
+			) as any,
 		);
 		expect(firstResponse.status).toBe(200);
 		const first = await firstResponse.json();
 		expect(first.data.result.imported).toBe(30);
 		expect(first.data.done).toBe(false);
-		expect(first.data.cursor).toEqual({ offset: 30 });
+		expect(first.data.cursor.offset).toBe(30);
+		expect(first.data.cursor.source).toMatch(/^[a-f0-9]{64}$/);
 
-		// Second chunk
 		const secondResponse = await executePost(
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion
 			buildContext(
@@ -136,11 +162,83 @@ describe("WXR execute chunked import (#3210)", () => {
 		const second = await secondResponse.json();
 		expect(second.data.result.imported).toBe(5);
 		expect(second.data.done).toBe(true);
-		expect(second.data.cursor).toBeUndefined();
+		expect(second.data.cursor.offset).toBe(35);
 
-		// Verify the DB
 		const rows = await harness.db.selectFrom("ec_post").select("id").execute();
 		expect(rows.length).toBe(35);
+	});
+
+	it("imports reusable blocks during finalization", async () => {
+		const wxr = makeWxrWithReusableBlock();
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
+		const contentResponse = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(
+				buildFormData(wxr, {
+					phase: "content",
+					cursor: JSON.stringify(prepared.data.cursor),
+					chunk: JSON.stringify(prepared.data.chunk),
+				}),
+				harness.emdash,
+			) as any,
+		);
+		const content = await contentResponse.json();
+		expect(content.data.done).toBe(true);
+
+		const finalizeResponse = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(
+				buildFormData(wxr, {
+					phase: "finalize",
+					cursor: JSON.stringify(content.data.cursor),
+					chunk: JSON.stringify(content.data.chunk),
+				}),
+				harness.emdash,
+			) as any,
+		);
+		expect(finalizeResponse.status).toBe(200);
+		const finalized = await finalizeResponse.json();
+		expect(finalized.data.result.sections).toEqual({ created: 1, skipped: 0 });
+
+		const sections = await harness.db.selectFrom("_emdash_sections").select("slug").execute();
+		expect(sections).toEqual([{ slug: "call-to-action" }]);
+	});
+
+	it("rejects a cursor when the WXR file changes", async () => {
+		const wxr = makeWxr(35);
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
+
+		const response = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(
+				buildFormData(makeWxr(36), {
+					phase: "content",
+					cursor: JSON.stringify(prepared.data.cursor),
+					chunk: JSON.stringify(prepared.data.chunk),
+				}),
+				harness.emdash,
+			) as any,
+		);
+		expect(response.status).toBe(409);
+		const body = await response.json();
+		expect(body.error.code).toBe("WXR_IMPORT_SOURCE_CHANGED");
+	});
+
+	it("rejects out-of-range cursors", async () => {
+		const wxr = makeWxr(1);
+		const prepared = await prepareChunkedImport(wxr, harness.emdash);
+		const cursor = { ...prepared.data.cursor, offset: 30 };
+
+		const response = await executePost(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion
+			buildContext(
+				buildFormData(wxr, { phase: "content", cursor: JSON.stringify(cursor) }),
+				harness.emdash,
+			) as any,
+		);
+		expect(response.status).toBe(400);
+		const body = await response.json();
+		expect(body.error.code).toBe("VALIDATION_ERROR");
 	});
 
 	it("rejects single-shot imports that exceed the per-invocation budget", async () => {

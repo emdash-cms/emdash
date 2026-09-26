@@ -18,6 +18,7 @@ import {
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { wxrChunkCursor, wxrChunkState, wxrImportConfig } from "#api/schemas.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 import { resolveImportByline } from "#import/utils.js";
 import {
@@ -42,6 +43,8 @@ const WXR_CONTENT_CHUNK_SIZE = 30;
 /** Phase/cursor payload for chunked WXR imports. */
 interface WxrChunkCursor {
 	offset: number;
+	source: string;
+	taxonomiesReady: true;
 }
 
 /** Cross-chunk state carried by the client. */
@@ -132,28 +135,61 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("VALIDATION_ERROR", "No config provided", 400);
 		}
 
-		const config: ImportConfig = JSON.parse(configJson);
+		const parsedConfig = parseJsonField(configJson, "config");
+		if ("response" in parsedConfig) return parsedConfig.response;
+		const configResult = wxrImportConfig.safeParse(parsedConfig.value);
+		if (!configResult.success) {
+			return apiError("VALIDATION_ERROR", "Invalid import config", 400);
+		}
+		const config: ImportConfig = configResult.data;
 
 		const phaseEntry = formData.get("phase");
-		const phase = phaseEntry === "content" ? phaseEntry : undefined;
+		if (
+			phaseEntry !== null &&
+			phaseEntry !== "taxonomy" &&
+			phaseEntry !== "content" &&
+			phaseEntry !== "finalize"
+		) {
+			return apiError("VALIDATION_ERROR", "Invalid import phase", 400);
+		}
+		const phase = phaseEntry;
 
 		const cursorEntry = formData.get("cursor");
 		let cursor: WxrChunkCursor | undefined;
 		if (typeof cursorEntry === "string" && cursorEntry.length > 0) {
-			cursor = parseJsonField<WxrChunkCursor>(cursorEntry, "cursor");
-			if (cursor instanceof Response) return cursor;
+			const parsedCursor = parseJsonField(cursorEntry, "cursor");
+			if ("response" in parsedCursor) return parsedCursor.response;
+			const cursorResult = wxrChunkCursor.safeParse(parsedCursor.value);
+			if (!cursorResult.success) {
+				return apiError("VALIDATION_ERROR", "Invalid import cursor", 400);
+			}
+			cursor = cursorResult.data;
 		}
 
 		const chunkEntry = formData.get("chunk");
 		let incomingChunk: WxrChunkState | undefined;
 		if (typeof chunkEntry === "string" && chunkEntry.length > 0) {
-			incomingChunk = parseJsonField<WxrChunkState>(chunkEntry, "chunk");
-			if (incomingChunk instanceof Response) return incomingChunk;
+			const parsedChunk = parseJsonField(chunkEntry, "chunk");
+			if ("response" in parsedChunk) return parsedChunk.response;
+			const chunkResult = wxrChunkState.safeParse(parsedChunk.value);
+			if (!chunkResult.success) {
+				return apiError("VALIDATION_ERROR", "Invalid import chunk state", 400);
+			}
+			incomingChunk = chunkResult.data;
 		}
 
 		// Parse WXR
 		const text = await file.text();
 		const wxr = await parseWxrString(text);
+		const source = await importFingerprint(text, configJson);
+
+		if (cursor && cursor.source !== source) {
+			return apiError(
+				"WXR_IMPORT_SOURCE_CHANGED",
+				"The WXR file or import configuration changed after this import started",
+				409,
+			);
+		}
 
 		// Build attachment ID -> URL map for featured images
 		const attachmentMap = new Map<string, string>();
@@ -170,11 +206,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			authorDisplayNames.set(author.login, author.displayName || author.login);
 		}
 
-		// Chunked mode: one bounded unit of work per invocation so large WXR
-		// imports stay under Cloudflare's D1 per-invocation query budget. The
-		// client re-uploads the file and carries cross-chunk state; the server
-		// stays stateless. See issue #3210.
 		if (phase === "content") {
+			if (!cursor?.taxonomiesReady) {
+				return apiError("VALIDATION_ERROR", "Taxonomy preparation is not complete", 400);
+			}
 			const chunkResponse = await runContentChunk(
 				wxr,
 				config,
@@ -184,16 +219,59 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				authorDisplayNames,
 				cursor,
 				incomingChunk,
+				source,
 			);
 			if (chunkResponse instanceof Response) return chunkResponse;
 			return apiSuccess(chunkResponse);
 		}
 
-		// Single-shot mode. D1 allows at most ~1,000 queries per Worker
-		// invocation; for WXR imports the practical ceiling after schema/taxonomy
-		// optimisations is roughly this chunk size. Refuse to start a request
-		// that is guaranteed to fail midway, so the client gets a clear error
-		// instead of a hang and partial writes.
+		if (phase === "taxonomy") {
+			if (cursor || incomingChunk) {
+				return apiError("VALIDATION_ERROR", "Taxonomy preparation cannot be resumed", 400);
+			}
+			let taxonomyPlan: TaxonomyImportPlan;
+			try {
+				taxonomyPlan = await prepareTaxonomies(wxr, emdash, config.locale);
+			} catch (error) {
+				if (isWxrTaxonomyConflictError(error)) {
+					console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", error);
+					return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", error.publicMessage, 409);
+				}
+				throw error;
+			}
+			const result = emptyImportResult();
+			result.taxonomies = {
+				termsCreated: taxonomyPlan.termsCreated,
+				termsReused: taxonomyPlan.termsReused,
+				assignments: 0,
+				missingTaxonomies: taxonomyPlan.missingTaxonomies,
+			};
+			return apiSuccess({
+				success: true,
+				result,
+				done: true,
+				cursor: { offset: 0, source, taxonomiesReady: true as const },
+				chunk: { translationGroups: {} },
+			});
+		}
+
+		if (phase === "finalize") {
+			if (!cursor || cursor.offset !== wxr.posts.length) {
+				return apiError("VALIDATION_ERROR", "Content import is not complete", 400);
+			}
+			const result = emptyImportResult();
+			if (config.importSections !== false) {
+				const sectionsResult = await importReusableBlocksAsSections(wxr.posts, emdash.db);
+				result.sections = {
+					created: sectionsResult.sectionsCreated,
+					skipped: sectionsResult.sectionsSkipped,
+				};
+				result.errors.push(...sectionsResult.errors);
+				result.success = result.errors.length === 0;
+			}
+			return apiSuccess({ success: result.success, result, done: true });
+		}
+
 		if (wxr.posts.length > WXR_CONTENT_CHUNK_SIZE) {
 			return apiError(
 				"WXR_IMPORT_TOO_LARGE",
@@ -278,21 +356,34 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 };
 
-function parseJsonField<T>(value: string, fieldName: string): T | Response {
+function parseJsonField(
+	value: string,
+	fieldName: string,
+): { value: unknown } | { response: Response } {
 	try {
-		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- caller validates shape
-		return JSON.parse(value) as T;
+		return { value: JSON.parse(value) };
 	} catch {
-		return apiError("VALIDATION_ERROR", `Invalid JSON in ${fieldName}`, 400);
+		return { response: apiError("VALIDATION_ERROR", `Invalid JSON in ${fieldName}`, 400) };
 	}
 }
 
-/**
- * Import a single bounded chunk of WXR posts. The first chunk pre-imports
- * taxonomy terms and mirrors them to per-post locales; later chunks reload
- * the taxonomy plan from the database so they stay cheap. Cross-chunk state
- * (translation groups) is accumulated by the client and passed back in.
- */
+async function importFingerprint(text: string, configJson: string): Promise<string> {
+	const bytes = new TextEncoder().encode(`${configJson}\u0000${text}`);
+	const digest = await crypto.subtle.digest("SHA-256", bytes);
+	return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function emptyImportResult(): ImportResult {
+	return {
+		success: true,
+		imported: 0,
+		skipped: 0,
+		errors: [],
+		byCollection: {},
+	};
+}
+
+/** Import a bounded WXR post chunk using taxonomy rows prepared in the prior phase. */
 async function runContentChunk(
 	wxr: Awaited<ReturnType<typeof parseWxrString>>,
 	config: ImportConfig,
@@ -302,40 +393,14 @@ async function runContentChunk(
 	authorDisplayNames: Map<string, string>,
 	cursor: WxrChunkCursor | undefined,
 	incomingChunk: WxrChunkState | undefined,
+	source: string,
 ): Promise<WxrChunkResponse | Response> {
 	const offset = cursor?.offset ?? 0;
-	const isFirstChunk = offset === 0;
-	const posts = wxr.posts.slice(offset, offset + WXR_CONTENT_CHUNK_SIZE);
-
-	let taxonomyPlan!: TaxonomyImportPlan;
-	if (isFirstChunk) {
-		taxonomyPlan = await preImportWxrTaxonomies(
-			emdash.db,
-			wxr.posts,
-			wxr.categories,
-			wxr.tags,
-			wxr.terms,
-			config.locale,
-		);
-
-		const postLocales = new Set<string>();
-		for (const post of wxr.posts) {
-			if (post.locale) postLocales.add(post.locale);
-		}
-		if (postLocales.size > 0) {
-			try {
-				await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, config.locale);
-			} catch (mirrorError) {
-				if (isWxrTaxonomyConflictError(mirrorError)) {
-					console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", mirrorError);
-					return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", mirrorError.publicMessage, 409);
-				}
-				throw mirrorError;
-			}
-		}
-	} else {
-		taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
+	if (offset > wxr.posts.length || (offset > 0 && offset % WXR_CONTENT_CHUNK_SIZE !== 0)) {
+		return apiError("VALIDATION_ERROR", "Invalid import cursor offset", 400);
 	}
+	const posts = wxr.posts.slice(offset, offset + WXR_CONTENT_CHUNK_SIZE);
+	const taxonomyPlan = await loadTaxonomyPlanFromDb(emdash.db);
 
 	// Seed translation-group state from earlier chunks so a translation that
 	// appears on chunk N can link to its sibling imported on chunk N-1.
@@ -362,9 +427,32 @@ async function runContentChunk(
 		success: result.errors.length === 0,
 		result,
 		done,
-		cursor: done ? undefined : { offset: nextOffset },
+		cursor: { offset: nextOffset, source, taxonomiesReady: true },
 		chunk: { translationGroups: Object.fromEntries(translationGroupMap) },
 	};
+}
+
+async function prepareTaxonomies(
+	wxr: Awaited<ReturnType<typeof parseWxrString>>,
+	emdash: EmDashHandlers,
+	locale: string | undefined,
+): Promise<TaxonomyImportPlan> {
+	const taxonomyPlan = await preImportWxrTaxonomies(
+		emdash.db,
+		wxr.posts,
+		wxr.categories,
+		wxr.tags,
+		wxr.terms,
+		locale,
+	);
+	const postLocales = new Set<string>();
+	for (const post of wxr.posts) {
+		if (post.locale) postLocales.add(post.locale);
+	}
+	if (postLocales.size > 0) {
+		await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, locale);
+	}
+	return taxonomyPlan;
 }
 
 export async function importContent(

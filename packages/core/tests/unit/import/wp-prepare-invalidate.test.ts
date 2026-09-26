@@ -97,7 +97,7 @@ describe("POST /api/import/wordpress/prepare", () => {
 		expect(invalidateUrlPatternCache).not.toHaveBeenCalled();
 	});
 
-	it("accepts post types shaped like /analyze output (suggestedCollection + requiredFields) (regression for #3210)", async () => {
+	it("accepts post types shaped like /analyze output", async () => {
 		const db = await setupTestDatabase();
 		const invalidateUrlPatternCache = vi.fn();
 

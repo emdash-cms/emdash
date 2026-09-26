@@ -1,13 +1,10 @@
-/**
- * Regression coverage for issue #3210: WXR taxonomy pre-import should resolve
- * declared terms in batches rather than one SELECT per term.
- */
+import { Kysely, SqliteDialect } from "kysely";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import { runMigrations } from "../../../src/database/migrations/runner.js";
+import type { Database } from "../../../src/database/types.js";
+import { openNodeSqliteDatabase } from "../../../src/db/node-sqlite-compat.js";
 import { preImportWxrTaxonomies } from "../../../src/import/wxr-taxonomies.js";
-import { setupTestDatabase } from "../../utils/test-db.js";
 
 function makeCategories(n: number): Array<{
 	nicename: string;
@@ -22,43 +19,44 @@ function makeCategories(n: number): Array<{
 }
 
 describe("preImportWxrTaxonomies batching", () => {
-	let findBySlugSpy: ReturnType<typeof vi.spyOn>;
+	let db: Kysely<Database>;
+	let queryCount = 0;
 
-	beforeEach(() => {
-		findBySlugSpy = vi.spyOn(TaxonomyRepository.prototype, "findBySlug");
+	beforeEach(async () => {
+		db = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: openNodeSqliteDatabase(":memory:") }),
+			log(event) {
+				if (event.level === "query") queryCount++;
+			},
+		});
+		await runMigrations(db);
+		queryCount = 0;
 	});
 
-	afterEach(() => {
-		findBySlugSpy.mockRestore();
+	afterEach(async () => {
+		await db.destroy();
 	});
 
-	it("does not call findBySlug once per category", async () => {
-		const db = await setupTestDatabase();
+	it("keeps the total query count bounded for a large new vocabulary", async () => {
 		const categories = makeCategories(120);
 
 		const plan = await preImportWxrTaxonomies(db, [], categories, [], [], "en");
 
 		expect(plan.termsCreated.category).toBe(120);
-		// Batched resolution means findBySlug is no longer used for the
-		// vocabulary lookup path. It may be called inside repo.create for
-		// translationOf resolution, but never once per declared term.
-		expect(findBySlugSpy.mock.calls.length).toBeLessThanOrEqual(5);
+		expect(queryCount).toBeLessThan(700);
 	});
 
-	it("reuses existing terms with a single batched lookup per vocabulary", async () => {
-		const db = await setupTestDatabase();
+	it("reuses a large existing vocabulary with bounded queries", async () => {
 		const categories = makeCategories(120);
 
 		const first = await preImportWxrTaxonomies(db, [], categories, [], [], "en");
 		expect(first.termsCreated.category).toBe(120);
 
-		findBySlugSpy.mockClear();
+		queryCount = 0;
 		const second = await preImportWxrTaxonomies(db, [], categories, [], [], "en");
 
 		expect(second.termsReused.category).toBe(120);
 		expect(second.termsCreated.category).toBeUndefined();
-		// Already-existing rows should be resolved in a single batched SELECT
-		// per vocabulary, not one SELECT per term.
-		expect(findBySlugSpy.mock.calls.length).toBeLessThanOrEqual(2);
+		expect(queryCount).toBeLessThan(10);
 	});
 });
