@@ -46,6 +46,12 @@ Collection settings control how editors and public pages use the entries:
 - **Edit locking** holds an entry while one editor is working and refuses other writers until the
   lock is released.
 - **Comments** can be enabled per collection, with moderation and automatic closing settings.
+- **Icon** names the Phosphor icon shown next to the collection in the sidebar and command
+  palette, such as `calendar-blank`; a name that does not resolve falls back to the default icon.
+- **Hide from navigation** removes the sidebar entry, the command palette link, and the dashboard
+  quick action while the collection stays reachable by URL, API, and plugins. Turning off **Quick action on the
+  dashboard** removes only the quick action, for collections that plugins or imports fill rather
+  than editors.
 - **Group** places the collection in a collapsible sidebar folder. Collections with the same group
   share one folder, positioned where the first of them would appear. A taxonomy joins the folder when
   every collection it is assigned to is shown in that folder.

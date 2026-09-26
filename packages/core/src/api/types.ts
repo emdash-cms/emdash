@@ -57,8 +57,12 @@ export interface ManifestCollectionDescriptor {
 	titleField?: string;
 	dateField?: string;
 	hidden?: boolean;
+	/** Phosphor icon name for the admin sidebar entry */
+	icon?: string;
 	/** Admin sidebar folder shared with other collections of the same group */
 	group?: string;
+	/** `false` omits the dashboard's "new entry" quick action */
+	quickCreate?: boolean;
 	listColumns?: string[];
 	fields: Record<string, ManifestFieldDescriptor>;
 }

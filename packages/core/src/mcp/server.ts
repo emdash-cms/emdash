@@ -2242,7 +2242,7 @@ export function createMcpServer(
 				label: z.string().describe("Display name (plural, e.g. 'Blog Posts')"),
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
-				icon: z.string().optional().describe("Icon name for the admin UI"),
+				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
 					"Features to enable (default: ['drafts', 'revisions'])",
 				),

@@ -318,7 +318,9 @@ function DashboardCardInset({ className, ...props }: React.ComponentPropsWithout
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const { t } = useLingui();
-	const collections = visibleCollectionEntries(manifest.collections);
+	const collections = visibleCollectionEntries(manifest.collections).filter(
+		([, config]) => config.quickCreate !== false,
+	);
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">

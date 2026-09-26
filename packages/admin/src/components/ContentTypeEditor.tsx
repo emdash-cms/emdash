@@ -186,7 +186,10 @@ export function ContentTypeEditor({
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
 	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
+	const [icon, setIcon] = React.useState(collection?.icon ?? "");
 	const [group, setGroup] = React.useState(collection?.group ?? "");
+	const [hidden, setHidden] = React.useState(collection?.hidden ?? false);
+	const [quickCreate, setQuickCreate] = React.useState(collection?.admin?.quickCreate ?? true);
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -232,7 +235,10 @@ export function ContentTypeEditor({
 			urlPattern !== (collection.urlPattern ?? "") ||
 			routable !== (collection.routable ?? true) ||
 			editLocking !== (collection.editLocking ?? true) ||
+			icon !== (collection.icon ?? "") ||
 			group !== (collection.group ?? "") ||
+			hidden !== (collection.hidden ?? false) ||
+			quickCreate !== (collection.admin?.quickCreate ?? true) ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -251,7 +257,10 @@ export function ContentTypeEditor({
 		urlPattern,
 		routable,
 		editLocking,
+		icon,
 		group,
+		hidden,
+		quickCreate,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -299,7 +308,10 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				routable,
 				editLocking,
+				icon: icon.trim() || undefined,
 				group: group.trim() || undefined,
+				hidden,
+				admin: quickCreate ? undefined : { quickCreate: false },
 				supports,
 				hasSeo,
 			});
@@ -311,7 +323,13 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				routable,
 				editLocking,
+				icon: icon.trim(),
 				group: group.trim() || null,
+				hidden,
+				admin:
+					quickCreate !== (collection?.admin?.quickCreate ?? true)
+						? { ...collection?.admin, quickCreate: quickCreate ? undefined : false }
+						: undefined,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -533,6 +551,43 @@ export function ContentTypeEditor({
 										{t`Content types with the same group share a collapsible folder in the sidebar`}
 									</p>
 								</div>
+								<div>
+									<Input
+										label={t`Icon`}
+										value={icon}
+										onChange={(e) => setIcon(e.target.value)}
+										disabled={isFromCode}
+									/>
+									<p className="text-xs text-kumo-subtle mt-1">
+										{t`Phosphor icon name, e.g. calendar-blank or trophy`}
+									</p>
+								</div>
+								<Switch
+									checked={hidden}
+									onCheckedChange={setHidden}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`Hide from navigation`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Removes the sidebar entry, command palette link, and dashboard quick action; entries stay reachable by URL, API, and plugins`}
+											</p>
+										</div>
+									}
+								/>
+								<Switch
+									checked={quickCreate}
+									onCheckedChange={setQuickCreate}
+									disabled={isFromCode}
+									label={
+										<div>
+											<span className="text-sm font-medium">{t`Quick action on the dashboard`}</span>
+											<p className="text-xs text-kumo-subtle">
+												{t`Shows a button for creating a new entry`}
+											</p>
+										</div>
+									}
+								/>
 							</div>
 
 							<div className="space-y-3">

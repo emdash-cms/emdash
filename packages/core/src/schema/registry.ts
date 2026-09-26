@@ -212,6 +212,7 @@ function parseCollectionAdmin(raw: string | null | undefined): CollectionAdminCo
 		listColumns: Array.isArray(listColumns)
 			? listColumns.filter((value): value is string => typeof value === "string")
 			: undefined,
+		quickCreate: typeof parsed.quickCreate === "boolean" ? parsed.quickCreate : undefined,
 	};
 }
 
@@ -1064,7 +1065,7 @@ export class SchemaRegistry {
 			if (input.label !== undefined) updates.label = input.label;
 			if (input.labelSingular !== undefined) updates.label_singular = input.labelSingular;
 			if (input.description !== undefined) updates.description = input.description;
-			if (input.icon !== undefined) updates.icon = input.icon;
+			if (input.icon !== undefined) updates.icon = input.icon || null;
 			if (input.admin !== undefined) updates.admin_config = JSON.stringify(input.admin);
 			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
 			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;

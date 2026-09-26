@@ -132,6 +132,16 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain("collections[0].routable: must be a boolean");
 		});
 
+		it("rejects an icon name longer than the API accepts", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [{ slug: "posts", label: "Posts", icon: "x".repeat(65), fields: [] }],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("collections[0].icon: must be at most 64 characters");
+		});
+
 		it("should require fields to be an array", () => {
 			const result = validateSeed({
 				version: "1",
@@ -371,6 +381,23 @@ describe("validateSeed", () => {
 			expect(result.errors).toContain(
 				"collections[0].admin.listColumns: must contain at most 4 items",
 			);
+		});
+
+		it("should reject a non-boolean quick-action setting", () => {
+			const result = validateSeed({
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						admin: { quickCreate: "no" },
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toContain("collections[0].admin.quickCreate: must be a boolean");
 		});
 	});
 

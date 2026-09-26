@@ -25,11 +25,14 @@ import {
 	getTaxonomyNavIcon,
 	resolveNavIcon,
 } from "./admin-navigation-icons.js";
-import { resolvePluginPageLabel } from "./Sidebar.js";
+import { resolvePluginPageLabel, visibleCollectionEntries } from "./Sidebar.js";
 
 /** Subset of manifest fields used by the palette (matches `Shell` props shape). */
 type CommandPaletteManifest = {
-	collections: Record<string, { label: string; labelSingular?: string }>;
+	collections: Record<
+		string,
+		{ label: string; labelSingular?: string; icon?: string; hidden?: boolean }
+	>;
 	plugins: AdminManifest["plugins"];
 };
 
@@ -136,13 +139,13 @@ export function buildNavItems(
 	];
 
 	// Add collection links
-	for (const [name, config] of Object.entries(manifest.collections)) {
+	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		items.push({
 			id: `collection-${name}`,
 			title: config.label,
 			to: "/content/$collection",
 			params: { collection: name },
-			icon: getCollectionNavIcon(name),
+			icon: getCollectionNavIcon(name, config.icon),
 			keywords: ["content", name],
 		});
 	}

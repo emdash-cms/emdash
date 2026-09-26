@@ -303,6 +303,12 @@ describe("SchemaRegistry", () => {
 			expect(blank.group).toBeUndefined();
 		});
 
+		it("clears a collection icon with an empty string", async () => {
+			await registry.createCollection({ slug: "trophies", label: "Trophies", icon: "trophy" });
+			const cleared = await registry.updateCollection("trophies", { icon: "" });
+			expect(cleared.icon).toBeUndefined();
+		});
+
 		it("persists collection admin list columns", async () => {
 			const created = await registry.createCollection({
 				slug: "tickets",

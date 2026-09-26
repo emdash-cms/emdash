@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { MAX_COLLECTION_GROUP_LENGTH, MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import {
+	MAX_COLLECTION_GROUP_LENGTH,
+	MAX_COLLECTION_ICON_LENGTH,
+	MAX_COLLECTION_LIST_COLUMNS,
+} from "../../schema/types.js";
 import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
@@ -30,10 +34,12 @@ const collectionAdminInputConfig = z.object({
 			`At most ${MAX_COLLECTION_LIST_COLUMNS} list columns are allowed`,
 		)
 		.optional(),
+	quickCreate: z.boolean().optional(),
 });
 
 const collectionAdminResponseConfig = z.object({
 	listColumns: collectionListColumns.optional(),
+	quickCreate: z.boolean().optional(),
 });
 
 const fieldTypeValues = z.enum([
@@ -167,7 +173,7 @@ export const createCollectionBody = z
 		label: z.string().min(1),
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
-		icon: z.string().optional(),
+		icon: z.string().trim().max(MAX_COLLECTION_ICON_LENGTH).optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		source: z.string().regex(collectionSourcePattern).optional(),
@@ -186,7 +192,7 @@ export const updateCollectionBody = z
 		label: z.string().min(1).optional(),
 		labelSingular: z.string().optional(),
 		description: z.string().optional(),
-		icon: z.string().optional(),
+		icon: z.string().trim().max(MAX_COLLECTION_ICON_LENGTH).optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
 		urlPattern: urlPatternValue.nullish(),
