@@ -7,11 +7,7 @@ import {
 	decodeSlug,
 	getSiteSettings,
 } from "emdash";
-import {
-	Image,
-	PortableText,
-	WidgetArea,
-} from "emdash/ui";
+import { Image, PortableText, WidgetArea } from "emdash/ui";
 import { Comments, CommentForm } from "emdash/ui/comments";
 import Base from "../../layouts/Base.astro";
 import PostCard from "../../components/PostCard.astro";
@@ -75,10 +71,14 @@ const readingTime = getReadingTime(post.data.content);
 const tags = post.data.terms?.tag ?? [];
 
 // Fetch a few extra recent posts in case the current post is among them.
-const { entries: recentPosts } = await getEmDashCollection("posts", {
+const { entries: recentPosts, cacheHint: recentPostsCacheHint } = await getEmDashCollection(
+	"posts",
+	{
 	orderBy: { published_at: "desc" },
 	limit: 4,
-});
+	},
+);
+if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
 
 // Single batched query for related-posts tags, rather than one
@@ -220,7 +220,9 @@ const publishDate =
 					<h1 class="article-title" {...post.edit.title}>{post.data.title}</h1>
 					{
 						post.data.excerpt && (
-							<p class="article-excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+							<p class="article-excerpt" {...post.edit.excerpt}>
+								{post.data.excerpt}
+							</p>
 						)
 					}
 				</header>
@@ -239,7 +241,7 @@ const publishDate =
 			<aside class="article-sidebar">
 				<div class="sidebar-sticky">
 					<nav class="toc" aria-label="Table of contents">
-						<h4 class="toc-title">On this page</h4>
+						<h2 class="toc-title">On this page</h2>
 						<div class="toc-content" id="toc-content">
 							<!-- Populated by JS -->
 						</div>
@@ -269,8 +271,9 @@ const publishDate =
 									readingTime={getReadingTime(p.data.content)}
 									tags={postTags.map((t) => ({ slug: t.slug, label: t.label }))}
 									bylines={postBylines}
+									edit={p.edit}
 								/>
-							)
+							),
 						)}
 					</div>
 				</div>
@@ -333,7 +336,7 @@ const publishDate =
 						}
 					});
 				},
-				{ rootMargin: "-80px 0px -80% 0px" }
+				{ rootMargin: "-80px 0px -80% 0px" },
 			);
 
 			headings.forEach((heading) => observer.observe(heading));

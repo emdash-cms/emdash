@@ -370,7 +370,7 @@ describe("PluginManager", () => {
 		});
 	});
 
-	it("empty state when no plugins", async () => {
+	it("empty state links to plugin installation docs when the sandbox is disabled", async () => {
 		mockFetchPlugins.mockResolvedValue([]);
 		const screen = await render(
 			<Wrapper>
@@ -378,11 +378,11 @@ describe("PluginManager", () => {
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText("No plugins configured")).toBeInTheDocument();
-		await expect
-			.element(
-				screen.getByText("Add plugins to your astro.config.mjs to extend EmDash functionality."),
-			)
-			.toBeInTheDocument();
+		const docsLink = screen.getByRole("link", { name: /documentation/ });
+		await expect.element(docsLink).toBeInTheDocument();
+		expect((docsLink.element() as HTMLAnchorElement).href).toBe(
+			"https://docs.emdashcms.com/plugins/installing/",
+		);
 	});
 
 	// -----------------------------------------------------------------------
@@ -716,7 +716,23 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Also delete plugin storage data")).toBeInTheDocument();
 	});
 
-	it("empty state links to the registry when configured", async () => {
+	it("empty state links to the registry when the sandbox is enabled", async () => {
+		mockFetchPlugins.mockResolvedValue([]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager
+					manifest={makeManifest({
+						sandboxEnabled: true,
+						registry: { aggregatorUrl: "https://registry.emdashcms.com" },
+					})}
+				/>
+			</Wrapper>,
+		);
+		await expect.element(screen.getByText("No plugins configured")).toBeInTheDocument();
+		await expect.element(screen.getByText("registry", { exact: true })).toBeInTheDocument();
+	});
+
+	it("empty state links to docs when the registry is browse-only", async () => {
 		mockFetchPlugins.mockResolvedValue([]);
 		const screen = await render(
 			<Wrapper>
@@ -727,7 +743,7 @@ describe("PluginManager", () => {
 				/>
 			</Wrapper>,
 		);
-		await expect.element(screen.getByText("No plugins configured")).toBeInTheDocument();
-		await expect.element(screen.getByText("registry", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: /documentation/ })).toBeInTheDocument();
+		await expect.element(screen.getByText("registry", { exact: true })).not.toBeInTheDocument();
 	});
 });

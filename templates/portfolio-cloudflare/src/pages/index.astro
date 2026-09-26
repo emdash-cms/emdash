@@ -6,14 +6,17 @@ import ProjectCard from "../components/ProjectCard.astro";
 // Fetch settings + the 4 featured projects in parallel. Limiting and
 // sorting in the database avoids loading every project just to slice
 // off the first 4 in JS (a full-table read on sites with lots of work).
-const [settings, { entries: featuredProjects, cacheHint }] = await Promise.all([
+const [settings, projectsResult] = await Promise.all([
 	getSiteSettings(),
 	getEmDashCollection("projects", {
 		orderBy: { published_at: "desc" },
 		limit: 4,
 	}),
 ]);
-
+if (projectsResult.error) {
+	return new Response("Could not load the portfolio", { status: 500 });
+}
+const { entries: featuredProjects, cacheHint } = projectsResult;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -35,12 +38,13 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 				<div class="projects-grid">
 					{featuredProjects.map((project) => (
 						<ProjectCard
-							title={project.data.title ?? "Untitled"}
+							title={project.data.title}
 							summary={project.data.summary}
-							featuredImage={project.data.featured_image ?? ""}
+							featuredImage={project.data.featured_image}
 							href={`/work/${project.id}`}
 							client={project.data.client}
 							year={project.data.year}
+							edit={project.edit}
 						/>
 					))}
 				</div>

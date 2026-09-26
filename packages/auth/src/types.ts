@@ -290,6 +290,8 @@ export interface AuthAdapter {
 	// Auth Tokens
 	createToken(token: NewAuthToken): Promise<void>;
 	getToken(hash: string, type: TokenType): Promise<AuthToken | null>;
+	/** Atomically deletes and returns the token; concurrent callers must not both receive it. */
+	consumeToken(hash: string, type: TokenType): Promise<AuthToken | null>;
 	deleteToken(hash: string): Promise<void>;
 	deleteExpiredTokens(): Promise<void>;
 

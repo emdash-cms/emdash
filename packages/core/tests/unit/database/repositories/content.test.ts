@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import type { CompiledQuery, Kysely, KyselyPlugin } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
@@ -9,6 +9,7 @@ import {
 	EmDashValidationError,
 } from "../../../../src/database/repositories/types.js";
 import type { Database } from "../../../../src/database/types.js";
+import { SchemaRegistry } from "../../../../src/schema/registry.js";
 import { createPostFixture, createPageFixture } from "../../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../../utils/test-db.js";
 
@@ -774,6 +775,95 @@ describe("ContentRepository", () => {
 			const count = await repo.countScheduled("post");
 
 			expect(count).toBe(2);
+		});
+	});
+
+	describe("with a datetime context cache", () => {
+		async function contextLookupsDuring(run: (cached: ContentRepository) => Promise<unknown>) {
+			const queries: CompiledQuery[] = [];
+			const recorder: KyselyPlugin = {
+				transformQuery(args) {
+					queries.push(db.getExecutor().compileQuery(args.node, args.queryId));
+					return args.node;
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			};
+			await run(new ContentRepository(db.withPlugin(recorder), new Map()));
+			return {
+				timezone: queries.filter((query) => query.parameters.includes("site:timezone")).length,
+				fields: queries.filter((query) => query.sql.includes('from "_emdash_fields"')).length,
+			};
+		}
+
+		async function createPosts(count: number) {
+			const ids: string[] = [];
+			for (let i = 0; i < count; i++) {
+				ids.push((await repo.create(createPostFixture({ slug: `post-${i}` }))).id);
+			}
+			return ids;
+		}
+
+		it("reads the timezone and datetime fields once when publishing several entries without promoting a revision", async () => {
+			const ids = await createPosts(3);
+
+			const lookups = await contextLookupsDuring(async (cached) => {
+				for (const id of ids) await cached.publish("post", id, undefined, false, undefined, false);
+			});
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
+		});
+
+		it("reads the timezone and datetime fields once when unpublishing several entries", async () => {
+			const ids = await createPosts(3);
+			for (const id of ids) await repo.publish("post", id);
+
+			const lookups = await contextLookupsDuring(async (cached) => {
+				for (const id of ids) await cached.unpublish("post", id);
+			});
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
+		});
+
+		it("reads the timezone and datetime fields once when staging drafts for several entries", async () => {
+			const ids = await createPosts(3);
+
+			const lookups = await contextLookupsDuring(async (cached) => {
+				for (const id of ids) {
+					await cached.updateDraftAware("post", id, { data: { title: "Staged" } });
+				}
+			});
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
+		});
+
+		it("reads the timezone and datetime fields once when syncing a field to several translations", async () => {
+			await new SchemaRegistry(db).createField("post", {
+				slug: "sku",
+				label: "SKU",
+				type: "string",
+				translatable: false,
+			});
+			const source = await repo.create(createPostFixture({ data: { title: "Hello", sku: "A" } }));
+			for (const locale of ["de", "fr"]) {
+				const translation = await repo.create(
+					createPostFixture({
+						data: { title: "Hello", sku: "A" },
+						locale,
+						translationOf: source.id,
+					}),
+				);
+				await repo.publish("post", translation.id);
+			}
+
+			const lookups = await contextLookupsDuring((cached) =>
+				cached.syncNonTranslatableFields("post", source.id, source.translationGroup ?? source.id, {
+					sku: "B",
+				}),
+			);
+
+			expect(lookups).toEqual({ timezone: 1, fields: 1 });
 		});
 	});
 });

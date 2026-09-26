@@ -68,6 +68,8 @@ export interface ManifestFieldDescriptor extends FieldDescriptor {
 	widget?: string;
 	validation?: Record<string, unknown>;
 	unsupportedType?: { type: string; path: string };
+	blockTypes?: BlockType[];
+	blockTypeFingerprint?: string;
 }
 
 export interface FieldDescriptor {
@@ -108,3 +110,4 @@ export interface ApiContext {
 	userId?: string;
 	userRole?: string;
 }
+import type { BlockType } from "../schema/block-types.js";

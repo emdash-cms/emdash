@@ -25,7 +25,7 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		db = ctx.db;
 		termSeq = 0;
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();

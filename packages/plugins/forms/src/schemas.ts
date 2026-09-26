@@ -87,20 +87,45 @@ const autoresponderSchema = z
 	})
 	.optional();
 
-const formSettingsSchema = z.object({
-	confirmationMessage: z.string().min(1).default("Thank you for your submission."),
+/**
+ * The settings shape, declared once WITHOUT defaults so the update schema can reuse it.
+ *
+ * Zod's `.partial()` does not strip `.default()`: a key absent from the input is still filled with the
+ * field's default. Applying `.partial()` to a defaulted schema therefore produces a parse result holding
+ * values the caller never sent, and `formsUpdateHandler` merges that over the stored settings. Defaults
+ * belong to create only.
+ */
+const formSettingsShape = {
+	confirmationMessage: z.string().min(1),
 	redirectUrl: httpUrl.optional().or(z.literal("")),
-	notifyEmails: z.array(z.email()).default([]),
-	digestEnabled: z.boolean().default(false),
-	digestHour: z.number().int().min(0).max(23).default(9),
+	notifyEmails: z.array(z.email()),
+	digestEnabled: z.boolean(),
+	digestHour: z.number().int().min(0).max(23),
 	autoresponder: autoresponderSchema,
 	webhookUrl: httpUrl.optional().or(z.literal("")),
-	retentionDays: z.number().int().min(0).default(0),
-	spamProtection: z.enum(["none", "honeypot", "turnstile"]).default("honeypot"),
-	submitLabel: z.string().min(1).default("Submit"),
+	retentionDays: z.number().int().min(0),
+	spamProtection: z.enum(["none", "honeypot", "turnstile"]),
+	submitLabel: z.string().min(1),
 	nextLabel: z.string().optional(),
 	prevLabel: z.string().optional(),
+};
+
+/** Create: a missing setting takes its default. */
+const formSettingsSchema = z.object({
+	...formSettingsShape,
+	confirmationMessage: formSettingsShape.confirmationMessage.default(
+		"Thank you for your submission.",
+	),
+	notifyEmails: formSettingsShape.notifyEmails.default([]),
+	digestEnabled: formSettingsShape.digestEnabled.default(false),
+	digestHour: formSettingsShape.digestHour.default(9),
+	retentionDays: formSettingsShape.retentionDays.default(0),
+	spamProtection: formSettingsShape.spamProtection.default("honeypot"),
+	submitLabel: formSettingsShape.submitLabel.default("Submit"),
 });
+
+/** Update: a missing setting stays missing, so the handler's merge keeps the stored value. */
+const formSettingsUpdateSchema = z.object(formSettingsShape).partial();
 
 // ─── Form CRUD Schemas ──────────────────────────────────────────
 
@@ -125,7 +150,7 @@ export const formUpdateSchema = z.object({
 		.regex(/^[a-z][a-z0-9-]*$/)
 		.optional(),
 	pages: z.array(formPageSchema).min(1).optional(),
-	settings: formSettingsSchema.partial().optional(),
+	settings: formSettingsUpdateSchema.optional(),
 	status: z.enum(["active", "paused"]).optional(),
 });
 
@@ -153,6 +178,35 @@ export type DefinitionInput = z.infer<typeof definitionSchema>;
 
 // ─── Submission Schemas ──────────────────────────────────────────
 
+/** Upper bound for one uploaded file, applied even when the field sets no `maxFileSize`. */
+export const MAX_SUBMISSION_FILE_BYTES = 10 * 1024 * 1024;
+
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
+
+function decodeBase64(b64: string): Uint8Array<ArrayBuffer> {
+	const binary = atob(b64);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+	return bytes;
+}
+
+/** File contents as base64, or as an array of byte values; either way parsed to bytes. */
+const fileBytes = z
+	.union([
+		z
+			.string()
+			.max(Math.ceil(MAX_SUBMISSION_FILE_BYTES / 3) * 4, "File is too large")
+			.regex(BASE64_RE, "File contents must be base64")
+			.refine((b64) => b64.length % 4 === 0, "File contents must be base64")
+			.transform(decodeBase64),
+		z
+			.array(z.number().int().min(0).max(255))
+			.max(MAX_SUBMISSION_FILE_BYTES, "File is too large")
+			.transform((values) => Uint8Array.from(values)),
+	])
+	.refine((bytes) => bytes.byteLength > 0, "File is empty")
+	.refine((bytes) => bytes.byteLength <= MAX_SUBMISSION_FILE_BYTES, "File is too large");
+
 export const submitSchema = z.object({
 	formId: z.string().min(1),
 	data: z.record(z.string(), z.unknown()),
@@ -162,7 +216,7 @@ export const submitSchema = z.object({
 			z.object({
 				filename: z.string(),
 				contentType: z.string(),
-				bytes: z.custom<ArrayBuffer>(),
+				bytes: fileBytes,
 			}),
 		)
 		.optional(),

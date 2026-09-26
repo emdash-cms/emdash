@@ -94,7 +94,7 @@ import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, TextSelection } from "@tiptap/pm/state";
+import { AllSelection, NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -104,7 +104,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
-import { canonicalMediaProviderId } from "../lib/media-utils.js";
+import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -160,6 +160,7 @@ import {
 } from "./editor/TableExtensions.js";
 import { createTableResize } from "./editor/TableResize.js";
 import { MediaPickerModal } from "./MediaPickerModal";
+import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { SectionPickerModal } from "./SectionPickerModal";
 
 const INLINE_BUBBLE_MENU_KEY = "emdashInlineBubbleMenu";
@@ -214,6 +215,8 @@ interface PortableTextImageBlock {
 	displayWidth?: number;
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
+	/** `{ href, blank? }` from the editor, or a legacy bare string from WordPress imports */
+	link?: string | { href: string; blank?: boolean };
 }
 
 interface PortableTextCodeBlock {
@@ -241,6 +244,40 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+type ImageMedia = Pick<GalleryImage, "asset" | "alt" | "width" | "height">;
+
+/**
+ * Read an image's media reference, alt text, and dimensions from the reference
+ * shape or the MediaValue that seeded `$media` stores instead. Keep in sync with
+ * `resolveImageMedia` in core's content converters.
+ */
+function resolveImageMedia(image: unknown): ImageMedia {
+	const record: Record<string, unknown> = isRecord(image) ? image : {};
+	const asset: Record<string, unknown> = isRecord(record.asset) ? record.asset : {};
+	// The media id is not a storage key, so local files need `url`.
+	const storageKey = isRecord(asset.meta) ? attrStr(asset.meta.storageKey) : undefined;
+	const url =
+		attrStr(asset.url) ??
+		attrStr(asset.src) ??
+		(storageKey ? localMediaFileUrl(storageKey) : undefined);
+	const provider = attrStr(asset.provider);
+	const alt = attrStr(record.alt) ?? attrStr(asset.alt);
+	const width = typeof record.width === "number" ? record.width : asset.width;
+	const height = typeof record.height === "number" ? record.height : asset.height;
+	const media: ImageMedia = {
+		asset: {
+			_type: "reference",
+			_ref: attrStr(asset._ref) ?? attrStr(asset.id) ?? "",
+			...(url ? { url } : {}),
+			...(provider ? { provider } : {}),
+		},
+	};
+	if (alt) media.alt = alt;
+	if (typeof width === "number") media.width = width;
+	if (typeof height === "number") media.height = height;
+	return media;
+}
+
 /**
  * Normalize an untrusted gallery `images` value into well-formed entries.
  * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
@@ -254,21 +291,16 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		const record = entry as Record<string, unknown>;
 		const asset = record.asset;
 		if (typeof asset !== "object" || asset === null) continue;
-		const assetRecord = asset as Record<string, unknown>;
+		const { asset: reference, alt, width, height } = resolveImageMedia(record);
 		const image: GalleryImage = {
 			_type: "image",
 			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
-			asset: {
-				_type: "reference",
-				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
-				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
-				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
-			},
+			asset: reference,
 		};
-		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (alt) image.alt = alt;
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
-		if (typeof record.width === "number") image.width = record.width;
-		if (typeof record.height === "number") image.height = record.height;
+		if (width !== undefined) image.width = width;
+		if (height !== undefined) image.height = height;
 		if (typeof record.focalX === "number") image.focalX = record.focalX;
 		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
@@ -295,6 +327,34 @@ function attrsWithPortableTextKey(
 	key: string,
 ): Record<string, unknown> {
 	return { ...attrs, [PORTABLE_TEXT_KEY_ATTR]: key };
+}
+
+/**
+ * Image links arrive either as `{ href, blank? }` (written by this editor) or as
+ * a bare string (legacy WordPress/Gutenberg imports). Mirrors core's
+ * `normalizeImageLink`; admin does not depend on the core package.
+ */
+function normalizeImageLink(raw: unknown): { href: string; blank?: boolean } | null {
+	if (typeof raw === "string") {
+		const href = raw.trim();
+		return href ? { href } : null;
+	}
+	if (!isRecord(raw)) return null;
+	const href = typeof raw.href === "string" ? raw.href.trim() : "";
+	if (!href) return null;
+	return raw.blank === true ? { href, blank: true } : { href };
+}
+
+/**
+ * Point the selected image at `href`, or clear its link when `href` is empty.
+ * Keeps an existing "open in new tab" choice when only the destination changes.
+ * Shared by the toolbar and the bubble menu, which both edit image links.
+ */
+function setSelectedImageLink(editor: Editor, href: string | null) {
+	const trimmed = href?.trim() ?? "";
+	const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
+	const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
+	editor.chain().focus().updateAttributes("image", { link }).run();
 }
 
 function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
@@ -746,6 +806,18 @@ function convertPMNode(
 			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
 			// only provider-specific data (we don't reconstruct it here, so any
 			// non-LQIP meta keys are never silently dropped on editor round-trip).
+			// Normalise link: drop when href is missing/empty so half-populated
+			// { blank: true } objects don't leak into Portable Text.
+			let link: { href: string; blank?: boolean } | undefined;
+			const rawLink = attrs.link;
+			if (rawLink && typeof rawLink === "object") {
+				const linkObj = rawLink as { href?: unknown; blank?: unknown };
+				const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
+				if (href) {
+					link = { href };
+					if (linkObj.blank === true) link.blank = true;
+				}
+			}
 			return {
 				_type: "image",
 				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
@@ -763,6 +835,7 @@ function convertPMNode(
 				displayWidth: attrNum(attrs.displayWidth),
 				displayHeight: attrNum(attrs.displayHeight),
 				alignment: attrStr(attrs.alignment) as PortableTextImageBlock["alignment"],
+				link,
 			};
 		}
 
@@ -829,9 +902,9 @@ function convertPMNode(
 				_type: blockType,
 				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
 			};
-			const identityField = originalBlock
-				? (customBlockIdentityField(originalBlock) ?? (pluginId ? "id" : undefined))
-				: "id";
+			const identityField =
+				(originalBlock ? customBlockIdentityField(originalBlock) : undefined) ??
+				(pluginId ? "id" : undefined);
 			if (identityField) result[identityField] = pluginId;
 			return result as PortableTextBlock;
 		}
@@ -1195,6 +1268,7 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			if (!isImageBlock(block)) return null;
 			const imageBlock = block;
 			const meta = imageBlock.asset.meta;
+			const { asset, alt, width, height } = resolveImageMedia(imageBlock);
 			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
 			// snapshots persisted before LQIP was promoted out of the provider meta bag.
 			const blurhash =
@@ -1213,19 +1287,20 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 				type: "image",
 				attrs: attrsWithPortableTextKey(
 					{
-						src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
-						alt: imageBlock.alt || "",
+						src: asset.url || `/_emdash/api/media/file/${asset._ref}`,
+						alt: alt || "",
 						title: imageBlock.caption || "",
 						caption: imageBlock.caption || "",
-						mediaId: imageBlock.asset._ref,
-						provider: canonicalMediaProviderId(imageBlock.asset.provider),
-						width: imageBlock.width,
-						height: imageBlock.height,
+						mediaId: asset._ref,
+						provider: canonicalMediaProviderId(asset.provider),
+						width,
+						height,
 						blurhash,
 						dominantColor,
 						displayWidth: imageBlock.displayWidth,
 						displayHeight: imageBlock.displayHeight,
 						alignment: imageBlock.alignment,
+						link: normalizeImageLink(imageBlock.link),
 					},
 					block._key,
 				),
@@ -2211,6 +2286,15 @@ function BlockKitField({
 			);
 		}
 		case "repeater": {
+			if (isNonListValue(value)) {
+				return (
+					<NonListFieldValue
+						label={field.label}
+						value={value}
+						onReplace={() => onChange(field.action_id, [])}
+					/>
+				);
+			}
 			return (
 				<BlockKitRepeater field={field} pluginId={pluginId} value={value} onChange={onChange} />
 			);
@@ -3861,12 +3945,17 @@ function EditorBubbleMenu({
 			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
+			image: activeEditor.isActive("image"),
+			imageLink:
+				activeEditor.isActive("image") && Boolean(activeEditor.getAttributes("image").link),
 		}),
 	});
 	// When bubble menu opens with link input, populate the URL
 	React.useEffect(() => {
 		if (showLinkInput) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
 		}
 	}, [showLinkInput, editor]);
@@ -3877,7 +3966,9 @@ function EditorBubbleMenu({
 	};
 
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, linkUrl);
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -3886,12 +3977,20 @@ function EditorBubbleMenu({
 	};
 
 	const applyLinkHref = (href: string) => {
-		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, href);
+		} else {
+			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		}
 		closeLinkInput();
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, null);
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		closeLinkInput();
 	};
 
@@ -3917,10 +4016,16 @@ function EditorBubbleMenu({
 			}}
 			shouldShow={({ editor: activeEditor, element, state, view }) => {
 				const { selection } = state;
+				// A selected image is a NodeSelection, not a TextSelection: let it
+				// through so the link controls below are reachable for images.
+				const isImageSelection =
+					selection instanceof NodeSelection && selection.node.type.name === "image";
 				return (
 					activeEditor.isEditable &&
-					(selection instanceof TextSelection || selection instanceof AllSelection) &&
-					!selection.empty &&
+					(selection instanceof TextSelection ||
+						selection instanceof AllSelection ||
+						isImageSelection) &&
+					(!selection.empty || isImageSelection) &&
 					(view.hasFocus() || element.contains(document.activeElement))
 				);
 			}}
@@ -3951,7 +4056,7 @@ function EditorBubbleMenu({
 					>
 						<ArrowSquareOut className="h-4 w-4" />
 					</Button>
-					{activeMarks.link && (
+					{(activeMarks.link || activeMarks.imageLink) && (
 						<Button
 							type="button"
 							variant="ghost"
@@ -3967,60 +4072,65 @@ function EditorBubbleMenu({
 				</div>
 			) : (
 				<>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						active={activeMarks.bold}
-						title={t`Bold`}
-					>
-						<TextB className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						active={activeMarks.italic}
-						title={t`Italic`}
-					>
-						<TextItalic className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleUnderline().run()}
-						active={activeMarks.underline}
-						title={t`Underline`}
-					>
-						<TextUnderline className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleStrike().run()}
-						active={activeMarks.strike}
-						title={t`Strikethrough`}
-					>
-						<TextStrikethrough className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSubscript().run()}
-						active={activeMarks.subscript}
-						title={t`Subscript`}
-					>
-						<TextSubscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleSuperscript().run()}
-						active={activeMarks.superscript}
-						title={t`Superscript`}
-					>
-						<TextSuperscript className="h-4 w-4" />
-					</BubbleButton>
-					<BubbleButton
-						onClick={() => editor.chain().focus().toggleCode().run()}
-						active={activeMarks.code}
-						title={t`Code`}
-					>
-						<Code className="h-4 w-4" />
-					</BubbleButton>
-					<div className="w-px h-6 bg-kumo-line mx-1" />
+					{/* Text marks are meaningless on a selected image: show only the link control. */}
+					{!activeMarks.image && (
+						<>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleBold().run()}
+								active={activeMarks.bold}
+								title={t`Bold`}
+							>
+								<TextB className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleItalic().run()}
+								active={activeMarks.italic}
+								title={t`Italic`}
+							>
+								<TextItalic className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleUnderline().run()}
+								active={activeMarks.underline}
+								title={t`Underline`}
+							>
+								<TextUnderline className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleStrike().run()}
+								active={activeMarks.strike}
+								title={t`Strikethrough`}
+							>
+								<TextStrikethrough className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleSubscript().run()}
+								active={activeMarks.subscript}
+								title={t`Subscript`}
+							>
+								<TextSubscript className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleSuperscript().run()}
+								active={activeMarks.superscript}
+								title={t`Superscript`}
+							>
+								<TextSuperscript className="h-4 w-4" />
+							</BubbleButton>
+							<BubbleButton
+								onClick={() => editor.chain().focus().toggleCode().run()}
+								active={activeMarks.code}
+								title={t`Code`}
+							>
+								<Code className="h-4 w-4" />
+							</BubbleButton>
+							<div className="w-px h-6 bg-kumo-line mx-1" />
+						</>
+					)}
 					<BubbleButton
 						onClick={() => setShowLinkInput(true)}
-						active={activeMarks.link}
-						title={activeMarks.link ? t`Edit link` : t`Add link`}
+						active={activeMarks.link || activeMarks.imageLink}
+						title={activeMarks.link || activeMarks.imageLink ? t`Edit link` : t`Add link`}
 					>
 						<LinkIcon className="h-4 w-4" />
 					</BubbleButton>
@@ -4355,6 +4465,9 @@ function EditorToolbar({
 				alignRightState: alignmentButtonState(alignments, isCellSelection, "right"),
 				isTableAlignmentUnavailable,
 				isLink: ctx.editor.isActive("link"),
+				isImage: ctx.editor.isActive("image"),
+				imageHasLink:
+					ctx.editor.isActive("image") && Boolean(ctx.editor.getAttributes("image").link),
 				canUndo: ctx.editor.can().undo(),
 				canRedo: ctx.editor.can().redo(),
 			};
@@ -4364,19 +4477,27 @@ function EditorToolbar({
 	// Populate link URL when opening popover
 	React.useEffect(() => {
 		if (showLinkPopover) {
-			const existingUrl = editor.getAttributes("link").href || "";
+			const existingUrl = editor.isActive("image")
+				? ((editor.getAttributes("image").link as { href?: string } | null)?.href ?? "")
+				: editor.getAttributes("link").href || "";
 			setLinkUrl(existingUrl);
 		}
 	}, [showLinkPopover, editor]);
 
 	const applyLinkHref = (href: string) => {
-		editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, href);
+		} else {
+			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
 	};
 
 	const handleSetLink = () => {
-		if (linkUrl.trim() === "") {
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, linkUrl);
+		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
 			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
@@ -4386,7 +4507,11 @@ function EditorToolbar({
 	};
 
 	const handleRemoveLink = () => {
-		editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		if (editor.isActive("image")) {
+			setSelectedImageLink(editor, null);
+		} else {
+			editor.chain().focus().extendMarkRange("link").unsetLink().run();
+		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
 	};
@@ -4632,7 +4757,7 @@ function EditorToolbar({
 					}}
 				>
 					<Tooltip
-						content={t`Insert Link`}
+						content={editorState.isImage ? t`Image link` : t`Insert Link`}
 						side="bottom"
 						render={
 							<Popover.Trigger
@@ -4643,11 +4768,12 @@ function EditorToolbar({
 										shape="square"
 										className={cn(
 											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
-											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+											(editorState.isLink || editorState.imageHasLink) &&
+												"bg-kumo-interact/50 text-kumo-default",
 										)}
 										onMouseDown={(event) => event.preventDefault()}
-										aria-label={t`Insert Link`}
-										aria-pressed={editorState.isLink}
+										aria-label={editorState.isImage ? t`Image link` : t`Insert Link`}
+										aria-pressed={editorState.isLink || editorState.imageHasLink}
 									>
 										<LinkIcon className="h-4 w-4" aria-hidden="true" />
 									</Button>
@@ -4679,7 +4805,7 @@ function EditorToolbar({
 									{t`Cancel`}
 								</Button>
 								<div className="flex gap-1">
-									{editorState.isLink && (
+									{(editorState.isLink || editorState.imageHasLink) && (
 										<Button
 											type="button"
 											variant="ghost"

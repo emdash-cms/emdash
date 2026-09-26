@@ -15,9 +15,10 @@ import {
 	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { DownloadSimple, Trash } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -196,6 +197,20 @@ export function BackupSettings() {
 								</LinkButton>
 							</div>
 						</div>
+					</SettingRow>
+					<SettingRow>
+						<p className="text-sm leading-5 text-pretty text-kumo-subtle">
+							<Trans>
+								To move a site to another EmDash installation, use{" "}
+								<Link
+									to="/settings/transfer"
+									className="font-medium text-kumo-link underline underline-offset-2"
+								>
+									Transfer
+								</Link>
+								.
+							</Trans>
+						</p>
 					</SettingRow>
 				</SettingsSection>
 

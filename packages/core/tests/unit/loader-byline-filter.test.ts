@@ -25,7 +25,7 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 		db = ctx.db;
 		creditSeq = 0;
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();

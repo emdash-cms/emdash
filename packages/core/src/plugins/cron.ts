@@ -15,6 +15,9 @@ import { ulid } from "ulidx";
 import type { Database } from "../database/types.js";
 import type { CronAccess, CronEvent, CronTaskInfo } from "./types.js";
 
+/** Matches the Workers runtime, which always runs in UTC, so Node hosts fire at the same instant. */
+const CRON_TIMEZONE = "UTC";
+
 /** Stale lock threshold in minutes */
 const STALE_LOCK_MINUTES = 10;
 const ISO_DATETIME_PATTERN =
@@ -324,12 +327,12 @@ export async function setCronTasksEnabled(
 // ─── Cron utilities ────────────────────────────────────────────────────────
 
 /**
- * Compute the next fire time for a cron expression.
+ * Compute the next fire time for a cron expression, resolved in UTC.
  * Supports standard cron (5-field), extended (6-field with seconds), and
  * aliases like @daily, @weekly, @hourly, @monthly, @yearly.
  */
 export function nextCronTime(expression: string, currentTime: Date = new Date()): string {
-	const job = new Cron(expression);
+	const job = new Cron(expression, { timezone: CRON_TIMEZONE });
 	const next = job.nextRun(currentTime);
 	if (!next) {
 		throw new Error(`Invalid cron expression or no future run: "${expression}"`);
@@ -342,8 +345,7 @@ export function nextCronTime(expression: string, currentTime: Date = new Date())
  */
 function isCronExpression(schedule: string): boolean {
 	try {
-		// Cron constructor validates; we discard the instance immediately.
-		const _cron = new Cron(schedule);
+		const _cron = new Cron(schedule, { timezone: CRON_TIMEZONE });
 		void _cron;
 		return true;
 	} catch {

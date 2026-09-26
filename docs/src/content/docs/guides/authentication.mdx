@@ -72,7 +72,7 @@ After setup, returning to the admin panel triggers passkey authentication:
 
 ## Log in with a magic link
 
-If you cannot use your passkey, a magic link provides an alternative. The site must have an email provider configured before EmDash can send the link.
+If you cannot use your passkey, a magic link provides an alternative. The site must have an email provider configured before EmDash can send the link — see [Email Setup](/guides/email/).
 
 <Steps>
 
@@ -82,7 +82,9 @@ If you cannot use your passkey, a magic link provides an alternative. The site m
 
 3. Check your inbox for a login link
 
-4. Click the link to authenticate (valid for 15 minutes)
+4. Click the link (valid for 15 minutes), then select **Continue** on the confirmation page
+
+	The link is only used when you select **Continue**, so email security scanners that open links in advance don't use it up.
 
 </Steps>
 
@@ -275,13 +277,16 @@ Cloudflare Access also writes the resolved EmDash user to the Astro session. Tha
 
 ## Authentication rate limits
 
-EmDash limits the endpoints that begin unauthenticated login or signup flows. The limits are separate for each endpoint and trusted client IP:
+EmDash limits the unauthenticated endpoints that begin login, signup, or OAuth client registration. The limits are separate for each endpoint and trusted client IP:
 
 | Endpoint | Limit |
 | --- | --- |
 | `POST /_emdash/api/auth/passkey/options` | 10 requests per minute |
 | `POST /_emdash/api/auth/magic-link/send` | 3 requests per 5 minutes |
 | `POST /_emdash/api/auth/signup/request` | 3 requests per 5 minutes |
+| `POST /_emdash/api/oauth/device/code` | 10 requests per minute |
+| `POST /_emdash/api/oauth/device/token` | 12 requests per minute |
+| `POST /_emdash/api/oauth/register` | 10 registrations per minute |
 
 On Cloudflare, EmDash reads the client IP from Cloudflare's request metadata. A self-hosted site behind a reverse proxy must configure [`trustedProxyHeaders`](/reference/configuration/#trustedproxyheaders) before EmDash can use the proxy's client-IP header. When no trusted IP is available, these per-IP checks are skipped because there is no safe key to count.
 
@@ -302,7 +307,7 @@ This usually means the passkey was created for a different domain. Passkeys are 
 If you've lost access to all your registered passkeys:
 
 1. Ask another admin to send a recovery magic link. The site must have email configured.
-2. Use the link within 15 minutes to log in.
+2. Open the link within 15 minutes and select **Continue** to log in.
 3. Register a new passkey in account settings.
 
 If you're the only admin and email isn't configured, you'll need to reset your site's authentication through the database.

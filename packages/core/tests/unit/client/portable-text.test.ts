@@ -580,3 +580,47 @@ describe("convertDataForWrite", () => {
 		expect(result.body).toBe(ptArray); // same reference
 	});
 });
+
+describe("blocks Portable Text conversion", () => {
+	const fields: FieldSchema[] = [
+		{
+			slug: "layout",
+			type: "blocks",
+			blockTypes: [
+				{
+					slug: "hero",
+					currentVersion: 2,
+					versions: [
+						{ version: 1, fields: [{ slug: "body", type: "portableText" }] },
+						{ version: 2, fields: [{ slug: "introduction", type: "portableText" }] },
+					],
+				},
+			],
+		},
+	];
+
+	it("uses the active version for a new keyless block write", () => {
+		const result = convertDataForWrite(
+			{ layout: [{ _type: "hero", introduction: "Hello **world**" }] },
+			fields,
+		);
+		const block = (result.layout as Array<Record<string, unknown>>)[0]!;
+		expect(Array.isArray(block.introduction)).toBe(true);
+	});
+
+	it("uses each retained stored version on read", () => {
+		const portableText = markdownToPortableText("Historical");
+		const result = convertDataForRead(
+			{
+				layout: [
+					{ _type: "hero", _version: 1, _key: "one", body: portableText },
+					{ _type: "hero", _version: 2, _key: "two", introduction: portableText },
+				],
+			},
+			fields,
+		);
+		const blocks = result.layout as Array<Record<string, unknown>>;
+		expect(String(blocks[0]?.body)).toContain("Historical");
+		expect(String(blocks[1]?.introduction)).toContain("Historical");
+	});
+});
