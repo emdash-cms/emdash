@@ -1,5 +1,47 @@
 # emdash
 
+## 0.42.0
+
+### Minor Changes
+
+- [#3059](https://github.com/emdash-cms/emdash/pull/3059) [`c36d974`](https://github.com/emdash-cms/emdash/commit/c36d974101cc5536a500228958412ea07b7aaf44) Thanks [@danielmlr](https://github.com/danielmlr)! - Updates the MCP content tools and revision restore to honor an entry's edit lock, so an AI tool connected over MCP no longer overwrites an entry that someone else has open in the admin.
+  
+  `content_update`, `content_delete`, `content_publish`, `content_unpublish`, `content_schedule`, `content_unschedule`, `content_discard_draft` and `revision_restore` fail with `ENTRY_LOCKED` while another user holds the entry's lock, where the call used to succeed. The error message names the holder, and `_meta.details` carries their `userId`, `userName`, `acquiredAt` and `expiresAt`. Reading the item again does not clear the refusal. Each of these tools takes an optional `overrideLock: true` to write anyway.
+  
+  `POST /_emdash/api/revisions/{revisionId}/restore` now returns `409 ENTRY_LOCKED` in the same case. Pass `"overrideLock": true` in the request body to restore anyway.
+  
+  To keep the previous behavior for a whole collection, switch edit locking off for it under **Content Types** → your collection → **Edit locking**.
+
+### Patch Changes
+
+- [#3421](https://github.com/emdash-cms/emdash/pull/3421) [`530dabf`](https://github.com/emdash-cms/emdash/commit/530dabf04b6118ac7639b37ab556015115c16bef) Thanks [@swissky](https://github.com/swissky)! - Fixes the admin marketplace plugin icon and theme thumbnail proxies following redirects off the marketplace origin, which could make the server fetch an internal or loopback URL and return the response to any user with plugin read access (Editor and above). Sites with `marketplace` configured are affected. Redirects that stay on the marketplace origin still work; others now return `502` with `PROXY_REDIRECT_UNTRUSTED`, and chains longer than five hops return `502` with `PROXY_TOO_MANY_REDIRECTS`.
+
+- [#3463](https://github.com/emdash-cms/emdash/pull/3463) [`09a5bb0`](https://github.com/emdash-cms/emdash/commit/09a5bb07abc5b43c7f39777278800c874f9d27ce) Thanks [@akapug](https://github.com/akapug)! - Fixes `emdash migrate --from-config` failing with "Stripping types is currently unsupported for files under node_modules" when the Astro config imports a plugin that publishes TypeScript source, such as `@emdash-cms/plugin-forms`.
+
+- [#3422](https://github.com/emdash-cms/emdash/pull/3422) [`7097874`](https://github.com/emdash-cms/emdash/commit/7097874dd8758f2e68d96c3374f6d1a780626230) Thanks [@swissky](https://github.com/swissky)! - Fixes anonymous OAuth dynamic client registration (`POST /_emdash/api/oauth/register`) letting unauthenticated visitors create unlimited OAuth client records. Registration is now limited to 10 per minute per client IP. Requests over the limit get a `429` with `Retry-After: 60` and a `temporarily_unavailable` error body. Like the other auth rate limits, it applies only when EmDash can determine the client IP: on Cloudflare, or when `trustedProxyHeaders` (or `EMDASH_TRUSTED_PROXY_HEADERS`) is configured.
+
+- [#3325](https://github.com/emdash-cms/emdash/pull/3325) [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes an open redirect in the admin login page and the logout, magic-link sign-in, and dev-bypass routes: a `?redirect=` value containing a tab, carriage return, or line feed (for example `/%09/evil.example`) could send the browser to another site. Redirect values that contain control characters are now ignored.
+
+- [#3418](https://github.com/emdash-cms/emdash/pull/3418) [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13) Thanks [@swissky](https://github.com/swissky)! - Fixes registry plugin updates ignoring `policy.minimumReleaseAge`. Updating an installed plugin to a release younger than the configured age, or to a release without a valid index timestamp, is now refused, just as installing it is. Publishers and packages listed in `minimumReleaseAgeExclude` remain exempt.
+  
+  The admin update endpoint (`POST /_emdash/api/admin/plugins/registry/:id/update`) now refuses a `version` older than the installed one with `DOWNGRADE_NOT_ALLOWED`; the admin dashboard never sends one, so dashboard updates are unaffected. Updates without `version` still follow the aggregator's latest release, which can be older than the installed one after a publisher withdraws the newest release. To roll back to an older release, uninstall the plugin and install that version.
+
+- [#3436](https://github.com/emdash-cms/emdash/pull/3436) [`36a73e3`](https://github.com/emdash-cms/emdash/commit/36a73e3430c3d18f211cc79d8d70024178a81250) Thanks [@swissky](https://github.com/swissky)! - Fixes sites on Cloudflare D1 or SQLite that stay stuck on the `036_i18n_menus_and_taxonomies` migration after a first attempt stopped partway, for example on a slow cold start. Every retry failed with `no such table`, and pages rendered without CMS data. The migration now resumes where it stopped and completes, and content-taxonomy assignments come back intact.
+  
+  #### Already-stuck sites
+  
+  On a site that was already stuck at the menus, menu items, taxonomies, or taxonomy definitions table, earlier retries emptied that table. The migration completes after updating, but those rows must be restored from a backup, such as D1 Time Travel or a copy of the SQLite database file.
+
+- [#3384](https://github.com/emdash-cms/emdash/pull/3384) [`7a8d368`](https://github.com/emdash-cms/emdash/commit/7a8d368c1ac987786c152316bfa655400a094711) Thanks [@swissky](https://github.com/swissky)! - Fixes the setup wizard creating two administrator accounts when two passkey setup verifications finish at the same time. Whichever verification saves its account second now fails with `ADMIN_EXISTS`, and no second account is created.
+
+- [#3281](https://github.com/emdash-cms/emdash/pull/3281) [`c0c0d73`](https://github.com/emdash-cms/emdash/commit/c0c0d73ebfee9915090f2ddacc07a383936410f2) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes `astro build` failing with `GetStaticPathsRequired` inside an EmDash route when the Astro config sets `output: "static"`. Every route EmDash adds, including the admin, the API, `sitemap.xml`, and `robots.txt`, now renders on demand under either output setting, so a static-output site still needs a server adapter. The site's own pages keep Astro's default: under `output: "static"` they prerender at build time and show content from that build. Builds with `output: "server"` are unchanged.
+- Updated dependencies [[`bf1aa14`](https://github.com/emdash-cms/emdash/commit/bf1aa14e79f08e46961fc804fb1c36be4f0d51e7), [`bc32000`](https://github.com/emdash-cms/emdash/commit/bc3200026fc31aa45d325807d89e551fb3d7822b), [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a), [`42bf9f5`](https://github.com/emdash-cms/emdash/commit/42bf9f5d59125782cb688164a4d31cc91c93aefa), [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13)]:
+  - @emdash-cms/admin@0.42.0
+  - @emdash-cms/registry-client@0.7.0
+  - @emdash-cms/auth@0.42.0
+  - @emdash-cms/blocks@0.42.0
+  - @emdash-cms/gutenberg-to-portable-text@0.42.0
+
 ## 0.41.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @emdash-cms/registry-client
 
+## 0.7.0
+
+### Minor Changes
+
+- [#3418](https://github.com/emdash-cms/emdash/pull/3418) [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13) Thanks [@swissky](https://github.com/swissky)! - Adds `compareVersions(a, b)` to `@emdash-cms/registry-client/env`. It returns the semver precedence of `a` relative to `b` as a negative number, zero, or a positive number, or `null` when either version is not valid semver.
+
 ## 0.6.1
 
 ### Patch Changes

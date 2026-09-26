@@ -1,5 +1,20 @@
 # @emdash-cms/admin
 
+## 0.42.0
+
+### Patch Changes
+
+- [#3491](https://github.com/emdash-cms/emdash/pull/3491) [`bf1aa14`](https://github.com/emdash-cms/emdash/commit/bf1aa14e79f08e46961fc804fb1c36be4f0d51e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the publication-date dialog so editors can retry a date-only change after another writer updates the entry, without overwriting content fields.
+
+- [#2966](https://github.com/emdash-cms/emdash/pull/2966) [`bc32000`](https://github.com/emdash-cms/emdash/commit/bc3200026fc31aa45d325807d89e551fb3d7822b) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes an entry's publication date saving without a warning when someone else changed the entry after the editor loaded it. The date change is now refused like any other save based on a stale read, and the editor shows its conflict notice with the option to save over the newer version.
+
+- [#3325](https://github.com/emdash-cms/emdash/pull/3325) [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes an open redirect in the admin login page and the logout, magic-link sign-in, and dev-bypass routes: a `?redirect=` value containing a tab, carriage return, or line feed (for example `/%09/evil.example`) could send the browser to another site. Redirect values that contain control characters are now ignored.
+
+- [#3475](https://github.com/emdash-cms/emdash/pull/3475) [`42bf9f5`](https://github.com/emdash-cms/emdash/commit/42bf9f5d59125782cb688164a4d31cc91c93aefa) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes reference fields showing "No references selected." when an entry is reopened in the admin within a minute of an autosave, publish, or schedule change. Adding a reference after such a reopen no longer removes the entries that were already saved.
+- Updated dependencies [[`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13)]:
+  - @emdash-cms/registry-client@0.7.0
+  - @emdash-cms/blocks@0.42.0
+
 ## 0.41.0
 
 ### Minor Changes
