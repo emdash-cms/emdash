@@ -2,7 +2,14 @@ import { Badge } from "@cloudflare/kumo";
 import { ArrowDown, ArrowUp } from "@phosphor-icons/react";
 import { useState } from "react";
 
-import type { BlockInteraction, TableBlock, TableColumn } from "../types.js";
+import { renderElement } from "../render-element.js";
+import type {
+	ActionElement,
+	BlockInteraction,
+	LinkTargetResolver,
+	TableBlock,
+	TableColumn,
+} from "../types.js";
 import { cn, formatRelativeTime } from "../utils.js";
 
 function formatCell(value: unknown, format: TableColumn["format"]): React.ReactNode {
@@ -37,9 +44,11 @@ function formatCell(value: unknown, format: TableColumn["format"]): React.ReactN
 export function TableBlockComponent({
 	block,
 	onAction,
+	resolveLinkTarget,
 }: {
 	block: TableBlock;
 	onAction: (interaction: BlockInteraction) => void;
+	resolveLinkTarget?: LinkTargetResolver;
 }) {
 	const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" } | null>(null);
 
@@ -81,6 +90,7 @@ export function TableBlockComponent({
 								className={cn(
 									"px-3 py-2 text-sm font-medium text-kumo-subtle",
 									col.sortable && "cursor-pointer select-none",
+									col.format === "element" && "text-end",
 								)}
 								onClick={col.sortable ? () => handleSort(col.key) : undefined}
 							>
@@ -98,8 +108,22 @@ export function TableBlockComponent({
 					{block.rows.map((row, i) => (
 						<tr key={i} className="border-b border-kumo-line last:border-0">
 							{block.columns.map((col) => (
-								<td key={col.key} className="px-3 py-2 text-kumo-default">
-									{formatCell(row[col.key], col.format)}
+								<td
+									key={col.key}
+									className={cn(
+										"px-3 py-2 text-kumo-default",
+										col.format === "element" && "text-end",
+									)}
+								>
+									{col.format === "element"
+										? row[col.key] != null &&
+											renderElement(
+												row[col.key] as ActionElement,
+												onAction,
+												undefined,
+												resolveLinkTarget,
+											)
+										: formatCell(row[col.key], col.format)}
 								</td>
 							))}
 						</tr>

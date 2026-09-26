@@ -65,6 +65,14 @@ export function createRequestMetrics(start: number): RequestMetrics {
 export interface EmDashRequestContext {
 	/** Whether the current request is in visual editing mode */
 	editMode: boolean;
+	/**
+	 * The response may be stored by Astro's route cache.
+	 *
+	 * Cache hits never execute the Worker. A request that reaches rendering is
+	 * therefore a fill candidate and must not rebuild a purged response from an
+	 * eventually-consistent object-cache snapshot.
+	 */
+	routeCacheFill?: boolean;
 	/** Preview token info, if this is a preview request */
 	preview?: {
 		collection: string;

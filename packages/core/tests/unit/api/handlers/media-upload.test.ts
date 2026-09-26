@@ -66,6 +66,7 @@ describe("handleMediaUpload (#620)", () => {
 			base64: PNG_BASE64,
 			contentType: "image/png",
 			alt: "a pixel",
+			caption: "Photo: Jane Doe, CC BY 2.0",
 			authorId: "user_1",
 		});
 
@@ -75,6 +76,7 @@ describe("handleMediaUpload (#620)", () => {
 		expect(item.filename).toBe("pixel.png");
 		expect(item.mimeType).toBe("image/png");
 		expect(item.alt).toBe("a pixel");
+		expect(item.caption).toBe("Photo: Jane Doe, CC BY 2.0");
 		expect(item.authorId).toBe("user_1");
 		expect(item.width).toBe(1);
 		expect(item.height).toBe(1);
