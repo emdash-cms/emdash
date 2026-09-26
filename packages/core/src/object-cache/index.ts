@@ -398,8 +398,10 @@ function epochsMatch(stored: readonly number[], current: readonly number[]): boo
 
 /**
  * Requests that must always read live data and never populate the cache:
- * visual edit mode, preview tokens, and isolated databases (playground / DO
- * preview, whose schema and content diverge from the configured site).
+ * visual edit mode, preview tokens, isolated databases (playground / DO
+ * preview, whose schema and content diverge from the configured site), and
+ * Astro route-cache fills that must not rebuild a purged page from a stale
+ * object-cache snapshot.
  */
 function shouldBypass(): boolean {
 	const ctx = getRequestContext();

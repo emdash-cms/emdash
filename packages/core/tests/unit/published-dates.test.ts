@@ -244,7 +244,7 @@ describeEachDialect("published dates", (dialect) => {
 		expect(timestamps((await read({ locale: "en" })).dates)).toEqual([march]);
 	});
 
-	it("reloads cached dates after current and legacy collection invalidation", async () => {
+	it("reloads cached dates only after current collection invalidation", async () => {
 		const id = await seed("published", march);
 		await enableCache();
 		await read();
@@ -258,6 +258,10 @@ describeEachDialect("published dates", (dialect) => {
 		await waitForDeferredTasks();
 		await sql`UPDATE ec_post SET published_at = ${may} WHERE id = ${id}`.execute(ctx.db);
 		invalidateObjectCache("content:post");
+		await waitForDeferredTasks();
+		expect(timestamps((await read()).dates)).toEqual([april]);
+		expect(contentReads()).toHaveLength(2);
+		invalidateObjectCache("content:v2:post");
 		await waitForDeferredTasks();
 		expect(timestamps((await read()).dates)).toEqual([may]);
 		expect(contentReads()).toHaveLength(3);
