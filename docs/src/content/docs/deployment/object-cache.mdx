@@ -113,7 +113,7 @@ The object cache covers the reads that run on a typical page render:
 - Content queries: `getEmDashCollection`, `getEmDashEntry`, and `resolveEmDashPath`.
 - Site settings, navigation menus, and taxonomy terms.
 
-Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
+Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Edge Caching](/deployment/edge-cache/).
 
 The object cache and an HTML edge cache solve different problems. A cache miss in the HTML layer still runs the Worker; the object cache can then prevent repeated content queries. A hit in the HTML layer does not run EmDash at all.
 
