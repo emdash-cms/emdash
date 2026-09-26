@@ -19,6 +19,7 @@ import { Buffer } from "node:buffer";
 import {
 	ContentRepository,
 	CronAccessImpl,
+	createBylineAccess,
 	createCommentAccess,
 	createContentAccess,
 	createRedirectAccess,
@@ -698,6 +699,23 @@ async function dispatch(
 				requireString(body, "entryId"),
 				optionalString(body, "taxonomy"),
 				optionalString(body, "locale"),
+			);
+		// ── Bylines ─────────────────────────────────────────────────────
+		case "bylines/get":
+			requireCapability(opts, "bylines:read");
+			return createBylineAccess(db).get(requireString(body, "id"));
+		case "bylines/list":
+			requireCapability(opts, "bylines:read");
+			return createBylineAccess(db).list({
+				locale: optionalString(body, "locale"),
+				limit: optionalLimit(body),
+				cursor: optionalString(body, "cursor"),
+			});
+		case "bylines/entriesBylines":
+			requireCapability(opts, "bylines:read");
+			return createBylineAccess(db).getEntriesBylines(
+				requireString(body, "collection"),
+				requireStringArray(body, "entryIds"),
 			);
 		case "taxonomy/createTerm":
 			requireCapability(opts, "taxonomies:write");

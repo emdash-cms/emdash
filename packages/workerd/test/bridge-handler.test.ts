@@ -1077,6 +1077,19 @@ describe("Bridge Handler Conformance", () => {
 			expect((localized.result as unknown[]).length).toBe(1);
 		});
 
+		it("rejects byline reads without bylines:read capability", async () => {
+			const handler = makeHandler({ capabilities: ["content:read", "users:read"] });
+			for (const [method, body] of [
+				["bylines/get", { id: "byline-1" }],
+				["bylines/list", {}],
+				["bylines/entriesBylines", { collection: "posts", entryIds: ["post-1"] }],
+			] as const) {
+				expect((await call(handler, method, body)).error).toContain(
+					"Missing capability: bylines:read",
+				);
+			}
+		});
+
 		it("rejects user read without users:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "users/get", { id: "user-1" });

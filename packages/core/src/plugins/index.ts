@@ -42,6 +42,7 @@ export {
 	createUrlHelper,
 	createSiteInfo,
 } from "./context.js";
+export { createBylineAccess } from "./byline-access.js";
 export { createContentAccess } from "./content-access.js";
 export type { ContentActionCallbacks, PluginContextFactoryOptions } from "./context.js";
 export {
@@ -207,6 +208,11 @@ export type {
 	TaxonomyTermInfo,
 	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
+	BylineAccess,
+	BylineCreditInfo,
+	BylineInfo,
+	BylineListOptions,
+	EntryBylineCredits,
 	RedirectAccess,
 	RedirectAccessWithWrite,
 	RedirectCreateInput,
@@ -263,7 +269,10 @@ export type {
 	MediaAfterUploadHandler,
 	LifecycleHandler,
 	UninstallHandler,
-
+	BylineAfterSaveEvent,
+	BylineAfterDeleteEvent,
+	BylineAfterSaveHandler,
+	BylineAfterDeleteHandler,
 	// Comment types
 	CommentBeforeCreateEvent,
 	CommentModerateEvent,

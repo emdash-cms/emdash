@@ -40,6 +40,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `taxonomies:write`                  | `ctx.taxonomies.createTerm()`, `ctx.taxonomies.addEntryTerms()`, `ctx.taxonomies.removeEntryTerms()` (implies `taxonomies:read`) |
+| `bylines:read`                      | `ctx.bylines.get()`, `ctx.bylines.list()`, `ctx.bylines.getEntriesBylines()`, and the `byline:afterSave` and `byline:afterDelete` hooks |
 | `redirects:read`                    | `ctx.redirects.list()`, `ctx.redirects.get()`                                |
 | `redirects:write`                   | `ctx.redirects.create()`, `ctx.redirects.update()`, `ctx.redirects.delete()` (implies `redirects:read`) |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
@@ -59,6 +60,7 @@ The following rules affect which capabilities a plugin needs:
 - **Implications.** `content:write`, `content:revisions:read`, and `content:publish` automatically imply `content:read`; `comments:moderate` implies `comments:read`; `taxonomies:write` implies `taxonomies:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Media authorities are separate.** `media:read`, `media:bytes:read`, and `media:metadata:write` do not imply one another. Declare each operation the plugin uses. The existing `media:write` capability continues to imply `media:read` for compatibility.
 - **Taxonomies are separate from content.** Taxonomy capabilities do not grant `content:read` or `content:write`. Declare the matching content capability if the plugin also reads or edits entry fields.
+- **Bylines are separate from content and users.** `bylines:read` does not grant `content:read` or `users:read`, and neither of those grants byline access. Declare `content:read` as well if the plugin lists entries to look up their credits.
 - **Publication policy is separate from content access.** `hooks.content-policy:register` lets a plugin inspect and reject publication state changes through policy hook events. It does not provide `ctx.content` or grant content editing or publication actions.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
@@ -68,6 +70,22 @@ The following rules affect which capabilities a plugin needs:
 Revision snapshots can contain field values that an administrator later removed. Declare `content:revisions:read` only when the plugin needs retained history. Revision results omit the revision author's identity.
 
 `schema:read` exposes collection and field definitions without database IDs, timestamps, migration metadata, or SQL column types. Hidden collections remain visible because `hidden` controls admin navigation rather than data access.
+
+`bylines:read` returns public byline profiles: slug, display name, bio, website URL, avatar media ID, locale, and translation group. It omits the linked user account, the guest flag, and byline custom field values. Credit lookups return the bylines a site renders for an entry: the credits assigned in the editor, or the byline linked to the entry's author when the entry has none. Each credit's `source` is `explicit` or `inferred` accordingly. Credits resolve at the entry's own locale. Trashed and missing entries return no credits.
+
+Use `getEntriesBylines()` to resolve credits for a page of entries in one call. It accepts up to 100 entry IDs from one collection and returns results in the order given:
+
+```ts title="src/plugin.ts"
+const page = await ctx.content.list("posts", { limit: 100 });
+const credits = await ctx.bylines.getEntriesBylines(
+	"posts",
+	page.items.map((entry) => entry.id),
+);
+for (const { entryId, bylines } of credits) {
+	const names = bylines.map((credit) => credit.byline.displayName);
+	ctx.log.info("Entry credits", { entryId, names });
+}
+```
 
 ### Creating and translating content
 

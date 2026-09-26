@@ -63,6 +63,7 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const hasContentPublish = capabilities.includes("content:publish");
 	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasBylinesRead = capabilities.includes("bylines:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
 	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
@@ -268,6 +269,12 @@ function createContext(env, originHook, invocationId) {
 		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyRemoveEntryTerms(collection, entryId, taxonomy, termIds)
 	};
 
+	const bylines = ${hasBylinesRead} ? {
+		get: (id) => bridge.bylineGet(id),
+		list: (opts) => bridge.bylineList(opts),
+		getEntriesBylines: (collection, entryIds) => bridge.bylineEntriesBylines(collection, entryIds)
+	} : undefined;
+
 	const redirects = ${hasRedirectRead} ? {
 		list: (opts) => unwrapRedirectResult(bridge.redirectList(opts)),
 		get: (id) => unwrapRedirectResult(bridge.redirectGet(id)),
@@ -369,6 +376,7 @@ function createContext(env, originHook, invocationId) {
 		content: ${hasContentAccess} ? content : undefined,
 		schema,
 		taxonomies,
+		bylines,
 		redirects,
 		media,
 		http,
