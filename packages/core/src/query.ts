@@ -1878,8 +1878,15 @@ export async function resolveEmDashPath<T = Record<string, unknown>>(
 		cachedUrlPatterns = [];
 		for (const collection of collections) {
 			if (!collection.urlPattern) continue;
-			const { regex, paramNames } = compileUrlPattern(collection.urlPattern);
-			cachedUrlPatterns.push({ slug: collection.slug, regex, paramNames });
+			try {
+				const { regex, paramNames } = compileUrlPattern(collection.urlPattern);
+				cachedUrlPatterns.push({ slug: collection.slug, regex, paramNames });
+			} catch (error) {
+				const reason = error instanceof Error ? error.message : String(error);
+				console.warn(
+					`[emdash] Skipping URL pattern "${collection.urlPattern}" for collection "${collection.slug}": ${reason}. Update the collection's URL pattern to route its entries.`,
+				);
+			}
 		}
 		urlPatternCache.patterns = cachedUrlPatterns;
 	}

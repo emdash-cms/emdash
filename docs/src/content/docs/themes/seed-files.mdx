@@ -193,7 +193,7 @@ A collection requires `slug`, `label`, and `fields`:
 | `icon` | `string` | Optional icon name |
 | `admin.listColumns` | `string[]` | Up to four declared field slugs shown in the content list |
 | `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `scheduling`, `search`, and `seo` |
-| `urlPattern` | `string` | Public pattern such as `/posts/{slug}` |
+| `urlPattern` | `string` | Public pattern such as `/posts/{slug}`, with at most one placeholder per path segment |
 | `routable` | `boolean` | Whether published entries require a slug; defaults to `true` |
 | `hidden` | `boolean` | Hides the generated sidebar link and dashboard quick action; the collection stays reachable by URL and API |
 | `sortOrder` | `number` | Explicit admin-sidebar position; ordered collections come first, ascending |

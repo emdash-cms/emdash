@@ -51,6 +51,8 @@ import { SaveButton } from "./SaveButton";
 const SLUG_INVALID_CHARS_PATTERN = /[^a-z0-9]+/g;
 const SLUG_LEADING_TRAILING_PATTERN = /^_|_$/g;
 
+const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/;
+
 export interface ContentTypeEditorProps {
 	collection?: SchemaCollectionWithFields;
 	isNew?: boolean;
@@ -219,7 +221,11 @@ export function ContentTypeEditor({
 	// relationship it views is finished too.
 	const [deleteFieldRelation, setDeleteFieldRelation] = React.useState(true);
 
-	const urlPatternValid = !urlPattern || urlPattern.includes("{slug}");
+	const urlPatternChanged = urlPattern !== (collection?.urlPattern ?? "");
+	const urlPatternSharesSegment =
+		urlPatternChanged && MULTIPLE_PLACEHOLDERS_IN_SEGMENT.test(urlPattern);
+	const urlPatternValid =
+		!urlPattern || (urlPattern.includes("{slug}") && !urlPatternSharesSegment);
 
 	// Track whether form has unsaved changes
 	const hasChanges = React.useMemo(() => {
@@ -512,6 +518,11 @@ export function ContentTypeEditor({
 								{urlPattern && !urlPattern.includes("{slug}") && (
 									<p className="text-xs text-kumo-danger mt-2">
 										{t`Pattern must include a ${"{slug}"} placeholder`}
+									</p>
+								)}
+								{urlPatternSharesSegment && (
+									<p className="text-xs text-kumo-danger mt-2">
+										{t`Each path segment can contain at most one placeholder, e.g. ${"/{year}/{slug}"}`}
 									</p>
 								)}
 								<p className="text-xs text-kumo-subtle mt-1">

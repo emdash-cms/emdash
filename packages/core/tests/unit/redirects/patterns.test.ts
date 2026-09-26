@@ -145,6 +145,26 @@ describe("redirect patterns", () => {
 			expect(compiled.regex.test("/blog.old/test")).toBe(true);
 			expect(compiled.regex.test("/blogXold/test")).toBe(false);
 		});
+
+		it("treats parentheses in literal parts as literal characters", () => {
+			const compiled = compilePattern("/(.*x)/[slug]");
+			expect(matchPattern(compiled, "/(.*x)/hello")).toEqual({ slug: "hello" });
+			expect(compiled.regex.test("/abcx/hello")).toBe(false);
+
+			const grouped = compilePattern("/foo(bar)/[slug]");
+			expect(matchPattern(grouped, "/foo(bar)/hello")).toEqual({ slug: "hello" });
+			expect(grouped.regex.test("/foobar/hello")).toBe(false);
+		});
+
+		it("assigns captures to the right names when a [param] precedes a [...splat]", () => {
+			const compiled = compilePattern("/[category]/[...rest]");
+			expect(matchPattern(compiled, "/tech/a/b")).toEqual({ category: "tech", rest: "a/b" });
+		});
+
+		it("compiles a source with unbalanced literal parentheses", () => {
+			const compiled = compilePattern("/a((b)/[slug]");
+			expect(matchPattern(compiled, "/a((b)/hello")).toEqual({ slug: "hello" });
+		});
 	});
 
 	describe("matchPattern", () => {

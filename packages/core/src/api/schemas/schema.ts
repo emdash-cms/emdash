@@ -79,10 +79,10 @@ const repeaterSubFieldSchema = z.object({
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {
 	try {
 		compileUrlPattern(pattern);
-	} catch {
+	} catch (error) {
 		ctx.addIssue({
 			code: "custom",
-			message: "Invalid URL pattern",
+			message: error instanceof Error ? error.message : "Invalid URL pattern",
 		});
 	}
 });
@@ -189,7 +189,7 @@ export const updateCollectionBody = z
 		icon: z.string().optional(),
 		admin: collectionAdminInputConfig.optional(),
 		supports: z.array(collectionSupportValues).optional(),
-		urlPattern: urlPatternValue.nullish(),
+		urlPattern: z.string().nullish(),
 		routable: z.boolean().optional(),
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),

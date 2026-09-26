@@ -376,6 +376,41 @@ describe("RedirectRepository", () => {
 			// Should not match multi-segment
 			expect(await repo.matchPath("/category/a/b")).toBeNull();
 		});
+
+		it("skips unsafe destinations written outside the repository", async () => {
+			const exact = await repo.create({ source: "/exact", destination: "/safe" });
+			const pattern = await repo.create({
+				source: "/old/[slug]",
+				destination: "/new/[slug]",
+			});
+			await db
+				.updateTable("_emdash_redirects")
+				.set({ destination: "/\\evil.example" })
+				.where("id", "=", exact.id)
+				.execute();
+			await db
+				.updateTable("_emdash_redirects")
+				.set({ destination: "/\t/[slug]" })
+				.where("id", "=", pattern.id)
+				.execute();
+
+			await expect(repo.matchPath("/exact")).resolves.toBeNull();
+			await expect(repo.matchPath("/old/post")).resolves.toBeNull();
+		});
+
+		it("skips malformed patterns written outside the repository", async () => {
+			const redirect = await repo.create({
+				source: "/old/[slug]",
+				destination: "/new/[slug]",
+			});
+			await db
+				.updateTable("_emdash_redirects")
+				.set({ source: "/old/([slug]" })
+				.where("id", "=", redirect.id)
+				.execute();
+
+			await expect(repo.matchPath("/old/post")).resolves.toBeNull();
+		});
 	});
 
 	// --- Hit tracking -------------------------------------------------------

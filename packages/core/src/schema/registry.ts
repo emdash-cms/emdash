@@ -71,6 +71,7 @@ import {
 	RESERVED_COLLECTION_SLUGS,
 	MAX_BLOCKS_ITEMS,
 } from "./types.js";
+import { compileUrlPattern } from "./url-pattern.js";
 
 // Regex patterns for schema registry
 const SLUG_VALIDATION_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -492,6 +493,7 @@ export class SchemaRegistry {
 	async createCollection(input: CreateCollectionInput): Promise<Collection> {
 		// Validate slug
 		this.validateSlug(input.slug, "collection");
+		this.validateUrlPattern(input.urlPattern);
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
@@ -606,6 +608,7 @@ export class SchemaRegistry {
 		fields: readonly CreateFieldInput[],
 	): Promise<void> {
 		this.validateSlug(input.slug, "collection");
+		this.validateUrlPattern(input.urlPattern);
 		if (RESERVED_COLLECTION_SLUGS.includes(input.slug)) {
 			throw new SchemaError(`Collection slug "${input.slug}" is reserved`, "RESERVED_SLUG");
 		}
@@ -1049,6 +1052,7 @@ export class SchemaRegistry {
 			if (!existingRow) {
 				throw new SchemaError(`Collection "${slug}" not found`, "COLLECTION_NOT_FOUND");
 			}
+			if (input.urlPattern !== existingRow.url_pattern) this.validateUrlPattern(input.urlPattern);
 			const existing = this.mapCollectionRow(existingRow);
 			await this.validateTitleDateFields(
 				existing.id,
@@ -2304,6 +2308,18 @@ export class SchemaRegistry {
 
 		if (slug.length > 63) {
 			throw new SchemaError(`${type} slug must be 63 characters or less`, "INVALID_SLUG");
+		}
+	}
+
+	private validateUrlPattern(urlPattern: string | null | undefined): void {
+		if (!urlPattern) return;
+		try {
+			compileUrlPattern(urlPattern);
+		} catch (error) {
+			throw new SchemaError(
+				error instanceof Error ? error.message : "Invalid URL pattern",
+				"INVALID_URL_PATTERN",
+			);
 		}
 	}
 
