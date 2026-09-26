@@ -14,6 +14,7 @@ import { ulid } from "ulidx";
 import { MediaRepository, type MediaItem } from "../../database/repositories/media.js";
 import type { Database } from "../../database/types.js";
 import { enrichImageMetadata } from "../../media/enrich.js";
+import { isHeicMedia } from "../../media/image-endpoint.js";
 import { matchesMimeAllowlist, normalizeMime } from "../../media/mime.js";
 import type { Storage } from "../../storage/types.js";
 import { decodeBase64Bytes } from "../../utils/base64.js";
@@ -34,6 +35,8 @@ export interface MediaUploadInput {
 	authorId?: string;
 	/** Upload size limit in bytes (defaults to DEFAULT_MAX_UPLOAD_SIZE). */
 	maxUploadSize?: number;
+	/** Whether the configured runtime image service accepts HEIC-family input. */
+	heicSupported?: boolean;
 }
 
 export type MediaUploadResult = ApiResult<{
@@ -122,6 +125,12 @@ export async function handleMediaUpload(
 	}
 	if (bytes.byteLength > rawMax) {
 		return fail("PAYLOAD_TOO_LARGE", `File exceeds maximum size of ${formatFileSize(rawMax)}`);
+	}
+	if (isHeicMedia(mimeType, input.filename) && input.heicSupported !== true) {
+		return fail(
+			"UNSUPPORTED_IMAGE_FORMAT",
+			"HEIC images require a configured HEIC-capable image service",
+		);
 	}
 
 	try {

@@ -65,7 +65,7 @@ export function MediaBrowserItem({
 	const imageUrl =
 		needsDimensions && onDimensionsLoaded
 			? previewUrl
-			: getMediaThumbnailUrl(item.url, item.mimeType, undefined, item.contentHash);
+			: getMediaThumbnailUrl(item.url, item.mimeType, undefined, item.contentHash, item.storageKey);
 
 	const preview = hasVisualPreview ? (
 		<img
@@ -286,7 +286,13 @@ export function MediaSelectionTrayItem({
 			<div className="h-10 w-14 overflow-hidden rounded-md bg-kumo-tint">
 				{image ? (
 					<img
-						src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
+						src={getMediaThumbnailUrl(
+							item.url,
+							item.mimeType,
+							80,
+							item.contentHash,
+							item.storageKey,
+						)}
 						alt=""
 						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}

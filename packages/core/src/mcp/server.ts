@@ -2656,6 +2656,11 @@ export function createMcpServer(
 				return respondError("NO_STORAGE", "Storage not configured");
 			}
 			try {
+				const { configuredImageServiceSupportsHeic } = await import("../astro/image-service.js");
+				const heicSupported = await configuredImageServiceSupportsHeic(
+					emdash.storage,
+					emdash.config.siteUrl,
+				);
 				return unwrap(
 					await emdash.handleMediaUpload({
 						filename: args.filename,
@@ -2664,6 +2669,7 @@ export function createMcpServer(
 						alt: args.alt,
 						authorId: userId,
 						maxUploadSize: emdash.config.maxUploadSize,
+						heicSupported,
 					}),
 				);
 			} catch (error) {

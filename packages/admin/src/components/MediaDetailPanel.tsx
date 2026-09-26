@@ -502,6 +502,7 @@ export function MediaDetailPanel({
 				item.mimeType,
 				MEDIA_DETAIL_PREVIEW_WIDTH,
 				item.contentHash ?? cropPreviewKey,
+				item.storageKey,
 			)
 		: item.url;
 	const detailPreviewFallback = detailPreviewUrl === mediaPreviewUrl ? undefined : mediaPreviewUrl;

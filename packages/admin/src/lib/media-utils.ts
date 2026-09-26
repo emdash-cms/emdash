@@ -102,6 +102,7 @@ export function providerItemToMediaItem(
 
 /** Root-absolute path prefix for locally stored media served by EmDash. */
 const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
+const TRANSFORMABLE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 
 /**
  * URL of the local media file route for a storage key or media ID.
@@ -164,10 +165,15 @@ export function getMediaThumbnailUrl(
 	mimeType: string,
 	width: number = MEDIA_THUMBNAIL_WIDTH,
 	contentHash?: string | null,
+	storageKey?: string,
 ): string {
 	const previewUrl = getMediaPreviewUrl(originalUrl, contentHash);
 	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return previewUrl;
-	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return previewUrl;
+	if (storageKey && !TRANSFORMABLE_STORAGE_KEY.test(storageKey)) return previewUrl;
+	const sourceUrl = storageKey
+		? getMediaPreviewUrl(`${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(storageKey)}`, contentHash)
+		: previewUrl;
+	if (!sourceUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return previewUrl;
 
 	// Astro authorizes the media route by absolute origin (see the
 	// `image.remotePatterns` entry the EmDash integration registers), so the
@@ -177,7 +183,7 @@ export function getMediaThumbnailUrl(
 	if (!origin) return previewUrl;
 
 	const params = new URLSearchParams({
-		href: `${origin}${previewUrl}`,
+		href: `${origin}${sourceUrl}`,
 		w: String(width),
 		f: "webp",
 	});

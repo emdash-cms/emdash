@@ -25,9 +25,11 @@ import {
 } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
+import { isHeicMedia } from "#media/image-endpoint.js";
 import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 import { computeContentHash } from "#utils/hash.js";
 
+import { configuredImageServiceSupportsHeic } from "../../image-service.js";
 import type { MediaItem } from "../../types.js";
 
 export const prerender = false;
@@ -189,6 +191,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		if (!matchesMimeAllowlist(file.type, allowlist)) {
 			return apiError("INVALID_TYPE", "File type not allowed", 400);
+		}
+		if (
+			isHeicMedia(file.type, file.name) &&
+			!(await configuredImageServiceSupportsHeic(emdash.storage, request.url))
+		) {
+			return apiError(
+				"UNSUPPORTED_IMAGE_FORMAT",
+				"HEIC images require a configured HEIC-capable image service",
+				415,
+			);
 		}
 
 		// Check file size before buffering

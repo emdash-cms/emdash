@@ -455,6 +455,7 @@ export interface EmDashHandlers {
 		alt?: string;
 		authorId?: string;
 		maxUploadSize?: number;
+		heicSupported?: boolean;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaCreate: (input: {
