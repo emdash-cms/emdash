@@ -197,6 +197,8 @@ export interface EmDashManifest {
 	 * browse or install flows.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry configuration.
 	 *

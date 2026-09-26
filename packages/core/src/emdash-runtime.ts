@@ -3138,6 +3138,7 @@ export class EmDashRuntime {
 				implicit: i18nConfig === null,
 			},
 			marketplace: !!this.config.marketplace,
+			sandboxEnabled: this.runtimeDeps.sandboxEnabled && this.runtimeDeps.sandboxBypassed !== true,
 			registry,
 			registryConfigurationError,
 		};
