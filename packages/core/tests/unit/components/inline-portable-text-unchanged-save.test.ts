@@ -32,6 +32,8 @@ const storedBody = [
 	},
 ];
 
+type PortableTextValue = React.ComponentProps<typeof InlinePortableTextEditor>["value"];
+
 describe("inline Portable Text editor saves", () => {
 	let container: HTMLDivElement;
 	let root: Root;
@@ -67,11 +69,11 @@ describe("inline Portable Text editor saves", () => {
 		vi.restoreAllMocks();
 	});
 
-	async function mount() {
+	async function mount(value: PortableTextValue = storedBody) {
 		await act(async () => {
 			root.render(
 				React.createElement(InlinePortableTextEditor, {
-					value: structuredClone(storedBody),
+					value: structuredClone(value),
 					collection: "posts",
 					entryId: "entry-1",
 					field: "body",
@@ -134,6 +136,34 @@ describe("inline Portable Text editor saves", () => {
 
 		await blur(editable);
 		expect(puts).toHaveLength(1);
+	});
+
+	it("keeps custom image dimensions when saving another inline edit", async () => {
+		const editable = await mount([
+			{
+				_type: "image",
+				_key: "stored-image",
+				asset: { _ref: "01IMAGE", url: "/image.jpg" },
+				displayWidth: 600,
+				displayHeight: 400,
+			},
+		]);
+		await act(async () => {
+			editorOf(editable).commands.insertContentAt(0, "Edited. ");
+		});
+
+		await blur(editable);
+		expect(puts).toHaveLength(1);
+		const body = puts[0]!.body as {
+			data: { body: Array<Record<string, unknown>> };
+		};
+		const image = body.data.body.find((block) => block._type === "image");
+		expect(image).toMatchObject({
+			displayWidth: 600,
+			displayHeight: 400,
+		});
+		expect(image).not.toHaveProperty("caption");
+		expect(image).not.toHaveProperty("title");
 	});
 
 	it("does not save an edit that was undone before focus left", async () => {

@@ -30,6 +30,7 @@ export interface Props {
 		};
 		alt?: string;
 		caption?: string;
+		title?: string;
 		/** Original image width */
 		width?: number;
 		/** Original image height */
@@ -77,8 +78,14 @@ if (!node?.asset) {
 	return null;
 }
 
-const { caption, displayWidth, displayHeight, alignment, link } = node;
+const { caption, title, displayWidth, displayHeight, alignment, link } = node;
 const { asset, alt = "", width, height } = resolveImageMedia(node);
+const dimension = (value: number | undefined) =>
+	typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+const originalWidth = dimension(width);
+const originalHeight = dimension(height);
+const customWidth = dimension(displayWidth);
+const customHeight = dimension(displayHeight);
 
 const imageLink = normalizeImageLink(link);
 const linkHref = imageLink ? sanitizeHref(imageLink.href) : null;
@@ -90,24 +97,24 @@ const linkTarget = linkBlank ? "_blank" : undefined;
 const linkRel = linkBlank ? "noopener noreferrer" : undefined;
 
 // Calculate aspect ratio from original dimensions
-const aspectRatio = width && height ? width / height : undefined;
+const aspectRatio = originalWidth && originalHeight ? originalWidth / originalHeight : undefined;
 
 // Calculate render dimensions
 let renderWidth: number | undefined;
 let renderHeight: number | undefined;
 
-if (displayWidth && displayHeight) {
-	renderWidth = displayWidth;
-	renderHeight = displayHeight;
-} else if (displayWidth && aspectRatio) {
-	renderWidth = displayWidth;
-	renderHeight = Math.round(displayWidth / aspectRatio);
-} else if (displayHeight && aspectRatio) {
-	renderWidth = Math.round(displayHeight * aspectRatio);
-	renderHeight = displayHeight;
+if (customWidth && customHeight) {
+	renderWidth = customWidth;
+	renderHeight = customHeight;
+} else if (customWidth && aspectRatio) {
+	renderWidth = customWidth;
+	renderHeight = Math.round(customWidth / aspectRatio);
+} else if (customHeight && aspectRatio) {
+	renderWidth = Math.round(customHeight * aspectRatio);
+	renderHeight = customHeight;
 } else {
-	renderWidth = width;
-	renderHeight = height;
+	renderWidth = originalWidth;
+	renderHeight = originalHeight;
 }
 
 // Get the image source URL and srcset
@@ -192,6 +199,7 @@ if (placeholder && blurhash) {
 					<AstroImage
 						src={astroImageSrc}
 						alt={alt}
+						title={title}
 						width={renderWidth}
 						height={renderHeight}
 						layout="constrained"
@@ -205,6 +213,7 @@ if (placeholder && blurhash) {
 						srcset={srcset}
 						sizes={sizes}
 						alt={alt}
+						title={title}
 						width={renderWidth}
 						height={renderHeight}
 						loading="lazy"
@@ -217,6 +226,7 @@ if (placeholder && blurhash) {
 			<AstroImage
 				src={astroImageSrc}
 				alt={alt}
+				title={title}
 				width={renderWidth}
 				height={renderHeight}
 				layout="constrained"
@@ -230,6 +240,7 @@ if (placeholder && blurhash) {
 				srcset={srcset}
 				sizes={sizes}
 				alt={alt}
+				title={title}
 				width={renderWidth}
 				height={renderHeight}
 				loading="lazy"

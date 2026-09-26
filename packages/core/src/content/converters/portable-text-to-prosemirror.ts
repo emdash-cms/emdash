@@ -645,6 +645,10 @@ function imageAlignment(value: unknown): PortableTextImageBlock["alignment"] {
 		: undefined;
 }
 
+function imageDimension(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 /**
  * Convert image block to ProseMirror
  */
@@ -656,13 +660,14 @@ function convertImage(block: PortableTextImageBlock, preserveIdentity: boolean):
 			{
 				src: asset.url || asset._ref,
 				alt: alt || "",
-				title: block.caption || "",
+				title: block.title || "",
+				caption: Object.hasOwn(block, "caption") ? block.caption || "" : block.title || "",
 				mediaId: asset._ref,
 				provider: asset.provider,
-				width,
-				height,
-				displayWidth: block.displayWidth,
-				displayHeight: block.displayHeight,
+				width: imageDimension(width),
+				height: imageDimension(height),
+				displayWidth: imageDimension(block.displayWidth),
+				displayHeight: imageDimension(block.displayHeight),
 				alignment: imageAlignment(block.alignment),
 				link: normalizeImageLink(block.link),
 			},
@@ -684,24 +689,25 @@ function convertMalformedImage(
 	// PortableTextUnknownBlock allows indexed access via [key: string]: unknown
 	const url = "url" in block && typeof block.url === "string" ? block.url : "";
 	const alt = "alt" in block && typeof block.alt === "string" ? block.alt : "";
-	const caption = "caption" in block && typeof block.caption === "string" ? block.caption : "";
-	const width = "width" in block && typeof block.width === "number" ? block.width : undefined;
-	const height = "height" in block && typeof block.height === "number" ? block.height : undefined;
-	const displayWidth =
-		"displayWidth" in block && typeof block.displayWidth === "number"
-			? block.displayWidth
-			: undefined;
-	const displayHeight =
-		"displayHeight" in block && typeof block.displayHeight === "number"
-			? block.displayHeight
-			: undefined;
+	const title = "title" in block && typeof block.title === "string" ? block.title : "";
+	const rawCaption = "caption" in block ? block.caption : undefined;
+	const caption = Object.hasOwn(block, "caption")
+		? typeof rawCaption === "string"
+			? rawCaption
+			: ""
+		: title;
+	const width = imageDimension("width" in block ? block.width : undefined);
+	const height = imageDimension("height" in block ? block.height : undefined);
+	const displayWidth = imageDimension("displayWidth" in block ? block.displayWidth : undefined);
+	const displayHeight = imageDimension("displayHeight" in block ? block.displayHeight : undefined);
 	return {
 		type: "image",
 		attrs: identityAttrs(
 			{
 				src: url,
 				alt,
-				title: caption,
+				title,
+				caption,
 				mediaId: undefined,
 				provider: undefined,
 				width,

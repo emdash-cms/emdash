@@ -288,6 +288,77 @@ describe("ImageDetailPanel", () => {
 		);
 	});
 
+	it("clears both custom dimensions without producing numeric placeholders", async () => {
+		const { screen, onUpdate } = await renderPanel({
+			...baseAttributes,
+			displayWidth: 600,
+			displayHeight: 400,
+		});
+		await screen.getByLabelText("Width").fill("");
+		await screen.getByLabelText("Height").fill("");
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({ displayWidth: undefined, displayHeight: undefined }),
+		);
+	});
+
+	it("ignores non-numeric dimension input", async () => {
+		const { screen, onUpdate } = await renderPanel();
+		const width = screen.getByLabelText("Width").element() as HTMLInputElement;
+		width.type = "text";
+		await userEvent.type(width, "invalid");
+
+		await expect.element(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+		expect(onUpdate).not.toHaveBeenCalled();
+	});
+
+	it("restores every image setting after Apply and reopen", async () => {
+		const nodeKey = {};
+		const onUpdate = vi.fn();
+		const panel = (attributes: ImagePanelAttributes) => (
+			<ImageDetailPanel
+				attributes={attributes}
+				onUpdate={onUpdate}
+				onReplace={vi.fn()}
+				onDelete={vi.fn()}
+				onClose={vi.fn()}
+				inline
+			/>
+		);
+		const screen = await render(panel({ ...baseAttributes, nodeKey }));
+
+		await screen.getByRole("textbox", { name: "Alt text" }).fill("Updated description");
+		await screen.getByLabelText("Caption").fill("Updated caption");
+		await screen.getByLabelText("Tooltip text").fill("Updated tooltip");
+		await screen.getByLabelText("Width").fill("600");
+		await screen.getByRole("combobox", { name: "Alignment" }).click();
+		await screen.getByRole("option", { name: "Center" }).click();
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		const saved = onUpdate.mock.lastCall?.[0] as Partial<ImageAttributes>;
+		expect(saved).toMatchObject({
+			alt: "Updated description",
+			caption: "Updated caption",
+			title: "Updated tooltip",
+			displayWidth: 600,
+			displayHeight: 400,
+			alignment: "center",
+		});
+
+		await screen.rerender(panel({ ...baseAttributes, ...saved, nodeKey: {} }));
+		await expect
+			.element(screen.getByRole("textbox", { name: "Alt text" }))
+			.toHaveValue("Updated description");
+		await expect.element(screen.getByLabelText("Caption")).toHaveValue("Updated caption");
+		await expect.element(screen.getByLabelText("Tooltip text")).toHaveValue("Updated tooltip");
+		await expect.element(screen.getByLabelText("Width")).toHaveValue(600);
+		await expect.element(screen.getByLabelText("Height")).toHaveValue(400);
+		await expect
+			.element(screen.getByRole("combobox", { name: "Alignment" }))
+			.toHaveTextContent("Center");
+	});
+
 	it("retains the other original dimension when the first resize is unlocked", async () => {
 		const { screen, onUpdate } = await renderPanel();
 		await screen.getByRole("button", { name: "Keep aspect ratio" }).click();
@@ -822,5 +893,54 @@ describe("ImageDetailPanel", () => {
 		await screen.getByRole("button", { name: "Apply" }).click();
 
 		expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ link: null }));
+	});
+});
+
+describe("ImageDetailPanel edits", () => {
+	it("keeps caption edits pending until Apply", async () => {
+		const onUpdate = vi.fn();
+		const screen = await render(
+			<ImageDetailPanel
+				attributes={{ src: "/photo.jpg" }}
+				onUpdate={onUpdate}
+				onReplace={vi.fn()}
+				onDelete={vi.fn()}
+				onClose={vi.fn()}
+				inline
+			/>,
+		);
+
+		await screen.getByLabelText("Caption").fill("A saved caption");
+		expect(onUpdate).not.toHaveBeenCalled();
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenLastCalledWith(
+			expect.objectContaining({ caption: "A saved caption" }),
+		);
+	});
+
+	it("preserves an explicitly cleared caption when a tooltip title remains", async () => {
+		const onUpdate = vi.fn();
+		const screen = await render(
+			<ImageDetailPanel
+				attributes={{
+					src: "/photo.jpg",
+					caption: "Visible caption",
+					title: "Tooltip title",
+				}}
+				onUpdate={onUpdate}
+				onReplace={vi.fn()}
+				onDelete={vi.fn()}
+				onClose={vi.fn()}
+				inline
+			/>,
+		);
+
+		await screen.getByLabelText("Caption").fill("");
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenLastCalledWith(
+			expect.objectContaining({ caption: "", title: "Tooltip title" }),
+		);
 	});
 });

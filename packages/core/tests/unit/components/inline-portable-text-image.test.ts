@@ -119,6 +119,62 @@ describe("Image LQIP round-trip (inline editor seam)", () => {
 	});
 });
 
+describe("Image caption round-trip (inline editor seam)", () => {
+	it("keeps captions and tooltip titles independent", () => {
+		const pm = portableTextToPM([
+			{
+				_type: "image",
+				_key: "img003",
+				asset: { _ref: "01CAPTION", url: "/caption.jpg" },
+				caption: "Visible caption",
+				title: "Hover title",
+			},
+		]);
+
+		const [restored] = pmToPortableText(pm) as Array<{
+			caption?: string;
+			title?: string;
+		}>;
+
+		expect(restored.caption).toBe("Visible caption");
+		expect(restored.title).toBe("Hover title");
+	});
+
+	it("reads captions from title-only legacy Portable Text blocks", () => {
+		const [restored] = pmToPortableText(
+			portableTextToPM([
+				{
+					_type: "image",
+					_key: "img-legacy",
+					asset: { _ref: "01LEGACY", url: "/legacy.jpg" },
+					title: "Legacy caption",
+				},
+			]),
+		) as Array<{ caption?: string }>;
+
+		expect(restored.caption).toBe("Legacy caption");
+	});
+
+	it("keeps a cleared caption separate from the tooltip title across reloads", () => {
+		const portableText = pmToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: { src: "/current.jpg", caption: "", title: "Hover title" },
+				},
+			],
+		});
+		const [restored] = pmToPortableText(portableTextToPM(portableText)) as Array<{
+			caption?: string;
+			title?: string;
+		}>;
+
+		expect(restored.caption).toBe("");
+		expect(restored.title).toBe("Hover title");
+	});
+});
+
 describe("Image media reference (inline editor seam)", () => {
 	it("keeps the media reference of a seeded $media asset through PT → PM → PT", () => {
 		const seeded = [
