@@ -7,6 +7,21 @@ const CLI_BIN = resolve(import.meta.dirname, "../../../dist/cli/index.mjs");
 const CLI_ENV = { ...process.env, NODE_ENV: "production", TEST: "", NO_COLOR: "1" };
 
 describe("CLI help", () => {
+	it("rejects the retired marketplace login command", () => {
+		const result = spawnSync(
+			"node",
+			[CLI_BIN, "plugin", "login", "--registry", "http://127.0.0.1:1"],
+			{
+				encoding: "utf8",
+				env: CLI_ENV,
+			},
+		);
+
+		expect(result.error).toBeUndefined();
+		expect(result.status).toBe(1);
+		expect(`${result.stdout}${result.stderr}`).toContain("Unknown command login");
+	});
+
 	it("does not offer a dev-server wrapper", () => {
 		const output = execFileSync("node", [CLI_BIN, "--help"], {
 			encoding: "utf8",

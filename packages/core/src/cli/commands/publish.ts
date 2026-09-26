@@ -664,40 +664,6 @@ export const publishCommand = defineCommand({
 
 // ── Marketplace auth subcommands ────────────────────────────────
 
-export const marketplaceLoginCommand = defineCommand({
-	meta: {
-		name: "login",
-		description: "Log in to the EmDash Marketplace via GitHub",
-	},
-	args: {
-		registry: {
-			type: "string",
-			description: "Marketplace registry URL",
-			default: DEFAULT_REGISTRY,
-		},
-	},
-	async run({ args }) {
-		const registryUrl = args.registry;
-
-		const existing = getMarketplaceCredential(registryUrl);
-		if (existing) {
-			consola.info(`Already logged in as ${pc.bold(existing.author?.name ?? "unknown")}`);
-			consola.info("Use `emdash plugin logout` to log out first.");
-			return;
-		}
-
-		const result = await authenticateViaDeviceFlow(registryUrl);
-
-		saveMarketplaceCredential(registryUrl, {
-			token: result.token,
-			expiresAt: new Date(Date.now() + 30 * 86400 * 1000).toISOString(),
-			author: { id: result.author.id, name: result.author.name },
-		});
-
-		consola.success(`Logged in as ${pc.bold(result.author.name)}`);
-	},
-});
-
 export const marketplaceLogoutCommand = defineCommand({
 	meta: {
 		name: "logout",

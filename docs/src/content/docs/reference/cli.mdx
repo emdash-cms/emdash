@@ -668,7 +668,7 @@ The import commands exit with these codes:
 
 ### `emdash plugin`
 
-Create, validate, bundle, and publish EmDash plugins. Marketplace login is separate from login to a CMS instance.
+Create, validate, bundle, and publish EmDash plugins. For the experimental Registry, use the separate [`emdash-plugin` CLI](/plugins/creating-plugins/cli/) and sign in with an Atmosphere account.
 
 #### `plugin init`
 
@@ -727,17 +727,9 @@ npx emdash plugin publish --tarball ./dist/my-plugin-1.0.0.tar.gz
 
 Provide `--tarball`, or pass `--build` to build from `--dir` first.
 
-#### `plugin login`
-
-Authenticate to the marketplace through GitHub device flow. `--registry` selects a different marketplace and defaults to `https://marketplace.emdashcms.com`.
-
-```bash
-npx emdash plugin login
-```
-
 #### `plugin logout`
 
-Remove the saved marketplace credential. The optional `--registry` must identify the same marketplace used for login.
+Remove the saved marketplace credential. The optional `--registry` selects the marketplace and defaults to `https://marketplace.emdashcms.com`.
 
 ```bash
 npx emdash plugin logout
