@@ -1,6 +1,6 @@
 ---
-import { getMenu, getSiteSettings } from "emdash";
-import { EmDashHead } from "emdash/ui";
+import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
+import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
 import "../styles/tokens.css";
@@ -8,25 +8,46 @@ import "../styles/theme.css";
 
 interface Props {
 	title?: string;
-	description?: string;
-	image?: string;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	robots?: string | null;
+	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image } = Astro.props;
-const settings = await getSiteSettings();
+const { title, pageTitle, description, image, canonical, robots, content } = Astro.props;
+const [settingsResult, menuResult, footerProductResult, footerCompanyResult, footerSupportResult] =
+	await Promise.all([
+		getSiteSettingsWithCacheHint(),
+		getMenuWithCacheHint("primary"),
+		getMenuWithCacheHint("footer_product"),
+		getMenuWithCacheHint("footer_company"),
+		getMenuWithCacheHint("footer_support"),
+	]);
+
+if (Astro.cache?.enabled) {
+	for (const result of [
+		settingsResult,
+		menuResult,
+		footerProductResult,
+		footerCompanyResult,
+		footerSupportResult,
+	]) {
+		Astro.cache.set(result.cacheHint);
+	}
+}
+
+const settings = settingsResult.data;
 const siteTitle = settings?.title || "Acme";
-const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
+const fullTitle = title ? (title.includes(siteTitle) ? title : `${title} — ${siteTitle}`) : siteTitle;
 const siteDescription =
 	settings?.tagline || "Build products people actually want";
-const siteLogo = (settings?.logo as any)?.url ? settings.logo as
-	{ mediaId: string; alt?: string; url: string } : null;
-
-const [menu, footerProduct, footerCompany, footerSupport] = await Promise.all([
-	getMenu("primary"),
-	getMenu("footer_product"),
-	getMenu("footer_company"),
-	getMenu("footer_support"),
-]);
+const siteLogo = settings.logo?.url ? settings.logo : null;
+const menu = menuResult.data;
+const footerProduct = footerProductResult.data;
+const footerCompany = footerCompanyResult.data;
+const footerSupport = footerSupportResult.data;
 
 const footerColumns = [
 	{ heading: "Product", menu: footerProduct },
@@ -36,16 +57,19 @@ const footerColumns = [
 
 const pageCtx = createPublicPageContext({
 	Astro,
-	kind: "custom",
+	kind: content ? "content" : "custom",
 	pageType: "website",
 	title: fullTitle,
-	pageTitle: title ?? siteTitle,
+	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || siteDescription,
-	canonical: Astro.url.href,
+	canonical: canonical ?? `${Astro.url.origin}${Astro.url.pathname}`,
 	image,
-	seo: { ogImage: image },
+	content,
+	seo: { ogImage: image, robots },
 	siteName: siteTitle,
 });
+
+const isLoggedIn = !!Astro.locals.user;
 ---
 
 <!doctype html>
@@ -70,26 +94,37 @@ const pageCtx = createPublicPageContext({
 		</script>
 	</head>
 	<body>
+		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav">
 				<a href="/" class="site-logo">
 					{siteLogo
-						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						? <img
+							src={siteLogo.url}
+							alt={siteLogo.alt || siteTitle}
+							width={siteLogo.width}
+							height={siteLogo.height}
+							class="site-logo-img"
+						/>
 						: siteTitle
 					}
 				</a>
 				<div class="nav-links">
 					{
 						menu?.items.map((item) => (
-							<a href={item.url} target={item.target}>
+							<a
+								href={item.url}
+								target={item.target}
+								rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+							>
 								{item.label}
 							</a>
 						))
 					}
 				</div>
 				<div class="nav-actions">
-					<a href="/_emdash/admin" class="nav-admin">Admin</a>
-					<a href="/signup" class="btn btn-primary nav-cta">Get Started</a>
+					{isLoggedIn && <a href="/_emdash/admin" class="nav-admin">Admin</a>}
+					<a href="/contact" class="btn btn-primary nav-cta">Get Started</a>
 				</div>
 			</nav>
 		</header>
@@ -103,7 +138,13 @@ const pageCtx = createPublicPageContext({
 				<div class="footer-brand">
 					<span class="footer-logo">
 						{siteLogo
-							? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
+								? <img
+									src={siteLogo.url}
+									alt={siteLogo.alt || siteTitle}
+									width={siteLogo.width}
+									height={siteLogo.height}
+									class="footer-logo-img"
+								/>
 							: siteTitle
 						}
 					</span>
@@ -139,18 +180,21 @@ const pageCtx = createPublicPageContext({
 						type="button"
 						class="theme-btn"
 						data-theme="light"
+						aria-pressed="false"
 						aria-label="Light mode">Light</button
 					>
 					<button
 						type="button"
 						class="theme-btn"
 						data-theme="dark"
+						aria-pressed="false"
 						aria-label="Dark mode">Dark</button
 					>
 					<button
 						type="button"
 						class="theme-btn"
 						data-theme="system"
+						aria-pressed="false"
 						aria-label="System theme">System</button
 					>
 				</div>
@@ -159,6 +203,8 @@ const pageCtx = createPublicPageContext({
 				</p>
 			</div>
 		</footer>
+
+		<EmDashBodyEnd page={pageCtx} />
 
 		<script>
 			// Theme switcher
@@ -182,7 +228,9 @@ const pageCtx = createPublicPageContext({
 
 			function updateActiveBtn(theme: string) {
 				themeBtns.forEach((btn) => {
-					btn.classList.toggle("active", btn.dataset.theme === theme);
+					const active = btn.dataset.theme === theme;
+					btn.classList.toggle("active", active);
+					btn.setAttribute("aria-pressed", String(active));
 				});
 			}
 
@@ -241,6 +289,19 @@ const pageCtx = createPublicPageContext({
 					scroll-behavior: smooth;
 				}
 
+				@media (prefers-reduced-motion: reduce) {
+					html {
+						scroll-behavior: auto;
+					}
+
+					*,
+					*::before,
+					*::after {
+						scroll-behavior: auto !important;
+						transition-duration: 0.01ms !important;
+					}
+				}
+
 				body {
 					font-family: var(--font-body);
 					font-size: var(--font-size-base);
@@ -256,9 +317,8 @@ const pageCtx = createPublicPageContext({
 					text-decoration: none;
 				}
 
-				/* Inline links in authored content (Portable Text renders bare
-				   <a> tags) need a visible style; component links restyle
-				   themselves via classes. */
+					/* Bare links in authored content need a visible style; component
+					   links restyle themselves via classes. */
 				p a:not([class]),
 				li a:not([class]) {
 					color: var(--color-brand);

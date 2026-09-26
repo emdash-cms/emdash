@@ -19,6 +19,7 @@ import {
 	DELETE as unscheduleContent,
 } from "../../../src/astro/routes/api/content/[collection]/[id]/schedule.js";
 import { POST as unpublishContent } from "../../../src/astro/routes/api/content/[collection]/[id]/unpublish.js";
+import { POST as restoreRevision } from "../../../src/astro/routes/api/revisions/[revisionId]/restore.js";
 import { EntryLockRepository } from "../../../src/database/repositories/entry-locks.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -27,6 +28,7 @@ import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js"
 const HOLDER = "user-ada";
 const WRITER = "user-linus";
 const ENTRY_ID = "01JXENTRY0000000000000000";
+const REVISION_ID = "01JXREVISION0000000000000";
 
 const ROUTES = [
 	{ name: "PUT", handler: updateContent, method: "PUT", path: "", body: {} },
@@ -53,6 +55,15 @@ const ROUTES = [
 		method: "DELETE",
 		path: "/schedule",
 		body: undefined,
+	},
+	{
+		name: "revision restore",
+		handler: restoreRevision,
+		method: "POST",
+		path: "",
+		body: {},
+		url: `http://localhost/_emdash/api/revisions/${REVISION_ID}/restore`,
+		params: { revisionId: REVISION_ID },
 	},
 ] as const;
 
@@ -85,7 +96,11 @@ describe("content write routes — entry edit lock", () => {
 		});
 		// DELETE takes no body, so its opt-out rides on the query string.
 		const query = options.overrideLock && route.method === "DELETE" ? "?overrideLock=true" : "";
-		const url = `http://localhost/_emdash/api/content/posts/${ENTRY_ID}${route.path}${query}`;
+		const base =
+			"url" in route
+				? route.url
+				: `http://localhost/_emdash/api/content/posts/${ENTRY_ID}${route.path}`;
+		const url = `${base}${query}`;
 		const request = new Request(url, {
 			method: route.method,
 			headers: { "Content-Type": "application/json" },
@@ -99,7 +114,7 @@ describe("content write routes — entry edit lock", () => {
 		});
 		const okItem = { success: true, data: { item: {} } };
 		return route.handler({
-			params: { collection: "posts", id: ENTRY_ID },
+			params: "params" in route ? route.params : { collection: "posts", id: ENTRY_ID },
 			request,
 			url: new URL(url),
 			locals: {
@@ -114,6 +129,11 @@ describe("content write routes — entry edit lock", () => {
 					handleContentSchedule: vi.fn().mockResolvedValue(okItem),
 					handleContentUnschedule: vi.fn().mockResolvedValue(okItem),
 					handleContentDelete: vi.fn().mockResolvedValue({ success: true, data: {} }),
+					handleRevisionGet: vi.fn().mockResolvedValue({
+						success: true,
+						data: { item: { collection: "posts", entryId: ENTRY_ID } },
+					}),
+					handleRevisionRestore: vi.fn().mockResolvedValue(okItem),
 				},
 			},
 			cache: { enabled: false, invalidate: vi.fn() },

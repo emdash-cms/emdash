@@ -769,10 +769,7 @@ function configFor(kind: RecordKind): TableReaderConfig {
 					const references = "_emdash_content_references";
 					return sql<boolean>`EXISTS (
 						SELECT 1 FROM _emdash_relations AS __relation
-						WHERE (
-							__relation.translation_group = ${col(references, "relation_group")}
-							OR (__relation.translation_group IS NULL AND __relation.id = ${col(references, "relation_group")})
-						)
+						WHERE __relation.id = ${col(references, "relation_id")}
 						AND ${entryGroupExists(context, sql`__relation.parent_collection`, col(references, "parent_group"))}
 						AND ${entryGroupExists(context, sql`__relation.child_collection`, col(references, "child_group"))}
 					)`;
@@ -818,7 +815,7 @@ interface ContentCollection {
 	columns: Readonly<Record<string, ColumnSpec>>;
 }
 
-type FieldColumns = ReadonlyArray<{ slug: string; column_type: string }>;
+type FieldColumns = Parameters<typeof contentColumnSpecs>[0];
 
 class EntryReader implements KindReader<"entry"> {
 	readonly kind = "entry";
@@ -839,14 +836,21 @@ class EntryReader implements KindReader<"entry"> {
 				"_emdash_collections.slug as collection",
 				"_emdash_fields.slug as slug",
 				"_emdash_fields.column_type as column_type",
+				"_emdash_fields.type as type",
+				"_emdash_fields.validation as validation",
 			])
 			.execute()
 			.then((rows) => {
-				const fields = new Map<string, Array<{ slug: string; column_type: string }>>();
+				const fields = new Map<string, Array<FieldColumns[number]>>();
 				for (const row of rows) {
 					const list = fields.get(row.collection) ?? [];
-					if (row.slug !== null && row.column_type !== null) {
-						list.push({ slug: row.slug, column_type: row.column_type });
+					if (row.slug !== null && row.column_type !== null && row.type !== null) {
+						list.push({
+							slug: row.slug,
+							column_type: row.column_type,
+							type: row.type,
+							validation: row.validation,
+						});
 					}
 					fields.set(row.collection, list);
 				}

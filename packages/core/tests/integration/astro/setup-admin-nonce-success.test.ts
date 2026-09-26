@@ -15,8 +15,12 @@
  *
  * `registerPasskey` is left real; it only talks to the Kysely
  * adapter against the in-memory test DB.
+ *
+ * The same stub can park a verify mid-flight, which covers a second
+ * verify completing while the first is still in progress.
  */
 
+import { verifyRegistrationResponse } from "@emdash-cms/auth/passkey";
 import type { APIContext, AstroCookies } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -141,7 +145,7 @@ const fakeCredential = {
 	},
 };
 
-describe("POST /setup/admin/verify — success path clears nonce cookie", () => {
+describe("POST /setup/admin/verify — success path", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
@@ -185,5 +189,51 @@ describe("POST /setup/admin/verify — success path clears nonce cookie", () => 
 		expect(setupState).toBeNull();
 		const setupComplete = await options.get("emdash:setup_complete");
 		expect(setupComplete).toBe(true);
+	});
+
+	it("creates only one admin when a second verify completes while the first is in flight", async () => {
+		const operator = createCookieJar();
+		expect(
+			(await postAdmin(buildContext(db, buildAdminRequest(adminBody), operator.cookies))).status,
+		).toBe(200);
+
+		// Park the operator's verify after the zero-users check.
+		let release!: () => void;
+		const parked = new Promise<void>((resolve) => (release = resolve));
+		let entered = false;
+		vi.mocked(verifyRegistrationResponse).mockImplementationOnce(async () => {
+			entered = true;
+			await parked;
+			return {
+				credentialId: "operator-credential-id",
+				publicKey: new Uint8Array([5, 6, 7, 8]),
+				algorithm: -7,
+				counter: 0,
+				deviceType: "singleDevice" as const,
+				backedUp: false,
+				transports: [],
+			};
+		});
+		const operatorVerify = postAdminVerify(
+			buildContext(db, buildVerifyRequest(fakeCredential), operator.cookies),
+		);
+		await vi.waitFor(() => expect(entered).toBe(true));
+
+		const other = createCookieJar();
+		const otherBody = { email: "other@admin.example", name: "Other" };
+		expect(
+			(await postAdmin(buildContext(db, buildAdminRequest(otherBody), other.cookies))).status,
+		).toBe(200);
+		expect(
+			(await postAdminVerify(buildContext(db, buildVerifyRequest(fakeCredential), other.cookies)))
+				.status,
+		).toBe(200);
+
+		release();
+		const operatorRes = await operatorVerify;
+		expect(operatorRes.status).toBe(400);
+
+		const users = await db.selectFrom("users").select(["email", "role"]).execute();
+		expect(users).toEqual([{ email: "other@admin.example", role: 50 }]);
 	});
 });

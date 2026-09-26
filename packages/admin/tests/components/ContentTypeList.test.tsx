@@ -2,8 +2,15 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { ContentTypeList, moveCollection } from "../../src/components/ContentTypeList";
+import { fetchRelations } from "../../src/lib/api";
 import type { SchemaCollection, OrphanedTable } from "../../src/lib/api";
+import type { RelationWithUsage } from "../../src/lib/api/relations.js";
 import { render } from "../utils/render.tsx";
+
+vi.mock("../../src/lib/api", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/api")>("../../src/lib/api");
+	return { ...actual, fetchRelations: vi.fn(async () => []) };
+});
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -289,5 +296,57 @@ describe("ContentTypeList", () => {
 			expect(moveCollection(slugs, "b", "missing")).toBe(slugs);
 			expect(moveCollection(slugs, "missing", "b")).toBe(slugs);
 		});
+	});
+});
+
+describe("ContentTypeList relationship warning", () => {
+	const relation: RelationWithUsage = {
+		id: "rel-1",
+		slug: "posts_authors",
+		parentCollection: "posts",
+		childCollection: "authors",
+		parentLabel: "Posts",
+		parentLabelSingular: "Post",
+		childLabel: "Authors",
+		childLabelSingular: "Author",
+		maxChildrenPerParent: 1,
+		maxParentsPerChild: null,
+		boundFields: [
+			{ collectionSlug: "posts", fieldSlug: "author", side: "parent" },
+			{ collectionSlug: "authors", fieldSlug: "posts", side: "child" },
+		],
+		linkCount: 4,
+	};
+
+	beforeEach(() => {
+		vi.mocked(fetchRelations).mockResolvedValue([relation]);
+	});
+
+	// Deleting a content type cascades through every relationship it is an end
+	// of, which takes reference fields off *other* content types.
+	it("names the relationships and the fields on other content types that go with them", async () => {
+		const screen = await render(
+			<ContentTypeList collections={[makeCollection({ slug: "posts", label: "Posts" })]} />,
+		);
+
+		await screen.getByRole("button", { name: /Delete Posts/i }).click();
+		await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
+
+		await expect.element(screen.getByText("posts_authors")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText(/the posts field on authors, which lists entries that link to it/))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("4 links")).toBeInTheDocument();
+	});
+
+	it("says nothing about relationships for a content type in none", async () => {
+		const screen = await render(
+			<ContentTypeList collections={[makeCollection({ slug: "pages", label: "Pages" })]} />,
+		);
+
+		await screen.getByRole("button", { name: /Delete Pages/i }).click();
+		await expect.element(screen.getByText("Delete Content Type?")).toBeInTheDocument();
+
+		expect(screen.getByText("posts_authors").query()).toBeNull();
 	});
 });

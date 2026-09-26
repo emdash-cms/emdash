@@ -1,6 +1,6 @@
 ---
 import {
-	getTerm,
+	getTaxonomyTermsWithCacheHint,
 	getEmDashCollection,
 	getTermsForEntries,
 	decodeSlug,
@@ -10,18 +10,31 @@ import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
 const slug = decodeSlug(Astro.params.slug);
-const term = slug ? await getTerm("tag", slug, { includeCounts: false }) : null;
+const termsResult = await getTaxonomyTermsWithCacheHint("tag", {
+	includeCounts: false,
+});
+const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
 
 if (!term) {
 	return Astro.redirect("/404");
 }
 
-const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+const cursor = Astro.url.searchParams.get("cursor") || undefined;
+const {
+	entries: posts,
+	cacheHint,
+	nextCursor,
+} = await getEmDashCollection("posts", {
 	where: { tag: term.slug },
 	orderBy: { published_at: "desc" },
+	limit: 20,
+	cursor,
 });
 
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(termsResult.cacheHint);
+	Astro.cache.set(cacheHint);
+}
 
 // Single batched query for tags on every post tagged with this term,
 // rather than calling getEntryTerms() per post.
@@ -44,10 +57,6 @@ const filteredPosts = posts.map((post) => ({
 		<header class="archive-header">
 			<span class="archive-label">Tag</span>
 			<h1 class="archive-title">{term.label}</h1>
-			<p class="archive-count">
-				{filteredPosts.length}
-				{filteredPosts.length === 1 ? "post" : "posts"}
-			</p>
 		</header>
 
 		{
@@ -64,11 +73,24 @@ const filteredPosts = posts.map((post) => ({
 							date={post.data.publishedAt ?? undefined}
 							readingTime={getReadingTime(post.data.content)}
 							tags={tags.map((t) => ({ slug: t.slug, label: t.label }))}
+							edit={post.edit}
 						/>
 					))}
 				</div>
 			)
 		}
+		<nav class="pagination" aria-label="Pagination">
+			{cursor && <a href={`/tag/${term.slug}`}>First page</a>}
+			{
+				nextCursor && (
+					<a
+						href={`/tag/${term.slug}?cursor=${encodeURIComponent(nextCursor)}`}
+					>
+						Next page
+					</a>
+				)
+			}
+		</nav>
 	</section>
 </Base>
 
@@ -100,11 +122,6 @@ const filteredPosts = posts.map((post) => ({
 		font-weight: var(--font-weight-display);
 		letter-spacing: var(--tracking-tight);
 		margin-bottom: var(--spacing-2);
-	}
-
-	.archive-count {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
 	}
 
 	.posts-grid {

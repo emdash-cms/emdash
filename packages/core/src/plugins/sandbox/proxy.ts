@@ -124,6 +124,7 @@ export function createSandboxedPluginProxy(
 			settingsSchema: manifest.admin.settingsSchema,
 			portableTextBlocks: manifest.admin.portableTextBlocks,
 			fieldWidgets: manifest.admin.fieldWidgets,
+			mcp: manifest.mcp,
 		},
 	);
 }

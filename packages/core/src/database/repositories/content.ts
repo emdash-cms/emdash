@@ -5,7 +5,7 @@ import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
-import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
+import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
@@ -619,8 +619,15 @@ export class ContentRepository {
 	/**
 	 * Find content by id, including trashed (soft-deleted) items.
 	 * Used by restore endpoint for ownership checks.
+	 *
+	 * `deletedAt` rides along because the row is already in hand: a caller that
+	 * has to know whether the row is trashed before touching anything else would
+	 * otherwise pay a second read for a column this row already carries.
 	 */
-	async findByIdIncludingTrashed(type: string, id: string): Promise<ContentItem | null> {
+	async findByIdIncludingTrashed(
+		type: string,
+		id: string,
+	): Promise<(ContentItem & { deletedAt: string | null }) | null> {
 		const tableName = getTableName(type);
 
 		const result = await sql<Record<string, unknown>>`
@@ -633,7 +640,10 @@ export class ContentRepository {
 			return null;
 		}
 
-		return this.mapRow(type, row);
+		return {
+			...this.mapRow(type, row),
+			deletedAt: typeof row.deleted_at === "string" ? row.deleted_at : null,
+		};
 	}
 
 	/**
@@ -1019,7 +1029,12 @@ export class ContentRepository {
 		if (!existing) throw new EmDashValidationError("Content item not found");
 
 		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
-		const { _slug, ...snapshotFields } = normalizedSnapshot;
+		const { _slug } = normalizedSnapshot;
+		// Leading-underscore keys are staged metadata (`_slug`, `_references`), not columns.
+		const snapshotFields: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(normalizedSnapshot)) {
+			if (!key.startsWith("_")) snapshotFields[key] = value;
+		}
 		const fieldData = writableContentData(snapshotFields);
 		const revisionId = createRevisionId();
 		const now = new Date().toISOString();
@@ -2195,13 +2210,26 @@ export class ContentRepository {
 		return result.rows.map((row) => this.mapRow(type, row));
 	}
 
-	/** Whether any row of `translationGroup` exists, trashed rows included. */
-	async hasTranslationsIncludingTrashed(type: string, translationGroup: string): Promise<boolean> {
+	/**
+	 * Whether any row still shares `translationGroup`, trashed rows included.
+	 * Group-keyed satellite data (term assignments, reference edges) is owned by
+	 * the group, not by a single locale row, so a purge may only cascade to it
+	 * once nothing is left to own it — and a trashed sibling is still restorable.
+	 */
+	async hasTranslationsIncludingTrashed(
+		type: string,
+		translationGroup: string,
+		options: { excludeId?: string } = {},
+	): Promise<boolean> {
 		const tableName = getTableName(type);
+		// Asked before a row is deleted, "does anything else hold this group?"
+		// has to leave that row out of the answer.
+		const exclusion = options.excludeId ? sql`AND id != ${options.excludeId}` : sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT id FROM ${sql.ref(tableName)}
 			WHERE translation_group = ${translationGroup}
+			${exclusion}
 			LIMIT 1
 		`.execute(this.db);
 
@@ -2970,9 +2998,16 @@ export class ContentRepository {
 			.where("collection.slug", "=", type)
 			.where("field.slug", "in", fields)
 			.where("field.indexed", "=", 1)
-			.select(["field.slug", "field.type"])
+			.select(["field.slug", "field.type", "field.validation"])
 			.execute();
-		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
+		// `indexed` alone is not enough: a storage-less field has no column to
+		// filter on. A reference field bound to a relation after it was indexed can
+		// still carry the flag, and its column no longer receives writes.
+		const metadata = new Map(
+			rows
+				.filter((row) => !isStoragelessFieldRow(row))
+				.map((row) => [row.slug, row.type as FieldType]),
+		);
 
 		if (metadata.size === 0 && !(await this.collectionExists(type))) return [];
 

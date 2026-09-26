@@ -1,4 +1,4 @@
-import type { Block, Element, LinkElement } from "@emdash-cms/blocks/server";
+import type { ActionElement, Block } from "@emdash-cms/blocks/server";
 import {
 	CURRENT_PLUGIN_CAPABILITIES,
 	DEPRECATED_PLUGIN_CAPABILITIES,
@@ -157,6 +157,7 @@ const BLOCK_DECISIONS = {
 const ELEMENT_DECISIONS = {
 	button: "components",
 	link: "components",
+	menu: "components",
 	text_input: "components",
 	number_input: "components",
 	select: "components",
@@ -169,7 +170,7 @@ const ELEMENT_DECISIONS = {
 	repeater: "authoring-only",
 	media_picker: "field-widget",
 } as const satisfies Record<
-	Element["type"] | LinkElement["type"],
+	ActionElement["type"],
 	"components" | "authoring-only" | "field-widget"
 >;
 
@@ -246,11 +247,15 @@ describe("registry fixture capability inventory", () => {
 			new Set(
 				Object.entries(ELEMENT_DECISIONS)
 					.filter(
-						([type, decision]) => decision === "components" && type !== "button" && type !== "link",
+						([type, decision]) =>
+							decision === "components" && !["button", "link", "menu"].includes(type),
 					)
 					.map(([type]) => type),
 			),
 		);
+		const table = response.blocks.find((block) => block.type === "table");
+		if (!table || table.type !== "table") throw new Error("Component table was not rendered");
+		expect(table.rows[0]?.action).toMatchObject({ type: "menu", action_id: "row-action" });
 		const fields = response.blocks.find((block) => block.type === "fields");
 		if (!fields || fields.type !== "fields") throw new Error("Context fields were not rendered");
 		expect(fields.fields).toEqual(

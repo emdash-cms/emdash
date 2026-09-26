@@ -37,6 +37,7 @@ import { SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isTransferError, TransferError } from "../errors.js";
 import {
 	blocksFieldTypeSlugs,
+	referenceFieldRelationSlugs,
 	blockTypeVersionKey,
 	compareIds,
 	compareStreamOrder,
@@ -122,6 +123,7 @@ export const validationStateSchema = z.strictObject({
 					z.strictObject({
 						columnType: z.enum(["TEXT", "REAL", "INTEGER", "JSON"]),
 						required: z.boolean(),
+						storageless: z.boolean().optional(),
 					}),
 				]),
 			),
@@ -722,7 +724,9 @@ function groupIdOf(record: SitePackageRecord): string {
 }
 
 function nameKeyOf(record: SitePackageRecord): string | null {
-	if (record.kind === "collection" || record.kind === "block_type") return record.slug;
+	if (record.kind === "collection" || record.kind === "block_type" || record.kind === "relation") {
+		return record.slug;
+	}
 	if (record.kind === "menu") return record.name;
 	if (record.kind === "block_type_version") {
 		return blockTypeVersionKey(record.blockTypeId, record.version);
@@ -1015,6 +1019,7 @@ function collectRecordFacts(
 			fields.set(record.slug, {
 				columnType: record.columnType,
 				required: record.required === true,
+				storageless: referenceFieldRelationSlugs(record).length > 0,
 			});
 			state.fields.set(collectionSlug, fields);
 			return;
@@ -1172,27 +1177,44 @@ interface NestedReference {
 	targets: readonly RecordKind[];
 	by: ReferenceKey;
 	values: (record: SitePackageRecord) => string[];
+	/** A dangling value is a warning, not a blocker (see `KindReference.soft`). */
+	soft?: boolean;
 }
 
 /**
  * References that live inside a property rather than being one: the block
- * types a `blocks` field names in `validation`, and the version a block type
- * names as current.
+ * types a `blocks` field names in `validation`, the relation a bound
+ * `reference` field names there, and the version a block type names as
+ * current.
+ *
+ * A bound field's relation is soft because the origin does not keep it
+ * resolvable: deleting a relation leaves the fields bound to it in place.
  */
-const NESTED_REFERENCES: Partial<Record<RecordKind, NestedReference>> = {
-	field: {
-		property: "validation",
-		targets: ["block_type"],
-		by: "slug",
-		values: (record) => (record.kind === "field" ? blocksFieldTypeSlugs(record) : []),
-	},
-	block_type: {
-		property: "currentVersion",
-		targets: ["block_type_version"],
-		by: "name",
-		values: (record) =>
-			record.kind === "block_type" ? [blockTypeVersionKey(record.id, record.currentVersion)] : [],
-	},
+const NESTED_REFERENCES: Partial<Record<RecordKind, readonly NestedReference[]>> = {
+	field: [
+		{
+			property: "validation",
+			targets: ["block_type"],
+			by: "slug",
+			values: (record) => (record.kind === "field" ? blocksFieldTypeSlugs(record) : []),
+		},
+		{
+			property: "validation",
+			targets: ["relation"],
+			by: "slug",
+			values: (record) => (record.kind === "field" ? referenceFieldRelationSlugs(record) : []),
+			soft: true,
+		},
+	],
+	block_type: [
+		{
+			property: "currentVersion",
+			targets: ["block_type_version"],
+			by: "name",
+			values: (record) =>
+				record.kind === "block_type" ? [blockTypeVersionKey(record.id, record.currentVersion)] : [],
+		},
+	],
 };
 
 async function checkNestedReferences(
@@ -1201,29 +1223,33 @@ async function checkNestedReferences(
 	records: readonly ChunkRecord[],
 	path: string,
 ): Promise<void> {
-	const reference = NESTED_REFERENCES[kind];
-	if (!reference) return;
-	const owners = new Map<string, ChunkRecord[]>();
-	for (const item of records) {
-		for (const value of reference.values(item.record)) {
-			const list = owners.get(value) ?? [];
-			list.push(item);
-			owners.set(value, list);
+	for (const reference of NESTED_REFERENCES[kind] ?? []) {
+		const owners = new Map<string, ChunkRecord[]>();
+		for (const item of records) {
+			for (const value of reference.values(item.record)) {
+				const list = owners.get(value) ?? [];
+				list.push(item);
+				owners.set(value, list);
+			}
 		}
-	}
-	if (owners.size === 0) return;
-	const missing = await context.index.findMissing(reference.targets, reference.by, [
-		...owners.keys(),
-	]);
-	for (const value of missing) {
-		for (const item of owners.get(value) ?? []) {
-			addBlocker(context.state.issues, {
-				code: "dangling_reference",
-				message: "Reference does not resolve to a record in the package",
-				kind,
-				id: item.record.id,
-				detail: { property: reference.property, path, line: item.line },
-			});
+		if (owners.size === 0) continue;
+		const missing = await context.index.findMissing(reference.targets, reference.by, [
+			...owners.keys(),
+		]);
+		for (const value of missing) {
+			for (const item of owners.get(value) ?? []) {
+				const issue = {
+					message: "Reference does not resolve to a record in the package",
+					kind,
+					id: item.record.id,
+					detail: { property: reference.property, path, line: item.line },
+				};
+				if (reference.soft) {
+					addWarning(context.state.issues, { code: "soft_reference_dangling", ...issue });
+				} else {
+					addBlocker(context.state.issues, { code: "dangling_reference", ...issue });
+				}
+			}
 		}
 	}
 }

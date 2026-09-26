@@ -386,36 +386,37 @@ Sections give editors reusable Portable Text starting points. Add them when the 
 
 The setup wizard lets a user omit seeded entries, bylines, and taxonomy terms. Sections and the rest of the structural model are still applied.
 
-## Add custom Portable Text blocks
+## Add structured page blocks
 
 Use a [`blocks` field](/guides/blocks/) when the page itself is an ordered composition of typed sections. Use a custom Portable Text block when the object belongs inside a rich-text document and participates in its paragraph flow.
 
-If a theme needs a custom public renderer, add the block shape to seeded Portable Text and map its `_type` to an Astro component in the template. A seed does not register an editor UI for a new block type.
-
-The marketing template uses namespaced values such as `marketing.hero`. Its wrapper maps those values to Astro components:
+The marketing template seeds five retained block types and allows them in the Pages `content` field. Its wrapper maps every generated `_type` to an Astro component:
 
 ```astro title="src/components/MarketingBlocks.astro"
 ---
-import type { PortableTextBlock } from "emdash";
-import { PortableText } from "emdash/ui";
-import Hero from "./blocks/Hero.astro";
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import type { PageContentBlock } from "../../emdash-env";
+import FAQ from "./blocks/FAQ.astro";
 import Features from "./blocks/Features.astro";
+import Hero from "./blocks/Hero.astro";
+import Pricing from "./blocks/Pricing.astro";
+import Testimonials from "./blocks/Testimonials.astro";
 
-interface Props {
-  value: PortableTextBlock[];
-}
-
-const { value } = Astro.props;
-const marketingTypes = {
-  "marketing.hero": Hero,
-  "marketing.features": Features,
-};
+const components = defineBlockComponents<PageContentBlock>({
+  marketing_hero: Hero,
+  marketing_features: Features,
+  marketing_testimonials: Testimonials,
+  marketing_pricing: Pricing,
+  marketing_faq: FAQ,
+});
 ---
 
-<PortableText value={value} components={{ type: marketingTypes }} />
+<Blocks value={Astro.props.value} components={components} />
 ```
 
-Keep the data shape in the seed and the component props in sync. Give every Portable Text object a stable `_key` so the editor can address it reliably.
+The generated `PageContentBlock` union keeps the component map aligned with every allowed block type and retained version. Each seeded block value includes `_type`, `_version`, and a stable `_key`.
+
+Use a custom Portable Text block for an object that belongs between paragraphs, such as an embedded diagram in an article. Map that object through the `PortableText` component's `components.type` option. A seed can include the stored value, but a native plugin must register a custom editor for creating and editing that Portable Text object.
 
 Use a native plugin when the block needs a reusable custom editor and packaged rendering components. Sandboxed plugins cannot ship Astro rendering components into a site build.
 
@@ -433,7 +434,7 @@ Use a native plugin when the block needs a reusable custom editor and packaged r
 
 5. Open every route with seeded content, newly created content, no optional image, and an empty collection.
 
-6. Edit site settings, menus, taxonomy assignments, and Portable Text through the admin. Confirm the public routes use the changed values.
+6. Edit site settings, menus, taxonomy assignments, Portable Text, and blocks through the admin. For blocks, add, reorder, duplicate, and remove each allowed type. Confirm the public routes use the changed values.
 
 7. Apply the deployment-specific setup in a disposable environment and verify media storage, previews, and server rendering.
 

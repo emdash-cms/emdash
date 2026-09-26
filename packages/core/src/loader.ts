@@ -23,6 +23,7 @@ import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
+import { chunks, SQL_BATCH_SIZE } from "./utils/chunks.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
 const FIELD_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -64,6 +65,9 @@ const SEO_FOLDED_COLUMN = "_emdash_seo";
 /** Folded boolean field slugs used to restore SQLite integer values. */
 const BOOLEAN_FIELDS_FOLDED_COLUMN = "_emdash_boolean_fields";
 
+/** Rank of a row among its translation group's variants, in {@link loadEntriesByGroups}. */
+const VARIANT_RANK_COLUMN = "_emdash_variant_rank";
+
 /**
  * System columns excluded from entry.data
  * Note: slug is intentionally NOT excluded - it's useful as data.slug in templates
@@ -97,6 +101,7 @@ const SYSTEM_COLUMNS = new Set([
 	"_emdash_bylines_exist",
 	SEO_FOLDED_COLUMN,
 	BOOLEAN_FIELDS_FOLDED_COLUMN,
+	VARIANT_RANK_COLUMN,
 ]);
 
 /** Markers for byline/taxonomy hydration folded into the content query. */
@@ -567,6 +572,104 @@ function mapRowToData(
 	return data;
 }
 
+/**
+ * The entry id Astro addresses a row by: its slug, prefixed with the locale
+ * whenever i18n routing would prefix the URL. Shared by every path that builds
+ * a loader entry so a referenced entry carries the same id it would have been
+ * loaded under directly.
+ */
+function entryIdForRow(row: Record<string, unknown>): string {
+	const i18nConfig = virtualConfig?.i18n;
+	const slug = rowStr(row, "slug") || rowStr(row, "id");
+	const locale = rowStr(row, "locale");
+	const shouldPrefix =
+		i18nConfig &&
+		i18nConfig.locales.length > 1 &&
+		locale !== "" &&
+		(locale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
+	return shouldPrefix ? `${locale}/${slug}` : slug;
+}
+
+/** A loader entry as {@link emdashLoader} builds one, before the query layer wraps it. */
+export interface LoadedEntry {
+	id: string;
+	slug: string;
+	status: string;
+	data: Record<string, unknown>;
+	cacheHint: { tags: string[]; lastModified?: Date };
+}
+
+/**
+ * Load one locale variant of each translation group, in one query per
+ * `SQL_BATCH_SIZE` chunk of groups.
+ *
+ * A group's variant is the first of `localeChain` it has, or else its lowest
+ * locale code: a reference names a translation group, so a target that exists
+ * only outside the chain is still a real reference. Groups with no surviving
+ * variant are absent from the result.
+ *
+ * The rows go through the same {@link mapRowToData} as a direct entry load, so
+ * a referenced entry's `data` carries the same dates, booleans and normalized
+ * media values a caller would get from `getEmDashEntry`. Bylines and taxonomy
+ * terms are not hydrated; each would cost a correlated subquery per row.
+ */
+export async function loadEntriesByGroups(
+	type: string,
+	translationGroups: string[],
+	options: { publishedOnly?: boolean; localeChain?: readonly string[] } = {},
+): Promise<LoadedEntry[]> {
+	if (translationGroups.length === 0) return [];
+	const db = await getDb();
+	const tableName = getTableName(type);
+	const statusFilter = options.publishedOnly ? sql`AND status = ${"published"}` : sql``;
+	const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
+	const localeChain = options.localeChain ?? [];
+	const chainPosition =
+		localeChain.length > 0
+			? sql`CASE locale ${sql.join(
+					localeChain.map((locale, index) => sql`WHEN ${locale} THEN ${sql.lit(index)}`),
+					sql` `,
+				)} ELSE ${sql.lit(localeChain.length)} END,`
+			: sql``;
+
+	const entries: LoadedEntry[] = [];
+	try {
+		for (const chunk of chunks(translationGroups, SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM (
+					SELECT *, ${booleanFieldsSelect},
+						ROW_NUMBER() OVER (
+							PARTITION BY translation_group ORDER BY ${chainPosition} locale ASC
+						) AS ${sql.ref(VARIANT_RANK_COLUMN)}
+					FROM ${sql.ref(tableName)}
+					WHERE translation_group IN (${sql.join(chunk.map((group) => sql`${group}`))})
+					AND deleted_at IS NULL
+					${statusFilter}
+				) AS variants
+				WHERE ${sql.ref(VARIANT_RANK_COLUMN)} = 1
+				ORDER BY translation_group ASC
+			`.execute(db);
+			const booleanFields = parseFoldedBooleanFields(result.rows[0]);
+			for (const row of result.rows) {
+				entries.push({
+					id: entryIdForRow(row),
+					slug: rowStr(row, "slug"),
+					status: rowStr(row, "status", "draft"),
+					data: mapRowToData(row, booleanFields),
+					cacheHint: {
+						tags: [rowStr(row, "id")],
+						lastModified: row.updated_at ? new Date(rowStr(row, "updated_at")) : undefined,
+					},
+				});
+			}
+		}
+	} catch (error) {
+		if (isMissingTableError(error)) return [];
+		throw error;
+	}
+	return entries;
+}
+
 function parseFoldedBooleanFields(row: Record<string, unknown> | undefined): Set<string> {
 	const raw = row?.[BOOLEAN_FIELDS_FOLDED_COLUMN];
 	let values: unknown;
@@ -744,6 +847,48 @@ function isWhereRange(value: WhereValue): value is WhereRange {
 }
 
 /**
+ * Keys a `where` or `orderBy` can name that belong to the table rather than to
+ * a field. `slug` is one of them; {@link SYSTEM_COLUMNS} leaves it out because
+ * it is kept in `entry.data` for templates.
+ */
+const SYSTEM_QUERY_KEYS: ReadonlySet<string> = new Set([...SYSTEM_COLUMNS, "slug"]);
+
+/**
+ * The first of `keys` that names a reference field bound to a relation, or
+ * undefined.
+ *
+ * Such a field has no column: a `WHERE` on it fails with "no such column", which
+ * the catch below reads as an empty collection, and a field bound after its
+ * column existed answers from values it stopped writing. Both read to a template
+ * as "nothing matched", so the key has to be caught before the query is built.
+ *
+ * System columns are answered without a lookup, and the lookup itself is cached
+ * per request and in the schema object-cache namespace, so a render that filters
+ * by an ordinary field pays for this at most once between schema changes, and a
+ * render that filters by nothing never pays at all.
+ */
+async function findStoragelessQueryKey(
+	collection: string,
+	keys: string[],
+): Promise<string | undefined> {
+	const candidates = keys.filter((key) => !SYSTEM_QUERY_KEYS.has(key));
+	if (candidates.length === 0) return undefined;
+	const { getReferenceFieldMap } = await import("./references/field-map.js");
+	const bound = await getReferenceFieldMap(collection);
+	return candidates.find((key) => bound.has(key));
+}
+
+/**
+ * A boolean field owns an INTEGER column (`FIELD_TYPE_TO_COLUMN`) and its
+ * values are written as 0/1, so binding a native `true` against one is a type
+ * error on PostgreSQL. SQLite accepts the boolean and compares it as 1, which
+ * is why filtering by a boolean field only ever broke on one dialect.
+ */
+function bindableFilterValue(value: unknown): unknown {
+	return typeof value === "boolean" ? (value ? 1 : 0) : value;
+}
+
+/**
  * Build AND conditions for non-taxonomy field filters.
  * Returns an array of sql fragments; empty if no field filters apply.
  * Field names are validated against FIELD_NAME_PATTERN to prevent injection.
@@ -763,16 +908,19 @@ function buildFieldConditions(
 		const ref = tablePrefix ? sql.ref(`${tablePrefix}.${key}`) : sql.ref(key);
 
 		if (isWhereRange(value)) {
-			if (value.gt !== undefined) conditions.push(sql`${ref} > ${value.gt}`);
-			if (value.gte !== undefined) conditions.push(sql`${ref} >= ${value.gte}`);
-			if (value.lt !== undefined) conditions.push(sql`${ref} < ${value.lt}`);
-			if (value.lte !== undefined) conditions.push(sql`${ref} <= ${value.lte}`);
+			const { gt, gte, lt, lte } = value;
+			if (gt !== undefined) conditions.push(sql`${ref} > ${bindableFilterValue(gt)}`);
+			if (gte !== undefined) conditions.push(sql`${ref} >= ${bindableFilterValue(gte)}`);
+			if (lt !== undefined) conditions.push(sql`${ref} < ${bindableFilterValue(lt)}`);
+			if (lte !== undefined) conditions.push(sql`${ref} <= ${bindableFilterValue(lte)}`);
 		} else if (Array.isArray(value)) {
 			if (value.length > 0) {
-				conditions.push(sql`${ref} IN (${sql.join(value.map((v) => sql`${v}`))})`);
+				conditions.push(
+					sql`${ref} IN (${sql.join(value.map((v) => sql`${bindableFilterValue(v)}`))})`,
+				);
 			}
 		} else {
-			conditions.push(sql`${ref} = ${value}`);
+			conditions.push(sql`${ref} = ${bindableFilterValue(value)}`);
 		}
 	}
 
@@ -1303,6 +1451,19 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
+				const storagelessKey = await findStoragelessQueryKey(type, [
+					...Object.keys(fieldFilters),
+					...Object.keys(orderBy ?? {}),
+				]);
+				if (storagelessKey) {
+					const message = `Cannot filter or sort "${type}" by "${storagelessKey}": it is a reference field bound to a relation, and its links are not stored on the entry. Read them with getEmDashEntry(..., { references }) or getEmDashReferences().`;
+					// Warned as well as returned, the way the missing-column catch
+					// below warns: a template that renders `entries` without reading
+					// `error` would otherwise see the same empty list this replaced.
+					console.warn(`[emdash] where filter: ${message}`);
+					return { error: new Error(message) };
+				}
+
 				// A byline or taxonomy filter with no values matches nothing —
 				// short-circuit before building SQL (an empty `IN ()` is invalid
 				// SQL on both dialects).
@@ -1440,17 +1601,9 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
 
 				// Map rows to entries
-				const i18nConfig = virtualConfig?.i18n;
-				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
 				const booleanFields = parseFoldedBooleanFields(rows[0]);
 				const entries = rows.map((row) => {
-					const slug = rowStr(row, "slug") || rowStr(row, "id");
-					const rowLocale = rowStr(row, "locale");
-					const shouldPrefix =
-						i18nEnabled &&
-						rowLocale !== "" &&
-						(rowLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
-					const id = shouldPrefix ? `${rowLocale}/${slug}` : slug;
+					const id = entryIdForRow(row);
 					const data = mapRowToData(row, booleanFields);
 					stashFolded(data, row);
 					return {
@@ -1612,13 +1765,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				const i18nConfig = virtualConfig?.i18n;
 				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
-				const entrySlug = rowStr(row, "slug") || rowStr(row, "id");
-				const entryLocale = rowStr(row, "locale");
-				const shouldPrefixEntry =
-					i18nEnabled &&
-					entryLocale !== "" &&
-					(entryLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
-				const entryId = shouldPrefixEntry ? `${entryLocale}/${entrySlug}` : entrySlug;
+				const entryId = entryIdForRow(row);
 
 				// Preview mode: override content fields with revision data,
 				// keeping system metadata from the content table row.

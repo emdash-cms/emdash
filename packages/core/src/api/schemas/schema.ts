@@ -108,6 +108,20 @@ const fieldValidation = z
 			.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
+		// Reference fields: the picker targets a collection and may allow more
+		// than one entry. Without these keys Zod strips them and the create
+		// handler rejects the field for a missing target collection.
+		targetCollection: z.string().min(1).optional(),
+		multiple: z.boolean().optional(),
+		// Reference fields: bind to an existing relation instead of creating one,
+		// and say which of its ends this collection sits on.
+		relation: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(slugPattern, "Invalid relation slug format")
+			.optional(),
+		relationSide: z.enum(["parent", "child"]).optional(),
 		allowedTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
 		retiredTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
 	})

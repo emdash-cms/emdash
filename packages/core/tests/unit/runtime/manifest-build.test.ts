@@ -64,6 +64,7 @@ function buildRuntime(
 	db: Kysely<Database>,
 	config: EmDashConfig = {},
 	configuredPlugins: ResolvedPlugin[] = [],
+	sandboxEnabled = false,
 ): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline(configuredPlugins, pipelineFactoryOptions);
@@ -76,7 +77,7 @@ function buildRuntime(
 			throw new Error("createDialect not used in this test");
 		}) as any,
 		createStorage: null,
-		sandboxEnabled: false,
+		sandboxEnabled,
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 	};
@@ -425,6 +426,11 @@ describe("EmDashRuntime.getManifest()", () => {
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("reports whether the plugin sandbox is enabled", async () => {
+		expect((await buildRuntime(db).getManifest()).sandboxEnabled).toBe(false);
+		expect((await buildRuntime(db, {}, [], true).getManifest()).sandboxEnabled).toBe(true);
 	});
 
 	it("exposes configured saved-entry panels and actions to the admin", async () => {

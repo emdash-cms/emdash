@@ -450,7 +450,10 @@ export function MenuEditor() {
 			<ContentPickerModal
 				open={isContentPickerOpen}
 				onOpenChange={setIsContentPickerOpen}
-				onSelect={handleAddContent}
+				onConfirm={(rows) => {
+					const item = rows[0];
+					if (item) handleAddContent(item);
+				}}
 			/>
 
 			{i18n && i18n.locales.length > 1 && menu ? (

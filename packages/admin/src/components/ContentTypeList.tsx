@@ -26,13 +26,17 @@ import {
 	Warning,
 	Check,
 	DotsSixVertical,
+	LinkSimple,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { fetchRelations } from "../lib/api";
 import type { SchemaCollection, OrphanedTable } from "../lib/api";
 import { cn } from "../lib/utils";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { RelationImpact } from "./RelationImpact.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 /**
@@ -73,6 +77,17 @@ export function ContentTypeList({
 	const { t } = useLingui();
 	const [deleteTarget, setDeleteTarget] = React.useState<SchemaCollection | null>(null);
 	const hasOrphans = orphanedTables && orphanedTables.length > 0;
+
+	const { data: relations = [] } = useQuery({
+		queryKey: ["relations"],
+		queryFn: () => fetchRelations(),
+	});
+	const affectedRelations = deleteTarget
+		? relations.filter(
+				(rel) =>
+					rel.parentCollection === deleteTarget.slug || rel.childCollection === deleteTarget.slug,
+			)
+		: [];
 
 	// Optimistic order: the drop lands immediately, the server order takes
 	// over once the mutation invalidates the query.
@@ -118,9 +133,14 @@ export function ContentTypeList({
 						{t`Define the structure of your content`}
 					</p>
 				</div>
-				<RouterLinkButton to="/content-types/new" icon={<Plus />}>
-					{t`New Content Type`}
-				</RouterLinkButton>
+				<div className="flex items-center gap-2">
+					<RouterLinkButton to="/content-types/relations" variant="outline" icon={<LinkSimple />}>
+						{t`Relations`}
+					</RouterLinkButton>
+					<RouterLinkButton to="/content-types/new" icon={<Plus />}>
+						{t`New Content Type`}
+					</RouterLinkButton>
+				</div>
 			</div>
 
 			{/* Orphaned Tables Warning */}
@@ -243,7 +263,16 @@ export function ContentTypeList({
 						setDeleteTarget(null);
 					}
 				}}
-			/>
+			>
+				{affectedRelations.length > 0 && (
+					<div className="mt-4 rounded-md border border-kumo-danger/50 bg-kumo-danger-tint p-3">
+						<p className="text-sm font-medium">
+							{t`Every relationship this content type takes part in goes too:`}
+						</p>
+						<RelationImpact relations={affectedRelations} />
+					</div>
+				)}
+			</ConfirmDialog>
 		</div>
 	);
 }

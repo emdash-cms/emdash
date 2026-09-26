@@ -37,7 +37,7 @@ const EXPIRY_OPTIONS = [
 	{ value: "365d", label: msg`1 year` },
 ] as const;
 
-const API_TOKEN_SCOPE_VALUES: {
+export const API_TOKEN_SCOPE_VALUES: {
 	scope: ApiTokenScopeValue;
 	label: MessageDescriptor;
 	description: MessageDescriptor;

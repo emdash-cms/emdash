@@ -4,6 +4,8 @@
 
 const DEFAULT_REDIRECT = "/_emdash/admin";
 const LEADING_SLASHES = /^\/+/;
+// eslint-disable-next-line no-control-regex -- rejecting control characters is the whole point of this regex
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 
 export interface ContentUrlOptions {
 	locale?: string | null;
@@ -22,13 +24,19 @@ export interface ContentUrlOptions {
  * Sanitize a redirect URL to prevent open-redirect and javascript: XSS attacks.
  *
  * Only allows relative paths starting with `/`. Rejects protocol-relative
- * URLs (`//evil.com`), backslash tricks (`/\evil.com`), and non-path schemes
- * like `javascript:`.
+ * URLs (`//evil.com`), backslash tricks (`/\evil.com`), control characters
+ * (`/\t/evil.com` — browsers strip tab/CR/LF), and non-path schemes like
+ * `javascript:`.
  *
  * Returns the default admin URL when the input is unsafe.
  */
 export function sanitizeRedirectUrl(raw: string): string {
-	if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("\\")) {
+	if (
+		raw.startsWith("/") &&
+		!raw.startsWith("//") &&
+		!raw.includes("\\") &&
+		!CONTROL_CHARACTERS.test(raw)
+	) {
 		return raw;
 	}
 	return DEFAULT_REDIRECT;

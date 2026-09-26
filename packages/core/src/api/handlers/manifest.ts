@@ -7,8 +7,14 @@ import type { Kysely } from "kysely";
 import type { Database } from "../../database/types.js";
 import { expandCollectionBlockFields } from "../../schema/block-values.js";
 import { SchemaRegistry } from "../../schema/registry.js";
-import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
-import type { Field, FieldType } from "../../schema/types.js";
+import { isStoragelessField, MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import type {
+	CollectionWithFields,
+	Field,
+	FieldType,
+	FieldValidation,
+} from "../../schema/types.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import { hashString } from "../../utils/hash.js";
 import type {
 	FieldDescriptor,
@@ -136,12 +142,13 @@ export async function buildManifestCollections(
 		const dbCollections = await Promise.all(
 			storedCollections.map((collection) => expandCollectionBlockFields(db, collection)),
 		);
+		const cardinality = await relationCardinality(db, dbCollections);
 		for (const collection of dbCollections) {
 			if (manifestCollections[collection.slug]) continue;
 
 			const fields: Record<string, ManifestFieldDescriptor> = {};
 			for (const field of collection.fields) {
-				fields[field.slug] = dbFieldDescriptor(field);
+				fields[field.slug] = dbFieldDescriptor(field, cardinality);
 			}
 
 			const configuredListColumns = collection.admin?.listColumns ?? [];
@@ -273,7 +280,69 @@ function extractFieldType(name: string, schema: unknown): FieldDescriptor {
 	}
 }
 
-function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
+/** How many entries each end of a relation may hold. `null` is unlimited. */
+interface RelationCardinality {
+	maxChildrenPerParent: number | null;
+	maxParentsPerChild: number | null;
+}
+
+/**
+ * The limits of every relation a bound reference field names, by relation slug.
+ *
+ * Empty when nothing is bound, so a site with no reference fields never issues
+ * the query, and empty before migration 086 has created the table.
+ */
+async function relationCardinality(
+	db: Kysely<Database>,
+	collections: CollectionWithFields[],
+): Promise<Map<string, RelationCardinality>> {
+	if (!collections.some((collection) => collection.fields.some(isStoragelessField))) {
+		return new Map();
+	}
+	try {
+		const rows = await db
+			.selectFrom("_emdash_relations")
+			.select(["slug", "max_children_per_parent", "max_parents_per_child"])
+			.execute();
+		return new Map(
+			rows.map((row) => [
+				row.slug,
+				{
+					maxChildrenPerParent: row.max_children_per_parent,
+					maxParentsPerChild: row.max_parents_per_child,
+				},
+			]),
+		);
+	} catch (error) {
+		if (isMissingTableError(error)) return new Map();
+		throw error;
+	}
+}
+
+/**
+ * Whether the editor may select more than one entry for a bound reference
+ * field: the question the relation answers, from the end the field views.
+ *
+ * `validation.multiple` on the field row is a create-time input — it is what
+ * set the relation's limit — and the relation is what the write path enforces.
+ * Reading the field back would let the two disagree, which is what happens when
+ * a later edit rewrites the row's validation without it.
+ */
+function boundReferenceIsMultiple(
+	validation: FieldValidation,
+	cardinality: RelationCardinality,
+): boolean {
+	const max =
+		validation.relationSide === "child"
+			? cardinality.maxParentsPerChild
+			: cardinality.maxChildrenPerParent;
+	return max !== 1;
+}
+
+function dbFieldDescriptor(
+	field: Field,
+	cardinality: Map<string, RelationCardinality>,
+): ManifestFieldDescriptor {
 	const entry: ManifestFieldDescriptor = {
 		kind: field.unsupportedType ? "unsupported" : FIELD_TYPE_TO_KIND[field.type],
 		label: field.label,
@@ -298,7 +367,12 @@ function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 	}
 
 	if (field.validation) {
-		entry.validation = { ...field.validation };
+		const validation: Record<string, unknown> = { ...field.validation };
+		if (isStoragelessField(field) && field.validation.relation) {
+			const limits = cardinality.get(field.validation.relation);
+			if (limits) validation.multiple = boundReferenceIsMultiple(field.validation, limits);
+		}
+		entry.validation = validation;
 	}
 
 	return entry;

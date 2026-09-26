@@ -15,6 +15,8 @@ import {
 import type { SeedFile, SeedMenuItem, SeedTaxonomy, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
+/** Matches `SchemaRegistry.validateSlug`, which collection and field slugs go through. */
+const MAX_SLUG_LENGTH = 63;
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const REDIRECT_TYPES = new Set([301, 302, 307, 308]);
 const CRLF_PATTERN = /[\r\n]/;
@@ -278,13 +280,87 @@ export function validateSeed(data: unknown): ValidationResult {
 							errors.push(`${fieldPrefix}.indexed: must be a boolean`);
 						}
 
+						if (field.translatable !== undefined && typeof field.translatable !== "boolean") {
+							errors.push(`${fieldPrefix}.translatable: must be a boolean`);
+						}
+
 						if (!field.type) {
 							errors.push(`${fieldPrefix}: type is required`);
 						} else if (!(FIELD_TYPES as readonly string[]).includes(field.type)) {
 							errors.push(`${fieldPrefix}.type: unsupported field type "${field.type}"`);
 						} else if (field.indexed === true && !isIndexableFieldType(field.type)) {
 							errors.push(`${fieldPrefix}.indexed: type "${field.type}" cannot be indexed`);
+						} else if (
+							field.indexed === true &&
+							field.type === "reference" &&
+							typeof field.validation?.targetCollection === "string"
+						) {
+							// A targetCollection makes this field storage-less on apply: its
+							// selection becomes relation edges, leaving no column to index.
+							// Without one it stays a plain entry-id column, which can be.
+							errors.push(
+								`${fieldPrefix}.indexed: a reference field with a targetCollection stores no column to index`,
+							);
 						}
+					}
+				}
+			}
+		}
+	}
+
+	// Validate relations
+	if (seed.relations) {
+		if (!Array.isArray(seed.relations)) {
+			errors.push("relations must be an array");
+		} else {
+			const relationSlugs = new Set<string>();
+
+			for (let i = 0; i < seed.relations.length; i++) {
+				const relation = seed.relations[i];
+				const prefix = `relations[${i}]`;
+				if (!relation) continue;
+
+				if (!relation.slug) {
+					errors.push(`${prefix}: slug is required`);
+				} else {
+					if (!COLLECTION_FIELD_SLUG_PATTERN.test(relation.slug)) {
+						errors.push(
+							`${prefix}.slug: must start with a letter and contain only lowercase letters, numbers, and underscores`,
+						);
+					}
+					if (relation.slug.length > MAX_SLUG_LENGTH) {
+						errors.push(`${prefix}.slug: must be ${MAX_SLUG_LENGTH} characters or fewer`);
+					}
+					if (relationSlugs.has(relation.slug)) {
+						errors.push(`${prefix}.slug: duplicate relation slug "${relation.slug}"`);
+					}
+					relationSlugs.add(relation.slug);
+				}
+
+				for (const end of ["parentCollection", "childCollection"] as const) {
+					const value = relation[end];
+					if (!value) {
+						errors.push(`${prefix}: ${end} is required`);
+					} else if (!COLLECTION_FIELD_SLUG_PATTERN.test(value)) {
+						errors.push(`${prefix}.${end}: "${value}" is not a valid collection slug`);
+					}
+				}
+
+				for (const label of ["parentLabel", "childLabel"] as const) {
+					if (!relation[label]) errors.push(`${prefix}: ${label} is required`);
+				}
+				for (const label of ["parentLabelSingular", "childLabelSingular"] as const) {
+					const value = relation[label];
+					if (value !== undefined && typeof value !== "string") {
+						errors.push(`${prefix}.${label}: must be a string`);
+					}
+				}
+
+				for (const limit of ["maxChildrenPerParent", "maxParentsPerChild"] as const) {
+					const value = relation[limit];
+					if (value === undefined || value === null) continue;
+					if (!Number.isInteger(value) || value < 1) {
+						errors.push(`${prefix}.${limit}: must be a positive integer, or null for unlimited`);
 					}
 				}
 			}
@@ -637,8 +713,8 @@ export function validateSeed(data: unknown): ValidationResult {
 				}
 
 				// Validate source
-				if (section.source && !["theme", "import"].includes(section.source)) {
-					errors.push(`${prefix}.source: must be "theme" or "import"`);
+				if (section.source && !["theme", "user", "import"].includes(section.source)) {
+					errors.push(`${prefix}.source: must be "theme", "user", or "import"`);
 				}
 			}
 		}
