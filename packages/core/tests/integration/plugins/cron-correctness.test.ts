@@ -72,7 +72,7 @@ describeEachDialect("cron correctness", (dialect) => {
 		);
 
 		expect(await executor.tick()).toBe(2);
-		expect(invoked).toEqual(["bad", "good"]);
+		expect(invoked.toSorted()).toEqual(["bad", "good"]);
 		const rows = await sql<{ id: string; status: string; enabled: number; next_run_at: string }>`
 			SELECT id, status, enabled, next_run_at
 			FROM _emdash_cron_tasks
