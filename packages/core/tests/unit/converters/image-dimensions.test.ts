@@ -16,6 +16,7 @@ describe("Image dimension round-trip", () => {
 		height: 1080,
 		displayWidth: 400,
 		displayHeight: 225,
+		alignment: "center",
 	};
 
 	it("preserves displayWidth and displayHeight through PT → PM → PT", () => {
@@ -40,6 +41,27 @@ describe("Image dimension round-trip", () => {
 		expect(restored.height).toBe(1080);
 		expect(restored.caption).toBe("My caption");
 		expect(restored.title).toBe("Photo details");
+		expect(restored.alt).toBe("A photo");
+		expect(restored.alignment).toBe("center");
+	});
+
+	it("drops non-finite dimensions instead of serializing them", () => {
+		const [restored] = prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: {
+						src: "https://example.com/current.jpg",
+						displayWidth: Number.NaN,
+						displayHeight: Number.POSITIVE_INFINITY,
+					},
+				},
+			],
+		});
+
+		expect((restored as PortableTextImageBlock).displayWidth).toBeUndefined();
+		expect((restored as PortableTextImageBlock).displayHeight).toBeUndefined();
 	});
 
 	it("handles images without display dimensions", () => {

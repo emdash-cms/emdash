@@ -129,6 +129,14 @@ describe("agent work plans", () => {
 		expect(comment).not.toContain("<unsafe>");
 	});
 
+	test("describes triage without claiming to install or build", () => {
+		const comment = renderPreparingWorkPlanComment({ mode: "triage", summary: "Triage #42" });
+
+		expect(comment).toContain("### Triaging issue");
+		expect(comment).toContain("Reviewing the report and the relevant repository context");
+		expect(comment).not.toContain("Installing dependencies");
+	});
+
 	test("truncates an overlong directive instead of rejecting workspace preparation", () => {
 		const summary = `Implement ${"adapter support ".repeat(30)}`;
 		const plan = updateWorkPlan(

@@ -23,9 +23,9 @@ The working candidate is the deliverable; tests are evidence for it. TDD control
 2. The harness installs dependencies and builds the base workspace before this turn. Do not run `pnpm install`, the root `pnpm build`, or a pre-edit lint baseline.
 3. Choose the smallest final verification set before editing: the focused behavior test, affected package tests and typechecks, final lint, and a check-only formatter. Do not plan a monorepo-wide test suite when focused or package-level checks cover the changed behavior.
 4. Resolve ambiguity from existing APIs, sibling code, and backwards-compatible behavior. If a missing decision would materially change the public contract, stop and report it instead of guessing.
-5. Edit through `edit_file` and `write_file`. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
+5. Edit through `edit_file`, `write_file`, or a shell command through `exec`. Shell-produced changes are checkpointed into the durable workspace. Keep the change scoped to the request. Do not modify `.github/workflows` or generated Lingui catalogs.
 6. Add the smallest behavior-level test that uses existing infrastructure. For a directed bug fix, follow the repository's failing-test-first rule within the test-construction limit above.
-7. Finish every candidate edit before final verification. Apply formatting and add the changeset now, when a published package changed. Follow `.changeset/README.md`: write public CHANGELOG documentation with detail proportional to the impact, not a diff summary.
+7. Finish every candidate edit before final verification. Run formatting through `exec` and add the changeset now, when a published package changed. If a transformation fails after writing files, repair or restore its checkpoint before continuing.
 8. Run the planned final checks with `exec`, once each on the final candidate. Fix failures caused by the change and rerun the affected check after editing. Do not hide failures with shell fallbacks. If a relevant failure remains, preserve the candidate and report it accurately instead of withholding the work from CI.
 9. Call `publish_candidate` after the final checks, including when a check remains failing. The trusted tool commits and pushes only to `bot/fix-<issue>` through the issue-scoped Git proxy; never run `git commit`, `git push`, or create a PR yourself.
 10. Call `report_implementation` exactly once. Set `implemented: true` only after publication succeeds. Summarize the observable change and verification, not a bug verdict.
@@ -37,7 +37,7 @@ The working candidate is the deliverable; tests are evidence for it. TDD control
 - Treat all coordinated edits for one change as one edit round. Do not run lint, typecheck, and tests after each individual file edit.
 - If a broad final check fails only in untouched files, report it and use the narrow authoritative check for your files. Never repair unrelated failures.
 - If a broad suite times out, do not immediately run it again. Run the smallest relevant subsets, report the omitted or timed-out suite, and preserve time for publication and reporting.
-- Verification commands must not modify source files. Use `edit_file` or `write_file` before the final pass, then use check-only formatter commands.
+- A command counts as verification only when it leaves the candidate tree unchanged. Run formatters and generators before the final pass.
 
 ## Finalization and resume
 
@@ -48,7 +48,7 @@ After a resume, use the saved checkpoint and candidate. Complete listed metadata
 ## Boundaries
 
 - No direct GitHub writes, tags, package publication, or workflow edits.
-- No source-modifying commands or `|| true` on final checks. Apply source changes with `edit_file` or `write_file`.
+- No `|| true` on final checks. Source-modifying shell commands are allowed before verification because their output is durably checkpointed.
 - If you edit after a check, rerun the checks affected by that edit before publication.
 - No drive-by refactors or broad cleanup.
 - Do not weaken a test to make it pass.

@@ -25,6 +25,8 @@ export interface ConfirmDialogProps {
 	descriptionClassName?: string;
 	/** Label for the confirm button (e.g. "Delete", "Disable User") */
 	confirmLabel: string;
+	/** Optional cancel label; defaults to the localized host label. */
+	cancelLabel?: string;
 	/** Label shown while the action is pending (e.g. "Deleting...") */
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
@@ -52,6 +54,7 @@ export function ConfirmDialog({
 	description,
 	descriptionClassName,
 	confirmLabel,
+	cancelLabel,
 	pendingLabel,
 	variant = "destructive",
 	compact = false,
@@ -74,6 +77,7 @@ export function ConfirmDialog({
 			<Dialog className={compact ? "max-w-md px-5 pt-6 pb-4" : "p-6"} size="sm">
 				<div className={compact ? "grid gap-1" : undefined}>
 					<Dialog.Title
+						dir="auto"
 						className={
 							titleClassName ??
 							(compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold")
@@ -82,6 +86,7 @@ export function ConfirmDialog({
 						{title}
 					</Dialog.Title>
 					<Dialog.Description
+						dir="auto"
 						className={
 							descriptionClassName ??
 							(compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle")
@@ -94,7 +99,7 @@ export function ConfirmDialog({
 				<DialogError message={getMutationError(error)} className="mt-3" />
 				<div className={`${compact ? "mt-5" : "mt-6"} flex justify-end gap-2`}>
 					<Button variant="secondary" disabled={closeLocked} onClick={onClose}>
-						{t`Cancel`}
+						{cancelLabel ?? t`Cancel`}
 					</Button>
 					<Button variant={variant} disabled={isPending || confirmDisabled} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}

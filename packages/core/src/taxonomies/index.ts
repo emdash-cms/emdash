@@ -12,6 +12,11 @@
 
 import { sql, type Kysely } from "kysely";
 
+import { taxonomyTag } from "../cache/chrome-tags.js";
+import {
+	parseTaxonomyCollections,
+	selectTaxonomyDefs,
+} from "../database/repositories/taxonomy-def.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getI18nConfig } from "../i18n/config.js";
@@ -24,6 +29,7 @@ import {
 	invalidateTaxonomyObjectCache,
 	isObjectCacheActive,
 } from "../object-cache/index.js";
+import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
@@ -99,7 +105,8 @@ export function invalidateTermCache(): void {
 }
 
 /**
- * Worker-isolate cache for taxonomy definitions, keyed by resolved locale.
+ * Worker-isolate cache for taxonomy definitions: every locale's rows, resolved
+ * per locale in memory.
  *
  * Taxonomy *definitions* (the "category"/"tag" taxonomies themselves, not
  * their terms) are read on every public render that hydrates entry terms —
@@ -123,8 +130,8 @@ export function invalidateTermCache(): void {
  */
 interface TaxonomyDefsHolder {
 	version: number;
-	/** locale key ("*" for "all locales") → { version it was fetched at, promise }. */
-	cache: Map<string, { version: number; promise: Promise<TaxonomyDef[]> }>;
+	/** The rows and the version they were fetched at. */
+	cache: Map<"all", { version: number; promise: Promise<TaxonomyDef[]> }>;
 }
 
 const TAXONOMY_DEFS_CACHE_KEY = Symbol.for("emdash:taxonomy-defs");
@@ -162,118 +169,103 @@ export function resetTaxonomyDefsCacheForTests(): void {
 	defsHolder.cache.clear();
 }
 
-/**
- * Fetch taxonomy definitions straight from the database (no caching).
- */
-async function fetchTaxonomyDefs(locale: string | undefined): Promise<TaxonomyDef[]> {
+/** Every locale's definition rows, straight from the database (no caching). */
+async function fetchTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 	const db = await getDb();
-	let query = db.selectFrom("_emdash_taxonomy_defs").selectAll();
-	if (locale !== undefined) query = query.where("locale", "=", locale);
-	const rows = await query.execute();
+	const rows = await selectTaxonomyDefs(db)
+		.orderBy("d.name", "asc")
+		.orderBy("d.locale", "asc")
+		.execute();
 	return rows.map(rowToTaxonomyDef);
 }
 
 /**
- * Resolve taxonomy defs through the isolate fallback cache, bypassing it for
- * isolated databases. The returned promise is cached (not the resolved value)
- * so concurrent cold-isolate readers share one in-flight query; a rejection
- * evicts the entry so the next caller retries.
+ * Resolve the definition rows through the isolate fallback cache, bypassing it
+ * for isolated databases. The returned promise is cached (not the resolved
+ * value) so concurrent cold-isolate readers share one in-flight query; a
+ * rejection evicts the entry so the next caller retries.
  */
-function loadTaxonomyDefs(localeKey: string, locale: string | undefined): Promise<TaxonomyDef[]> {
+function loadTaxonomyDefRows(): Promise<TaxonomyDef[]> {
 	if (getRequestContext()?.dbIsIsolated === true) {
-		return fetchTaxonomyDefs(locale);
+		return fetchTaxonomyDefRows();
 	}
-	const existing = defsHolder.cache.get(localeKey);
+	const existing = defsHolder.cache.get("all");
 	if (existing && existing.version === defsHolder.version) {
 		return existing.promise;
 	}
 	const version = defsHolder.version;
-	const promise = fetchTaxonomyDefs(locale).catch((error: unknown) => {
-		const current = defsHolder.cache.get(localeKey);
+	const promise = fetchTaxonomyDefRows().catch((error: unknown) => {
+		const current = defsHolder.cache.get("all");
 		if (current && current.promise === promise) {
-			defsHolder.cache.delete(localeKey);
+			defsHolder.cache.delete("all");
 		}
 		throw error;
 	});
-	defsHolder.cache.set(localeKey, { version, promise });
+	defsHolder.cache.set("all", { version, promise });
 	return promise;
 }
 
 /**
- * Get every taxonomy definition. Definitions are per-locale (one row per
- * locale inside the same translation_group) — by default we resolve to the
- * active locale.
- *
- * Two-tier cache: per-request via `requestCached` (so a single render that
- * hydrates terms for several collections pays at most one call), then
- * per-isolate via the global holder (so warm renders issue zero queries).
- * The `requestCached` key is unchanged so `getTaxonomyDef`'s peek still hits.
+ * Every locale's definition rows. Two-tier cache: per-request via
+ * `requestCached`, then the object cache when configured, else the isolate
+ * holder, so warm renders issue zero queries whatever locale they ask for.
  */
-export async function getTaxonomyDefs(options: TaxonomyQueryOptions = {}): Promise<TaxonomyDef[]> {
-	const locale = resolveLocale(options.locale);
-	const localeKey = locale ?? "*";
-	return requestCached(`taxonomy-defs:${localeKey}`, async () => {
+function getTaxonomyDefRows(): Promise<TaxonomyDef[]> {
+	return requestCached("taxonomy-def-rows", async () => {
 		if (await isObjectCacheActive()) {
 			return cachedQuery({
 				namespace: CacheNamespace.TAXONOMIES,
-				key: `defs:${localeKey}`,
-				load: () => fetchTaxonomyDefs(locale),
+				key: "defRows",
+				load: fetchTaxonomyDefRows,
 			});
 		}
-		return loadTaxonomyDefs(localeKey, locale);
+		return loadTaxonomyDefRows();
 	});
 }
 
 /**
- * Get a single taxonomy definition by name. Uses the fallback chain so even
- * if there is no translation for the active locale we still return something.
- *
- * If `getTaxonomyDefs()` has already loaded the full list in this request
- * (which happens during entry-term hydration on every page that renders a
- * collection), search the matching def in memory rather than running a
- * second query against `_emdash_taxonomy_defs`.
+ * One definition per taxonomy, in the first locale of `chain` that has one.
+ * A taxonomy with no definition anywhere on the chain still resolves, to its
+ * default-locale row or else its lowest locale: its structure is the same in
+ * every locale, and only the label falls back.
+ */
+function resolveDefs(rows: readonly TaxonomyDef[], chain: readonly string[]): TaxonomyDef[] {
+	const defaultLocale = getI18nConfig()?.defaultLocale;
+	const preference = defaultLocale === undefined ? chain : [...chain, defaultLocale];
+	const byName = new Map<string, TaxonomyDef>();
+	for (const row of rows) {
+		const current = byName.get(row.name);
+		if (!current || rank(row.locale) < rank(current.locale)) byName.set(row.name, row);
+	}
+	return [...byName.values()];
+
+	function rank(locale: string): number {
+		const index = preference.indexOf(locale);
+		return index === -1 ? preference.length : index;
+	}
+}
+
+/**
+ * Get every taxonomy definition, one per taxonomy, labelled for the active
+ * locale (see `resolveDefs` for the fallback).
+ */
+export async function getTaxonomyDefs(options: TaxonomyQueryOptions = {}): Promise<TaxonomyDef[]> {
+	const chain = resolveLocaleChain(options.locale);
+	return requestCached(`taxonomy-defs:${chain.join(",")}`, async () =>
+		resolveDefs(await getTaxonomyDefRows(), chain),
+	);
+}
+
+/**
+ * Get a single taxonomy definition by name, labelled for the active locale.
+ * Resolves whenever the taxonomy is defined in any locale (see `resolveDefs`).
  */
 export async function getTaxonomyDef(
 	name: string,
 	options: TaxonomyQueryOptions = {},
 ): Promise<TaxonomyDef | null> {
-	const chain = resolveLocaleChain(options.locale);
-	const peekKey = `taxonomy-defs:${resolveLocale(options.locale) ?? "*"}`;
-	const allDefs = peekRequestCache<TaxonomyDef[]>(peekKey);
-	if (allDefs) {
-		const defs = await allDefs;
-		if (chain.length === 0) return defs.find((d) => d.name === name) ?? null;
-		for (const locale of chain) {
-			const found = defs.find((d) => d.name === name && d.locale === locale);
-			if (found) return found;
-		}
-		return null;
-	}
-
-	return requestCached(`taxonomy-def:${name}:${chain.join(",")}`, async () => {
-		const db = await getDb();
-
-		if (chain.length === 0) {
-			const row = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
-				.where("name", "=", name)
-				.orderBy("locale", "asc")
-				.executeTakeFirst();
-			return row ? rowToTaxonomyDef(row) : null;
-		}
-
-		for (const locale of chain) {
-			const row = await db
-				.selectFrom("_emdash_taxonomy_defs")
-				.selectAll()
-				.where("name", "=", name)
-				.where("locale", "=", locale)
-				.executeTakeFirst();
-			if (row) return rowToTaxonomyDef(row);
-		}
-		return null;
-	});
+	const defs = await getTaxonomyDefs(options);
+	return defs.find((def) => def.name === name) ?? null;
 }
 
 /**
@@ -316,6 +308,20 @@ export async function getTaxonomyTerms(
 		getVisibleTermCounts(def.name, def.collections, locale),
 	]);
 	return withCounts(terms, counts);
+}
+
+/**
+ * Get all terms of a taxonomy with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * a taxonomy facet can be purged automatically when taxonomy terms change.
+ */
+export async function getTaxonomyTermsWithCacheHint(
+	taxonomyName: string,
+	options: TaxonomyTermsOptions = {},
+): Promise<{ data: TaxonomyTerm[]; cacheHint: CacheHint }> {
+	const data = await getTaxonomyTerms(taxonomyName, options);
+	return { data, cacheHint: { tags: [taxonomyTag(taxonomyName)] } };
 }
 
 /** Terms without counts, under the cache keys the layout prefetch warms. */
@@ -396,8 +402,7 @@ function getVisibleTermCounts(
 	collections: string[],
 	locale?: string,
 ): Promise<Map<string, number>> {
-	// The collection scope is part of the key: per-locale rows of the same def
-	// can drift in their declared collections, and a caller may pass a narrower
+	// The collection scope is part of the key: a caller may pass a narrower
 	// scope. Identical inputs (the widget + term-page hot path) still share one
 	// entry.
 	const scope = [...new Set(collections)].toSorted().join(",");
@@ -420,23 +425,37 @@ function getVisibleTermCounts(
  * Get a single term by (taxonomy, slug). Honours the fallback chain — if the
  * slug exists in a fallback locale, we return that row (useful for deep-linking
  * to a term page when the translation is missing).
+ *
+ * The term row and its visible-entry count are loaded and cached separately: the
+ * row depends only on the taxonomy epoch, while the count adds an aggregate over
+ * the whole assignment pivot and every counted collection's content epoch. A
+ * caller that renders no count passes `includeCounts: false` and skips it.
  */
 export async function getTerm(
 	taxonomyName: string,
 	slug: string,
-	options: TaxonomyQueryOptions = {},
+	options: TaxonomyTermsOptions = {},
 ): Promise<TaxonomyTerm | null> {
 	const chain = resolveLocaleChain(options.locale);
-	// The def supplies the collections the visible count is scoped to. It is
-	// resolved before cachedQuery so the entry lives under each collection's
-	// content namespace — publishing or unpublishing an entry invalidates the
-	// embedded count (see termCountNamespaces).
-	const def = await getTaxonomyDef(taxonomyName, options);
-	const collections = def?.collections ?? [];
+	const term = await getTermRow(taxonomyName, slug, chain);
+	if (!term) return null;
+	if (options.includeCounts === false) return term;
+
+	const collections = (await getTaxonomyDef(taxonomyName, options))?.collections ?? [];
+	const counts = await getVisibleTermCounts(taxonomyName, collections, chain[0] ?? term.locale);
+	return { ...term, count: counts.get(term.translationGroup ?? term.id) ?? 0 };
+}
+
+/** A single term with its children, without counts, under the taxonomy epoch. */
+function getTermRow(
+	taxonomyName: string,
+	slug: string,
+	chain: string[],
+): Promise<TaxonomyTerm | null> {
 	return cachedQuery({
-		namespace: termCountNamespaces(collections),
+		namespace: CacheNamespace.TAXONOMIES,
 		key: `term:${taxonomyName}:${slug}:${chain.join(",")}`,
-		load: () => loadTerm(taxonomyName, slug, chain, collections),
+		load: () => loadTerm(taxonomyName, slug, chain),
 	});
 }
 
@@ -444,7 +463,6 @@ async function loadTerm(
 	taxonomyName: string,
 	slug: string,
 	chain: string[],
-	collections: string[],
 ): Promise<TaxonomyTerm | null> {
 	const db = await getDb();
 
@@ -479,15 +497,7 @@ async function loadTerm(
 	const termLocale = row.locale;
 	if (termLocale) childrenQuery = childrenQuery.where("locale", "=", termLocale);
 
-	// The visible-usage counts and children queries both depend only on the
-	// term row, so run them concurrently to save a round trip on remote
-	// databases. The counts map is request-cached per taxonomy — on a page
-	// that also renders the taxonomy widget it's a free Map lookup.
-	const [counts, childRows] = await Promise.all([
-		getVisibleTermCounts(taxonomyName, collections, chain[0] ?? row.locale),
-		childrenQuery.execute(),
-	]);
-	const count = counts.get(row.translation_group ?? row.id) ?? 0;
+	const childRows = await childrenQuery.execute();
 
 	const children = childRows.map<TaxonomyTerm>((child) => ({
 		id: child.id,
@@ -508,7 +518,6 @@ async function loadTerm(
 		parentId: row.parent_id ?? undefined,
 		description: row.data ? JSON.parse(row.data).description : undefined,
 		children,
-		count,
 		locale: row.locale,
 		translationGroup: row.translation_group,
 	};
@@ -835,7 +844,7 @@ function rowToTaxonomyDef(row: {
 		label: row.label,
 		labelSingular: row.label_singular ?? undefined,
 		hierarchical: row.hierarchical === 1,
-		collections: row.collections ? JSON.parse(row.collections) : [],
+		collections: parseTaxonomyCollections(row.collections),
 		locale: row.locale,
 		translationGroup: row.translation_group,
 	};

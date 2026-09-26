@@ -6,6 +6,12 @@
 	// runtime. Request handling uses stable Web Platform APIs.
 	"compatibility_date": "2026-05-14",
 	"compatibility_flags": ["nodejs_compat"],
+	"routes": [
+		{
+			"pattern": "releases.emdashcms.com",
+			"custom_domain": true,
+		},
+	],
 	"analytics_engine_datasets": [
 		{
 			"binding": "OPERATIONS_METRICS",
@@ -104,13 +110,13 @@
 		],
 	},
 	"vars": {
-		"PUBLIC_ORIGIN": "https://emdash-release-service.emdash-cms.workers.dev",
+		"PUBLIC_ORIGIN": "https://releases.emdashcms.com",
 		"DEPLOYMENT_ID": "emdash-release-service-production",
 		"ACCESS_TEAM_DOMAIN": "https://cf-emdash-cms.cloudflareaccess.com",
 		"ACCESS_VIEWER_AUD": "9e94dcee531107093096e1aff1a1fe7df68f93fc599c1ee8282ed76d70fd568c",
 		"ACCESS_REVIEWER_AUD": "b282de16228e3c42a0aa41d3aba8478d79d1987e37a7b5778f628552581ad8f6",
 		"ACCESS_ADMIN_AUD": "[\"a53a97932d4d07decf44e727abfe0c1c9d85412c62b5e55669148d5d2296338c\",\"1a4f3f6eba0fb3c3cdfcc3f77f6e5f4a0e4af2e0f7efe31ef12fb077e7cccc64\",\"54c4eec8766ebf5ade4c9e9c95cd8e2cadfcf441850bb56f34bfe097acd68ac0\",\"4a68acabdd10af19b45d7d6bf6623aa7a18b4407999f0b769b3371ab256c292f\"]",
-		"OAUTH_REDIRECT_URIS": "[\"https://emdash-release-service.emdash-cms.workers.dev/oauth/callback\"]",
+		"OAUTH_REDIRECT_URIS": "[\"https://releases.emdashcms.com/oauth/callback\"]",
 	},
 	"secrets": {
 		"required": ["OAUTH_ASSERTION_KEYSET", "ENCRYPTION_KEYRING"],

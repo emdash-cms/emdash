@@ -24,6 +24,22 @@ Repo operations against the publisher's own PDS: `putRecord`, `uploadBlob`, `get
 
 The interactive OAuth flow lives in the CLI, not here. This module accepts a pre-built atproto fetch handler (typically from `@atcute/oauth-node-client`) and wraps it with operations scoped to atproto repo NSIDs.
 
+### Delegated releases (`@emdash-cms/registry-client/release-service`)
+
+Typed clients and resource shapes for the delegated release service:
+
+- `ReleaseServiceClient` covers GitHub OIDC workflow connections, staged artifact uploads, release intents, publisher sessions, passkey approvals, and publisher dashboard requests.
+- `ReleaseServiceOperatorClient` covers Cloudflare Access-protected status, directory, pause, suspension, reconciliation, encryption, archive, and restore operations.
+- `ReleaseServiceError` exposes the stable service or client code, public-safe message, HTTP status, and retryable classification.
+
+The client does not exchange GitHub OIDC for AT Protocol authority. Workload methods request a fresh token through the caller-provided `workloadToken` function; the release service holds its separate create-only publisher delegation.
+
+Follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the standard CLI and GitHub Actions flow.
+
+### Direct PDS reads (`@emdash-cms/registry-client/direct-pds`)
+
+`DirectPdsClient` verifies package profiles and releases against repository proofs and the signing key in the publisher's DID document. The release service uses it to bind workflow and approval decisions to authoritative profile and release revisions.
+
 ### Discovery (`@emdash-cms/registry-client/discovery`)
 
 Read-only XRPC client over an aggregator. No authentication. Used by the CLI (`emdash-plugin search`, `emdash-plugin info`) and the EmDash admin UI's install flow.

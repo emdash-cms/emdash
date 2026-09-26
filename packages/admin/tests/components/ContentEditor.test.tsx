@@ -1,15 +1,16 @@
 import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { userEvent } from "vitest/browser";
+import { userEvent, type Locator } from "vitest/browser";
 
 import {
 	ContentEditor,
 	type FieldDescriptor,
 	type ContentEditorProps,
 } from "../../src/components/ContentEditor";
-import { fetchBylines } from "../../src/lib/api";
+import { fetchBylines, fetchReferenceChildren } from "../../src/lib/api";
 import type { BylineSummary, ContentItem } from "../../src/lib/api";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
@@ -111,6 +112,7 @@ vi.mock("../../src/lib/api", async () => {
 		...actual,
 		getPreviewUrl: vi.fn().mockResolvedValue({ url: "https://example.com/preview" }),
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchReferenceChildren: vi.fn(async () => ({ children: [] })),
 	};
 });
 
@@ -303,6 +305,39 @@ describe("ContentEditor", () => {
 		}
 	});
 
+	it("makes an entry read-only when its schema contains an unsupported field type", async () => {
+		vi.useFakeTimers();
+		try {
+			const onSave = vi.fn();
+			const onAutosave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "My Post", layout: { columns: 2 } } }),
+				fields: {
+					title: { kind: "string", label: "Title" },
+					layout: {
+						kind: "unsupported",
+						label: "Layout",
+						unsupportedType: { type: "future_blocks", path: "type" },
+					},
+				},
+				onSave,
+				onAutosave,
+			});
+
+			await expect.element(screen.getByRole("alert")).toHaveTextContent("future_blocks");
+			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
+			expect(screen.getByLabelText("Layout").query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			expect(onSave).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("uses one label and spacing rhythm across editor field types", async () => {
 		const screen = await renderEditor({
 			isNew: false,
@@ -398,9 +433,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 
 				// Closing the block panel restores the sheet's prior (closed) state.
 				close();
@@ -439,13 +472,11 @@ describe("ContentEditor", () => {
 				expect(backdrop?.classList.contains("pointer-events-none") ?? true).toBe(true);
 
 				// Exiting DF with the panel still active surfaces it in the sheet.
-				document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+				await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 			} finally {
 				media.restore();
 			}
@@ -469,9 +500,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.not.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 			} finally {
 				media.restore();
 			}
@@ -699,8 +728,10 @@ describe("ContentEditor", () => {
 
 			// Filename should be visible
 			await expect.element(screen.getByText("report.pdf")).toBeInTheDocument();
-			// Change button present (picker is wired up)
-			await expect.element(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Remove Attachment" }))
+				.toHaveTextContent("Remove");
 		});
 
 		it("renders 0-byte file size instead of hiding it", async () => {
@@ -1027,6 +1058,130 @@ describe("ContentEditor", () => {
 		});
 	});
 
+	describe("field constraints", () => {
+		it("caps string fields at maxLength and counts characters against it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "Hello" } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(input).toHaveAttribute("maxlength", "160");
+			await expect.element(screen.getByText("5 of 160 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "Hello world");
+			await expect.element(screen.getByText("11 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags string content that already exceeds maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "x".repeat(170) } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("170 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags a cleared field against minLength, not an untouched one", async () => {
+			const screen = await renderEditor({
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { minLength: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "short");
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.clear(input);
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+		});
+
+		it("caps text fields at maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { body: "Some markdown" } }),
+				fields: {
+					body: { kind: "richText", label: "Body", validation: { maxLength: 500 } },
+				},
+			});
+			const textarea = screen.getByLabelText("Body");
+			await expect.element(textarea).toHaveAttribute("maxlength", "500");
+			await expect.element(screen.getByText("13 of 500 characters")).toBeInTheDocument();
+		});
+
+		it("shows the allowed range on number fields and flags values outside it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { rating: 12 } }),
+				fields: {
+					rating: { kind: "number", label: "Rating", validation: { min: 1, max: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Rating", { exact: true });
+			await expect.element(input).toHaveAttribute("min", "1");
+			await expect.element(input).toHaveAttribute("max", "10");
+			await expect.element(screen.getByText("Between 1 and 10")).toBeInTheDocument();
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.fill(input, "7");
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+		});
+
+		it("renders no hint when a field declares no bounds", async () => {
+			const screen = await renderEditor({
+				fields: { title: { kind: "string", label: "Title" } },
+			});
+			const input = screen.getByLabelText("Title");
+			await expect.element(input).not.toHaveAttribute("maxlength");
+			expect(screen.container.textContent).not.toContain("characters");
+		});
+
+		it("passes the field's validation to plugin field widgets", async () => {
+			const seen: unknown[] = [];
+			const pluginAdmins: PluginAdmins = {
+				counter: {
+					fields: {
+						limited: ({ validation }: { validation?: Record<string, unknown> }) => {
+							seen.push(validation);
+							return <div data-testid="limited-widget" />;
+						},
+					},
+				},
+			};
+			const screen = await render(
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						isNew
+						onSave={vi.fn()}
+						fields={{
+							summary: {
+								kind: "string",
+								label: "Summary",
+								widget: "counter:limited",
+								validation: { maxLength: 160 },
+							},
+						}}
+					/>
+				</PluginAdminProvider>,
+			);
+			await expect.element(screen.getByTestId("limited-widget")).toBeInTheDocument();
+			expect(seen[0]).toEqual({ maxLength: 160 });
+		});
+	});
+
 	describe("saving", () => {
 		it("save form calls onSave with formData including slug", async () => {
 			const onSave = vi.fn();
@@ -1109,7 +1264,7 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
 
-			await expect.element(screen.getByText("No byline is shown on this post.")).toBeVisible();
+			await expect.element(screen.getByRole("button", { name: "Choose bylines" })).toBeVisible();
 			await expect.element(screen.getByText("Owner Profile")).not.toBeInTheDocument();
 			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
 		});
@@ -1430,21 +1585,27 @@ describe("ContentEditor", () => {
 			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
 		});
 
-		it("shows Publish button for draft items", async () => {
+		it("shows Publish now for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish now", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
-		it("publish button calls onPublish", async () => {
+		it("publish button confirms before calling onPublish", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
+			const publishBtn = screen.getByRole("button", { name: "Publish now", exact: true });
 			await publishBtn.click();
-			expect(onPublish).toHaveBeenCalled();
+			expect(onPublish).not.toHaveBeenCalled();
+			screen
+				.getByRole("dialog", { name: "Publish now?" })
+				.getByRole("button", { name: "Publish now", exact: true })
+				.element()
+				.click();
+			expect(onPublish).toHaveBeenCalledOnce();
 		});
 
 		it("shows Preview in normal mode when previews are supported", async () => {
@@ -1462,7 +1623,9 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
-				const publishButtons = screen.getByRole("button", { name: "Publish", exact: true }).all();
+				const publishButtons = screen
+					.getByRole("button", { name: "Publish now", exact: true })
+					.all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
 			} finally {
@@ -1670,11 +1833,39 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it("links live translated content to its locale-prefixed path", async () => {
+			const item = makeItem({
+				status: "published",
+				locale: "pl",
+				liveRevisionId: "rev-1",
+				draftRevisionId: "rev-1",
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				i18n: {
+					defaultLocale: "en",
+					locales: ["en", "pl"],
+					prefixDefaultLocale: false,
+				},
+				supportsDrafts: true,
+			});
+
+			await expect
+				.element(screen.getByRole("link", { name: "Live View" }))
+				.toHaveAttribute("href", "/pl/posts/my-post");
+		});
+
 		it("keeps actions reachable when crossing from mobile to desktop layout", async () => {
 			const media = installMatchMedia(true);
 			try {
 				const item = makeItem({ status: "draft" });
-				const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+				const screen = await renderEditor({
+					isNew: false,
+					item,
+					supportsPreview: true,
+					onPublish: vi.fn(),
+				});
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect
@@ -1687,7 +1878,7 @@ describe("ContentEditor", () => {
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
 				await expect
-					.element(screen.getByRole("button", { name: "Publish", exact: true }))
+					.element(screen.getByRole("button", { name: "Publish now", exact: true }))
 					.toBeVisible();
 			} finally {
 				media.restore();
@@ -1737,6 +1928,40 @@ describe("ContentEditor", () => {
 	});
 
 	describe("distraction-free mode", () => {
+		function dispatchDistractionFreeShortcut() {
+			document.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "\\",
+					shiftKey: true,
+					// `mod` maps to Ctrl on Linux/Windows and Cmd on macOS; firing both
+					// modifiers keeps the test deterministic across Playwright hosts.
+					ctrlKey: true,
+					metaKey: true,
+					bubbles: true,
+				}),
+			);
+		}
+
+		function getMainForm() {
+			return document.querySelector("form");
+		}
+
+		function isDistractionFree() {
+			return getMainForm()?.classList.toString().includes("fixed") ?? false;
+		}
+
+		it("toggles in and out with the advertised keyboard shortcut", async () => {
+			await renderEditor({ isNew: true });
+
+			expect(isDistractionFree()).toBe(false);
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(true));
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(false));
+		});
+
 		it("keeps the normal editor width and field chrome", async () => {
 			const screen = await renderEditor({
 				fields: {
@@ -1746,17 +1971,22 @@ describe("ContentEditor", () => {
 				},
 			});
 
+			const initialImagePicker = screen
+				.getByRole("button", { name: /browse for Featured image/i })
+				.element();
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
 
 			const titleInput = screen.getByLabelText("Title").element();
-			const imagePicker = screen.getByRole("button", { name: "Select image" }).element();
+			const imagePicker = screen
+				.getByRole("button", { name: /browse for Featured image/i })
+				.element();
 			const portableTextEditor = screen.getByTestId("portable-text-editor").element();
 			const editorCanvas = portableTextEditor.closest(".mx-auto");
 
 			expect(editorCanvas).toHaveClass("max-w-3xl");
 			expect(editorCanvas).not.toHaveClass("max-w-4xl");
 			expect(titleInput).not.toHaveClass("px-0", "text-lg");
-			expect(imagePicker).toHaveClass("bg-kumo-control");
+			expect(imagePicker).toBe(initialImagePicker);
 			expect(portableTextProps.current?.minimal).not.toBe(true);
 			expect(portableTextProps.current?.className).toContain("bg-kumo-control");
 			expect(portableTextProps.current?.className).toContain("focus-within:ring-kumo-focus/50");
@@ -1774,6 +2004,7 @@ describe("ContentEditor", () => {
 				item,
 				supportsDrafts: true,
 				supportsPreview: true,
+				onUnpublish: vi.fn(),
 			});
 
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
@@ -1797,7 +2028,7 @@ describe("ContentEditor", () => {
 			expect(heading.parentElement?.querySelector("button")).toBeNull();
 		});
 
-		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
+		it("keeps the editor canvas and distraction-free header on the elevated surface", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const form = document.querySelector("form");
 
@@ -1810,15 +2041,6 @@ describe("ContentEditor", () => {
 			const header = heading.parentElement?.parentElement;
 			expect(form).toHaveClass("bg-kumo-elevated");
 			expect(header).toHaveClass("bg-kumo-elevated/95");
-			expect(header).toHaveClass(
-				"start-0",
-				"end-0",
-				"mx-auto",
-				"w-[calc(100%-4rem)]",
-				"max-w-3xl",
-				"py-4",
-			);
-			expect(header).not.toHaveClass("start-8", "end-8", "w-full", "p-4");
 		});
 
 		it("toggle adds fixed class for distraction-free mode", async () => {
@@ -1831,23 +2053,23 @@ describe("ContentEditor", () => {
 			expect(form?.classList.toString()).toContain("fixed");
 		});
 
-		it("escape exits distraction-free mode", async () => {
+		it("does not exit distraction-free mode with Escape", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
 			await enterBtn.click();
 
 			// Verify we're in distraction-free mode
-			let form = document.querySelector("form");
-			expect(form?.classList.toString()).toContain("fixed");
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 
 			// Press Escape
 			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-			// Wait for the state to update
-			await vi.waitFor(() => {
-				form = document.querySelector("form");
-				expect(form?.classList.toString()).not.toContain("fixed");
-			});
+			// Wait long enough that any errant state update would have been applied.
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Escape is reserved for other actions on the Posts page and must not
+			// leave distraction-free mode.
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 		});
 
 		it("keeps Live View available in distraction-free mode", async () => {
@@ -1865,88 +2087,159 @@ describe("ContentEditor", () => {
 			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
 
-		it("preserves settings panel state across a distraction-free round trip", async () => {
-			// The panel is hidden, not unmounted, in distraction-free mode —
-			// otherwise panel-local state (an open scheduler, a typed date)
-			// is silently destroyed by the toggle.
-			const item = makeItem({ status: "draft" });
-			const screen = await renderEditor({ isNew: false, item, onSchedule: vi.fn() });
-
-			await screen.getByRole("button", { name: "Schedule for later" }).click();
-			const scheduleInput = screen.getByLabelText("Schedule for");
-			await scheduleInput.fill("2026-08-01T10:00");
+		it("keeps scheduling available in distraction-free mode", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onSchedule: vi.fn(),
+			});
 
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			// Hidden while writing. Stylesheets aren't loaded in vitest browser
-			// mode, so assert the class hook (like the other DF tests) rather
-			// than computed visibility.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(true);
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const schedule = [...(actionContainer?.querySelectorAll("button") ?? [])].find(
+				(action) => action.textContent?.trim() === "Schedule",
+			);
+			expect(schedule).toBeInstanceOf(HTMLButtonElement);
+			schedule?.click();
+
+			await expect
+				.element(screen.getByRole("dialog", { name: "Schedule publication" }))
+				.toBeVisible();
+		});
+
+		it("keeps scheduled-entry actions available in distraction-free mode", async () => {
+			const onUnschedule = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				onSchedule: vi.fn(),
+				onUnschedule,
 			});
 
-			await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
-			// …and still open with the typed date after exiting.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(false);
-			});
-			await expect.element(screen.getByLabelText("Schedule for")).toHaveValue("2026-08-01T10:00");
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const actions = [...(actionContainer?.querySelectorAll("button") ?? [])];
+			const changeSchedule = actions.find(
+				(action) => action.textContent?.trim() === "Change schedule",
+			);
+			const removeSchedule = actions.find(
+				(action) => action.textContent?.trim() === "Remove schedule",
+			);
+
+			expect(changeSchedule).toBeInstanceOf(HTMLButtonElement);
+			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
+			removeSchedule?.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
 		});
 	});
 
 	describe("scheduler", () => {
-		it("shows scheduler when Schedule for later is clicked", async () => {
-			const item = makeItem({ status: "draft" });
-			const onSchedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onSchedule });
-
-			const scheduleBtn = screen.getByRole("button", { name: "Schedule for later" });
-			await scheduleBtn.click();
-
-			// Should now show the datetime input
-			await expect.element(screen.getByLabelText("Schedule for")).toBeInTheDocument();
-			// And a Schedule submit button
-			await expect.element(screen.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
-		});
-
-		it("shows Publish button for scheduled items", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
+		it("keeps draft scheduling separate from confirmed publishing", async () => {
 			const onPublish = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish });
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onPublish,
+				onSchedule: vi.fn(),
+			});
+			const publish = screen.getByRole("button", { name: "Publish now", exact: true });
+			const schedule = screen.getByRole("button", { name: "Schedule" });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
-			await expect.element(publishBtn).toBeInTheDocument();
+			await expect.element(publish).not.toHaveAttribute("aria-haspopup", "menu");
+			await schedule.click();
+			expect(onPublish).not.toHaveBeenCalled();
+			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
+			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("combobox", { name: "Period" })).toBeInTheDocument();
+			expect(dialog.element().querySelector('input[type="time"]')).toBeNull();
+			expect(dialog.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
+			expect(dialog.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
 		});
 
-		it("publish button on scheduled item calls onPublish", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
+		it("labels schedule and publish actions for live draft changes", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				supportsDrafts: true,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+			});
+
+			await expect
+				.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+				.toBeInTheDocument();
+			await screen.getByRole("button", { name: "Schedule" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+			await expect
+				.element(dialog.getByText("Choose when these changes replace the live version."))
+				.toBeVisible();
+		});
+
+		it("keeps scheduled management in one two-button row", async () => {
+			const onUnschedule = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule,
+			});
+			const changeSchedule = screen.getByRole("button", { name: "Change schedule" });
+			const removeSchedule = screen.getByRole("button", { name: "Remove schedule" });
+
+			expect(changeSchedule.element().parentElement).toBe(removeSchedule.element().parentElement);
+			await changeSchedule.click();
+			const dialog = screen.getByRole("dialog", { name: "Change schedule" });
+			await expect.element(dialog).toBeVisible();
+			dialog.getByRole("button", { name: "Cancel" }).element().click();
+			await vi.waitFor(() => expect(dialog.query()).toBeNull());
+			await removeSchedule.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
+		});
+
+		it("confirms immediate publication of a scheduled item", async () => {
 			const onPublish = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish });
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" }),
+				onPublish,
+				onSchedule: vi.fn(),
+			});
 
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
-			await publishBtn.click();
-			expect(onPublish).toHaveBeenCalled();
+			await screen.getByRole("button", { name: "Publish now", exact: true }).click();
+			expect(onPublish).not.toHaveBeenCalled();
+			const dialog = screen.getByRole("dialog", { name: "Publish now?" });
+			await expect
+				.element(dialog.getByText("This removes the schedule and publishes immediately."))
+				.toBeVisible();
+			dialog.getByRole("button", { name: "Publish now", exact: true }).element().click();
+			expect(onPublish).toHaveBeenCalledOnce();
 		});
 
-		it("shows Unschedule button in sidebar for scheduled items", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const onUnschedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onUnschedule });
+		it("blocks immediate publishing while a schedule change is pending", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00Z" }),
+				isUnscheduling: true,
+				onPublish,
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
 
-			// Unschedule should be in the sidebar, not in the header
-			const unscheduleBtn = screen.getByRole("button", { name: "Unschedule" });
-			await expect.element(unscheduleBtn).toBeInTheDocument();
-		});
-
-		it("unschedule button calls onUnschedule", async () => {
-			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const onUnschedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onUnschedule });
-
-			const unscheduleBtn = screen.getByRole("button", { name: "Unschedule" });
-			await unscheduleBtn.click();
-			expect(onUnschedule).toHaveBeenCalled();
+			const publish = screen.getByRole("button", { name: "Publish now", exact: true });
+			await expect.element(publish).toBeDisabled();
+			await publish.click({ force: true });
+			expect(screen.getByRole("dialog", { name: "Publish now?" }).query()).toBeNull();
+			expect(onPublish).not.toHaveBeenCalled();
 		});
 	});
 
@@ -2225,6 +2518,590 @@ describe("ContentEditor", () => {
 			});
 
 			await expect.element(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+		});
+	});
+
+	describe("reference field paging", () => {
+		const RELATION = "rel-group-1";
+
+		const referenceFields: Record<string, FieldDescriptor> = {
+			title: { kind: "string", label: "Title" },
+			related: {
+				kind: "reference",
+				label: "Related",
+				validation: { relation: RELATION, targetCollection: "posts", multiple: true },
+			},
+		};
+
+		/**
+		 * An entry whose hydrated first page leaves a second page to auto-load.
+		 * Keyed by field slug, as the server hydrates it; the paging request
+		 * addresses the relation the field names.
+		 */
+		function itemWithPendingPage(): ContentItem {
+			return makeItem({
+				data: { title: "Hello" },
+				references: {
+					related: {
+						children: [
+							{ id: "c-1", slug: "one", title: "One", locale: "en", translationGroup: "g-1" },
+						],
+						nextCursor: "cursor-1",
+					},
+				},
+			});
+		}
+
+		async function renderWithFailedPage() {
+			vi.mocked(fetchReferenceChildren).mockRejectedValue(new Error("network"));
+			const screen = await renderEditor({
+				isNew: false,
+				item: itemWithPendingPage(),
+				fields: referenceFields,
+			});
+			await expect.element(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+			return screen;
+		}
+
+		it("offers a retry instead of spinning forever when a page fails", async () => {
+			const screen = await renderWithFailedPage();
+
+			await expect.element(screen.getByText("Couldn't load all references.")).toBeInTheDocument();
+			expect(screen.getByText("Loading references...").query()).toBeNull();
+		});
+
+		it("retries the same cursor and recovers the field", async () => {
+			const screen = await renderWithFailedPage();
+			const before = vi.mocked(fetchReferenceChildren).mock.calls.length;
+
+			vi.mocked(fetchReferenceChildren).mockResolvedValue({
+				children: [
+					{
+						id: "c-2",
+						slug: "second-entry",
+						title: "Two",
+						locale: "en",
+						translationGroup: "g-2",
+					} as never,
+				],
+			});
+
+			await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+			await expect.element(screen.getByText("Two")).toBeInTheDocument();
+			const calls = vi.mocked(fetchReferenceChildren).mock.calls;
+			expect(calls.length).toBeGreaterThan(before);
+			// The failed page must be re-requested, not skipped past, and addressed
+			// by the relation the field names.
+			expect(calls[before]?.[2]).toBe(RELATION);
+			expect(calls[before]?.[3]).toEqual({ cursor: "cursor-1" });
+			expect(screen.getByText("Couldn't load all references.").query()).toBeNull();
+		});
+
+		it("re-enables editing once the retried page lands", async () => {
+			const screen = await renderWithFailedPage();
+			await expect.element(screen.getByRole("button", { name: "Add reference" })).toBeDisabled();
+
+			vi.mocked(fetchReferenceChildren).mockResolvedValue({ children: [] });
+			await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+			await expect.element(screen.getByRole("button", { name: "Add reference" })).toBeEnabled();
+		});
+
+		it("autosaves a reference change made after a rejected autosave", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const onAutosave = vi.fn();
+				const item = makeItem({
+					data: { title: "Hello" },
+					references: {
+						related: {
+							children: [
+								{ id: "c-1", slug: "one", title: "One", locale: "en", translationGroup: "g-1" },
+							],
+						},
+					},
+				});
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: referenceFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				await screen.getByLabelText("Title").fill("Rejected");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				// The selection is the only thing that changes now. The rejected
+				// payload is not what this save would send, so it has to go out —
+				// otherwise the edit is stuck in the editor until a field changes.
+				await screen.getByRole("button", { name: "Remove One" }).click();
+				await vi.advanceTimersByTimeAsync(2000);
+
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({ references: { related: [] } }),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+	});
+
+	describe("reference field requiredness", () => {
+		function referenceField(required: boolean): Record<string, FieldDescriptor> {
+			return {
+				title: { kind: "string", label: "Title" },
+				related: {
+					kind: "reference",
+					label: "Related",
+					required,
+					validation: { relation: "rel-group-1", targetCollection: "posts", multiple: true },
+				},
+			};
+		}
+
+		it("says a required reference field needs an entry while none is selected", async () => {
+			const screen = await renderEditor({ fields: referenceField(true) });
+
+			await expect.element(screen.getByText("Select at least one entry.")).toBeInTheDocument();
+		});
+
+		it("marks an optional reference field the way every other field is marked", async () => {
+			const screen = await renderEditor({ fields: referenceField(false) });
+
+			await expect.element(screen.getByText("(optional)")).toBeInTheDocument();
+			expect(screen.getByText("Select at least one entry.").query()).toBeNull();
+		});
+	});
+
+	describe("reference field that predates relations", () => {
+		// No relation means the field still owns a column holding one entry id, so
+		// it keeps the text input it had before reference pickers existed.
+		const legacyFields: Record<string, FieldDescriptor> = {
+			title: { kind: "string", label: "Title" },
+			author: { kind: "reference", label: "Author", options: { collection: "authors" } },
+		};
+
+		it("edits its stored entry id in a text input", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Hello", author: "author-entry-id" } }),
+				fields: legacyFields,
+				onSave,
+			});
+
+			const input = screen.getByLabelText("Author");
+			await expect.element(input).toHaveValue("author-entry-id");
+
+			await userEvent.fill(input, "another-entry-id");
+			await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+			expect(onSave).toHaveBeenCalled();
+			expect(onSave.mock.calls[0]?.[0]?.data).toMatchObject({ author: "another-entry-id" });
+		});
+
+		it("points at the schema editor instead of claiming it is misconfigured", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Hello", author: "author-entry-id" } }),
+				fields: legacyFields,
+			});
+
+			await expect
+				.element(screen.getByText(/Set a target collection under Content Types/))
+				.toBeInTheDocument();
+		});
+	});
+
+	describe("edit lock read-only mode", () => {
+		it("does not accept edits while another editor holds the entry", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				readOnly: true,
+			});
+
+			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
+			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+		});
+
+		it("stops autosaving as soon as the entry is taken away", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item: makeItem(),
+					onSave: vi.fn(),
+					onAutosave,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				await screen.getByLabelText("Title").fill("Half-typed title");
+				await screen.rerender(<ContentEditor {...props} readOnly />);
+
+				await vi.advanceTimersByTimeAsync(5000);
+
+				expect(onAutosave).not.toHaveBeenCalled();
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("retries a refused autosave once the entry is taken back", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item: makeItem(),
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				await screen.getByLabelText("Title").fill("Typed before the take-over");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} readOnly />,
+				);
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ title: "Typed before the take-over" }),
+					}),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("keeps the entry editable when nobody else holds it", async () => {
+			const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+			await expect.element(screen.getByLabelText("Title")).not.toBeDisabled();
+		});
+
+		// `disabled` on a fieldset does not reach a contenteditable, so the rich
+		// text editor has to be told separately.
+		it("stops the rich text editor accepting input in read-only", async () => {
+			await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				fields: { content: { kind: "portableText", label: "Content" } },
+				readOnly: true,
+			});
+
+			expect(portableTextProps.current?.editable).toBe(false);
+		});
+
+		it("can still leave distraction-free mode while the entry is read-only", async () => {
+			const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
+
+			const enter = screen.getByRole("button", { name: "Enter distraction-free mode" });
+			await expect.element(enter).not.toBeDisabled();
+			await enter.click();
+
+			const exit = screen.getByRole("button", { name: "Exit distraction-free mode" });
+			await expect.element(exit).not.toBeDisabled();
+		});
+
+		it("does not offer to save over a newer version while the entry is read-only", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				hasSaveConflict: true,
+				readOnly: true,
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Save anyway" })).toBeDisabled();
+		});
+
+		it("offers to save over a newer version when the entry is not locked", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				hasSaveConflict: true,
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Save anyway" })).not.toBeDisabled();
+		});
+	});
+
+	it("leaves the rich text editor writable when the entry is not locked", async () => {
+		await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: { content: { kind: "portableText", label: "Content" } },
+		});
+
+		expect(portableTextProps.current?.editable).toBe(true);
+	});
+
+	describe("stored value that is not a list", () => {
+		type Screen = Awaited<ReturnType<typeof renderEditor>>;
+		const repeaterField: FieldDescriptor = {
+			kind: "repeater",
+			label: "Highlights",
+			validation: { subFields: [{ slug: "caption", type: "string", label: "Caption" }] },
+		};
+		const addFirstItem = (s: Screen) =>
+			s.getByRole("button", { name: "Add First Item", exact: true });
+		const cases: Array<{ kind: string; field: FieldDescriptor; widget: (s: Screen) => Locator }> = [
+			{ kind: "repeater", field: repeaterField, widget: addFirstItem },
+			{
+				kind: "portableText",
+				field: { kind: "portableText", label: "Highlights" },
+				widget: (s) => s.getByTestId("portable-text-editor"),
+			},
+			{
+				kind: "multiSelect",
+				field: {
+					kind: "multiSelect",
+					label: "Highlights",
+					options: [{ value: "news", label: "News" }],
+				},
+				widget: (s) => s.getByRole("checkbox", { name: "News" }),
+			},
+			{
+				kind: "blocks",
+				field: { kind: "blocks", label: "Highlights", blockTypes: [] },
+				widget: (s) => s.getByText("No blocks yet"),
+			},
+		];
+
+		function renderWithStoredValue(field: FieldDescriptor, stored: unknown, onSave = vi.fn()) {
+			return renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "My Post", highlights: stored } }),
+				fields: { title: { kind: "string", label: "Title" }, highlights: field },
+				onSave,
+			});
+		}
+
+		it.each(cases)(
+			"keeps a $kind field's stored value through an unrelated edit and save",
+			async ({ field, widget }) => {
+				const onSave = vi.fn();
+				const screen = await renderWithStoredValue(field, "First\nSecond", onSave);
+
+				await expect.element(screen.getByLabelText("Highlights")).toHaveValue("First\nSecond");
+				expect(widget(screen).query()).toBeNull();
+
+				await screen.getByLabelText("Title").fill("Changed title");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ title: "Changed title", highlights: "First\nSecond" }),
+					}),
+				);
+			},
+		);
+
+		it.each(cases)(
+			"replaces a $kind field's stored value only through the replace action",
+			async ({ field, widget }) => {
+				const onSave = vi.fn();
+				const screen = await renderWithStoredValue(field, "First\nSecond", onSave);
+
+				await screen.getByRole("button", { name: "Replace with empty list" }).click();
+				await expect.element(widget(screen)).toBeVisible();
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({ data: expect.objectContaining({ highlights: [] }) }),
+				);
+			},
+		);
+
+		it("shows a stored object read-only as JSON", async () => {
+			const screen = await renderWithStoredValue(repeaterField, { caption: "First" });
+
+			await expect
+				.element(screen.getByLabelText("Highlights"))
+				.toHaveValue('{\n  "caption": "First"\n}');
+			expect(addFirstItem(screen).query()).toBeNull();
+		});
+
+		it("opens a blank stored string as an empty list", async () => {
+			const screen = await renderWithStoredValue(repeaterField, "  ");
+
+			await expect.element(addFirstItem(screen)).toBeVisible();
+			expect(screen.getByRole("button", { name: "Replace with empty list" }).query()).toBeNull();
+		});
+	});
+
+	describe("autosave race with repeater sub-field", () => {
+		it("does not overwrite a sub-field input with a stale autosave payload", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				gallery: {
+					kind: "repeater",
+					label: "Gallery",
+					validation: {
+						subFields: [{ slug: "caption", type: "string", label: "Caption" }],
+					},
+				},
+			};
+
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { gallery: [] } }),
+				fields,
+				onAutosave: vi.fn(),
+				supportsDrafts: true,
+			});
+
+			await screen.getByRole("button", { name: "Add First Item", exact: true }).click();
+			const caption = screen.getByRole("textbox", { name: "Caption" });
+			await expect.element(caption).toBeVisible();
+			await caption.fill("Mobile view of the dashboard");
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={fields}
+					isNew={false}
+					item={makeItem({ data: { gallery: [{ caption: "Mobile view" }] } })}
+					onSave={vi.fn()}
+					onAutosave={vi.fn()}
+					supportsDrafts={true}
+					autosaveCompletionToken={1}
+				/>,
+			);
+
+			await expect.element(caption).toHaveValue("Mobile view of the dashboard");
+		});
+	});
+
+	describe("autosave race with blocks", () => {
+		it("preserves newer nested edits, order, keys, and versions", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				layout: {
+					kind: "blocks",
+					label: "Layout",
+					validation: { allowedTypes: ["hero"], retiredTypes: [] },
+					blockTypes: [
+						{
+							id: "hero-type",
+							slug: "hero",
+							label: "Hero",
+							currentVersion: 2,
+							source: "user",
+							createdAt: "2026-01-01T00:00:00.000Z",
+							updatedAt: "2026-01-01T00:00:00.000Z",
+							versions: [
+								{
+									id: "hero-v1",
+									blockTypeId: "hero-type",
+									version: 1,
+									fields: [{ slug: "heading", label: "Heading", type: "string" }],
+									fingerprint: "one",
+									active: false,
+									createdAt: "2026-01-01T00:00:00.000Z",
+									updatedAt: "2026-01-01T00:00:00.000Z",
+								},
+								{
+									id: "hero-v2",
+									blockTypeId: "hero-type",
+									version: 2,
+									fields: [{ slug: "heading", label: "Heading", type: "string" }],
+									fingerprint: "two",
+									active: true,
+									createdAt: "2026-01-01T00:00:00.000Z",
+									updatedAt: "2026-01-01T00:00:00.000Z",
+								},
+							],
+						},
+					],
+				},
+			};
+			const initialBlocks = [
+				{ _type: "hero", _version: 1, _key: "first", heading: "First" },
+				{ _type: "hero", _version: 2, _key: "second", heading: "Second" },
+			];
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { layout: initialBlocks } }),
+				fields,
+				onAutosave: vi.fn(),
+				supportsDrafts: true,
+			});
+
+			const headings = screen.getByRole("textbox", { name: "Heading" }).all();
+			await headings[0]!.fill("First, edited again");
+			const firstHandle = screen.getByRole("button", { name: "Reorder Hero" }).first().element();
+			firstHandle.focus();
+			await userEvent.keyboard("{Space}");
+			await userEvent.keyboard("{ArrowDown}");
+			await userEvent.keyboard("{Space}");
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={fields}
+					isNew={false}
+					item={makeItem({ data: { layout: initialBlocks } })}
+					onSave={vi.fn()}
+					onAutosave={vi.fn()}
+					supportsDrafts={true}
+					autosaveCompletionToken={1}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("textbox", { name: "Heading" }).all()[1]!)
+				.toHaveValue("First, edited again");
+			expect(
+				Array.from(document.querySelectorAll<HTMLElement>("[data-block-key]"), (element) => [
+					element.dataset.blockKey,
+					element.textContent?.includes("Version 2") ? 2 : 1,
+				]),
+			).toEqual([
+				["second", 2],
+				["first", 1],
+			]);
 		});
 	});
 });

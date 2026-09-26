@@ -11,13 +11,16 @@ import {
 	rmSync,
 	writeFileSync,
 } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { promisify, stripVTControlCharacters } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
 
 interface PackageManifest {
@@ -45,6 +48,9 @@ const execAsync = promisify(execFile);
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const STARTUP_TIMEOUT_MS = 180_000;
 const INSTALL_TIMEOUT_MS = 600_000;
+const INJECTED_ROUTE_TIMEOUT_MS = 30_000;
+const INJECTED_ROUTE_REQUEST_TIMEOUT_MS = 5_000;
+const PAGE_REQUEST_TIMEOUT_MS = 30_000;
 const PLATFORM_CASES: PlatformCase[] = [
 	{
 		id: "node",
@@ -147,12 +153,34 @@ function parseCatalog(): Map<string, string> {
 	return catalog;
 }
 
-function consumerEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
-	const environment = { ...process.env, ...overrides };
-	for (const key of Object.keys(environment)) {
-		if (key === "VITEST" || key.startsWith("VITEST_")) delete environment[key];
+function parseWorkspaceStringList(key: string): string[] {
+	const workspaceConfig = readFileSync(join(WORKSPACE_ROOT, "pnpm-workspace.yaml"), "utf8");
+	const values: string[] = [];
+	let inList = false;
+	for (const line of workspaceConfig.split(/\r?\n/)) {
+		if (line === `${key}:`) {
+			inList = true;
+			continue;
+		}
+		if (inList && /^\S/.test(line)) break;
+		if (!inList) continue;
+
+		const match = line.match(/^\s{2}-\s+(.+)$/);
+		if (!match) continue;
+		const value = match[1]!.replace(/\s+#.*$/, "").replace(/^["']|["']$/g, "");
+		if (value) values.push(value);
 	}
-	return environment;
+	return values;
+}
+
+function parseWorkspaceNumber(key: string): number {
+	const workspaceConfig = readFileSync(join(WORKSPACE_ROOT, "pnpm-workspace.yaml"), "utf8");
+	const match = workspaceConfig.match(new RegExp(`^${key}:\\s+(\\d+)`, "m"));
+	const value = Number(match?.[1]);
+	if (!Number.isSafeInteger(value) || value < 0) {
+		throw new Error(`Missing numeric ${key} in pnpm-workspace.yaml`);
+	}
+	return value;
 }
 
 async function runPnpm(args: string[], cwd: string, timeout: number): Promise<string> {
@@ -248,12 +276,16 @@ function prepareStandaloneTemplate(
 		platform.id === "cloudflare"
 			? "  esbuild: true\n  workerd: true\n  sharp: false"
 			: "  esbuild: true\n  sharp: true\n  workerd: false";
+	const releaseAgeExcludes = Array.from(
+		new Set([...parseWorkspaceStringList("minimumReleaseAgeExclude"), "emdash", "@emdash-cms/*"]),
+		(value) => `  - ${JSON.stringify(value)}`,
+	).join("\n");
+	const minimumReleaseAge = parseWorkspaceNumber("minimumReleaseAge");
 	writeFileSync(
 		join(projectDir, "pnpm-workspace.yaml"),
-		`minimumReleaseAge: 1440
+		`minimumReleaseAge: ${minimumReleaseAge}
 minimumReleaseAgeExclude:
-  - emdash
-  - "@emdash-cms/*"
+${releaseAgeExcludes}
 blockExoticSubdeps: true
 strictDepBuilds: true
 overrides:
@@ -295,35 +327,155 @@ async function waitForReady(
 	);
 }
 
-async function waitForInjectedRoute(url: string, readOutput: () => string): Promise<Response> {
-	const deadline = Date.now() + 15_000;
-	let lastBody = "";
-	while (Date.now() < deadline) {
-		const response = await fetch(url, {
+async function fetchWithServerOutput(url: string, readOutput: () => string): Promise<Response> {
+	try {
+		return await fetch(url, {
 			redirect: "manual",
-			signal: AbortSignal.timeout(15_000),
+			signal: AbortSignal.timeout(PAGE_REQUEST_TIMEOUT_MS),
 		});
-		if (response.status !== 404) return response;
-		lastBody = await response.text();
+	} catch (error) {
+		const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+		throw new Error(`Request to ${url} failed (${reason}):\n${readOutput()}`, { cause: error });
+	}
+}
+
+async function waitForInjectedRoute(
+	url: string,
+	readOutput: () => string,
+	options: {
+		timeoutMs?: number;
+		requestTimeoutMs?: number;
+		retryRequestTimeouts?: boolean;
+	} = {},
+): Promise<Response> {
+	const {
+		timeoutMs = INJECTED_ROUTE_TIMEOUT_MS,
+		requestTimeoutMs = INJECTED_ROUTE_REQUEST_TIMEOUT_MS,
+		retryRequestTimeouts = true,
+	} = options;
+	const deadline = Date.now() + timeoutMs;
+	let lastBody = "";
+	let lastError: unknown;
+	while (Date.now() < deadline) {
+		try {
+			const response = await fetch(url, {
+				redirect: "manual",
+				signal: AbortSignal.timeout(Math.max(1, Math.min(requestTimeoutMs, deadline - Date.now()))),
+			});
+			if (response.status !== 404 && response.status < 500) return response;
+			lastBody = await response.text();
+			lastError = undefined;
+		} catch (error) {
+			const requestTimedOut =
+				error instanceof DOMException &&
+				(error.name === "AbortError" || error.name === "TimeoutError");
+			const isTransient = error instanceof TypeError || requestTimedOut;
+			if (!isTransient) throw error;
+			lastError = error;
+			if (requestTimedOut && !retryRequestTimeouts) break;
+		}
 		await new Promise((resolveSleep) => setTimeout(resolveSleep, 250));
 	}
-	throw new Error(`Injected route was not ready:\n${readOutput()}\n${lastBody}`);
+	const lastErrorMessage =
+		lastError instanceof Error ? `${lastError.name}: ${lastError.message}` : "";
+	throw new Error(
+		`Injected route was not ready:\n${readOutput()}\n${lastBody}\n${lastErrorMessage}`,
+	);
 }
+
+it("retries when an injected route request times out during startup", async () => {
+	let requestCount = 0;
+	const server = createServer((_request, response) => {
+		requestCount++;
+		if (requestCount === 1) return;
+		response.writeHead(302, { location: "/" });
+		response.end();
+	});
+	server.listen(0, "127.0.0.1");
+	await once(server, "listening");
+	const address = server.address();
+	if (!address || typeof address === "string") throw new Error("Test server did not bind to TCP");
+
+	try {
+		const response = await waitForInjectedRoute(
+			`http://127.0.0.1:${address.port}/`,
+			() => "test output",
+			{ timeoutMs: 1000, requestTimeoutMs: 25 },
+		);
+		expect(response.status).toBe(302);
+		expect(requestCount).toBe(2);
+	} finally {
+		const closed = once(server, "close");
+		server.closeAllConnections();
+		server.close();
+		await closed;
+	}
+});
+
+it("does not retry a timed-out state-changing request", async () => {
+	let requestCount = 0;
+	const server = createServer(() => {
+		requestCount++;
+	});
+	server.listen(0, "127.0.0.1");
+	await once(server, "listening");
+	const address = server.address();
+	if (!address || typeof address === "string") throw new Error("Test server did not bind to TCP");
+
+	try {
+		await expect(
+			waitForInjectedRoute(`http://127.0.0.1:${address.port}/`, () => "test output", {
+				timeoutMs: 1000,
+				requestTimeoutMs: 25,
+				retryRequestTimeouts: false,
+			}),
+		).rejects.toThrow("Injected route was not ready");
+		expect(requestCount).toBe(1);
+	} finally {
+		const closed = once(server, "close");
+		server.closeAllConnections();
+		server.close();
+		await closed;
+	}
+});
+
+it("retries when an injected route returns a transient server error", async () => {
+	let requestCount = 0;
+	const server = createServer((_request, response) => {
+		requestCount++;
+		if (requestCount === 1) {
+			response.writeHead(500);
+			response.end("setup still in progress");
+			return;
+		}
+		response.writeHead(302, { location: "/" });
+		response.end();
+	});
+	server.listen(0, "127.0.0.1");
+	await once(server, "listening");
+	const address = server.address();
+	if (!address || typeof address === "string") throw new Error("Test server did not bind to TCP");
+
+	try {
+		const response = await waitForInjectedRoute(`http://127.0.0.1:${address.port}/`, () => "");
+		expect(response.status).toBe(302);
+		expect(requestCount).toBe(2);
+	} finally {
+		const closed = once(server, "close");
+		server.closeAllConnections();
+		server.close();
+		await closed;
+	}
+});
 
 async function stopServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
 	if (serverProcess.exitCode !== null || serverProcess.signalCode !== null) return;
-	serverProcess.kill("SIGTERM");
-	await Promise.race([
-		once(serverProcess, "exit"),
-		new Promise<void>((resolveTimeout) => {
-			setTimeout(() => {
-				if (serverProcess.exitCode === null && serverProcess.signalCode === null) {
-					serverProcess.kill("SIGKILL");
-				}
-				resolveTimeout();
-			}, 5000);
-		}),
-	]);
+	const exited = once(serverProcess, "exit");
+	if (!serverProcess.kill("SIGTERM")) return;
+	const stopped = await Promise.race([exited.then(() => true), delay(5000, false, { ref: false })]);
+	if (stopped) return;
+	serverProcess.kill("SIGKILL");
+	await Promise.race([exited, delay(1000, undefined, { ref: false })]);
 }
 
 describe.sequential("Isolated template installs", () => {
@@ -356,6 +508,18 @@ describe.sequential("Isolated template installs", () => {
 
 	afterAll(() => {
 		if (temporaryDirectory) rmSync(temporaryDirectory, { recursive: true, force: true });
+	});
+
+	it("inherits workspace release-age exclusions", () => {
+		const expected = parseWorkspaceStringList("minimumReleaseAgeExclude");
+		const expectedAge = parseWorkspaceNumber("minimumReleaseAge");
+		for (const projectDir of projectDirs.values()) {
+			const workspaceConfig = readFileSync(join(projectDir, "pnpm-workspace.yaml"), "utf8");
+			expect(workspaceConfig).toContain(`minimumReleaseAge: ${expectedAge}`);
+			for (const value of expected) {
+				expect(workspaceConfig).toContain(`  - ${JSON.stringify(value)}`);
+			}
+		}
 	});
 
 	for (const platform of PLATFORM_CASES) {
@@ -417,23 +581,27 @@ describe.sequential("Isolated template installs", () => {
 						const setup = await waitForInjectedRoute(
 							`http://localhost:${platform.port}/_emdash/api/setup/dev-bypass?redirect=/`,
 							readOutput,
+							{
+								requestTimeoutMs: INJECTED_ROUTE_TIMEOUT_MS,
+								retryRequestTimeouts: false,
+							},
 						);
 						const setupBody = await setup.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${setupBody}`).toContain(setup.status);
 
-						const frontend = await fetch(`http://localhost:${platform.port}/`, {
-							redirect: "manual",
-							signal: AbortSignal.timeout(15_000),
-						});
+						const frontend = await fetchWithServerOutput(
+							`http://localhost:${platform.port}/`,
+							readOutput,
+						);
 						const frontendBody = await frontend.text();
 						expect([200, 302, 307, 308], `${readOutput()}\n${frontendBody}`).toContain(
 							frontend.status,
 						);
 
-						const admin = await fetch(`http://localhost:${platform.port}/_emdash/admin/`, {
-							redirect: "manual",
-							signal: AbortSignal.timeout(15_000),
-						});
+						const admin = await fetchWithServerOutput(
+							`http://localhost:${platform.port}/_emdash/admin/`,
+							readOutput,
+						);
 						const adminBody = await admin.text();
 						expect(admin.status, `${readOutput()}\n${adminBody}`).toBeLessThan(500);
 

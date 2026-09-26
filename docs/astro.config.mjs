@@ -6,10 +6,14 @@ import { defineConfig } from "astro/config";
 // https://astro.build/config
 export default defineConfig({
 	site: "https://docs.emdashcms.com",
+	redirects: {
+		"/": "/getting-started/",
+		"/introduction": "/why-emdash",
+	},
+	session: false,
 	integrations: [
 		starlight({
 			title: "EmDash",
-			tagline: "The Astro-native CMS",
 			disable404Route: true,
 			components: {
 				SkipLink: "./src/components/SkipLink.astro",
@@ -34,7 +38,6 @@ export default defineConfig({
 				{
 					label: "Start Here",
 					items: [
-						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Add to an Existing Project", slug: "existing-project" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
@@ -70,17 +73,21 @@ export default defineConfig({
 						{ label: "Media Library", slug: "guides/media-library" },
 						{ label: "Dark Mode", slug: "guides/dark-mode" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
+						{ label: "Relations", slug: "guides/relations" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
 						{ label: "Page Layouts", slug: "guides/page-layouts" },
+						{ label: "Blocks", slug: "guides/blocks" },
 						{ label: "Sections", slug: "guides/sections" },
 						{ label: "Site Settings", slug: "guides/site-settings" },
 						{ label: "Authentication", slug: "guides/authentication" },
+						{ label: "Email Setup", slug: "guides/email" },
 						{ label: "Atmosphere Login", slug: "guides/atmosphere-auth" },
 						{ label: "AI Tools", slug: "guides/ai-tools" },
 						{ label: "x402 Payments", slug: "guides/x402-payments" },
 						{ label: "Preview Mode", slug: "guides/preview" },
 						{ label: "Backups", slug: "guides/backups" },
+						{ label: "Site Transfer", slug: "guides/site-transfer" },
 						{
 							label: "Internationalization (i18n)",
 							slug: "guides/internationalization",
@@ -93,6 +100,10 @@ export default defineConfig({
 						{ label: "Plugin Overview", slug: "plugins/overview" },
 						{ label: "Installing Plugins", slug: "plugins/installing" },
 						{ label: "Plugin Registry", slug: "plugins/registry" },
+						{
+							label: "Migrate from Marketplace",
+							slug: "plugins/migrate-from-marketplace",
+						},
 						{ label: "Upgrading Plugins", slug: "plugins/upgrading-sites" },
 					],
 				},
@@ -145,6 +156,10 @@ export default defineConfig({
 								{
 									label: "Bundling & Publishing",
 									slug: "plugins/creating-plugins/publishing",
+								},
+								{
+									label: "Automated Releases",
+									slug: "plugins/creating-plugins/delegated-releases",
 								},
 								{
 									label: "Migrating to the CLI",
@@ -246,6 +261,7 @@ export default defineConfig({
 					items: [
 						{ label: "Configuration", slug: "reference/configuration" },
 						{ label: "CLI Commands", slug: "reference/cli" },
+						{ label: "Content Lifecycle", slug: "reference/content-lifecycle" },
 						{ label: "API Reference", slug: "reference/api" },
 						{ label: "Field Types", slug: "reference/field-types" },
 						{ label: "Hook Reference", slug: "reference/hooks" },

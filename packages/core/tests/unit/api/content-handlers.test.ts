@@ -8,6 +8,7 @@ import {
 	handleContentList,
 	handleContentPublish,
 	handleContentSchedule,
+	handleContentUnschedule,
 	handleContentUpdate,
 } from "../../../src/api/index.js";
 import { BylineRepository } from "../../../src/database/repositories/byline.js";
@@ -361,6 +362,13 @@ describe("Content Handlers — auto-slug generation", () => {
 
 			expect(scheduled.success).toBe(true);
 			expect(scheduled.data?.item).toMatchObject({ slug: null, status: "scheduled" });
+			const scheduledView = await handleContentGet(db, "post", created.data!.item.id);
+			expect(scheduled.data?._rev).toBe(scheduledView.data?._rev);
+
+			const unscheduled = await handleContentUnschedule(db, "post", created.data!.item.id);
+			expect(unscheduled.success).toBe(true);
+			const unscheduledView = await handleContentGet(db, "post", created.data!.item.id);
+			expect(unscheduled.data?._rev).toBe(unscheduledView.data?._rev);
 		});
 	});
 

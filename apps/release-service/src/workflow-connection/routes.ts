@@ -324,19 +324,23 @@ export async function handleRequestWorkflowConnection(
 		const publisherDid = body["publisherDid"];
 		const packageSlug = body["packageSlug"];
 		const now = dependencies.now?.() ?? Date.now();
-		const result = await env.PUBLISHER_DO.getByName(publisherDid).requestWorkflowConnection({
+		const connectionRef = claim.ref.startsWith("refs/tags/") ? "refs/tags/*" : claim.ref;
+		const publisher = env.PUBLISHER_DO.getByName(publisherDid);
+		const availability = await publisher.getWorkflowConnectionAvailability(publisherDid);
+		if (!availability.ok) return connectionFailure(availability.code, requestId);
+		await requirePackageProfile(publisherDid, packageSlug, claim.repository, dependencies);
+		const result = await publisher.requestWorkflowConnection({
 			publisherDid,
 			requestId: dependencies.requestId?.(now) ?? ulid(now),
 			mutationKey,
 			connectionKey: await digest([
 				"workflow-connection",
-				1,
+				2,
 				publisherDid,
-				packageSlug,
 				claim.repositoryId,
 				claim.repositoryOwnerId,
 				claim.workflowRef,
-				claim.ref,
+				connectionRef,
 				claim.environment,
 			]),
 			invitationTokenHash:
@@ -350,7 +354,6 @@ export async function handleRequestWorkflowConnection(
 		});
 		if (!result.ok) return connectionFailure(result.code, requestId);
 		if (result.status === "connected") {
-			await requirePackageProfile(publisherDid, packageSlug, claim.repository, dependencies);
 			return apiSuccess({ status: "connected", policy: result.policy }, requestId);
 		}
 		return apiSuccess(

@@ -173,6 +173,15 @@ export async function handleMenuCreate(
 					error: { code: "NOT_FOUND", message: "Source menu for translation not found" },
 				};
 			}
+			if (source.name !== input.name) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `A translation of menu "${source.name}" must use the same name`,
+					},
+				};
+			}
 		}
 
 		// Duplicate guard: same (name, locale). Falls back to the configured

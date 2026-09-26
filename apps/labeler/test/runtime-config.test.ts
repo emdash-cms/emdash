@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "../src/ai/prompts.js";
+import { unanimousTextModelId } from "../src/ai/unanimous.js";
 import { readLabelerRuntimeConfig } from "../src/runtime-config.js";
 
 const ENV = {
@@ -8,9 +9,10 @@ const ENV = {
 	LABELER_SERVICE_URL: "https://labels.emdashcms.com",
 	LABEL_SIGNING_PRIVATE_KEY: "private-key",
 	LABEL_SIGNING_PUBLIC_KEY: "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
-	LABELER_POLICY_VERSION: "listing-metadata-v1",
+	LABELER_POLICY_VERSION: "listing-metadata-v2",
 	LABELER_PARSER_VERSION: "canonical-listing-input-v1",
 	LABELER_TEXT_MODEL_ID: "@cf/text",
+	LABELER_TEXT_VERIFIER_MODEL_ID: "@cf/text-verifier",
 	LABELER_IMAGE_MODEL_ID: "@cf/image",
 };
 
@@ -22,10 +24,14 @@ describe("labeler runtime configuration", () => {
 			serviceUrl: ENV.LABELER_SERVICE_URL,
 			privateKey: ENV.LABEL_SIGNING_PRIVATE_KEY,
 			publicKeyMultibase: ENV.LABEL_SIGNING_PUBLIC_KEY,
+			textModelIds: [ENV.LABELER_TEXT_MODEL_ID, ENV.LABELER_TEXT_VERIFIER_MODEL_ID],
 			versions: {
 				policyVersion: ENV.LABELER_POLICY_VERSION,
 				parserVersion: ENV.LABELER_PARSER_VERSION,
-				textModelId: ENV.LABELER_TEXT_MODEL_ID,
+				textModelId: unanimousTextModelId([
+					ENV.LABELER_TEXT_MODEL_ID,
+					ENV.LABELER_TEXT_VERIFIER_MODEL_ID,
+				]),
 				textPromptHash: TEXT_PROMPT_HASH,
 				imageModelId: ENV.LABELER_IMAGE_MODEL_ID,
 				imagePromptHash: IMAGE_PROMPT_HASH,

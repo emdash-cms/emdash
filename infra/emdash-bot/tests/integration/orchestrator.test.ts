@@ -1,6 +1,6 @@
 // Workers-pool integration tests for OrchestratorDO.
 //
-// These run inside a real workerd isolate via @cloudflare/vitest-pool-workers,
+// These run inside a real workerd isolate via @cloudflare/vitest-plugin,
 // so `env.Orchestrator` is the actual DO namespace, storage is real (sqlite
 // inside miniflare), and lifecycle semantics (single-threaded per instance,
 // blockConcurrencyWhile, etc.) match production.
@@ -63,6 +63,299 @@ describe("OrchestratorDO (workers-pool)", () => {
 		testEnv.GITHUB_APP_PRIVATE_KEY = "";
 		testEnv.PREVIEW_PACKAGE = "emdash";
 		vi.unstubAllGlobals();
+	});
+
+	test("serves the cached installation token to the sandbox Git proxy", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+
+		await expect(stub.getInstallationTokenForGitProxy()).resolves.toBe("cached-token");
+	});
+
+	test("review revisions publish progress and completion on the PR and remain reviewable", async () => {
+		const requests: Array<{ method: string; url: string; body: string }> = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			requests.push({ method, url, body: typeof init?.body === "string" ? init.body : "" });
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(method === "POST" && url.endsWith("/comments") ? { id: 776 } : {}),
+					{ status: 200 },
+				),
+			);
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:prNumber": 99,
+				"o:state": "working",
+				"o:kind": "bug",
+			});
+		});
+		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+		await stub.prepareWorkPlanComment({ runId: "review-run", summary: "Address adapter review" });
+		await stub.updateWorkPlan({
+			runId: "review-run",
+			summary: "Address adapter review",
+			steps: [{ id: "fix", title: "Test and fix the adapter", status: "completed" }],
+		});
+		await stub.applyAgentResult({
+			runId: "review-run",
+			result: { fixed: true, summary: "Covered the adapter case." },
+			pushed: true,
+			ok: true,
+		});
+		const posts = requests.filter(
+			(request) => request.method === "POST" && request.url.endsWith("/comments"),
+		);
+		expect(posts).toHaveLength(1);
+		expect(posts[0]?.url).toContain("/issues/99/comments");
+		expect(posts[0]?.body).toContain("Preparing workspace");
+		expect(requests.findLast((request) => request.method === "PATCH")?.body).toContain(
+			"Covered the adapter case.",
+		);
+		expect((await stub.getPersistedState()).state).toBe("in_review");
+	});
+
+	test("polls an attached PR through GitHub and persists its green status", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = (init?.method ?? "GET").toUpperCase();
+			const json = (value: unknown) =>
+				Promise.resolve(
+					new Response(JSON.stringify(value), {
+						status: 200,
+						headers: { "content-type": "application/json" },
+					}),
+				);
+			if (method === "POST" && url.endsWith("/graphql")) {
+				return json({
+					data: {
+						repository: {
+							pullRequest: {
+								number: 99,
+								url: "https://github.com/emdash-cms/emdash-test/pull/99",
+								state: "OPEN",
+								isDraft: false,
+								merged: false,
+								mergeable: "MERGEABLE",
+								headRefOid: "green-head",
+								reviewDecision: null,
+								commits: {
+									nodes: [
+										{
+											commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } } },
+										},
+									],
+								},
+							},
+						},
+					},
+				});
+			}
+			if (method === "GET" && url.includes("/issues/42/labels?")) {
+				return json([{ name: "bot:in-review" }, { name: "bot:bug" }]);
+			}
+			return json({});
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:prNumber": 99,
+				"o:prPollNextAt": Date.now() - 1_000,
+				"o:state": "in_review",
+				"o:kind": "bug",
+			});
+		});
+
+		const tick = await stub.tick();
+		const snapshot = await stub.getPublicSnapshot();
+
+		expect(tick.pullRequestPoll).toBe("green");
+		expect(snapshot.pullRequest).toMatchObject({
+			number: 99,
+			state: "open",
+			headSha: "green-head",
+			mergeability: "mergeable",
+			checks: "passing",
+		});
+		const safetyPollAt = await runInDurableObject(stub, async (_instance, state) =>
+			state.storage.get<number>("o:prPollNextAt"),
+		);
+		expect(safetyPollAt).toBeGreaterThan(Date.now() + 9 * 60_000);
+		expect((await stub.getEventLog()).at(-1)).toMatchObject({ event: "pr.green" });
+	});
+
+	test("keeps unknown mergeability on a slow safety poll without repeated GitHub reads", async () => {
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		let graphqlRequests = 0;
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if ((init?.method ?? "GET") === "POST" && url.endsWith("/graphql")) {
+				graphqlRequests += 1;
+				return Promise.resolve(
+					Response.json({
+						data: {
+							repository: {
+								pullRequest: {
+									number: 99,
+									state: "OPEN",
+									isDraft: false,
+									merged: false,
+									mergeable: "UNKNOWN",
+									headRefOid: "pending-head",
+									reviewDecision: "APPROVED",
+									commits: {
+										nodes: [
+											{
+												commit: {
+													statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [] } },
+												},
+											},
+										],
+									},
+								},
+							},
+						},
+					}),
+				);
+			}
+			if (url.includes("/issues/42/labels?")) {
+				return Promise.resolve(Response.json([{ name: "bot:in-review" }, { name: "bot:bug" }]));
+			}
+			return Promise.resolve(Response.json({}));
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:prNumber": 99,
+				"o:prPollNextAt": Date.now() - 1_000,
+				"o:state": "in_review",
+				"o:kind": "bug",
+			});
+		});
+
+		expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+		const nextAt = await runInDurableObject(stub, async (_instance, state) =>
+			state.storage.get<number>("o:prPollNextAt"),
+		);
+		expect(nextAt).toBeGreaterThan(Date.now() + 9 * 60_000);
+		expect((await stub.tick()).pullRequestPoll).toBe("waiting");
+		expect(graphqlRequests).toBe(1);
+	});
+
+	test.each([
+		["pr.closed", "blocked"],
+		["pr.merged", "done"],
+	] as const)(
+		"queues review feedback during a revision, then discards it when %s arrives",
+		async (event, expectedState) => {
+			const calls: string[] = [];
+			const comments: string[] = [];
+			testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+			vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
+			});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.enqueue(
+				makeEvent({
+					event,
+					arg: null,
+					actor: "system",
+					anchorNumber: 42,
+					deliveryId: "closed-pr",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect((await stub.getPersistedState()).state).toBe(expectedState);
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect(comments.some((comment) => comment.includes("isn't available"))).toBe(false);
+		},
+	);
+
+	test.each([true, false])(
+		"processes queued feedback after the revision settles (success=%s)",
+		async (ok) => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
+			});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.applyAgentResult({
+				runId: "review-run",
+				result: { fixed: ok, summary: "Review outcome" },
+				pushed: ok,
+				ok,
+			});
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect((await stub.getPersistedState()).state).toBe("in_review");
+			expect(
+				await stub.enqueue(makeEvent({ event: "revise", deliveryId: "another-review" })),
+			).toMatchObject({ kind: "duplicate" });
+		},
+	);
+
+	test("a revision before a PR exists still asks for reporter confirmation", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:anchorNumber": 42, "o:state": "working", "o:kind": "bug" });
+		});
+		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+		await stub.applyAgentResult({
+			runId: "review-run",
+			result: { fixed: true },
+			pushed: true,
+			ok: true,
+		});
+		expect((await stub.getPersistedState()).state).toBe("preview_building");
 	});
 
 	test("fresh instance starts with no persisted state", async () => {
@@ -347,7 +640,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(persisted.state).toBe(null);
 		expect(comments).toHaveLength(1);
 		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
-		expect(comments[0]).toContain("`@emdashbot fix <directive>`");
+		expect(comments[0]).toContain("`@emdashbot work <directive>`");
 	});
 
 	test("invalid classified commands name the resolved command in feedback", async () => {
@@ -847,7 +1140,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 
 		expect(retry.kind).toBe("transition");
 		if (retry.kind === "transition") {
-			expect(retry.decision.action).toBe("investigate.implement");
+			expect(retry.decision.action).toBe("investigate.work");
 		}
 	});
 
@@ -904,9 +1197,53 @@ describe("OrchestratorDO (workers-pool)", () => {
 			ok: true,
 		});
 
-		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect((await stub.getPersistedState()).state).toBe("needs_attention");
 		expect(comments.at(-1)).toContain("Failed stage: `verification`");
 		expect(comments.at(-1)).toContain("Run: `implement-run-123`");
+	});
+
+	test("pauses a rate-limited publication without failing the issue", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const retryAt = Date.now() + 5 * 60_000;
+		await stub.debugPrimeFixing(42);
+		await stub.debugSetStaleRun(
+			"publication-run",
+			Date.now(),
+			"investigate-42-publication-run",
+			"fix",
+		);
+
+		await expect(
+			stub.applyAgentResult({
+				runId: "publication-run",
+				result: {
+					fixed: false,
+					summary: "GitHub asked the candidate publisher to wait.",
+					failureStage: "publication",
+					failureRetryAt: retryAt,
+				},
+				pushed: false,
+				ok: true,
+			}),
+		).resolves.toEqual({ kind: "publication-paused", runId: "publication-run", retryAt });
+
+		expect(await stub.getPersistedState()).toMatchObject({
+			state: "fixing",
+			currentRunId: null,
+			currentAgentId: null,
+		});
+		expect(await stub.getPublicSnapshot()).toMatchObject({
+			run: { status: "paused", phase: "prepare" },
+		});
+		expect(await stub.debugGetResumableRun()).toMatchObject({
+			runId: "publication-run",
+			agentId: "investigate-42-publication-run",
+			mode: "fix",
+			state: "fixing",
+		});
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeGreaterThanOrEqual(retryAt);
+		});
 	});
 
 	test("resume without a saved timed-out run comments and leaves the issue failed", async () => {
@@ -990,7 +1327,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(comments.at(-1)).toContain(
 			"The run stopped at its execution deadline before it could provide a checkpoint summary.",
 		);
-		expect(comments.at(-1)).toContain("`@emdashbot resume`");
+		expect(comments.at(-1)).toContain("`@emdashbot retry`");
 		expect(comments.at(-1)).toContain("Failed stage: `timeout`");
 		expect(comments.at(-1)).toContain("Run: `timed-out-comment-run`");
 	});
@@ -1014,7 +1351,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 
 		const persisted = await stub.getPersistedState();
 		expect(persisted.currentRunId).toBe(null);
-		expect(persisted.state).toBe("failed");
+		expect(persisted.state).toBe("needs_attention");
 		expect(await stub.debugGetResumableRun()).toMatchObject({
 			runId: "ghost-run",
 			agentId: "investigate-999-ghost-run",
@@ -1043,7 +1380,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 
 		const outcome = await stub.tick();
 		expect(outcome.inboxError).toMatch(/classifier failed/);
-		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect((await stub.getPersistedState()).state).toBe("needs_attention");
 		expect(await stub.getInboxDepth()).toBe(1);
 	});
 
@@ -1109,7 +1446,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await stub.tick();
 
 		const persisted = await stub.getPersistedState();
-		expect(persisted.state).toBe("failed");
+		expect(persisted.state).toBe("needs_attention");
 		expect(persisted.currentRunId).toBeNull();
 		expect(await stub.getInboxDepth()).toBe(0);
 	});
@@ -1132,7 +1469,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await stub.tick();
 
 		expect(await stub.getPersistedState()).toMatchObject({
-			state: "failed",
+			state: "needs_attention",
 			currentRunId: null,
 			currentAgentId: null,
 		});
@@ -1228,7 +1565,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		});
 
 		expect(completion.kind).toBe("transition");
-		expect((await stub.getPersistedState()).state).toBe("failed");
+		expect((await stub.getPersistedState()).state).toBe("needs_attention");
 		expect(await stub.debugGetResumableRun()).toMatchObject({
 			runId: "failed-resume-run",
 			agentId: "investigate-999-failed-resume-run",
@@ -1280,7 +1617,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		await stub.tick();
 
 		const persisted = await stub.getPersistedState();
-		expect(persisted.state).toBe("failed");
+		expect(persisted.state).toBe("needs_attention");
 		expect(persisted.currentRunId).toBeNull();
 		await stub.tick();
 		expect(await stub.getInboxDepth()).toBe(0);
@@ -1726,9 +2063,20 @@ describe("OrchestratorDO (workers-pool)", () => {
 		]);
 	});
 
-	test("cleanupOnClose is a no-op without live credentials", async () => {
+	test("cleanupOnClose clears idle scheduling state without live credentials", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:state": "needs_attention",
+				"o:labelReconcileNextAt": Date.now() + 15 * 60_000,
+			});
+			await state.storage.setAlarm(Date.now() + 15 * 60_000);
+		});
 		const outcome = await stub.cleanupOnClose(42);
 		expect(outcome.kind).toBe("skipped");
+		await runInDurableObject(stub, async (_instance, state) => {
+			expect(await state.storage.getAlarm()).toBeNull();
+			expect(await state.storage.get("o:labelReconcileNextAt")).toBeUndefined();
+		});
 	});
 });

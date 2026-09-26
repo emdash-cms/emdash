@@ -9,7 +9,7 @@
  */
 
 // definePlugin
-export { definePlugin } from "./define-plugin.js";
+export { definePlugin, definePluginRoute } from "./define-plugin.js";
 
 // Standard plugin adapter
 export { adaptSandboxEntry } from "./adapt-sandbox-entry.js";
@@ -27,8 +27,11 @@ export {
 	createPluginContext,
 	createKVAccess,
 	createStorageAccess,
-	createContentAccess,
 	createContentAccessWithWrite,
+	createCommentAccess,
+	createRedirectAccess,
+	RedirectAccessError,
+	createSchemaAccess,
 	createMediaAccess,
 	createMediaAccessWithWrite,
 	createHttpAccess,
@@ -39,12 +42,43 @@ export {
 	createUrlHelper,
 	createSiteInfo,
 } from "./context.js";
-export type { PluginContextFactoryOptions } from "./context.js";
+export { createContentAccess } from "./content-access.js";
+export type { ContentActionCallbacks, PluginContextFactoryOptions } from "./context.js";
+export {
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
+	PLUGIN_HTTP_MAX_RESPONSE_BYTES,
+	bufferPluginHttpRequest,
+	pluginHttpRedirectAction,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
+	readPluginHttpBytes,
+	rewritePluginHttpRedirect,
+} from "./http-wire.js";
+export type { PluginHttpResponseWire } from "./http-wire.js";
+export type { PluginHttpRedirectAction } from "./http-wire.js";
+export { CronAccessImpl } from "./cron.js";
+export {
+	DEFAULT_PLUGIN_MEDIA_READ_BYTES,
+	MAX_PLUGIN_MEDIA_READ_BYTES,
+	parsePluginMediaMetadataPatch,
+	readPluginMediaBytes,
+	toPluginMediaItem,
+	updatePluginMediaMetadata,
+} from "./media.js";
 
 // Hooks
 export { HookPipeline, createHookPipeline } from "./hooks.js";
 export type { HookResult } from "./hooks.js";
 export { ContentSaveRejectedError, isContentSaveRejection } from "./save-rejection.js";
+export {
+	SCHEDULED_POLICY_REJECTION_PREFIX,
+	isScheduledPolicyRejection,
+	scheduledPolicyRejectionKey,
+} from "./content-policy.js";
+export type {
+	ScheduledPolicyRejection,
+	VersionedScheduledPolicyRejection,
+} from "./content-policy.js";
 
 // Email pipeline
 export { EmailPipeline, EmailNotConfiguredError, EmailRecursionError } from "./email.js";
@@ -86,10 +120,14 @@ export {
 export type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxCommentModerateCallback,
+	SandboxContentCreateCallback,
+	SandboxHttpFetchCallback,
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,
@@ -100,6 +138,17 @@ export type {
 	SandboxHookResultInspection,
 	SandboxSaveRejectedError,
 } from "./sandbox/index.js";
+
+export { StorageSerializationError } from "./storage-query.js";
+export {
+	PluginSettingEncryptionError,
+	createPluginSecretRedactor,
+	createSettingsAccess,
+	decodePluginSettingValue,
+	encryptPluginSetting,
+	isEncryptedPluginSetting,
+} from "./settings.js";
+export type { EncryptedPluginSetting, PluginSecretRedactor } from "./settings.js";
 
 // Types
 export type {
@@ -118,26 +167,54 @@ export type {
 	// Context APIs
 	PluginContext,
 	StorageCollection,
+	NumericDelta,
+	UpdateIfArgs,
+	UpdateIfResult,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
 	KVAccess,
+	SettingsAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
+	ContentPublicationAccess,
+	ContentRestoreAccess,
+	VersionedContentItem,
 	MediaAccess,
 	MediaAccessWithWrite,
+	MediaBytes,
+	MediaMetadataPatch,
 	HttpAccess,
 	LogAccess,
 	SiteInfo,
 	UserInfo,
 	UserAccess,
 	ContentItem,
+	ContentTranslationSummary,
+	ContentRevisionInfo,
+	SchemaAccess,
+	CollectionSchemaInfo,
+	FieldSchemaInfo,
 	ContentCreateOptions,
 	ContentWriteInput,
+	CronTaskInfo,
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,
 	TaxonomyAccess,
+	TaxonomyAccessWithWrite,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
+	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 
 	// Hook types
 	PluginHooks,
@@ -145,7 +222,12 @@ export type {
 	HookName,
 	ResolvedHook,
 	ResolvedPluginHooks,
+	ActorInfo,
+	ContentActionOrigin,
 	ContentHookEvent,
+	ContentPolicyDecision,
+	ContentPolicyEvent,
+	ContentSchedulePolicyEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
 	ContentRestoreStateChangeEvent,
@@ -171,6 +253,9 @@ export type {
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
+	ContentBeforePublishHandler,
+	ContentBeforeScheduleHandler,
+	ContentBeforeUnpublishHandler,
 	ContentAfterRestoreHandler,
 	ContentAfterScheduleHandler,
 	ContentAfterUnscheduleHandler,
@@ -191,6 +276,11 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+	PluginComment,
+	PluginCommentStatus,
+	CommentAccess,
+	CommentListOptions,
+	CommentCountOptions,
 
 	// Request metadata types
 	RequestMeta,
@@ -198,12 +288,15 @@ export type {
 
 	// Route types
 	PluginRoute,
+	PluginRouteDefinition,
 	RouteContext,
 
 	// Admin types
 	PluginAdminConfig,
 	PluginAdminPage,
 	PluginDashboardWidget,
+	PluginEditorPanel,
+	PluginEditorAction,
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
@@ -223,5 +316,6 @@ export {
 	isDeprecatedCapability,
 	normalizeCapability,
 	normalizeCapabilities,
+	normalizePluginCapabilities,
 } from "./types.js";
 export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./types.js";

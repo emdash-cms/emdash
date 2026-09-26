@@ -6,6 +6,7 @@
 // pool provides via wrangler.test.jsonc / vitest.workers.config.ts. We use
 // the same secret to sign synthetic payloads.
 
+import { runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -15,6 +16,7 @@ const SELF = exports.default;
 
 interface TestEnv {
 	Orchestrator: Env["Orchestrator"];
+	GITHUB_RATE_LIMIT: Env["GITHUB_RATE_LIMIT"];
 	GITHUB_APP_INSTALLATION_ID: string;
 	GITHUB_APP_PRIVATE_KEY: string;
 	GITHUB_WEBHOOK_SECRET: string;
@@ -51,6 +53,13 @@ async function generatedPrivateKeyPem(): Promise<string> {
 			.match(/.{1,64}/g)
 			?.join("\n") ?? "";
 	return `-----BEGIN PRIVATE KEY-----\n${body}\n-----END PRIVATE KEY-----`;
+}
+
+async function configureGitHubToken(): Promise<void> {
+	testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+	await testEnv.GITHUB_RATE_LIMIT.getByName(
+		`installation:${testEnv.GITHUB_APP_INSTALLATION_ID}`,
+	).debugSetInstallationToken("test-installation-token", Date.now() + 60 * 60_000);
 }
 
 async function sign(body: string): Promise<string> {
@@ -153,10 +162,11 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(html).toContain("Run trace");
 	});
 
-	test("dashboard API fails closed when GitHub credentials are unavailable", async () => {
+	test("dashboard API serves durable local state without GitHub credentials", async () => {
 		const res = await SELF.fetch("https://test/api/dashboard");
-		expect(res.status).toBe(503);
-		expect(await res.json()).toEqual({ error: "Dashboard data is temporarily unavailable" });
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toContain("max-age=10");
+		expect(await res.json()).toMatchObject({ issues: [] });
 	});
 
 	test("serves the selected issue's public run trace without GitHub credentials", async () => {
@@ -210,6 +220,24 @@ describe("POST /webhook/github (workers-pool)", () => {
 		const res = await postWebhook({ eventType: "star", payload: {} });
 		expect(res.status).toBe(202);
 		expect(await res.text()).toMatch(/skipped/);
+	});
+
+	test("new issues are admitted into automatic triage", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const res = await postWebhook({
+			eventType: "issues",
+			delivery: `opened-${issueNumber}`,
+			payload: {
+				action: "opened",
+				issue: { number: issueNumber, user: { login: "reporter" }, labels: [] },
+				sender: { login: "reporter" },
+			},
+		});
+		expect(res.status).toBe(202);
+
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.tick();
+		expect(await stub.getPersistedState()).toMatchObject({ state: "triaging", kind: "task" });
 	});
 
 	test("issue_comment.created with bare verb advances the DO state", async () => {
@@ -295,10 +323,203 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(await res.text()).toMatch(/skipped/);
 	});
 
+	test("submitted review batches its body and inline comments before admission", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const pullRequestNumber = uniqueIssueNumber();
+		await configureGitHubToken();
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(
+						url.includes("/access_tokens")
+							? { token: "installation-token" }
+							: [
+									{
+										body: "Handle null too",
+										path: "src/adapter.ts",
+										line: 42,
+										diff_hunk: "@@ -1 +1 @@\n+read()",
+									},
+								],
+					),
+					{ status: 200 },
+				),
+			);
+		});
+		const request = {
+			eventType: "pull_request_review",
+			delivery: `review-${issueNumber}`,
+			payload: {
+				action: "submitted",
+				pull_request: {
+					number: pullRequestNumber,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: `bot/fix-${issueNumber}` },
+				},
+				review: {
+					id: 77,
+					state: "changes_requested",
+					body: "Cover the adapter case",
+					author_association: "MEMBER",
+					user: { login: "alice" },
+				},
+			},
+		};
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": issueNumber,
+				"o:prNumber": pullRequestNumber,
+				"o:state": "working",
+				"o:kind": "bug",
+			});
+		});
+		await stub.debugSetStaleRun("active-review", Date.now(), "investigate-review", "revise");
+		const admitted = await postWebhook(request);
+		expect(admitted.status).toBe(202);
+		expect(await admitted.json()).toMatchObject({ admission: { kind: "admitted" } });
+		expect(await (await postWebhook(request)).json()).toMatchObject({
+			admission: { kind: "duplicate" },
+		});
+		expect(await stub.getInboxDepth()).toBe(1);
+		await runInDurableObject(stub, async (_instance, state) => {
+			const inbox =
+				await state.storage.get<
+					Array<{ input: { arg: string; triggeringComment: { body: string; actor: string } } }>
+				>("o:inbox");
+			expect(inbox?.[0]?.input.arg).toContain("Cover the adapter case");
+			expect(inbox?.[0]?.input.triggeringComment.body).toContain("src/adapter.ts:42");
+			expect(inbox?.[0]?.input.triggeringComment.body).toContain("Handle null too");
+			expect(inbox?.[0]?.input.triggeringComment.body).toContain("+read()");
+			expect(inbox?.[0]?.input.triggeringComment.actor).toBe("maintainer");
+		});
+	});
+
+	test.each([200, 503])(
+		"empty or unavailable review comments do not start partial work (%s)",
+		async (status) => {
+			const issueNumber = uniqueIssueNumber();
+			await configureGitHubToken();
+			vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) =>
+				Promise.resolve(
+					new Response(
+						JSON.stringify(
+							(typeof input === "string"
+								? input
+								: input instanceof URL
+									? input.href
+									: input.url
+							).includes("/access_tokens")
+								? { token: "installation-token" }
+								: [],
+						),
+						{
+							status: (typeof input === "string"
+								? input
+								: input instanceof URL
+									? input.href
+									: input.url
+							).includes("/access_tokens")
+								? 200
+								: status,
+						},
+					),
+				),
+			);
+			const res = await postWebhook({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					pull_request: {
+						number: 99,
+						user: { login: "emdashbot[bot]" },
+						head: { ref: `bot/fix-${issueNumber}` },
+					},
+					review: {
+						id: 77,
+						state: "commented",
+						body: "",
+						author_association: "MEMBER",
+						user: { login: "alice" },
+					},
+				},
+			});
+			expect(res.status).toBe(status === 200 ? 202 : 503);
+			expect(await testEnv.Orchestrator.getByName(`issue-${issueNumber}`).getInboxDepth()).toBe(0);
+		},
+	);
+
+	test("a review on a contributor's PR moves its review label", async () => {
+		const pullRequestNumber = uniqueIssueNumber();
+		await configureGitHubToken();
+		const repoUrl = `https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}`;
+		const reads: Record<string, unknown> = {
+			[`${repoUrl}/pulls/${pullRequestNumber}/reviews?per_page=100&page=1`]: [
+				{
+					state: "COMMENTED",
+					submitted_at: "2026-09-14T10:22:00Z",
+					author_association: "NONE",
+					user: { login: "emdashbot[bot]", type: "Bot" },
+				},
+			],
+			[`${repoUrl}/pulls/${pullRequestNumber}/commits?per_page=100&page=1`]: [
+				{ parents: [{ sha: "a1" }], commit: { committer: { date: "2026-09-14T09:40:00Z" } } },
+			],
+			[`${repoUrl}/issues/${pullRequestNumber}/labels?per_page=100`]: [
+				{ name: "review/needs-review" },
+				{ name: "area/core" },
+			],
+		};
+		const writes: Array<{ method: string; url: string; body: unknown }> = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body)));
+			if (url.includes("/access_tokens")) return json({ token: "installation-token" });
+			if (method !== "GET") {
+				const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+				writes.push({ method, url, body });
+				return json([]);
+			}
+			if (url in reads) return json(reads[url]);
+			return Promise.resolve(new Response("unexpected request", { status: 500 }));
+		});
+
+		const res = await postWebhook({
+			eventType: "pull_request_review",
+			payload: {
+				action: "submitted",
+				pull_request: {
+					number: pullRequestNumber,
+					state: "open",
+					user: { login: "contributor", type: "User" },
+					head: { repo: { full_name: `contributor/${testEnv.GITHUB_REPO}` } },
+					base: { repo: { full_name: `${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}` } },
+				},
+				review: { state: "commented", user: { login: "emdashbot[bot]", type: "Bot" } },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(writes).toEqual([
+			{
+				method: "POST",
+				url: `${repoUrl}/issues/${pullRequestNumber}/labels`,
+				body: { labels: ["review/awaiting-author"] },
+			},
+			{
+				method: "DELETE",
+				url: `${repoUrl}/issues/${pullRequestNumber}/labels/review%2Fneeds-review`,
+				body: null,
+			},
+		]);
+	});
+
 	test("top-level bot PR feedback resolves its head branch before durable admission", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const pullRequestNumber = uniqueIssueNumber();
-		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		await configureGitHubToken();
 		const requests: Array<{ url: string; signal: AbortSignal | null | undefined }> = [];
 		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -340,16 +561,14 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(res.status).toBe(202);
 		expect(await res.json()).toMatchObject({ anchor: `issue-${issueNumber}` });
 		expect(requests.map((request) => request.url)).toEqual([
-			`https://api.github.com/app/installations/${testEnv.GITHUB_APP_INSTALLATION_ID}/access_tokens`,
 			`https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}/pulls/${pullRequestNumber}`,
 		]);
 		expect(requests[0]?.signal).toBeInstanceOf(AbortSignal);
-		expect(requests[1]?.signal).toBe(requests[0]?.signal);
 	});
 
 	test("top-level bot PR feedback returns a retryable error when lookup fails", async () => {
 		const pullRequestNumber = uniqueIssueNumber();
-		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		await configureGitHubToken();
 		vi.stubGlobal("fetch", () => Promise.resolve(new Response("unavailable", { status: 503 })));
 
 		const res = await postWebhook({

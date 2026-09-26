@@ -1,5 +1,57 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.51
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.41.0
+
+## 0.1.50
+
+### Patch Changes
+
+- [`28362d4`](https://github.com/emdash-cms/emdash/commit/28362d4acbd7569b0fc92de3dca56544a7e40482) Thanks [@swissky](https://github.com/swissky)! - Updates Gist and Mastodon embed rendering for consistent remote-content handling. Gist blocks accept gist page URLs such as `https://gist.github.com/<user>/<id>`; other URL forms render nothing. Mastodon posts retain supported content and formatting after fetched markup is normalized before rendering.
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.40.1
+
+## 0.1.49
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.40.0
+
+## 0.1.48
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.39.1
+
+## 0.1.47
+
+### Patch Changes
+
+- Updated dependencies [[`4fef109`](https://github.com/emdash-cms/emdash/commit/4fef1090732a181f718c2398fbf04c05d40cf5f5), [`dbd77ef`](https://github.com/emdash-cms/emdash/commit/dbd77ef387cf1b0ea22018e442d88450578c8f0c), [`fc32ebf`](https://github.com/emdash-cms/emdash/commit/fc32ebff4b43495e3908cd48eb2a7acc00a6b51d), [`06bad83`](https://github.com/emdash-cms/emdash/commit/06bad83f5f466a32ab52f0c59fab7c2f9a8a76ea)]:
+  - @emdash-cms/blocks@0.39.0
+
+## 0.1.46
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.38.0
+
+## 0.1.45
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.37.0
+
 ## 0.1.44
 
 ### Patch Changes

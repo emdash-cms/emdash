@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-forms",
-	"version": "0.2.5",
+	"version": "0.2.8",
 	"description": "Forms plugin for EmDash CMS - build forms, collect submissions, send notifications",
 	"type": "module",
 	"main": "src/index.ts",
@@ -33,6 +33,7 @@
 		"@cloudflare/kumo": "catalog:"
 	},
 	"devDependencies": {
+		"astro": "catalog:",
 		"vitest": "catalog:"
 	},
 	"dependencies": {

@@ -1,11 +1,16 @@
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
-import { getMediaObjectPosition, type MediaFocalPoint } from "../lib/media-utils.js";
+import {
+	fallbackToOriginalThumbnail,
+	getMediaObjectPosition,
+	type MediaFocalPoint,
+} from "../lib/media-utils.js";
 import { useContainedMediaSize } from "./useContainedMediaSize.js";
 
 interface FocalPointEditorProps {
 	src: string;
+	fallbackSrc?: string;
 	sourceSize?: { width: number; height: number };
 	alt: string;
 	editing: boolean;
@@ -17,7 +22,10 @@ interface FocalPointEditorProps {
 	editorFrameRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-interface FocalPointPreviewsProps extends Pick<FocalPointEditorProps, "src" | "point"> {
+interface FocalPointPreviewsProps extends Pick<
+	FocalPointEditorProps,
+	"src" | "fallbackSrc" | "point"
+> {
 	firstPreviewRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -29,7 +37,12 @@ const KEY_MOVES: Record<string, [number, number]> = {
 };
 const clamp = (value: number) => Math.min(1, Math.max(0, Math.round(value * 10_000) / 10_000));
 
-export function FocalPointPreviews({ src, point, firstPreviewRef }: FocalPointPreviewsProps) {
+export function FocalPointPreviews({
+	src,
+	fallbackSrc,
+	point,
+	firstPreviewRef,
+}: FocalPointPreviewsProps) {
 	const { t } = useLingui();
 	const current = point ?? { focalX: 0.5, focalY: 0.5 };
 	const objectPosition = getMediaObjectPosition(current)!;
@@ -48,11 +61,15 @@ export function FocalPointPreviews({ src, point, firstPreviewRef }: FocalPointPr
 						className={`emdash-media-transparency-grid overflow-hidden rounded-lg ring ring-kumo-line ${ratio}`}
 					>
 						<img
+							key={src}
 							src={src}
 							alt=""
 							data-testid={`focal-preview-${id}`}
 							className="h-full w-full object-cover"
 							style={{ objectPosition }}
+							onError={(event) => {
+								if (fallbackSrc) fallbackToOriginalThumbnail(event.currentTarget, fallbackSrc);
+							}}
 						/>
 					</div>
 					<figcaption className="truncate text-center text-sm text-kumo-subtle">{label}</figcaption>
@@ -64,6 +81,7 @@ export function FocalPointPreviews({ src, point, firstPreviewRef }: FocalPointPr
 
 export function FocalPointEditor({
 	src,
+	fallbackSrc,
 	sourceSize: knownSourceSize,
 	alt,
 	editing,
@@ -77,11 +95,13 @@ export function FocalPointEditor({
 	const { t } = useLingui();
 	const activePointerRef = React.useRef<number | null>(null);
 	const frameRef = React.useRef<HTMLDivElement>(null);
-	const [ready, setReady] = React.useState(false);
-	const [loadedSourceSize, setLoadedSourceSize] = React.useState<{
+	const [loadedSource, setLoadedSource] = React.useState<{
+		src: string;
 		width: number;
 		height: number;
 	} | null>(null);
+	const ready = loadedSource?.src === src;
+	const loadedSourceSize = ready ? loadedSource : null;
 	const [announcement, setAnnouncement] = React.useState("");
 	const displaySize = useContainedMediaSize(frameRef, loadedSourceSize ?? knownSourceSize ?? null);
 	const current = point ?? { focalX: 0.5, focalY: 0.5 };
@@ -146,13 +166,15 @@ export function FocalPointEditor({
 		<div className="grid gap-4">
 			<div
 				ref={setFrameRef}
-				className="emdash-media-transparency-grid flex h-64 items-center justify-center overflow-hidden rounded-xl ring ring-kumo-line md:h-80"
+				aria-busy={!ready}
+				className={`${ready ? "emdash-media-transparency-grid" : "bg-kumo-tint"} flex h-64 items-center justify-center overflow-hidden rounded-xl ring ring-kumo-line md:h-80`}
 			>
 				<div
 					className="relative inline-flex max-h-full max-w-full"
 					style={displaySize ?? undefined}
 				>
 					<img
+						key={src}
 						src={src}
 						alt={alt}
 						className="block max-h-64 max-w-full object-contain md:max-h-80"
@@ -160,13 +182,20 @@ export function FocalPointEditor({
 						draggable={false}
 						onLoad={(event) => {
 							const image = event.currentTarget;
-							setLoadedSourceSize({ width: image.naturalWidth, height: image.naturalHeight });
-							setReady(true);
+							setLoadedSource({
+								src,
+								width: image.naturalWidth,
+								height: image.naturalHeight,
+							});
 							onReadyChange?.(true);
 						}}
-						onError={() => {
-							setLoadedSourceSize(null);
-							setReady(false);
+						onError={(event) => {
+							const image = event.currentTarget;
+							if (fallbackSrc && !image.dataset.thumbFallback) {
+								fallbackToOriginalThumbnail(image, fallbackSrc);
+								return;
+							}
+							setLoadedSource(null);
 							onReadyChange?.(false);
 						}}
 					/>

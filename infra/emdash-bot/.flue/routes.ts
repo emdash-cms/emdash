@@ -6,29 +6,134 @@
 import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
-import { getDashboardPayload } from "./lib/dashboard.js";
+import { dashboardIssueUpdate, getDashboardPayload } from "./lib/dashboard.js";
+import { githubRateLimitGate } from "./lib/github-rate-limit-client.js";
 import {
 	getPullRequestHeadBranch,
-	mintInstallationToken,
-	readAppCreds,
+	getPullRequestReviewComments,
 	readRepoContext,
+	type GitHubToken,
 } from "./lib/github.js";
-import type { OrchestratorDO } from "./lib/orchestrator.js";
+import { syncReviewStateLabel } from "./lib/review-state.js";
 import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
 	verifyWebhookSignature,
 } from "./lib/webhook.js";
 
-interface TraceRouteEnv extends Env {
-	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
-}
-
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
+const OPERATOR_IDEMPOTENCY_KEY = /^[a-zA-Z0-9._-]+$/;
+
+async function coordinatedInstallationToken(env: Env, consumer: string): Promise<GitHubToken> {
+	const gate = githubRateLimitGate(env);
+	const token = await gate.getInstallationToken();
+	return { token, gate, consumer };
+}
 
 export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Bindings: Env }> {
 	app.get("/", (c) => c.html(dashboardHtml));
 	app.get("/health", (c) => c.text("ok"));
+	app.get("/api/operator/orchestrators/:id/recovery", async (c) => {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		try {
+			const id = c.env.Orchestrator.idFromString(c.req.param("id"));
+			return c.json(await c.env.Orchestrator.get(id).inspectRecoveryState());
+		} catch {
+			return c.json({ error: "Invalid orchestrator id" }, 400);
+		}
+	});
+	app.post("/api/operator/orchestrators/:id/recovery/settle", async (c) => {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		let body: unknown;
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON" }, 400);
+		}
+		if (!body || typeof body !== "object") return c.json({ error: "Invalid request" }, 400);
+		const input = Object.fromEntries(Object.entries(body));
+		if (
+			typeof input.expectedAnchorNumber !== "number" ||
+			!Number.isSafeInteger(input.expectedAnchorNumber) ||
+			typeof input.expectedRunId !== "string" ||
+			input.expectedRunId.length === 0 ||
+			(input.clearInbox !== undefined && typeof input.clearInbox !== "boolean")
+		) {
+			return c.json({ error: "Invalid request" }, 400);
+		}
+		try {
+			const id = c.env.Orchestrator.idFromString(c.req.param("id"));
+			const result = await c.env.Orchestrator.get(id).settleStaleRun({
+				expectedAnchorNumber: input.expectedAnchorNumber,
+				expectedRunId: input.expectedRunId,
+				...(input.clearInbox === true ? { clearInbox: true } : {}),
+			});
+			return c.json(result, result.settled ? 200 : 409);
+		} catch {
+			return c.json({ error: "Invalid orchestrator id" }, 400);
+		}
+	});
+	app.get("/api/operator/issues/:number/recovery", async (c) => {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		const issueNumber = positiveInteger(c.req.param("number"));
+		if (issueNumber === null) return c.json({ error: "Invalid issue number" }, 400);
+		return c.json(
+			await c.env.Orchestrator.getByName(`issue-${issueNumber}`).inspectRecoveryState(),
+		);
+	});
+	app.post("/api/operator/issues/:number/command", async (c) => {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		const issueNumber = positiveInteger(c.req.param("number"));
+		if (issueNumber === null) return c.json({ error: "Invalid issue number" }, 400);
+		let body: unknown;
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON" }, 400);
+		}
+		if (!body || typeof body !== "object") return c.json({ error: "Invalid request" }, 400);
+		const { command, expectedState, idempotencyKey } = Object.fromEntries(Object.entries(body));
+		if (
+			(command !== "retry" && command !== "work") ||
+			(expectedState !== "needs_attention" &&
+				expectedState !== "failed" &&
+				expectedState !== "blocked" &&
+				expectedState !== "awaiting_approval")
+		) {
+			return c.json({ error: "Invalid request" }, 400);
+		}
+		if (
+			typeof idempotencyKey !== "string" ||
+			idempotencyKey.length === 0 ||
+			idempotencyKey.length > 100 ||
+			!OPERATOR_IDEMPOTENCY_KEY.test(idempotencyKey)
+		) {
+			return c.json({ error: "Invalid request" }, 400);
+		}
+		const result = await c.env.Orchestrator.getByName(`issue-${issueNumber}`).queueOperatorCommand({
+			expectedAnchorNumber: issueNumber,
+			command,
+			expectedState,
+			idempotencyKey,
+		});
+		return c.json(result, result.queued ? 202 : 409);
+	});
 	app.get("/api/dashboard", async (c) => {
 		try {
 			const payload = await getDashboardPayload(c.env);
@@ -57,8 +162,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.json({ error: "Invalid trace limit" }, 400);
 		}
 		try {
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer local DO RPC methods.
-			const { Orchestrator } = c.env as TraceRouteEnv;
+			const { Orchestrator } = c.env;
 			const runId = c.req.query("run");
 			const trace = await Orchestrator.getByName(`issue-${issueNumber}`).getPublicRunTrace({
 				...(runId ? { runId } : {}),
@@ -94,6 +198,19 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		} catch {
 			return c.text("invalid JSON", 400);
 		}
+		const dashboardUpdate = dashboardIssueUpdate(payload);
+		if (dashboardUpdate) {
+			const repo = readRepoContext(c.env);
+			if (repo) {
+				c.executionCtx.waitUntil(
+					c.env.DASHBOARD.getByName(`repo:${repo.owner}/${repo.repo}`)
+						.recordIssue(dashboardUpdate)
+						.catch((error: unknown) => {
+							console.error("[dashboard] webhook update failed", error);
+						}),
+				);
+			}
+		}
 
 		let result = normalizeWebhook({ eventType, deliveryId, payload });
 		if (result.kind === "pong") {
@@ -104,12 +221,14 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		// the trusted link back to the originating issue lifecycle.
 		if (result.kind === "pull_request") {
 			const unresolved = result;
-			const creds = readAppCreds(c.env);
 			const repo = readRepoContext(c.env);
-			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			if (!repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
-				const token = await mintInstallationToken(creds, signal);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					`webhook-pr-lookup:${deliveryId ?? unresolved.pullRequestNumber}`,
+				);
 				const headBranch = await getPullRequestHeadBranch(
 					token,
 					repo,
@@ -127,6 +246,45 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 				return c.text("pull request lookup failed", 503);
 			}
 		}
+		if (result.kind === "dispatch" && result.event.reviewId && result.event.pullRequestNumber) {
+			const repo = readRepoContext(c.env);
+			if (!repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					`webhook-review-comments:${deliveryId ?? result.event.reviewId}`,
+				);
+				const comments = await getPullRequestReviewComments(
+					token,
+					repo,
+					result.event.pullRequestNumber,
+					result.event.reviewId,
+					signal,
+				);
+				const body = [result.event.triggeringComment?.body.trim(), ...comments]
+					.filter(Boolean)
+					.join("\n\n");
+				if (!body) return c.text("skipped: review has no feedback", 202);
+				result = {
+					...result,
+					event: {
+						...result.event,
+						arg: body,
+						...(result.event.triggeringComment
+							? { triggeringComment: { ...result.event.triggeringComment, body } }
+							: {}),
+					},
+				};
+			} catch (error) {
+				console.error("[webhook] review comments lookup failed", {
+					delivery: deliveryId,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return c.text("review comments lookup failed", 503);
+			}
+		}
+
 		if (result.kind === "skip") {
 			console.log("[webhook] skip", {
 				event: eventType,
@@ -150,6 +308,31 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			});
 			return c.json({ anchor: result.anchor, cleanup }, 202);
 		}
+		if (result.kind === "review_state") {
+			const repo = readRepoContext(c.env);
+			if (!repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					`webhook-review-state:${deliveryId ?? result.pullRequestNumber}`,
+				);
+				const reviewState = await syncReviewStateLabel(token, repo, result, signal);
+				console.log("[webhook] review state", {
+					delivery: deliveryId,
+					pullRequest: result.pullRequestNumber,
+					reviewState,
+				});
+				return c.json({ pullRequest: result.pullRequestNumber, reviewState }, 202);
+			} catch (error) {
+				console.error("[webhook] review state update failed", {
+					delivery: deliveryId,
+					pullRequest: result.pullRequestNumber,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return c.text("review state update failed", 503);
+			}
+		}
 		if (result.kind !== "dispatch") return c.text("unsupported webhook result", 500);
 
 		// Persist into the per-anchor OrchestratorDO inbox before acknowledging.
@@ -171,4 +354,21 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 	});
 
 	return app;
+}
+
+async function operatorAuthorized(header: string | undefined, secret: string): Promise<boolean> {
+	if (!header || !secret) return false;
+	const expected = `Bearer ${secret}`;
+	const encoder = new TextEncoder();
+	const providedBytes = encoder.encode(header);
+	const expectedBytes = encoder.encode(expected);
+	return (
+		providedBytes.byteLength === expectedBytes.byteLength &&
+		crypto.subtle.timingSafeEqual(providedBytes, expectedBytes)
+	);
+}
+
+function positiveInteger(value: string): number | null {
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }

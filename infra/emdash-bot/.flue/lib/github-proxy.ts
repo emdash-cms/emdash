@@ -321,11 +321,21 @@ async function inspectReceivePack(
 				}
 				const length = Number.parseInt(header, 16);
 				if (length === 0) {
+					if (refs.length === 0) {
+						// Git probes chunked receive-pack support with one flush packet before large pushes.
+						if (buffer.length !== offset + 4) {
+							return { allowed: false, refs, parseError: "receive-pack probe has trailing data" };
+						}
+						const trailing = await reader.read();
+						return trailing.done
+							? { allowed: true, refs }
+							: { allowed: false, refs, parseError: "receive-pack probe has trailing data" };
+					}
 					const allowed = new Set([
 						`refs/heads/bot/fix-${issueNumber}`,
 						`refs/heads/bot/artifacts-${issueNumber}`,
 					]);
-					return { allowed: refs.length > 0 && refs.every((ref) => allowed.has(ref)), refs };
+					return { allowed: refs.every((ref) => allowed.has(ref)), refs };
 				}
 				if (length < 4 || length > MAX_RECEIVE_PACK_COMMAND_BYTES) {
 					return { allowed: false, refs, parseError: "invalid pkt-line length" };

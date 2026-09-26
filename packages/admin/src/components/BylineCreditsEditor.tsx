@@ -386,7 +386,7 @@ export function BylineCreditsEditor({
 		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
 
 	return (
-		<div className="space-y-4">
+		<div>
 			<Popover
 				open={chooserOpen}
 				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
@@ -462,11 +462,15 @@ export function BylineCreditsEditor({
 							(searchEnabled && searchResults.isLoading && !searchResults.data) ? (
 								<div className="flex h-full items-center justify-center gap-2">
 									<Loader size="sm" />
-									<Text variant="secondary">{t`Searching…`}</Text>
+									<Text variant="secondary" size="xs">
+										{t`Searching…`}
+									</Text>
 								</div>
 							) : searchEnabled && searchResults.isError ? (
 								<div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-									<Text variant="error">{t`Couldn’t search bylines.`}</Text>
+									<Text variant="error" size="xs">
+										{t`Couldn’t search bylines.`}
+									</Text>
 									<Button type="button" variant="secondary" onClick={() => searchResults.refetch()}>
 										{t`Retry`}
 									</Button>
@@ -485,6 +489,7 @@ export function BylineCreditsEditor({
 															<Text
 																as="span"
 																variant="secondary"
+																size="xs"
 																DANGEROUS_className="block wrap-break-word"
 															>
 																{option.byline.slug}
@@ -510,7 +515,7 @@ export function BylineCreditsEditor({
 															<Text bold as="span" DANGEROUS_className="block wrap-break-word">
 																{t`Create “${option.label}”`}
 															</Text>
-															<Text as="span" variant="secondary">
+															<Text as="span" variant="secondary" size="xs">
 																{t`New reusable profile`}
 															</Text>
 														</div>
@@ -532,13 +537,15 @@ export function BylineCreditsEditor({
 									{(searchResults.data?.nextCursor ||
 										(!searchEnabled && bylines.length >= 100)) && (
 										<li className="px-2 py-1">
-											<Text variant="secondary">{t`Keep typing to narrow the list.`}</Text>
+											<Text variant="secondary" size="xs">
+												{t`Keep typing to narrow the list.`}
+											</Text>
 										</li>
 									)}
 								</ul>
 							) : (
 								<div className="flex h-full items-center justify-center text-center">
-									<Text variant="secondary">
+									<Text variant="secondary" size="xs">
 										{searchEnabled ? t`No matching bylines.` : t`No bylines available.`}
 									</Text>
 								</div>
@@ -637,17 +644,19 @@ export function BylineCreditsEditor({
 						</>
 					) : inferredByline ? (
 						<div className="space-y-3">
-							<Text variant="secondary">{t`People shown publicly on this post.`}</Text>
+							<Text variant="secondary" size="xs">
+								{t`People shown publicly on this post.`}
+							</Text>
 							<div className="flex flex-wrap items-center gap-2">
 								<Text bold as="span">
 									{inferredByline.displayName}
 								</Text>
 								<Badge variant="secondary">{t`Automatic`}</Badge>
 							</div>
-							<Text as="p" variant="secondary">
+							<Text as="p" variant="secondary" size="xs">
 								{t`From the post owner`}
 							</Text>
-							<Text as="p" variant="secondary">
+							<Text as="p" variant="secondary" size="xs">
 								{t`Choosing a byline replaces this automatic credit.`}
 							</Text>
 							<Popover.Trigger
@@ -665,28 +674,24 @@ export function BylineCreditsEditor({
 							/>
 						</div>
 					) : (
-						<div className="space-y-3">
-							<Text variant="secondary">{t`People shown publicly on this post.`}</Text>
-							<Text variant="secondary">{t`No byline is shown on this post.`}</Text>
-							<Popover.Trigger
-								render={
-									<Button
-										ref={chooserTriggerRef}
-										type="button"
-										variant="secondary"
-										className="w-full"
-										data-keep-mobile-sidebar-open
-									>
-										{t`Choose bylines`}
-									</Button>
-								}
-							/>
-						</div>
+						<Popover.Trigger
+							render={
+								<Button
+									ref={chooserTriggerRef}
+									type="button"
+									variant="secondary"
+									className="w-full"
+									data-keep-mobile-sidebar-open
+								>
+									{t`Choose bylines`}
+								</Button>
+							}
+						/>
 					)}
 
 					{showLocaleEmptyState ? (
-						<div className="space-y-2 rounded-lg border border-dashed p-3">
-							<Text variant="secondary">
+						<div className="mt-4 space-y-2 rounded-lg border border-dashed p-3">
+							<Text variant="secondary" size="xs">
 								{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
 							</Text>
 							<RouterLinkButton
@@ -840,7 +845,7 @@ function SortableBylineRow({
 					{byline.displayName}
 				</Text>
 				{credit.roleLabel ? (
-					<Text as="span" variant="secondary" DANGEROUS_className="block wrap-break-word">
+					<Text as="span" variant="secondary" size="xs" DANGEROUS_className="block wrap-break-word">
 						{credit.roleLabel}
 					</Text>
 				) : null}
@@ -859,7 +864,7 @@ function SortableBylineRow({
 						/>
 					}
 				/>
-				<DropdownMenu.Content className="p-1">
+				<DropdownMenu.Content className="origin-[var(--transform-origin)] p-1 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none">
 					<DropdownMenu.Item
 						className="py-1 data-highlighted:bg-kumo-fill"
 						icon={<Tag className="me-1.5 size-3.5" aria-hidden="true" />}

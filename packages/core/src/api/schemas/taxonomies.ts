@@ -24,8 +24,8 @@ export const createTaxonomyDefBody = z
 			.regex(/^[a-z][a-z0-9_]*$/, "Name must be lowercase alphanumeric with underscores"),
 		label: z.string().min(1).max(200),
 		labelSingular: z.string().min(1).max(200).optional(),
-		hierarchical: z.boolean().optional().default(false),
-		collections: z.array(collectionSlug).max(100).optional().default([]),
+		hierarchical: z.boolean().optional(),
+		collections: z.array(collectionSlug).max(100).optional(),
 		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})
@@ -64,6 +64,24 @@ export const createTermBody = z
 		translationOf: z.string().min(1).optional(),
 	})
 	.meta({ id: "CreateTermBody" });
+
+export const bulkTagBody = z
+	.object({
+		termId: z.string().min(1),
+		apply: z.boolean().default(false),
+		refreshOnly: z.boolean().optional(),
+		items: z
+			.array(
+				z.union([
+					z.object({ collection: collectionSlug, id: z.string().min(1) }).strict(),
+					z.object({ url: z.string().min(1).max(2048) }).strict(),
+				]),
+			)
+			.min(1)
+			.max(50),
+	})
+	.strict()
+	.meta({ id: "BulkTagBody" });
 
 export const updateTermBody = z
 	.object({

@@ -12,6 +12,7 @@
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { APIContext } from "astro";
 import { z } from "zod";
 
 import {
@@ -20,25 +21,125 @@ import {
 	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	createBlockTypeBody,
 	createCollectionBody,
+	createTaxonomyDefBody,
 	updateCollectionBody,
+	updateBlockTypeBody,
 	updateFieldBody,
+	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
+import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
+import {
+	TRANSFER_SCOPES,
+	type TransferApprovalAction,
+	type TransferScope,
+} from "../transfer/auth.js";
+import { readSiteWriteFence, recordSiteWrite } from "../transfer/fence.js";
+import { toSha256Digest } from "../transfer/format/digest.js";
+import { siteImportDecisionsInputSchema } from "../transfer/format/plan.js";
 import { decodeBase64, encodeBase64 } from "../utils/base64.js";
+import {
+	analyzeImport,
+	exportStatus,
+	hasOperationGrant,
+	importReceipt,
+	importStatus,
+	resumeImport,
+	startExport,
+	startImport,
+	transferCapabilities,
+	type TransferContext,
+} from "./transfer.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+/**
+ * Shared wording for the `_rev` parameter on write tools. Agents only see the
+ * tool schema, so the retry protocol is stated here.
+ */
+const REV_PARAM_DESCRIPTION =
+	"Revision token proving you have read the current item. Call content_get " +
+	"first and pass back the _rev it returns. If this call fails with CONFLICT " +
+	"the item changed in the meantime: call content_get again and retry with " +
+	"the new token.";
+
+/**
+ * Replaces Zod's "expected string, received undefined" for a caller that never
+ * read the schema, so the message says where the token comes from.
+ */
+const REV_MISSING_ERROR =
+	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
+/**
+ * Shared wording for the `overrideLock` parameter on write tools. Agents only
+ * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
+ * override is stated here.
+ */
+const OVERRIDE_LOCK_PARAM_DESCRIPTION =
+	"Write even though someone else has this item open in the admin. Without it, " +
+	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
+	"content_get again does not clear it. Tell the user who holds the item, and " +
+	"set this only if they ask you to write anyway.";
+
+const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
+const TRANSFER_OPERATION_ID_PATTERN = /^[0-9A-Za-z_-]{1,64}$/;
+
+const transferOperationIdSchema = z
+	.string()
+	.regex(TRANSFER_OPERATION_ID_PATTERN, "Invalid operation id")
+	.describe("Transfer operation id");
+
+const transferApprovalIdSchema = z
+	.string()
+	.min(1)
+	.max(64)
+	.describe("Approval id from an earlier TRANSFER_APPROVAL_REQUIRED error, once approved");
+
+/**
+ * The site transfer tools. Like the transfer REST API they are exempt from
+ * the site write fence, so an import started over MCP can be driven to
+ * completion over MCP.
+ */
+const TRANSFER_TOOL_NAMES: ReadonlySet<string> = new Set([
+	"site_transfer_capabilities",
+	"site_export_start",
+	"site_export_status",
+	"site_import_analyze",
+	"site_import_start",
+	"site_import_status",
+	"site_import_resume",
+	"site_import_receipt",
+]);
+
+const APPROVAL_FLOW_DESCRIPTION =
+	"If the token lacks the scope, the first call fails with TRANSFER_APPROVAL_REQUIRED and " +
+	"details.approvalId; an admin must approve that request in the EmDash admin " +
+	"(Settings → Transfer). Then repeat the call with the same arguments plus approvalId. " +
+	"Approvals are single-use, bound to this user, this token, and these exact arguments, " +
+	"and expire 15 minutes after they are requested or approved.";
+
 const TAXONOMY_CURSOR_VERSION = 2;
 const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
+const contentDateTimeInputSchema = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.or(
+		z.iso.datetime({
+			offset: true,
+			precision: -1,
+			message: "must be an ISO 8601 datetime",
+		}),
+	);
 
 // ---------------------------------------------------------------------------
 // Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
@@ -67,8 +168,9 @@ const settingsSeoSchema = z.object({
 		.optional()
 		.describe("Separator between page title and site title (e.g. ' | ')"),
 	defaultOgImage: settingsMediaReferenceSchema
+		.nullable()
 		.optional()
-		.describe("Default Open Graph image when content has none"),
+		.describe("Default Open Graph image when content has none; null removes it"),
 	robotsTxt: z
 		.string()
 		.max(5000)
@@ -138,6 +240,9 @@ const schemaUpdateCollectionToolSchema = z.object({
 	hasSeo: updateCollectionBody.shape.hasSeo.describe(
 		"Whether the collection supports SEO metadata",
 	),
+	group: updateCollectionBody.shape.group.describe(
+		"Admin sidebar folder shared with other collections of the same group; pass null to move the collection back inline",
+	),
 	commentsEnabled: updateCollectionBody.shape.commentsEnabled.describe(
 		"Whether comments are enabled for this collection",
 	),
@@ -149,6 +254,15 @@ const schemaUpdateCollectionToolSchema = z.object({
 	),
 	commentsAutoApproveUsers: updateCollectionBody.shape.commentsAutoApproveUsers.describe(
 		"Whether comments from authenticated users are automatically approved",
+	),
+	editLocking: updateCollectionBody.shape.editLocking.describe(
+		"Whether opening an entry takes an edit lock that refuses other editors' writes",
+	),
+	titleField: updateCollectionBody.shape.titleField.describe(
+		"Field slug to use as the Title column in admin lists; pass null to fall back to the default",
+	),
+	dateField: updateCollectionBody.shape.dateField.describe(
+		"Datetime field slug to use as the Date column in admin lists; pass null to fall back to the default",
 	),
 });
 
@@ -423,6 +537,10 @@ interface EmDashExtra {
 	userRole: RoleLevel;
 	/** Token scopes — undefined for session auth (all access allowed). */
 	tokenScopes?: string[];
+	/** Id of the API or OAuth token the caller authenticated with. */
+	tokenId?: string;
+	/** The route cache of the MCP request, used to invalidate the same tags the REST routes do. */
+	cache?: APIContext["cache"];
 }
 
 function isPublished(t: unknown): boolean {
@@ -446,14 +564,33 @@ function getEmDash(extra: { authInfo?: { extra?: Record<string, unknown> } }): E
 	return getExtra(extra).emdash;
 }
 
+/**
+ * Unwrap a write result, first invalidating `tags` in the route cache when the
+ * write succeeded. Pass `changedEarlier` when an earlier step of the same tool
+ * already changed live content, so a failure in a later step still invalidates.
+ */
+async function unwrapAndInvalidate(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	result: HandlerResult,
+	tags: string[],
+	changedEarlier = false,
+): Promise<SuccessEnvelope | ErrorEnvelope> {
+	if (result.success || changedEarlier) {
+		const { cache } = getExtra(extra);
+		if (cache?.enabled) await cache.invalidate({ tags });
+	}
+	return unwrap(result);
+}
+
 async function getCollectionFields(
 	ec: EmDashHandlers,
 	collection: string,
 ): Promise<FieldSchema[] | null> {
 	try {
 		const { SchemaRegistry } = await import("../schema/index.js");
+		const { expandCollectionBlockFields } = await import("../schema/block-values.js");
 		const col = await new SchemaRegistry(ec.db).getCollectionWithFields(collection);
-		return col ? col.fields : null;
+		return col ? (await expandCollectionBlockFields(ec.db, col)).fields : null;
 	} catch {
 		return null;
 	}
@@ -541,6 +678,61 @@ function requireRole(
 	}
 }
 
+type TransferScopeRequirement = TransferScope | "transfer:*";
+
+/**
+ * Whether the caller's token holds `scope` (`transfer:*`: any transfer
+ * scope). A caller without token scopes holds none.
+ */
+function transferScopeHeld(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	scope: TransferScopeRequirement,
+): boolean {
+	const { tokenScopes } = getExtra(extra);
+	if (!tokenScopes) return false;
+	if (scope === "transfer:*") return TRANSFER_SCOPES.some((held) => hasScope(tokenScopes, held));
+	return hasScope(tokenScopes, scope);
+}
+
+function insufficientTransferScope(scope: TransferScopeRequirement): EmDashAuthError {
+	const required = scope === "transfer:*" ? TRANSFER_SCOPES.join(" or ") : scope;
+	return new EmDashAuthError(`Insufficient scope: requires ${required}`, "INSUFFICIENT_SCOPE");
+}
+
+function requireTransferScope(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	scope: TransferScopeRequirement,
+): void {
+	if (!transferScopeHeld(extra, scope)) throw insufficientTransferScope(scope);
+}
+
+/**
+ * Require `scope`, or a grant this user consumed with this token to start
+ * `operationId`.
+ */
+async function requireTransferAccess(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	scope: TransferScopeRequirement,
+	action: TransferApprovalAction,
+	operationId: string,
+): Promise<void> {
+	if (transferScopeHeld(extra, scope)) return;
+	const { emdash, userId, tokenId } = getExtra(extra);
+	if (await hasOperationGrant(emdash.db, { userId, tokenId }, action, operationId)) return;
+	throw insufficientTransferScope(scope);
+}
+
+function transferContext(extra: {
+	authInfo?: { extra?: Record<string, unknown> };
+}): TransferContext {
+	const { emdash } = getExtra(extra);
+	return { db: emdash.db, storage: emdash.storage, maxUploadSize: emdash.config.maxUploadSize };
+}
+
+function transferDigest(value: string) {
+	return toSha256Digest(value.slice("sha256:".length));
+}
+
 /**
  * Whether the current user may read non-published content (drafts, scheduled,
  * trashed, revisions, compare). SUBSCRIBER may hold content:read for
@@ -617,6 +809,31 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/**
+ * Refuses a write while another user holds the entry's edit lock. Resolves to
+ * `null` when the write may proceed, and extends the caller's own lease if they
+ * hold it.
+ */
+async function refuseLockedEntry(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	collection: string,
+	entryId: string,
+	overrideLock: boolean | undefined,
+): Promise<ErrorEnvelope | null> {
+	const { emdash, userId } = getExtra(extra);
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, entryId, userId, {
+		override: overrideLock,
+	});
+	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
+}
+
+/** Extract the `_rev` token from a content handler response. */
+function extractContentRev(data: unknown): string | undefined {
+	if (!data || typeof data !== "object") return undefined;
+	const rev = (data as Record<string, unknown>)._rev;
+	return typeof rev === "string" ? rev : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
@@ -646,20 +863,38 @@ export function createMcpServer(
 	// surface as structured `_meta.code`-bearing tool error envelopes
 	// instead of the SDK's text-only fallback in createToolError().
 	//
+	// The wrapper also applies the site write fence. Every MCP request is a
+	// POST, so the fence middleware leaves the endpoint to this per-tool
+	// check: every tool is fenced unless it is annotated `readOnlyHint: true`
+	// or is a transfer tool. A tool annotated read-only must never write.
+	//
 	// Type-erased on purpose — the SDK's overloads are too narrow for a
 	// generic wrapper, but the runtime contract (callback returns the tool
 	// result envelope) holds for every registered tool.
 	const originalRegisterTool = server.registerTool.bind(server);
 	(server as { registerTool: typeof server.registerTool }).registerTool = ((
 		name: string,
-		config: unknown,
+		config: { annotations?: { readOnlyHint?: boolean } },
 		callback: (...callbackArgs: unknown[]) => Promise<SuccessEnvelope | ErrorEnvelope>,
 	) => {
+		const fenced = config.annotations?.readOnlyHint !== true && !TRANSFER_TOOL_NAMES.has(name);
 		const wrapped = async (
 			...callbackArgs: unknown[]
 		): Promise<SuccessEnvelope | ErrorEnvelope> => {
 			try {
-				return await callback(...callbackArgs);
+				if (!fenced) return await callback(...callbackArgs);
+				// The SDK passes the request extra as the last callback argument.
+				const extra = callbackArgs.at(-1) as { authInfo?: { extra?: Record<string, unknown> } };
+				const { db } = getEmDash(extra);
+				const fence = await readSiteWriteFence(db);
+				if (fence.error) return respondError(fence.error.code, fence.error.message);
+				const result = await callback(...callbackArgs);
+				// Recorded after the write so an export whose fence was captured
+				// while this tool ran still sees it.
+				if (fence.exportRunning && !("isError" in result && result.isError)) {
+					await recordSiteWrite(db);
+				}
+				return result;
 			} catch (error) {
 				return respondHandlerError(error, "INTERNAL_ERROR");
 			}
@@ -670,7 +905,7 @@ export function createMcpServer(
 	}) as typeof server.registerTool;
 
 	for (const tool of pluginTools) {
-		if (!(tool.permission in Permissions)) continue;
+		if (!Object.hasOwn(Permissions, tool.permission)) continue;
 		server.registerTool(
 			`${tool.pluginId}__${tool.name}`,
 			{
@@ -715,6 +950,7 @@ export function createMcpServer(
 					);
 				}
 				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const routeCache = payload.cache;
 				const result = await payload.emdash.handlePluginMcpTool(
 					tool.pluginId,
 					tool.name,
@@ -723,6 +959,7 @@ export function createMcpServer(
 					payload.userId,
 					request,
 					payload.user,
+					routeCache?.enabled ? (tags) => routeCache.invalidate({ tags }) : undefined,
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {
@@ -827,8 +1064,9 @@ export function createMcpServer(
 			title: "Get Content",
 			description:
 				"Get a single content item by its ID or slug. Returns the full content data " +
-				"including all field values, metadata, and a _rev token for optimistic " +
-				"concurrency (pass _rev back when updating to detect conflicts).",
+				"including all field values, metadata, and a _rev token. content_update, " +
+				"content_publish, content_unpublish and content_discard_draft require that " +
+				"token, so read the item here before calling them.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				id: z.string().describe("Content item ID (ULID) or slug"),
@@ -912,6 +1150,14 @@ export function createMcpServer(
 					.describe(
 						"ID of the content item this is a translation of. Links items in the same translation group.",
 					),
+				migrateBlocks: z
+					.boolean()
+					.optional()
+					.describe("Allow retained blocks to migrate to their type's active version"),
+				replaceBlocks: z
+					.boolean()
+					.optional()
+					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				bylines: z
 					.array(contentBylineInputSchema)
 					.optional()
@@ -930,7 +1176,8 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
-			const { emdash, userId } = getExtra(extra);
+			const { emdash, userId, userRole } = getExtra(extra);
+			const actor = { id: userId, role: userRole };
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -948,7 +1195,7 @@ export function createMcpServer(
 
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
-				const user = { id: userId, role: getExtra(extra).userRole };
+				const user = { id: userId, role: userRole };
 				if (!hasPermission(user, "content:publish_own")) {
 					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
@@ -963,16 +1210,28 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					migrateBlocks: args.migrateBlocks,
+					replaceBlocks: args.replaceBlocks,
+					actor,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
 				if (itemId) {
-					return unwrap(await emdash.handleContentPublish(args.collection, itemId));
+					return unwrapAndInvalidate(
+						extra,
+						await emdash.handleContentPublish(args.collection, itemId, {
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						[args.collection, itemId],
+						true,
+					);
 				}
-				return unwrap(result);
+				return unwrapAndInvalidate(extra, result, [args.collection]);
 			}
 
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -981,7 +1240,11 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					migrateBlocks: args.migrateBlocks,
+					replaceBlocks: args.replaceBlocks,
+					actor,
 				}),
+				[args.collection],
 			);
 		},
 	);
@@ -995,9 +1258,12 @@ export function createMcpServer(
 				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
 				"(portableText) fields accept a Markdown string (recommended, converted " +
 				"automatically); use a Portable Text JSON array only for complex content " +
-				"Markdown can't express (custom blocks, embeds). Pass the " +
-				"_rev token from content_get to enable optimistic concurrency checking " +
-				"(the update fails if the item was modified since you read it). " +
+				"Markdown can't express (custom blocks, embeds). Requires the _rev " +
+				"token from content_get, so read the item before updating it: the " +
+				"update fails if the item changed since that read. When status is not " +
+				"set, a change to a published item is staged as a draft, so the " +
+				"response shows the new values while the live version keeps the old " +
+				"ones until content_publish. " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
 				"single transaction. `publishedAt` requires the content:publish_any " +
 				"permission and is useful for migrations or correcting historical dates.",
@@ -1043,22 +1309,28 @@ export function createMcpServer(
 					.describe(
 						"Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
 					),
-				publishedAt: z.iso
-					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+				publishedAt: contentDateTimeInputSchema
 					.nullish()
 					.describe(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
 					),
-				_rev: z
-					.string()
+				migrateBlocks: z
+					.boolean()
 					.optional()
-					.describe("Revision token from content_get for conflict detection"),
+					.describe("Allow existing blocks to migrate to their type's active version"),
+				replaceBlocks: z
+					.boolean()
+					.optional()
+					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
 			const { emdash, userId, userRole } = getExtra(extra);
+			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
 			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
@@ -1087,9 +1359,17 @@ export function createMcpServer(
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 
+			if (args.status !== undefined) {
+				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+			}
+
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+				let rev: string | undefined = args._rev;
+				let liveChanged = false;
 				if (
 					args.data ||
 					args.slug ||
@@ -1101,21 +1381,35 @@ export function createMcpServer(
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data,
 						slug: args.slug,
-						authorId: userId,
+						actor,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
 						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
+						migrateBlocks: args.migrateBlocks,
+						replaceBlocks: args.replaceBlocks,
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					liveChanged = updateResult.liveContentChanged !== false;
+					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(await emdash.handleContentPublish(args.collection, resolvedId));
+				return unwrapAndInvalidate(
+					extra,
+					await emdash.handleContentPublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
+					[args.collection, resolvedId],
+					liveChanged,
+				);
 			}
 
 			if (args.status === "draft") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+				let rev: string | undefined = args._rev;
+				let liveChanged = false;
 				if (
 					args.data ||
 					args.slug ||
@@ -1127,32 +1421,47 @@ export function createMcpServer(
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data,
 						slug: args.slug,
-						authorId: userId,
+						actor,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
 						taxonomies: args.taxonomies,
 						publishedAt: args.publishedAt,
+						migrateBlocks: args.migrateBlocks,
+						replaceBlocks: args.replaceBlocks,
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					liveChanged = updateResult.liveContentChanged !== false;
+					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(await emdash.handleContentUnpublish(args.collection, resolvedId));
+				return unwrapAndInvalidate(
+					extra,
+					await emdash.handleContentUnpublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
+					[args.collection, resolvedId],
+					liveChanged,
+				);
 			}
 
-			return unwrap(
-				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data,
-					slug: args.slug,
-					authorId: userId,
-					locale: args.locale,
-					seo: args.seo,
-					bylines: args.bylines,
-					taxonomies: args.taxonomies,
-					publishedAt: args.publishedAt,
-					_rev: args._rev,
-				}),
-			);
+			const result = await emdash.handleContentUpdate(args.collection, resolvedId, {
+				data,
+				slug: args.slug,
+				actor,
+				locale: args.locale,
+				seo: args.seo,
+				bylines: args.bylines,
+				taxonomies: args.taxonomies,
+				publishedAt: args.publishedAt,
+				migrateBlocks: args.migrateBlocks,
+				replaceBlocks: args.replaceBlocks,
+				_rev: args._rev,
+			});
+			if (result.liveContentChanged === false) return unwrap(result);
+			return unwrapAndInvalidate(extra, result, [args.collection, resolvedId]);
 		},
 	);
 
@@ -1167,6 +1476,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1188,7 +1498,12 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentDelete(args.collection, resolvedId));
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
+				args.collection,
+				resolvedId,
+			]);
 		},
 	);
 
@@ -1196,7 +1511,9 @@ export function createMcpServer(
 		"content_restore",
 		{
 			title: "Restore Content",
-			description: "Restore a soft-deleted content item from the trash back to its previous state.",
+			description:
+				"Restore a soft-deleted content item from the trash. It comes back as a draft " +
+				"with no schedule, even if it was published or scheduled before it was trashed.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
@@ -1220,7 +1537,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentRestore(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentRestore(args.collection, resolvedId),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1241,7 +1562,11 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentPermanentDelete(args.collection, args.id));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentPermanentDelete(args.collection, args.id),
+				[args.collection, args.id],
+			);
 		},
 	);
 
@@ -1260,16 +1585,13 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				_rev: z
-					.string()
-					.optional()
-					.describe("Revision token from content_get for conflict detection"),
-				publishedAt: z.iso
-					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				publishedAt: contentDateTimeInputSchema
 					.optional()
 					.describe(
 						"Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",
 					),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1298,11 +1620,17 @@ export function createMcpServer(
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+			return unwrapAndInvalidate(
+				extra,
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
 				}),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1313,20 +1641,19 @@ export function createMcpServer(
 			title: "Unpublish Content",
 			description:
 				"Unpublish a content item, reverting it to draft status. It will no " +
-				"longer be visible on the live site, but its content and publication date are preserved.",
+				"longer be visible on the live site, but its content and publication date are preserved. " +
+				"Any pending schedule is cancelled.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				_rev: z
-					.string()
-					.optional()
-					.describe("Revision token from content_get for conflict detection"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1341,8 +1668,16 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
-				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentUnpublish(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1358,15 +1693,17 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				scheduledAt: z
-					.string()
-					.describe("ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				scheduledAt: contentDateTimeInputSchema.describe(
+					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
+				),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1381,7 +1718,17 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt));
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1390,12 +1737,13 @@ export function createMcpServer(
 		{
 			title: "Cancel Scheduled Publication",
 			description:
-				"Cancel a previously scheduled publication. The item remains in its current " +
-				"status (typically 'draft' or 'scheduled'); only the scheduledAt timestamp is " +
-				"cleared. Idempotent — calling on an item that isn't scheduled is a no-op.",
+				"Cancel a previously scheduled publication. Scheduled drafts return to draft status; " +
+				"published items stay published. The scheduledAt timestamp is cleared. Idempotent — " +
+				"calling on an item that isn't scheduled is a no-op.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1415,7 +1763,13 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentUnschedule(args.collection, resolvedId));
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentUnschedule(args.collection, resolvedId),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1446,15 +1800,13 @@ export function createMcpServer(
 		{
 			title: "Discard Draft",
 			description:
-				"Discard the current draft changes and revert to the last published " +
-				"version. Only works on items that have been published at least once.",
+				"Discard the current draft revision. Published content reverts to its live " +
+				"version; an item without a pending draft is unchanged.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				_rev: z
-					.string()
-					.optional()
-					.describe("Revision token from content_get for conflict detection"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1476,8 +1828,12 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+			return unwrapAndInvalidate(
+				extra,
 				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1525,8 +1881,21 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
-			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentDuplicate(args.collection, args.id));
+			const { emdash, userId } = getExtra(extra);
+			const existing = await emdash.handleContentGet(args.collection, args.id);
+			if (!existing.success) return unwrap(existing);
+			requireOwnership(
+				extra,
+				extractContentAuthorId(existing.data),
+				"content:edit_own",
+				"content:edit_any",
+			);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
+			return unwrapAndInvalidate(
+				extra,
+				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
+				[args.collection],
+			);
 		},
 	);
 
@@ -1783,7 +2152,8 @@ export function createMcpServer(
 				"Get detailed info about a collection including all field definitions. " +
 				"Fields describe the data model: name, type (string, text, number, " +
 				"boolean, datetime, portableText, image, reference, json, select, " +
-				"multiSelect, slug), constraints, and validation rules. Use this to " +
+				"multiSelect, slug, blocks), constraints, and validation rules. Blocks fields " +
+				"include every allowed and retired block type version. Use this to " +
 				"understand what data content_create and content_update expect.",
 			inputSchema: z.object({
 				slug: z
@@ -1799,16 +2169,111 @@ export function createMcpServer(
 			requireRole(extra, Role.EDITOR);
 			const ec = getEmDash(extra);
 			try {
-				const { SchemaRegistry } = await import("../schema/index.js");
+				const { SchemaRegistry, expandCollectionBlockFields } = await import("../schema/index.js");
 				const registry = new SchemaRegistry(ec.db);
 				const collection = await registry.getCollectionWithFields(args.slug);
 				if (!collection) {
 					return respondError("NOT_FOUND", `Collection '${args.slug}' not found`);
 				}
-				return jsonResult(collection);
+				return jsonResult(await expandCollectionBlockFields(ec.db, collection));
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_GET_ERROR");
 			}
+		},
+	);
+
+	server.registerTool(
+		"schema_list_block_types",
+		{
+			title: "List Block Types",
+			description: "List every database-owned block type and all retained versions.",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireScope(extra, "schema:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeList } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeList(ec.db));
+		},
+	);
+
+	server.registerTool(
+		"schema_get_block_type",
+		{
+			title: "Get Block Type",
+			description: "Get one block type, including active, inactive, and historical versions.",
+			inputSchema: z.object({ slug: z.string().describe("Block type slug") }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:read");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeGet } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeGet(ec.db, args.slug));
+		},
+	);
+
+	server.registerTool(
+		"schema_create_block_type",
+		{
+			title: "Create Block Type",
+			description: "Create a block type with active version 1.",
+			inputSchema: z.object(createBlockTypeBody.shape),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeCreate } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeCreate(ec.db, args));
+		},
+	);
+
+	server.registerTool(
+		"schema_update_block_type",
+		{
+			title: "Update Block Type",
+			description:
+				"Update presentation or compatible fields in place. Set breaking to create an inactive retained version.",
+			inputSchema: z.object({ slug: z.string(), ...updateBlockTypeBody.shape }),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { slug, ...input } = args;
+			const { handleBlockTypeUpdate } = await import("../api/handlers/block-types.js");
+			return unwrap(await handleBlockTypeUpdate(ec.db, slug, input));
+		},
+	);
+
+	server.registerTool(
+		"schema_activate_block_type_version",
+		{
+			title: "Activate Block Type Version",
+			description: "Make a retained version the active version used by newly created blocks.",
+			inputSchema: z.object({
+				slug: z.string(),
+				version: z.number().int().positive(),
+				expectedFingerprint: z.string().min(1),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { handleBlockTypeVersionActivate } = await import("../api/handlers/block-types.js");
+			return unwrap(
+				await handleBlockTypeVersionActivate(
+					ec.db,
+					args.slug,
+					args.version,
+					args.expectedFingerprint,
+				),
+			);
 		},
 	);
 
@@ -1838,6 +2303,12 @@ export function createMcpServer(
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",
 				),
+				editLocking: createCollectionBody.shape.editLocking.describe(
+					"Take an edit lock when an entry is opened (default: true)",
+				),
+				group: createCollectionBody.shape.group.describe(
+					"Admin sidebar folder shared with other collections of the same group",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1857,6 +2328,8 @@ export function createMcpServer(
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
 					routable: args.routable,
+					editLocking: args.editLocking,
+					group: args.group,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);
@@ -1934,7 +2407,7 @@ export function createMcpServer(
 				"database table. Field types: string (short text), text (long text), " +
 				"number (decimal), integer, boolean, datetime, select (single choice), " +
 				"multiSelect (multiple), portableText (rich text), image, file, " +
-				"reference (link to another collection), json, slug (URL-safe id). " +
+				"reference (link to another collection), json, slug (URL-safe id), or blocks. " +
 				"For select/multiSelect, provide choices in validation.options array.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug to add the field to"),
@@ -1959,6 +2432,7 @@ export function createMcpServer(
 						"reference",
 						"json",
 						"slug",
+						"blocks",
 					])
 					.describe("Data type for this field"),
 				required: z.boolean().optional().describe("Whether the field is required (default false)"),
@@ -1975,6 +2449,12 @@ export function createMcpServer(
 							.array(z.string())
 							.optional()
 							.describe("Allowed values for select/multiSelect"),
+						allowedTypes: z
+							.array(z.string())
+							.optional()
+							.describe("Ordered block type slugs allowed by a blocks field"),
+						minItems: z.number().int().min(0).optional(),
+						maxItems: z.number().int().min(1).optional(),
 					})
 					.optional()
 					.describe("Validation constraints"),
@@ -1986,7 +2466,7 @@ export function createMcpServer(
 							.describe("Target collection slug for reference fields"),
 						rows: z.number().optional().describe("Number of rows for textarea"),
 					})
-					.passthrough()
+					.loose()
 					.optional()
 					.describe("Widget configuration"),
 				searchable: z
@@ -2121,27 +2601,15 @@ export function createMcpServer(
 	server.registerTool(
 		"media_create",
 		{
-			title: "Register Uploaded Media",
+			title: "Confirm Signed Media Upload",
 			description:
-				"Register a media file that has already been uploaded to storage. The " +
-				"caller is responsible for placing the file at `storageKey` (typically " +
-				"using a signed upload URL obtained from the admin UI or a separate API). " +
-				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. To upload the " +
-				"file itself, use media_upload (base64 data or a public URL) instead.",
+				"Confirm a file after uploading it with a signed URL obtained from " +
+				"POST /_emdash/api/media/upload-url. `storageKey` must be the key returned " +
+				"for the same user. Confirmation checks that the stored file exists and " +
+				"matches the size fixed when the URL was issued, then makes it available " +
+				"through media_list / media_get. To upload through MCP, use media_upload instead.",
 			inputSchema: z.object({
-				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
-				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
-				storageKey: z.string().describe("Storage path/key the file was uploaded to"),
-				size: z.number().int().nonnegative().optional().describe("File size in bytes"),
-				width: z.number().int().positive().optional().describe("Image width in pixels"),
-				height: z.number().int().positive().optional().describe("Image height in pixels"),
-				contentHash: z.string().optional().describe("Hash of the file contents (for dedupe)"),
-				blurhash: z.string().optional().describe("Blurhash for image placeholders"),
-				dominantColor: z
-					.string()
-					.optional()
-					.describe("Hex color string for the image's dominant color"),
+				storageKey: z.string().describe("Storage key returned by the signed upload URL request"),
 			}),
 		},
 		async (args, extra) => {
@@ -2149,16 +2617,8 @@ export function createMcpServer(
 			requireRole(extra, Role.AUTHOR);
 			const { emdash, userId } = getExtra(extra);
 			return unwrap(
-				await emdash.handleMediaCreate({
-					filename: args.filename,
-					mimeType: args.mimeType,
+				await emdash.handleMediaRegisterUpload({
 					storageKey: args.storageKey,
-					size: args.size,
-					width: args.width,
-					height: args.height,
-					contentHash: args.contentHash,
-					blurhash: args.blurhash,
-					dominantColor: args.dominantColor,
 					authorId: userId,
 				}),
 			);
@@ -2170,35 +2630,20 @@ export function createMcpServer(
 		{
 			title: "Upload Media",
 			description:
-				"Upload a media file from base64-encoded data or an external URL and " +
+				"Upload a media file from base64-encoded data and " +
 				"register it in the media library. Returns the media item with id, " +
 				"storageKey, and url — ready to reference from content fields (e.g. " +
 				"featured_image) via content_create / content_update. Uploads are " +
 				"deduplicated by content hash: re-uploading identical bytes returns " +
-				"the existing item with deduplicated: true. URL fetches must resolve " +
-				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"the existing item with deduplicated: true. Subject to the global " +
 				"upload MIME allowlist and the configured maximum upload size.",
 			inputSchema: z.object({
 				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
-				base64: z
-					.string()
-					.optional()
-					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
-				url: z
-					.string()
-					.url()
-					.optional()
-					.describe(
-						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
-					),
+				base64: z.string().describe("Base64-encoded file contents."),
 				contentType: z
 					.string()
 					.regex(CONTENT_TYPE_RE, "Invalid content type")
-					.optional()
-					.describe(
-						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
-							"defaults to the response's Content-Type header.",
-					),
+					.describe("MIME type (e.g. 'image/png')."),
 				alt: z.string().optional().describe("Alt text for accessibility"),
 			}),
 			annotations: { destructiveHint: false },
@@ -2211,12 +2656,10 @@ export function createMcpServer(
 				return respondError("NO_STORAGE", "Storage not configured");
 			}
 			try {
-				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
 				return unwrap(
-					await handleMediaUpload(emdash.db, emdash.storage, {
+					await emdash.handleMediaUpload({
 						filename: args.filename,
 						base64: args.base64,
-						url: args.url,
 						contentType: args.contentType,
 						alt: args.alt,
 						authorId: userId,
@@ -2441,6 +2884,166 @@ export function createMcpServer(
 	);
 
 	server.registerTool(
+		"taxonomy_get",
+		{
+			title: "Get Taxonomy Definition",
+			description:
+				"Get a single taxonomy definition by name. Taxonomy definitions describe " +
+				"a classification system (e.g. categories or tags), which collections " +
+				"it applies to, and whether it is hierarchical. Pass `locale` to resolve " +
+				"a specific translation; otherwise the lowest matching locale is returned.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
+				locale: z.string().optional().describe("Locale to resolve the definition for"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyGet } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTaxonomyGet(ec.db, args.name, { locale: args.locale }));
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_create",
+		{
+			title: "Create Taxonomy Definition",
+			description:
+				"Create a taxonomy definition in one locale. `label` and `labelSingular` " +
+				"belong to that locale; `hierarchical` and `collections` belong to the " +
+				"taxonomy and are the same in every locale. `collections` names which " +
+				"content types the taxonomy applies to. A definition for a name that " +
+				"already exists in another locale joins that taxonomy and takes its " +
+				"`hierarchical` and `collections`; passing different values is an error " +
+				"(change them with taxonomy_update).",
+			inputSchema: z.object({
+				name: createTaxonomyDefBody.shape.name.describe(
+					"Taxonomy name (lowercase letters, numbers, underscores)",
+				),
+				label: createTaxonomyDefBody.shape.label.describe("Display name"),
+				labelSingular: createTaxonomyDefBody.shape.labelSingular.describe(
+					"Singular form of the display name",
+				),
+				hierarchical: createTaxonomyDefBody.shape.hierarchical.describe(
+					"Whether the taxonomy supports parent/child terms, in every locale (defaults to false; must match when the taxonomy exists in another locale)",
+				),
+				collections: createTaxonomyDefBody.shape.collections.describe(
+					"Collection slugs this taxonomy applies to, in every locale (defaults to []; must match when the taxonomy exists in another locale)",
+				),
+				locale: z.string().optional().describe("Locale for this definition (e.g. 'fr-fr')"),
+				translationOf: z
+					.string()
+					.optional()
+					.describe("Existing taxonomy definition id to create this locale variant from"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyCreate } = await import("../api/handlers/taxonomies.js");
+				return unwrapAndInvalidate(
+					extra,
+					await handleTaxonomyCreate(ec.db, {
+						name: args.name,
+						label: args.label,
+						labelSingular: args.labelSingular,
+						hierarchical: args.hierarchical,
+						collections: args.collections,
+						locale: args.locale,
+						translationOf: args.translationOf,
+					}),
+					[taxonomyTag(args.name)],
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_update",
+		{
+			title: "Update Taxonomy Definition",
+			description:
+				"Update an existing taxonomy definition. The taxonomy `name` cannot be " +
+				"changed. Pass `locale` to update a specific translation's `label` and " +
+				"`labelSingular`; otherwise the lowest matching locale is updated. " +
+				"`hierarchical` and `collections` change for every locale. Any field " +
+				"may be omitted to leave it unchanged.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name to update"),
+				label: updateTaxonomyDefBody.shape.label.describe("New display name"),
+				labelSingular: updateTaxonomyDefBody.shape.labelSingular.describe(
+					"New singular display name; pass null to clear",
+				),
+				hierarchical: updateTaxonomyDefBody.shape.hierarchical.describe(
+					"Whether the taxonomy supports parent/child terms, in every locale",
+				),
+				collections: updateTaxonomyDefBody.shape.collections.describe(
+					"Collection slugs this taxonomy applies to, in every locale",
+				),
+				locale: z.string().optional().describe("Locale of the definition to update"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyUpdate } = await import("../api/handlers/taxonomies.js");
+				return unwrapAndInvalidate(
+					extra,
+					await handleTaxonomyUpdate(ec.db, args.name, {
+						label: args.label,
+						labelSingular: args.labelSingular,
+						hierarchical: args.hierarchical,
+						collections: args.collections,
+						locale: args.locale,
+					}),
+					[taxonomyTag(args.name)],
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_delete",
+		{
+			title: "Delete Taxonomy Definition",
+			description:
+				"Delete a taxonomy definition and all of its terms in every locale, " +
+				"along with any content assignments those terms hold. This cannot be undone.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyDelete } = await import("../api/handlers/taxonomies.js");
+				return unwrapAndInvalidate(extra, await handleTaxonomyDelete(ec.db, args.name), [
+					taxonomyTag(args.name),
+				]);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
 		"taxonomy_list_terms",
 		{
 			title: "List Taxonomy Terms",
@@ -2557,7 +3160,9 @@ export function createMcpServer(
 				translationOf: z
 					.string()
 					.optional()
-					.describe("Term id to join as a translation (same translation_group)"),
+					.describe(
+						"Term id to join as a translation (same translation_group). The new term takes that term's parent and position; a different parentId moves the term in every locale",
+					),
 			}),
 		},
 		async (args, extra) => {
@@ -2566,7 +3171,8 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermCreate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleTermCreate(ec.db, args.taxonomy, {
 						slug: args.slug,
 						label: args.label,
@@ -2575,6 +3181,7 @@ export function createMcpServer(
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_CREATE_ERROR");
@@ -2593,7 +3200,9 @@ export function createMcpServer(
 				"parent must exist, belong to the same taxonomy, and not introduce a cycle " +
 				"(a term cannot be its own ancestor). The new parent's ancestor chain must " +
 				"not exceed 100 levels — reparenting under a chain of 100+ ancestors is " +
-				"rejected.",
+				"rejected. Translations of a term can share a slug: pass `locale` to " +
+				"update a specific translation; otherwise the lowest matching locale is " +
+				"updated.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				termSlug: z.string().describe("Current slug of the term to update"),
@@ -2601,6 +3210,7 @@ export function createMcpServer(
 				label: z.string().optional().describe("New display name"),
 				parentId: z.string().nullable().optional().describe("New parent term ID; null to detach"),
 				description: z.string().optional().describe("New description"),
+				locale: z.string().optional().describe("Locale of the term to update (e.g. 'fr')"),
 			}),
 		},
 		async (args, extra) => {
@@ -2609,13 +3219,21 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
-					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
-						slug: args.slug,
-						label: args.label,
-						parentId: args.parentId,
-						description: args.description,
-					}),
+				return unwrapAndInvalidate(
+					extra,
+					await handleTermUpdate(
+						ec.db,
+						args.taxonomy,
+						args.termSlug,
+						{
+							slug: args.slug,
+							label: args.label,
+							parentId: args.parentId,
+							description: args.description,
+						},
+						{ locale: args.locale },
+					),
+					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_UPDATE_ERROR");
@@ -2630,10 +3248,13 @@ export function createMcpServer(
 			description:
 				"Permanently delete a term from a taxonomy. Any content tagged with this " +
 				"term loses the association. Cannot delete a term that has children — " +
-				"delete children first.",
+				"delete children first. Translations of a term can share a slug: pass " +
+				"`locale` to delete a specific translation; otherwise the lowest matching " +
+				"locale is deleted.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name"),
 				termSlug: z.string().describe("Slug of the term to delete"),
+				locale: z.string().optional().describe("Locale of the term to delete (e.g. 'fr')"),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -2643,7 +3264,11 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
-				return unwrap(await handleTermDelete(ec.db, args.taxonomy, args.termSlug));
+				return unwrapAndInvalidate(
+					extra,
+					await handleTermDelete(ec.db, args.taxonomy, args.termSlug, { locale: args.locale }),
+					[taxonomyTag(args.taxonomy)],
+				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_DELETE_ERROR");
 			}
@@ -2782,13 +3407,15 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuCreate } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuCreate(ec.db, {
 						name: args.name,
 						label: args.label,
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_CREATE_ERROR");
@@ -2815,8 +3442,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuUpdate } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuUpdate(ec.db, args.name, { label: args.label, locale: args.locale }),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_UPDATE_ERROR");
@@ -2843,7 +3472,11 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuDelete } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuDelete(ec.db, args.name, { locale: args.locale }));
+				return unwrapAndInvalidate(
+					extra,
+					await handleMenuDelete(ec.db, args.name, { locale: args.locale }),
+					[menuTag(args.name)],
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_DELETE_ERROR");
 			}
@@ -2906,8 +3539,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuSetItems } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuSetItems(ec.db, args.name, args.items, { locale: args.locale }),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
@@ -2956,6 +3591,7 @@ export function createMcpServer(
 				"use content_publish afterward if needed.",
 			inputSchema: z.object({
 				revisionId: z.string().describe("Revision ID to restore"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -2987,6 +3623,14 @@ export function createMcpServer(
 				"content:edit_own",
 				"content:edit_any",
 			);
+
+			const locked = await refuseLockedEntry(
+				extra,
+				revItem.collection,
+				revItem.entryId,
+				args.overrideLock,
+			);
+			if (locked) return locked;
 
 			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
 		},
@@ -3031,22 +3675,21 @@ export function createMcpServer(
 				"the full settings object after the update. To set a media reference " +
 				"(logo, favicon, seo.defaultOgImage), pass an object with `mediaId` " +
 				"(and optional `alt`) — the media item must already exist (use " +
-				"media_create first).",
+				"media_create first), or pass null to remove it.",
 			inputSchema: z.object({
 				title: z.string().optional().describe("Site title"),
 				tagline: z.string().optional().describe("Site tagline / short description"),
 				logo: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Logo media reference ({ mediaId, alt? })"),
+					.describe("Logo media reference ({ mediaId, alt? }); null removes it"),
 				favicon: settingsMediaReferenceSchema
+					.nullable()
 					.optional()
-					.describe("Favicon media reference ({ mediaId, alt? })"),
+					.describe("Favicon media reference ({ mediaId, alt? }); null removes it"),
 				url: z
 					.union([
-						z
-							.string()
-							.url()
-							.refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
+						z.url().refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
 						z.literal(""),
 					])
 					.optional()
@@ -3070,10 +3713,222 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
-				return unwrap(await handleSettingsUpdate(ec.db, ec.storage, args));
+				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
+					siteSettingsTag(),
+				]);
 			} catch (error) {
 				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
 			}
+		},
+	);
+
+	// =====================================================================
+	// Site transfer tools
+	// =====================================================================
+
+	server.registerTool(
+		"site_transfer_capabilities",
+		{
+			title: "Get Site Transfer Capabilities",
+			description:
+				"Site package format versions, features, and limits this site supports, and whether " +
+				"it can receive an import (its portable content is empty) with the reasons it cannot. " +
+				"Requires any transfer scope (transfer:export, transfer:analyze, or transfer:execute).",
+			inputSchema: z.object({}),
+			annotations: { readOnlyHint: true },
+		},
+		async (_args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			requireTransferScope(extra, "transfer:*");
+			return unwrap(await transferCapabilities(transferContext(extra)));
+		},
+	);
+
+	server.registerTool(
+		"site_export_start",
+		{
+			title: "Start Site Export",
+			description:
+				"Start exporting the whole site as a portable site package (schema, content, media, " +
+				"settings; never users, credentials, or secrets). Returns the operation id and " +
+				"status only; drive it with site_export_status. The package itself is downloaded " +
+				"outside MCP, from the admin or the CLI. Requires the transfer:export scope. " +
+				APPROVAL_FLOW_DESCRIPTION,
+			inputSchema: z.object({
+				comments: z.boolean().optional().describe("Include comments and reactions (default true)"),
+				approvalId: transferApprovalIdSchema.optional(),
+			}),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			const scoped = transferScopeHeld(extra, "transfer:export");
+			const { userId, tokenId } = getExtra(extra);
+			return unwrap(
+				await startExport(transferContext(extra), { userId, tokenId }, { ...args, scoped }),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_export_status",
+		{
+			title: "Get Site Export Status",
+			description:
+				"Report an export's state, stage, and progress, and once it is complete its package " +
+				"digest and record and media totals. By default each call also runs one bounded " +
+				"export step, so call it repeatedly until nextRequestInMs is null; pass advance: " +
+				"false to only read. Requires the transfer:export scope, or the approval that " +
+				"started this export (same token).",
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+				advance: z
+					.boolean()
+					.optional()
+					.describe("Run one bounded export step before reporting (default true)"),
+			}),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:export", "export", args.operationId);
+			return unwrap(
+				await exportStatus(transferContext(extra), {
+					operationId: args.operationId,
+					advance: args.advance ?? true,
+				}),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_import_analyze",
+		{
+			title: "Analyze Site Import",
+			description:
+				"Validate an uploaded site package against this site and produce an import plan. " +
+				"The package must already be uploaded over HTTP, from the admin or the CLI; MCP " +
+				"never carries package bytes. Each call runs one bounded analysis step: repeat until " +
+				"nextRequestInMs is null, then read plan (counts, principals with suggested user " +
+				"mappings, warnings, blockers, packageDigest, planDigest). Pass decisions to map " +
+				"principals or keep this site's title and tagline; that produces a new planDigest. " +
+				"Principal emails are never returned. Writes no site content. Requires the " +
+				"transfer:analyze scope.",
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+				decisions: siteImportDecisionsInputSchema
+					.optional()
+					.describe(
+						"principalMappings (principal id to target user id, or null to drop the " +
+							"reference) and siteTitle / siteTagline ('package' or 'target'). Omitted " +
+							"values keep the plan defaults.",
+					),
+			}),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			requireTransferScope(extra, "transfer:analyze");
+			return unwrap(await analyzeImport(transferContext(extra), args));
+		},
+	);
+
+	server.registerTool(
+		"site_import_start",
+		{
+			title: "Start Site Import",
+			description:
+				"Start importing an analyzed package into this site. packageDigest and planDigest " +
+				"must be the values from the latest site_import_analyze plan, which must have no " +
+				"blockers. Returns the operation id and status; drive it with site_import_resume. " +
+				"The site refuses ordinary content writes until the import completes or an admin " +
+				"abandons it. Requires the transfer:execute scope. " +
+				APPROVAL_FLOW_DESCRIPTION,
+			inputSchema: z.object({
+				operationId: transferOperationIdSchema,
+				packageDigest: z
+					.string()
+					.regex(SHA256_DIGEST_PATTERN, "Expected sha256:<64 hex>")
+					.describe("Package digest from the plan"),
+				planDigest: z
+					.string()
+					.regex(SHA256_DIGEST_PATTERN, "Expected sha256:<64 hex>")
+					.describe("Plan digest from the latest analysis"),
+				approvalId: transferApprovalIdSchema.optional(),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			const scoped = transferScopeHeld(extra, "transfer:execute");
+			const { userId, tokenId } = getExtra(extra);
+			return unwrap(
+				await startImport(
+					transferContext(extra),
+					{ userId, tokenId },
+					{
+						operationId: args.operationId,
+						packageDigest: transferDigest(args.packageDigest),
+						planDigest: transferDigest(args.planDigest),
+						approvalId: args.approvalId,
+						scoped,
+					},
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_import_status",
+		{
+			title: "Get Site Import Status",
+			description:
+				"Report an import's state, stage, progress, digests, and uploaded file counts. Does " +
+				"not advance the import. Requires any transfer scope, or the approval that started " +
+				"this import (same token).",
+			inputSchema: z.object({ operationId: transferOperationIdSchema }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:*", "import", args.operationId);
+			return unwrap(await importStatus(transferContext(extra), args.operationId));
+		},
+	);
+
+	server.registerTool(
+		"site_import_resume",
+		{
+			title: "Resume Site Import",
+			description:
+				"Run one bounded step of a started import and report its status. Call repeatedly " +
+				"until nextRequestInMs is null; safe to repeat after a disconnect. Requires the " +
+				"transfer:execute scope, or the approval that started this import (same token).",
+			inputSchema: z.object({ operationId: transferOperationIdSchema }),
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:execute", "import", args.operationId);
+			const { userId, tokenId } = getExtra(extra);
+			return unwrap(
+				await resumeImport(transferContext(extra), { userId, tokenId }, args.operationId),
+			);
+		},
+	);
+
+	server.registerTool(
+		"site_import_receipt",
+		{
+			title: "Get Site Import Receipt",
+			description:
+				"Return the verified receipt of a completed import: package and plan digests, " +
+				"origin and target site ids, logical digest, record counts, warnings, and the " +
+				"receipt's own digest. Requires any transfer scope, or the approval that started " +
+				"this import (same token).",
+			inputSchema: z.object({ operationId: transferOperationIdSchema }),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireRole(extra, Role.ADMIN);
+			await requireTransferAccess(extra, "transfer:*", "import", args.operationId);
+			return unwrap(await importReceipt(transferContext(extra), args.operationId));
 		},
 	);
 

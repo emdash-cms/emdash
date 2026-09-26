@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import { MAX_COLLECTION_GROUP_LENGTH, MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
 import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
@@ -53,6 +53,7 @@ const fieldTypeValues = z.enum([
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ]);
 
 const repeaterSubFieldSchema = z.object({
@@ -107,6 +108,22 @@ const fieldValidation = z
 			.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
 			.max(64, "allowedMimeTypes may contain at most 64 entries")
 			.optional(),
+		// Reference fields: the picker targets a collection and may allow more
+		// than one entry. Without these keys Zod strips them and the create
+		// handler rejects the field for a missing target collection.
+		targetCollection: z.string().min(1).optional(),
+		multiple: z.boolean().optional(),
+		// Reference fields: bind to an existing relation instead of creating one,
+		// and say which of its ends this collection sits on.
+		relation: z
+			.string()
+			.min(1)
+			.max(63)
+			.regex(slugPattern, "Invalid relation slug format")
+			.optional(),
+		relationSide: z.enum(["parent", "child"]).optional(),
+		allowedTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
+		retiredTypes: z.array(z.string().min(1).max(63).regex(slugPattern)).optional(),
 	})
 	.superRefine((validation, ctx) => {
 		for (const [minimum, maximum] of [
@@ -141,6 +158,9 @@ const fieldValidation = z
 
 const fieldWidgetOptions = z.record(z.string(), z.unknown()).optional();
 
+/** Admin sidebar folder label; an empty string clears it like `null`. */
+const navGroupValue = z.string().trim().max(MAX_COLLECTION_GROUP_LENGTH);
+
 export const createCollectionBody = z
 	.object({
 		slug: z.string().min(1).max(63).regex(slugPattern, "Invalid slug format"),
@@ -156,6 +176,8 @@ export const createCollectionBody = z
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
+		editLocking: z.boolean().optional(),
+		group: navGroupValue.nullish(),
 	})
 	.meta({ id: "CreateCollectionBody" });
 
@@ -172,10 +194,14 @@ export const updateCollectionBody = z
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
+		group: navGroupValue.nullish(),
 		commentsEnabled: z.boolean().optional(),
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
 		commentsClosedAfterDays: z.number().int().min(0).optional(),
 		commentsAutoApproveUsers: z.boolean().optional(),
+		editLocking: z.boolean().optional(),
+		titleField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
+		dateField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
 	})
 	.meta({ id: "UpdateCollectionBody" });
 
@@ -239,6 +265,80 @@ export const schemaExportQuery = z.object({
 	format: z.string().optional(),
 });
 
+const blockFieldTypeValues = z.enum([
+	"string",
+	"text",
+	"url",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+	"portableText",
+	"image",
+	"file",
+	"repeater",
+]);
+
+const blockFieldValidation = z
+	.object({
+		min: z.number().optional(),
+		max: z.number().optional(),
+		minLength: z.number().int().min(0).optional(),
+		maxLength: z.number().int().min(0).optional(),
+		pattern: z.string().optional(),
+		options: z.array(z.string()).optional(),
+		subFields: z.array(repeaterSubFieldSchema).min(1).optional(),
+		minItems: z.number().int().min(0).optional(),
+		maxItems: z.number().int().min(1).optional(),
+		allowedMimeTypes: z.array(z.string()).min(1).max(64).optional(),
+	})
+	.strict()
+	.optional();
+
+export const blockFieldDefinitionSchema = z
+	.object({
+		slug: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format"),
+		label: z.string().min(1).max(200),
+		type: blockFieldTypeValues,
+		required: z.boolean().optional(),
+		defaultValue: z.unknown().optional(),
+		validation: blockFieldValidation,
+		options: z.object({ darkVariant: z.boolean().optional() }).strict().optional(),
+	})
+	.strict();
+
+export const createBlockTypeBody = z
+	.object({
+		slug: z.string().min(1).max(63).regex(slugPattern, "Invalid block type slug format"),
+		label: z.string().min(1).max(200),
+		description: z.string().optional(),
+		icon: z.string().optional(),
+		category: z.string().optional(),
+		fields: z.array(blockFieldDefinitionSchema),
+	})
+	.strict()
+	.meta({ id: "CreateBlockTypeBody" });
+
+export const updateBlockTypeBody = z
+	.object({
+		expectedFingerprint: z.string().min(1),
+		label: z.string().min(1).max(200).optional(),
+		description: z.string().nullish(),
+		icon: z.string().nullish(),
+		category: z.string().nullish(),
+		fields: z.array(blockFieldDefinitionSchema).optional(),
+		breaking: z.boolean().optional(),
+	})
+	.strict()
+	.meta({ id: "UpdateBlockTypeBody" });
+
+export const activateBlockTypeVersionBody = z
+	.object({ expectedFingerprint: z.string().min(1) })
+	.strict()
+	.meta({ id: "ActivateBlockTypeVersionBody" });
+
 export const collectionGetQuery = z.object({
 	includeFields: z
 		.string()
@@ -266,8 +366,12 @@ export const collectionSchema = z
 		hasSeo: z.boolean(),
 		hidden: z.boolean(),
 		sortOrder: z.number().int().nullable(),
+		editLocking: z.boolean(),
+		group: z.string().nullish(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
+		titleField: z.string().nullish(),
+		dateField: z.string().nullish(),
 	})
 	.meta({ id: "Collection" });
 
@@ -284,6 +388,8 @@ export const fieldSchema = z
 		validation: z.record(z.string(), z.unknown()).nullable(),
 		widget: z.string().nullable(),
 		options: z.record(z.string(), z.unknown()).nullable(),
+		blockTypes: z.array(z.lazy(() => blockTypeSchema)).optional(),
+		blockTypeFingerprint: z.string().optional(),
 		sortOrder: z.number().int(),
 		searchable: z.boolean(),
 		indexed: z.boolean(),
@@ -312,6 +418,44 @@ export const fieldResponseSchema = z.object({ item: fieldSchema }).meta({ id: "F
 export const fieldListResponseSchema = z
 	.object({ items: z.array(fieldSchema) })
 	.meta({ id: "FieldListResponse" });
+
+export const blockTypeVersionSchema = z
+	.object({
+		id: z.string(),
+		blockTypeId: z.string(),
+		version: z.number().int().positive(),
+		fields: z.array(blockFieldDefinitionSchema),
+		fingerprint: z.string(),
+		active: z.boolean(),
+		unsupportedTypes: z.array(z.object({ type: z.string(), path: z.string() }).strict()).optional(),
+		createdAt: z.string(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "BlockTypeVersion" });
+
+export const blockTypeSchema = z
+	.object({
+		id: z.string(),
+		slug: z.string(),
+		label: z.string(),
+		description: z.string().optional(),
+		icon: z.string().optional(),
+		category: z.string().optional(),
+		currentVersion: z.number().int().positive(),
+		source: z.enum(["user", "seed"]),
+		versions: z.array(blockTypeVersionSchema),
+		createdAt: z.string(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "BlockType" });
+
+export const blockTypeResponseSchema = z
+	.object({ item: blockTypeSchema })
+	.meta({ id: "BlockTypeResponse" });
+
+export const blockTypeListResponseSchema = z
+	.object({ items: z.array(blockTypeSchema) })
+	.meta({ id: "BlockTypeListResponse" });
 
 export const orphanedTableSchema = z
 	.object({

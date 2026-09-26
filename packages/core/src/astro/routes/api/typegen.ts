@@ -13,9 +13,12 @@
  */
 
 import type { APIRoute } from "astro";
+import type { Kysely } from "kysely";
 
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import type { SchemaRegistry } from "#schema/registry.js";
+
+import type { Database } from "../../../database/types.js";
 
 export const prerender = false;
 
@@ -37,14 +40,15 @@ async function safeListCollections(registry: SchemaRegistry) {
 /**
  * Generate types content and metadata from the current schema.
  */
-async function generateTypes(registry: SchemaRegistry) {
+async function generateTypes(registry: SchemaRegistry, db: Kysely<Database>) {
+	const { expandCollectionBlockFields } = await import("#schema/block-values.js");
 	const { generateTypesFile, generateSchemaHash } = await import("#schema/zod-generator.js");
 
 	const collections = await safeListCollections(registry);
 	const collectionsWithFields = await Promise.all(
 		collections.map(async (c) => {
 			const fields = await registry.listFields(c.id);
-			return { ...c, fields };
+			return expandCollectionBlockFields(db, { ...c, fields });
 		}),
 	);
 
@@ -71,7 +75,7 @@ export const GET: APIRoute = async ({ locals }) => {
 	try {
 		const { SchemaRegistry } = await import("#schema/registry.js");
 		const registry = new SchemaRegistry(emdash.db);
-		const { types } = await generateTypes(registry);
+		const { types } = await generateTypes(registry, emdash.db);
 
 		return new Response(types, {
 			status: 200,
@@ -105,7 +109,7 @@ export const POST: APIRoute = async ({ locals }) => {
 	try {
 		const { SchemaRegistry } = await import("#schema/registry.js");
 		const registry = new SchemaRegistry(emdash.db);
-		const result = await generateTypes(registry);
+		const result = await generateTypes(registry, emdash.db);
 
 		return apiSuccess(result);
 	} catch (error) {

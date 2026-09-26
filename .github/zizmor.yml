@@ -16,6 +16,10 @@ rules:
       # CLA assistant must comment on PRs from forks; runs a pinned third-party
       # action and does not execute any code from the PR.
       - cla.yml
+      # ci-rerun only re-runs failed jobs of a PR's existing runs via
+      # github-script; it never checks out or runs PR code, and a re-run keeps
+      # the permissions of the run it repeats.
+      - ci-rerun.yml
       # auto-format-apply uses workflow_run to commit the formatted patch
       # computed by the untrusted `auto-format` workflow. The trusted job only
       # consumes the inert patch artifact, verifies the PR head SHA matches the
@@ -40,6 +44,10 @@ rules:
       # query-counts-label labels PRs based on path filters; it does not
       # check out PR code.
       - query-counts-label.yml
+      # release-action-bundle-apply sanitizes the artifact, binds it to a
+      # same-repo Dependabot npm PR at the measured head, and writes only the
+      # generated bundle path without executing PR-controlled code.
+      - release-action-bundle-apply.yml
       # visual-report uses workflow_run to comment on PRs after the untrusted
       # `visual` measure workflow completes. The trusted job only consumes the
       # inert PNG + metadata artifact, verifies the PR head SHA matches the

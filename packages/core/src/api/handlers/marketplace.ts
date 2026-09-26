@@ -22,8 +22,10 @@ import {
 	type MarketplaceVersionSummary,
 	type PluginBundle,
 } from "../../plugins/marketplace.js";
+import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import type { PluginState } from "../../plugins/state.js";
 import {
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
@@ -53,6 +55,11 @@ export interface MarketplaceUpdateResult {
 	routeVisibilityChanges?: {
 		newlyPublic: string[];
 	};
+}
+
+export interface PluginUpdateRollbackResult {
+	pluginId: string;
+	version: string;
 }
 
 export interface MarketplaceUpdateCheck {
@@ -166,6 +173,23 @@ async function resolveVersionMetadata(
 
 	const versions = await client.getVersions(pluginId);
 	return versions.find((v) => v.version === version) ?? null;
+}
+
+/** A null verdict means no audit ran, which is allowed; "fail" and "warn" are not. */
+function checkAuditVerdict(versionMetadata: MarketplaceVersionSummary): ApiResult<never> | null {
+	if (versionMetadata.auditVerdict !== "fail" && versionMetadata.auditVerdict !== "warn") {
+		return null;
+	}
+	return {
+		success: false,
+		error: {
+			code: "AUDIT_FAILED",
+			message:
+				versionMetadata.auditVerdict === "fail"
+					? "Plugin failed security audit and cannot be installed or updated"
+					: "Plugin audit was inconclusive and cannot be installed or updated until reviewed",
+		},
+	};
 }
 
 function validateBundleIdentity(
@@ -313,6 +337,55 @@ export async function deleteBundleFromR2(
 	}
 }
 
+export async function rollbackPluginUpdate(
+	db: Kysely<Database>,
+	storage: Storage | null,
+	previousState: PluginState,
+	failedVersion: string,
+	source: PluginBundleSource,
+): Promise<ApiResult<PluginUpdateRollbackResult>> {
+	if (!storage) {
+		return {
+			success: false,
+			error: { code: "STORAGE_NOT_CONFIGURED", message: "Storage is required" },
+		};
+	}
+	if (previousState.source !== source) {
+		return {
+			success: false,
+			error: { code: "UPDATE_ROLLBACK_CONFLICT", message: "Plugin source changed during update" },
+		};
+	}
+
+	try {
+		const restored = await new PluginStateRepository(db).restoreIfVersion(
+			failedVersion,
+			previousState,
+		);
+		if (!restored) {
+			return {
+				success: false,
+				error: {
+					code: "UPDATE_ROLLBACK_CONFLICT",
+					message: "Plugin state changed before the failed update could be rolled back",
+				},
+			};
+		}
+
+		await deleteBundleFromR2(storage, previousState.pluginId, failedVersion, source);
+		return {
+			success: true,
+			data: { pluginId: previousState.pluginId, version: previousState.version },
+		};
+	} catch (error) {
+		console.error("Failed to roll back plugin update:", error);
+		return {
+			success: false,
+			error: { code: "UPDATE_ROLLBACK_FAILED", message: "Failed to roll back plugin update" },
+		};
+	}
+}
+
 // ── Install ────────────────────────────────────────────────────────
 
 export async function handleMarketplaceInstall(
@@ -333,6 +406,7 @@ export async function handleMarketplaceInstall(
 		 */
 		sandboxBypassed?: boolean;
 		confirmMcpTools?: boolean;
+		acknowledgedPublicRoutes?: string[];
 	},
 ): Promise<ApiResult<MarketplaceInstallResult>> {
 	const client = getClient(marketplaceUrl, opts?.siteOrigin);
@@ -363,7 +437,10 @@ export async function handleMarketplaceInstall(
 			success: false,
 			error: {
 				code: "SANDBOX_NOT_AVAILABLE",
-				message: "Sandbox runner is required for marketplace plugins",
+				message: withUnavailableReason(
+					"Sandbox runner is required for marketplace plugins",
+					sandboxRunner,
+				),
 			},
 		};
 	}
@@ -419,22 +496,8 @@ export async function handleMarketplaceInstall(
 			};
 		}
 
-		// Block installation of plugins that haven't passed audit.
-		// Both "fail" (explicitly malicious) and "warn" (audit error or
-		// inconclusive) are non-installable — only "pass" or null (no audit
-		// ran) are allowed through.
-		if (versionMetadata.auditVerdict === "fail" || versionMetadata.auditVerdict === "warn") {
-			return {
-				success: false,
-				error: {
-					code: "AUDIT_FAILED",
-					message:
-						versionMetadata.auditVerdict === "fail"
-							? "Plugin failed security audit and cannot be installed"
-							: "Plugin audit was inconclusive and cannot be installed until reviewed",
-				},
-			};
-		}
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
 
 		// Download and extract bundle
 		const bundle = await client.downloadBundle(pluginId, version);
@@ -453,17 +516,38 @@ export async function handleMarketplaceInstall(
 		const bundleIdentityError = validateBundleIdentity(bundle, pluginId, version);
 		if (bundleIdentityError) return bundleIdentityError;
 
-		if ((bundle.manifest.mcp?.tools.length ?? 0) > 0 && !opts?.confirmMcpTools) {
+		const routeVisibilityChanges = diffRouteVisibility(undefined, bundle.manifest);
+		const hasPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
+		const publicRoutes = routeVisibilityChanges.newlyPublic.toSorted();
+		const acknowledgedPublicRoutes = (opts?.acknowledgedPublicRoutes ?? []).toSorted();
+		const mcpTools = bundle.manifest.mcp?.tools.map(
+			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
+		);
+		const consentDetails = {
+			routeVisibilityChanges: hasPublicRoutes ? { newlyPublic: publicRoutes } : undefined,
+			mcpTools,
+		};
+		if (
+			hasPublicRoutes &&
+			JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(publicRoutes)
+		) {
+			return {
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					message: "Plugin install exposes public (unauthenticated) routes",
+					details: consentDetails,
+				},
+			};
+		}
+
+		if ((mcpTools?.length ?? 0) > 0 && !opts?.confirmMcpTools) {
 			return {
 				success: false,
 				error: {
 					code: "MCP_TOOL_CONSENT_REQUIRED",
 					message: "Plugin MCP tools require explicit consent",
-					details: {
-						mcpTools: bundle.manifest.mcp?.tools.map(
-							({ inputSchema: _, outputSchema: __, ...tool }) => tool,
-						),
-					},
+					details: consentDetails,
 				},
 			};
 		}
@@ -555,7 +639,7 @@ export async function handleMarketplaceUpdate(
 	opts?: {
 		version?: string;
 		confirmCapabilityChanges?: boolean;
-		confirmRouteVisibilityChanges?: boolean;
+		acknowledgedPublicRoutes?: string[];
 		confirmMcpTools?: boolean;
 		/**
 		 * When true, sandbox: false bypass mode is active. The sandbox runner
@@ -584,7 +668,10 @@ export async function handleMarketplaceUpdate(
 	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
-			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+			error: {
+				code: "SANDBOX_NOT_AVAILABLE",
+				message: withUnavailableReason("Sandbox runner is required", sandboxRunner),
+			},
 		};
 	}
 
@@ -636,6 +723,9 @@ export async function handleMarketplaceUpdate(
 			};
 		}
 
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
+
 		// Download new bundle
 		const bundle = await client.downloadBundle(pluginId, newVersion);
 
@@ -658,6 +748,23 @@ export async function handleMarketplaceUpdate(
 		const oldCaps = oldBundle?.manifest.capabilities ?? [];
 		const capabilityChanges = diffCapabilities(oldCaps, bundle.manifest.capabilities);
 		const hasEscalation = capabilityChanges.added.length > 0;
+		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
+		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
+		const newlyPublicRoutes = routeVisibilityChanges.newlyPublic.toSorted();
+		const acknowledgedPublicRoutes = (opts?.acknowledgedPublicRoutes ?? []).toSorted();
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const hasMcpChanges = JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools);
+		const mcpTools = newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool);
+		const consentDetails = {
+			capabilityChanges,
+			routeVisibilityChanges: hasNewPublicRoutes ? { newlyPublic: newlyPublicRoutes } : undefined,
+			mcpTools: hasMcpChanges ? mcpTools : undefined,
+		};
 
 		// If capabilities escalated, require explicit confirmation
 		if (hasEscalation && !opts?.confirmCapabilityChanges) {
@@ -666,42 +773,34 @@ export async function handleMarketplaceUpdate(
 				error: {
 					code: "CAPABILITY_ESCALATION",
 					message: "Plugin update requires new capabilities",
-					details: { capabilityChanges },
+					details: consentDetails,
 				},
 			};
 		}
 
 		// Diff route visibility — routes going from private to public are a
 		// security-sensitive change that exposes unauthenticated endpoints.
-		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
-		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
-
-		if (hasNewPublicRoutes && !opts?.confirmRouteVisibilityChanges) {
+		if (
+			hasNewPublicRoutes &&
+			JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(newlyPublicRoutes)
+		) {
 			return {
 				success: false,
 				error: {
 					code: "ROUTE_VISIBILITY_ESCALATION",
 					message: "Plugin update exposes new public (unauthenticated) routes",
-					details: { routeVisibilityChanges, capabilityChanges },
+					details: consentDetails,
 				},
 			};
 		}
 
-		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
-			a.name.localeCompare(b.name),
-		);
-		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
-			a.name.localeCompare(b.name),
-		);
-		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+		if (hasMcpChanges && !opts?.confirmMcpTools) {
 			return {
 				success: false,
 				error: {
 					code: "MCP_TOOL_CONSENT_REQUIRED",
 					message: "Plugin update changes its MCP tools",
-					details: {
-						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
-					},
+					details: consentDetails,
 				},
 			};
 		}
@@ -720,9 +819,6 @@ export async function handleMarketplaceUpdate(
 		});
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
-
-		// Clean up old bundle from R2 (best-effort)
-		deleteBundleFromR2(storage, pluginId, oldVersion).catch(() => {});
 
 		return {
 			success: true,
@@ -761,7 +857,7 @@ export async function handleMarketplaceUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean },
+	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
 ): Promise<ApiResult<MarketplaceUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -777,11 +873,7 @@ export async function handleMarketplaceUninstall(
 		}
 
 		const version = existing.marketplaceVersion ?? existing.version;
-
-		// Delete bundle from site R2
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version);
-		}
+		await opts?.beforeDelete?.();
 
 		// Optionally delete plugin storage data
 		let dataDeleted = false;
@@ -802,6 +894,12 @@ export async function handleMarketplaceUninstall(
 
 		// Delete state row
 		await stateRepo.delete(pluginId);
+
+		// Delete the bundle after database state. A failed external cleanup can
+		// leave an inert orphan, but never an active row pointing at missing bytes.
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version);
+		}
 
 		return {
 			success: true,

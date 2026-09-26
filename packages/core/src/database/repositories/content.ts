@@ -2,15 +2,20 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
+import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
-import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
+import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
+import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
+import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
-import { RevisionRepository } from "./revision.js";
+import { createRevisionId, RevisionRepository } from "./revision.js";
 import type {
 	CreateContentInput,
 	UpdateContentInput,
@@ -316,7 +321,14 @@ function escapeRegExp(s: string): string {
  * Each field becomes a real column in the table.
  */
 export class ContentRepository {
-	constructor(private db: Kysely<Database>) {}
+	private readonly datetimes: ContentDatetimeNormalizer;
+
+	constructor(
+		private db: Kysely<Database>,
+		private readonly datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
+	}
 
 	/**
 	 * Create a new content item
@@ -328,15 +340,23 @@ export class ContentRepository {
 		const {
 			type,
 			slug,
-			data,
+			data: inputData,
 			status = "draft",
 			authorId,
 			primaryBylineId,
 			locale,
 			translationOf,
+			inheritFields = [],
 			publishedAt,
 			createdAt,
 		} = input;
+		const data = await this.datetimes.normalizeData(type, inputData);
+		const normalizedCreatedAt = createdAt
+			? await this.datetimes.normalizeValue(type, createdAt)
+			: now;
+		const normalizedPublishedAt = publishedAt
+			? await this.datetimes.normalizeValue(type, publishedAt)
+			: null;
 
 		// Validate required fields
 		if (!type) {
@@ -344,16 +364,6 @@ export class ContentRepository {
 		}
 
 		const tableName = getTableName(type);
-
-		// Resolve translation_group: if translationOf is set, look up the source item's group
-		let translationGroup: string = id; // default: self-reference
-		if (translationOf) {
-			const source = await this.findById(type, translationOf);
-			if (!source) {
-				throw new EmDashValidationError("Translation source content not found");
-			}
-			translationGroup = source.translationGroup || source.id;
-		}
 
 		// Build column names and values
 		const columns: string[] = [
@@ -375,13 +385,21 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			createdAt || now,
+			normalizedCreatedAt,
 			now,
-			publishedAt || null,
+			normalizedPublishedAt,
 			1,
 			locale || "en",
-			translationGroup,
+			id,
 		];
+		const inherited = new Set(inheritFields);
+		for (const field of inherited) {
+			validateIdentifier(field, "inherited content field name");
+			if (!SYSTEM_COLUMNS.has(field) && !Object.hasOwn(data, field)) {
+				columns.push(field);
+				values.push(null);
+			}
+		}
 
 		// Add data fields as columns (skip system columns to prevent injection via data)
 		if (data && typeof data === "object") {
@@ -396,18 +414,40 @@ export class ContentRepository {
 
 		// Build dynamic INSERT using raw SQL
 		const columnRefs = columns.map((c) => sql.ref(c));
-		const valuePlaceholders = values.map((v) => (v === null ? sql`NULL` : sql`${v}`));
+		const valuePlaceholders = values.map((value, index) => {
+			const column = columns[index];
+			if (translationOf && column === "translation_group") {
+				return sql`COALESCE(${sql.ref("translation_source.translation_group")}, ${sql.ref("translation_source.id")})`;
+			}
+			if (translationOf && inherited.has(column)) {
+				return sql.ref(`translation_source.${column}`);
+			}
+			return value === null ? sql`NULL` : sql`${value}`;
+		});
 
-		await sql`
-			INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
-			VALUES (${sql.join(valuePlaceholders, sql`, `)})
-		`.execute(this.db);
+		if (translationOf) {
+			await sql`
+				INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
+				SELECT ${sql.join(valuePlaceholders, sql`, `)}
+				FROM ${sql.ref(tableName)} AS translation_source
+				WHERE translation_source.id = ${translationOf}
+					AND translation_source.deleted_at IS NULL
+			`.execute(this.db);
+		} else {
+			await sql`
+				INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
+				VALUES (${sql.join(valuePlaceholders, sql`, `)})
+			`.execute(this.db);
+		}
 
 		invalidateCollectionCache(type);
 
 		// Fetch and return the created item
 		const item = await this.findById(type, id);
 		if (!item) {
+			if (translationOf) {
+				throw new EmDashValidationError("Translation source content not found");
+			}
 			throw new Error("Failed to create content");
 		}
 		return item;
@@ -538,11 +578,56 @@ export class ContentRepository {
 		return this.mapRow(type, row);
 	}
 
+	async findManyByIds(type: string, ids: string[]): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (ids.length === 0) return items;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE id IN (${sql.join(batch)}) AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				items.set(item.id, item);
+			}
+		}
+		return items;
+	}
+
+	async findManyBySlugsInLocale(
+		type: string,
+		slugs: string[],
+		locale: string,
+	): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (slugs.length === 0) return items;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				if (item.slug !== null) items.set(item.slug, item);
+			}
+		}
+		return items;
+	}
+
 	/**
 	 * Find content by id, including trashed (soft-deleted) items.
 	 * Used by restore endpoint for ownership checks.
+	 *
+	 * `deletedAt` rides along because the row is already in hand: a caller that
+	 * has to know whether the row is trashed before touching anything else would
+	 * otherwise pay a second read for a column this row already carries.
 	 */
-	async findByIdIncludingTrashed(type: string, id: string): Promise<ContentItem | null> {
+	async findByIdIncludingTrashed(
+		type: string,
+		id: string,
+	): Promise<(ContentItem & { deletedAt: string | null }) | null> {
 		const tableName = getTableName(type);
 
 		const result = await sql<Record<string, unknown>>`
@@ -555,7 +640,10 @@ export class ContentRepository {
 			return null;
 		}
 
-		return this.mapRow(type, row);
+		return {
+			...this.mapRow(type, row),
+			deletedAt: typeof row.deleted_at === "string" ? row.deleted_at : null,
+		};
 	}
 
 	/**
@@ -580,6 +668,17 @@ export class ContentRepository {
 		locale?: string,
 	): Promise<ContentItem | null> {
 		return this._findByIdOrSlug(type, identifier, true, locale);
+	}
+
+	async isTrashed(type: string, id: string): Promise<boolean> {
+		const tableName = getTableName(type);
+		const row = await this.db
+			.selectFrom(tableName as keyof Database)
+			.select("id" as never)
+			.where("id" as never, "=", id as never)
+			.where("deleted_at" as never, "is not", null)
+			.executeTakeFirst();
+		return row !== undefined;
 	}
 
 	private async _findByIdOrSlug(
@@ -867,11 +966,17 @@ export class ContentRepository {
 		}
 
 		if (input.publishedAt !== undefined) {
-			updates.published_at = input.publishedAt;
+			updates.published_at =
+				input.publishedAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.publishedAt);
 		}
 
 		if (input.scheduledAt !== undefined) {
-			updates.scheduled_at = input.scheduledAt;
+			updates.scheduled_at =
+				input.scheduledAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.scheduledAt);
 		}
 
 		if (input.authorId !== undefined) {
@@ -884,7 +989,8 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			for (const [key, value] of Object.entries(writableContentData(input.data))) {
+			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
 		}
@@ -912,6 +1018,184 @@ export class ContentRepository {
 		return updated;
 	}
 
+	async restoreRevision(
+		type: string,
+		id: string,
+		revisionData: Record<string, unknown>,
+		authorId: string,
+	): Promise<{ item: ContentItem; revisionId: string }> {
+		const tableName = getTableName(type);
+		const existing = await this.findById(type, id);
+		if (!existing) throw new EmDashValidationError("Content item not found");
+
+		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
+		const { _slug } = normalizedSnapshot;
+		// Leading-underscore keys are staged metadata (`_slug`, `_references`), not columns.
+		const snapshotFields: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(normalizedSnapshot)) {
+			if (!key.startsWith("_")) snapshotFields[key] = value;
+		}
+		const fieldData = writableContentData(snapshotFields);
+		const revisionId = createRevisionId();
+		const now = new Date().toISOString();
+		const assignments: ReturnType<typeof sql>[] = [];
+
+		if (typeof _slug === "string") assignments.push(sql`slug = ${_slug}`);
+		for (const [field, value] of Object.entries(fieldData)) {
+			validateIdentifier(field, "content field name");
+			assignments.push(sql`${sql.ref(field)} = ${serializeValue(value)}`);
+		}
+		// The audit row is inserted first, then its ID acts as a transaction-local
+		// marker so a losing concurrent restore can remove only its own audit.
+		assignments.push(
+			sql`draft_revision_id = ${revisionId}`,
+			sql`updated_at = ${now}`,
+			sql`version = version + 1`,
+		);
+
+		const buildQueries = () => {
+			const audit = sql`
+				INSERT INTO revisions (id, collection, entry_id, data, author_id)
+				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+				RETURNING id
+			`;
+			const update = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET ${sql.join(assignments, sql`, `)}
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${existing.version}
+				AND updated_at = ${existing.updatedAt}
+				AND status = ${existing.status}
+				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+				RETURNING id
+			`;
+			const removeUnappliedAudit = sql`
+				DELETE FROM revisions
+				WHERE id = ${revisionId}
+				AND NOT EXISTS (
+					SELECT 1 FROM ${sql.ref(tableName)}
+					WHERE id = ${id}
+					AND draft_revision_id = ${revisionId}
+					AND version = ${existing.version + 1}
+				)
+			`;
+			const releaseMarker = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${existing.draftRevisionId}
+				WHERE id = ${id}
+				AND draft_revision_id = ${revisionId}
+				AND version = ${existing.version + 1}
+				RETURNING id
+			`;
+			return [audit, update, removeUnappliedAudit, releaseMarker] as const;
+		};
+
+		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
+		if (batched) {
+			if (
+				batched[0]?.rows.length !== 1 ||
+				batched[1]?.rows.length !== 1 ||
+				batched[3]?.rows.length !== 1
+			) {
+				throw new ContentMutationConflictError();
+			}
+		} else {
+			await withTransaction(this.db, async (trx) => {
+				const [audit, update, removeUnappliedAudit, releaseMarker] = buildQueries();
+				const auditResult = await audit.execute(trx);
+				if (auditResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+				const updateResult = await update.execute(trx);
+				await removeUnappliedAudit.execute(trx);
+				const releaseResult = await releaseMarker.execute(trx);
+				if (updateResult.rows.length !== 1 || releaseResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+			});
+		}
+
+		invalidateCollectionCache(type);
+		const item = await this.findById(type, id);
+		if (!item) throw new Error("Content not found");
+
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
+		return { item, revisionId };
+	}
+
+	async restoreDraftRevision(
+		type: string,
+		id: string,
+		revisionData: Record<string, unknown>,
+		authorId: string,
+	): Promise<string | null> {
+		const tableName = getTableName(type);
+		const existing = await this.findById(type, id);
+		if (!existing) return null;
+
+		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
+		const revisionId = createRevisionId();
+		const buildQueries = () => {
+			const audit = sql`
+				INSERT INTO revisions (id, collection, entry_id, data, author_id)
+				VALUES (${revisionId}, ${type}, ${id}, ${JSON.stringify(normalizedSnapshot)}, ${authorId})
+				RETURNING id
+			`;
+			const stage = sql`
+				UPDATE ${sql.ref(tableName)}
+				SET draft_revision_id = ${revisionId},
+					version = version + 1
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${existing.version}
+				AND updated_at = ${existing.updatedAt}
+				AND status = ${existing.status}
+				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+				RETURNING id
+			`;
+			const removeUnstagedAudit = sql`
+				DELETE FROM revisions
+				WHERE id = ${revisionId}
+				AND NOT EXISTS (
+					SELECT 1 FROM ${sql.ref(tableName)}
+					WHERE id = ${id}
+					AND draft_revision_id = ${revisionId}
+					AND version = ${existing.version + 1}
+				)
+			`;
+			return [audit, stage, removeUnstagedAudit] as const;
+		};
+
+		const batched = await executeAtomicBatchIfSupported(this.db, buildQueries());
+		if (batched) {
+			if (batched[0]?.rows.length !== 1 || batched[1]?.rows.length !== 1) {
+				throw new ContentMutationConflictError();
+			}
+		} else {
+			await withTransaction(this.db, async (trx) => {
+				const [audit, stage, removeUnstagedAudit] = buildQueries();
+				const auditResult = await audit.execute(trx);
+				if (auditResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+				const stageResult = await stage.execute(trx);
+				await removeUnstagedAudit.execute(trx);
+				if (stageResult.rows.length !== 1) {
+					throw new ContentMutationConflictError();
+				}
+			});
+		}
+
+		invalidateCollectionCache(type);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
+		return revisionId;
+	}
+
 	/**
 	 * Update plugin-authored fields without letting content columns diverge
 	 * from the revision pointers that publication promotes.
@@ -921,7 +1205,9 @@ export class ContentRepository {
 		id: string,
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
-		const data = input.data ? writableContentData(input.data) : {};
+		const data = input.data
+			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
 
@@ -941,15 +1227,35 @@ export class ContentRepository {
 			return this.update(type, id, { ...input, data });
 		}
 
-		const fieldSlugs = new Set(collectionRows.map((row) => row.fieldSlug).filter(Boolean));
-		for (const field of Object.keys(data)) {
+		const fieldSlugs = new Set(
+			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
+		);
+
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
+		let existing = await this.findById(type, id);
+
+		// A key with no field is rejected unless the entry already stores it: deleting a field
+		// leaves its value in the draft revision, which holds the whole `data`, so a caller that
+		// reads an entry and writes it back would otherwise be refused for a key it never chose
+		// to send. Those keys are dropped here and shed from the merge below.
+		let incoming = data;
+		if (existing) {
+			let stored: Record<string, unknown> = existing.data ?? {};
+			if (existing.draftRevisionId) {
+				const draft = await revisionRepo.findById(existing.draftRevisionId);
+				if (draft?.data) stored = draft.data;
+			}
+			const stale = staleStoredKeys(data, stored, fieldSlugs);
+			if (stale.length > 0) {
+				incoming = { ...data };
+				for (const key of stale) delete incoming[key];
+			}
+		}
+		for (const field of Object.keys(incoming)) {
 			if (!fieldSlugs.has(field)) {
 				throw new EmDashValidationError(`Unknown field '${field}' in collection '${type}'`);
 			}
 		}
-
-		const revisionRepo = new RevisionRepository(this.db);
-		let existing = await this.findById(type, id);
 
 		for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 			let baseData = existing.data;
@@ -958,13 +1264,13 @@ export class ContentRepository {
 				if (draft) baseData = draft.data;
 			}
 
-			const mergedData = { ...baseData, ...data };
+			const mergedData = keepKnownFields({ ...baseData, ...incoming }, fieldSlugs);
 			if (stagedSlug !== undefined) mergedData._slug = stagedSlug;
 			const revision = await revisionRepo.create({
 				collection: type,
 				entryId: id,
 				data: mergedData,
-				...(input.authorId ? { authorId: input.authorId } : {}),
+				...(input.revisionAuthorId ? { authorId: input.revisionAuthorId } : {}),
 			});
 
 			let staged: boolean;
@@ -1026,11 +1332,19 @@ export class ContentRepository {
 			liveMetadataChanged = true;
 		}
 		if (input.publishedAt !== undefined) {
-			assignments.push(sql`published_at = ${input.publishedAt}`);
+			const publishedAt =
+				input.publishedAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.publishedAt);
+			assignments.push(sql`published_at = ${publishedAt}`);
 			liveMetadataChanged = true;
 		}
 		if (input.scheduledAt !== undefined) {
-			assignments.push(sql`scheduled_at = ${input.scheduledAt}`);
+			const scheduledAt =
+				input.scheduledAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.scheduledAt);
+			assignments.push(sql`scheduled_at = ${scheduledAt}`);
 			liveMetadataChanged = true;
 		}
 		if (input.authorId !== undefined) {
@@ -1066,6 +1380,165 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Copy non-translatable field values to every other entry in the
+	 * translation group, trashed entries included.
+	 *
+	 * Only the fields present in `data` are copied. With `previous`, `data` is
+	 * the entry's complete new state and only the fields whose value differs
+	 * from `previous` are copied, an absent field as null. An entry that already
+	 * holds every copied value is left untouched, so its `updated_at` does not
+	 * move.
+	 *
+	 * On collections with revisions a changed entry also gets a new live
+	 * revision, because republishing and unpublishing read that revision rather
+	 * than the columns. A pending draft takes a value only where it still holds
+	 * the entry's previous value, so an unpublished edit to the field survives.
+	 */
+	async syncNonTranslatableFields(
+		type: string,
+		sourceId: string,
+		translationGroup: string,
+		data: Record<string, unknown>,
+		options: { previous?: Record<string, unknown> } = {},
+	): Promise<void> {
+		const tableName = getTableName(type);
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", (join) =>
+				join.onRef("field.collection_id", "=", "collection.id").on("field.translatable", "=", 0),
+			)
+			.select(["collection.supports", "field.slug as fieldSlug"])
+			.where("collection.slug", "=", type)
+			.execute();
+
+		const { previous } = options;
+		const values: Record<string, unknown> = {};
+		for (const { fieldSlug } of collectionRows) {
+			if (!fieldSlug) continue;
+			if (previous) {
+				if (!sameStoredValue(previous[fieldSlug], data[fieldSlug])) {
+					values[fieldSlug] = data[fieldSlug] ?? null;
+				}
+			} else if (fieldSlug in data) {
+				values[fieldSlug] = data[fieldSlug];
+			}
+		}
+		if (Object.keys(values).length === 0) return;
+		const normalizedValues = await this.datetimes.normalizeData(type, values);
+
+		const supportsRaw = collectionRows[0]?.supports;
+		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
+		const usesRevisions = Array.isArray(supports) && supports.includes("revisions");
+
+		const siblings = await sql<Record<string, unknown>>`
+			SELECT * FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			AND id != ${sourceId}
+		`.execute(this.db);
+
+		let changed = false;
+		for (const row of siblings.rows) {
+			if (
+				await this.syncSiblingValues(type, this.mapRow(type, row), normalizedValues, usesRevisions)
+			) {
+				changed = true;
+			}
+		}
+		if (changed) invalidateCollectionCache(type);
+	}
+
+	private async syncSiblingValues(
+		type: string,
+		initial: ContentItem,
+		values: Record<string, unknown>,
+		usesRevisions: boolean,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
+		let sibling: ContentItem | null = initial;
+
+		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+			const current: ContentItem = sibling;
+			const changed: Record<string, unknown> = {};
+			for (const [field, value] of Object.entries(values)) {
+				if (!sameStoredValue(current.data[field], value)) changed[field] = value;
+			}
+			if (Object.keys(changed).length === 0) return false;
+
+			const assignments: ReturnType<typeof sql>[] = [];
+			for (const [field, value] of Object.entries(changed)) {
+				validateIdentifier(field, "content field name");
+				assignments.push(sql`${sql.ref(field)} = ${serializeValue(value)}`);
+			}
+
+			const createdRevisionIds: string[] = [];
+			const cleanUp = async () => {
+				for (const revisionId of createdRevisionIds) {
+					await this.deleteUnstagedRevision(revisionRepo, type, current.id, revisionId);
+				}
+			};
+
+			let synced: boolean;
+			try {
+				const live =
+					usesRevisions && current.liveRevisionId
+						? await revisionRepo.findById(current.liveRevisionId)
+						: null;
+				if (live) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: current.id,
+						data: { ...live.data, ...changed },
+					});
+					createdRevisionIds.push(revision.id);
+					assignments.push(sql`live_revision_id = ${revision.id}`);
+				}
+
+				const draft =
+					usesRevisions && current.draftRevisionId
+						? await revisionRepo.findById(current.draftRevisionId)
+						: null;
+				const carried: Record<string, unknown> = {};
+				for (const [field, value] of Object.entries(changed)) {
+					if (draft && sameStoredValue(draft.data[field], current.data[field])) {
+						carried[field] = value;
+					}
+				}
+				if (draft && Object.keys(carried).length > 0) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: current.id,
+						data: { ...draft.data, ...carried },
+					});
+					createdRevisionIds.push(revision.id);
+					assignments.push(sql`draft_revision_id = ${revision.id}`);
+				}
+
+				assignments.push(sql`updated_at = ${new Date().toISOString()}`, sql`version = version + 1`);
+				const result = await sql`
+					UPDATE ${sql.ref(tableName)}
+					SET ${sql.join(assignments, sql`, `)}
+					WHERE id = ${current.id}
+					AND version = ${current.version}
+					AND ${nullableColumnMatch("live_revision_id", current.liveRevisionId)}
+					AND ${nullableColumnMatch("draft_revision_id", current.draftRevisionId)}
+				`.execute(this.db);
+				synced = (result.numAffectedRows ?? 0n) > 0n;
+			} catch (error) {
+				await cleanUp();
+				throw error;
+			}
+
+			if (synced) return true;
+			await cleanUp();
+			sibling = await this.findByIdIncludingTrashed(type, current.id);
+		}
+
+		if (!sibling) return false;
+		throw new ContentMutationConflictError();
+	}
+
+	/**
 	 * Delete content (soft delete - moves to trash)
 	 */
 	async delete(type: string, id: string): Promise<boolean> {
@@ -1088,20 +1561,39 @@ export class ContentRepository {
 
 	/**
 	 * Restore content from trash
+	 *
+	 * The entry comes back as a draft with no schedule. The live version is not
+	 * copied into a draft revision: collections without revisions save to the
+	 * columns, and a draft revision would hide those saves.
 	 */
-	async restore(type: string, id: string): Promise<ContentItem | null> {
+	async restore(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const existing = await this.findByIdOrSlugIncludingTrashed(type, id);
+		if (!existing) return null;
+		assertRevisionPrecondition(existing, expectedRevision);
+		const now = new Date().toISOString();
 
 		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
-			SET deleted_at = NULL
-			WHERE id = ${id}
+			SET deleted_at = NULL,
+				live_revision_id = NULL,
+				status = 'draft',
+				scheduled_at = NULL,
+				updated_at = ${now},
+				version = ${existing.version + 1}
+			WHERE id = ${existing.id}
 			AND deleted_at IS NOT NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
 			RETURNING *
 		`.execute(this.db);
 
 		const restored = result.rows[0];
-		if (!restored) return null;
+		if (!restored) throw new ContentMutationConflictError("Content changed while restoring");
 
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);
@@ -1139,7 +1631,7 @@ export class ContentRepository {
 	 */
 	async findTrashed(
 		type: string,
-		options: Omit<FindManyOptions, "where"> = {},
+		options: Omit<FindManyOptions, "where"> & { where?: { locale?: string } } = {},
 	): Promise<FindManyResult<ContentItem & { deletedAt: string }>> {
 		const tableName = getTableName(type);
 		const limit = Math.min(options.limit || 50, 100);
@@ -1155,6 +1647,10 @@ export class ContentRepository {
 			.selectFrom(tableName as keyof Database)
 			.selectAll()
 			.where("deleted_at" as never, "is not", null);
+
+		if (options.where?.locale) {
+			query = query.where("locale" as any, "=", options.where.locale);
+		}
 
 		// Handle cursor pagination — decodeCursor throws on invalid input.
 		if (options.cursor) {
@@ -1212,14 +1708,19 @@ export class ContentRepository {
 	/**
 	 * Count trashed content items
 	 */
-	async countTrashed(type: string): Promise<number> {
+	async countTrashed(type: string, options: { locale?: string } = {}): Promise<number> {
 		const tableName = getTableName(type);
 
-		const result = await this.db
+		let query = this.db
 			.selectFrom(tableName as keyof Database)
 			.select((eb) => eb.fn.count("id").as("count"))
-			.where("deleted_at" as never, "is not", null)
-			.executeTakeFirst();
+			.where("deleted_at" as never, "is not", null);
+
+		if (options.locale) {
+			query = query.where("locale" as any, "=", options.locale);
+		}
+
+		const result = await query.executeTakeFirst();
 
 		return Number(result?.count || 0);
 	}
@@ -1514,16 +2015,19 @@ export class ContentRepository {
 	 * Sets status to 'scheduled' and stores the scheduled publish time.
 	 * The content will be auto-published when the scheduled time is reached.
 	 */
-	async schedule(type: string, id: string, scheduledAt: string): Promise<ContentItem> {
+	async schedule(
+		type: string,
+		id: string,
+		scheduledAt: string,
+		currentTime: Date = new Date(),
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
-		// Validate scheduledAt is in the future
-		const scheduledDate = new Date(scheduledAt);
-		if (isNaN(scheduledDate.getTime())) {
-			throw new EmDashValidationError("Invalid scheduled date");
-		}
-		if (scheduledDate <= new Date()) {
+		const normalizedScheduledAt = await this.datetimes.normalizeValue(type, scheduledAt);
+		const scheduledDate = new Date(normalizedScheduledAt);
+		if (scheduledDate <= currentTime) {
 			throw new EmDashValidationError("Scheduled date must be in the future");
 		}
 
@@ -1531,20 +2035,28 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		// Published posts keep their status — the schedule applies to the
 		// pending draft, not the currently-live revision. Unpublished posts
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
-				scheduled_at = ${scheduledAt},
+				scheduled_at = ${normalizedScheduledAt},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if ((result.numAffectedRows ?? 0n) === 0n) {
+			throw new ContentMutationConflictError("Content changed while scheduling");
+		}
 
 		invalidateCollectionCache(type);
 
@@ -1562,7 +2074,11 @@ export class ContentRepository {
 	 * Clears the scheduled time. Published posts stay published;
 	 * draft/scheduled posts revert to 'draft'.
 	 */
-	async unschedule(type: string, id: string): Promise<ContentItem> {
+	async unschedule(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -1570,12 +2086,13 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		// Published posts keep their status — just clear the pending schedule.
 		// Draft/scheduled posts revert to 'draft'.
 		const newStatus = existing.status === "published" ? "published" : "draft";
 
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
 				scheduled_at = NULL,
@@ -1583,7 +2100,14 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND scheduled_at IS NOT NULL
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if (existing.scheduledAt !== null && (result.numAffectedRows ?? 0n) === 0n) {
+			throw new ContentMutationConflictError("Content changed while unscheduling");
+		}
 
 		invalidateCollectionCache(type);
 
@@ -1607,9 +2131,14 @@ export class ContentRepository {
 	 * fan out unbounded publish/webhook work in a single tick (and blow a Worker
 	 * invocation's CPU/subrequest budget); the remainder drains on later ticks.
 	 */
-	async findReadyToPublish(type: string, limit?: number): Promise<ContentItem[]> {
+	async findReadyToPublish(
+		type: string,
+		limit?: number,
+		currentTime: Date = new Date(),
+		after?: { scheduledAt: string; id: string },
+	): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		// Embed an empty fragment when unbounded so callers that want every due
 		// row (manual flows, tests) keep the original behaviour.
@@ -1617,17 +2146,52 @@ export class ContentRepository {
 			typeof limit === "number" && Number.isInteger(limit) && limit > 0
 				? sql`LIMIT ${limit}`
 				: sql``;
+		const afterClause = after
+			? sql`AND (scheduled_at > ${after.scheduledAt} OR (scheduled_at = ${after.scheduledAt} AND id > ${after.id}))`
+			: sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
 			WHERE scheduled_at IS NOT NULL
 			AND scheduled_at <= ${now}
 			AND deleted_at IS NULL
-			ORDER BY scheduled_at ASC
+			${afterClause}
+			ORDER BY scheduled_at ASC, id ASC
 			${limitClause}
 		`.execute(this.db);
 
 		return result.rows.map((row) => this.mapRow(type, row));
+	}
+
+	async findTranslationIds(type: string, translationGroup: string): Promise<string[]> {
+		const tableName = getTableName(type);
+		const result = await sql<{ id: string }>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			AND deleted_at IS NULL
+		`.execute(this.db);
+		return result.rows.map((row) => row.id);
+	}
+
+	async findTranslationIdsForGroups(
+		type: string,
+		translationGroups: string[],
+	): Promise<Map<string, string[]>> {
+		const ids = new Map<string, string[]>();
+		if (translationGroups.length === 0) return ids;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(translationGroups)], SQL_BATCH_SIZE)) {
+			const result = await sql<{ id: string; translation_group: string }>`
+				SELECT id, translation_group FROM ${sql.ref(tableName)}
+				WHERE translation_group IN (${sql.join(batch)}) AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const group = ids.get(row.translation_group) ?? [];
+				group.push(row.id);
+				ids.set(row.translation_group, group);
+			}
+		}
+		return ids;
 	}
 
 	/**
@@ -1644,6 +2208,32 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		return result.rows.map((row) => this.mapRow(type, row));
+	}
+
+	/**
+	 * Whether any row still shares `translationGroup`, trashed rows included.
+	 * Group-keyed satellite data (term assignments, reference edges) is owned by
+	 * the group, not by a single locale row, so a purge may only cascade to it
+	 * once nothing is left to own it — and a trashed sibling is still restorable.
+	 */
+	async hasTranslationsIncludingTrashed(
+		type: string,
+		translationGroup: string,
+		options: { excludeId?: string } = {},
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		// Asked before a row is deleted, "does anything else hold this group?"
+		// has to leave that row out of the answer.
+		const exclusion = options.excludeId ? sql`AND id != ${options.excludeId}` : sql``;
+
+		const result = await sql<Record<string, unknown>>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			${exclusion}
+			LIMIT 1
+		`.execute(this.db);
+
+		return result.rows.length > 0;
 	}
 
 	/**
@@ -1788,15 +2378,22 @@ export class ContentRepository {
 		promoteRevision = true,
 		requireSlug = true,
 		expectedRevision?: ContentRevisionPrecondition,
+		currentTime: Date = new Date(),
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		const existing = await this.findById(type, id);
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
+		const requestedPublishedAt = publishedAt
+			? await this.datetimes.normalizeValue(type, publishedAt)
+			: undefined;
+		const currentPublishedAt = existing.publishedAt
+			? await this.datetimes.normalizeValue(type, existing.publishedAt)
+			: null;
 		if (
 			requireDue &&
 			expectedScheduledAt !== undefined &&
@@ -1809,7 +2406,7 @@ export class ContentRepository {
 		}
 
 		if (!promoteRevision) {
-			const revisionRepo = new RevisionRepository(this.db);
+			const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 			let provisionalRevisionId: string | null = null;
 			try {
 				let liveRevisionId = existing.liveRevisionId;
@@ -1823,7 +2420,7 @@ export class ContentRepository {
 					provisionalRevisionId = revision.id;
 				}
 
-				const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+				const intendedPublishedAt = requestedPublishedAt ?? currentPublishedAt ?? now;
 				const duePredicate = requireDue
 					? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
 					: sql``;
@@ -1902,7 +2499,7 @@ export class ContentRepository {
 			}
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
@@ -1927,7 +2524,7 @@ export class ContentRepository {
 			if (requireSlug && !intendedSlug?.trim()) {
 				throw new EmDashValidationError("Cannot publish routable content without a slug");
 			}
-			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+			const intendedPublishedAt = requestedPublishedAt ?? currentPublishedAt ?? now;
 			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
 				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
 				if (conflict && conflict.id !== id) {
@@ -2042,8 +2639,9 @@ export class ContentRepository {
 	/**
 	 * Unpublish content
 	 *
-	 * Removes live pointer but preserves the draft and publication date. If no
-	 * draft exists, creates one from the live version so the content isn't lost.
+	 * Removes live pointer and cancels any pending schedule, but preserves the
+	 * draft and publication date. If no draft exists, creates one from the live
+	 * version so the content isn't lost.
 	 */
 	async unpublish(
 		type: string,
@@ -2058,9 +2656,11 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
-		if (existing.status === "draft" && !existing.liveRevisionId) return existing;
+		if (existing.status === "draft" && !existing.liveRevisionId && !existing.scheduledAt) {
+			return existing;
+		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
@@ -2082,6 +2682,7 @@ export class ContentRepository {
 				SET live_revision_id = NULL,
 					draft_revision_id = ${draftRevisionId},
 					status = 'draft',
+					scheduled_at = NULL,
 					updated_at = ${now},
 					version = version + 1
 				WHERE id = ${id}
@@ -2131,7 +2732,7 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		const revision = await revisionRepo.findById(revisionId);
 		if (!revision) {
 			throw new EmDashValidationError("Revision not found");
@@ -2303,6 +2904,15 @@ export class ContentRepository {
 				`Filter value for field "${field}" exceeds ${MAX_FILTER_STRING_LENGTH} characters`,
 			);
 		}
+		if (type === "datetime") {
+			try {
+				return normalizeExplicitDatetime(value);
+			} catch {
+				throw new EmDashValidationError(
+					`Filter for datetime field "${field}" must use an ISO 8601 datetime with Z or an explicit offset`,
+				);
+			}
+		}
 		return value;
 	}
 
@@ -2388,9 +2998,16 @@ export class ContentRepository {
 			.where("collection.slug", "=", type)
 			.where("field.slug", "in", fields)
 			.where("field.indexed", "=", 1)
-			.select(["field.slug", "field.type"])
+			.select(["field.slug", "field.type", "field.validation"])
 			.execute();
-		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
+		// `indexed` alone is not enough: a storage-less field has no column to
+		// filter on. A reference field bound to a relation after it was indexed can
+		// still carry the flag, and its column no longer receives writes.
+		const metadata = new Map(
+			rows
+				.filter((row) => !isStoragelessFieldRow(row))
+				.map((row) => [row.slug, row.type as FieldType]),
+		);
 
 		if (metadata.size === 0 && !(await this.collectionExists(type))) return [];
 

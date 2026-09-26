@@ -99,6 +99,22 @@ test.describe("Inline Editor", () => {
 		await enableEditMode(page);
 	});
 
+	test("PT editor shows up in visual editing mode", async ({ page }) => {
+		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
+
+		const editor = page.locator(".emdash-inline-editor");
+		await expect(editor).toBeVisible({ timeout: 15000 });
+
+		// The island failed to hydrate with zero height when highlight.js/lib/core
+		// was served raw as CommonJS, so also assert some static content rendered
+		// inside the editor rather than disappearing.
+		const box = await editor.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.height).toBeGreaterThan(0);
+		await expect(editor.locator("text=Text before image.")).toBeVisible();
+		await expect(editor.locator("text=Text after image.")).toBeVisible();
+	});
+
 	test("loads without crashing on posts with image blocks", async ({ page }) => {
 		await gotoWithRetry(page, POST_WITH_IMAGE_PATH);
 

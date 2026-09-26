@@ -7,6 +7,7 @@ import { createDatabase } from "../../../../src/database/connection.js";
 import { down, up } from "../../../../src/database/migrations/036_i18n_menus_and_taxonomies.js";
 import type { Database } from "../../../../src/database/types.js";
 import { setI18nConfig } from "../../../../src/i18n/config.js";
+import { seedPreI18nSchema } from "../../../utils/pre-i18n-schema.js";
 
 /**
  * Build a Kysely instance backed by better-sqlite3 with foreign keys ON and
@@ -31,106 +32,12 @@ function createD1LikeDatabase(): Kysely<Database> {
 	return new KyselyCtor<Database>({ dialect });
 }
 
-/**
- * Seed the four pre-i18n tables that migration 036 widens, plus the support
- * tables it reads (`_emdash_collections`, `ec_posts`). Mirrors the schema
- * shape immediately before this migration runs in production.
- */
-async function seedPreMigrationSchema(db: Kysely<Database>): Promise<void> {
-	await sql`
-		CREATE TABLE _emdash_menus (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			label TEXT NOT NULL,
-			created_at TEXT DEFAULT (datetime('now')),
-			updated_at TEXT DEFAULT (datetime('now'))
-		)
-	`.execute(db);
-
-	await sql`
-		CREATE TABLE _emdash_menu_items (
-			id TEXT PRIMARY KEY,
-			menu_id TEXT NOT NULL,
-			parent_id TEXT,
-			sort_order INTEGER NOT NULL DEFAULT 0,
-			type TEXT NOT NULL,
-			reference_collection TEXT,
-			reference_id TEXT,
-			custom_url TEXT,
-			label TEXT NOT NULL,
-			title_attr TEXT,
-			target TEXT,
-			css_classes TEXT,
-			created_at TEXT DEFAULT (datetime('now')),
-			CONSTRAINT menu_items_menu_fk FOREIGN KEY (menu_id)
-				REFERENCES _emdash_menus(id) ON DELETE CASCADE,
-			CONSTRAINT menu_items_parent_fk FOREIGN KEY (parent_id)
-				REFERENCES _emdash_menu_items(id) ON DELETE CASCADE
-		)
-	`.execute(db);
-
-	await sql`CREATE INDEX idx_menu_items_menu ON _emdash_menu_items(menu_id, sort_order)`.execute(
-		db,
-	);
-	await sql`CREATE INDEX idx_menu_items_parent ON _emdash_menu_items(parent_id)`.execute(db);
-
-	await sql`
-		CREATE TABLE taxonomies (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL,
-			slug TEXT NOT NULL,
-			label TEXT NOT NULL,
-			parent_id TEXT,
-			data TEXT,
-			UNIQUE(name, slug),
-			FOREIGN KEY (parent_id) REFERENCES taxonomies(id) ON DELETE SET NULL
-		)
-	`.execute(db);
-
-	await sql`
-		CREATE TABLE _emdash_taxonomy_defs (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			label TEXT NOT NULL,
-			label_singular TEXT,
-			hierarchical INTEGER DEFAULT 0,
-			collections TEXT,
-			created_at TEXT DEFAULT (datetime('now'))
-		)
-	`.execute(db);
-
-	await sql`
-		CREATE TABLE content_taxonomies (
-			collection TEXT NOT NULL,
-			entry_id TEXT NOT NULL,
-			taxonomy_id TEXT NOT NULL,
-			PRIMARY KEY (collection, entry_id, taxonomy_id),
-			FOREIGN KEY (taxonomy_id) REFERENCES taxonomies(id) ON DELETE CASCADE
-		)
-	`.execute(db);
-
-	await sql`
-		CREATE TABLE _emdash_collections (
-			slug TEXT PRIMARY KEY
-		)
-	`.execute(db);
-
-	// translation_group is added to ec_* by migration 019; 036 reads it during remap.
-	await sql`
-		CREATE TABLE ec_posts (
-			id TEXT PRIMARY KEY,
-			locale TEXT NOT NULL DEFAULT 'en',
-			translation_group TEXT
-		)
-	`.execute(db);
-}
-
 describe("036_i18n_menus_and_taxonomies migration", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
 		db = createDatabase({ url: ":memory:" });
-		await seedPreMigrationSchema(db);
+		await seedPreI18nSchema(db);
 	});
 
 	afterEach(async () => {
@@ -191,7 +98,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			// the FK already gone and the index still missing.
 			await db.destroy();
 			db = createDatabase({ url: ":memory:" });
-			await seedPreMigrationSchema(db);
+			await seedPreI18nSchema(db);
 			await sql`DROP TABLE content_taxonomies`.execute(db);
 			await sql`
 				CREATE TABLE content_taxonomies (
@@ -213,6 +120,83 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			`.execute(db);
 			const names = new Set(indexes.rows.map((r) => r.name));
 			expect(names).toContain("idx_content_taxonomies_term");
+		});
+
+		it.each([
+			"_emdash_menus",
+			"_emdash_menu_items",
+			"taxonomies",
+			"_emdash_taxonomy_defs",
+			"content_taxonomies",
+		])("finishes when a run stopped between dropping %s and renaming its copy", async (table) => {
+			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('m1', 'main', 'Main')`.execute(
+				db,
+			);
+			await sql`INSERT INTO _emdash_menu_items (id, menu_id, type, label) VALUES ('mi1', 'm1', 'custom', 'Home')`.execute(
+				db,
+			);
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('t1', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 't1')`.execute(
+				db,
+			);
+			await up(db);
+
+			const listIndexes = async (tbl: string) =>
+				(
+					await sql<{ name: string }>`
+						SELECT name FROM sqlite_master
+						WHERE type = 'index' AND tbl_name = ${tbl} AND sql IS NOT NULL
+						ORDER BY name
+					`.execute(db)
+				).rows.map((r) => r.name);
+			const indexes = await listIndexes(table);
+			const rows = await sql`SELECT * FROM ${sql.ref(table)} ORDER BY 1`.execute(db);
+
+			// The state after the drop: only the staged copy, without the indexes
+			// the rebuild creates after the rename.
+			await sql`ALTER TABLE ${sql.ref(table)} RENAME TO ${sql.ref(`${table}_new`)}`.execute(db);
+			for (const name of indexes) await sql`DROP INDEX ${sql.ref(name)}`.execute(db);
+
+			await up(db);
+
+			expect(await listIndexes(table)).toEqual(indexes);
+			expect((await sql`SELECT * FROM ${sql.ref(table)} ORDER BY 1`.execute(db)).rows).toEqual(
+				rows.rows,
+			);
+			const staged = await sql`
+				SELECT name FROM sqlite_master WHERE type = 'table' AND name = ${`${table}_new`}
+			`.execute(db);
+			expect(staged.rows).toEqual([]);
+		});
+
+		it("migrates the remaining tables after resuming the first rebuild", async () => {
+			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('t1', 'category', 'news', 'News')`.execute(
+				db,
+			);
+			await sql`INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id) VALUES ('posts', 'p1', 't1')`.execute(
+				db,
+			);
+			await sql`
+				CREATE TABLE content_taxonomies_new (
+					collection TEXT NOT NULL,
+					entry_id TEXT NOT NULL,
+					taxonomy_id TEXT NOT NULL,
+					PRIMARY KEY (collection, entry_id, taxonomy_id)
+				)
+			`.execute(db);
+			await sql`INSERT INTO content_taxonomies_new SELECT * FROM content_taxonomies`.execute(db);
+			await sql`DROP TABLE content_taxonomies`.execute(db);
+
+			await up(db);
+
+			const rows = await sql`SELECT entry_id, taxonomy_id FROM content_taxonomies`.execute(db);
+			expect(rows.rows).toEqual([{ entry_id: "p1", taxonomy_id: "t1" }]);
+			const cols = await sql<{ name: string }>`PRAGMA table_info(_emdash_taxonomy_defs)`.execute(
+				db,
+			);
+			expect(cols.rows.map((c) => c.name)).toContain("locale");
 		});
 
 		it("backfills translation_group = id for pre-existing rows", async () => {
@@ -314,7 +298,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			// enforcement.
 			await db.destroy();
 			db = createD1LikeDatabase();
-			await seedPreMigrationSchema(db);
+			await seedPreI18nSchema(db);
 			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('news', 'category', 'news', 'News')`.execute(
 				db,
 			);
@@ -338,7 +322,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			// that mimics D1's locked-on FK enforcement.
 			await db.destroy();
 			db = createD1LikeDatabase();
-			await seedPreMigrationSchema(db);
+			await seedPreI18nSchema(db);
 			await sql`INSERT INTO taxonomies (id, name, slug, label) VALUES ('news', 'category', 'news', 'News')`.execute(
 				db,
 			);
@@ -363,7 +347,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			// first to physically strip both FKs.
 			await db.destroy();
 			db = createD1LikeDatabase();
-			await seedPreMigrationSchema(db);
+			await seedPreI18nSchema(db);
 			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('main', 'main', 'Main')`.execute(
 				db,
 			);
@@ -397,7 +381,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			// re-trigger the same cascade on D1.
 			await db.destroy();
 			db = createD1LikeDatabase();
-			await seedPreMigrationSchema(db);
+			await seedPreI18nSchema(db);
 
 			await up(db);
 
@@ -565,7 +549,7 @@ describe("036_i18n_menus_and_taxonomies migration", () => {
 			// removed the FK that would otherwise wipe child rows.
 			await db.destroy();
 			db = createD1LikeDatabase();
-			await seedPreMigrationSchema(db);
+			await seedPreI18nSchema(db);
 			await sql`INSERT INTO _emdash_menus (id, name, label) VALUES ('main', 'main', 'Main')`.execute(
 				db,
 			);

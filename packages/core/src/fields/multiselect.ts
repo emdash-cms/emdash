@@ -28,7 +28,7 @@ export function multiSelect<T extends readonly [string, ...string[]]>(
 	}
 
 	// Optional vs required
-	const schema: z.ZodTypeAny = msOptions.required ? arraySchema : arraySchema.optional();
+	const schema: z.ZodType = msOptions.required ? arraySchema : arraySchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "multiSelect",

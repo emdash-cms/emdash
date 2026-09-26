@@ -17,28 +17,67 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { generateManifest } from "../../../src/api/handlers/manifest.js";
 import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import type { ResolvedPlugin } from "../../../src/plugins/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-function buildRuntime(db: Kysely<Database>): EmDashRuntime {
-	const config: EmDashConfig = {};
+const zodString = { _def: { typeName: "ZodString" } };
+const zodNumber = { _def: { typeName: "ZodNumber" } };
+
+const configCollections = {
+	posts: {
+		schema: {
+			shape: {
+				title: zodString,
+				views: zodNumber,
+			},
+		},
+		admin: {
+			label: "Posts",
+			labelSingular: "Post",
+			supports: ["preview"],
+		},
+	},
+	pages: {
+		schema: {
+			shape: {
+				heading: zodString,
+			},
+		},
+		admin: {
+			label: "Pages",
+			labelSingular: "Page",
+			supports: [],
+		},
+	},
+};
+
+function buildRuntime(
+	db: Kysely<Database>,
+	config: EmDashConfig = {},
+	configuredPlugins: ResolvedPlugin[] = [],
+	sandboxEnabled = false,
+): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
-	const hooks = createHookPipeline([], pipelineFactoryOptions);
+	const hooks = createHookPipeline(configuredPlugins, pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
 	const runtimeDeps = {
 		config,
-		plugins: [],
+		plugins: configuredPlugins,
 		// eslint-disable-next-line typescript/no-explicit-any -- match RuntimeDependencies signature
 		createDialect: (() => {
 			throw new Error("createDialect not used in this test");
 		}) as any,
 		createStorage: null,
-		sandboxEnabled: false,
+		sandboxEnabled,
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 	};
@@ -46,11 +85,11 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 	return new EmDashRuntime({
 		db,
 		storage: null,
-		configuredPlugins: [],
+		configuredPlugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
 		hooks,
-		enabledPlugins: new Set(),
+		enabledPlugins: new Set(configuredPlugins.map((plugin) => plugin.id)),
 		pluginStates: new Map(),
 		config,
 		mediaProviders: new Map(),
@@ -58,12 +97,224 @@ function buildRuntime(db: Kysely<Database>): EmDashRuntime {
 		cronExecutor: null,
 		cronScheduler: null,
 		emailPipeline: null,
-		allPipelinePlugins: [],
+		allPipelinePlugins: [...configuredPlugins],
 		pipelineFactoryOptions,
 		runtimeDeps,
 		pipelineRef,
 	});
 }
+
+describe("generateManifest()", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("merges runtime manual collections from the database with config collections", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "currents",
+			label: "Currents",
+			labelSingular: "Current",
+			source: "manual",
+			supports: ["drafts", "preview"],
+		});
+		await registry.createField("currents", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			required: true,
+		});
+		await registry.createField("currents", {
+			slug: "priority",
+			label: "Priority",
+			type: "integer",
+		});
+
+		const manifest = await generateManifest(configCollections, {}, { db });
+
+		expect(Object.keys(manifest.collections).toSorted()).toEqual(["currents", "pages", "posts"]);
+		expect(manifest.collections.currents).toMatchObject({
+			label: "Currents",
+			labelSingular: "Current",
+			supports: ["drafts", "preview"],
+		});
+		expect(manifest.collections.currents?.fields.title).toMatchObject({
+			kind: "string",
+			label: "Title",
+			required: true,
+		});
+		expect(manifest.collections.currents?.fields.priority).toMatchObject({
+			kind: "number",
+			label: "Priority",
+		});
+	});
+
+	it("publishes the sidebar group for database collections", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "calendar_entries",
+			label: "Entries",
+			group: "Calendar",
+		});
+		await registry.createCollection({ slug: "team", label: "Team" });
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.calendar_entries?.group).toBe("Calendar");
+		expect(manifest.collections.team).not.toHaveProperty("group");
+	});
+
+	it("keeps config collection fields when the database has the same slug", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "DB Posts",
+			labelSingular: "DB Post",
+			source: "manual",
+		});
+		await registry.createField("posts", { slug: "body", label: "Body", type: "text" });
+
+		const manifest = await generateManifest({ posts: configCollections.posts }, {}, { db });
+
+		expect(manifest.collections.posts?.label).toBe("Posts");
+		expect(Object.keys(manifest.collections.posts?.fields ?? {}).toSorted()).toEqual([
+			"title",
+			"views",
+		]);
+		expect(manifest.collections.posts?.fields.body).toBeUndefined();
+	});
+
+	it("includes manual collections that have no fields", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "links",
+			label: "Links",
+			labelSingular: "Link",
+			source: "manual",
+		});
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.links).toBeDefined();
+		expect(manifest.collections.links?.fields).toEqual({});
+	});
+
+	it("changes the hash when a manual collection is added", async () => {
+		const registry = new SchemaRegistry(db);
+		const before = await generateManifest(configCollections, {}, { db });
+
+		await registry.createCollection({
+			slug: "currents",
+			label: "Currents",
+			labelSingular: "Current",
+			source: "manual",
+		});
+
+		const after = await generateManifest(configCollections, {}, { db });
+
+		expect(after.hash).not.toBe(before.hash);
+	});
+
+	it("falls back to config collections when database collection loading fails", async () => {
+		const failingDb = {
+			selectFrom() {
+				throw new Error("missing registry tables");
+			},
+		} as unknown as Kysely<Database>;
+
+		const manifest = await generateManifest(configCollections, {}, { db: failingDb });
+
+		expect(Object.keys(manifest.collections).toSorted()).toEqual(["pages", "posts"]);
+		expect(manifest.collections.posts?.fields.title?.kind).toBe("string");
+	});
+
+	it("marks unknown database field types as unsupported", async () => {
+		const registry = new SchemaRegistry(db);
+		const collection = await registry.createCollection({
+			slug: "imports",
+			label: "Imports",
+			labelSingular: "Import",
+			source: "manual",
+		});
+		await db
+			.insertInto("_emdash_fields")
+			.values({
+				id: "field_unknown_type",
+				collection_id: collection.id,
+				slug: "payload",
+				label: "Payload",
+				type: "unknown_plugin_type",
+				column_type: "TEXT",
+				required: 0,
+				unique: 0,
+				default_value: null,
+				validation: null,
+				widget: null,
+				options: null,
+				sort_order: 0,
+			})
+			.execute();
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.imports?.fields.payload).toMatchObject({
+			kind: "unsupported",
+			label: "Payload",
+			unsupportedType: {
+				type: "unknown_plugin_type",
+				path: "type",
+			},
+		});
+	});
+
+	it("includes retained block definitions and changes hash when their contract changes", async () => {
+		const blocks = new BlockTypeRegistry(db);
+		const registry = new SchemaRegistry(db);
+		const hero = await blocks.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "heading", label: "Heading", type: "string", required: true }],
+		});
+		await registry.createCollection({ slug: "landing_pages", label: "Landing pages" });
+		await registry.createField("landing_pages", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["hero"] },
+		});
+
+		const before = await generateManifest({}, {}, { db });
+		expect(before.collections.landing_pages?.fields.layout).toMatchObject({
+			kind: "blocks",
+			blockTypes: [
+				{
+					slug: "hero",
+					currentVersion: 1,
+					versions: [{ version: 1, active: true }],
+				},
+			],
+		});
+		expect(before.collections.landing_pages?.fields.layout?.blockTypeFingerprint).toMatch(
+			/^blocks-field:v1:sha256:/,
+		);
+
+		await blocks.updateBlockType("hero", {
+			expectedFingerprint: hero.versions[0]!.fingerprint,
+			fields: [
+				{ slug: "heading", label: "Heading", type: "string", required: true },
+				{ slug: "eyebrow", label: "Eyebrow", type: "string" },
+			],
+		});
+		const after = await generateManifest({}, {}, { db });
+		expect(after.hash).not.toBe(before.hash);
+	});
+});
 
 describe("EmDashRuntime.getManifest()", () => {
 	let db: Kysely<Database>;
@@ -132,12 +383,139 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts?.fields.body?.kind).toBe("json");
 	});
 
+	it("forwards declared validation on every field type", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			validation: { minLength: 3, maxLength: 80 },
+		});
+		await registry.createField("posts", {
+			slug: "excerpt",
+			label: "Excerpt",
+			type: "text",
+			validation: { maxLength: 160 },
+		});
+		await registry.createField("posts", {
+			slug: "reading_minutes",
+			label: "Reading minutes",
+			type: "integer",
+			validation: { min: 1, max: 60 },
+		});
+		await registry.createField("posts", { slug: "subtitle", label: "Subtitle", type: "string" });
+
+		const runtime = buildRuntime(db);
+		const fields = (await runtime.getManifest()).collections.posts?.fields;
+
+		expect(fields?.title?.validation).toEqual({ minLength: 3, maxLength: 80 });
+		expect(fields?.excerpt?.validation).toEqual({ maxLength: 160 });
+		expect(fields?.reading_minutes?.validation).toEqual({ min: 1, max: 60 });
+		expect(fields?.subtitle?.validation).toBeUndefined();
+	});
+
 	it("reports the implicit English content locale when i18n is not configured", async () => {
 		const runtime = buildRuntime(db);
 
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("reports whether the plugin sandbox is enabled", async () => {
+		expect((await buildRuntime(db).getManifest()).sandboxEnabled).toBe(false);
+		expect((await buildRuntime(db, {}, [], true).getManifest()).sandboxEnabled).toBe(true);
+	});
+
+	it("exposes configured saved-entry panels and actions to the admin", async () => {
+		const plugin = definePlugin({
+			id: "content-guard",
+			version: "1.0.0",
+			capabilities: ["admin.editor-draft:read", "admin.editor-draft:patch"],
+			routes: {
+				health: { permission: "content:edit_own", handler: async () => ({ blocks: [] }) },
+				repair: { permission: "content:edit_own", handler: async () => ({ refresh: true }) },
+			},
+			admin: {
+				editorPanels: [
+					{
+						id: "health",
+						title: "Health",
+						route: "health",
+						collections: ["posts"],
+						draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+					},
+				],
+				editorActions: [{ id: "repair", label: "Repair", route: "repair", placement: "overflow" }],
+			},
+		});
+		const runtime = buildRuntime(db, {}, [plugin]);
+
+		expect((await runtime.getManifest()).plugins["content-guard"]).toMatchObject({
+			adminMode: "blocks",
+			editorPanels: [
+				{
+					id: "health",
+					route: "health",
+					draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+				},
+			],
+			editorActions: [{ id: "repair", route: "repair", placement: "overflow" }],
+		});
+	});
+
+	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "experimental.registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("reports top-level registry configuration fields", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			registry: { aggregatorUrl: "not a URL" },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("lets the top-level false option override legacy registry configuration", async () => {
+		const runtime = buildRuntime(db, {
+			registry: false,
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toBeUndefined();
 	});
 
 	it("reports the configured content default independently of admin language", async () => {
@@ -147,6 +525,23 @@ describe("EmDashRuntime.getManifest()", () => {
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "ja", implicit: false });
+	});
+
+	it("exposes locale-prefix routing to the admin", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en", "pl"],
+			prefixDefaultLocale: true,
+		});
+		const runtime = buildRuntime(db);
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.i18n).toEqual({
+			defaultLocale: "en",
+			locales: ["en", "pl"],
+			prefixDefaultLocale: true,
+		});
 	});
 
 	it("includes field definitions for many collections in two queries flat", async () => {

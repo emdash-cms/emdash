@@ -1,33 +1,28 @@
 ---
-interface Props {
-	node: {
-		headline: string;
-		subheadline?: string;
-		// CTAs are flattened to sibling fields because Block Kit has no
-		// object-group element. Empty strings mean "no CTA".
-		primaryCtaLabel?: string;
-		primaryCtaUrl?: string;
-		secondaryCtaLabel?: string;
-		secondaryCtaUrl?: string;
-		image?: { url: string; alt?: string };
-		centered?: boolean;
-	};
-}
+import { sanitizeHref } from "emdash";
+import { Image, type BlockComponentProps } from "emdash/ui";
+import type { PageContentBlock } from "../../../emdash-env";
 
-const { node } = Astro.props;
-const { headline, subheadline, image, centered } = node;
+type HeroBlock = Extract<PageContentBlock, { _type: "marketing_hero" }>;
+type Props = BlockComponentProps<HeroBlock>;
+
+const { value } = Astro.props;
+const { anchor_id, headline, subheadline, image, centered } = value;
 
 const primaryCta =
-	node.primaryCtaLabel && node.primaryCtaUrl
-		? { label: node.primaryCtaLabel, url: node.primaryCtaUrl }
+	value.primary_cta_label && value.primary_cta_url
+		? { label: value.primary_cta_label, url: sanitizeHref(value.primary_cta_url) }
 		: undefined;
 const secondaryCta =
-	node.secondaryCtaLabel && node.secondaryCtaUrl
-		? { label: node.secondaryCtaLabel, url: node.secondaryCtaUrl }
+	value.secondary_cta_label && value.secondary_cta_url
+		? { label: value.secondary_cta_label, url: sanitizeHref(value.secondary_cta_url) }
 		: undefined;
 ---
 
-<section class:list={["hero", { "hero-centered": centered, "hero-with-image": !!image }]}>
+<section
+	id={anchor_id || undefined}
+	class:list={["hero", { "hero-centered": centered, "hero-with-image": !!image }]}
+>
 	<div class="hero-content">
 		<h1 class="hero-headline">{headline}</h1>
 		{subheadline && <p class="hero-subheadline">{subheadline}</p>}
@@ -46,9 +41,9 @@ const secondaryCta =
 			</div>
 		)}
 	</div>
-	{image ? (
-		<div class="hero-image">
-			<img src={image.url} alt={image.alt || ""} loading="eager" />
+		{image ? (
+			<div class="hero-image">
+				<Image image={image} class="hero-image-media" priority />
 		</div>
 	) : !centered && (
 		<div class="hero-visual" aria-hidden="true">
@@ -118,7 +113,7 @@ const secondaryCta =
 		position: relative;
 	}
 
-	.hero-image img {
+	.hero-image :global(.hero-image-media) {
 		width: 100%;
 		height: auto;
 		border-radius: var(--radius-lg);

@@ -54,6 +54,7 @@ const locals = {
 
 const imgSrc = (html: string) => html.match(/<img[^>]*\bsrc="([^"]*)"/)?.[1] ?? "(no <img>)";
 const imgTag = (html: string) => html.match(/<img\b[^>]*>/)?.[0] ?? "";
+const anchorTag = (html: string) => html.match(/<a\b[^>]*>/)?.[0] ?? "";
 const attr = (tag: string, name: string) =>
 	tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1]?.replaceAll("&amp;", "&");
 const compact = (html: string) => html.replace(/\s+/g, " ").trim();
@@ -135,6 +136,49 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeTruthy();
 		expect(html).toContain("<figcaption");
 		expect(html).toContain("A caption");
+	});
+
+	test("non-finite dimensions never reach rendered attributes or styles", async () => {
+		const html = await renderImage({
+			...node,
+			width: Number.NaN,
+			height: Number.POSITIVE_INFINITY,
+			displayWidth: Number.NaN,
+			displayHeight: Number.POSITIVE_INFINITY,
+		});
+
+		expect(html).not.toContain("NaN");
+		expect(html).not.toContain("Infinity");
+	});
+
+	test("linked image wraps the figure body in a sanitized anchor", async () => {
+		const html = await renderImage({
+			...node,
+			title: "Linked image details",
+			link: { href: "https://example.com/promo", blank: true },
+		});
+		const a = anchorTag(html);
+		const tag = imgTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/promo");
+		expect(attr(a, "target")).toBe("_blank");
+		expect(attr(a, "rel")).toBe("noopener noreferrer");
+		expect(attr(tag, "title")).toBe("Linked image details");
+		expect(compact(html)).toMatch(/<a\b[^>]*>\s*<img\b/);
+	});
+
+	test("same-page anchor links never open in a new tab", async () => {
+		const html = await renderImage({ ...node, link: { href: "#gallery", blank: true } });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("#gallery");
+		expect(attr(a, "target")).toBeUndefined();
+		expect(attr(a, "rel")).toBeUndefined();
+	});
+
+	test("legacy string links from WordPress imports still render", async () => {
+		const html = await renderImage({ ...node, link: "https://example.com/legacy" });
+		const a = anchorTag(html);
+		expect(attr(a, "href")).toBe("https://example.com/legacy");
+		expect(attr(a, "target")).toBeUndefined();
 	});
 
 	test("bare local media ref falls back to the media file route", async () => {

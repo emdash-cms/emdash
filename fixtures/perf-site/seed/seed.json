@@ -40,6 +40,15 @@
 					"slug": "excerpt",
 					"label": "Excerpt",
 					"type": "text"
+				},
+				{
+					"slug": "related_posts",
+					"label": "Related posts",
+					"type": "reference",
+					"validation": {
+						"relation": "posts_related_posts",
+						"relationSide": "parent"
+					}
 				}
 			]
 		},
@@ -63,6 +72,17 @@
 					"searchable": true
 				}
 			]
+		}
+	],
+	"relations": [
+		{
+			"slug": "posts_related_posts",
+			"parentCollection": "posts",
+			"childCollection": "posts",
+			"parentLabel": "Referenced by",
+			"parentLabelSingular": "Referenced by",
+			"childLabel": "Related posts",
+			"childLabelSingular": "Related post"
 		}
 	],
 	"taxonomies": [
@@ -684,6 +704,7 @@
 				"data": {
 					"title": "Designing with Constraints",
 					"excerpt": "Limitations aren't obstacles to creativity. They're the structure that makes creativity possible.",
+					"related_posts": ["$ref:post-1", "$ref:post-2", "$ref:post-3"],
 					"featured_image": {
 						"$media": {
 							"url": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1200&h=800&fit=crop",
@@ -838,6 +859,7 @@
 				"data": {
 					"title": "Notes on Simplicity",
 					"excerpt": "Simplicity isn't the absence of complexity. It's the result of understanding a problem well enough to solve it cleanly.",
+					"related_posts": ["$ref:post-4", "$ref:post-6"],
 					"featured_image": {
 						"$media": {
 							"url": "https://images.unsplash.com/photo-1559051668-e1fa58f25786?w=1200&h=800&fit=crop",

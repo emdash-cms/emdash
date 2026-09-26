@@ -373,6 +373,36 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 }
 
 /**
+ * Workers built-ins that core imports dynamically behind a runtime fallback.
+ * Outside workerd nothing resolves them, and Rollup fails the server build on
+ * an unresolved import, so they are left to the runtime. List only core's own
+ * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
+ * still fail the build instead of failing at runtime.
+ */
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+
+function createWorkersBuiltinsExternalPlugin(): Plugin {
+	return {
+		name: "emdash-workers-builtins-external",
+		apply: "build",
+		resolveId(id) {
+			if (CORE_WORKERS_BUILTINS.has(id) && this.environment.config.consumer === "server") {
+				return { id, external: true };
+			}
+		},
+	};
+}
+
+function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
+	try {
+		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Creates the Vite config update for EmDash.
  */
 export function createViteConfig(
@@ -383,6 +413,7 @@ export function createViteConfig(
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
 	const projectRoot = fileURLToPath(options.astroConfig.root);
+	const hasAstroConsoleLogger = canResolveProjectDependency(projectRoot, "astro/logger/console");
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
@@ -390,6 +421,12 @@ export function createViteConfig(
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
 		"use-sync-external-store-with-selector.js",
 	);
+	const configuredWatchIgnored = options.astroConfig.vite?.server?.watch?.ignored;
+	const watchIgnored = Array.isArray(configuredWatchIgnored)
+		? configuredWatchIgnored
+		: configuredWatchIgnored
+			? [configuredWatchIgnored]
+			: [];
 
 	return {
 		// Astro SSR routes resolve version.ts from source (not tsdown dist),
@@ -448,11 +485,17 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options, command),
+			...(cloudflare ? [] : [createWorkersBuiltinsExternalPlugin()]),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
 			...(useSource ? [linguiMacroPlugin(adminSourcePath, adminDistPath)] : []),
 		] as NonNullable<AstroConfig["vite"]>["plugins"],
+		server: {
+			watch: {
+				ignored: [...watchIgnored, "**/.wrangler/**"],
+			},
+		},
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
 		// On Cloudflare: skip — the adapter handles externalization, and setting
@@ -486,6 +529,9 @@ export function createViteConfig(
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
 							"emdash > @unpic/placeholder",
+							"emdash > @atcute/client",
+							"emdash > @atcute/lexicons/syntax",
+							"emdash > @atcute/lexicons/validations",
 							"emdash > blurhash",
 							"emdash > croner",
 							"emdash > jose",
@@ -497,6 +543,7 @@ export function createViteConfig(
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
+							"emdash > @tiptap/core",
 							"emdash > ulidx",
 							"emdash > upng-js",
 							"emdash > astro-portabletext",
@@ -507,6 +554,22 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							// Registry routes are lazy, so their AT Protocol graph is not
+							// present during Vite's initial dependency scan.
+							"emdash > @atcute/identity-resolver",
+							"emdash > @emdash-cms/registry-lexicons > @atcute/atproto/types/label/defs",
+							"emdash > @emdash-cms/registry-client > @atcute/client",
+							"emdash > @emdash-cms/registry-client > @atcute/crypto",
+							"emdash > @emdash-cms/registry-client > @atcute/identity",
+							"emdash > @emdash-cms/registry-client > @atcute/identity-resolver",
+							"emdash > @emdash-cms/registry-client > @atcute/lexicons/syntax",
+							"emdash > @emdash-cms/registry-client > @atcute/lexicons/validations",
+							"emdash > @emdash-cms/registry-client > @atcute/multibase",
+							"emdash > @emdash-cms/registry-client > @atcute/repo",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/cbor",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/cid",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/crypto",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/multibase",
 							// Auth deps imported only on auth/login/callback routes, so
 							// the initial page scan misses them. Pre-bundle to avoid a
 							// re-optimize + reload cascade on first authenticated request.
@@ -526,6 +589,9 @@ export function createViteConfig(
 							// first rendered.
 							"emdash > @emdash-cms/admin > @lingui/react",
 							"emdash > @emdash-cms/admin > @cloudflare/kumo/primitives",
+							// System email copy resolution (invite, magic link) — reached
+							// only when one of those routes sends an email.
+							"emdash > @emdash-cms/admin > @lingui/core",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",
@@ -540,7 +606,9 @@ export function createViteConfig(
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
+							"astro/app/entrypoint",
 							"astro/app/manifest",
+							...(hasAstroConsoleLogger ? ["astro/logger/console"] : []),
 							"astro/virtual-modules/middleware.js",
 							"astro/virtual-modules/live-config",
 							"astro/content/runtime",
@@ -561,9 +629,23 @@ export function createViteConfig(
 		optimizeDeps: {
 			// When using source, don't pre-bundle JS — let Vite transform on the fly for HMR.
 			// When using dist, pre-bundle to avoid re-optimization on first hydration.
+			// lowlight pulls in a CommonJS highlight.js entry, so the inline Portable
+			// Text editor requires these to be pre-bundled with ESM interop in dev.
+			// Bare ids would not resolve on pnpm sites, which have no top-level copy.
 			include: useSource
-				? ["@astrojs/react/client.js"]
-				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
+				? [
+						"@astrojs/react/client.js",
+						"emdash > lowlight",
+						"emdash > highlight.js",
+						"emdash > highlight.js/lib/core",
+					]
+				: [
+						"@emdash-cms/admin",
+						"@astrojs/react/client.js",
+						"emdash > lowlight",
+						"emdash > highlight.js",
+						"emdash > highlight.js/lib/core",
+					],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
 	};

@@ -88,6 +88,33 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("My Post")).toBeInTheDocument();
 		});
 
+		it("links published translations to their locale-prefixed path", async () => {
+			const items = [
+				makeItem({
+					status: "published",
+					slug: "polski-test",
+					locale: "pl",
+					data: { title: "Polski test" },
+				}),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					urlPattern="/posts/{slug}"
+					i18n={{
+						defaultLocale: "en",
+						locales: ["en", "pl"],
+						prefixDefaultLocale: false,
+					}}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("link", { name: "View published Polski test" }))
+				.toHaveAttribute("href", "/pl/posts/polski-test");
+		});
+
 		it("falls back to data.name when title is missing", async () => {
 			const items = [makeItem({ id: "1", data: { name: "Named Item" } })];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);
@@ -253,6 +280,36 @@ describe("ContentList", () => {
 				<ContentList {...defaultProps} items={[]} trashedItems={[]} trashedCount={42} />,
 			);
 			await expect.element(screen.getByText("42")).toBeInTheDocument();
+		});
+
+		it("shows each trashed item's locale when i18n is configured", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={[makeTrashedItem({ id: "t1", locale: "fr" })]}
+					i18n={{ defaultLocale: "en", locales: ["en", "fr"] }}
+					activeLocale="fr"
+					onLocaleChange={() => {}}
+				/>,
+			);
+			await screen.getByText("Trash").click();
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Locale" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByRole("cell", { name: "fr" })).toBeInTheDocument();
+		});
+
+		it("omits the trash locale column on a single-locale site", async () => {
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[]}
+					trashedItems={[makeTrashedItem({ id: "t1", locale: "en" })]}
+				/>,
+			);
+			await screen.getByText("Trash").click();
+			expect(screen.getByRole("columnheader", { name: "Locale" }).query()).toBeNull();
 		});
 	});
 
@@ -748,6 +805,23 @@ describe("ContentList", () => {
 	});
 
 	describe("pagination", () => {
+		it("explains the bulk tag limit before opening the dialog", async () => {
+			const items = Array.from({ length: 51 }, (_, index) =>
+				makeItem({ id: `item_${index}`, data: { title: `Post ${index}` } }),
+			);
+			const screen = await render(<ContentList {...defaultProps} items={items} bulkTagEnabled />);
+			for (let pageIndex = 0; pageIndex < 3; pageIndex++) {
+				await screen.getByRole("checkbox", { name: "Select all on this page" }).click();
+				if (pageIndex < 2) await screen.getByRole("button", { name: "Next page" }).click();
+			}
+			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeDisabled();
+			await expect
+				.element(screen.getByRole("status"))
+				.toHaveTextContent("Select up to 50 posts to add a tag.");
+			await screen.getByRole("checkbox", { name: "Select Post 50" }).click();
+			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeEnabled();
+		});
+
 		it("shows pagination when items exceed page size", async () => {
 			const items = Array.from({ length: 25 }, (_, i) =>
 				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),

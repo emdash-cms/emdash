@@ -14,7 +14,7 @@
  *
  * The discovery client is constructed lazily so we only pull
  * `@atcute/client` into the admin bundle when the registry path is
- * actually exercised. Sites with no `experimental.registry` config never
+ * actually exercised. Sites with no active `registry` config never
  * pay the cost (verified at ~2 KB gzip when it does load).
  */
 
@@ -30,6 +30,7 @@ import type {
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import {
+	isProvenFirstRelease,
 	registryLabelerPolicy,
 	registryLabelerPolicyKey,
 	type RegistryLabelerPolicy,
@@ -39,6 +40,7 @@ import { msg } from "@lingui/core/macro";
 
 import {
 	API_BASE,
+	ApiResponseError,
 	apiFetch,
 	parseApiResponse,
 	throwResponseError,
@@ -91,6 +93,7 @@ export interface RegistryInstallRequest {
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: PluginMcpConsentTool[];
+	acknowledgedPublicRoutes?: string[];
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -103,6 +106,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: PluginMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -234,9 +238,9 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 
 /**
  * Returns whether a release should be considered installable given the
- * configured policy. Currently implements the minimum-release-age check
- * described in RFC 0001's "Pre-label gap and launch tempo" section,
- * plus the `minimumReleaseAgeExclude` allowlist.
+ * configured policy. Applies the `minimumReleaseAgeExclude` allowlist first,
+ * then the proven-first-release exemption, then the minimum-release-age
+ * holdback described in RFC 0001's "Pre-label gap and launch tempo" section.
  *
  * Returns `false` (release blocked) when the policy is configured but
  * the release is missing a valid `indexedAt` -- we fail closed rather
@@ -244,7 +248,10 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
  */
 export function releasePassesPolicy(
 	release: RegistryReleaseView,
-	pkg: { did: string; slug: string },
+	pkg: Pick<
+		RegistryPackageView,
+		"did" | "slug" | "historicalReleaseCount" | "releaseHistoryComplete"
+	>,
 	policy: RegistryClientConfig["policy"],
 	now: number = Date.now(),
 ): boolean {
@@ -252,6 +259,7 @@ export function releasePassesPolicy(
 	if (releaseExemptFromMinimumAge(policy.minimumReleaseAgeExclude, pkg.did, pkg.slug)) {
 		return true;
 	}
+	if (isProvenFirstRelease(pkg)) return true;
 	const indexedAt = Date.parse(release.indexedAt);
 	if (!Number.isFinite(indexedAt)) return false;
 	const ageSeconds = (now - indexedAt) / 1000;
@@ -487,57 +495,28 @@ export function hostEnvFromManifest(manifest: AdminManifest | undefined): HostEn
 	return hostEnvFromVersions(manifest?.version, manifest?.astroVersion);
 }
 
+const PUBLISHER_HANDLE_ENDPOINT = `${API_BASE}/admin/plugins/registry/publisher-handle`;
+
 /**
- * Resolve a publisher DID to its claimed handle using the same
- * `LocalActorResolver` pattern as `@emdash-cms/plugin-cli` and
- * `@emdash-cms/auth-atproto`. Bidirectional verification (handle's
- * domain points back to the same DID) is part of the resolver --
- * `LocalActorResolver` returns the sentinel `"handle.invalid"` when
- * the `alsoKnownAs` handle is present but doesn't round-trip.
+ * Resolve a publisher DID to its verified handle. The server checks both
+ * directions (the DID document claims the handle, and the handle resolves
+ * back to the same DID); the browser can't, because the HTTPS check contacts
+ * whatever host the handle names.
  *
  * Three distinct outcomes the UI can render:
  *
  *   - `{ status: "ok", handle }` — verified handle, round-trip OK.
- *   - `{ status: "invalid" }` — DID claims a handle but it doesn't
- *     resolve back. The publisher's handle setup is broken; the admin
- *     should see a clear "Invalid handle" indicator rather than the
+ *   - `{ status: "invalid" }` — DID claims a handle but it conclusively
+ *     doesn't resolve back. The publisher's handle setup is broken; the
+ *     admin should see a clear "Invalid handle" indicator rather than the
  *     raw DID.
  *   - `{ status: "missing" }` — no handle claimed at all (no
- *     `alsoKnownAs`), or the DID document couldn't be fetched (network
- *     error, unsupported DID method).
+ *     `alsoKnownAs`), or the lookup was indeterminate (network error,
+ *     timeout).
  *
  * This result is an advisory display signal. Install and update trust the
  * publisher DID and signed repository proofs rather than the mutable handle.
  */
-let actorResolver: import("@atcute/identity-resolver").LocalActorResolver | null = null;
-async function getActorResolver(): Promise<import("@atcute/identity-resolver").LocalActorResolver> {
-	if (actorResolver) return actorResolver;
-	const {
-		CompositeDidDocumentResolver,
-		CompositeHandleResolver,
-		DohJsonHandleResolver,
-		LocalActorResolver,
-		PlcDidDocumentResolver,
-		WebDidDocumentResolver,
-		WellKnownHandleResolver,
-	} = await import("@atcute/identity-resolver");
-	actorResolver = new LocalActorResolver({
-		handleResolver: new CompositeHandleResolver({
-			methods: {
-				dns: new DohJsonHandleResolver({ dohUrl: "https://cloudflare-dns.com/dns-query" }),
-				http: new WellKnownHandleResolver(),
-			},
-		}),
-		didDocumentResolver: new CompositeDidDocumentResolver({
-			methods: {
-				plc: new PlcDidDocumentResolver(),
-				web: new WebDidDocumentResolver(),
-			},
-		}),
-	});
-	return actorResolver;
-}
-
 export type DidHandleResolution =
 	| { status: "ok"; handle: string }
 	| { status: "invalid" }
@@ -600,19 +579,12 @@ export async function resolveDidToHandle(did: string): Promise<DidHandleResoluti
 
 	let result: DidHandleResolution;
 	try {
-		const resolver = await getActorResolver();
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- caller's DID has the right shape
-		const resolved = await resolver.resolve(did as Did);
-		if (resolved.handle === "handle.invalid") {
-			result = { status: "invalid" };
-		} else if (resolved.handle) {
-			result = { status: "ok", handle: resolved.handle };
-		} else {
-			result = { status: "missing" };
-		}
+		const params = new URLSearchParams({ did });
+		const response = await apiFetch(`${PUBLISHER_HANDLE_ENDPOINT}?${params.toString()}`);
+		result = await parseApiResponse<DidHandleResolution>(response);
 	} catch (err) {
-		// Network / DID-method failure: don't cache, so a transient
-		// outage doesn't poison the cache for 24h. Log so a publisher
+		// Indeterminate lookup: don't cache, so a transient outage
+		// doesn't poison the cache for 24h. Log so a publisher
 		// debugging "why is my handle not resolving?" can see the cause.
 		console.warn(`[registry] DID->handle resolution failed for ${did}:`, err);
 		return { status: "missing" };
@@ -762,6 +734,33 @@ export async function verifyRegistryPlugin(
 	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to verify plugin`));
 }
 
+export function registryVerificationErrorMessage(error: unknown): string | null {
+	if (!(error instanceof ApiResponseError) || error.code !== "RECORD_VERIFICATION_FAILED") {
+		return null;
+	}
+	const verificationCode = error.details?.["verificationCode"];
+	if (
+		verificationCode === "PROFILE_EXTENSION_INVALID" ||
+		verificationCode === "PROFILE_REPOSITORY_INVALID" ||
+		verificationCode === "PROFILE_POLICY_INVALID"
+	) {
+		return i18n._(
+			msg`This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI.`,
+		);
+	}
+	if (
+		verificationCode === "PROVENANCE_REQUIRED" ||
+		verificationCode === "PROVENANCE_UNVERIFIABLE"
+	) {
+		return i18n._(
+			msg`This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release.`,
+		);
+	}
+	return i18n._(
+		msg`This plugin cannot be installed because its signed publisher records failed verification. Ask the publisher to publish a corrected release.`,
+	);
+}
+
 /**
  * Install a plugin from the registry.
  *
@@ -797,7 +796,7 @@ export async function installRegistryPlugin(
 export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
-	confirmRouteVisibilityChanges?: boolean;
+	acknowledgedPublicRoutes?: string[];
 	confirmMcpTools?: boolean;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;

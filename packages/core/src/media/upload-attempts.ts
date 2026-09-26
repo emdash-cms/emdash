@@ -21,6 +21,11 @@ export async function removeUploadAttempt(
 		await storage.delete(storageKey);
 	} catch (error) {
 		console.error("[media] upload cleanup failed:", error);
+		try {
+			await repo.deferUploadAttemptCleanup(storageKey);
+		} catch (deferError) {
+			console.error("[media] upload cleanup deferral failed:", deferError);
+		}
 		return false;
 	}
 

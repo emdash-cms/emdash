@@ -1,5 +1,39 @@
 # create-emdash
 
+## 0.41.0
+
+No changes in this release.
+
+## 0.40.1
+
+No changes in this release.
+
+## 0.40.0
+
+No changes in this release.
+
+## 0.39.1
+
+No changes in this release.
+
+## 0.39.0
+
+No changes in this release.
+
+## 0.38.0
+
+### Patch Changes
+
+- [#2351](https://github.com/emdash-cms/emdash/pull/2351) [`f0af9a1`](https://github.com/emdash-cms/emdash/commit/f0af9a10b34ea50a14d04ef3fe84c323b6d17ce2) Thanks [@MattieTK](https://github.com/MattieTK)! - New Cloudflare projects leave the paid-plan Worker Loader binding disabled so they can deploy on the Workers free plan. Enable sandboxed plugins in the scaffold prompt or with `--sandboxed-plugins`.
+  
+  The Cloudflare `sandbox()` helper now selects the runner from the `LOADER` binding in `wrangler.jsonc`, including the named environment selected with `CLOUDFLARE_ENV`. Without it, config-based sandboxed plugins do not load and marketplace or registry installs return `SANDBOX_NOT_AVAILABLE`, while browsing remains available.
+
+## 0.37.0
+
+### Patch Changes
+
+- [#2627](https://github.com/emdash-cms/emdash/pull/2627) [`c841796`](https://github.com/emdash-cms/emdash/commit/c841796f90765ac1ebce72f8df42ae33a3a136ca) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes `create-emdash --install` failing for Cloudflare templates whose Wrangler version requires `@cloudflare/workers-types` 5. Package-manager output is streamed; any remaining install failure keeps the generated files, prints a retry command, and exits nonzero.
+
 ## 0.36.0
 
 ## 0.35.0

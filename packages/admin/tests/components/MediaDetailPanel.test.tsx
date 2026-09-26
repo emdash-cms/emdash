@@ -1,3 +1,4 @@
+import { Dialog } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -11,6 +12,7 @@ import { render } from "../utils/render.tsx";
 
 const TEST_IMAGE_URL =
 	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='gray'/%3E%3C/svg%3E";
+const INTERNAL_TEST_IMAGE_URL = "/_emdash/api/media/file/media-1.jpg";
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -215,6 +217,26 @@ function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel
 	);
 }
 
+function renderEmbeddedPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel>> = {}) {
+	const defaultProps: React.ComponentProps<typeof MediaDetailPanel> = {
+		open: true,
+		item: makeImageItem(),
+		embedded: true,
+		onClose: vi.fn(),
+		onDeleted: vi.fn(),
+		...props,
+	};
+	return render(
+		<QueryWrapper>
+			<Dialog.Root open>
+				<Dialog>
+					<MediaDetailPanel {...defaultProps} />
+				</Dialog>
+			</Dialog.Root>
+		</QueryWrapper>,
+	);
+}
+
 async function openFocalEditor(screen: Awaited<ReturnType<typeof renderPanel>>) {
 	const editTab = screen.getByRole("tab", { name: "Edit image" }).element();
 	editTab.focus();
@@ -323,6 +345,97 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("1920 × 1080")).toBeVisible();
 	});
 
+	it("replaces a selected image and keeps the media dialog open", async () => {
+		const replacementBytes = Uint8Array.from(
+			atob(
+				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+			),
+			(character) => character.charCodeAt(0),
+		);
+		const replacement = new File([replacementBytes], "replacement.png", { type: "image/png" });
+		const refreshed = makeLocalItem({
+			filename: "photo.png",
+			mimeType: "image/png",
+			width: 1,
+			height: 1,
+			contentHash: "sha256:replacement",
+			focalX: null,
+			focalY: null,
+		});
+		vi.mocked(replaceMediaImage).mockResolvedValueOnce(refreshed);
+		const onClose = vi.fn();
+		const onUpdated = vi.fn();
+		const onItemRefreshed = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem({ filename: "photo.png", mimeType: "image/png" }),
+			canReplaceOriginal: true,
+			onClose,
+			onUpdated,
+			onItemRefreshed,
+		});
+
+		await expect.element(screen.getByRole("button", { name: "Replace image" })).toBeVisible();
+		await userEvent.upload(screen.getByLabelText("Choose replacement image"), replacement);
+
+		const confirmation = screen.getByRole("alertdialog", { name: "Replace original image?" });
+		await expect.element(confirmation).toBeVisible();
+		await expect
+			.element(confirmation)
+			.toHaveTextContent("Every place using this image will update to the selected version.");
+		confirmation.getByRole("button", { name: "Replace image" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(replaceMediaImage).toHaveBeenCalledWith("media-1", replacement, {
+				width: 1,
+				height: 1,
+			});
+			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed);
+			expect(onUpdated).toHaveBeenCalledTimes(1);
+		});
+		await expect.element(screen.getByText("Image replaced.")).toBeInTheDocument();
+		expect(onClose).not.toHaveBeenCalled();
+		await expect.element(screen.getByRole("dialog", { name: "Media details" })).toBeVisible();
+	});
+
+	it("ignores replacement inspection that finishes after the dialog closes", async () => {
+		const NativeImage = window.Image;
+		let finishImageLoad: (() => void) | undefined;
+		class DeferredImage {
+			naturalWidth = 1;
+			naturalHeight = 1;
+			onload: (() => void) | null = null;
+			onerror: (() => void) | null = null;
+			set src(_value: string) {
+				finishImageLoad = () => this.onload?.();
+			}
+		}
+		vi.stubGlobal("Image", DeferredImage);
+		const onClose = vi.fn();
+
+		try {
+			const screen = await renderPanel({
+				item: makeLocalItem({ filename: "photo.png", mimeType: "image/png" }),
+				canReplaceOriginal: true,
+				onClose,
+			});
+			const replacement = new File(["replacement"], "replacement.png", {
+				type: "image/png",
+			});
+
+			await userEvent.upload(screen.getByLabelText("Choose replacement image"), replacement);
+			screen.getByRole("button", { name: "Close", exact: true }).element().click();
+			expect(onClose).toHaveBeenCalledTimes(1);
+			finishImageLoad?.();
+			await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+			expect(
+				screen.getByRole("alertdialog", { name: "Replace original image?" }).query(),
+			).toBeNull();
+		} finally {
+			vi.stubGlobal("Image", NativeImage);
+		}
+	});
+
 	it("adapts the dialog height to each image task without clipping its actions", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
@@ -365,10 +478,12 @@ describe("MediaDetailPanel", () => {
 		const detailsPane = screen.getByTestId("media-detail-dialog-details-column").element();
 
 		screen.getByRole("tab", { name: "Edit image" }).element().click();
-		await vi.waitFor(() => expect(dialog.style.height).toBe(""));
-		expect(body.style.overflowY).toBe("");
-		expect(previewPane.style.overflowY).toBe("");
-		expect(detailsPane.style.overflowY).toBe("");
+		await vi.waitFor(() => {
+			expect(dialog.style.height).toBe("");
+			expect(body.style.overflowY).toBe("");
+			expect(previewPane.style.overflowY).toBe("");
+			expect(detailsPane.style.overflowY).toBe("");
+		});
 
 		screen.getByRole("tab", { name: "Details" }).element().click();
 		expect(body.style.overflowY).toBe("hidden");
@@ -587,7 +702,7 @@ describe("MediaDetailPanel", () => {
 			.spyOn(HTMLElement.prototype, "getBoundingClientRect")
 			.mockImplementation(function () {
 				if (
-					this.classList.contains("emdash-media-transparency-grid") &&
+					this.hasAttribute("aria-busy") &&
 					this.closest('[data-testid="media-detail-dialog-preview-column"]')
 				) {
 					return { bottom: 320 } as DOMRect;
@@ -639,7 +754,6 @@ describe("MediaDetailPanel", () => {
 				.element()
 				.querySelector<HTMLImageElement>(".emdash-react-image-crop img");
 			expect(image).not.toBeNull();
-			expect(image!.src).toContain("_emdash_crop");
 		});
 	});
 
@@ -714,7 +828,7 @@ describe("MediaDetailPanel", () => {
 	it("offers common aspect ratios and limits replacement to the original ratio", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 			canDuplicateCrop: true,
 		});
 		await openCropEditor(screen);
@@ -740,10 +854,11 @@ describe("MediaDetailPanel", () => {
 	it("blocks crop actions while metadata is dirty", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 			canDuplicateCrop: true,
 		});
 		await screen.getByLabelText("Alt Text").fill("Changed alt");
+		await expect.element(screen.getByRole("button", { name: "Replace image" })).toBeDisabled();
 		await openCropEditor(screen);
 		await resizeCrop(screen);
 
@@ -815,6 +930,26 @@ describe("MediaDetailPanel", () => {
 		);
 	});
 
+	it("keeps the loaded focal-point image stable when returning to Details", async () => {
+		const screen = await renderPanel({
+			item: makeLocalItem({ url: TEST_IMAGE_URL }),
+			canDuplicateCrop: true,
+		});
+
+		screen.getByRole("tab", { name: "Edit image" }).element().click();
+		screen.getByRole("tab", { name: "Focal point" }).element().click();
+		const focalImage = screen.getByAltText("A nice photo");
+		await expect.element(focalImage).toBeVisible();
+		const loadedElement = focalImage.element();
+		const loadedSource = loadedElement.src;
+
+		screen.getByRole("tab", { name: "Details" }).element().click();
+		const detailsImage = screen.getByAltText("A nice photo");
+		await expect.element(detailsImage).toBeVisible();
+		expect(detailsImage.element()).toBe(loadedElement);
+		expect(detailsImage.element().src).toBe(loadedSource);
+	});
+
 	it("creates a distinct cropped copy and closes the source dialog after success", async () => {
 		const duplicate = makeLocalItem({ id: "media-copy", filename: "photo-80x80.jpg" });
 		vi.mocked(uploadMedia).mockResolvedValueOnce(duplicate);
@@ -838,16 +973,37 @@ describe("MediaDetailPanel", () => {
 				expect.objectContaining({ name: "photo-80x80.jpg", type: "image/jpeg" }),
 				{ deduplicate: false, ensureUniqueFilename: true, folderId: "folder-1" },
 			);
-			expect(onCroppedCopyCreated).toHaveBeenCalledTimes(1);
+			expect(onCroppedCopyCreated).toHaveBeenCalledWith(duplicate);
 		});
 		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(replaceMediaImage).not.toHaveBeenCalled();
 		expect(onItemRefreshed).not.toHaveBeenCalled();
 	});
 
+	it("keeps asset-management controls out of content workflows", async () => {
+		const screen = await renderPanel({
+			item: makeLocalItem(),
+			context: "content",
+			canDelete: true,
+			canMoveLocation: true,
+			canCropOriginal: true,
+			canDuplicateCrop: true,
+		});
+
+		await expect.element(screen.getByRole("tab", { name: "Details" })).toBeVisible();
+		await expect.element(screen.getByRole("tab", { name: "Edit image" })).toBeVisible();
+		expect(screen.getByRole("tab", { name: "Used in" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Delete" }).query()).toBeNull();
+		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Location" }))
+			.toHaveValue("Product photos");
+		await expect.element(screen.getByRole("textbox", { name: "Location" })).toBeDisabled();
+	});
+
 	it("confirms and replaces the original while keeping the dialog open", async () => {
 		const refreshed = makeLocalItem({
-			url: TEST_IMAGE_URL,
+			url: INTERNAL_TEST_IMAGE_URL,
 			width: 99,
 			height: 99,
 			focalX: null,
@@ -857,8 +1013,8 @@ describe("MediaDetailPanel", () => {
 		const onClose = vi.fn();
 		const onItemRefreshed = vi.fn();
 		const screen = await renderPanel({
-			item: makeLocalItem({ url: TEST_IMAGE_URL, focalX: 0.2, focalY: 0.8 }),
-			canCropOriginal: true,
+			item: makeLocalItem({ url: INTERNAL_TEST_IMAGE_URL, focalX: 0.2, focalY: 0.8 }),
+			canReplaceOriginal: true,
 			canDuplicateCrop: true,
 			onClose,
 			onItemRefreshed,
@@ -933,7 +1089,7 @@ describe("MediaDetailPanel", () => {
 		vi.mocked(replaceMediaImage).mockRejectedValueOnce(new Error("Replace failed"));
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 		});
 		await openCropEditor(screen);
 		await resizeCrop(screen);
@@ -947,6 +1103,33 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("Replace failed")).toBeVisible();
 		await expect.element(confirmation).not.toBeInTheDocument();
 		expect(cropSelectionStyle(screen)).toBe(draftStyle);
+	});
+
+	it("reports when the image is deleted while replacing the original", async () => {
+		vi.mocked(replaceMediaImage).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		vi.mocked(fetchMediaItem).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		const onUnavailable = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem({ url: TEST_IMAGE_URL }),
+			canCropOriginal: true,
+			onUnavailable,
+		});
+		await openCropEditor(screen);
+		await resizeCrop(screen);
+
+		screen.getByRole("button", { name: "Replace original" }).element().click();
+		const confirmation = screen.getByRole("alertdialog", { name: "Replace original image?" });
+		await expect.element(confirmation).toBeVisible();
+		confirmation.getByRole("button", { name: "Replace original" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(fetchMediaItem).toHaveBeenCalledWith("media-1");
+			expect(onUnavailable).toHaveBeenCalledWith("media-1");
+		});
 	});
 
 	it("explains that cropped WebP output is static", async () => {
@@ -1513,13 +1696,9 @@ describe("MediaDetailPanel", () => {
 	it("shows a read-only Location when the user cannot move the item", async () => {
 		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: false });
 
-		await expect.element(screen.getByText("Location")).toBeInTheDocument();
-		const currentLocation = screen.getByText("Product photos");
-		await expect.element(currentLocation).toBeInTheDocument();
-		expect(currentLocation.element()).toHaveAttribute("dir", "auto");
-		expect(
-			currentLocation.element().parentElement?.querySelector('[data-testid="media-location-icon"]'),
-		).not.toBeNull();
+		const currentLocation = screen.getByRole("textbox", { name: "Location" });
+		await expect.element(currentLocation).toHaveValue("Product photos");
+		await expect.element(currentLocation).toBeDisabled();
 		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
 		expect(fetchMediaFolders).not.toHaveBeenCalled();
 	});
@@ -1619,7 +1798,12 @@ describe("MediaDetailPanel", () => {
 		vi.mocked(fetchMediaItem).mockRejectedValueOnce(
 			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
 		);
-		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+		const onUnavailable = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem(),
+			canMoveLocation: true,
+			onUnavailable,
+		});
 
 		screen.getByRole("combobox", { name: "Location" }).element().click();
 		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
@@ -1634,6 +1818,7 @@ describe("MediaDetailPanel", () => {
 				.query(),
 		).toBeNull();
 		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+		expect(onUnavailable).toHaveBeenCalledWith("media-1");
 	});
 
 	it("does not blame the folder when missing-item recovery cannot confirm the state", async () => {
@@ -1760,6 +1945,42 @@ describe("MediaDetailPanel", () => {
 		screen.getByRole("button", { name: "Close" }).element().click();
 
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("places a compact Back action in the embedded footer", async () => {
+		const onClose = vi.fn();
+		const onExit = vi.fn();
+		const screen = await renderEmbeddedPanel({ onClose, onExit });
+		const header = screen.getByTestId("media-detail-dialog-header").element();
+		const footer = screen.getByTestId("media-detail-dialog-footer").element();
+		const back = screen.getByRole("button", { name: "Back" });
+
+		expect(header).not.toContainElement(back.element());
+		expect(footer).toContainElement(back.element());
+		expect(screen.getByRole("button", { name: "Cancel" }).query()).toBeNull();
+		back.element().click();
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(onExit).not.toHaveBeenCalled();
+		expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+	});
+
+	it("confirms dirty changes before closing an embedded workspace", async () => {
+		const onClose = vi.fn();
+		const onExit = vi.fn();
+		const item = makeImageItem({ alt: "Original" });
+		const screen = await renderEmbeddedPanel({ item, onClose, onExit });
+
+		await screen.getByLabelText("Alt Text").fill("Changed alt");
+		screen.getByRole("button", { name: "Close" }).element().click();
+
+		await expect.element(screen.getByText("Discard changes?")).toBeInTheDocument();
+		expect(onClose).not.toHaveBeenCalled();
+		expect(onExit).not.toHaveBeenCalled();
+
+		screen.getByRole("button", { name: "Discard" }).element().click();
+		expect(onExit).toHaveBeenCalledTimes(1);
+		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it("close button opens discard confirmation when dirty", async () => {

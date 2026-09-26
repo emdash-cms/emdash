@@ -11,8 +11,14 @@ import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
 import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
-import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
+import {
+	checkEnvCompatibility,
+	compareVersions,
+	findSkippedEnvConstraints,
+} from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
+import type { ReleaseHistoryEvidence } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
@@ -22,6 +28,7 @@ import {
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
@@ -53,7 +60,7 @@ import {
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import { hasCurrentRecordLabel } from "../../registry/record-labels.js";
-import type { RegistryConfigInput } from "../../registry/types.js";
+import type { RegistryConfig, RegistryConfigInput } from "../../registry/types.js";
 import { resolveAndValidateExternalUrlTarget } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -120,6 +127,7 @@ export interface RegistryInstallInput {
 	 */
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: unknown;
+	acknowledgedPublicRoutes?: unknown;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -137,6 +145,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: RegistryMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -389,6 +398,80 @@ interface EnvIncompatibleError {
 }
 
 /**
+ * Returns an error when the release is younger than `policy.minimumReleaseAge`,
+ * unless its publisher or package is in `minimumReleaseAgeExclude` or it is a
+ * proven first release.
+ *
+ * `releaseView.indexedAt` is aggregator operational data, not part of the
+ * signed release. The release schema has no publication timestamp, so minimum
+ * age remains a local discovery holdback rather than a cryptographic property.
+ * A missing or malformed timestamp fails closed.
+ */
+function checkMinimumReleaseAge(
+	registryConfig: RegistryConfig,
+	publisherDid: string,
+	slug: string,
+	packageView: ReleaseHistoryEvidence,
+	releaseView: { indexedAt: string },
+): ApiResult<never> | null {
+	const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
+	let minimumReleaseAgeSeconds = 0;
+	if (minimumReleaseAge !== undefined) {
+		// Normally rejected by `normalizeRegistryConfig`, but a config-mutation
+		// path could re-enter with a bad value; surface it as a structured error
+		// rather than a generic 500.
+		try {
+			minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
+		} catch (err) {
+			return {
+				success: false,
+				error: {
+					code: "REGISTRY_POLICY_INVALID",
+					message:
+						err instanceof Error
+							? err.message
+							: "Invalid minimumReleaseAge value in registry config",
+				},
+			};
+		}
+	}
+	if (minimumReleaseAgeSeconds > 0) {
+		const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
+			e.trim().toLowerCase(),
+		);
+		const exempt =
+			releaseExemptFromMinimumAge(exclude, publisherDid, slug) || isProvenFirstRelease(packageView);
+		if (!exempt) {
+			const indexedAt = Date.parse(releaseView.indexedAt);
+			if (!Number.isFinite(indexedAt)) {
+				return {
+					success: false,
+					error: {
+						code: "RELEASE_TIMESTAMP_INVALID",
+						message:
+							"Release record is missing a valid indexed-at timestamp; cannot evaluate minimum release age policy.",
+					},
+				};
+			}
+			const ageSeconds = (Date.now() - indexedAt) / 1000;
+			if (ageSeconds < minimumReleaseAgeSeconds) {
+				const remaining = Math.ceil(minimumReleaseAgeSeconds - ageSeconds);
+				return {
+					success: false,
+					error: {
+						code: "RELEASE_TOO_NEW",
+						message:
+							`This release does not meet the configured minimum release age of ` +
+							`${minimumReleaseAgeSeconds}s. It will be installable in ~${remaining}s.`,
+					},
+				};
+			}
+		}
+	}
+	return null;
+}
+
+/**
  * Gate a release's `requires` constraints against the running host
  * environment. `requires` is the lexicon-`unknown` value off the signed
  * release record — never trust its shape; `checkEnvCompatibility` guards it.
@@ -468,7 +551,10 @@ export async function handleRegistryInstall(
 			success: false,
 			error: {
 				code: "SANDBOX_NOT_AVAILABLE",
-				message: "Sandbox runner is required for registry plugins",
+				message: withUnavailableReason(
+					"Sandbox runner is required for registry plugins",
+					sandboxRunner,
+				),
 			},
 		};
 	}
@@ -691,71 +777,15 @@ export async function handleRegistryInstall(
 		// Step 3a: enforce the configured minimum release age. The browser
 		// applies the same check up front for UX, but the gate lives here
 		// -- a stale browser tab, a deep link, or a non-admin-UI caller
-		// must still hit the holdback. The `minimumReleaseAgeExclude`
-		// allowlist short-circuits the check for trusted publisher DIDs.
-		//
-		// `releaseView.indexedAt` is aggregator operational data, not part
-		// of the signed release. The release schema has no publication
-		// timestamp, so minimum age remains a local discovery holdback
-		// rather than a cryptographic property. A missing or malformed
-		// timestamp fails closed.
-		// `registryConfig` is the user-supplied integration option, not
-		// the normalized manifest shape, so the duration parse runs once
-		// per install. Catch a malformed value here -- normally caught at
-		// `normalizeRegistryConfig` time, but a future config-mutation
-		// path could re-enter with a bad value -- and surface it as a
-		// structured error rather than letting it bubble out as a generic
-		// 500.
-		const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
-		let minimumReleaseAgeSeconds = 0;
-		if (minimumReleaseAge !== undefined) {
-			try {
-				minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
-			} catch (err) {
-				return {
-					success: false,
-					error: {
-						code: "REGISTRY_POLICY_INVALID",
-						message:
-							err instanceof Error
-								? err.message
-								: "Invalid minimumReleaseAge value in registry config",
-					},
-				};
-			}
-		}
-		if (minimumReleaseAgeSeconds > 0) {
-			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
-				e.trim().toLowerCase(),
-			);
-			const exempt = releaseExemptFromMinimumAge(exclude, publisherDid, slug);
-			if (!exempt) {
-				const indexedAt = Date.parse(releaseView.indexedAt);
-				if (!Number.isFinite(indexedAt)) {
-					return {
-						success: false,
-						error: {
-							code: "RELEASE_TIMESTAMP_INVALID",
-							message:
-								"Release record is missing a valid indexed-at timestamp; cannot evaluate minimum release age policy.",
-						},
-					};
-				}
-				const ageSeconds = (Date.now() - indexedAt) / 1000;
-				if (ageSeconds < minimumReleaseAgeSeconds) {
-					const remaining = Math.ceil(minimumReleaseAgeSeconds - ageSeconds);
-					return {
-						success: false,
-						error: {
-							code: "RELEASE_TOO_NEW",
-							message:
-								`This release does not meet the configured minimum release age of ` +
-								`${minimumReleaseAgeSeconds}s. It will be installable in ~${remaining}s.`,
-						},
-					};
-				}
-			}
-		}
+		// must still hit the holdback.
+		const releaseAgeError = checkMinimumReleaseAge(
+			registryConfig,
+			publisherDid,
+			slug,
+			packageView,
+			releaseView,
+		);
+		if (releaseAgeError) return releaseAgeError;
 
 		// Derive the normalized opaque plugin id we'll use as the
 		// runtime-wide identifier from here on. The publisher_did + slug
@@ -947,6 +977,28 @@ export async function handleRegistryInstall(
 		const actualMcpTools = (bundle.manifest.mcp?.tools ?? []).map(
 			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
 		);
+		const publicRoutes = diffRouteVisibility(undefined, bundle.manifest).newlyPublic.toSorted();
+		if (!opts?.verifyOnly && publicRoutes.length > 0) {
+			const acknowledgedPublicRoutes = Array.isArray(input.acknowledgedPublicRoutes)
+				? input.acknowledgedPublicRoutes
+						.filter((route): route is string => typeof route === "string")
+						.toSorted()
+				: [];
+			if (JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(publicRoutes)) {
+				return {
+					success: false,
+					error: {
+						code: "ROUTE_VISIBILITY_ESCALATION",
+						message: "Plugin install exposes public (unauthenticated) routes",
+						details: {
+							routeVisibilityChanges: { newlyPublic: publicRoutes },
+							mcpTools: actualMcpTools,
+							verification,
+						},
+					},
+				};
+			}
+		}
 		if (!opts?.verifyOnly && actualMcpTools.length > 0) {
 			if (JSON.stringify(input.acknowledgedMcpTools) !== JSON.stringify(actualMcpTools)) {
 				return {
@@ -954,7 +1006,12 @@ export async function handleRegistryInstall(
 					error: {
 						code: "MCP_TOOL_CONSENT_REQUIRED",
 						message: "Plugin MCP tools require explicit consent",
-						details: { mcpTools: actualMcpTools, verification },
+						details: {
+							mcpTools: actualMcpTools,
+							routeVisibilityChanges:
+								publicRoutes.length > 0 ? { newlyPublic: publicRoutes } : undefined,
+							verification,
+						},
 					},
 				};
 			}
@@ -968,6 +1025,7 @@ export async function handleRegistryInstall(
 			capabilities: bundle.manifest.capabilities,
 			declaredAccess: recordReport.value.releaseExtension.declaredAccess,
 			mcpTools: actualMcpTools,
+			publicRoutes,
 			verification,
 		};
 		if (opts?.verifyOnly) return { success: true, data: result };
@@ -1113,7 +1171,7 @@ export async function handleRegistryUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean },
+	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
 ): Promise<ApiResult<RegistryUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -1132,20 +1190,16 @@ export async function handleRegistryUninstall(
 		// registry-source rows (there's no shadow column like marketplace's
 		// `marketplaceVersion`). Use it verbatim for the R2 prefix.
 		const version = existing.version;
+		await opts?.beforeDelete?.();
 
-		// Order: optional storage cleanup → bundle delete → state row delete.
-		// The most failure-prone step runs first so a transient DB error
-		// (deadlock, contention) cascades to the outer catch with the state
-		// row and bundle intact — admin retries safely. Bundle delete is
-		// idempotent on misses.
+		// Lifecycle cleanup runs before every destructive step so the plugin can
+		// inspect its stored state. The database cleanup then runs before the
+		// idempotent bundle delete, leaving the state row and bundle intact if a
+		// transient database error makes the uninstall retryable.
 		let dataDeleted = false;
 		if (opts?.deleteData) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
 			dataDeleted = true;
-		}
-
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version, "registry");
 		}
 
 		try {
@@ -1155,6 +1209,10 @@ export async function handleRegistryUninstall(
 		}
 
 		await stateRepo.delete(pluginId);
+
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version, "registry");
+		}
 
 		return { success: true, data: { pluginId, dataDeleted } };
 	} catch (err) {
@@ -1186,8 +1244,8 @@ export interface RegistryUpdateResult {
  * `handleMarketplaceUpdate`: resolves the target version via the aggregator,
  * re-runs the artifact fetch / checksum / extract pipeline, diffs capabilities
  * and route visibility against the currently installed bundle, and gates
- * escalations behind `confirmCapabilityChanges` / `confirmRouteVisibilityChanges`
- * so the admin re-consents to widened permissions.
+ * escalations behind `confirmCapabilityChanges` and an exact
+ * `acknowledgedPublicRoutes` match so the admin re-consents to widened permissions.
  *
  * Refuses non-registry sources. Refuses when the stored state row is missing
  * the `(publisherDid, slug)` it needs to resolve against the aggregator.
@@ -1201,7 +1259,7 @@ export async function handleRegistryUpdate(
 	opts?: {
 		version?: string;
 		confirmCapabilityChanges?: boolean;
-		confirmRouteVisibilityChanges?: boolean;
+		acknowledgedPublicRoutes?: string[];
 		confirmMcpTools?: boolean;
 		acknowledgedProfileCid?: string;
 		acknowledgedReleaseCid?: string;
@@ -1229,7 +1287,10 @@ export async function handleRegistryUpdate(
 	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
 		return {
 			success: false,
-			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+			error: {
+				code: "SANDBOX_NOT_AVAILABLE",
+				message: withUnavailableReason("Sandbox runner is required", sandboxRunner),
+			},
 		};
 	}
 	try {
@@ -1361,6 +1422,38 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
+		// Only an explicitly requested version is order-checked: on the latest
+		// path the aggregator selects the version, and a publisher yanking the
+		// newest release is how a rollback reaches installed sites.
+		if (opts?.version !== undefined) {
+			const order = compareVersions(newVersion, oldVersion);
+			if (order === null) {
+				return {
+					success: false,
+					error: {
+						code: "INVALID_VERSION",
+						message: "Installed or requested version is not valid semver",
+					},
+				};
+			}
+			if (order < 0) {
+				return {
+					success: false,
+					error: {
+						code: "DOWNGRADE_NOT_ALLOWED",
+						message: "An update cannot target a version older than the installed one",
+					},
+				};
+			}
+		}
+		const releaseAgeError = checkMinimumReleaseAge(
+			registryConfig,
+			publisherDid,
+			slug,
+			packageView,
+			releaseView,
+		);
+		if (releaseAgeError) return releaseAgeError;
 		const authoritative = await (opts?.readAuthoritativeRecords ?? readAuthoritativePackageRelease)(
 			publisherDid,
 			slug,
@@ -1397,13 +1490,13 @@ export async function handleRegistryUpdate(
 		}
 		if (
 			opts?.confirmCapabilityChanges ||
-			opts?.confirmRouteVisibilityChanges ||
+			(opts?.acknowledgedPublicRoutes?.length ?? 0) > 0 ||
 			opts?.confirmMcpTools
 		) {
 			const consentError = recordConsentError(
 				{
-					profileCid: opts.acknowledgedProfileCid,
-					releaseCid: opts.acknowledgedReleaseCid,
+					profileCid: opts?.acknowledgedProfileCid,
+					releaseCid: opts?.acknowledgedReleaseCid,
 				},
 				records,
 			);
@@ -1517,14 +1610,24 @@ export async function handleRegistryUpdate(
 		}
 
 		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
-		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
-		if (hasNewPublicRoutes && !opts?.confirmRouteVisibilityChanges) {
+		const newlyPublicRoutes = routeVisibilityChanges.newlyPublic.toSorted();
+		const acknowledgedPublicRoutes = (opts?.acknowledgedPublicRoutes ?? [])
+			.filter((route): route is string => typeof route === "string")
+			.toSorted();
+		if (
+			newlyPublicRoutes.length > 0 &&
+			JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(newlyPublicRoutes)
+		) {
 			return {
 				success: false,
 				error: {
 					code: "ROUTE_VISIBILITY_ESCALATION",
 					message: "Plugin update exposes new public (unauthenticated) routes",
-					details: { routeVisibilityChanges, capabilityChanges, verification },
+					details: {
+						routeVisibilityChanges: { newlyPublic: newlyPublicRoutes },
+						capabilityChanges,
+						verification,
+					},
 				},
 			};
 		}
@@ -1567,11 +1670,6 @@ export async function handleRegistryUpdate(
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
-		// Best-effort cleanup of the old bundle. Failures here don't roll
-		// back the upgrade (the new bundle is already stored and committed
-		// in the state row); the orphan is just storage we'll pay for.
-		deleteBundleFromR2(storage, pluginId, oldVersion, "registry").catch(() => {});
-
 		return {
 			success: true,
 			data: {
@@ -1579,7 +1677,8 @@ export async function handleRegistryUpdate(
 				oldVersion,
 				newVersion,
 				capabilityChanges,
-				routeVisibilityChanges: hasNewPublicRoutes ? routeVisibilityChanges : undefined,
+				routeVisibilityChanges:
+					newlyPublicRoutes.length > 0 ? { newlyPublic: newlyPublicRoutes } : undefined,
 				verification,
 			},
 		};

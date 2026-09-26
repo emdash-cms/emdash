@@ -16,15 +16,21 @@ import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type {
 	FieldWidgetConfig,
+	PluginEditorAction,
+	PluginEditorPanel,
 	PluginMcpManifestConfig,
 	PortableTextBlockConfig,
 	ResolvedPlugin,
 	SettingField,
 } from "../../plugins/types.js";
-import type { ExperimentalConfig } from "../../registry/types.js";
+import type { ExperimentalConfig, RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
-export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
+export type {
+	ExperimentalConfig,
+	RegistryConfig,
+	RegistryConfigOption,
+} from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -108,6 +114,10 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginEditorAction[];
 	/** Settings schema for the auto-generated admin settings form */
 	settingsSchema?: Record<string, SettingField>;
 	/**
@@ -259,12 +269,13 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
 	 * import { untrustedPlugin } from "some-third-party-plugin";
 	 *
 	 * emdash({
 	 *   plugins: [trustedPlugin()],     // runs in host
 	 *   sandboxed: [untrustedPlugin()], // runs in isolate
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -275,8 +286,10 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -355,25 +368,40 @@ export interface EmDashConfig {
 	/**
 	 * Plugin marketplace URL
 	 *
-	 * When set, enables the marketplace features: browse, install, update,
-	 * and uninstall plugins from a remote marketplace.
+	 * Existing marketplace-installed plugins use this URL for updates.
+	 * Marketplace browsing and new installs are no longer shown in the admin.
 	 *
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
-	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
-	 *
-	 * When `registry` is also configured, the registry replaces the marketplace
-	 * for the admin UI's browse and install flows. Existing marketplace-installed
-	 * plugins continue to work; new installs and updates come from the registry.
+	 * Installing or updating plugins requires an available `sandboxRunner`.
+	 * Existing marketplace-installed plugins remain updateable and uninstallable.
+	 * New plugin discovery and installs use the registry.
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
 	 *   marketplace: "https://marketplace.emdashcms.com",
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
+	 *
+	 * @deprecated Keep this option only while the site has plugins installed from
+	 * the legacy marketplace. Remove it after those plugins are replaced or
+	 * uninstalled.
 	 */
 	marketplace?: string;
+
+	/**
+	 * Plugin registry discovery and installation.
+	 *
+	 * An enabled sandbox runner uses the hosted registry by default. Pass a
+	 * registry URL or configuration object to customize it, or `false` to
+	 * disable registry discovery while retaining the sandbox runner.
+	 *
+	 * @default "https://registry.emdashcms.com" when sandboxing is enabled
+	 */
+	registry?: RegistryConfigOption;
 
 	/**
 	 * Experimental features.
@@ -382,18 +410,6 @@ export interface EmDashConfig {
 	 * change between minor versions. Use only if you're comfortable
 	 * tracking the release notes and updating your config when an
 	 * experimental feature graduates or changes.
-	 *
-	 * @example
-	 * ```ts
-	 * emdash({
-	 *   experimental: {
-	 *     registry: {
-	 *       aggregatorUrl: "https://registry.emdashcms.com",
-	 *     },
-	 *   },
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
-	 * })
-	 * ```
 	 */
 	experimental?: ExperimentalConfig;
 

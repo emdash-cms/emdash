@@ -7,8 +7,8 @@ describe("investigationBaseRef", () => {
 		expect(investigationBaseRef("implement", "main-sha", "old-candidate-sha")).toBe("main-sha");
 	});
 
-	test("pins a revision to the existing candidate commit", () => {
-		expect(investigationBaseRef("revise", "main-sha", "candidate-sha")).toBe("candidate-sha");
+	test("pins a revision publication to current main while retaining the candidate lease", () => {
+		expect(investigationBaseRef("revise", "main-sha", "candidate-sha")).toBe("main-sha");
 	});
 
 	test("rejects a revision when its candidate branch is missing", () => {

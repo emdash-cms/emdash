@@ -42,12 +42,14 @@ function eventCategory(id: string): string {
 }
 
 function statesTable(): string {
-	const rows = Object.entries(STATES).map(
-		([id, meta]) =>
-			`| ${code(id)} | ${code(meta.phase)} | ${meta.label ? code(meta.label) : "—"} | ${meta.boardColumn} | ${
-				meta.terminal ? "yes" : "no"
-			} | ${meta.transient ? "yes" : "no"} | ${commandList(meta.offeredCommands)} |`,
-	);
+	const rows = Object.entries(STATES)
+		.filter(([, meta]) => !meta.legacy)
+		.map(
+			([id, meta]) =>
+				`| ${code(id)} | ${code(meta.phase)} | ${meta.label ? code(meta.label) : "—"} | ${meta.boardColumn} | ${
+					meta.terminal ? "yes" : "no"
+				} | ${meta.transient ? "yes" : "no"} | ${commandList(meta.offeredCommands)} |`,
+		);
 	return [
 		"### States",
 		"",
@@ -58,12 +60,14 @@ function statesTable(): string {
 }
 
 function eventsTable(): string {
-	const rows = Object.entries(EVENTS).map(
-		([id, meta]) =>
-			`| ${code(id)} | ${eventCategory(id)} | ${meta.actors.join(", ")} | ${
-				meta.arg ? code(meta.arg) : "—"
-			} | ${meta.description} |`,
-	);
+	const rows = Object.entries(EVENTS)
+		.filter(([, meta]) => !meta.legacy)
+		.map(
+			([id, meta]) =>
+				`| ${code(id)} | ${eventCategory(id)} | ${meta.actors.join(", ")} | ${
+					meta.arg ? code(meta.arg) : "—"
+				} | ${meta.description} |`,
+		);
 	return [
 		"### Events",
 		"",
@@ -74,7 +78,7 @@ function eventsTable(): string {
 }
 
 function transitionsTable(): string {
-	const rows = TRANSITIONS.map(
+	const rows = currentTransitions().map(
 		(t) =>
 			`| ${code(t.from)} | ${code(t.event)} | ${transitionDestination(t)} | ${t.action ? code(t.action) : "—"} |`,
 	);
@@ -100,7 +104,7 @@ function transitionDestination(transition: (typeof TRANSITIONS)[number]): string
 }
 
 function diagram(): string {
-	const edges = TRANSITIONS.flatMap((transition) =>
+	const edges = currentTransitions().flatMap((transition) =>
 		(transition.event === "resume"
 			? (["working", "investigating", "fixing"] as const)
 			: transitionTargets(transition)
@@ -128,6 +132,15 @@ function diagram(): string {
 	].join("\n");
 }
 
+function currentTransitions() {
+	return TRANSITIONS.filter(
+		(transition) =>
+			!STATES[transition.from].legacy &&
+			!STATES[transition.to].legacy &&
+			!EVENTS[transition.event].legacy,
+	);
+}
+
 function issuePhasesTable(): string {
 	return [
 		"### Phases",
@@ -140,11 +153,13 @@ function issuePhasesTable(): string {
 
 function runLifecycle(): string {
 	const run = runMachineSnapshot();
-	const planRows = Object.entries(run.plans).map(
+	const currentModes = new Set(["triage", "investigate", "work", "revise"]);
+	const plans = Object.entries(run.plans).filter(([mode]) => currentModes.has(mode));
+	const planRows = plans.map(
 		([mode, phases]) => `| ${code(mode)} | ${phases.map(code).join(" → ")} |`,
 	);
 	const edges = new Map<string, string[]>();
-	for (const [mode, phases] of Object.entries(run.plans)) {
+	for (const [mode, phases] of plans) {
 		for (let index = 0; index < phases.length - 1; index += 1) {
 			const from = phases[index];
 			const to = phases[index + 1];
@@ -156,7 +171,7 @@ function runLifecycle(): string {
 	return [
 		"## Agent run lifecycle",
 		"",
-		"A run stores its mode, selected phase plan, current phase, status, attempt, and fixed deadline independently from the issue state. An explicit `implement` directive selects the direct implementation plan and omits reproduction and diagnosis.",
+		"A run stores its mode, selected phase plan, current phase, status, attempt, and fixed deadline independently from the issue state. Triage and investigation are read-only; work and revision runs may publish a candidate.",
 		"",
 		"### Phases",
 		"",

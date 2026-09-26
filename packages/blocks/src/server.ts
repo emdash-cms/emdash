@@ -7,13 +7,28 @@
  */
 
 export { blocks, elements } from "./builders.js";
-export { validateBlocks } from "./validation.js";
+export {
+	BLOCK_RESPONSE_LIMITS,
+	isEditorDraftPatchEffect,
+	isSafePluginPagePath,
+	normalizePluginPagePath,
+	validateBlockResponse,
+	validateBlocks,
+	validateContentEditorActionResponse,
+	validateContentEditorPanelInteraction,
+	validateEditorDraftPatchEffect,
+} from "./validation.js";
+export type { BlockValidationPolicy, ValidationError } from "./validation.js";
 
 export type {
 	// Composition objects
 	ConfirmDialog,
 	// Elements
 	ButtonElement,
+	LinkElement,
+	LinkTarget,
+	NavigationElement,
+	ActionElement,
 	TextInputElement,
 	NumberInputElement,
 	SelectElement,
@@ -44,6 +59,15 @@ export type {
 	FormSubmit,
 	PageLoad,
 	BlockInteraction,
+	ContentEditorPanelInteraction,
+	ContentEditorActionInvocation,
+	PluginUiContext,
+	ContentEditorActionResponse,
+	EditorDraftFieldDefinition,
+	EditorDraftInvocationReceipt,
+	EditorDraftPatchEffect,
+	EditorDraftPatchOperation,
+	EditorDraftSnapshot,
 	// Response
 	BlockResponse,
 } from "./types.js";

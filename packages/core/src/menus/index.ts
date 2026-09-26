@@ -11,11 +11,17 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
+import {
+	resolveLocalizedContentRoutePath,
+	resolveLocale,
+	resolveLocaleChain,
+} from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
+import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { sanitizeHref } from "../utils/url.js";
@@ -25,6 +31,8 @@ export interface MenuQueryOptions {
 	/** Override the locale used for the lookup. When omitted, the locale comes
 	 * from the request context or the configured defaultLocale. */
 	locale?: string;
+	/** Astro's route trailing-slash policy for resolved content links. */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -36,18 +44,30 @@ export interface MenuQueryOptions {
  * const menuEs = await getMenu("primary", { locale: "es" });
  * ```
  */
-export function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
+export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`menu:${name}:${locale ?? "*"}`, () =>
+	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
+	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, () =>
 		cachedQuery({
 			namespace: CacheNamespace.MENUS,
-			key: `${name}:${locale ?? "*"}`,
+			key: `${name}:${locale ?? "*"}:${trailingSlash}`,
 			load: async () => {
 				const db = await getDb();
-				return getMenuWithDb(name, db, { locale });
+				return getMenuWithDb(name, db, { locale, trailingSlash });
 			},
 		}),
 	);
+}
+
+async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {
+	try {
+		const config = (await import("virtual:emdash/config")) as {
+			default?: { trailingSlash?: "always" | "never" | "ignore" };
+		};
+		return config.default?.trailingSlash ?? "ignore";
+	} catch {
+		return "ignore";
+	}
 }
 
 /**
@@ -84,7 +104,7 @@ export async function getMenuWithDb(
 		.orderBy("sort_order", "asc")
 		.execute();
 
-	const items = await buildMenuTree(itemRows, db, menuRow.locale);
+	const items = await buildMenuTree(itemRows, db, menuRow.locale, options.trailingSlash);
 
 	return {
 		id: menuRow.id,
@@ -127,6 +147,20 @@ export async function getMenusWithDb(
 }
 
 /**
+ * Get a menu by name with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * this menu can be purged automatically when the menu is edited.
+ */
+export async function getMenuWithCacheHint(
+	name: string,
+	options: MenuQueryOptions = {},
+): Promise<{ data: Menu | null; cacheHint: CacheHint }> {
+	const data = await getMenu(name, options);
+	return { data, cacheHint: { tags: [menuTag(name)] } };
+}
+
+/**
  * Build a hierarchical menu tree from a flat list of items. Items are
  * resolved against the given `locale` so references land on the right
  * per-locale content rows.
@@ -135,6 +169,7 @@ async function buildMenuTree(
 	items: MenuItemRow[],
 	db: Kysely<Database>,
 	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
 ): Promise<MenuItem[]> {
 	const contentReferences = collectContentReferences(items);
 	const taxonomyReferences = new Set(
@@ -150,8 +185,10 @@ async function buildMenuTree(
 		resolveTaxonomyReferences(db, taxonomyReferences, locale),
 	]);
 
-	const resolvedItems = items.map((item) =>
-		resolveMenuItem(item, urlPatterns, contentLookup, taxonomyLookup),
+	const resolvedItems = await Promise.all(
+		items.map((item) =>
+			resolveMenuItem(item, urlPatterns, contentLookup, taxonomyLookup, locale, trailingSlash),
+		),
 	);
 	const validItems = resolvedItems.filter((item): item is MenuItem => item !== null);
 
@@ -243,12 +280,14 @@ function getCollectionUrlPatterns(
  * (migration 036 remapped all existing references); we look it up against
  * the per-locale ec_* row or per-locale taxonomy row.
  */
-function resolveMenuItem(
+async function resolveMenuItem(
 	item: MenuItemRow,
 	urlPatterns: Map<string, string | null>,
 	contentLookup: ContentReferenceLookup,
 	taxonomyLookup: TaxonomyReferenceLookup,
-): MenuItem | null {
+	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
+): Promise<MenuItem | null> {
 	let url: string | null;
 
 	switch (item.type) {
@@ -258,11 +297,13 @@ function resolveMenuItem(
 
 		case "page":
 		case "post":
-			url = resolveContentUrl(
+			url = await resolveContentUrl(
 				item.reference_collection || `${item.type}s`,
 				item.reference_id,
 				urlPatterns,
 				contentLookup,
+				locale,
+				trailingSlash,
 			);
 			if (url === null) return null;
 			break;
@@ -279,11 +320,13 @@ function resolveMenuItem(
 			// slug. Entry references resolve like page/post items.
 			if (!item.reference_collection) return null;
 			if (item.reference_id) {
-				url = resolveContentUrl(
+				url = await resolveContentUrl(
 					item.reference_collection,
 					item.reference_id,
 					urlPatterns,
 					contentLookup,
+					locale,
+					trailingSlash,
 				);
 				if (url === null) return null;
 			} else {
@@ -293,11 +336,13 @@ function resolveMenuItem(
 
 		default:
 			if (item.reference_collection && item.reference_id) {
-				url = resolveContentUrl(
+				url = await resolveContentUrl(
 					item.reference_collection,
 					item.reference_id,
 					urlPatterns,
 					contentLookup,
+					locale,
+					trailingSlash,
 				);
 				if (url === null) return null;
 			} else {
@@ -316,21 +361,10 @@ function resolveMenuItem(
 	};
 }
 
-const SLUG_PLACEHOLDER = /\{slug\}/g;
-const ID_PLACEHOLDER = /\{id\}/g;
-
-/**
- * Interpolate a URL pattern with entry data
- *
- * Replaces `{slug}` and `{id}` placeholders.
- */
-function interpolateUrlPattern(pattern: string, slug: string, id: string): string {
-	return pattern.replace(SLUG_PLACEHOLDER, slug).replace(ID_PLACEHOLDER, id);
-}
-
 interface ContentReferenceRow {
 	id: string;
 	slug: string;
+	published_at: string | null;
 	locale: string;
 	translation_group: string;
 }
@@ -338,6 +372,7 @@ interface ContentReferenceRow {
 interface ResolvedContentReference {
 	id: string;
 	slug: string;
+	publishedAt: string | null;
 }
 
 type ContentReferenceLookup = Map<string, Map<string, ResolvedContentReference>>;
@@ -355,7 +390,7 @@ async function resolveContentReferences(
 				validateIdentifier(collection, "menu item collection");
 				for (const batch of chunks([...referenceGroups], SQL_BATCH_SIZE)) {
 					const result = await sql<ContentReferenceRow>`
-						SELECT id, slug, locale, translation_group
+						SELECT id, slug, published_at, locale, translation_group
 						FROM ${sql.ref(`ec_${collection}`)}
 						WHERE translation_group IN (${sql.join(batch)})
 					`.execute(db);
@@ -367,16 +402,18 @@ async function resolveContentReferences(
 					}
 				}
 				for (const [referenceGroup, row] of localized) {
-					lookup.set(referenceGroup, { id: row.id, slug: row.slug });
+					lookup.set(referenceGroup, { id: row.id, slug: row.slug, publishedAt: row.published_at });
 				}
 
 				const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
 				for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
-					const result = await sql<ResolvedContentReference>`
-						SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
+					const result = await sql<Pick<ContentReferenceRow, "id" | "slug" | "published_at">>`
+						SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
 						WHERE id IN (${sql.join(batch)})
 					`.execute(db);
-					for (const row of result.rows) lookup.set(row.id, row);
+					for (const row of result.rows) {
+						lookup.set(row.id, { id: row.id, slug: row.slug, publishedAt: row.published_at });
+					}
 				}
 			} catch (error) {
 				console.error(`Failed to resolve content URLs for ${collection}:`, error);
@@ -412,18 +449,26 @@ function shouldPreferLocalizedRow(
  * (falling back to the source if no translation exists so the menu link is
  * still clickable).
  */
-function resolveContentUrl(
+async function resolveContentUrl(
 	collection: string,
 	referenceGroup: string | null,
 	urlPatterns: Map<string, string | null>,
 	contentLookup: ContentReferenceLookup,
-): string | null {
+	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
+): Promise<string | null> {
 	if (!referenceGroup) return null;
 	const row = contentLookup.get(collection)?.get(referenceGroup);
 	if (!row) return null;
-	const pattern = urlPatterns.get(collection);
-	if (pattern) return interpolateUrlPattern(pattern, row.slug, row.id);
-	return `/${collection}/${row.slug}`;
+	return resolveLocalizedContentRoutePath({
+		pattern: urlPatterns.get(collection) ?? null,
+		collection,
+		slug: row.slug,
+		id: row.id,
+		date: row.publishedAt,
+		locale,
+		trailingSlash,
+	});
 }
 
 interface TaxonomyReferenceRow {

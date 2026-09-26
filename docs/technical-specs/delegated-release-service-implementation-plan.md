@@ -4,8 +4,6 @@ Status: Implemented locally; PR review and deployment conformance pending
 
 Companion specification: [Delegated release service](./delegated-release-service.md)
 
-Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
-
 ## Outcome
 
 This plan delivers a hosted and self-hostable delegated release service in reviewable increments. A GitHub Actions workflow submits checksum-bound HTTPS artifact sources. The service stages the verified bytes, uploads bounded package and image blobs through the publisher's exact AT Protocol delegation, and creates a blob-only release record. Invalid output remains un-installable because EmDash independently repeats verification. Releases that expand declared access or use `confirmation: always` require a profile-authorized, user-verified passkey decision.
@@ -524,15 +522,15 @@ Dependencies: stable APIs from W4 to W8 and W2 Access roles.
 
 ### Tasks
 
-| Task    | Work                                                                                                                                        |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `W10.1` | Add typed API client, polling, stable error mapping, and idempotency helpers                                                                |
-| `W10.2` | Build the official GitHub Action for OIDC, submission, status, approval URL, and terminal output                                            |
-| `W10.3` | Add CLI commands for workflow connection, dry run, submit/status/cancel, and browser handoffs for delegated publishing and release approval |
-| `W10.4` | Build one Atmosphere account dashboard for publishing authority, connected GitHub workflows, releases, activity, and approval passkeys      |
-| `W10.5` | Build a plain-language release review with plugin permissions and expandable protocol, provenance, and workload evidence                    |
-| `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views                              |
-| `W10.7` | Make the surfaces localizable with Lingui and cover accessibility, keyboard, responsive, and Arabic-direction RTL behavior                  |
+| Task    | Work                                                                                                                                                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `W10.1` | Add typed API client, polling, stable error mapping, and idempotency helpers                                                                                                                                                      |
+| `W10.2` | Build the official GitHub Action for OIDC, submission, status, approval URL, and terminal output                                                                                                                                  |
+| `W10.3` | Add CLI commands for workflow connection, dry run, submit/status/cancel, and browser handoffs for delegated publishing and release approval                                                                                       |
+| `W10.4` | Build one [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) dashboard for publishing authority, connected GitHub workflows, releases, activity, and approval passkeys |
+| `W10.5` | Build a plain-language release review with plugin permissions and expandable protocol, provenance, and workload evidence                                                                                                          |
+| `W10.6` | Build Access operator status, pause, publisher lookup, suspension, revocation, reconciliation, and audit views                                                                                                                    |
+| `W10.7` | Make the surfaces localizable with Lingui and cover accessibility, keyboard, responsive, and Arabic-direction RTL behavior                                                                                                        |
 
 ### Acceptance criteria
 

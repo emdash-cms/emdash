@@ -1,5 +1,5 @@
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { POST as registerClient } from "../../../src/astro/routes/api/oauth/register.js";
 import type { Database } from "../../../src/database/types.js";
@@ -127,5 +127,55 @@ describe("oauth register route", () => {
 		expect(body.grant_types).toEqual(["authorization_code", "refresh_token"]);
 		expect(body.response_types).toEqual(["code"]);
 		expect(typeof body.client_id).toBe("string");
+	});
+
+	it("stops creating clients once an IP exceeds the registration limit", async () => {
+		vi.useFakeTimers({ toFake: ["Date"] });
+		vi.setSystemTime(new Date("2026-09-24T12:00:10.000Z"));
+		onTestFinished(() => {
+			vi.useRealTimers();
+		});
+
+		const register = (ip: string, body = { redirect_uris: ["http://127.0.0.1:9999/callback"] }) =>
+			registerClient({
+				request: new Request("http://localhost:4321/_emdash/api/oauth/register", {
+					method: "POST",
+					headers: { "Content-Type": "application/json", "X-Real-IP": ip },
+					body: JSON.stringify(body),
+				}),
+				locals: {
+					emdash: {
+						db,
+						config: { trustedProxyHeaders: ["x-real-ip"] },
+					},
+				},
+			} as Parameters<typeof registerClient>[0]);
+
+		const statuses: number[] = [];
+		for (let i = 0; i < 10; i++) {
+			// oxlint-disable-next-line no-await-in-loop -- requests must hit the limiter in order
+			statuses.push((await register("203.0.113.7", { redirect_uris: [] })).status);
+		}
+		for (let i = 0; i < 12; i++) {
+			// oxlint-disable-next-line no-await-in-loop -- requests must hit the limiter in order
+			statuses.push((await register("203.0.113.7")).status);
+		}
+		expect(statuses).toEqual([...Array(10).fill(400), ...Array(10).fill(201), 429, 429]);
+
+		const limited = await register("203.0.113.7");
+		expect(limited.headers.get("Retry-After")).toBe("60");
+		expect(limited.headers.get("Access-Control-Allow-Origin")).toBe("*");
+		await expect(limited.json()).resolves.toEqual({
+			error: "temporarily_unavailable",
+			error_description: "Too many registration requests. Please try again later.",
+		});
+
+		const rows = await db
+			.selectFrom("_emdash_oauth_clients")
+			.select((eb) => eb.fn.countAll<number>().as("count"))
+			.executeTakeFirstOrThrow();
+		expect(Number(rows.count)).toBe(10);
+
+		expect((await register("198.51.100.4")).status).toBe(201);
 	});
 });

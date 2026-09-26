@@ -3,6 +3,7 @@ import {
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../src/ai/image-resize.js";
+import { createUnanimousTextModerationAdapter } from "../src/ai/unanimous.js";
 import {
 	createWorkersAiImageAdapter,
 	createWorkersAiTextAdapter,
@@ -23,7 +24,11 @@ export interface LiveEvaluationArtifact {
 
 export interface ProtectedLiveEvaluationInput {
 	dataset: SealedEvalDataset;
-	text: WorkersAiAdapterConfig & { configuredUnits: number };
+	text: readonly [
+		WorkersAiAdapterConfig & { configuredUnits: number },
+		WorkersAiAdapterConfig & { configuredUnits: number },
+		...(WorkersAiAdapterConfig & { configuredUnits: number })[],
+	];
 	image: WorkersAiAdapterConfig & { configuredUnits: number };
 	repeatCount: number;
 	runnerCommit: string;
@@ -70,7 +75,12 @@ function createLiveEvaluationOptions(
 	executedAt: string,
 	durability?: ProtectedLiveEvaluationDurability,
 ): EvaluationRunOptions {
-	const text = createWorkersAiTextAdapter(ai, input.text);
+	const [primaryText, verifierText, ...additionalText] = input.text;
+	const text = createUnanimousTextModerationAdapter([
+		createWorkersAiTextAdapter(ai, primaryText),
+		createWorkersAiTextAdapter(ai, verifierText),
+		...additionalText.map((config) => createWorkersAiTextAdapter(ai, config)),
+	]);
 	const baseImage = createWorkersAiImageAdapter(ai, input.image);
 	const image = images
 		? createResizedImageModerationAdapter(

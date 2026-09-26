@@ -179,10 +179,20 @@ const SANDBOX_STRIPPED_HEADERS = new Set([
  * Copy request headers into a plain object, stripping sensitive headers
  * that must not be exposed to sandboxed plugin code.
  */
-export function sanitizeHeadersForSandbox(headers: Headers): Record<string, string> {
+export function sanitizeHeadersForSandbox(
+	headers: Headers,
+	allowedHeaders?: readonly string[],
+): Record<string, string> {
 	const safe: Record<string, string> = {};
+	const allowed = allowedHeaders
+		? new Set(allowedHeaders.map((header) => header.toLowerCase()))
+		: null;
 	headers.forEach((value, key) => {
-		if (!SANDBOX_STRIPPED_HEADERS.has(key)) {
+		if (
+			!SANDBOX_STRIPPED_HEADERS.has(key) &&
+			!key.startsWith("cf-access-") &&
+			(allowed === null || allowed.has(key))
+		) {
 			safe[key] = value;
 		}
 	});

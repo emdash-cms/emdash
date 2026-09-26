@@ -3,10 +3,21 @@ import { z } from "zod";
 import { SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { bylineSummarySchema, bylineCreditSchema, contentBylineInputSchema } from "./bylines.js";
 import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
+import { referenceChildrenResponseSchema } from "./relations.js";
 
 // ---------------------------------------------------------------------------
 // Content: Input schemas
 // ---------------------------------------------------------------------------
+
+const contentDateTime = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.or(
+		z.iso.datetime({
+			offset: true,
+			precision: -1,
+			message: "must be an ISO 8601 datetime",
+		}),
+	);
 
 /** SEO input — per-content meta fields */
 export const contentSeoInput = z
@@ -21,10 +32,7 @@ export const contentSeoInput = z
 
 /** ISO 8601 date or datetime bound for the content-list date range filter. */
 const contentDateBound = z
-	.union([
-		z.iso.datetime({ offset: true, message: "must be an ISO 8601 datetime" }),
-		z.iso.date({ message: "must be an ISO 8601 date" }),
-	])
+	.union([contentDateTime, z.iso.date({ message: "must be an ISO 8601 date" })])
 	.optional();
 
 /**
@@ -61,7 +69,7 @@ const booleanParam = z
 	.optional()
 	.transform((value) => value === "1" || value === "true");
 
-const contentFieldComparable = z.union([z.string().max(2048), z.number().finite()]);
+const contentFieldComparable = z.union([z.string().max(2048), z.number()]);
 const contentFieldFilterScalar = z.union([contentFieldComparable, z.boolean(), z.null()]);
 const contentFieldFilterValue = z.union([
 	contentFieldFilterScalar,
@@ -129,9 +137,24 @@ const contentFieldFiltersQuery = z
 	})
 	.pipe(contentFieldFiltersSchema);
 
+/** Statuses the content list can filter by. */
+const CONTENT_STATUSES = [
+	"draft",
+	"published",
+	"scheduled",
+	"archived",
+	"pending",
+	"private",
+	"future",
+] as const;
+
 export const contentListQuery = cursorPaginationQuery
 	.extend({
-		status: z.string().optional(),
+		/** Filter by status; `all` (like omitting it) lists every status. */
+		status: z
+			.enum([...CONTENT_STATUSES, "all"])
+			.optional()
+			.transform((status) => (status === "all" ? undefined : status)),
 		orderBy: z.string().optional(),
 		order: z.enum(["asc", "desc"]).optional(),
 		locale: localeCode.optional(),
@@ -167,9 +190,12 @@ export const contentListQuery = cursorPaginationQuery
 	.meta({ id: "ContentListQuery" });
 
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
-const contentDateOverride = z.iso
-	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
-	.nullish();
+const contentDateOverride = contentDateTime.nullish();
+
+const overrideLockFlag = z.boolean().optional().meta({
+	description:
+		"Write even though another editor holds this entry's edit lock. Without it the write is refused with 409 ENTRY_LOCKED.",
+});
 
 export const contentCreateBody = z
 	.object({
@@ -184,8 +210,14 @@ export const contentCreateBody = z
 			description:
 				"Taxonomy term assignments as { taxonomyName: [termSlug, ...] }, resolved in the entry's locale.",
 		}),
+		references: z.record(z.string(), z.array(z.string()).max(1000)).optional().meta({
+			description:
+				"Reference selections as { fieldSlug: [entryId, ...] }, in display order. Written as content-reference links in the same transaction as the entry. A field bound to the child end of its relation selects the entries pointing at this one, which carry no order.",
+		}),
 		publishedAt: contentDateOverride,
 		createdAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentCreateBody" });
 
@@ -201,29 +233,48 @@ export const contentUpdateBody = z
 			.optional()
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 		skipRevision: z.boolean().optional(),
+		overrideLock: overrideLockFlag,
 		seo: contentSeoInput.optional(),
 		taxonomies: z.record(z.string(), z.array(z.string())).optional().meta({
 			description:
 				"Replace taxonomy assignments as { taxonomyName: [termSlug, ...] }. Only named taxonomies are touched; pass an empty array to clear a taxonomy.",
 		}),
+		references: z.record(z.string(), z.array(z.string()).max(1000)).optional().meta({
+			description:
+				"Reference selections as { fieldSlug: [entryId, ...] }, in display order. Written as content-reference links in the same transaction as the entry. A field bound to the child end of its relation selects the entries pointing at this one, which carry no order.",
+		}),
 		publishedAt: contentDateOverride,
+		migrateBlocks: z.boolean().optional(),
+		replaceBlocks: z.boolean().optional(),
 	})
 	.meta({ id: "ContentUpdateBody" });
 
 export const contentScheduleBody = z
 	.object({
-		scheduledAt: z.string().min(1, "scheduledAt is required").meta({
-			description: "ISO 8601 datetime for scheduled publishing",
-			example: "2025-06-15T09:00:00Z",
+		scheduledAt: contentDateTime.meta({
+			description: "ISO 8601 datetime with Z or an explicit offset for scheduled publishing",
+			examples: ["2025-06-15T09:00:00Z"],
 		}),
+		overrideLock: overrideLockFlag,
+		_rev: z
+			.string()
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentScheduleBody" });
 
-export const contentRevisionConditionBody = z.object({
-	_rev: z
-		.string()
-		.optional()
-		.meta({ description: "Opaque revision token for optimistic concurrency" }),
+export const contentRevisionConditionBody = z
+	.object({
+		_rev: z
+			.string()
+			.optional()
+			.meta({ description: "Opaque revision token for optimistic concurrency" }),
+		overrideLock: overrideLockFlag,
+	})
+	.meta({ id: "ContentRevisionConditionBody" });
+
+export const revisionRestoreBody = z.object({
+	overrideLock: overrideLockFlag,
 });
 
 export const contentPublishBody = contentRevisionConditionBody
@@ -233,13 +284,10 @@ export const contentPublishBody = contentRevisionConditionBody
 		// publishing). Tightening the schema here means callers either
 		// pass a valid datetime or omit the field, and the route doesn't
 		// have to silently drop a null that snuck through.
-		publishedAt: z.iso
-			.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
-			.optional()
-			.meta({
-				description:
-					"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
-			}),
+		publishedAt: contentDateTime.optional().meta({
+			description:
+				"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
+		}),
 	})
 	.meta({ id: "ContentPublishBody" });
 
@@ -256,7 +304,49 @@ export const contentTermsBody = z
 	})
 	.meta({ id: "ContentTermsBody" });
 
-export const contentTrashQuery = cursorPaginationQuery;
+/** A single term variant returned as part of an entry's term assignments. */
+const contentEntryTermSchema = z
+	.object({
+		id: z.string(),
+		name: z.string().meta({ description: "Taxonomy name" }),
+		slug: z.string(),
+		label: z.string(),
+		parentId: z.string().nullable(),
+		locale: localeCode,
+		translationGroup: z.string().nullable(),
+	})
+	.meta({ id: "ContentEntryTerm" });
+
+/** Term assignments response for the content terms endpoint. */
+export const contentTermsResponseSchema = z
+	.object({
+		terms: z.array(contentEntryTermSchema),
+		unresolved: z.array(
+			z.object({
+				translationGroup: z.string(),
+				availableLocales: z.array(localeCode),
+				translations: z.array(
+					z.object({
+						id: z.string(),
+						slug: z.string(),
+						locale: localeCode,
+					}),
+				),
+			}),
+		),
+		entryLocale: localeCode,
+		defaultLocale: localeCode,
+		implicitDefaultLocale: z.boolean(),
+	})
+	.meta({ id: "ContentTermsResponse" });
+
+export const contentTrashQuery = cursorPaginationQuery
+	.extend({
+		locale: localeCode.optional().meta({
+			description: "Restrict the trash listing to entries in this locale",
+		}),
+	})
+	.meta({ id: "ContentTrashQuery" });
 
 // ---------------------------------------------------------------------------
 // Content: Response schemas
@@ -297,6 +387,10 @@ export const contentItemSchema = z
 		locale: z.string().nullable(),
 		translationGroup: z.string().nullable(),
 		seo: contentSeoSchema.optional(),
+		// First page of each reference field's selection, keyed by field slug. Only
+		// present when the editor GET path opts into hydration
+		// (`referenceOptions`); omitted otherwise, so it's optional here.
+		references: z.record(z.string(), referenceChildrenResponseSchema).optional(),
 	})
 	.meta({ id: "ContentItem" });
 
@@ -310,6 +404,15 @@ export const contentResponseSchema = z
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 	})
 	.meta({ id: "ContentResponse" });
+
+/** Response for restoring an item from trash */
+export const contentRestoreResponseSchema = z
+	.object({
+		restored: z.literal(true),
+		item: contentItemSchema,
+		_rev: z.string().meta({ description: "Opaque revision token for optimistic concurrency" }),
+	})
+	.meta({ id: "ContentRestoreResponse" });
 
 /** Response for content list endpoints */
 export const contentListResponseSchema = z
@@ -344,6 +447,8 @@ export const trashedContentItemSchema = z
 		type: z.string(),
 		slug: z.string().nullable(),
 		status: z.string(),
+		locale: z.string().nullable(),
+		translationGroup: z.string().nullable(),
 		data: z.record(z.string(), z.unknown()),
 		authorId: z.string().nullable(),
 		createdAt: z.string(),

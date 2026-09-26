@@ -2,8 +2,6 @@
 
 Status: Blob-enabled harness implemented; real blob-enabled public-client reruns and confidential-client deployment runs pending
 
-Companion design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
-
 ## Outcome
 
 G0 establishes whether the delegated release service can hold the exact authority defined by the protocol on the first supported PDS implementations. The initial matrix covers the Bluesky PDS software hosted by npmX (`npmx.social`) and Cirrus.

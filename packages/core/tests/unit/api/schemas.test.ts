@@ -50,6 +50,14 @@ describe("contentCreateBody schema", () => {
 		expect(result.publishedAt).toBe("2019-03-15T10:30:00+00:00");
 	});
 
+	it("accepts minute-precision ISO datetimes", () => {
+		const result = contentCreateBody.parse({
+			data: { title: "Hi" },
+			publishedAt: "2019-03-15T10:30Z",
+		});
+		expect(result.publishedAt).toBe("2019-03-15T10:30Z");
+	});
+
 	it("rejects malformed datetime strings", () => {
 		expect(() =>
 			contentCreateBody.parse({ data: { title: "Hi" }, publishedAt: "yesterday" }),
@@ -62,6 +70,19 @@ describe("contentCreateBody schema", () => {
 	it("accepts null to explicitly clear the field", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, publishedAt: null });
 		expect(result.publishedAt).toBeNull();
+	});
+
+	it("preserves references when provided", () => {
+		const result = contentCreateBody.parse({
+			data: {},
+			references: { grp_x: ["a", "b"] },
+		});
+		expect(result.references).toEqual({ grp_x: ["a", "b"] });
+	});
+
+	it("accepts omitted references", () => {
+		const result = contentCreateBody.parse({ data: {} });
+		expect(result.references).toBeUndefined();
 	});
 });
 
@@ -122,6 +143,19 @@ describe("contentUpdateBody schema", () => {
 		} as Parameters<typeof contentUpdateBody.parse>[0]);
 		expect("createdAt" in result).toBe(false);
 	});
+
+	it("preserves references when provided", () => {
+		const result = contentUpdateBody.parse({
+			data: { title: "Hi" },
+			references: { grp_x: ["a", "b"] },
+		});
+		expect(result.references).toEqual({ grp_x: ["a", "b"] });
+	});
+
+	it("accepts omitted references", () => {
+		const result = contentUpdateBody.parse({ data: { title: "Hi" } });
+		expect(result.references).toBeUndefined();
+	});
 });
 
 describe("localeCode validator", () => {
@@ -150,6 +184,18 @@ describe("localeCode validator", () => {
 	it("contentListQuery keeps the ?locale= filter casing", () => {
 		const result = contentListQuery.parse({ locale: "zh-TW" });
 		expect(result.locale).toBe("zh-TW");
+	});
+
+	it("contentListQuery treats ?status=all as no status filter", () => {
+		expect(contentListQuery.parse({ status: "all" }).status).toBeUndefined();
+	});
+
+	it("contentListQuery rejects a status no entry can have", () => {
+		expect(() => contentListQuery.parse({ status: "publishd" })).toThrow();
+	});
+
+	it("contentListQuery still filters by WordPress-style statuses such as pending", () => {
+		expect(contentListQuery.parse({ status: "pending" }).status).toBe("pending");
 	});
 
 	it("contentListQuery parses bounded indexed field filters", () => {

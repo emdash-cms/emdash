@@ -3,9 +3,10 @@ import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
+import { fireEvent } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
 import type { AdminManifest, ContentItem } from "../src/lib/api";
@@ -65,8 +66,14 @@ interface RecordedRequest {
 }
 
 interface MockServerOptions {
+	initialBylines?: ContentItem["bylines"];
+	initialScheduledAt?: string;
+	omitScheduleChangeRevision?: boolean;
+	onContentGet?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
 	onPut?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
 	onPublish?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
+	onSchedule?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
+	onUnschedule?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -88,8 +95,14 @@ function contentResponse(item: RevisionedContentItem) {
 function createMockServer(options: MockServerOptions = {}) {
 	const originalFetch = globalThis.fetch;
 	const requests: RecordedRequest[] = [];
+	let contentGetCount = 0;
 	let putCount = 0;
 	let publishCount = 0;
+	let scheduleCount = 0;
+	let unscheduleCount = 0;
+	let currentRevision = "rev-initial";
+	let currentScheduledAt: string | null = options.initialScheduledAt ?? null;
+	const currentBylines = options.initialBylines;
 
 	globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -111,16 +124,31 @@ function createMockServer(options: MockServerOptions = {}) {
 			return jsonResponse({ data: { items: [] } });
 		}
 		if (method === "GET" && url.startsWith("/_emdash/api/content/posts/post_1")) {
-			return contentResponse(makeItem());
+			const index = contentGetCount++;
+			if (options.onContentGet) return options.onContentGet(request, index);
+			const savedData = requests.findLast(
+				(candidate) => candidate.method === "PUT" && candidate.body?.data,
+			)?.body?.data as Record<string, unknown> | undefined;
+			return contentResponse(
+				makeItem({
+					_rev: currentRevision,
+					bylines: currentBylines,
+					data: savedData ?? makeItem().data,
+					scheduledAt: currentScheduledAt,
+				}),
+			);
 		}
 		if (method === "GET" && url === "/_emdash/api/revisions/revision-draft") {
+			const savedData = requests.findLast(
+				(candidate) => candidate.method === "PUT" && candidate.body?.data,
+			)?.body?.data as Record<string, unknown> | undefined;
 			return jsonResponse({
 				data: {
 					item: {
 						id: "revision-draft",
 						collection: "posts",
 						entryId: "post_1",
-						data: { title: "Draft title", website: "" },
+						data: savedData ?? { title: "Draft title", website: "" },
 						authorId: null,
 						createdAt: "2026-01-02T00:00:00Z",
 					},
@@ -130,7 +158,15 @@ function createMockServer(options: MockServerOptions = {}) {
 		if (method === "PUT" && url.startsWith("/_emdash/api/content/posts/post_1")) {
 			const index = putCount++;
 			if (options.onPut) return options.onPut(request, index);
-			return contentResponse(makeItem({ _rev: `rev-save-${index + 1}` }));
+			currentRevision = `rev-save-${index + 1}`;
+			return contentResponse(
+				makeItem({
+					_rev: currentRevision,
+					bylines: currentBylines,
+					data: (request.body?.data as Record<string, unknown> | undefined) ?? makeItem().data,
+					scheduledAt: currentScheduledAt,
+				}),
+			);
 		}
 		if (method === "POST" && url.startsWith("/_emdash/api/content/posts/post_1/publish")) {
 			const index = publishCount++;
@@ -143,6 +179,30 @@ function createMockServer(options: MockServerOptions = {}) {
 					_rev: `rev-publish-${index + 1}`,
 					data: savedData ?? { title: "Draft title", website: "" },
 					liveRevisionId: "revision-draft",
+				}),
+			);
+		}
+		if (method === "POST" && url.startsWith("/_emdash/api/content/posts/post_1/schedule")) {
+			const index = scheduleCount++;
+			if (options.onSchedule) return options.onSchedule(request, index);
+			currentRevision = `rev-schedule-${index + 1}`;
+			currentScheduledAt = String(body?.scheduledAt);
+			return contentResponse(
+				makeItem({
+					_rev: options.omitScheduleChangeRevision ? undefined : currentRevision,
+					scheduledAt: currentScheduledAt,
+				}),
+			);
+		}
+		if (method === "DELETE" && url.startsWith("/_emdash/api/content/posts/post_1/schedule")) {
+			const index = unscheduleCount++;
+			if (options.onUnschedule) return options.onUnschedule(request, index);
+			currentRevision = `rev-unschedule-${index + 1}`;
+			currentScheduledAt = null;
+			return contentResponse(
+				makeItem({
+					_rev: options.omitScheduleChangeRevision ? undefined : currentRevision,
+					scheduledAt: null,
 				}),
 			);
 		}
@@ -177,18 +237,59 @@ function buildRouter() {
 		);
 	}
 
-	return { router, TestApp };
+	return { queryClient, router, TestApp };
 }
 
-async function renderEditPage() {
-	const { router, TestApp } = buildRouter();
+async function renderEditPage(
+	publishingLabel = "Publish changes",
+	onQueryClient?: (queryClient: ReturnType<typeof createTestQueryClient>) => void,
+) {
+	const { queryClient, router, TestApp } = buildRouter();
+	onQueryClient?.(queryClient);
 	await router.navigate({
 		to: "/content/$collection/$id",
 		params: { collection: "posts", id: "post_1" },
 	});
 	const screen = await render(<TestApp />);
-	await expect.element(screen.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+	await expect
+		.element(screen.getByRole("button", { name: publishingLabel, exact: true }))
+		.toBeVisible();
 	return screen;
+}
+
+async function getPublishAction(screen: Awaited<ReturnType<typeof render>>) {
+	await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+	const action = screen
+		.getByRole("dialog", { name: "Publish changes?" })
+		.getByRole("button", { name: "Publish changes", exact: true });
+	await expect.element(action).toBeVisible();
+	return action;
+}
+
+async function publishNow(screen: Awaited<ReturnType<typeof render>>) {
+	(await getPublishAction(screen)).element().click();
+	await vi.advanceTimersByTimeAsync(150);
+}
+
+function localDateKey(date: Date): string {
+	return [
+		date.getFullYear(),
+		String(date.getMonth() + 1).padStart(2, "0"),
+		String(date.getDate()).padStart(2, "0"),
+	].join("-");
+}
+
+async function fillScheduleFields(screen: Awaited<ReturnType<typeof render>>) {
+	const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+	const tomorrow = new Date();
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	const dayButton = dialog
+		.element()
+		.querySelector<HTMLButtonElement>(`[data-day="${localDateKey(tomorrow)}"] button`);
+	expect(dayButton).not.toBeNull();
+	fireEvent.click(dayButton!);
+	await dialog.getByRole("textbox", { name: "Hour" }).fill("09");
+	await dialog.getByRole("textbox", { name: "Minute" }).fill("00");
 }
 
 function contentMutations(requests: RecordedRequest[]) {
@@ -224,7 +325,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		const screen = await renderEditPage();
 
 		await screen.getByRole("textbox", { name: "Title" }).fill("Latest title");
-		await screen.getByRole("button", { name: "Publish", exact: true }).click();
+		await publishNow(screen);
 		await vi.advanceTimersByTimeAsync(0);
 
 		const mutations = contentMutations(server.requests);
@@ -255,7 +356,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		expect(contentMutations(server.requests)).toHaveLength(1);
 
 		await title.fill("Publish title");
-		await screen.getByRole("button", { name: "Publish", exact: true }).click();
+		await publishNow(screen);
 		await vi.advanceTimersByTimeAsync(0);
 		expect(contentMutations(server.requests)).toHaveLength(1);
 
@@ -285,7 +386,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		const screen = await renderEditPage();
 
 		await screen.getByRole("textbox", { name: "Title" }).fill("Latest title");
-		await screen.getByRole("button", { name: "Publish", exact: true }).click();
+		await publishNow(screen);
 		await vi.advanceTimersByTimeAsync(0);
 
 		expect(contentMutations(server.requests).map(({ method }) => method)).toEqual(["PUT"]);
@@ -296,7 +397,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		const screen = await renderEditPage();
 
 		await screen.getByRole("textbox", { name: "Website" }).fill("not a URL");
-		await screen.getByRole("button", { name: "Publish", exact: true }).click();
+		await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
 		await vi.advanceTimersByTimeAsync(2500);
 
 		expect(contentMutations(server.requests)).toEqual([]);
@@ -306,9 +407,9 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		server = createMockServer();
 		const screen = await renderEditPage();
 		const title = screen.getByRole("textbox", { name: "Title" });
-		const publish = screen.getByRole("button", { name: "Publish", exact: true });
 
 		await title.fill("First publish");
+		const publish = await getPublishAction(screen);
 		publish.element().click();
 		publish.element().click();
 		await vi.advanceTimersByTimeAsync(0);
@@ -344,13 +445,12 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		});
 		const screen = await renderEditPage();
 		const title = screen.getByRole("textbox", { name: "Title" });
-		const publish = screen.getByRole("button", { name: "Publish", exact: true });
 
 		await title.fill("First publish");
-		publish.element().click();
+		await publishNow(screen);
 		await vi.waitFor(() => expect(contentMutations(server!.requests)).toHaveLength(1));
 		await title.fill("Second edit");
-		publish.element().click();
+		await publishNow(screen);
 
 		save.resolve(
 			contentResponse(
@@ -380,7 +480,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		const title = screen.getByRole("textbox", { name: "Title" });
 
 		await title.fill("Publish title");
-		await screen.getByRole("button", { name: "Publish", exact: true }).click();
+		await publishNow(screen);
 		await vi.waitFor(() =>
 			expect(contentMutations(server!.requests).map(({ method }) => method)).toEqual([
 				"PUT",
@@ -394,5 +494,648 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		expect(contentMutations(server.requests).map(({ method }) => method)).toEqual(["PUT", "POST"]);
 
 		publishResponse.resolve(contentResponse(makeItem({ _rev: "rev-published" })));
+	});
+
+	it("flushes the current payload before scheduling and cancels the pending debounce", async () => {
+		server = createMockServer();
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+		});
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("Scheduled title");
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+
+		await vi.waitFor(() => {
+			expect(
+				server!.requests
+					.filter(
+						(request) =>
+							request.method === "PUT" ||
+							(request.method === "POST" && request.url.includes("/schedule")),
+					)
+					.map(({ method }) => method),
+			).toEqual(["PUT", "POST"]);
+		});
+		const save = server.requests.find((request) => request.method === "PUT");
+		expect(save?.body).toMatchObject({
+			data: { title: "Scheduled title" },
+			_rev: "rev-initial",
+		});
+		await vi.waitFor(() => {
+			expect(
+				queryClient?.getQueryData<ContentItem>([
+					"content",
+					"posts",
+					"post_1",
+					{ locale: undefined },
+				])?.data,
+			).toMatchObject({ title: "Scheduled title" });
+		});
+
+		await vi.advanceTimersByTimeAsync(2500);
+		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(1);
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("After schedule");
+		await vi.advanceTimersByTimeAsync(2000);
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "PUT")).toHaveLength(2);
+		});
+		const nextSave = server.requests.filter((request) => request.method === "PUT")[1];
+		expect(nextSave?.body).toMatchObject({
+			data: { title: "After schedule" },
+			_rev: "rev-schedule-1",
+		});
+		await vi.waitFor(() => {
+			expect(
+				queryClient?.getQueryData<ContentItem>([
+					"content",
+					"posts",
+					"post_1",
+					{ locale: undefined },
+				])?.data,
+			).toMatchObject({ title: "After schedule" });
+		});
+		await expect.element(screen.getByRole("button", { name: "Saved", exact: true })).toBeDisabled();
+
+		const removeSchedule = screen.getByRole("button", { name: "Remove schedule" });
+		await expect.element(removeSchedule).toBeInTheDocument();
+		fireEvent.click(removeSchedule.element());
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
+		});
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeEnabled();
+		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(2);
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("After unschedule");
+		await vi.advanceTimersByTimeAsync(2000);
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "PUT")).toHaveLength(3);
+		});
+		const saveAfterUnschedule = server.requests.filter((request) => request.method === "PUT")[2];
+		expect(saveAfterUnschedule?.body).toMatchObject({
+			data: { title: "After unschedule" },
+			_rev: "rev-unschedule-1",
+		});
+	});
+
+	it("flushes the current payload before removing a schedule", async () => {
+		server = createMockServer({ initialScheduledAt: "2030-01-01T09:00:00.000Z" });
+		const screen = await renderEditPage("Publish changes");
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("Unscheduled title");
+		fireEvent.click(screen.getByRole("button", { name: "Remove schedule" }).element());
+
+		await vi.waitFor(() => {
+			expect(
+				server!.requests
+					.filter((request) => request.method === "PUT" || request.method === "DELETE")
+					.map(({ method }) => method),
+			).toEqual(["PUT", "DELETE"]);
+		});
+		const save = server.requests.find((request) => request.method === "PUT");
+		expect(save?.body).toMatchObject({
+			data: { title: "Unscheduled title" },
+			_rev: "rev-initial",
+		});
+	});
+
+	it("flushes the current payload before saving a publication date", async () => {
+		server = createMockServer();
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+		});
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("Rescued title");
+		await screen.getByRole("button", { name: /Change publication date/ }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await vi.waitFor(() => {
+			expect(
+				server!.requests
+					.filter((request) => request.method === "PUT")
+					.map((request) => (request.body?.publishedAt ? "date" : "save")),
+			).toEqual(["save", "date"]);
+		});
+		const save = server.requests.find(
+			(request) => request.method === "PUT" && !request.body?.publishedAt,
+		);
+		expect(save?.body).toMatchObject({
+			data: { title: "Rescued title" },
+			_rev: "rev-initial",
+		});
+
+		await vi.waitFor(() => {
+			expect(
+				queryClient?.getQueryData<ContentItem>([
+					"content",
+					"posts",
+					"post_1",
+					{ locale: undefined },
+				])?.data,
+			).toMatchObject({ title: "Rescued title" });
+		});
+	});
+
+	it("refuses a publication date change for invalid fields and names the date", async () => {
+		server = createMockServer();
+		const screen = await renderEditPage();
+
+		await screen.getByRole("textbox", { name: "Website" }).fill("not a URL");
+		fireEvent.click(screen.getByRole("button", { name: /Change publication date/ }).element());
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await expect
+			.element(dialog.getByText("Fix invalid fields before changing the publication date"))
+			.toBeVisible();
+		expect(contentMutations(server.requests)).toEqual([]);
+	});
+
+	it("keeps existing bylines after scheduling", async () => {
+		const byline = {
+			id: "byline-1",
+			slug: "ada",
+			displayName: "Ada Lovelace",
+			bio: null,
+			avatarMediaId: null,
+			websiteUrl: null,
+			userId: null,
+			isGuest: true,
+			createdAt: "2026-01-01T00:00:00Z",
+			updatedAt: "2026-01-01T00:00:00Z",
+			locale: "en",
+			translationGroup: null,
+		};
+		server = createMockServer({
+			initialBylines: [{ byline, sortOrder: 0, roleLabel: "Author" }],
+		});
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+		});
+		await expect.element(screen.getByText("Ada Lovelace", { exact: true })).toBeVisible();
+
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Change schedule" })).toBeVisible();
+		expect(
+			queryClient?.getQueryData<ContentItem>(["content", "posts", "post_1", { locale: undefined }])
+				?.bylines,
+		).toEqual([{ byline, sortOrder: 0, roleLabel: "Author" }]);
+	});
+
+	it("keeps the schedule result when the preceding save refetch resolves late", async () => {
+		const delayedRefresh = deferredResponse();
+		server = createMockServer({
+			onContentGet: (_request, index) =>
+				index === 0 ? contentResponse(makeItem()) : delayedRefresh.promise,
+		});
+		const screen = await renderEditPage();
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("Scheduled title");
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+		const changeSchedule = screen.getByRole("button", { name: "Change schedule" });
+		await expect.element(changeSchedule).toBeVisible();
+
+		delayedRefresh.resolve(contentResponse(makeItem({ _rev: "rev-save-1", scheduledAt: null })));
+		await vi.advanceTimersByTimeAsync(0);
+		await expect.element(changeSchedule).toBeVisible();
+	});
+
+	it("does not create a draft revision for clean schedule changes", async () => {
+		server = createMockServer({ initialScheduledAt: "2030-01-01T09:00:00.000Z" });
+		const screen = await renderEditPage("Publish changes");
+
+		const changeSchedule = screen.getByRole("button", { name: "Change schedule" });
+		fireEvent.click(changeSchedule.element());
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change schedule" });
+		await dialog.getByRole("textbox", { name: "Hour" }).fill("10");
+		await vi.advanceTimersByTimeAsync(0);
+		fireEvent.click(dialog.getByRole("button", { name: "Save schedule", exact: true }).element());
+		await vi.advanceTimersByTimeAsync(0);
+		await vi.waitFor(() => {
+			expect(
+				server!.requests.filter(
+					(request) => request.method === "POST" && request.url.includes("/schedule"),
+				),
+			).toHaveLength(1);
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "Remove schedule" }).element());
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "DELETE")).toHaveLength(1);
+		});
+		expect(
+			server.requests
+				.filter(
+					(request) =>
+						request.method === "PUT" ||
+						((request.method === "POST" || request.method === "DELETE") &&
+							request.url.includes("/schedule")),
+				)
+				.map(({ method }) => method),
+		).toEqual(["POST", "DELETE"]);
+	});
+
+	it("flushes a clean-looking value after an older autosave", async () => {
+		const autosave = deferredResponse();
+		server = createMockServer({
+			onPut: (request, index) =>
+				index === 0
+					? autosave.promise
+					: contentResponse(
+							makeItem({
+								_rev: "rev-corrective",
+								data: request.body?.data as Record<string, unknown>,
+							}),
+						),
+		});
+		const screen = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title" });
+
+		await title.fill("Autosave title");
+		await vi.advanceTimersByTimeAsync(2000);
+		await title.fill("Draft title");
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+		await vi.advanceTimersByTimeAsync(0);
+		expect(
+			server.requests
+				.filter(
+					(request) =>
+						request.method === "PUT" ||
+						(request.method === "POST" && request.url.includes("/schedule")),
+				)
+				.map(({ method }) => method),
+		).toEqual(["PUT"]);
+
+		autosave.resolve(
+			contentResponse(
+				makeItem({
+					_rev: "rev-autosave",
+					data: { title: "Autosave title", website: "" },
+				}),
+			),
+		);
+		await vi.waitFor(() => {
+			expect(
+				server!.requests
+					.filter(
+						(request) =>
+							request.method === "PUT" ||
+							(request.method === "POST" && request.url.includes("/schedule")),
+					)
+					.map(({ method }) => method),
+			).toEqual(["PUT", "PUT", "POST"]);
+		});
+		const correctiveSave = server.requests.filter((request) => request.method === "PUT")[1];
+		expect(correctiveSave?.body).toMatchObject({
+			data: { title: "Draft title" },
+			_rev: "rev-autosave",
+		});
+	});
+
+	it("refreshes the revision token when a schedule response omits it", async () => {
+		server = createMockServer({ omitScheduleChangeRevision: true });
+		const screen = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title" });
+
+		await title.fill("Scheduled title");
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "POST")).toHaveLength(1);
+		});
+
+		await title.fill("After schedule");
+		await vi.advanceTimersByTimeAsync(2000);
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "PUT")).toHaveLength(2);
+		});
+		const saveAfterSchedule = server.requests.filter((request) => request.method === "PUT")[1];
+		expect(saveAfterSchedule?.body).toMatchObject({
+			data: { title: "After schedule" },
+			_rev: "rev-schedule-1",
+		});
+	});
+});
+
+describe("ContentEditPage actions during a save conflict", () => {
+	const conflictRefusal =
+		"This entry changed somewhere else. Save anyway, or reload to get the newer version.";
+	let server: ReturnType<typeof createSharedEntryServer> | undefined;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		server?.restore();
+		server = undefined;
+		vi.useRealTimers();
+	});
+
+	// One stored entry that refuses a save carrying a stale token, like the real
+	// handler. A save without a token is a blind write and goes through.
+	function createSharedEntryServer(
+		overrides: Partial<RevisionedContentItem> = {},
+		options: { holdFirstSave?: Promise<unknown> } = {},
+	) {
+		const entry = {
+			rev: "rev-initial",
+			data: { title: "Draft title", website: "" } as Record<string, unknown>,
+		};
+		let saves = 0;
+		const storedItem = () => makeItem({ ...overrides, _rev: entry.rev, data: entry.data });
+		const mock = createMockServer({
+			onContentGet: () => contentResponse(storedItem()),
+			onPut: async (request, index) => {
+				if (index === 0) await options.holdFirstSave;
+				const body = request.body ?? {};
+				if (body._rev && body._rev !== entry.rev) {
+					return errorResponse(
+						"CONFLICT",
+						"Content has been modified since last read (version conflict)",
+						409,
+					);
+				}
+				if (body.data) entry.data = body.data as Record<string, unknown>;
+				entry.rev = `rev-save-${++saves}`;
+				return contentResponse(storedItem());
+			},
+		});
+		// The draft revision holds what the server stored, never a refused payload.
+		const serveEntry = globalThis.fetch;
+		globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url === "/_emdash/api/revisions/revision-draft") {
+				await serveEntry(input, init);
+				return jsonResponse({
+					data: {
+						item: {
+							id: "revision-draft",
+							collection: "posts",
+							entryId: "post_1",
+							data: entry.data,
+							authorId: null,
+							createdAt: "2026-01-02T00:00:00Z",
+						},
+					},
+				});
+			}
+			return serveEntry(input, init);
+		}) as typeof fetch;
+		return {
+			...mock,
+			entry,
+			otherWriterSaves(data: Record<string, unknown>) {
+				entry.data = data;
+				entry.rev = "rev-moved";
+			},
+		};
+	}
+
+	async function enterConflict(screen: Awaited<ReturnType<typeof render>>) {
+		server!.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+		await vi.advanceTimersByTimeAsync(2500);
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+	}
+
+	function serveOneOtherUser() {
+		const inner = globalThis.fetch;
+		globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes("/users")) {
+				return jsonResponse({
+					data: {
+						items: [
+							{
+								id: "user_2",
+								email: "other@example.com",
+								name: "Other Writer",
+								avatarUrl: null,
+								role: 40,
+								emailVerified: true,
+								disabled: false,
+								createdAt: "2026-01-01T00:00:00Z",
+								updatedAt: "2026-01-01T00:00:00Z",
+								lastLogin: null,
+							},
+						],
+					},
+				});
+			}
+			return inner(input, init);
+		}) as typeof fetch;
+	}
+
+	function publishRequests() {
+		return server!.requests.filter(
+			(request) => request.method === "POST" && request.url.includes("/publish"),
+		);
+	}
+
+	it("refuses a publication date change and keeps the other writer's version", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await screen.getByRole("button", { name: /Change publication date/ }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await expect.element(dialog.getByText(conflictRefusal)).toBeVisible();
+		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(1);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("disables publishing until the writer decides", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeDisabled();
+	});
+
+	it("disables unpublishing until the writer decides", async () => {
+		server = createSharedEntryServer({ draftRevisionId: null });
+		const screen = await renderEditPage("Unpublish Post");
+		await enterConflict(screen);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Unpublish Post", exact: true }))
+			.toBeDisabled();
+	});
+
+	it("does not publish from a confirmation dialog that was open when the conflict arrived", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title" }).fill("Writer copy");
+		const publishNowButton = await getPublishAction(screen);
+
+		await vi.advanceTimersByTimeAsync(2500);
+		await expect.element(publishNowButton).toBeDisabled();
+		fireEvent.click(publishNowButton.element());
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(publishRequests()).toEqual([]);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+		fireEvent.click(
+			screen
+				.getByRole("dialog", { name: "Publish changes?" })
+				.getByRole("button", { name: "Cancel", exact: true })
+				.element(),
+		);
+		await vi.advanceTimersByTimeAsync(150);
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+	});
+
+	it("does not publish when the conflict arrives while the publish waits for autosave", async () => {
+		const autosave = deferredResponse();
+		server = createSharedEntryServer({}, { holdFirstSave: autosave.promise });
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+		await vi.advanceTimersByTimeAsync(2500);
+
+		await publishNow(screen);
+		autosave.resolve(new Response());
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(publishRequests()).toEqual([]);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("does not save a submission that waited for the autosave the conflict refused", async () => {
+		const autosave = deferredResponse();
+		server = createSharedEntryServer({}, { holdFirstSave: autosave.promise });
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await title.fill("Writer copy");
+		await vi.advanceTimersByTimeAsync(2500);
+
+		fireEvent.submit(title.element().closest("form")!);
+		autosave.resolve(new Response());
+		await vi.advanceTimersByTimeAsync(1000);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(1);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("keeps the conflict when the author changes, so a later edit cannot overwrite", async () => {
+		server = createSharedEntryServer();
+		serveOneOtherUser();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await screen.getByRole("combobox", { name: "Author" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		await page.getByRole("option", { name: /Other Writer/ }).click();
+		await vi.advanceTimersByTimeAsync(5000);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+
+		await expect
+			.element(screen.getByRole("textbox", { name: "Title", exact: true }))
+			.toHaveValue("Writer copy");
+
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy 2");
+		await vi.advanceTimersByTimeAsync(5000);
+
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("refuses a schedule from a dialog that was open when the conflict arrived", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+		await screen.getByRole("button", { name: "Schedule" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		await vi.advanceTimersByTimeAsync(2500);
+
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+
+		await expect.element(dialog.getByText(conflictRefusal)).toBeVisible();
+		expect(
+			server.requests.filter(
+				(request) => request.method === "POST" && request.url.includes("/schedule"),
+			),
+		).toHaveLength(0);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("publishes again once the writer saves anyway", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await screen.getByRole("button", { name: "Save anyway", exact: true }).click();
+		await vi.advanceTimersByTimeAsync(0);
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeEnabled();
+		await publishNow(screen);
+
+		await vi.waitFor(() => expect(publishRequests()).toHaveLength(1));
+		expect(server.entry.data).toMatchObject({ title: "Writer copy" });
 	});
 });

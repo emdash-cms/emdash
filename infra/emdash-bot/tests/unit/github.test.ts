@@ -1,15 +1,43 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
+	confirmAnchorMissing,
+	confirmPullRequestMissing,
 	createIssueComment,
 	findIssueCommentByMarker,
 	getIssueComments,
+	getPullRequestReviewComments,
+	getPullRequestStatus,
+	GitHubPullRequestNotFoundError,
 	getPullRequestHeadBranch,
 	listOpenManagedIssues,
 	updateIssueComment,
 } from "../../.flue/lib/github.js";
 
 const repo = { owner: "emdash-cms", repo: "emdash" };
+
+describe("GitHub missing-anchor confirmation", () => {
+	afterEach(() => vi.unstubAllGlobals());
+
+	test("confirms a missing issue only while repository access still succeeds", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(jsonResponse({ full_name: "emdash-cms/emdash" }))
+				.mockResolvedValueOnce(jsonResponse({}, 404)),
+		);
+		await expect(confirmAnchorMissing("token", repo, 3123)).resolves.toBe(true);
+	});
+
+	test.each([401, 403, 404])(
+		"treats repository status %s as an ambiguous permission failure",
+		async (status) => {
+			vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, status)));
+			await expect(confirmAnchorMissing("token", repo, 3123)).resolves.toBe(false);
+		},
+	);
+});
 
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
@@ -76,7 +104,49 @@ describe("GitHub issue context requests", () => {
 });
 
 describe("GitHub evolving comments", () => {
-	afterEach(() => vi.unstubAllGlobals());
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	test("anchors retry headers to the response time after permit acquisition", async () => {
+		const startedAt = Date.parse("2026-09-21T12:00:00Z");
+		vi.useFakeTimers();
+		vi.setSystemTime(startedAt);
+		const record = vi.fn(async () => undefined);
+		const token = {
+			token: "installation-token",
+			consumer: "test",
+			gate: {
+				permit: vi.fn(async () => {
+					vi.setSystemTime(startedAt + 5_000);
+					return { allowed: true, retryAt: startedAt + 5_000 };
+				}),
+				record,
+				inspect: vi.fn(async () => null),
+				getInstallationToken: vi.fn(async () => "installation-token"),
+			},
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("rate limited", {
+					status: 429,
+					headers: { "retry-after": "10" },
+				}),
+			),
+		);
+
+		const request = createIssueComment(token, repo, 42, "Working");
+		await expect(request).rejects.toMatchObject({
+			retryAt: startedAt + 15_000,
+		});
+		expect(record).toHaveBeenCalledWith(
+			"issue-comment:post",
+			"test",
+			expect.objectContaining({ retryAfterAt: startedAt + 15_000 }),
+		);
+	});
 
 	test("creates, updates, and recovers a comment by marker", async () => {
 		const fetchMock = vi
@@ -132,6 +202,20 @@ describe("GitHub evolving comments", () => {
 });
 
 describe("GitHub pull request lookup", () => {
+	test("returns a typed missing-PR error and confirms it only with repository access", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse({ data: { repository: { pullRequest: null } } }))
+			.mockResolvedValueOnce(jsonResponse({ full_name: "emdash-cms/emdash" }))
+			.mockResolvedValueOnce(jsonResponse({}, 404));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getPullRequestStatus("token", repo, 99)).rejects.toBeInstanceOf(
+			GitHubPullRequestNotFoundError,
+		);
+		await expect(confirmPullRequestMissing("token", repo, 99)).resolves.toBe(true);
+	});
+
 	afterEach(() => vi.unstubAllGlobals());
 
 	test("reads the head branch for a top-level PR comment", async () => {
@@ -151,6 +235,103 @@ describe("GitHub pull request lookup", () => {
 				headers: expect.objectContaining({ authorization: "Bearer token" }),
 			}),
 		);
+	});
+
+	test("combines PR, review, and check state for monitoring", async () => {
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+			jsonResponse({
+				data: {
+					repository: {
+						pullRequest: {
+							number: 99,
+							url: "https://github.com/emdash-cms/emdash/pull/99",
+							state: "OPEN",
+							isDraft: true,
+							merged: false,
+							mergeable: "MERGEABLE",
+							headRefOid: "abc123",
+							reviewDecision: "APPROVED",
+							commits: {
+								nodes: [
+									{
+										commit: {
+											statusCheckRollup: {
+												state: "FAILURE",
+												contexts: {
+													nodes: [
+														{
+															name: "Typecheck",
+															status: "COMPLETED",
+															conclusion: "SUCCESS",
+															detailsUrl: "https://checks/1",
+														},
+														{
+															name: "Tests",
+															status: "COMPLETED",
+															conclusion: "FAILURE",
+															detailsUrl: "https://checks/2",
+														},
+													],
+												},
+											},
+										},
+									},
+								],
+							},
+						},
+					},
+				},
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			number: 99,
+			url: "https://github.com/emdash-cms/emdash/pull/99",
+			state: "open",
+			draft: true,
+			headSha: "abc123",
+			mergeability: "mergeable",
+			review: "approved",
+			checks: "failing",
+			failingChecks: [{ name: "Tests", url: "https://checks/2" }],
+		});
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	test("keeps PR monitoring pending when the status rollup is incomplete", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				jsonResponse({
+					data: {
+						repository: {
+							pullRequest: {
+								number: 99,
+								state: "OPEN",
+								isDraft: false,
+								merged: false,
+								mergeable: "UNKNOWN",
+								headRefOid: "abc123",
+								reviewDecision: null,
+								commits: {
+									nodes: [
+										{
+											commit: { statusCheckRollup: { state: "PENDING", contexts: { nodes: [] } } },
+										},
+									],
+								},
+							},
+						},
+					},
+				}),
+			),
+		);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			checks: "pending",
+			failingChecks: [],
+		});
 	});
 });
 
@@ -216,5 +397,37 @@ describe("GitHub dashboard requests", () => {
 			expect.stringContaining("labels=bot%3Aenhancement"),
 			expect.stringContaining("labels=bot%3Atask"),
 		]);
+	});
+});
+
+describe("GitHub submitted review comments", () => {
+	afterEach(() => vi.unstubAllGlobals());
+	test("collects every page with inline location and diff context", async () => {
+		const comment = {
+			body: "Check the empty case",
+			path: "src/adapter.ts",
+			line: 42,
+			diff_hunk: "@@ -1 +1 @@\n+read()",
+		};
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse(Array.from({ length: 100 }, () => ({ ...comment }))))
+			.mockResolvedValueOnce(
+				jsonResponse([{ ...comment, body: "Also test null", line: null, original_line: 12 }]),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+		const comments = await getPullRequestReviewComments("token", repo, 99, 77);
+		expect(comments).toHaveLength(101);
+		expect(comments[0]).toContain("src/adapter.ts:42");
+		expect(comments[0]).toContain("+read()");
+		expect(comments[100]).toContain("src/adapter.ts:12");
+		expect(comments[100]).toContain("Also test null");
+		expect(fetchMock.mock.calls[1]?.[0]).toContain(
+			"pulls/99/reviews/77/comments?per_page=100&page=2",
+		);
+	});
+	test("fails rather than omitting unavailable review comments", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 403)));
+		await expect(getPullRequestReviewComments("token", repo, 99, 77)).rejects.toThrow("403");
 	});
 });

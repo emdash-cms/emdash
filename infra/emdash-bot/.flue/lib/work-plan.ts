@@ -98,6 +98,17 @@ export function renderWorkPlanComment(input: {
 }
 
 export function renderPreparingWorkPlanComment(input: { mode: RunMode; summary: string }): string {
+	if (input.mode === "triage") {
+		return [
+			"### Triaging issue",
+			"",
+			escapeMarkdown(boundedSummary(input.summary)),
+			"",
+			"Reviewing the report and the relevant repository context.",
+			"",
+			"_Mode: triage_",
+		].join("\n");
+	}
 	return [
 		"### Preparing workspace",
 		"",

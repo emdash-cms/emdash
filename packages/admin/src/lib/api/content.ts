@@ -13,6 +13,7 @@ import {
 	throwResponseError,
 	type FindManyResult,
 } from "./client.js";
+import type { EntryRef } from "./relations.js";
 
 /**
  * Derive draft status from a content item's revision pointers
@@ -60,6 +61,13 @@ export interface ContentItem {
 	draftRevisionId: string | null;
 	seo?: ContentSeo;
 	/**
+	 * First page of reference-field edges, keyed by field slug.
+	 * Only present when the server opts into hydration (the editor GET route).
+	 * Each field's entries are stored solely in `_emdash_content_references`;
+	 * the admin sends the desired id lists back in the `references` save key.
+	 */
+	references?: Record<string, { children: EntryRef[]; nextCursor?: string }>;
+	/**
 	 * Opaque optimistic-concurrency token returned by the content API on
 	 * reads. Echo it back on writes so the server can reject a save that is
 	 * based on a stale read (#2121). Undefined if the server didn't send one.
@@ -75,6 +83,8 @@ export interface CreateContentInput {
 	bylines?: BylineCreditInput[];
 	locale?: string;
 	translationOf?: string;
+	/** Reference-field edges to write atomically, keyed by field slug. */
+	references?: Record<string, string[]>;
 }
 
 export interface TranslationSummary {
@@ -120,6 +130,8 @@ export interface UpdateContentInput {
 	/** Skip revision creation (used by autosave) */
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/** Reference-field edges to replace atomically, keyed by field slug. */
+	references?: Record<string, string[]>;
 	/**
 	 * Optimistic-concurrency token from the last read. When present, the
 	 * server rejects the write with 409 if the entry changed since that read,
@@ -277,6 +289,7 @@ export async function createContent(
 			bylines: input.bylines,
 			locale: input.locale,
 			translationOf: input.translationOf,
+			references: input.references,
 		}),
 	});
 	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
@@ -335,11 +348,13 @@ export async function fetchTrashedContent(
 	options?: {
 		cursor?: string;
 		limit?: number;
+		locale?: string;
 	},
 ): Promise<FindManyResult<TrashedContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
+	if (options?.locale) params.set("locale", options.locale);
 
 	const url = `${API_BASE}/content/${collection}/trash${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -401,11 +416,11 @@ export async function scheduleContent(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ scheduledAt }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to schedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -422,11 +437,11 @@ export async function unscheduleContent(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule${query}`, {
 		method: "DELETE",
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to unschedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -510,19 +525,21 @@ export async function publishContent(
 export async function unpublishContent(
 	collection: string,
 	id: string,
-	options?: { locale?: string },
+	options?: { locale?: string; _rev?: string },
 ): Promise<ContentItem> {
 	const params = new URLSearchParams();
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/unpublish${query}`, {
 		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ _rev: options?._rev }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to unpublish content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -539,8 +556,11 @@ export async function discardDraft(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/discard-draft${query}`, {
 		method: "POST",
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to discard draft");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to discard draft",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -631,9 +651,9 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}
 
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		i18n._(msg`Failed to restore revision`),
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }

@@ -27,8 +27,11 @@ import {
 import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
 import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import { normalizeRegistryConfig, resolveRegistryConfigForSandbox } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
+import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
+import { createDebouncedTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
 	injectCoreRoutes,
@@ -319,12 +322,28 @@ export function buildMiddlewareEntries(
  * Create the EmDash Astro integration
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
+	const registry = resolveRegistryConfigForSandbox({
+		registry: config.registry,
+		experimentalRegistry: config.experimental?.registry,
+		sandboxRunner: config.sandboxRunner,
+		sandboxEnabled: config.sandbox !== false,
+	});
+
 	// Apply defaults
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
 		migrations: normalizeMigrationConfig(config.migrations),
+		registry: config.registry === false ? false : registry.input,
 	};
+
+	// Validate environment-independent registry settings while Astro is still
+	// evaluating its config. The command-aware check in astro:config:setup
+	// applies the stricter production localhost policy.
+	normalizeRegistryConfig(registry.input, {
+		allowLocalhost: true,
+		fieldPrefix: registry.fieldPrefix,
+	});
 
 	// Validate marketplace URL
 	if (resolvedConfig.marketplace) {
@@ -343,12 +362,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				throw new Error(`Invalid marketplace URL: "${url}"`, { cause: e });
 			}
 			throw e;
-		}
-		if (!resolvedConfig.sandboxRunner) {
-			throw new Error(
-				"Marketplace requires `sandboxRunner` to be configured. " +
-					"Marketplace plugins run in sandboxed V8 isolates.",
-			);
 		}
 	}
 
@@ -437,6 +450,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
+		registry: resolvedConfig.registry,
 		experimental: resolvedConfig.experimental,
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
@@ -459,7 +473,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		name: "emdash",
 		hooks: {
 			"astro:config:setup": ({
-				injectRoute,
+				injectRoute: astroInjectRoute,
 				addMiddleware,
 				logger,
 				updateConfig,
@@ -467,6 +481,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
+				normalizeRegistryConfig(registry.input, {
+					allowLocalhost: command === "dev" || command === "sync",
+					fieldPrefix: registry.fieldPrefix,
+				});
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it
 				// to the admin and the registry install gate for `env:astro`
@@ -581,6 +599,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					),
 				});
 
+				// Astro reads a route's `export const prerender` by matching the file's
+				// source text, which the compiled route modules don't match. Without an
+				// explicit value, `output: "static"` would prerender them.
+				const injectRoute: typeof astroInjectRoute = (route) =>
+					astroInjectRoute({ ...route, prerender: false });
+
 				// Inject all core routes
 				injectCoreRoutes(injectRoute, { srcDir: astroConfig.srcDir });
 
@@ -651,57 +675,20 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					});
 				}
 
-				// Generate types once the server is listening.
+				// Generate types once the server is listening, and register the
+				// refresh hook so schema mutations in dev update the file too.
 				// The endpoint returns the types content; we write the file here
 				// (in Node) because workerd has no real filesystem access.
-				server.httpServer?.once("listening", async () => {
-					const { writeFile, readFile } = await import("node:fs/promises");
-					const { resolve } = await import("node:path");
-
+				server.httpServer?.once("listening", () => {
 					const address = server.httpServer?.address();
 					if (!address || typeof address === "string") return;
 
 					const port = address.port;
-					const typegenUrl = `http://localhost:${port}/_emdash/api/typegen`;
-					const outputPath = resolve(process.cwd(), "emdash-env.d.ts");
+					const refreshDevTypes = createDebouncedTypegenRefresh(port, logger);
+					setDevTypegenRefresh(refreshDevTypes);
 
-					try {
-						const response = await fetch(typegenUrl, {
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-						});
-
-						if (!response.ok) {
-							const body = await response.text().catch(() => "");
-							logger.warn(`Typegen failed: ${response.status} ${body.slice(0, 200)}`);
-							return;
-						}
-
-						const { data: result } = (await response.json()) as {
-							data: {
-								types: string;
-								hash: string;
-								collections: number;
-							};
-						};
-
-						// Only write if content changed
-						let needsWrite = true;
-						try {
-							const existing = await readFile(outputPath, "utf-8");
-							if (existing === result.types) needsWrite = false;
-						} catch {
-							// File doesn't exist yet
-						}
-
-						if (needsWrite) {
-							await writeFile(outputPath, result.types, "utf-8");
-							logger.info(`Generated emdash-env.d.ts (${result.collections} collections)`);
-						}
-					} catch (error) {
-						const msg = error instanceof Error ? error.message : String(error);
-						logger.warn(`Typegen failed: ${msg}`);
-					}
+					// Initial generation now that the server is up.
+					refreshDevTypes();
 				});
 			},
 			"astro:build:done": ({ logger }) => {

@@ -11,12 +11,14 @@
  * 4. CLI receives tokens and saves them
  */
 
-import { Button, Input } from "@cloudflare/kumo";
+import { Button, Input, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { apiFetch, API_BASE, parseApiResponse } from "../lib/api";
+import { apiFetch, API_BASE, ApiResponseError, parseApiResponse } from "../lib/api";
+import { cn } from "../lib/utils";
+import { API_TOKEN_SCOPE_VALUES } from "./settings/ApiTokenSettings.js";
 
 // ============================================================================
 // Types
@@ -27,6 +29,11 @@ interface UserInfo {
 	email: string;
 	name: string | null;
 	role: number;
+}
+
+interface DeviceCodeScopes {
+	requestedScopes: string[];
+	grantedScopes: string[];
 }
 
 type PageState = "input" | "submitting" | "success" | "denied" | "error";
@@ -45,12 +52,36 @@ const ROLE_NAMES: Record<number, string> = {
 
 const DEVICE_CODE_INVALID_CHARS_REGEX = /[^A-Z0-9-]/g;
 const DEVICE_CODE_HYPHEN_REGEX = /-/g;
+const DEVICE_CODE_LENGTH = 8;
+
+const SCOPE_DETAILS = new Map<string, (typeof API_TOKEN_SCOPE_VALUES)[number]>(
+	API_TOKEN_SCOPE_VALUES.map((entry) => [entry.scope, entry]),
+);
+const PLUGIN_MCP_SCOPE_PREFIX = "mcp:tools:";
+
+/** Uppercase, strip invalid characters, cap at 9 characters, and insert a hyphen once 4 are typed */
+function formatDeviceCode(raw: string): string {
+	let value = raw.toUpperCase().replace(DEVICE_CODE_INVALID_CHARS_REGEX, "");
+
+	// Auto-insert hyphen after 4 chars if not already present
+	if (value.length === 4 && !value.includes("-")) {
+		value = value + "-";
+	}
+
+	// Limit to 9 chars (XXXX-XXXX)
+	if (value.length > 9) {
+		value = value.slice(0, 9);
+	}
+
+	return value;
+}
 
 // ============================================================================
 // Component
 // ============================================================================
 
 export function DeviceAuthorizePage() {
+	const { t } = useLingui();
 	const [code, setCode] = React.useState("");
 	const [pageState, setPageState] = React.useState<PageState>("input");
 	const [errorMessage, setErrorMessage] = React.useState("");
@@ -69,12 +100,28 @@ export function DeviceAuthorizePage() {
 		retry: false,
 	});
 
+	const normalizedCode = code.replace(DEVICE_CODE_HYPHEN_REGEX, "");
+	const codeComplete = normalizedCode.length === DEVICE_CODE_LENGTH;
+
+	const scopesQuery = useQuery<DeviceCodeScopes>({
+		queryKey: ["device-code-scopes", normalizedCode],
+		queryFn: async () => {
+			const params = new URLSearchParams({ user_code: normalizedCode });
+			const res = await apiFetch(`${API_BASE}/oauth/device/authorize?${params}`);
+			return parseApiResponse<DeviceCodeScopes>(res, t`Could not check this code`);
+		},
+		enabled: !!user && codeComplete && (pageState === "input" || pageState === "error"),
+		retry: false,
+	});
+
+	const canApprove = (scopesQuery.data?.grantedScopes.length ?? 0) > 0;
+
 	// Pre-populate from URL query param (?code=ABCD-1234)
 	React.useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
 		const urlCode = params.get("code");
 		if (urlCode) {
-			setCode(urlCode);
+			setCode(formatDeviceCode(urlCode));
 		}
 	}, []);
 
@@ -90,7 +137,7 @@ export function DeviceAuthorizePage() {
 		e.preventDefault();
 
 		const trimmed = code.trim();
-		if (!trimmed) return;
+		if (!trimmed || !canApprove) return;
 
 		setPageState("submitting");
 		setErrorMessage("");
@@ -130,24 +177,9 @@ export function DeviceAuthorizePage() {
 		}
 	}
 
-	// Format code as user types (insert hyphen after 4 chars)
 	function handleCodeChange(e: React.ChangeEvent<HTMLInputElement>) {
-		let value = e.target.value.toUpperCase().replace(DEVICE_CODE_INVALID_CHARS_REGEX, "");
-
-		// Auto-insert hyphen after 4 chars if not already present
-		if (value.length === 4 && !value.includes("-")) {
-			value = value + "-";
-		}
-
-		// Limit to 9 chars (XXXX-XXXX)
-		if (value.length > 9) {
-			value = value.slice(0, 9);
-		}
-
-		setCode(value);
+		setCode(formatDeviceCode(e.target.value));
 	}
-
-	const { t } = useLingui();
 
 	if (isLoading) {
 		return (
@@ -246,15 +278,20 @@ export function DeviceAuthorizePage() {
 								<p className="text-sm text-kumo-danger mt-2">{errorMessage}</p>
 							)}
 
+							{codeComplete && (
+								<RequestedScopes
+									isLoading={scopesQuery.isLoading}
+									error={scopesQuery.error}
+									scopes={scopesQuery.data}
+								/>
+							)}
+
 							{/* Actions */}
 							<div className="flex gap-2 mt-4">
 								<Button
 									type="submit"
 									className="flex-1"
-									disabled={
-										code.replace(DEVICE_CODE_HYPHEN_REGEX, "").length < 8 ||
-										pageState === "submitting"
-									}
+									disabled={!codeComplete || !canApprove || pageState === "submitting"}
 								>
 									{pageState === "submitting" ? t`Authorizing...` : t`Authorize`}
 								</Button>
@@ -262,10 +299,7 @@ export function DeviceAuthorizePage() {
 									type="button"
 									variant="outline"
 									onClick={handleDeny}
-									disabled={
-										code.replace(DEVICE_CODE_HYPHEN_REGEX, "").length < 8 ||
-										pageState === "submitting"
-									}
+									disabled={!codeComplete || pageState === "submitting"}
 								>
 									{t`Deny`}
 								</Button>
@@ -273,14 +307,116 @@ export function DeviceAuthorizePage() {
 						</div>
 
 						<p className="text-xs text-kumo-subtle text-center mt-4">
-							{t`This will grant CLI access with your permissions.`}
-							<br />
 							{t`Only authorize codes you recognize.`}
 						</p>
 					</form>
 				)}
 			</div>
 		</PageWrapper>
+	);
+}
+
+// ============================================================================
+// Requested scopes
+// ============================================================================
+
+function RequestedScopes({
+	isLoading,
+	error,
+	scopes,
+}: {
+	isLoading: boolean;
+	error: Error | null;
+	scopes: DeviceCodeScopes | undefined;
+}) {
+	const { t } = useLingui();
+	const grantedHeadingId = React.useId();
+	const withheldHeadingId = React.useId();
+
+	if (isLoading) {
+		return (
+			<div className="flex items-center gap-2 text-sm text-kumo-subtle mt-4">
+				<Loader size="sm" />
+				{t`Checking code...`}
+			</div>
+		);
+	}
+
+	if (error) {
+		let message = t`Could not check this code.`;
+		if (error instanceof ApiResponseError && error.code === "INVALID_CODE") {
+			message = t`This code is invalid or has already been used.`;
+		} else if (error instanceof ApiResponseError && error.code === "EXPIRED_CODE") {
+			message = t`This code has expired. Start the sign-in again from your terminal to get a new one.`;
+		}
+		return (
+			<p className="text-sm text-kumo-danger mt-2" role="alert">
+				{message}
+			</p>
+		);
+	}
+
+	if (!scopes) return null;
+
+	const withheld = scopes.requestedScopes.filter((scope) => !scopes.grantedScopes.includes(scope));
+
+	return (
+		<div className="mt-4 space-y-4">
+			{scopes.grantedScopes.length > 0 ? (
+				<section aria-labelledby={grantedHeadingId}>
+					<h2
+						id={grantedHeadingId}
+						className="text-sm font-medium mb-2"
+					>{t`This device is requesting permission to use:`}</h2>
+					<ScopeList scopes={scopes.grantedScopes} />
+				</section>
+			) : (
+				<p className="text-sm text-kumo-danger" role="alert">
+					{t`Your role does not permit any of the permissions this device requested.`}
+				</p>
+			)}
+			{withheld.length > 0 && (
+				<section aria-labelledby={withheldHeadingId}>
+					<h2 id={withheldHeadingId} className="text-sm font-medium mb-2 text-kumo-subtle">
+						{t`Also requested, but not available to your role:`}
+					</h2>
+					<ScopeList scopes={withheld} muted />
+				</section>
+			)}
+		</div>
+	);
+}
+
+function ScopeList({ scopes, muted = false }: { scopes: string[]; muted?: boolean }) {
+	const { t } = useLingui();
+
+	return (
+		<ul
+			className={cn(
+				"rounded-md border border-kumo-line divide-y divide-kumo-line",
+				muted && "opacity-70",
+			)}
+		>
+			{scopes.map((scope) => {
+				const details = SCOPE_DETAILS.get(scope);
+				let label = scope;
+				let description: string | undefined;
+				if (details) {
+					label = t(details.label);
+					description = t(details.description);
+				} else if (scope.startsWith(PLUGIN_MCP_SCOPE_PREFIX)) {
+					const pluginId = scope.slice(PLUGIN_MCP_SCOPE_PREFIX.length);
+					label = t`Plugin MCP Tools`;
+					description = t`Invoke MCP tools from the ${pluginId} plugin`;
+				}
+				return (
+					<li key={scope} className="px-3 py-2">
+						<div className="text-sm font-medium">{label}</div>
+						{description && <div className="text-xs text-kumo-subtle mt-0.5">{description}</div>}
+					</li>
+				);
+			})}
+		</ul>
 	);
 }
 

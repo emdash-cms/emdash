@@ -18,6 +18,7 @@ import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
 import { openNodeSqliteDatabase } from "../../src/db/node-sqlite-compat.js";
 import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
+import { resetRegisteredCollectionsCacheForTests } from "../../src/schema/collection-slugs-cache.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
 
@@ -34,6 +35,7 @@ import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
  */
 function resetSchemaCachesForTests(): void {
 	resetTaxonomyDefsCacheForTests();
+	resetRegisteredCollectionsCacheForTests();
 }
 
 // ---------------------------------------------------------------------------
@@ -499,6 +501,26 @@ export async function setupForDialectWithCollections(
 	}
 	const db = await setupTestDatabaseWithCollections();
 	return { db, dialect };
+}
+
+/**
+ * A handle that `withTransaction` treats as an open transaction, so a handler
+ * given it runs its statements inline instead of opening one of its own — D1's
+ * boundary, where each statement that has run stays run.
+ *
+ * A real transaction can't stand in for that: Postgres aborts one on the first
+ * error, so the read that checks what survived the failure fails too.
+ */
+export function asInlineTransaction(db: Kysely<DatabaseSchema>): Kysely<DatabaseSchema> {
+	return new Proxy(db, {
+		get(target, prop) {
+			if (prop === "isTransaction") return true;
+			// Kysely reads private fields off `this`, which a proxy doesn't carry,
+			// so both getters and methods have to see the real instance.
+			const value = Reflect.get(target, prop);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
 }
 
 /**

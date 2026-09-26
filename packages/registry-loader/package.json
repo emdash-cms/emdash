@@ -1,0 +1,55 @@
+{
+	"name": "@emdash-cms/registry-loader",
+	"version": "0.1.0",
+	"description": "Astro live content loader for the EmDash plugin registry.",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
+	},
+	"dependencies": {
+		"@atcute/lexicons": "catalog:",
+		"@emdash-cms/registry-client": "workspace:*"
+	},
+	"peerDependencies": {
+		"astro": ">=6.0.0-beta.0"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"astro": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"keywords": [
+		"astro",
+		"emdash",
+		"cms",
+		"plugin-registry",
+		"live-loader"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/registry-loader"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

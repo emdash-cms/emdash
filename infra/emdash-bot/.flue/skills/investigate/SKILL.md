@@ -29,7 +29,7 @@ Your Workspace tools are `read_file`, `write_file`, `edit_file`, `ls`, `grep`, a
 
 - **`read_file` / `ls` / `edit_file` / `write_file` / `grep`** operate on the VFS directly. They are fast and cheap; use them for the overwhelming majority of the work.
 - **`code`** runs a JavaScript snippet against the VFS for anything the flat tools can't express -- multi-file analysis, structured searches, tree walks. It is read-only: change files with `write_file`/`edit_file`.
-- **`exec` runs in the Linux container.** That is where the shell, git, `node`, `pnpm`, `astro`, `vitest`, and `agent-browser` live -- and the only place. Container attach is the slow, heavyweight path; it is where you run the toolchain, and where any `git log`/`show`/`diff` archaeology happens against the container's native clone. For commit/PR metadata, the read-only GitHub API is often cheaper than attaching.
+- **`exec` runs in the credential-free Linux container.** That is where the shell, git, `node`, `pnpm`, `astro`, `vitest`, formatters, generators, and `agent-browser` live. Its candidate changes are checkpointed into the durable workspace after each command, including a nonzero exit. Local Git operations are allowed; remote publication is not.
 - **Dev servers background natively.** For an admin or public repro, start the demo with `astro dev --background` (`astro preview --background` since 7.2) -- it detaches, enables JSON logging, and returns once ready; check `astro dev status` / `.astro/dev.json`, tail `astro dev logs --follow`, stop with `astro dev stop`. No external process manager. The server persists for the lifetime of the attached container, so start it once and reuse it across steps.
 
 The discipline: **VFS-first, container on demand.** Do every read, grep, and analysis in the VFS. Escalate to the container the moment -- and only the moment -- you need to install, build, run tests, drive a browser, or inspect git history. Each leaf skill states which path it needs; follow it.
@@ -84,9 +84,9 @@ Follow **`verify`**. It reads the diagnosed code, its comments, the docs, `AGENT
 
 ## Stage 5 -- Fix (conditional, maintainer-triggered)
 
-Run **`fix`** only when **all** hold:
+Run **`fix`** only during a work or revision run and when **all** hold:
 
-- The maintainer directive for this run is an explicit **fix** directive (not repro/diagnose-only).
+- The current run permits candidate publication (not triage or investigation-only).
 - `verify.verdict === "bug"`.
 - `diagnose.confidence !== "low"` (cause pinned to at least medium).
 - `diagnose.fixApproach !== "needs-design-decision"` (fix is `mechanical` or `clear-best-option`).

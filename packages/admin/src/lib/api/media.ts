@@ -69,9 +69,14 @@ export interface MediaUsageEntryDetail {
 	sources: MediaUsageSourceDetail[];
 }
 
+export interface MediaUsageSiteSettingDetail {
+	setting: "logo" | "favicon" | "seo.defaultOgImage";
+}
+
 export interface MediaUsageDetailsResponse {
 	items: MediaUsageEntryDetail[];
 	nextCursor?: string;
+	siteSettings: MediaUsageSiteSettingDetail[];
 	coverage: MediaUsageCoverage;
 }
 
@@ -357,14 +362,14 @@ async function confirmUpload(
 	mediaId: string,
 	metadata?: { width?: number; height?: number; size?: number },
 	options?: MediaUploadOptions,
-): Promise<MediaItem> {
+): Promise<LocalMediaItem> {
 	const response = await apiFetch(`${API_BASE}/media/${mediaId}/confirm`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(metadata || {}),
 		signal: options?.signal,
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
 		response,
 		i18n._(msg`Failed to confirm upload`),
 	);
@@ -395,7 +400,7 @@ async function uploadToSignedUrl(
 /**
  * Get image dimensions from a file
  */
-async function getImageDimensions(
+export async function getImageDimensions(
 	file: File,
 	options?: MediaUploadOptions,
 ): Promise<{ width: number; height: number } | null> {
@@ -438,7 +443,7 @@ async function getImageDimensions(
 /**
  * Upload media file via direct upload (legacy/local storage)
  */
-async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise<MediaItem> {
+async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise<LocalMediaItem> {
 	// Get image dimensions before upload
 	const dimensions = await getImageDimensions(file, opts);
 
@@ -458,7 +463,7 @@ async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise
 		body: formData,
 		signal: opts?.signal,
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
 		response,
 		i18n._(msg`Failed to upload media`),
 	);
@@ -471,7 +476,7 @@ async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise
  * Tries signed URL upload first (for S3/R2 storage), falls back to direct upload
  * (for local storage) if signed URLs are not supported.
  */
-export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promise<MediaItem> {
+export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promise<LocalMediaItem> {
 	opts?.signal?.throwIfAborted();
 	// Try to get a signed upload URL
 	const uploadInfo = await getUploadUrl(file, opts);

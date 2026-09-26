@@ -15,6 +15,11 @@ describe("admin editor image metadata", () => {
 				alt: "A photo",
 				caption: "Visible caption",
 				title: "Hover title",
+				width: 1200,
+				height: 800,
+				displayWidth: 600,
+				displayHeight: 400,
+				alignment: "center",
 			} as never,
 		]);
 
@@ -22,6 +27,36 @@ describe("admin editor image metadata", () => {
 
 		expect(restored.caption).toBe("Visible caption");
 		expect(restored.title).toBe("Hover title");
+		expect(restored.alt).toBe("A photo");
+		expect(restored.displayWidth).toBe(600);
+		expect(restored.displayHeight).toBe(400);
+		expect(restored.alignment).toBe("center");
+	});
+
+	it("drops non-finite dimensions before save and reload", () => {
+		const portableText = prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: {
+						src: "/photo.jpg",
+						mediaId: "media-1",
+						displayWidth: Number.NaN,
+						displayHeight: Number.POSITIVE_INFINITY,
+					},
+				},
+			],
+		});
+		const image = portableText[0] as Record<string, unknown>;
+		expect(image.displayWidth).toBeUndefined();
+		expect(image.displayHeight).toBeUndefined();
+
+		const reloaded = portableTextToProsemirror(portableText).content?.[0] as {
+			attrs?: Record<string, unknown>;
+		};
+		expect(reloaded.attrs?.displayWidth).toBeUndefined();
+		expect(reloaded.attrs?.displayHeight).toBeUndefined();
 	});
 
 	it("keeps a cleared caption separate from the tooltip title across reloads", () => {

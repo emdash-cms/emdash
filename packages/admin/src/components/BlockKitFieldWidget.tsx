@@ -42,7 +42,7 @@ export function BlockKitFieldWidget({
 
 	return (
 		<div>
-			<span className="text-sm font-medium leading-none">{label}</span>
+			<span className="text-base font-medium leading-5 text-kumo-default">{label}</span>
 			<div className="mt-2 space-y-3">
 				{validElements.map((el) => (
 					<BlockKitFieldElement
@@ -124,7 +124,7 @@ function BlockKitFieldElement({
 			);
 		default:
 			return (
-				<div className="text-sm text-kumo-subtle">
+				<div className="text-xs leading-4 text-kumo-subtle">
 					{t`Unsupported widget element type: ${(element as { type: string }).type}`}
 				</div>
 			);
