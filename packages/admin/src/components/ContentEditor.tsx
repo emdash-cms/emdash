@@ -2810,8 +2810,11 @@ function ReferenceFieldRenderer({
 }
 
 const URL_PROTOCOL_PATTERN = /^https?:\/\//;
+const SITE_RELATIVE_URL_PATTERN = /^(\/(?![/\\])|#)[^\t\n\r]*$/;
+const CONTACT_URL_PATTERN = /^(mailto|tel):\S/i;
 
 function isValidUrl(val: string): boolean {
+	if (SITE_RELATIVE_URL_PATTERN.test(val) || CONTACT_URL_PATTERN.test(val)) return true;
 	if (!URL_PROTOCOL_PATTERN.test(val)) return false;
 	try {
 		const url = new URL(val);
@@ -2936,6 +2939,7 @@ function UrlFieldEditor({
 
 	const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
 		const val = e.target.value.trim();
+		if (val !== e.target.value) onChange(val);
 		if (!val) {
 			setError(null);
 			return;
@@ -2952,7 +2956,9 @@ function UrlFieldEditor({
 			<Input
 				label={<span className={labelClass}>{label}</span>}
 				id={id}
-				type="url"
+				type="text"
+				inputMode="url"
+				dir="ltr"
 				value={value}
 				onChange={(e) => {
 					if (error) setError(null);

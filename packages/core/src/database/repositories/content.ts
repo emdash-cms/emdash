@@ -350,7 +350,7 @@ export class ContentRepository {
 			publishedAt,
 			createdAt,
 		} = input;
-		const data = await this.datetimes.normalizeData(type, inputData);
+		const data = await this.datetimes.normalizeInput(type, inputData);
 		const normalizedCreatedAt = createdAt
 			? await this.datetimes.normalizeValue(type, createdAt)
 			: now;
@@ -989,7 +989,7 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			const data = await this.datetimes.normalizeInput(type, writableContentData(input.data));
 			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
@@ -1206,7 +1206,7 @@ export class ContentRepository {
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
 		const data = input.data
-			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			? await this.datetimes.normalizeInput(type, writableContentData(input.data))
 			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;

@@ -4,6 +4,7 @@
  * values (column types, NOT NULL, Postgres int4 / float4).
  */
 
+import { isSafeUrlFieldWriteValue } from "../../utils/url.js";
 import { isTransferError } from "../errors.js";
 import { measureJsonDepth } from "../format/canonical.js";
 import { encodeColumn } from "../format/column-codec.js";
@@ -21,6 +22,19 @@ export interface FieldInfo {
 	required: boolean;
 	/** Values live as content references; the target has no column for them. */
 	storageless?: boolean;
+	type?: "url" | "repeater" | "blocks";
+	urlSubFields?: string[];
+}
+
+export interface BlockTypeInfo {
+	id: string;
+	currentVersion: number;
+}
+
+export interface UrlValueField {
+	slug: string;
+	type: "url" | "repeater";
+	urlSubFields?: string[];
 }
 
 const PROVIDER_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -166,6 +180,90 @@ function mismatch(field: string, message: string): ValueIssue {
 	return { code: "value_constraint_violation", message, property: "fields", field };
 }
 
+function urlMismatch(property: string, field: string): ValueIssue {
+	return {
+		code: "value_constraint_violation",
+		message: "URL field value is not safe to store",
+		property,
+		field,
+	};
+}
+
+function arrayValue(value: unknown): unknown[] | undefined {
+	if (Array.isArray(value)) return value;
+	if (typeof value !== "string") return undefined;
+	const parsed = parseEmbeddedJson(value);
+	return Array.isArray(parsed) ? parsed : undefined;
+}
+
+function unsafeUrlFields(value: unknown, fields: readonly UrlValueField[], path: string): string[] {
+	const issues: string[] = [];
+	if (!isPlainObject(value)) return issues;
+	for (const field of fields) {
+		const fieldPath = `${path}.${field.slug}`;
+		const fieldValue = value[field.slug];
+		if (field.type === "url") {
+			if (typeof fieldValue === "string" && !isSafeUrlFieldWriteValue(fieldValue)) {
+				issues.push(fieldPath);
+			}
+			continue;
+		}
+		for (const [index, row] of (arrayValue(fieldValue) ?? []).entries()) {
+			if (!isPlainObject(row)) continue;
+			for (const slug of field.urlSubFields ?? []) {
+				const nested = row[slug];
+				if (typeof nested === "string" && !isSafeUrlFieldWriteValue(nested)) {
+					issues.push(`${fieldPath}.${index}.${slug}`);
+				}
+			}
+		}
+	}
+	return issues;
+}
+
+export function checkContentUrlFields(
+	values: Record<string, unknown>,
+	fields: ReadonlyMap<string, FieldInfo>,
+	blockTypes: ReadonlyMap<string, BlockTypeInfo>,
+	blockVersions: ReadonlyMap<string, readonly UrlValueField[]>,
+	property: "fields" | "data",
+): ValueIssue[] {
+	const issues: ValueIssue[] = [];
+	for (const [slug, info] of fields) {
+		const value = values[slug];
+		if (info.type === "url") {
+			if (typeof value === "string" && !isSafeUrlFieldWriteValue(value)) {
+				issues.push(urlMismatch(property, slug));
+			}
+			continue;
+		}
+		if (info.type === "repeater") {
+			const descriptors: UrlValueField[] = [
+				{ slug, type: "repeater", urlSubFields: info.urlSubFields },
+			];
+			for (const path of unsafeUrlFields(values, descriptors, property)) {
+				issues.push(urlMismatch(property, path.slice(property.length + 1)));
+			}
+			continue;
+		}
+		if (info.type !== "blocks") continue;
+		for (const [index, block] of (arrayValue(value) ?? []).entries()) {
+			if (!isPlainObject(block) || typeof block._type !== "string") continue;
+			const type = blockTypes.get(block._type);
+			if (!type) continue;
+			const version =
+				typeof block._version === "number" && Number.isInteger(block._version)
+					? block._version
+					: type.currentVersion;
+			const descriptors = blockVersions.get(`${type.id}:${version}`) ?? [];
+			for (const path of unsafeUrlFields(block, descriptors, `${slug}.${index}`)) {
+				issues.push(urlMismatch(property, path));
+			}
+		}
+	}
+	return issues;
+}
+
 /**
  * Entry field values against the target column each field is stored in,
  * through the shared column codec: a value the codec cannot encode for the
@@ -178,8 +276,13 @@ export function checkEntryFields(
 	entry: EntryRecord,
 	fields: ReadonlyMap<string, FieldInfo>,
 	dialect: TargetDialect,
+	blockTypes: ReadonlyMap<string, BlockTypeInfo> = new Map(),
+	blockVersions: ReadonlyMap<string, readonly UrlValueField[]> = new Map(),
 ): ValueCheckResult {
-	const result: ValueCheckResult = { issues: [], float4Rounded: 0 };
+	const result: ValueCheckResult = {
+		issues: checkContentUrlFields(entry.fields, fields, blockTypes, blockVersions, "fields"),
+		float4Rounded: 0,
+	};
 	for (const [slug, value] of Object.entries(entry.fields)) {
 		const info = fields.get(slug);
 		if (!info) {
