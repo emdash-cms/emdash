@@ -1,7 +1,14 @@
 import { z, type ZodType } from "zod";
 
 import { hashString } from "../utils/hash.js";
-import type { CollectionWithFields, Field, FieldType, RepeaterSubField } from "./types.js";
+import type { BlockFieldDefinition } from "./block-types.js";
+import {
+	isStoragelessField,
+	type CollectionWithFields,
+	type Field,
+	type FieldType,
+	type RepeaterSubField,
+} from "./types.js";
 
 /** Pattern to split on underscores, hyphens, and spaces for PascalCase conversion */
 const PASCAL_CASE_SPLIT_PATTERN = /[_\-\s]+/;
@@ -18,6 +25,7 @@ export function generateZodSchema(
 	const shape: Record<string, ZodType> = {};
 
 	for (const field of collection.fields) {
+		if (isStoragelessField(field)) continue;
 		shape[field.slug] = generateFieldSchema(field);
 	}
 
@@ -27,7 +35,9 @@ export function generateZodSchema(
 /**
  * Generate Zod schema for a single field
  */
-export function generateFieldSchema(field: Field): ZodType {
+type RuntimeFieldDefinition = Pick<Field, "type" | "validation" | "required" | "defaultValue">;
+
+export function generateFieldSchema(field: RuntimeFieldDefinition): ZodType {
 	let schema = getBaseSchema(field.type, field);
 
 	// Apply validation rules
@@ -53,6 +63,15 @@ export function generateFieldSchema(field: Field): ZodType {
 	}
 
 	return schema;
+}
+
+export function generateBlockFieldSchema(field: BlockFieldDefinition): ZodType {
+	return generateFieldSchema({
+		type: field.type,
+		validation: field.validation,
+		required: field.required ?? false,
+		defaultValue: field.defaultValue,
+	});
 }
 
 /**
@@ -108,6 +127,9 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 
 		case "repeater":
 			return z.array(generateRepeaterRowSchema(field.validation?.subFields ?? []));
+
+		case "blocks":
+			return z.array(z.unknown());
 
 		case "portableText":
 			// Portable Text is an array of blocks. We require `_type` because
@@ -205,7 +227,10 @@ function generateRepeaterRowSchema(
 /**
  * Apply validation rules to a schema
  */
-function applyValidation(schema: ZodType, field: Field): ZodType {
+function applyValidation(
+	schema: ZodType,
+	field: Pick<RuntimeFieldDefinition, "type" | "validation">,
+): ZodType {
 	const validation = field.validation;
 	if (!validation) return schema;
 
@@ -236,7 +261,7 @@ function applyValidation(schema: ZodType, field: Field): ZodType {
 		return numSchema;
 	}
 
-	if (field.type === "repeater" && schema instanceof z.ZodArray) {
+	if ((field.type === "repeater" || field.type === "blocks") && schema instanceof z.ZodArray) {
 		let arraySchema = schema;
 		if (validation.minItems !== undefined) {
 			arraySchema = arraySchema.min(validation.minItems);
@@ -321,6 +346,7 @@ export function validateContent(
 export function generateTypeScript(
 	collection: CollectionWithFields,
 	interfaceName: string = getInterfaceName(collection),
+	blockFieldTypes: ReadonlyMap<string, string> = new Map(),
 ): string {
 	const lines: string[] = [];
 
@@ -330,7 +356,11 @@ export function generateTypeScript(
 	lines.push(`  status: string;`);
 
 	for (const field of collection.fields) {
-		const tsType = fieldTypeToTypeScript(field);
+		// A storage-less field holds no value in `data`; a reference field bound to
+		// a relation resolves through `references` instead. One that predates
+		// relations still owns its column, so it stays an entry id string.
+		if (isStoragelessField(field)) continue;
+		const tsType = blockFieldTypes.get(field.slug) ?? fieldTypeToTypeScript(field);
 		const optional = field.required ? "" : "?";
 		lines.push(`  ${field.slug}${optional}: ${tsType};`);
 	}
@@ -339,6 +369,7 @@ export function generateTypeScript(
 	lines.push(`  updatedAt: Date;`);
 	lines.push(`  publishedAt: Date | null;`);
 	// Bylines are eagerly loaded by getEmDashCollection/getEmDashEntry
+	lines.push(`  byline?: BylineSummary | null;`);
 	lines.push(`  bylines?: ContentBylineCredit[];`);
 	// Taxonomy terms are eagerly loaded by getEmDashCollection/getEmDashEntry,
 	// keyed by taxonomy name (e.g. data.terms?.tag)
@@ -346,6 +377,54 @@ export function generateTypeScript(
 	lines.push(`}`);
 
 	return lines.join("\n");
+}
+
+function generateBlockTypeDeclarations(
+	collection: CollectionWithFields,
+	interfaceName: string,
+): { lines: string[]; fieldTypes: Map<string, string> } {
+	const lines: string[] = [];
+	const fieldTypes = new Map<string, string>();
+	for (const field of collection.fields) {
+		if (field.type !== "blocks") continue;
+		const fieldName = `${interfaceName}${pascalCase(field.slug)}`;
+		const typeNames: string[] = [];
+		for (const blockType of field.blockTypes ?? []) {
+			const typeName = `${fieldName}${pascalCase(blockType.slug)}`;
+			const versionNames: string[] = [];
+			for (const version of blockType.versions) {
+				const versionName = `${typeName}V${version.version}Block`;
+				versionNames.push(versionName);
+				lines.push(`export interface ${versionName} {`);
+				lines.push(`  _type: ${JSON.stringify(blockType.slug)};`);
+				lines.push(`  _version: ${version.version};`);
+				lines.push(`  _key: string;`);
+				for (const nestedField of version.fields) {
+					const nestedType = fieldTypeToTypeScript({
+						type: nestedField.type,
+						validation: nestedField.validation,
+					});
+					const name = JSON.stringify(nestedField.slug);
+					lines.push(
+						nestedField.required
+							? `  ${name}: ${nestedType};`
+							: `  ${name}?: ${nestedType} | null;`,
+					);
+				}
+				lines.push(`}`);
+				lines.push(``);
+			}
+			const unionName = `${typeName}Block`;
+			lines.push(`export type ${unionName} = ${versionNames.join(" | ") || "never"};`);
+			lines.push(``);
+			typeNames.push(unionName);
+		}
+		const fieldUnion = `${fieldName}Block`;
+		lines.push(`export type ${fieldUnion} = ${typeNames.join(" | ") || "never"};`);
+		lines.push(``);
+		fieldTypes.set(field.slug, `${fieldUnion}[]`);
+	}
+	return { lines, fieldTypes };
 }
 
 /**
@@ -363,15 +442,28 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 	lines.push(``);
 
 	// Check if we need PortableTextBlock import
-	const needsPortableText = collections.some((c) =>
-		c.fields.some((f) => f.type === "portableText"),
+	const needsPortableText = collections.some((collection) =>
+		collection.fields.some(
+			(field) =>
+				field.type === "portableText" ||
+				field.blockTypes?.some((blockType) =>
+					blockType.versions.some((version) =>
+						version.fields.some((nestedField) => nestedField.type === "portableText"),
+					),
+				),
+		),
 	);
 
-	// Build imports - ContentBylineCredit and TaxonomyTerm are always needed
+	const withReferences = collections.filter((c) => c.fields.some(isStoragelessField));
+
+	// Build imports - BylineSummary, ContentBylineCredit and TaxonomyTerm are always needed
 	// for the hydrated bylines/terms fields
-	const imports = ["ContentBylineCredit", "TaxonomyTerm"];
+	const imports = ["BylineSummary", "ContentBylineCredit", "TaxonomyTerm"];
 	if (needsPortableText) {
 		imports.push("PortableTextBlock");
+	}
+	if (withReferences.length > 0) {
+		imports.push("ReferencePage");
 	}
 	lines.push(`import type { ${imports.join(", ")} } from "emdash";`);
 	lines.push(``);
@@ -380,10 +472,26 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 	// (e.g. `book` and `books` both -> `Book`), so resolve collisions up front
 	// to keep every interface identifier unique within the file.
 	const interfaceNames = uniqueInterfaceNames(collections);
+	// `{Collection}References`, built on an already-unique name. No slug can
+	// produce a data interface name ending in `References` -- `singularize`
+	// always strips the trailing `s` of a final `references` segment -- so the
+	// suffix cannot collide with one.
+	const referenceInterfaces: [CollectionWithFields, string][] = withReferences.map((c) => [
+		c,
+		`${interfaceNames.get(c.slug)}References`,
+	]);
 
 	// Generate individual interfaces
 	for (const collection of collections) {
-		lines.push(generateTypeScript(collection, interfaceNames.get(collection.slug)));
+		const interfaceName = interfaceNames.get(collection.slug) ?? getInterfaceName(collection);
+		const blocks = generateBlockTypeDeclarations(collection, interfaceName);
+		lines.push(...blocks.lines);
+		lines.push(generateTypeScript(collection, interfaceName, blocks.fieldTypes));
+		lines.push(``);
+	}
+
+	for (const [collection, name] of referenceInterfaces) {
+		lines.push(generateReferencesTypeScript(collection, name, interfaceNames));
 		lines.push(``);
 	}
 
@@ -394,8 +502,45 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 		lines.push(`    ${collection.slug}: ${interfaceNames.get(collection.slug)};`);
 	}
 	lines.push(`  }`);
+	if (referenceInterfaces.length > 0) {
+		lines.push(`  interface EmDashCollectionReferences {`);
+		for (const [collection, name] of referenceInterfaces) {
+			lines.push(`    ${collection.slug}: ${name};`);
+		}
+		lines.push(`  }`);
+	}
 	lines.push(`}`);
 
+	return lines.join("\n");
+}
+
+/**
+ * Generate the references interface for one collection: a page per reference
+ * field bound to a relation, keyed by field slug, which is how
+ * `getEmDashEntry({ references })` both asks for and returns them.
+ *
+ * A field is always present on the interface, not optional -- a selection that
+ * names it always yields a page, empty when nothing is linked. The narrowing in
+ * `getEmDashEntry` picks out the fields the caller asked for.
+ */
+function generateReferencesTypeScript(
+	collection: CollectionWithFields,
+	interfaceName: string,
+	interfaceNames: Map<string, string>,
+): string {
+	const lines: string[] = [`export interface ${interfaceName} {`];
+
+	for (const field of collection.fields) {
+		if (!isStoragelessField(field)) continue;
+		// A target outside this file (dropped collection, or a relation whose
+		// other end has not been created) leaves the page's data un-narrowed
+		// rather than referring to an identifier that does not exist.
+		const target = field.validation?.targetCollection;
+		const targetName = target ? interfaceNames.get(target) : undefined;
+		lines.push(`  ${field.slug}: ReferencePage${targetName ? `<${targetName}>` : ""};`);
+	}
+
+	lines.push(`}`);
 	return lines.join("\n");
 }
 
@@ -411,6 +556,7 @@ export async function generateSchemaHash(collections: CollectionWithFields[]): P
 				type: f.type,
 				required: f.required,
 				validation: f.validation,
+				blockTypeFingerprint: f.blockTypeFingerprint,
 			})),
 		})),
 	);
@@ -498,6 +644,9 @@ function fieldTypeToTypeScript(field: {
 
 		case "json":
 			return "unknown";
+
+		case "blocks":
+			return "unknown[]";
 
 		default:
 			return "unknown";

@@ -197,6 +197,8 @@ export interface EmDashManifest {
 	 * browse or install flows.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry configuration.
 	 *
@@ -304,6 +306,7 @@ export interface EmDashHandlers {
 		collection: string,
 		id: string,
 		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
 	) => Promise<
 		HandlerResponse<{
 			item: {
@@ -326,8 +329,11 @@ export interface EmDashHandlers {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
@@ -350,8 +356,11 @@ export interface EmDashHandlers {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
@@ -460,6 +469,11 @@ export interface EmDashHandlers {
 		dominantColor?: string;
 		authorId?: string;
 		folderId?: string | null;
+	}) => Promise<HandlerResponse>;
+
+	handleMediaRegisterUpload: (input: {
+		storageKey: string;
+		authorId?: string;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaUpdate: (

@@ -1,6 +1,6 @@
 import { i18n } from "@lingui/core";
 import * as React from "react";
-import { beforeAll, describe, it, expect, vi } from "vitest";
+import { beforeAll, beforeEach, describe, it, expect, vi } from "vitest";
 
 import { CommentInbox } from "../../src/components/comments/CommentInbox";
 import type { AdminComment, CommentCounts } from "../../src/lib/api/comments.js";
@@ -53,6 +53,40 @@ const noopProps = {
 };
 
 describe("CommentInbox", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("keeps status switching wired through the page header", async () => {
+		const screen = await render(<CommentInbox {...noopProps} />);
+
+		const pendingTab = screen.getByRole("tab", { name: /^Pending/ });
+		const approvedTab = screen.getByRole("tab", { name: "Approved" });
+
+		await expect.element(pendingTab).toHaveAttribute("aria-selected", "true");
+		expect(pendingTab.element().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+		expect(approvedTab.element().querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+		await approvedTab.click();
+
+		expect(noopProps.onStatusChange).toHaveBeenCalledWith("approved");
+	});
+
+	it("shows page context and a standalone empty state without table chrome", async () => {
+		const screen = await render(
+			<CommentInbox
+				{...noopProps}
+				comments={[]}
+				counts={{ pending: 0, approved: 0, spam: 0, trash: 0 }}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByText("Review and moderate comments across your content."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("No comments awaiting moderation.")).toBeInTheDocument();
+		expect(screen.getByRole("table").query()).toBeNull();
+	});
+
 	it("toggles selection when a row checkbox is clicked", async () => {
 		const screen = await render(<CommentInbox {...noopProps} />);
 

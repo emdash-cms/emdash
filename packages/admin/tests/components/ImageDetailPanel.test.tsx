@@ -709,8 +709,14 @@ describe("ImageDetailPanel", () => {
 				displayWidth: 600,
 				displayHeight: 400,
 				alignment: "wide",
+				link: { href: "https://example.com/first", blank: true },
 			}),
 		);
+
+		await expect
+			.element(screen.getByRole("textbox", { name: "Link URL" }))
+			.toHaveValue("https://example.com/first");
+		await expect.element(screen.getByRole("checkbox", { name: "Open in new tab" })).toBeChecked();
 
 		await screen.rerender(
 			panel(
@@ -742,6 +748,11 @@ describe("ImageDetailPanel", () => {
 		await expect.element(screen.getByLabelText("Tooltip text")).toHaveValue("Second title");
 		await expect.element(screen.getByLabelText("Width")).toHaveValue(450);
 		await expect.element(screen.getByLabelText("Height")).toHaveValue(300);
+		// The second node has no link: the fields must not keep the first node's values.
+		await expect.element(screen.getByRole("textbox", { name: "Link URL" })).toHaveValue("");
+		await expect
+			.element(screen.getByRole("checkbox", { name: "Open in new tab" }))
+			.not.toBeChecked();
 
 		await screen.rerender(
 			panel(
@@ -756,6 +767,7 @@ describe("ImageDetailPanel", () => {
 					caption: "Third caption",
 					title: "Third title",
 					alignment: "full",
+					link: { href: "https://example.com/third" },
 				},
 				onThirdUpdate,
 			),
@@ -764,6 +776,12 @@ describe("ImageDetailPanel", () => {
 		await expect
 			.element(screen.getByRole("textbox", { name: "Alt text", exact: true }))
 			.toHaveValue("Third alt");
+		await expect
+			.element(screen.getByRole("textbox", { name: "Link URL" }))
+			.toHaveValue("https://example.com/third");
+		await expect
+			.element(screen.getByRole("checkbox", { name: "Open in new tab" }))
+			.not.toBeChecked();
 		await screen.getByRole("textbox", { name: "Alt text", exact: true }).fill("Updated third alt");
 		await screen.getByRole("button", { name: "Apply" }).click();
 
@@ -775,6 +793,34 @@ describe("ImageDetailPanel", () => {
 			displayWidth: undefined,
 			displayHeight: undefined,
 			alignment: "full",
+			link: { href: "https://example.com/third" },
 		});
+	});
+
+	it("applies a link with the open-in-new-tab choice", async () => {
+		const { screen, onUpdate } = await renderPanel();
+
+		await screen.getByRole("textbox", { name: "Link URL" }).fill("https://example.com/promo");
+		await screen.getByRole("checkbox", { name: "Open in new tab" }).click();
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({ link: { href: "https://example.com/promo", blank: true } }),
+		);
+	});
+
+	it("clears the link when the URL is emptied", async () => {
+		const { screen, onUpdate } = await renderPanel({
+			...baseAttributes,
+			link: { href: "https://example.com/promo", blank: true },
+		});
+
+		await expect
+			.element(screen.getByRole("textbox", { name: "Link URL" }))
+			.toHaveValue("https://example.com/promo");
+		await screen.getByRole("textbox", { name: "Link URL" }).fill("");
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ link: null }));
 	});
 });

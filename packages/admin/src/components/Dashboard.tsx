@@ -1,14 +1,16 @@
 import { Badge, Banner, Button, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Upload } from "@phosphor-icons/react";
+import { FileArrowUp, Plus, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import * as React from "react";
 
 import type { AdminManifest } from "../lib/api";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
 import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
+import { fetchTransferCapabilities, TRANSFER_CAPABILITIES_QUERY_KEY } from "../lib/api/transfer.js";
 import { usePluginWidget } from "../lib/plugin-context";
 import { cn, formatRelativeTime } from "../lib/utils";
 import { ArrowNext } from "./ArrowIcons";
@@ -35,6 +37,8 @@ const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+
+const SITE_IMPORT_HINT_DISMISSED_KEY = "emdash:dashboard:site-import-hint-dismissed";
 
 export interface DashboardProps {
 	manifest: AdminManifest;
@@ -70,6 +74,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 			{showDashboardData && (
 				<>
+					{stats && (user?.role ?? 0) >= ROLE_ADMIN && <SiteImportHint stats={stats} />}
 					{stats && (
 						<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
 					)}
@@ -218,6 +223,70 @@ function SchedulerWarning({
 				/>
 			)}
 		</div>
+	);
+}
+
+function readSiteImportHintDismissed(): boolean {
+	try {
+		return window.localStorage.getItem(SITE_IMPORT_HINT_DISMISSED_KEY) === "1";
+	} catch {
+		return false;
+	}
+}
+
+function SiteImportHint({ stats }: { stats: DashboardStats }) {
+	const { t } = useLingui();
+	const [dismissed, setDismissed] = React.useState(readSiteImportHintDismissed);
+	// Any content or media rules out an import, so only ask the server when the
+	// counts already loaded for the dashboard leave it possible.
+	const mayBeEmpty =
+		stats.mediaCount === 0 && stats.collections.every((collection) => collection.total === 0);
+	const { data: capabilities } = useQuery({
+		queryKey: TRANSFER_CAPABILITIES_QUERY_KEY,
+		queryFn: fetchTransferCapabilities,
+		enabled: !dismissed && mayBeEmpty,
+	});
+
+	if (dismissed || !mayBeEmpty || !capabilities?.portableDomain.empty) return null;
+
+	const dismiss = () => {
+		setDismissed(true);
+		try {
+			window.localStorage.setItem(SITE_IMPORT_HINT_DISMISSED_KEY, "1");
+		} catch {
+			// Without storage the hint stays hidden until the next page load.
+		}
+	};
+
+	return (
+		<Banner
+			variant="secondary"
+			icon={<FileArrowUp aria-hidden="true" />}
+			title={t`Moving from another EmDash site?`}
+			description={t`This site has no content yet, so you can import a .emdash package exported from another EmDash site.`}
+			action={
+				<div className="flex items-center gap-1">
+					<RouterLinkButton
+						to="/settings/transfer"
+						search={{ start: "import" }}
+						variant="secondary"
+						size="sm"
+					>
+						{t`Import a site package`}
+					</RouterLinkButton>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						shape="square"
+						onClick={dismiss}
+						aria-label={t`Dismiss import suggestion`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			}
+		/>
 	);
 }
 

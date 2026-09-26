@@ -180,12 +180,15 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				SELECT RAISE(ABORT, 'redirect write lease expired');
 			END
 		`.execute(db);
+		// No `CASE ... END;` inside trigger bodies: the D1 HTTP API used by
+		// `emdash migrate` ends the statement at an inner `END;` and fails with
+		// "incomplete input". `SELECT RAISE(...) WHERE EXISTS (...)` is equivalent.
 		await sql`
 			CREATE TRIGGER IF NOT EXISTS emdash_redirect_loop_insert
 			BEFORE INSERT ON _emdash_redirects
 			WHEN NEW.enabled = 1 AND NEW.destination <> ''
 			BEGIN
-				SELECT CASE WHEN EXISTS (
+				SELECT RAISE(ABORT, 'redirect loop') WHERE EXISTS (
 					WITH RECURSIVE chain(source, destination) AS (
 						SELECT source, destination FROM _emdash_redirects
 						WHERE source = NEW.destination AND enabled = 1
@@ -196,7 +199,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 						WHERE redirect.enabled = 1
 					)
 					SELECT 1 FROM chain WHERE destination = NEW.source
-				) THEN RAISE(ABORT, 'redirect loop') END;
+				);
 			END
 		`.execute(db);
 		await sql`
@@ -204,7 +207,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			BEFORE UPDATE OF source, destination ON _emdash_redirects
 			WHEN NEW.enabled = 1 AND NEW.destination <> ''
 			BEGIN
-				SELECT CASE WHEN EXISTS (
+				SELECT RAISE(ABORT, 'redirect loop') WHERE EXISTS (
 					WITH RECURSIVE chain(source, destination) AS (
 						SELECT source, destination FROM _emdash_redirects
 						WHERE source = NEW.destination AND enabled = 1 AND id <> NEW.id
@@ -215,7 +218,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 						WHERE redirect.enabled = 1 AND redirect.id <> NEW.id
 					)
 					SELECT 1 FROM chain WHERE destination = NEW.source
-				) THEN RAISE(ABORT, 'redirect loop') END;
+				);
 			END
 		`.execute(db);
 		await sql`

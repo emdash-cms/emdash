@@ -478,7 +478,7 @@ The uninstall hook has no return value.
 
 **Capability:** None required
 
-Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`.
+Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`. Cron expressions are evaluated in UTC on every host.
 
 ```ts
 hooks: {
@@ -531,7 +531,14 @@ hooks: {
 
 ```ts
 interface EmailBeforeSendEvent {
-	message: { to: string; subject: string; text: string; html?: string };
+	message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	};
 	source: string;
 }
 ```
@@ -562,12 +569,21 @@ hooks: {
 
 ```ts
 interface EmailDeliverEvent {
-	message: { to: string; subject: string; text: string; html?: string };
+	message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	};
 	source: string;
 }
 ```
 
 The hook has no return value. `source` is `"system"` for EmDash authentication messages and the plugin ID for messages sent by a plugin.
+
+Plugins can set `cc` (additional recipients) and `replyTo` on a message. Providers should deliver both when they are present; a provider that drops `cc` silently leaves those recipients without the message.
 
 ### `email:afterSend`
 
@@ -697,6 +713,10 @@ interface CommentModerateEvent {
 ```ts
 { status: "approved" | "pending" | "spam"; reason?: string }
 ```
+
+#### Active moderator
+
+EmDash includes a built-in moderator that applies the collection's comment settings. When exactly one plugin provides `comment:moderate`, EmDash selects that plugin instead of the built-in moderator and stores the choice. When several plugins provide it and no choice is stored, EmDash selects none of them and new comments wait for review. A stored choice, including one of the built-in moderator, stays in effect while the selected moderator is enabled.
 
 ### `comment:afterCreate`
 

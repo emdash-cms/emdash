@@ -1,24 +1,43 @@
 ---
-import { getEmDashEntry } from "emdash";
+import { getEmDashEntry, getSeoMeta } from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "../layouts/Base.astro";
 
-const { entry: page, cacheHint } = await getEmDashEntry("pages", "about");
-
+const {
+	entry: page,
+	error,
+	cacheHint,
+} = await getEmDashEntry("pages", "about");
+if (error) return new Response("Could not load the page", { status: 500 });
+if (!page) return Astro.redirect("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const seo = getSeoMeta(page, {
+	siteUrl: Astro.url.origin,
+	path: "/about",
+	defaultDescription: "Learn more about who we are and what we do.",
+});
 ---
 
-<Base title="About" description="Learn more about who we are and what we do.">
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{ collection: "pages", id: page.data.id, slug: "about" }}
+>
 	<div class="about-page">
 		<header class="about-header">
-			<h1 class="about-title" {...page?.edit?.title}>
-				{page?.data?.title || "About"}
+			<h1 class="about-title" {...page.edit.title}>
+				{page.data.title}
 			</h1>
 		</header>
 
-		<div class="about-content" {...page?.edit?.content}>
+		<div class="about-content" {...page.edit.content}>
 			{
-				page?.data?.content ? (
+				page.data.content ? (
 					<PortableText value={page.data.content} />
 				) : (
 					<p>Content coming soon.</p>

@@ -1,7 +1,13 @@
 ---
-import { getEmDashEntry, decodeSlug } from "emdash";
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
 import { PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -16,10 +22,20 @@ if (!page) {
 }
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(page, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
 ---
 
 <Base
-	title={page.data.title}
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
 	content={{ collection: "pages", id: page.data.id, slug }}
 >
 	<article class="page-article">
@@ -27,7 +43,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 			<h1 class="page-title" {...page.edit.title}>{page.data.title}</h1>
 		</header>
 
-		<div class="page-content">
+		<div class="page-content" {...page.edit.content}>
 			<PortableText value={page.data.content} />
 		</div>
 	</article>

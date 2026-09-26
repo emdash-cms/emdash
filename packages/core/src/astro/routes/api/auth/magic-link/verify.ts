@@ -1,7 +1,12 @@
 /**
- * GET /_emdash/api/auth/magic-link/verify
+ * GET  /_emdash/api/auth/magic-link/verify
+ * POST /_emdash/api/auth/magic-link/verify
  *
- * Verify a magic link token and create a session.
+ * GET is the link in the email. It only forwards to the admin confirmation
+ * page, because mail scanners fetch every link in a message and would
+ * otherwise use up the single-use token before the recipient clicks.
+ *
+ * POST verifies the token and creates the session.
  * Tokens are single-use and expire after 15 minutes.
  */
 
@@ -12,60 +17,53 @@ export const prerender = false;
 import { verifyMagicLink, MagicLinkError } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
-import { apiError } from "#api/error.js";
-import { isSafeRedirect } from "#api/redirect.js";
+import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { isParseError, parseBody } from "#api/parse.js";
+import { magicLinkVerifyBody } from "#api/schemas.js";
 
-export const GET: APIRoute = async ({ url, locals, session, redirect }) => {
+export const GET: APIRoute = async ({ url, redirect }) => {
+	const token = url.searchParams.get("token");
+	if (!token) {
+		return redirect("/_emdash/admin/login?error=missing_token");
+	}
+
+	const confirmUrl = new URLSearchParams({ token });
+	const rawRedirect = url.searchParams.get("redirect");
+	if (rawRedirect) confirmUrl.set("redirect", rawRedirect);
+	return redirect(`/_emdash/admin/login/magic-link?${confirmUrl.toString()}`);
+};
+
+export const POST: APIRoute = async ({ request, locals, session }) => {
 	const { emdash } = locals;
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	// Get token from query params
-	const token = url.searchParams.get("token");
-
-	if (!token) {
-		// Redirect to login with error
-		return redirect("/_emdash/admin/login?error=missing_token");
-	}
-
 	try {
-		// Verify the magic link token
+		const body = await parseBody(request, magicLinkVerifyBody);
+		if (isParseError(body)) return body;
+
 		const adapter = createKyselyAdapter(emdash.db);
-		const user = await verifyMagicLink(adapter, token);
+		const user = await verifyMagicLink(adapter, body.token);
 
 		// Fire-and-forget cleanup of expired tokens -- prevents accumulation
 		void adapter.deleteExpiredTokens().catch(() => {});
 
-		// Create session
-		if (session) {
-			session.set("user", { id: user.id });
-		}
+		session?.set("user", { id: user.id });
 
-		// Check for a stored redirect URL (from original request)
-		// Validate redirect is a safe local path (prevent open redirect via //evil.com or /\evil.com)
-		const rawRedirect = url.searchParams.get("redirect");
-		const redirectUrl = isSafeRedirect(rawRedirect) ? rawRedirect : "/_emdash/admin";
-
-		// Redirect to admin dashboard or original URL
-		return redirect(redirectUrl);
+		return apiSuccess({ success: true });
 	} catch (error) {
-		console.error("Magic link verify error:", error);
-
-		// Handle specific errors
 		if (error instanceof MagicLinkError) {
-			switch (error.code) {
-				case "invalid_token":
-					return redirect("/_emdash/admin/login?error=invalid_link");
-				case "token_expired":
-					return redirect("/_emdash/admin/login?error=link_expired");
-				case "user_not_found":
-					return redirect("/_emdash/admin/login?error=user_not_found");
-			}
+			const statusMap: Record<MagicLinkError["code"], number> = {
+				invalid_token: 400,
+				token_expired: 410,
+				user_not_found: 404,
+				email_not_configured: 500,
+			};
+			return apiError(error.code.toUpperCase(), error.message, statusMap[error.code]);
 		}
 
-		// Generic error
-		return redirect("/_emdash/admin/login?error=verification_failed");
+		return handleError(error, "Failed to verify magic link", "MAGIC_LINK_VERIFY_ERROR");
 	}
 };

@@ -171,6 +171,8 @@ export interface AdminManifest {
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 					unsupportedType?: { type: string; path: string };
+					blockTypes?: import("./schema.js").BlockType[];
+					blockTypeFingerprint?: string;
 				}
 			>;
 		}
@@ -281,6 +283,8 @@ export interface AdminManifest {
 	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry. Defaults to the hosted aggregator when
 	 * the plugin sandbox is enabled, or reflects an explicit registry config.

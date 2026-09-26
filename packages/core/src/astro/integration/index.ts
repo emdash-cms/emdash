@@ -473,7 +473,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		name: "emdash",
 		hooks: {
 			"astro:config:setup": ({
-				injectRoute,
+				injectRoute: astroInjectRoute,
 				addMiddleware,
 				logger,
 				updateConfig,
@@ -598,6 +598,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 						command,
 					),
 				});
+
+				// Astro reads a route's `export const prerender` by matching the file's
+				// source text, which the compiled route modules don't match. Without an
+				// explicit value, `output: "static"` would prerender them.
+				const injectRoute: typeof astroInjectRoute = (route) =>
+					astroInjectRoute({ ...route, prerender: false });
 
 				// Inject all core routes
 				injectCoreRoutes(injectRoute, { srcDir: astroConfig.srcDir });

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	checkEnvCompatibility,
+	compareVersions,
 	findSkippedEnvConstraints,
 	hostEnvFromVersions,
 	isValidVersionRange,
@@ -223,5 +224,19 @@ describe("hostEnvFromVersions", () => {
 		expect(hostEnvFromVersions("1.2.0", undefined)).toEqual({ "env:emdash": "1.2.0" });
 		expect(hostEnvFromVersions(undefined, "4.16.0")).toEqual({ "env:astro": "4.16.0" });
 		expect(hostEnvFromVersions(undefined, undefined)).toEqual({});
+	});
+});
+
+describe("compareVersions", () => {
+	it("orders by semver precedence, including prereleases", () => {
+		expect(compareVersions("1.2.3", "2.0.0")).toBeLessThan(0);
+		expect(compareVersions("1.10.0", "1.9.0")).toBeGreaterThan(0);
+		expect(compareVersions("2.0.0-rc.1", "2.0.0")).toBeLessThan(0);
+		expect(compareVersions("1.2.3", "1.2.3")).toBe(0);
+	});
+
+	it("returns null when either version is not valid semver", () => {
+		expect(compareVersions("latest", "1.0.0")).toBeNull();
+		expect(compareVersions("1.0.0", "1.0")).toBeNull();
 	});
 });

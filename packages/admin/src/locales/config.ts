@@ -71,7 +71,7 @@ for (const l of SUPPORTED_LOCALES) {
  * don't prevent matching. Supports script codes (zh-Hant -> zh-TW, zh-Hans -> zh-CN)
  * and falls back to base language (pt-PT -> pt-BR).
  */
-function matchLocale(tag: string): string | undefined {
+export function matchLocale(tag: string): string | undefined {
 	const trimmed = tag.trim();
 	if (!trimmed) return undefined;
 	let canonical: string;

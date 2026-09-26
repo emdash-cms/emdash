@@ -2,18 +2,25 @@
  * Restore revision endpoint - injected by EmDash integration
  *
  * POST /_emdash/api/revisions/{revisionId}/restore - Restore revision
+ *
+ * Optional JSON body: { overrideLock?: boolean }
  */
 
 import type { APIRoute } from "astro";
 
 import { requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
+import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { revisionRestoreBody } from "#api/schemas.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const revisionId = params.revisionId!;
+	const body = await parseOptionalBody(request, revisionRestoreBody, {});
+	if (isParseError(body)) return body;
 
 	if (!emdash?.handleRevisionRestore || !emdash?.handleRevisionGet || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
@@ -51,6 +58,15 @@ export const POST: APIRoute = async ({ params, locals }) => {
 	// Check ownership: authors can only restore their own content, editors+ can restore any
 	const denied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
 	if (denied) return denied;
+
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, entryId, user!.id, {
+		override: body.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
 
 	const result = await emdash.handleRevisionRestore(revisionId, user!.id);
 

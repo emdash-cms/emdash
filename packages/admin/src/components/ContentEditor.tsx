@@ -3,10 +3,12 @@ import {
 	Banner,
 	Button,
 	Checkbox,
+	Field,
 	Input,
 	InputArea,
 	Label,
 	LinkButton,
+	Loader,
 	Select,
 	Sidebar,
 	Switch,
@@ -21,7 +23,12 @@ import {
 	X,
 	ArrowsInSimple,
 	ArrowsOutSimple,
+	CaretUp,
+	CaretDown,
+	Plus,
+	Trash,
 } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -34,7 +41,12 @@ import type {
 	UserListItem,
 	TranslationSummary,
 } from "../lib/api";
-import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import {
+	fetchReferenceChildren,
+	fetchReferenceParents,
+	getPreviewUrl,
+	getDraftStatus,
+} from "../lib/api";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
@@ -52,6 +64,8 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { BlockKitFieldWidget } from "./BlockKitFieldWidget.js";
+import { BlocksField } from "./BlocksField.js";
+import { ContentPickerModal, type PickedContentEntry } from "./ContentPickerModal.js";
 import {
 	ContentSettingsPanel,
 	DiscardDraftDialog,
@@ -62,6 +76,7 @@ import {
 } from "./ContentSettingsPanel.js";
 import { EditorDraftPatchPreview } from "./EditorDraftPatchPreview.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
+import { NonListFieldValue, isNonListValue } from "./NonListFieldValue.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
@@ -81,6 +96,7 @@ const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
 const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
 const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
 const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
+const LIST_FIELD_KINDS = new Set(["repeater", "portableText", "multiSelect", "blocks"]);
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -111,6 +127,7 @@ const SERVER_FIELD_TYPE_TO_EDITOR_KIND: Record<string, string> = {
 	reference: "reference",
 	json: "json",
 	repeater: "repeater",
+	blocks: "blocks",
 };
 
 function editorFieldMatchesReceipt(
@@ -169,6 +186,100 @@ export interface FieldDescriptor {
 	widget?: string;
 	validation?: Record<string, unknown>;
 	unsupportedType?: { type: string; path: string };
+	blockTypes?: import("../lib/api/schema.js").BlockType[];
+	blockTypeFingerprint?: string;
+}
+
+/**
+ * A single staged reference row in the editor. `title` comes from the picker
+ * for freshly added rows and from the server's resolved refs for hydrated rows;
+ * it falls back to slug/id for display when the entry has no title/name.
+ */
+export type ReferenceEntryRow = {
+	id: string;
+	slug: string | null;
+	title?: string;
+	locale?: string | null;
+	/**
+	 * The referenced entry's translation group. `id` is whichever locale variant
+	 * the server resolved for this editor's locale, so the group is what the
+	 * picker matches against to recognize an entry that is already linked.
+	 */
+	translationGroup?: string | null;
+};
+
+type ReferenceGroupState = {
+	/** The last-saved id order — the diff baseline for dirty tracking. */
+	baseline: ReferenceEntryRow[];
+	/** The user's current staged selection. */
+	current: ReferenceEntryRow[];
+	/** Set while more pages of the hydrated set remain to be loaded. */
+	nextCursor?: string;
+	loading: boolean;
+	/** Set when a page load failed. Stops auto-paging so a failing request never
+	 * retries in a tight loop; cleared when the state is reseeded for a new entry. */
+	error?: boolean;
+};
+
+/** Seed reference state from a hydrated item (first page per reference field). */
+function seedReferenceState(item?: ContentItem | null): Record<string, ReferenceGroupState> {
+	const out: Record<string, ReferenceGroupState> = {};
+	const refs = item?.references;
+	if (!refs) return out;
+	for (const [group, page] of Object.entries(refs)) {
+		const rows: ReferenceEntryRow[] = page.children.map((c) => ({
+			id: c.id,
+			slug: c.slug,
+			title: c.title ?? undefined,
+			locale: c.locale,
+			translationGroup: c.translationGroup,
+		}));
+		out[group] = { baseline: rows, current: rows, nextCursor: page.nextCursor, loading: false };
+	}
+	return out;
+}
+
+/** Order-sensitive id comparison of two reference-row lists. */
+function sameReferenceIds(a: ReferenceEntryRow[], b: ReferenceEntryRow[]): boolean {
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i++) {
+		if (a[i]?.id !== b[i]?.id) return false;
+	}
+	return true;
+}
+
+/**
+ * Build the `references` save payload from staged state, keyed by field slug.
+ * Only fields whose id list has changed are included: the server replaces the
+ * links of every field it receives, so sending an untouched (and possibly
+ * not-yet-fully-loaded) field would risk overwriting it with a partial list.
+ * Untouched fields are omitted and left as-is on the server.
+ */
+/**
+ * What one autosave would send, as a value that can be compared with what the
+ * server refused. References are part of it: a selection is the whole change a
+ * picker-only save carries, so leaving it out would make the next save look like
+ * the rejected one and suppress it for good.
+ */
+function autosavePayloadKey(
+	state: string,
+	references: Record<string, string[]> | undefined,
+): string {
+	return references ? `${state}|refs=${JSON.stringify(references)}` : state;
+}
+
+function buildReferencesPayload(
+	state: Record<string, ReferenceGroupState>,
+): Record<string, string[]> | undefined {
+	const out: Record<string, string[]> = {};
+	let any = false;
+	for (const [group, s] of Object.entries(state)) {
+		if (!sameReferenceIds(s.baseline, s.current)) {
+			out[group] = s.current.map((r) => r.id);
+			any = true;
+		}
+	}
+	return any ? out : undefined;
 }
 
 /** Simplified user info for current user context */
@@ -198,12 +309,16 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void;
 	/** Callback for autosave (debounced, skips revision creation) */
 	onAutosave?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
+		/** The entries behind `references`, for callers that cache the saved selection. */
+		referenceRows?: Record<string, ReferenceEntryRow[]>;
 	}) => void;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
@@ -223,6 +338,7 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void | Promise<void>;
 	onUnpublish?: (payload?: {
 		data: Record<string, unknown>;
@@ -240,6 +356,7 @@ export interface ContentEditorProps {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		},
 	) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
@@ -247,6 +364,7 @@ export interface ContentEditorProps {
 		data: Record<string, unknown>;
 		slug?: string;
 		bylines?: BylineCreditInput[];
+		references?: Record<string, string[]>;
 	}) => void | Promise<void>;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
@@ -419,6 +537,24 @@ export function ContentEditor({
 	// would wipe them.
 	const [bylinesTouched, setBylinesTouched] = React.useState(false);
 
+	// Staged reference-field selections, keyed by field slug.
+	// Seeded from the hydrated first page; the picker fills titles for
+	// newly added rows. Edges save inside the content payload — never via edge
+	// POSTs.
+	const [referenceState, setReferenceState] = React.useState<Record<string, ReferenceGroupState>>(
+		() => seedReferenceState(item),
+	);
+	// Mirror in a ref so save/autosave/load-more callbacks read fresh state
+	// without re-subscribing.
+	const referenceStateRef = React.useRef(referenceState);
+	referenceStateRef.current = referenceState;
+	// Snapshot of the reference groups sent in the in-flight autosave, applied
+	// as the new baseline when the autosave resolves (mirrors the data path's
+	// pendingAutosaveStateRef, since autosave patches the cache without a refetch).
+	const pendingAutosaveReferencesRef = React.useRef<Record<string, ReferenceEntryRow[]> | null>(
+		null,
+	);
+
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
 	const [portableTextEditor, setPortableTextEditor] = React.useState<Editor | null>(null);
@@ -460,6 +596,8 @@ export function ContentEditor({
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
+	/** The same payload including its selections — what a rejection is keyed by. */
+	const pendingAutosaveKeyRef = React.useRef<string | null>(null);
 	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
 	const [isPublishing, setIsPublishing] = React.useState(false);
 	const isPublishingRef = React.useRef(false);
@@ -493,6 +631,9 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		pendingAutosaveKeyRef.current = null;
+		pendingAutosaveReferencesRef.current = null;
+		setReferenceState(seedReferenceState(item));
 		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
 		setHasAppliedEditorDraftPatch(false);
@@ -541,7 +682,16 @@ export function ContentEditor({
 			);
 			if (!autosaveJustCompleted) {
 				pendingAutosaveStateRef.current = null;
+				pendingAutosaveKeyRef.current = null;
 				setRejectedAutosaveState(null);
+			}
+			// Re-seed only from an item read with its references. An item without them
+			// is waiting on a refetch, and an autosave's item holds the selection as it
+			// was sent, so re-seeding from either would drop what the editor holds. The
+			// autosave baseline reset instead runs off `autosaveCompletionToken` below.
+			if (item.references && !autosaveJustCompleted) {
+				setReferenceState(seedReferenceState(item));
+				pendingAutosaveReferencesRef.current = null;
 			}
 		}
 	}, [
@@ -550,6 +700,7 @@ export function ContentEditor({
 		itemBylinesString,
 		item?.slug,
 		item?.status,
+		item?.references,
 		autosaveCompletionToken,
 	]);
 
@@ -592,7 +743,14 @@ export function ContentEditor({
 			}),
 		[formData, slug, activeBylines],
 	);
-	const isDirty = isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData;
+	// References live outside `serializeEditorState` — they carry their own
+	// baseline/current diff (order-sensitive id lists).
+	const referencesDirty = React.useMemo(
+		() => Object.values(referenceState).some((s) => !sameReferenceIds(s.baseline, s.current)),
+		[referenceState],
+	);
+	const isDirty =
+		isNew || hasAppliedEditorDraftPatch || currentData !== lastSavedData || referencesDirty;
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
 	// Read at call time, not captured: a control that has not re-rendered since the
@@ -604,6 +762,97 @@ export function ContentEditor({
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
 		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly;
+
+	// Replace a reference field's staged current selection (add/remove/reorder).
+	// Upserts the field so one with no hydrated rows can take its first pick.
+	const handleReferenceCurrentChange = React.useCallback(
+		(fieldSlug: string, rows: ReferenceEntryRow[]) => {
+			setReferenceState((prev) => {
+				const existing = prev[fieldSlug];
+				return {
+					...prev,
+					[fieldSlug]: existing
+						? { ...existing, current: rows }
+						: { baseline: [], current: rows, loading: false },
+				};
+			});
+		},
+		[],
+	);
+
+	// Page the rest of a field's hydrated set. The full set must be loaded before
+	// reorder/remove so a save never emits a partial (truncating) list.
+	//
+	// State is keyed by field slug, the key the entry API takes a selection under,
+	// while the paging routes address the relation — so the relation and the side
+	// the field views come from the field descriptor.
+	const handleLoadMoreReferences = React.useCallback(
+		async (group: string) => {
+			if (!item?.id) return;
+			const st = referenceStateRef.current[group];
+			if (!st || !st.nextCursor || st.loading) return;
+			const validation = fields[group]?.validation;
+			const relation = typeof validation?.relation === "string" ? validation.relation : undefined;
+			if (!relation) return;
+			const onChildSide = validation?.relationSide === "child";
+			const cursor = st.nextCursor;
+			setReferenceState((prev) => {
+				const cur = prev[group];
+				return cur ? { ...prev, [group]: { ...cur, loading: true } } : prev;
+			});
+			try {
+				const res = onChildSide
+					? await fetchReferenceParents(collection, item.id, relation, { cursor }).then((page) => ({
+							children: page.parents,
+							nextCursor: page.nextCursor,
+						}))
+					: await fetchReferenceChildren(collection, item.id, relation, { cursor });
+				const rows: ReferenceEntryRow[] = res.children.map((c) => ({
+					id: c.id,
+					slug: c.slug,
+					title: c.title ?? undefined,
+					locale: c.locale,
+					translationGroup: c.translationGroup,
+				}));
+				setReferenceState((prev) => {
+					const cur = prev[group];
+					if (!cur) return prev;
+					// Loading appends to the baseline. If the user hasn't diverged yet
+					// (current === baseline), mirror the append into current too so the
+					// newly loaded rows appear without registering as an edit.
+					const unedited = sameReferenceIds(cur.baseline, cur.current);
+					const seen = new Set(cur.baseline.map((r) => r.id));
+					const nextBaseline = [...cur.baseline, ...rows.filter((r) => !seen.has(r.id))];
+					return {
+						...prev,
+						[group]: {
+							baseline: nextBaseline,
+							current: unedited ? nextBaseline : cur.current,
+							nextCursor: res.nextCursor,
+							loading: false,
+						},
+					};
+				});
+			} catch {
+				setReferenceState((prev) => {
+					const cur = prev[group];
+					// Flag the failure so the auto-page effect stops retrying — clearing
+					// only `loading` would leave `nextCursor` set and spin the request.
+					return cur ? { ...prev, [group]: { ...cur, loading: false, error: true } } : prev;
+				});
+			}
+		},
+		[collection, item?.id, fields],
+	);
+
+	// Clearing the flag is the whole retry: the auto-page effect gates on it and
+	// re-fires against the unchanged `nextCursor`.
+	const handleRetryReferences = React.useCallback((group: string) => {
+		setReferenceState((prev) => {
+			const cur = prev[group];
+			return cur ? { ...prev, [group]: { ...cur, error: false } } : prev;
+		});
+	}, []);
 
 	// Autosave with debounce
 	// Track pending autosave to cancel on manual save
@@ -706,23 +955,47 @@ export function ContentEditor({
 	}, [editorDraftResponseIsCurrent, pendingEditorDraftPatch, t]);
 
 	React.useEffect(() => {
-		if (!autosaveCompletionToken || !pendingAutosaveStateRef.current) {
+		if (!autosaveCompletionToken) {
 			return;
 		}
 
-		setLastSavedData(pendingAutosaveStateRef.current);
-		pendingAutosaveStateRef.current = null;
-		editorGenerationRef.current++;
-		setHasAppliedEditorDraftPatch(false);
+		if (pendingAutosaveStateRef.current) {
+			setLastSavedData(pendingAutosaveStateRef.current);
+			pendingAutosaveStateRef.current = null;
+			editorGenerationRef.current++;
+			setHasAppliedEditorDraftPatch(false);
+		}
+		pendingAutosaveKeyRef.current = null;
+
+		// Mark the reference groups that autosave just persisted as saved by
+		// advancing their baseline to the sent snapshot. Editing further before
+		// the autosave resolved leaves `current` ahead of this baseline, so the
+		// group stays dirty and re-autosaves.
+		if (pendingAutosaveReferencesRef.current) {
+			const snapshot = pendingAutosaveReferencesRef.current;
+			pendingAutosaveReferencesRef.current = null;
+			setReferenceState((prev) => {
+				const next = { ...prev };
+				for (const [group, rows] of Object.entries(snapshot)) {
+					const cur = next[group];
+					if (cur) next[group] = { ...cur, baseline: rows };
+				}
+				return next;
+			});
+		}
 	}, [autosaveCompletionToken]);
 
 	React.useEffect(() => {
-		if (!autosaveRejectionToken || !pendingAutosaveStateRef.current) {
+		if (!autosaveRejectionToken || !pendingAutosaveKeyRef.current) {
 			return;
 		}
 
-		setRejectedAutosaveState(pendingAutosaveStateRef.current);
+		setRejectedAutosaveState(pendingAutosaveKeyRef.current);
+		pendingAutosaveKeyRef.current = null;
 		pendingAutosaveStateRef.current = null;
+		// The selections it carried were not saved, so nothing may advance their
+		// baseline — least of all a later autosave completing.
+		pendingAutosaveReferencesRef.current = null;
 	}, [autosaveRejectionToken]);
 
 	// A save refused under someone else's lock is retried once the entry is
@@ -748,11 +1021,14 @@ export function ContentEditor({
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		} = {
 			data: formDataRef.current,
 			slug: slugRef.current || undefined,
 		};
 		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		const references = buildReferencesPayload(referenceStateRef.current);
+		if (references) payload.references = references;
 		return payload;
 	}, [activeBylines, bylinesTouched, isNew]);
 	const cancelPendingAutosave = React.useCallback(() => {
@@ -780,7 +1056,10 @@ export function ContentEditor({
 			return;
 		}
 
-		if (currentData === rejectedAutosaveState) {
+		if (
+			autosavePayloadKey(currentData, buildReferencesPayload(referenceState)) ===
+			rejectedAutosaveState
+		) {
 			return;
 		}
 
@@ -799,12 +1078,25 @@ export function ContentEditor({
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
 			const payload = createSavePayload();
+			let referenceRows: Record<string, ReferenceEntryRow[]> | undefined;
+			if (payload.references) {
+				// Remember what we sent so the baseline can advance on resolve.
+				referenceRows = {};
+				for (const group of Object.keys(payload.references)) {
+					referenceRows[group] = referenceStateRef.current[group]?.current ?? [];
+				}
+				pendingAutosaveReferencesRef.current = referenceRows;
+			}
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
 				bylines: activeBylines,
 			});
-			onAutosave(payload);
+			pendingAutosaveKeyRef.current = autosavePayloadKey(
+				pendingAutosaveStateRef.current,
+				payload.references,
+			);
+			onAutosave(referenceRows ? { ...payload, referenceRows } : payload);
 		}, AUTOSAVE_DELAY);
 
 		return () => {
@@ -824,6 +1116,7 @@ export function ContentEditor({
 		bylinesTouched,
 		createSavePayload,
 		hasInvalidUrls,
+		referenceState,
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
 		readOnly,
@@ -898,6 +1191,7 @@ export function ContentEditor({
 				data: Record<string, unknown>;
 				slug?: string;
 				bylines?: BylineCreditInput[];
+				references?: Record<string, string[]>;
 			}) => void | Promise<void>,
 			invalidFieldsMessage?: string,
 		) => {
@@ -1397,6 +1691,13 @@ export function ContentEditor({
 											manifest={manifest}
 											readOnly={readOnly}
 											timezone={timezone}
+											referenceState={referenceState}
+											onReferenceChange={handleReferenceCurrentChange}
+											onLoadMoreReferences={handleLoadMoreReferences}
+											onRetryReferences={handleRetryReferences}
+											// Existing entries carry their locale on `item`; new entries only
+											// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
+											entryLocale={item?.locale ?? entryLocale}
 										/>
 									);
 									return fieldEl;
@@ -1763,6 +2064,16 @@ interface FieldRendererProps {
 	onBlockSidebarClose?: () => void;
 	/** Admin manifest for resolving sandboxed field widget elements */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
+	/** Staged reference selections for every reference field, by field slug. */
+	referenceState?: Record<string, ReferenceGroupState>;
+	/** Replace a reference field's staged current selection. */
+	onReferenceChange?: (fieldSlug: string, rows: ReferenceEntryRow[]) => void;
+	/** Page the rest of a relation's hydrated set. */
+	onLoadMoreReferences?: (group: string) => void;
+	/** Clear a reference field's load error so paging resumes from the same cursor. */
+	onRetryReferences?: (fieldSlug: string) => void;
+	/** Locale of the editing entry; threaded to reference pickers. */
+	entryLocale?: string | null;
 	/** Render the value without accepting edits. */
 	readOnly?: boolean;
 	timezone: string;
@@ -1782,6 +2093,11 @@ function FieldRenderer({
 	onBlockSidebarOpen,
 	onBlockSidebarClose,
 	manifest,
+	referenceState,
+	onReferenceChange,
+	onLoadMoreReferences,
+	onRetryReferences,
+	entryLocale,
 	readOnly = false,
 	timezone,
 }: FieldRendererProps) {
@@ -1862,6 +2178,12 @@ function FieldRenderer({
 			}
 			// Widget declared but plugin not found/active -- fall through to default
 		}
+	}
+
+	if (LIST_FIELD_KINDS.has(field.kind) && isNonListValue(value)) {
+		return (
+			<NonListFieldValue id={id} label={label} value={value} onReplace={() => handleChange([])} />
+		);
 	}
 
 	switch (field.kind) {
@@ -2117,6 +2439,102 @@ function FieldRenderer({
 			);
 		}
 
+		case "reference": {
+			const relationGroup =
+				typeof field.validation?.relation === "string" ? field.validation.relation : undefined;
+			const targetCollection =
+				typeof field.validation?.targetCollection === "string"
+					? field.validation.targetCollection
+					: undefined;
+			// For a bound field the manifest reports the relation's own cardinality
+			// here; the field row's `multiple` is only the create-time input that set
+			// it, and a later schema edit can rewrite the row without it.
+			const multiple = field.validation?.multiple !== false;
+			// A reference field created before relations existed keeps its own column
+			// holding one entry id, so it stays the text input it has always been
+			// until an admin gives it a target collection.
+			if (!relationGroup || !targetCollection) {
+				return (
+					<Input
+						label={label}
+						id={id}
+						value={typeof value === "string" ? value : ""}
+						onChange={(e) => handleChange(e.target.value)}
+						required={field.required}
+						dir="auto"
+						description={t`Holds an entry ID. Set a target collection under Content Types to pick entries instead.`}
+					/>
+				);
+			}
+			return (
+				<ReferenceFieldRenderer
+					label={label}
+					labelClass={labelClass}
+					required={field.required}
+					targetCollection={targetCollection}
+					multiple={multiple}
+					reorderable={field.validation?.relationSide !== "child"}
+					state={referenceState?.[name]}
+					onChange={(rows) => onReferenceChange?.(name, rows)}
+					onLoadMore={() => onLoadMoreReferences?.(name)}
+					onRetry={() => onRetryReferences?.(name)}
+					entryLocale={entryLocale}
+				/>
+			);
+		}
+
+		case "blocks": {
+			const allowedTypes = Array.isArray(field.validation?.allowedTypes)
+				? field.validation.allowedTypes.filter(
+						(blockType): blockType is string => typeof blockType === "string",
+					)
+				: [];
+			const retiredTypes = Array.isArray(field.validation?.retiredTypes)
+				? field.validation.retiredTypes.filter(
+						(blockType): blockType is string => typeof blockType === "string",
+					)
+				: [];
+			return (
+				<BlocksField
+					id={id}
+					fieldPath={name}
+					label={label}
+					value={value}
+					onChange={handleChange}
+					blockTypes={field.blockTypes ?? []}
+					allowedTypes={allowedTypes}
+					retiredTypes={retiredTypes}
+					minItems={
+						typeof field.validation?.minItems === "number" ? field.validation.minItems : undefined
+					}
+					maxItems={
+						typeof field.validation?.maxItems === "number" ? field.validation.maxItems : undefined
+					}
+					readOnly={readOnly}
+					renderField={({
+						name: nestedName,
+						field: nestedField,
+						value: nestedValue,
+						onChange: onNestedChange,
+					}) => (
+						<FieldRenderer
+							name={nestedName}
+							field={nestedField}
+							value={nestedValue}
+							onChange={(_fieldName, nextValue) => onNestedChange(nextValue)}
+							minimal={minimal}
+							pluginBlocks={pluginBlocks}
+							onBlockSidebarOpen={onBlockSidebarOpen}
+							onBlockSidebarClose={onBlockSidebarClose}
+							manifest={manifest}
+							readOnly={readOnly}
+							timezone={timezone}
+						/>
+					)}
+				/>
+			);
+		}
+
 		case "json": {
 			const jsonString =
 				typeof value === "string" ? value : value != null ? JSON.stringify(value, null, 2) : "";
@@ -2157,6 +2575,238 @@ function FieldRenderer({
 				/>
 			);
 	}
+}
+
+/** Display label for a staged reference row: title, then slug, then id. */
+function referenceRowLabel(row: ReferenceEntryRow): string {
+	return row.title || row.slug || row.id;
+}
+
+/** Identity of a staged row for selection/dedupe: the entry, not the variant. */
+function referenceRowKey(row: ReferenceEntryRow): string {
+	return row.translationGroup ?? row.id;
+}
+
+/**
+ * Reference field editor. Renders the staged selections with remove/reorder
+ * controls and a picker to add more. All mutations flow through `onChange`
+ * into the parent's `referenceState`; nothing is persisted until the content
+ * entry saves (edges ride in the `references` payload key).
+ */
+function ReferenceFieldRenderer({
+	label,
+	labelClass,
+	required,
+	targetCollection,
+	multiple,
+	reorderable,
+	state,
+	onChange,
+	onLoadMore,
+	onRetry,
+	entryLocale,
+}: {
+	label: string;
+	labelClass?: string;
+	required?: boolean;
+	targetCollection: string;
+	multiple: boolean;
+	/**
+	 * Whether the selection has an order to change. A field on the child end of
+	 * its relation has none: `sort_order` positions children within one parent,
+	 * and nothing positions a child's parents.
+	 */
+	reorderable: boolean;
+	state?: ReferenceGroupState;
+	onChange: (rows: ReferenceEntryRow[]) => void;
+	onLoadMore: () => void;
+	onRetry: () => void;
+	/** Locale of the editing entry; scopes the picker to one variant per target. */
+	entryLocale?: string | null;
+}) {
+	const { t } = useLingui();
+	const [pickerOpen, setPickerOpen] = React.useState(false);
+
+	const rows = state?.current ?? [];
+	const nextCursor = state?.nextCursor;
+	const loading = state?.loading ?? false;
+	const loadError = state?.error ?? false;
+	// Reorder/remove are gated until the full hydrated set is loaded, so a save
+	// can never emit a truncated list that would delete the unloaded tail.
+	const fullyLoaded = !nextCursor && !loading;
+
+	// Auto-page the remaining hydrated set so the field is edit-ready. Chains:
+	// each load advances `nextCursor`, re-firing until the set is exhausted. A
+	// failed page sets `error`, which halts the chain so a throwing request never
+	// retries in a tight loop; reseeding for a new entry clears it.
+	React.useEffect(() => {
+		if (nextCursor && !loading && !loadError) onLoadMore();
+	}, [nextCursor, loading, loadError, onLoadMore]);
+
+	// Keyed by translation group to match the picker's collapsed rows: a hydrated
+	// row's `id` is the variant resolved for this entry's locale, which need not
+	// be the variant the picker shows for the same entry.
+	const selectedIds = React.useMemo(() => new Set(rows.map((r) => referenceRowKey(r))), [rows]);
+
+	const move = (index: number, delta: number) => {
+		const target = index + delta;
+		if (target < 0 || target >= rows.length) return;
+		const next = [...rows];
+		const [moved] = next.splice(index, 1);
+		if (moved) next.splice(target, 0, moved);
+		onChange(next);
+	};
+
+	const remove = (index: number) => {
+		onChange(rows.filter((_, i) => i !== index));
+	};
+
+	const handleConfirm = (picked: PickedContentEntry[]) => {
+		const additions: ReferenceEntryRow[] = picked.map((p) => ({
+			id: p.id,
+			slug: p.slug,
+			title: p.title,
+			locale: p.locale,
+			translationGroup: p.translationGroup,
+		}));
+		if (multiple) {
+			const existing = new Set(rows.map((r) => referenceRowKey(r)));
+			onChange([...rows, ...additions.filter((a) => !existing.has(referenceRowKey(a)))]);
+		} else {
+			// Single-value: the picked entry replaces the current selection.
+			onChange(additions.slice(0, 1));
+		}
+	};
+
+	// A required field with nothing picked is the one rejection the editor can
+	// make on its own: the save's own message is built server-side in English,
+	// with no code to localize against.
+	const missingRequired = required && rows.length === 0;
+
+	return (
+		<Field
+			label={<span className={labelClass}>{label}</span>}
+			required={required}
+			error={missingRequired ? { message: t`Select at least one entry.`, match: true } : undefined}
+		>
+			<div className="space-y-2">
+				{rows.length === 0 ? (
+					<p className="text-sm text-kumo-subtle">{t`No references selected.`}</p>
+				) : (
+					<ul className="space-y-2">
+						{rows.map((row, index) => {
+							return (
+								<li
+									key={row.id}
+									className="flex items-center gap-2 rounded-md border bg-kumo-base px-3 py-2"
+								>
+									<Link
+										to="/content/$collection/$id"
+										params={{ collection: targetCollection, id: row.id }}
+										search={{ locale: row.locale ?? undefined }}
+										className="group min-w-0 flex-1"
+									>
+										<div className="truncate text-sm font-medium group-hover:underline">
+											{referenceRowLabel(row)}
+										</div>
+										{row.slug && (
+											<div className="flex items-center gap-2 text-xs text-kumo-subtle">
+												<span className="truncate">{row.slug}</span>
+											</div>
+										)}
+									</Link>
+									<RouterLinkButton
+										to="/content/$collection/$id"
+										params={{ collection: targetCollection, id: row.id }}
+										search={{ locale: row.locale ?? undefined }}
+										target="_blank"
+										variant="ghost"
+										shape="square"
+										size="sm"
+										icon={<ArrowSquareOut className="h-4 w-4" />}
+										aria-label={t`Open ${referenceRowLabel(row)} in a new tab`}
+									/>
+									{multiple && reorderable && (
+										<div className="flex items-center gap-1">
+											<Button
+												type="button"
+												variant="ghost"
+												shape="square"
+												size="sm"
+												disabled={index === 0 || !fullyLoaded}
+												onClick={() => move(index, -1)}
+												aria-label={t`Move ${referenceRowLabel(row)} up`}
+											>
+												<CaretUp className="h-4 w-4" />
+											</Button>
+											<Button
+												type="button"
+												variant="ghost"
+												shape="square"
+												size="sm"
+												disabled={index === rows.length - 1 || !fullyLoaded}
+												onClick={() => move(index, 1)}
+												aria-label={t`Move ${referenceRowLabel(row)} down`}
+											>
+												<CaretDown className="h-4 w-4" />
+											</Button>
+										</div>
+									)}
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										size="sm"
+										disabled={!fullyLoaded}
+										onClick={() => remove(index)}
+										aria-label={t`Remove ${referenceRowLabel(row)}`}
+									>
+										<Trash className="h-4 w-4 text-kumo-danger" />
+									</Button>
+								</li>
+							);
+						})}
+					</ul>
+				)}
+
+				{loadError ? (
+					<div className="flex flex-wrap items-center gap-2 text-sm">
+						<span className="text-kumo-danger">{t`Couldn't load all references.`}</span>
+						<Button type="button" variant="outline" size="sm" onClick={onRetry}>
+							{t`Retry`}
+						</Button>
+					</div>
+				) : (
+					!fullyLoaded && (
+						<div className="flex items-center gap-2 text-sm text-kumo-subtle">
+							<Loader size="sm" /> {t`Loading references...`}
+						</div>
+					)
+				)}
+
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					icon={<Plus />}
+					disabled={!fullyLoaded}
+					onClick={() => setPickerOpen(true)}
+				>
+					{multiple ? t`Add reference` : rows.length > 0 ? t`Replace reference` : t`Add reference`}
+				</Button>
+			</div>
+
+			<ContentPickerModal
+				open={pickerOpen}
+				onOpenChange={setPickerOpen}
+				collection={targetCollection}
+				multiple={multiple}
+				selectedIds={selectedIds}
+				onConfirm={handleConfirm}
+				locale={entryLocale ?? undefined}
+			/>
+		</Field>
+	);
 }
 
 const URL_PROTOCOL_PATTERN = /^https?:\/\//;

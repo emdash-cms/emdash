@@ -48,6 +48,11 @@ export interface ContentTaxonomyTable {
 	created_at: Generated<string | null>;
 }
 
+/**
+ * One locale's definition of a taxonomy. `hierarchical` and `collections` are
+ * copies of the taxonomy's `_emdash_taxonomy_def_groups` row, kept for code that
+ * reads them directly, such as the plugin sandbox bridges; read them from the group.
+ */
 export interface TaxonomyDefTable {
 	id: string;
 	name: string;
@@ -58,6 +63,15 @@ export interface TaxonomyDefTable {
 	created_at: Generated<string>;
 	locale: Generated<string>;
 	translation_group: string | null;
+}
+
+/** What a taxonomy is in every locale. `id` is its definitions' `translation_group`. */
+export interface TaxonomyDefGroupTable {
+	id: string;
+	name: string;
+	hierarchical: Generated<number>; // 0 or 1 (SQLite boolean)
+	collections: Generated<string>; // JSON array
+	created_at: Generated<string>;
 }
 
 export interface MediaTable {
@@ -478,6 +492,29 @@ export interface FieldTable {
 	created_at: Generated<string>;
 }
 
+export interface BlockTypeTable {
+	id: string;
+	slug: string;
+	label: string;
+	description: string | null;
+	icon: string | null;
+	category: string | null;
+	current_version: number;
+	source: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
+export interface BlockTypeVersionTable {
+	id: string;
+	block_type_id: string;
+	version: number;
+	fields: string;
+	fingerprint: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+}
+
 // Plugin Storage Tables
 
 export interface PluginStorageTable {
@@ -631,6 +668,92 @@ export interface SectionTable {
 	updated_at: Generated<string>;
 }
 
+// Site transfer (migration 084)
+
+export interface TransferOperationTable {
+	id: string;
+	kind: string; // 'export' | 'import'
+	state: string;
+	stage: string | null;
+	cursor: string | null; // JSON
+	progress: string | null; // JSON
+	options: string | null; // JSON
+	idempotency_key: string | null;
+	package_digest: string | null;
+	plan_digest: string | null;
+	origin_site_id: string | null;
+	staging_secret: string;
+	receipt: string | null; // JSON
+	error_code: string | null;
+	error_detail: string | null; // JSON
+	write_epoch: Generated<number>;
+	attempt_count: Generated<number>;
+	lease_token: string | null;
+	lease_expires_at: string | null;
+	runtime_generation: Generated<number>;
+	cancel_requested_at: string | null;
+	mutation_started_at: string | null;
+	created_by: string;
+	created_at: Generated<string>;
+	updated_at: Generated<string>;
+	completed_at: string | null;
+	expires_at: string | null;
+	staging_collected_at: string | null;
+}
+
+export interface TransferIdentityMapTable {
+	origin_site_id: string;
+	entity_kind: string;
+	portable_id: string;
+	target_id: string;
+	operation_id: string;
+	created_at: Generated<string>;
+}
+
+export interface TransferStagedFileTable {
+	operation_id: string;
+	path: string;
+	bytes: number | string; // bigint: Postgres returns a string
+	sha256: string;
+	state: Generated<string>; // 'declared' | 'verified'
+	verified_at: string | null;
+	logical_sha256: string | null; // verification: logical hash of a record chunk's target records
+}
+
+export interface TransferPackageIndexTable {
+	operation_id: string;
+	kind: string;
+	id: string;
+	group_id: string | null;
+	parent_id: string | null;
+	name_key: string | null;
+	depth: Generated<number>;
+}
+
+export interface TransferMediaBlobTable {
+	operation_id: string;
+	media_id: string;
+	sha256: string;
+	bytes: number | string; // bigint: Postgres returns a string
+}
+
+export interface TransferApprovalTable {
+	id: string;
+	status: Generated<string>; // 'pending' | 'approved' | 'denied' | 'consumed' | 'expired'
+	action: string; // 'export' | 'import'
+	user_id: string;
+	requested_by_token_id: string | null;
+	approved_by: string | null;
+	operation_id: string | null;
+	params_digest: string | null;
+	package_digest: string | null;
+	plan_digest: string | null;
+	expires_at: string;
+	created_at: Generated<string>;
+	decided_at: string | null;
+	consumed_at: string | null;
+}
+
 // Database schema
 // Note: ec_* content tables are dynamic and not part of this type
 export interface Database {
@@ -639,6 +762,7 @@ export interface Database {
 	taxonomies: TaxonomyTable;
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
+	_emdash_taxonomy_def_groups: TaxonomyDefGroupTable;
 	media: MediaTable;
 	media_folders: MediaFolderTable;
 	_emdash_media_upload_attempts: MediaUploadAttemptTable;
@@ -663,6 +787,8 @@ export interface Database {
 	_emdash_migrations: MigrationTable;
 	_emdash_collections: CollectionTable;
 	_emdash_fields: FieldTable;
+	_emdash_block_types: BlockTypeTable;
+	_emdash_block_type_versions: BlockTypeVersionTable;
 	_plugin_storage: PluginStorageTable;
 	_plugin_state: PluginStateTable;
 	_plugin_indexes: PluginIndexTable;
@@ -692,6 +818,12 @@ export interface Database {
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 	_emdash_entry_locks: EntryLockTable;
+	_emdash_transfer_operations: TransferOperationTable;
+	_emdash_transfer_identity_map: TransferIdentityMapTable;
+	_emdash_transfer_staged_files: TransferStagedFileTable;
+	_emdash_transfer_package_index: TransferPackageIndexTable;
+	_emdash_transfer_media_blobs: TransferMediaBlobTable;
+	_emdash_transfer_approvals: TransferApprovalTable;
 }
 
 export type MediaRow = {
@@ -844,23 +976,32 @@ export interface BylineFieldGroupValueTable {
 // between content entries, linked by `translation_group` so they are
 // locale-agnostic — no foreign keys, mirroring `content_taxonomies`.
 
+/**
+ * A relation definition. Not localized — a relation joins the same two
+ * collections whatever language you read it in, and its role labels are
+ * single-valued like a collection's. See migration 086.
+ */
 export interface RelationTable {
 	id: string;
-	name: string;
+	slug: string;
 	parent_collection: string;
 	child_collection: string;
 	parent_label: string;
 	child_label: string;
-	locale: Generated<string>;
-	translation_group: string;
+	parent_label_singular: string | null;
+	child_label_singular: string | null;
+	/** How many children one parent may hold. NULL means unlimited. */
+	max_children_per_parent: number | null;
+	/** How many parents one child may hold. NULL means unlimited. */
+	max_parents_per_child: number | null;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
 
 export interface ContentReferenceTable {
 	id: string;
-	/** Stores `_emdash_relations.translation_group` (locale-agnostic). No FK. */
-	relation_group: string;
+	/** Stores `_emdash_relations.id`. No FK. */
+	relation_id: string;
 	/** Parent entry's `translation_group`. */
 	parent_group: string;
 	/** Child entry's `translation_group`. */
@@ -872,7 +1013,7 @@ export interface ContentReferenceTable {
 // Rate Limits
 
 export interface RateLimitTable {
-	key: string; // {ip}:{endpoint}
+	key: string; // {ip or IP hash}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
 }
