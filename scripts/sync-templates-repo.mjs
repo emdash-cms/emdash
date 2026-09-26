@@ -64,6 +64,8 @@ const EXCLUDE = new Set([
 
 const RE_NON_WHITESPACE_START = /^\S/;
 const RE_CATALOG_ENTRY = /^\s+"?([^"]+)"?:\s+(.+)$/;
+const RE_BLANK_README_SECTION = /\r?\n(?:---\r?\n\r?\n)?### Blank\r?\n[\s\S]*?(?=\r?\n#{1,3} |$)/;
+const RE_BLANK_CI_ENTRY = /^[ \t]*- blank[ \t]*\r?\n/gm;
 
 function parseCatalog() {
 	const yaml = readFileSync(join(ROOT, "pnpm-workspace.yaml"), "utf8");
@@ -243,6 +245,30 @@ function git(args, cwd) {
 	return execFileSync("git", args, { encoding: "utf8", stdio: "pipe", cwd }).trim();
 }
 
+function removeRetiredBlankTemplate(targetDir) {
+	const readmePath = join(targetDir, "README.md");
+	if (existsSync(readmePath)) {
+		const readme = readFileSync(readmePath, "utf8");
+		const updated = readme
+			.replace(RE_BLANK_README_SECTION, "")
+			.replace(
+				"Each template (except blank) comes in two variants:",
+				"Each template comes in two variants:",
+			);
+		if (updated !== readme) writeFileSync(readmePath, updated);
+	}
+
+	const workflowPath = join(targetDir, ".github", "workflows", "ci.yml");
+	if (existsSync(workflowPath)) {
+		const workflow = readFileSync(workflowPath, "utf8");
+		const updated = workflow.replace(RE_BLANK_CI_ENTRY, "");
+		if (updated !== workflow) writeFileSync(workflowPath, updated);
+	}
+
+	// Removed templates are never visited by the active-template sync loop.
+	rmSync(join(targetDir, "blank"), { recursive: true, force: true });
+}
+
 // --- main ---
 
 const args = process.argv.slice(2);
@@ -285,6 +311,8 @@ if (localPath) {
 }
 
 try {
+	removeRetiredBlankTemplate(targetDir);
+
 	for (const template of TEMPLATES) {
 		const srcDir = join(TEMPLATES_DIR, template);
 		const destDir = join(targetDir, template);
