@@ -1,0 +1,60 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.searchPackages",
+	"description": "Search the aggregator's index of plugin packages by free-text query and optional filters. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns a paginated list of packages matching the query and filters. Results that are subject to a hard-enforcement label (e.g. !takedown, security:yanked) from a trusted labeller the request accepts are filtered out; other label state is hydrated on each result.",
+			"parameters": {
+				"type": "params",
+				"properties": {
+					"q": {
+						"type": "string",
+						"description": "Free-text search query. Matches against name, description, keywords, and authors. Empty or absent returns all packages.",
+						"maxLength": 256
+					},
+					"capability": {
+						"type": "string",
+						"description": "Optional filter: only return packages that declare this access category (e.g. 'email', 'network'). Compares against the latest release's declaredAccess top-level keys.",
+						"maxLength": 64
+					},
+					"limit": {
+						"type": "integer",
+						"description": "Max results to return.",
+						"minimum": 1,
+						"maximum": 100,
+						"default": 25
+					},
+					"cursor": {
+						"type": "string",
+						"description": "Pagination cursor from a previous response.",
+						"maxLength": 1024
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "object",
+					"required": ["packages"],
+					"properties": {
+						"packages": {
+							"type": "array",
+							"maxLength": 100,
+							"items": {
+								"type": "ref",
+								"ref": "com.emdashcms.experimental.aggregator.defs#packageView"
+							}
+						},
+						"cursor": {
+							"type": "string",
+							"description": "Cursor to fetch the next page. Absent when there are no more results.",
+							"maxLength": 1024
+						}
+					}
+				}
+			}
+		}
+	}
+}
