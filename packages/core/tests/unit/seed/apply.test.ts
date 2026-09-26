@@ -2568,5 +2568,52 @@ describe("applySeed", () => {
 			);
 			expect(sibling!.translationGroup).not.toBe(trashed?.translation_group);
 		});
+
+		it("does not create relation edges to a skipped trashed entry", async () => {
+			await setupTrashedEntry();
+
+			const result = await applySeed(
+				db,
+				{
+					version: "1",
+					collections: [
+						{
+							slug: "posts",
+							label: "Posts",
+							fields: [
+								{ slug: "title", label: "Title", type: "string" },
+								{
+									slug: "related",
+									label: "Related",
+									type: "reference",
+									validation: { targetCollection: "posts" },
+								},
+							],
+						},
+					],
+					content: {
+						posts: [
+							{ id: "post-1", slug: "hello", data: { title: "Hello again" } },
+							{
+								id: "post-2",
+								slug: "referrer",
+								data: { title: "Referrer", related: "$ref:post-1" },
+							},
+						],
+					},
+				},
+				{ includeContent: true, onConflict: "update" },
+			);
+
+			expect(result.content).toMatchObject({ created: 1, skipped: 1 });
+			const repo = new ContentRepository(db);
+			const referrer = await repo.findBySlug("posts", "referrer");
+			const relation = await new RelationRepository(db).findBySlug("posts_related");
+			const children = await new RelationRepository(db).getChildrenPage(
+				relation!.id,
+				referrer!.translationGroup!,
+			);
+			expect(children.items).toEqual([]);
+		});
 	});
 });
