@@ -1,4 +1,16 @@
 {
+	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "emdash-blocks",
-	"compatibility_date": "2026-02-25",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-09-26",
+	"assets": {
+		"directory": "./dist",
+	},
+	"routes": [
+		{
+			"pattern": "blocks.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
 }
