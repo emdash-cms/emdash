@@ -168,6 +168,8 @@ const ELEMENT_DECISIONS = {
 	combobox: "components",
 	repeater: "authoring-only",
 	media_picker: "field-widget",
+	portable_text: "authoring-only",
+	block_list: "authoring-only",
 } as const satisfies Record<
 	Element["type"] | LinkElement["type"],
 	"components" | "authoring-only" | "field-widget"

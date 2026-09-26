@@ -25,6 +25,7 @@ import {
 	LinkSimple,
 	Code,
 	Copy,
+	CopySimple,
 	Cube,
 	ListBullets,
 } from "@phosphor-icons/react";
@@ -51,6 +52,14 @@ export interface PluginBlockDef {
 	 * Optional display category in the slash menu. Defaults to "Embeds" when omitted.
 	 */
 	category?: string;
+	/**
+	 * Registered but not offered: a hidden block never appears on document-level
+	 * insert surfaces (the slash menu) or in a `block_list` picker without an
+	 * `allowed_types` list. Existing blocks of the type still render and edit
+	 * normally, and a `block_list` whose `allowed_types` names the type still
+	 * offers it — hiding removes a door, never content behind it.
+	 */
+	hidden?: boolean;
 }
 
 // =============================================================================
@@ -368,6 +377,28 @@ function PluginBlockNodeView({
 								aria-label={hasFields ? t`Edit` : t`Edit URL`}
 							>
 								<Pencil className="h-4 w-4" />
+							</Button>
+							<Button
+								type="button"
+								variant="ghost"
+								shape="square"
+								className="h-8 w-8"
+								onClick={() => {
+									const pos = typeof getPos === "function" ? getPos() : null;
+									if (pos == null) return;
+									editor
+										.chain()
+										.focus()
+										.insertContentAt(pos + node.nodeSize, {
+											type: node.type.name,
+											attrs: { ...node.attrs },
+										})
+										.run();
+								}}
+								title={t`Duplicate`}
+								aria-label={t`Duplicate`}
+							>
+								<CopySimple className="h-4 w-4" />
 							</Button>
 							<Button
 								type="button"
