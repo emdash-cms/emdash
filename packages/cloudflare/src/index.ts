@@ -290,7 +290,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/d1-migrations",
 			manifestConfig: { binding: config.binding },
 		},
 		supportsRequestScope: true,
@@ -390,7 +390,7 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 		},
 		type: "postgres",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/hyperdrive-migrations",
 			manifestConfig: { binding, connectionStringEnv },
 		},
 		// Each request gets a fresh pg connection that is closed afterwards —
