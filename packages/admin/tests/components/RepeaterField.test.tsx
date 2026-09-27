@@ -137,7 +137,6 @@ describe("RepeaterField sub-field types", () => {
 });
 
 describe("RepeaterField bulk collapse", () => {
-describe("RepeaterField bulk collapse", () => {
 	const captionSubFields = [{ slug: "caption", type: "string", label: "Caption" }];
 
 	const subFieldInputs = (screen: { container: HTMLElement }) => [
