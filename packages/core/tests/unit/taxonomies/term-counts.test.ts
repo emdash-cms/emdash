@@ -53,7 +53,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		// The migration-seeded defs declare `["posts"]`; counts are scoped to
 		// the declared collections, so point them at the test collections.
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();
@@ -308,7 +308,7 @@ describeEachDialect("visible term counts (#581)", (dialect) => {
 		// A declared collection whose table was never created (pre-migration
 		// drift) must not break counting for the collections that do exist.
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["ghost", "post"]) })
 			.where("name", "=", "category")
 			.execute();

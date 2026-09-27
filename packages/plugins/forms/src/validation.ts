@@ -29,11 +29,13 @@ const TEL_RE = /^[+\d][\d\s()-]*$/;
  *
  * Returns sanitized data with proper type coercion and all validation
  * errors. Conditionally hidden fields are excluded from validation
- * if their condition is not met.
+ * if their condition is not met. File fields are satisfied by an entry
+ * in `fileFieldNames`, not by `data`, and are not copied into the result.
  */
 export function validateSubmission(
 	fields: FormField[],
 	data: Record<string, unknown>,
+	fileFieldNames: ReadonlySet<string> = new Set(),
 ): ValidationResult {
 	const errors: ValidationError[] = [];
 	const validated: Record<string, unknown> = {};
@@ -41,6 +43,13 @@ export function validateSubmission(
 	for (const field of fields) {
 		// Skip conditionally hidden fields
 		if (field.condition && !evaluateCondition(field.condition, data)) {
+			continue;
+		}
+
+		if (field.type === "file") {
+			if (field.required && !fileFieldNames.has(field.name)) {
+				errors.push({ field: field.name, message: `${field.label} is required` });
+			}
 			continue;
 		}
 
@@ -188,7 +197,7 @@ function coerceValue(type: FieldType, value: unknown): unknown {
 	}
 }
 
-function evaluateCondition(
+export function evaluateCondition(
 	condition: { field: string; op: string; value?: string },
 	data: Record<string, unknown>,
 ): boolean {

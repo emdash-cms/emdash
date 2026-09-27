@@ -56,6 +56,8 @@ describeEachDialect("Migrations", (dialect) => {
 			"_emdash_migrations",
 			"_emdash_collections",
 			"_emdash_fields",
+			"_emdash_block_types",
+			"_emdash_block_type_versions",
 			"_plugin_storage",
 			"_plugin_state",
 			"_plugin_indexes",

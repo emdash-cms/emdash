@@ -83,15 +83,21 @@ export function RegistryPluginIdentity({
 		);
 	}
 
+	const fallbackName = `${identity.did}/${identity.slug}`;
 	return (
-		<div className={cn("text-xs text-kumo-subtle", className)}>
-			<code className="font-mono" dir="auto">
-				{identity.did}/{identity.slug}
+		<div
+			className={cn(
+				"flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-kumo-subtle",
+				className,
+			)}
+		>
+			<code className="min-w-0 max-w-full truncate font-mono" dir="auto" title={fallbackName}>
+				{fallbackName}
 			</code>
 			{identity.status === "missing" ? (
-				<span className="ms-2">{t`Handle unavailable`}</span>
+				<span>{t`Handle unavailable`}</span>
 			) : (
-				<span className="ms-2">{t`Resolving publisher handle...`}</span>
+				<span>{t`Resolving publisher handle...`}</span>
 			)}
 		</div>
 	);

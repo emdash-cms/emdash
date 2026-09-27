@@ -108,6 +108,14 @@ describe("MenuEditor", () => {
 		vi.mocked(api.fetchMenu).mockResolvedValue(defaultMenu);
 	});
 
+	it("links back to the menus list", async () => {
+		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
+
+		const backLink = screen.getByRole("link", { name: "Back to menus" });
+		await expect.element(backLink).toHaveAttribute("href", "/menus");
+		await expect.element(backLink).toHaveTextContent(/^Back$/);
+	});
+
 	it("displays menu items in order", async () => {
 		const screen = await render(<MenuEditor />, { wrapper: Wrapper });
 

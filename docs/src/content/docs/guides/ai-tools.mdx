@@ -90,14 +90,14 @@ Creating, updating, deleting, and translating bylines requires the Editor role. 
 
 - **Browse media** -- "List all uploaded images" or "Show me PDFs in the media library"
 - **Check details** -- "Get the details for this media item"
-- **Upload files** -- "Upload this base64 image as `banner.png`" or "Import the image at this public URL"
-- **Register existing storage objects** -- "Register `media/2026/banner.png` as a media item"
+- **Upload files** -- "Upload this base64 image as `banner.png`"
+- **Confirm signed uploads** -- "Confirm the upload with this storage key"
 - **Update metadata** -- "Set the alt text on the hero image to 'Mountain sunset'"
 - **Remove files** -- "Delete the old banner image"
 
-`media_upload` accepts either base64-encoded bytes or a public HTTP(S) URL. It stores the file, registers the media item, and returns the ID and URL. `media_create` only registers metadata for a file that is already in storage. URL imports reject private network targets and re-check redirects; both paths enforce the site's MIME-type and upload-size limits.
+`media_upload` accepts base64-encoded bytes, stores the file, registers the media item, and returns the ID and URL. It enforces the site's MIME-type and upload-size limits.
 
-Contributors can use `media_upload`. Registering an existing storage object with `media_create` requires Author or a higher role.
+`media_create` completes a pending upload created through `POST /_emdash/api/media/upload-url`. Upload the file with the returned signed URL, then pass its `storageKey` to `media_create` from the same user account. Confirmation checks that the stored file exists and matches the size supplied when the upload URL was requested. This workflow requires Author or a higher role; Contributors can use `media_upload`.
 
 ### Search
 

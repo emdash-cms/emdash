@@ -1,21 +1,8 @@
 /**
- * Regression guard for issue #867 (and the related portfolio
- * `featured_image` shape bug surfaced during review).
- *
- * The bug: PR #777 wired the existing `generateZodSchema()` into the
- * runtime content-update path, so autosave now validates the body the
- * admin re-sends on every keystroke. Several first-party templates ship
- * seed content that didn't satisfy that schema (PT blocks missing
- * `_key`, portfolio's `featured_image` as bare URL strings instead of
- * media objects). The result: any user who scaffolded those templates
- * couldn't save edits to seeded entries.
- *
- * This test does the smallest end-to-end thing that would have caught
- * both regressions: for every shipped template seed, apply it to a
- * fresh DB and re-validate every stored entry against the same
- * validator the autosave endpoint uses (`validateContentData` with
- * `partial: true`). If a template ever ships malformed seed data
- * again, this fails before release.
+ * Shipped seed content must satisfy the same partial validator used by
+ * content autosave. Applying each seed before validating its stored rows
+ * covers normalized media values and structured content that differs from
+ * its source JSON representation.
  */
 
 import { readFileSync } from "node:fs";
@@ -64,7 +51,7 @@ function collectionsWithContent(seed: SeedFile): string[] {
 	return out;
 }
 
-describe("shipped template seeds survive the autosave validator (issue #867)", () => {
+describe("shipped template seeds survive the autosave validator", () => {
 	let db: Kysely<Database>;
 
 	beforeEach(async () => {
@@ -90,8 +77,7 @@ describe("shipped template seeds survive the autosave validator (issue #867)", (
 
 			const slugs = collectionsWithContent(seed);
 			if (slugs.length === 0) {
-				// Marketing has no content entries -- nothing to validate,
-				// but exercising applySeed itself is still useful coverage.
+				// A schema-only template still benefits from exercising applySeed.
 				return;
 			}
 

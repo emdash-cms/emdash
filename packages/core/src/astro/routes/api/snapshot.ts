@@ -91,7 +91,8 @@ export const GET: APIRoute = async ({ request, locals, url, session }) => {
 	}
 
 	try {
-		const includeDrafts = url.searchParams.get("drafts") === "true";
+		// A preview signature covers published content only.
+		const includeDrafts = !authorized && url.searchParams.get("drafts") === "true";
 		const snapshot = await generateSnapshot(emdash.db, {
 			includeDrafts,
 			origin: getPublicOrigin(url, emdash.config),

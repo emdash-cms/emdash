@@ -11,12 +11,18 @@ import { WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { fetchSettings, updateSettings, type SiteSettings, type MediaItem } from "../../lib/api";
+import {
+	fetchSettings,
+	updateSettings,
+	type MediaItem,
+	type SiteSettings,
+	type SiteSettingsUpdate,
+} from "../../lib/api";
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-function generalSettingsSnapshot(settings: Partial<SiteSettings>) {
+function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
 		title: settings.title ?? "",
 		tagline: settings.tagline ?? "",
@@ -44,8 +50,8 @@ export function GeneralSettings() {
 		staleTime: Infinity,
 	});
 
-	const [formData, setFormData] = React.useState<Partial<SiteSettings>>({});
-	const [savedFormData, setSavedFormData] = React.useState<Partial<SiteSettings>>({});
+	const [formData, setFormData] = React.useState<SiteSettingsUpdate>({});
+	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
 
@@ -62,7 +68,7 @@ export function GeneralSettings() {
 	);
 
 	const saveMutation = useMutation({
-		mutationFn: (data: Partial<SiteSettings>) => updateSettings(data),
+		mutationFn: (data: SiteSettingsUpdate) => updateSettings(data),
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -109,11 +115,11 @@ export function GeneralSettings() {
 	};
 
 	const handleLogoRemove = () => {
-		setFormData((prev) => ({ ...prev, logo: undefined }));
+		setFormData((prev) => ({ ...prev, logo: null }));
 	};
 
 	const handleFaviconRemove = () => {
-		setFormData((prev) => ({ ...prev, favicon: undefined }));
+		setFormData((prev) => ({ ...prev, favicon: null }));
 	};
 
 	const title = t`General Settings`;

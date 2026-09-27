@@ -1,33 +1,25 @@
 ---
-/**
- * Custom Portable Text renderer for marketing blocks.
- *
- * This component maps custom block types (marketing.hero, marketing.features, etc.)
- * to their corresponding Astro components. Pass it to the PortableText component
- * via the `components` prop.
- */
-import type { PortableTextBlock } from "emdash";
-import { PortableText } from "emdash/ui";
-import Hero from "./blocks/Hero.astro";
-import Features from "./blocks/Features.astro";
-import Testimonials from "./blocks/Testimonials.astro";
-import Pricing from "./blocks/Pricing.astro";
+import { Blocks, defineBlockComponents } from "emdash/ui";
+import type { PageContentBlock } from "../../emdash-env";
 import FAQ from "./blocks/FAQ.astro";
+import Features from "./blocks/Features.astro";
+import Hero from "./blocks/Hero.astro";
+import Pricing from "./blocks/Pricing.astro";
+import Testimonials from "./blocks/Testimonials.astro";
 
 interface Props {
-	value: PortableTextBlock[];
+	value?: PageContentBlock[] | null;
 }
 
 const { value } = Astro.props;
 
-// Custom block type components
-const marketingTypes = {
-	"marketing.hero": Hero,
-	"marketing.features": Features,
-	"marketing.testimonials": Testimonials,
-	"marketing.pricing": Pricing,
-	"marketing.faq": FAQ,
-};
+const marketingComponents = defineBlockComponents<PageContentBlock>({
+	marketing_hero: Hero,
+	marketing_features: Features,
+	marketing_testimonials: Testimonials,
+	marketing_pricing: Pricing,
+	marketing_faq: FAQ,
+});
 ---
 
-<PortableText value={value} components={{ type: marketingTypes }} />
+<Blocks {value} components={marketingComponents} />

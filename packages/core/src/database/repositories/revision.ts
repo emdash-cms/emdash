@@ -1,7 +1,7 @@
 import { sql, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
@@ -42,8 +42,11 @@ export function normalizeRevisionLimit(value: unknown): number {
 export class RevisionRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**
@@ -105,6 +108,22 @@ export class RevisionRepository {
 			.executeTakeFirst();
 
 		return row ? this.normalizeRow(row) : null;
+	}
+
+	/** Shallow-merge `patch` into a stored revision's data. */
+	async mergeData(id: string, patch: Record<string, unknown>): Promise<void> {
+		const row = await this.db
+			.selectFrom("revisions")
+			.select("data")
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return;
+		const data: Record<string, unknown> = { ...JSON.parse(row.data), ...patch };
+		await this.db
+			.updateTable("revisions")
+			.set({ data: JSON.stringify(data) })
+			.where("id", "=", id)
+			.execute();
 	}
 
 	/**

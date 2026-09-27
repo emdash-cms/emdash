@@ -291,7 +291,7 @@ emdash({
 
 After deployment, activate the plugin under **Extensions** and select it under **Settings → Email**. Sending fails until the sender is accepted and the binding exists.
 
-The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address.
+The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address. A plugin can set `replyTo` on an individual message, which overrides this option for that message.
 
 ## Cloudflare AI Search
 

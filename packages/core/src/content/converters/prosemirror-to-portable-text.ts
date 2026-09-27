@@ -359,6 +359,10 @@ function convertHtmlBlock(node: ProseMirrorNode): PortableTextHtmlBlock {
 	};
 }
 
+function imageDimension(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
 /**
  * Convert image to Portable Text
  */
@@ -369,11 +373,30 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 	const src = typeof attrs?.src === "string" ? attrs.src : "";
 	const alt = typeof attrs?.alt === "string" ? attrs.alt : undefined;
 	const title = typeof attrs?.title === "string" ? attrs.title : undefined;
-	const width = typeof attrs?.width === "number" ? attrs.width : undefined;
-	const height = typeof attrs?.height === "number" ? attrs.height : undefined;
-	const displayWidth = typeof attrs?.displayWidth === "number" ? attrs.displayWidth : undefined;
-	const displayHeight = typeof attrs?.displayHeight === "number" ? attrs.displayHeight : undefined;
+	const caption =
+		attrs && Object.hasOwn(attrs, "caption")
+			? typeof attrs.caption === "string"
+				? attrs.caption
+				: undefined
+			: title;
+	const width = imageDimension(attrs?.width);
+	const height = imageDimension(attrs?.height);
+	const displayWidth = imageDimension(attrs?.displayWidth);
+	const displayHeight = imageDimension(attrs?.displayHeight);
 	const alignment = attrs?.alignment;
+
+	// Normalise link: drop entirely when href is missing or empty so half-populated
+	// { blank: true } objects don't round-trip.
+	let link: { href: string; blank?: boolean } | undefined;
+	const rawLink = attrs?.link;
+	if (rawLink && typeof rawLink === "object") {
+		const linkObj = rawLink as { href?: unknown; blank?: unknown };
+		const href = typeof linkObj.href === "string" ? linkObj.href.trim() : "";
+		if (href) {
+			link = { href };
+			if (linkObj.blank === true) link.blank = true;
+		}
+	}
 
 	return {
 		_type: "image",
@@ -387,7 +410,8 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 			provider: provider && provider !== "local" ? provider : undefined,
 		},
 		alt: alt || undefined,
-		caption: title || undefined,
+		caption: caption || (title ? "" : undefined),
+		title: title || undefined,
 		width: width || undefined,
 		height: height || undefined,
 		displayWidth: displayWidth || undefined,
@@ -400,6 +424,7 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 			alignment === "full"
 				? alignment
 				: undefined,
+		link,
 	};
 }
 

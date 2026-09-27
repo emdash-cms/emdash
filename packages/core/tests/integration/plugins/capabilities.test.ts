@@ -6,7 +6,6 @@
  *
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import type {
 	PluginTransformQueryArgs,
@@ -16,6 +15,8 @@ import type {
 	UnknownRow,
 } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -115,7 +116,7 @@ function createFakeStorage() {
 
 describe("Capability Enforcement Integration (v2)", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(async () => {
 		// Create in-memory SQLite database

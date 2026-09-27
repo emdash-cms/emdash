@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.39.1",
+  "version": "0.41.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -213,6 +213,7 @@
     }
   },
   "imports": {
+    "#node-sqlite": "./src/db/node-sqlite-compat.js",
     "#api/schemas.js": "./src/api/schemas/index.js",
     "#api/*": "./src/api/*",
     "#config/*": "./src/config/*",
@@ -250,9 +251,11 @@
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:repro": "vitest run --config vitest.repro.config.ts"
+    "test:repro": "vitest run --config vitest.repro.config.ts",
+    "test:types": "vitest run --config vitest.types.config.ts"
   },
   "dependencies": {
+    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@atcute/multibase": "catalog:",
     "@emdash-cms/admin": "workspace:*",
@@ -331,13 +334,11 @@
     "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
-    "@types/better-sqlite3": "^7.6.12",
-    "better-sqlite3": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.10",
+    "@vitest/ui": "catalog:",
     "astro": "catalog:",
     "image-size": "catalog:",
     "publint": "catalog:",

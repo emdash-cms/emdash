@@ -18,6 +18,7 @@ import {
 	RESPONSIVE_BREAKPOINTS,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
+import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
 
 export interface Props {
@@ -73,7 +74,7 @@ function generateSrcset(
 }
 
 const { node, placeholder = true, sizes: sizesOverride } = Astro.props;
-const images = node?.images ?? [];
+const images = sanitizeGalleryImages(node?.images);
 const columns = node?.columns ?? GALLERY_DEFAULT_COLUMNS;
 // Each image fills one grid cell, not the viewport.
 const cellSizes = sizesOverride ?? gallerySizes(columns);

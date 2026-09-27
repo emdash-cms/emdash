@@ -4,14 +4,11 @@
  * Displays all menus with ability to create, edit, and delete.
  */
 
-import { Button, Dialog, Input, Toast } from "@cloudflare/kumo";
-import { plural } from "@lingui/core/macro";
-import { Trans } from "@lingui/react/macro";
+import { Button, Dialog, Input, LayerCard, Toast } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Plus, Pencil, Trash } from "@phosphor-icons/react";
-import { X } from "@phosphor-icons/react";
+import { Plus, X } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
 import { fetchMenus, createMenu, deleteMenu } from "../lib/api";
@@ -20,7 +17,7 @@ import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
-import { RouterLinkButton } from "./RouterLinkButton.js";
+import { MenuCard } from "./MenuCard.js";
 
 export function MenuList() {
 	const { t } = useLingui();
@@ -29,7 +26,6 @@ export function MenuList() {
 	const toastManager = Toast.useToastManager();
 	const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 	const [deleteMenuName, setDeleteMenuName] = React.useState<string | null>(null);
-	const [createError, setCreateError] = React.useState<string | null>(null);
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -61,9 +57,6 @@ export function MenuList() {
 				search: { locale: menu.locale },
 			});
 		},
-		onError: (error: Error) => {
-			setCreateError(error.message);
-		},
 	});
 
 	const deleteMutation = useMutation({
@@ -78,9 +71,13 @@ export function MenuList() {
 		},
 	});
 
+	const handleCreateOpenChange = (open: boolean) => {
+		setIsCreateOpen(open);
+		if (!createMutation.isPending) createMutation.reset();
+	};
+
 	const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		setCreateError(null);
 		const formData = new FormData(e.currentTarget);
 		const nameVal = formData.get("name");
 		const name = typeof nameVal === "string" ? nameVal : "";
@@ -99,14 +96,14 @@ export function MenuList() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between gap-4 flex-wrap">
-				<div>
+			<header className="flex flex-col gap-4 border-b border-kumo-line pb-4 sm:flex-row sm:items-start sm:justify-between">
+				<div className="min-w-0">
 					<h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Manage navigation menus for your site`}
 					</p>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2">
 					{i18n && activeLocale ? (
 						<LocaleSwitcher
 							locales={i18n.locales}
@@ -115,136 +112,114 @@ export function MenuList() {
 							onChange={setActiveLocale}
 						/>
 					) : null}
-				</div>
-				<Dialog.Root
-					open={isCreateOpen}
-					onOpenChange={(open) => {
-						setIsCreateOpen(open);
-						if (!open) setCreateError(null);
-					}}
-				>
-					<Dialog.Trigger
-						render={(props) => (
-							<Button {...props} icon={<Plus />}>
-								{t`Create Menu`}
-							</Button>
-						)}
-					/>
-					<Dialog className="p-6" size="lg">
-						<div className="flex items-start justify-between gap-4 mb-4">
-							<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-								{t`Create New Menu`}
-							</Dialog.Title>
-							<Dialog.Close
-								aria-label={t`Close`}
-								render={(props) => (
+					<Dialog.Root open={isCreateOpen} onOpenChange={handleCreateOpenChange}>
+						<Dialog.Trigger
+							render={(props) => (
+								<Button {...props} icon={<Plus aria-hidden="true" />}>
+									{t`Create Menu`}
+								</Button>
+							)}
+						/>
+						<Dialog
+							className="flex max-h-[calc(100dvh-2rem)] min-w-0 w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-[32rem]"
+							size="lg"
+						>
+							<form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+								<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
+									<div className="min-w-0">
+										<Dialog.Title className="text-lg font-semibold leading-6">
+											{t`Create menu`}
+										</Dialog.Title>
+										<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
+											{t`Give this navigation a label and a site identifier.`}
+										</Dialog.Description>
+									</div>
+									<Dialog.Close
+										render={(props) => (
+											<Button
+												{...props}
+												type="button"
+												variant="ghost"
+												shape="square"
+												icon={<X className="size-4" aria-hidden="true" />}
+												aria-label={t`Close`}
+											/>
+										)}
+									/>
+								</div>
+								<div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+									<div>
+										<Input
+											label={t`Label`}
+											name="label"
+											required
+											placeholder={t`Primary navigation`}
+										/>
+										<p className="mt-1 text-sm text-kumo-subtle">{t`Shown in the admin menu list.`}</p>
+									</div>
+									<div>
+										<Input
+											label={t`Name`}
+											name="name"
+											dir="ltr"
+											required
+											placeholder={t`primary`}
+											pattern="[a-z0-9\-]+"
+											title={t`Only lowercase letters, numbers, and hyphens`}
+										/>
+										<p className="mt-1 text-sm text-kumo-subtle">
+											{t`Stable identifier for your site, such as primary or footer.`}
+										</p>
+									</div>
+									<DialogError message={getMutationError(createMutation.error)} />
+								</div>
+								<div className="flex shrink-0 justify-end gap-2 border-t border-kumo-line px-6 py-4">
 									<Button
-										{...props}
-										variant="ghost"
-										shape="square"
-										aria-label={t`Close`}
-										className="absolute end-4 top-4"
+										type="button"
+										variant="secondary"
+										onClick={() => handleCreateOpenChange(false)}
 									>
-										<X className="h-4 w-4" />
-										<span className="sr-only">{t`Close`}</span>
+										{t`Cancel`}
 									</Button>
-								)}
-							/>
-						</div>
-						<form onSubmit={handleCreate} className="space-y-4">
-							<div>
-								<Input
-									label={t`Name`}
-									name="name"
-									required
-									placeholder="primary"
-									pattern="[a-z0-9\-]+"
-									title={t`Only lowercase letters, numbers, and hyphens`}
-								/>
-								<p className="text-sm text-kumo-subtle mt-1">
-									{t`URL-friendly identifier (e.g., "primary", "footer")`}
-								</p>
-							</div>
-							<div>
-								<Input label={t`Label`} name="label" required placeholder={t`Primary Navigation`} />
-								<p className="text-sm text-kumo-subtle mt-1">{t`Display name for admin interface`}</p>
-							</div>
-							<DialogError message={createError || getMutationError(createMutation.error)} />
-							<div className="flex justify-end gap-2">
-								<Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-									{t`Cancel`}
-								</Button>
-								<Button type="submit" disabled={createMutation.isPending}>
-									{createMutation.isPending ? t`Creating...` : t`Create`}
-								</Button>
-							</div>
-						</form>
-					</Dialog>
-				</Dialog.Root>
-			</div>
+									<Button type="submit" variant="primary" disabled={createMutation.isPending}>
+										{createMutation.isPending ? t`Creating...` : t`Create`}
+									</Button>
+								</div>
+							</form>
+						</Dialog>
+					</Dialog.Root>
+				</div>
+			</header>
 
 			{!menus || menus.length === 0 ? (
-				<div className="border rounded-lg p-12 text-center">
-					<ADMIN_NAV_ICONS.menus className="mx-auto h-12 w-12 text-kumo-subtle mb-4" />
-					<h3 className="text-lg font-semibold mb-2">{t`No menus yet`}</h3>
-					<p className="text-kumo-subtle mb-4">{t`Create your first navigation menu to get started`}</p>
-					<Button icon={<Plus />} onClick={() => setIsCreateOpen(true)}>
+				<LayerCard className="flex flex-col items-center px-6 py-16 text-center">
+					<span className="mb-5 flex size-14 items-center justify-center rounded-xl bg-kumo-tint text-kumo-brand">
+						<ADMIN_NAV_ICONS.menus size={28} aria-hidden="true" />
+					</span>
+					<h2 className="text-lg font-semibold leading-6">{t`No menus yet`}</h2>
+					<p className="mt-2 max-w-sm text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Create your first navigation menu to get started`}
+					</p>
+					<Button
+						className="mt-5"
+						icon={<Plus aria-hidden="true" />}
+						onClick={() => handleCreateOpenChange(true)}
+					>
 						{t`Create Menu`}
 					</Button>
-				</div>
+				</LayerCard>
 			) : (
-				<div className="grid gap-4">
+				<ul className="grid gap-4 lg:grid-cols-2">
 					{menus.map((menu) => (
-						<div
-							key={menu.id}
-							className="border rounded-lg p-6 flex items-center justify-between hover:bg-kumo-tint transition-colors"
-						>
-							<Link
-								to="/menus/$name"
-								params={{ name: menu.name }}
-								search={{ locale: menu.locale }}
-								className="flex-1"
-							>
-								<div>
-									<h3 className="font-semibold text-lg">
-										{menu.label}
-										{i18n ? (
-											<span className="ms-2 text-xs font-mono uppercase text-kumo-subtle">
-												{menu.locale}
-											</span>
-										) : null}
-									</h3>
-									<p className="text-sm text-kumo-subtle">
-										<Trans>
-											{menu.name} •{" "}
-											{plural(menu.itemCount ?? 0, { one: "# item", other: "# items" })}
-										</Trans>
-									</p>
-								</div>
-							</Link>
-							<div className="flex gap-2">
-								<RouterLinkButton
-									to="/menus/$name"
-									params={{ name: menu.name }}
-									search={{ locale: menu.locale }}
-									variant="outline"
-									size="sm"
-									icon={<Pencil />}
-								>
-									{t`Edit`}
-								</RouterLinkButton>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => setDeleteMenuName(menu.name)}
-									aria-label={t`Delete ${menu.name} menu`}
-								>
-									<Trash className="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
+						<li key={menu.id}>
+							<MenuCard
+								menu={menu}
+								showLocale={!!i18n}
+								onDelete={() => setDeleteMenuName(menu.name)}
+							/>
+						</li>
 					))}
-				</div>
+				</ul>
 			)}
 
 			<ConfirmDialog
@@ -253,7 +228,7 @@ export function MenuList() {
 					setDeleteMenuName(null);
 					deleteMutation.reset();
 				}}
-				title={t`Delete Menu`}
+				title={t`Delete menu`}
 				description={t`Are you sure you want to delete this menu? This will also delete all menu items. This action cannot be undone.`}
 				confirmLabel={t`Delete`}
 				pendingLabel={t`Deleting...`}

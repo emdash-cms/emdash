@@ -1,3 +1,4 @@
+import type { BlockType } from "../../schema/block-types.js";
 import type { FieldType } from "../../schema/types.js";
 
 export const CONTENT_SOURCE_SCHEMA_VERSION = 2;
@@ -28,6 +29,7 @@ export interface MediaUsageExtractionField {
 	slug: string;
 	type: FieldType;
 	validation?: MediaUsageExtractionValidation | null;
+	blockTypes?: readonly BlockType[];
 }
 
 export interface ExtractMediaUsageOccurrencesInput {

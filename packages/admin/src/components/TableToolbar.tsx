@@ -32,6 +32,7 @@ interface TableToolbarSearchProps {
 	size?: React.ComponentProps<typeof InputGroup>["size"];
 	maxLength?: number;
 	className?: string;
+	inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export function TableToolbarSearch({
@@ -42,6 +43,7 @@ export function TableToolbarSearch({
 	size = "sm",
 	maxLength,
 	className,
+	inputRef,
 }: TableToolbarSearchProps) {
 	return (
 		<InputGroup size={size} className={cn("w-full min-w-0 sm:w-64 sm:flex-none", className)}>
@@ -49,6 +51,7 @@ export function TableToolbarSearch({
 				<MagnifyingGlass className="h-4 w-4" aria-hidden="true" />
 			</InputGroup.Addon>
 			<InputGroup.Input
+				ref={inputRef}
 				type="search"
 				placeholder={placeholder}
 				aria-label={ariaLabel}

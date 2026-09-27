@@ -24,6 +24,16 @@
  * ```astro
  * <PortableText value={content} components={{ type: { image: MyImage } }} />
  * ```
+ *
+ * Render a blocks field with a component map:
+ *
+ * ```astro
+ * ---
+ * import { Blocks } from "emdash/ui";
+ * import Hero from "./Hero.astro";
+ * ---
+ * <Blocks value={page.data.layout} components={{ hero: Hero }} />
+ * ```
  */
 
 // Re-export types and utilities from astro-portabletext
@@ -49,6 +59,8 @@ export {
 	EmDashMedia as Media,
 	// Main component (wrapper with EmDash defaults)
 	PortableText,
+	Blocks,
+	defineBlockComponents,
 	// Block style override (paragraph/heading/blockquote — emits
 	// `has-text-align-*` class when the block carries `textAlign`).
 	// Shares the name with the `type Block` re-export above; the
@@ -76,6 +88,13 @@ export {
 	EmDashHead,
 	EmDashBodyStart,
 	EmDashBodyEnd,
+} from "./components/index.js";
+
+export type {
+	BlockComponent,
+	BlockComponentProps,
+	BlockComponents,
+	BlockValue,
 } from "./components/index.js";
 
 /**

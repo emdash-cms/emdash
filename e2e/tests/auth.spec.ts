@@ -23,7 +23,7 @@ const SECURITY_SETTINGS_URL_PATTERN = /\/settings\/security/;
 const LOGIN_OR_ADMIN_URL_PATTERN = /\/(login|admin)/;
 const SECURITY_MENUITEM_REGEX = /Security/i;
 const ADD_PASSKEY_REGEX = /Add Passkey/i;
-const SIGN_HEADING_REGEX = /sign/i;
+const SIGNUP_OR_LOGIN_HEADING_REGEX = /create an account|sign in/i;
 
 test.describe("Authentication", () => {
 	test.describe("Login Page", () => {
@@ -238,10 +238,10 @@ test.describe("Signup Page", () => {
 		// Navigate directly (not through admin which has auth)
 		await admin.page.goto("/_emdash/admin/signup");
 
-		// Wait for the React app to hydrate and render a heading with sign-related content.
+		// Wait for the React app to hydrate and render the signup heading.
 		// The SPA may render the login page if signup is disabled, so accept either.
 		await expect(
-			admin.page.getByRole("heading", { level: 1, name: SIGN_HEADING_REGEX }),
+			admin.page.getByRole("heading", { level: 1, name: SIGNUP_OR_LOGIN_HEADING_REGEX }),
 		).toBeVisible({
 			timeout: 15000,
 		});

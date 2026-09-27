@@ -27,7 +27,7 @@ const socialSettings = z.object({
 
 const seoSettingsInput = z.object({
 	titleSeparator: z.string().max(10).optional(),
-	defaultOgImage: mediaReferenceInput.optional(),
+	defaultOgImage: mediaReferenceInput.nullable().optional(),
 	robotsTxt: z.string().max(5000).optional(),
 	googleVerification: z.string().max(100).optional(),
 	bingVerification: z.string().max(100).optional(),
@@ -37,8 +37,8 @@ export const settingsUpdateBody = z
 	.object({
 		title: z.string().optional(),
 		tagline: z.string().optional(),
-		logo: mediaReferenceInput.optional(),
-		favicon: mediaReferenceInput.optional(),
+		logo: mediaReferenceInput.nullable().optional(),
+		favicon: mediaReferenceInput.nullable().optional(),
 		url: z.union([httpUrl, z.literal("")]).optional(),
 		postsPerPage: z.number().int().min(1).max(100).optional(),
 		dateFormat: z.string().optional(),

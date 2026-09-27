@@ -1,0 +1,10 @@
+---
+/**
+ * Renders astro-embed's MastodonPost from the slot with the fetched post sanitized.
+ */
+import { sanitizeMastodonEmbed } from "../sanitize-mastodon.js";
+
+const html = sanitizeMastodonEmbed(await Astro.slots.render("default"));
+---
+
+{html && <Fragment set:html={html} />}

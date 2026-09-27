@@ -370,6 +370,10 @@ const plugin: SandboxedPlugin = {
 						blocks: [{ type: "image", url: "http://tracker.example/pixel.gif", alt: "" }],
 					};
 				}
+				const submittedValues =
+					actionId === "submit-components" && isRecord(route.input) && isRecord(route.input.values)
+						? route.input.values
+						: undefined;
 				const page =
 					typeof route.input === "object" &&
 					route.input !== null &&
@@ -399,8 +403,23 @@ const plugin: SandboxedPlugin = {
 								columns: [
 									{ key: "surface", label: "Surface" },
 									{ key: "status", label: "Status" },
+									{ key: "action", label: "Actions", format: "element" },
 								],
-								rows: [{ surface: "sandbox", status: "ready" }],
+								rows: [
+									{
+										surface: "sandbox",
+										status: "ready",
+										action: {
+											type: "menu",
+											label: "Run",
+											action_id: "row-action",
+											items: [
+												{ label: "Check", value: "check" },
+												{ label: "Reset", value: "reset" },
+											],
+										},
+									},
+								],
 								page_action_id: "page-components",
 								empty_text: "No diagnostics",
 							},
@@ -409,12 +428,45 @@ const plugin: SandboxedPlugin = {
 								elements: [
 									{ type: "button", label: "Run", action_id: "run", style: "primary" },
 									{
+										type: "button",
+										label: "Return unsafe image",
+										action_id: "unsafe-image",
+									},
+									{
+										type: "button",
+										label: "Return oversized response",
+										action_id: "oversized-response",
+									},
+									{
 										type: "link",
 										label: "Diagnostics",
 										target: { kind: "plugin-page", path: "/overview" },
 									},
 								],
 							},
+							...(submittedValues
+								? [
+										{
+											type: "fields" as const,
+											fields: [
+												{
+													label: "Submitted text",
+													value:
+														typeof submittedValues.text === "string"
+															? submittedValues.text
+															: "missing",
+												},
+												{
+													label: "Submitted number",
+													value:
+														typeof submittedValues.number === "number"
+															? String(submittedValues.number)
+															: "missing",
+												},
+											],
+										},
+									]
+								: []),
 							{
 								type: "stats",
 								items: [
@@ -458,7 +510,11 @@ const plugin: SandboxedPlugin = {
 								],
 								submit: { action_id: "submit-components", label: "Submit" },
 							},
-							{ type: "image", url: "/plugin-assets/status.png", alt: "Fixture status" },
+							{
+								type: "image",
+								url: `/_emdash/api/plugins/${encodeURIComponent(ctx.plugin.id)}/fixture-image`,
+								alt: "Fixture status",
+							},
 							{ type: "context", text: "Rendered by the host" },
 							{
 								type: "columns",
@@ -507,6 +563,9 @@ const plugin: SandboxedPlugin = {
 								panels: [{ label: "Context", blocks: [{ type: "context", text: "Tab panel" }] }],
 							},
 						],
+						...(submittedValues && {
+							toast: { type: "success" as const, message: "Components submitted" },
+						}),
 					};
 				}
 				return {
@@ -1146,6 +1205,12 @@ const plugin: SandboxedPlugin = {
 				await ctx.kv.set("settings:enabled", enabled);
 				return { enabled };
 			},
+		},
+		"events-list": {
+			handler: async (_route, ctx) => ({
+				events: await ctx.storage.events.query({ limit: 100 }),
+				lifecycle: await ctx.storage.lifecycle.query({ limit: 100 }),
+			}),
 		},
 		"private-user": {
 			permission: "content:edit_any",

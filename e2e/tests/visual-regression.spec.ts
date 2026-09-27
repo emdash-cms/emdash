@@ -288,6 +288,17 @@ test.describe("visual regression", () => {
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
 				await stabilize(admin);
 				await pageCase.prepare?.(admin);
+				if (pageCase.name === "content-editor") {
+					const settingsScroller = admin.page
+						.locator("div.flex-1.overflow-y-auto.overflow-x-hidden.bg-kumo-base")
+						.last();
+					await settingsScroller.evaluate((element) => {
+						element.scrollTop = 0;
+					});
+					await expect
+						.poll(() => settingsScroller.evaluate((element) => element.scrollTop))
+						.toBe(0);
+				}
 
 				await expect(admin.page).toHaveScreenshot(`${pageCase.name}-${locale.name}.png`, {
 					fullPage: true,

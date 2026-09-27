@@ -8,7 +8,6 @@
  * the workerd package installed).
  */
 
-import Database from "better-sqlite3";
 import {
 	ContentRepository,
 	createSandboxRouteError,
@@ -19,6 +18,7 @@ import { BylineRepository, type RuntimeDependencies } from "emdash/plugin-test-r
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
 vi.mock("virtual:emdash/config", () => ({ default: null }), { virtual: true });
@@ -465,7 +465,7 @@ export default {
 
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let runner: WorkerdSandboxRunner;
 
 	beforeEach(async () => {
@@ -1281,6 +1281,38 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 
 		expect(result.stored).toBe("hello");
 	}, 30_000);
+
+	it("refreshes bridge credentials when a plugin is reactivated", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-reactivation",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: ["kv-test"],
+				admin: {},
+			},
+			ECHO_PLUGIN,
+		);
+		const request = { method: "POST", url: "/api/test", headers: {} };
+		const invoke = (value: string) => plugin.invokeRoute("kv-test", { value }, request);
+		const originalToken = runner["plugins"].get(plugin.id)?.token;
+		if (!originalToken || !plugin.setActive) {
+			throw new Error("Plugin must have active credentials and support status changes");
+		}
+
+		await expect(invoke("before disable")).resolves.toEqual({ stored: "before disable" });
+
+		plugin.setActive(false);
+		expect(runner.validateToken(originalToken)).toBeNull();
+		await expect(invoke("while disabled")).rejects.toThrow("Invalid auth token");
+
+		plugin.setActive(true);
+		expect(runner.validateToken(originalToken)).toBeNull();
+		await expect(invoke("after reactivation")).resolves.toEqual({ stored: "after reactivation" });
+	}, 60_000);
 
 	it("encrypts settings through the production workerd process", async () => {
 		vi.stubEnv(

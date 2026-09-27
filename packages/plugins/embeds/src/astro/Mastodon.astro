@@ -4,9 +4,11 @@
  *
  * Wraps astro-embed's MastodonPost component, extracting props from the PT block node.
  * astro-portabletext passes `node` (not `value`) for custom type components.
+ * Any server can answer for a Mastodon URL, so the rendered post is sanitized.
  */
 import { MastodonPost } from "astro-embed";
 import type { MastodonBlock } from "../schemas.js";
+import SanitizeMastodon from "./SanitizeMastodon.astro";
 
 interface Props {
 	node: MastodonBlock;
@@ -16,4 +18,4 @@ const { node } = Astro.props;
 const { id } = node;
 ---
 
-<MastodonPost id={id} />
+<SanitizeMastodon><MastodonPost id={id} /></SanitizeMastodon>

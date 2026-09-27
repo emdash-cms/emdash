@@ -70,3 +70,20 @@ export function requireOwnerPerm(
 	}
 	return null;
 }
+
+/**
+ * Like {@link requirePerm}, but authorized when the user has any of
+ * `permissions`.
+ */
+export function requireAnyPerm(
+	user: UserLike | null | undefined,
+	permissions: readonly Permission[],
+): Response | null {
+	if (!user) {
+		return apiError("UNAUTHORIZED", "Authentication required", 401);
+	}
+	if (!permissions.some((permission) => hasPermission(user, permission))) {
+		return apiError("FORBIDDEN", "Insufficient permissions", 403);
+	}
+	return null;
+}

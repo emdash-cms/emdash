@@ -71,7 +71,7 @@ for (const l of SUPPORTED_LOCALES) {
  * don't prevent matching. Supports script codes (zh-Hant -> zh-TW, zh-Hans -> zh-CN)
  * and falls back to base language (pt-PT -> pt-BR).
  */
-function matchLocale(tag: string): string | undefined {
+export function matchLocale(tag: string): string | undefined {
 	const trimmed = tag.trim();
 	if (!trimmed) return undefined;
 	let canonical: string;
@@ -97,11 +97,20 @@ function matchLocale(tag: string): string | undefined {
 	return BASE_LANGUAGE_MAP.get(base);
 }
 
-const LOCALE_LABELS = new Map(SUPPORTED_LOCALES.map((l) => [l.code, l.label]));
+const LOCALE_LABELS = new Map(SUPPORTED_LOCALES.map((l) => [l.code.toLowerCase(), l.label]));
 
-/** Get a display label for a locale code, falling back to uppercase code. */
+/**
+ * Get a display label for a locale code: the admin's label, else the language's own name
+ * ("Italiano" for `it`), else the uppercase code.
+ */
 export function getLocaleLabel(code: string): string {
-	return LOCALE_LABELS.get(code) ?? code.toUpperCase();
+	const label = LOCALE_LABELS.get(code.toLowerCase());
+	if (label) return label;
+	try {
+		const name = new Intl.DisplayNames([code], { type: "language", fallback: "none" }).of(code);
+		if (name) return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
+	} catch {}
+	return code.toUpperCase();
 }
 
 const LOCALE_DIRS = new Map(SUPPORTED_LOCALES.map((l) => [l.code, l.dir]));

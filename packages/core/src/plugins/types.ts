@@ -1144,6 +1144,10 @@ export interface EmailAccess {
  */
 export interface EmailMessage {
 	to: string;
+	/** Additional visible recipients. */
+	cc?: string[];
+	/** Address that replies go to instead of the sender. */
+	replyTo?: string;
 	subject: string;
 	text: string;
 	html?: string;
