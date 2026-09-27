@@ -2,20 +2,29 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { glob } from "node:fs/promises";
 
+const config = JSON.parse(readFileSync(".changeset/config.json", "utf8"));
+const fixedGroup = new Set(config.fixed.flat());
+
+function changesetPackages(file) {
+	const frontmatter = readFileSync(`.changeset/${file}`, "utf8").match(/^---\n([\s\S]*?)\n---/);
+	if (!frontmatter) return [];
+	return frontmatter[1]
+		.split("\n")
+		.map((line) => line.match(/^\s*["']?([^"':]+)["']?\s*:/)?.[1])
+		.filter(Boolean);
+}
+
 // The fixed group releases as 1.0.1 because emdash@1.0.0 and several siblings
 // exist, deprecated, on npm. 1.0.0 is an unpublished baseline that a patch
 // changeset in pre mode turns into 1.0.1-rc.N, then 1.0.1 on exit. It is only
-// valid while that changeset is pending: with none pending, a publish run would
+// valid while a fixed-group changeset is pending: otherwise a publish run would
 // try to publish 1.0.0 for the fixed-group packages that never had one.
-const hasPendingChangeset = readdirSync(".changeset").some(
-	(file) => file.endsWith(".md") && file !== "README.md",
-);
-const ONE_POINT_OH = hasPendingChangeset
+const hasPendingFixedGroupChangeset = readdirSync(".changeset")
+	.filter((file) => file.endsWith(".md") && file !== "README.md")
+	.some((file) => changesetPackages(file).some((name) => fixedGroup.has(name)));
+const ONE_POINT_OH = hasPendingFixedGroupChangeset
 	? /^1\.0\.(?:0|1(?:-rc\.\d+)?)$/
 	: /^1\.0\.1(?:-rc\.\d+)?$/;
-
-const config = JSON.parse(readFileSync(".changeset/config.json", "utf8"));
-const fixedGroup = new Set(config.fixed.flat());
 
 const offenders = [];
 const seen = [];
@@ -40,7 +49,7 @@ for await (const file of glob("**/package.json", {
 
 if (offenders.length > 0) {
 	console.error(
-		"::error::Unexpected package versions. The fixed group may only be 1.0.1-rc.N or 1.0.1, or 1.0.0 while a changeset is pending; every other package must stay 0.x. A minor changeset during the 1.0 release candidate produces 1.1.0-rc.N:",
+		"::error::Unexpected package versions. The fixed group may only be 1.0.1-rc.N or 1.0.1, or 1.0.0 while a fixed-group changeset is pending; every other package must stay 0.x. A minor changeset during the 1.0 release candidate produces 1.1.0-rc.N:",
 	);
 	for (const o of offenders) console.error(`  ${o}`);
 	process.exit(1);
