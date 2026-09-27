@@ -350,7 +350,7 @@ export class ContentRepository {
 			publishedAt,
 			createdAt,
 		} = input;
-		const data = await this.datetimes.normalizeData(type, inputData);
+		const data = await this.datetimes.normalizeInput(type, inputData);
 		const normalizedCreatedAt = createdAt
 			? await this.datetimes.normalizeValue(type, createdAt)
 			: now;
@@ -578,14 +578,19 @@ export class ContentRepository {
 		return this.mapRow(type, row);
 	}
 
-	async findManyByIds(type: string, ids: string[]): Promise<Map<string, ContentItem>> {
+	async findManyByIds(
+		type: string,
+		ids: string[],
+		options: { includeTrashed?: boolean } = {},
+	): Promise<Map<string, ContentItem>> {
 		const items = new Map<string, ContentItem>();
 		if (ids.length === 0) return items;
 		const tableName = getTableName(type);
+		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
 		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
 			const result = await sql<Record<string, unknown>>`
 				SELECT * FROM ${sql.ref(tableName)}
-				WHERE id IN (${sql.join(batch)}) AND deleted_at IS NULL
+				WHERE id IN (${sql.join(batch)}) ${deletedFilter}
 			`.execute(this.db);
 			for (const row of result.rows) {
 				const item = this.mapRow(type, row);
@@ -599,14 +604,16 @@ export class ContentRepository {
 		type: string,
 		slugs: string[],
 		locale: string,
+		options: { includeTrashed?: boolean } = {},
 	): Promise<Map<string, ContentItem>> {
 		const items = new Map<string, ContentItem>();
 		if (slugs.length === 0) return items;
 		const tableName = getTableName(type);
+		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
 		for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
 			const result = await sql<Record<string, unknown>>`
 				SELECT * FROM ${sql.ref(tableName)}
-				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} AND deleted_at IS NULL
+				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} ${deletedFilter}
 			`.execute(this.db);
 			for (const row of result.rows) {
 				const item = this.mapRow(type, row);
@@ -989,7 +996,7 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			const data = await this.datetimes.normalizeInput(type, writableContentData(input.data));
 			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
@@ -1206,7 +1213,7 @@ export class ContentRepository {
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
 		const data = input.data
-			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			? await this.datetimes.normalizeInput(type, writableContentData(input.data))
 			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;

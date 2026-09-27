@@ -14,6 +14,7 @@ import { ContentRepository } from "../../../src/database/repositories/content.js
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../../src/database/types.js";
 import {
+	applySeed,
 	applySeedWithinBudget,
 	type SeedApplyBudget,
 	type SeedApplyProgress,
@@ -194,6 +195,22 @@ describe("applySeed with a budget", () => {
 			.select((eb) => eb.fn.countAll<number>().as("count"))
 			.executeTakeFirstOrThrow();
 		expect(rows.count).toBe(60);
+	});
+
+	it("counts trashed collisions as completed work without exceeding the query budget", async () => {
+		const budget = 40;
+		const seed = plainSeed(["posts"], 60);
+		await applySeed(db, seed, { includeContent: true });
+		await db
+			.updateTable("ec_posts" as never)
+			.set({ deleted_at: new Date().toISOString() } as never)
+			.execute();
+
+		const { completed, progress, queries } = await applyInCalls(db, seed, { queries: budget });
+
+		expect(completed).toEqual([true]);
+		expect(progress).toEqual([{ done: 60, total: 60 }]);
+		expect(queries[0]).toBeLessThanOrEqual(budget + 25);
 	});
 
 	it("keeps every call near its budget while it creates many terms and bylines", async () => {

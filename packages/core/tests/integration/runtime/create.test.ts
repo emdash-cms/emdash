@@ -14,6 +14,7 @@ import Database from "better-sqlite3";
 import type { DialectAdapter } from "kysely";
 import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
 import { LockingSqliteAdapter } from "../../../src/database/migration-lock.js";
@@ -175,6 +176,77 @@ describe("EmDashRuntime.create — cold boot", () => {
 			);
 		} finally {
 			await runtime.stopCron();
+		}
+	});
+
+	it("runs the MCP route of a built plugin when the sandbox is bypassed", async () => {
+		const deps = createDeps();
+		deps.plugins = [];
+		deps.sandboxBypassed = true;
+		deps.sandboxedPluginEntries = [
+			{
+				id: "bypassed-mcp",
+				version: "1.0.0",
+				options: {},
+				code: `export default {
+					routes: {
+						echo: {
+							permission: "content:read",
+							methods: ["POST"],
+							handler: async ({ input }) => ({ echoed: input.value }),
+						},
+					},
+				};`,
+				capabilities: ["content:read"],
+				allowedHosts: [],
+				storage: {},
+				routes: [
+					{
+						name: "echo",
+						permission: "content:read",
+						methods: ["POST"],
+					},
+				],
+				mcp: {
+					tools: [
+						{
+							name: "echo",
+							description: "Echo a value.",
+							route: "echo",
+							permission: "content:read",
+							destructive: false,
+							inputSchema: z.toJSONSchema(z.object({ value: z.string() }), {
+								target: "draft-7",
+							}),
+							outputSchema: z.toJSONSchema(z.object({ echoed: z.string() }), {
+								target: "draft-7",
+							}),
+						},
+					],
+				},
+			},
+		];
+
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			const plugin = runtime.configuredPlugins.find(({ id }) => id === "bypassed-mcp");
+			const tool = plugin?.mcp?.tools.echo;
+			expect(tool?.input.safeParse({ value: "hello" }).success).toBe(true);
+			expect(tool?.input.safeParse({ value: 42 }).success).toBe(false);
+
+			const result = await runtime.handlePluginApiRoute(
+				"bypassed-mcp",
+				"POST",
+				"/echo",
+				new Request("http://test.local/_emdash/api/plugins/bypassed-mcp/echo", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ value: "hello" }),
+				}),
+			);
+			expect(result).toEqual({ success: true, status: 200, data: { echoed: "hello" } });
+		} finally {
+			await runtime.shutdown();
 		}
 	});
 

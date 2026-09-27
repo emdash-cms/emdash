@@ -5,7 +5,7 @@ description: Command-line interface for EmDash CMS.
 
 import { Aside } from "@astrojs/starlight/components";
 
-The EmDash CLI provides commands for database setup, type generation, creating and editing content, schema management, media, site export and import, and plugin development.
+The EmDash CLI provides commands for database setup, type generation, creating and editing content, schema management, media, and site export and import.
 
 ## Installation
 
@@ -665,83 +665,6 @@ The import commands exit with these codes:
 | `0` | Success. For `status`, an import that is in progress or complete |
 | `1` | An error, a declined prompt, an import that ended without a receipt, or a receipt whose digest does not match. For `status`, an import that failed, was cancelled or abandoned, or expired |
 | `2` | Analysis finished, but the plan has blockers |
-
-### `emdash plugin`
-
-Create, validate, bundle, and publish EmDash plugins. Marketplace login is separate from login to a CMS instance.
-
-#### `plugin init`
-
-Scaffold a sandboxed or native plugin:
-
-```bash
-npx emdash plugin init --dir ./my-plugin --name my-plugin --format sandboxed
-```
-
-| Option     | Description                                                        | Default           |
-| ---------- | ------------------------------------------------------------------ | ----------------- |
-| `--dir`    | Directory to create                                                 | Current directory |
-| `--name`   | Plugin package name or ID                                           | Interactive prompt |
-| `--format` | `sandboxed` or `native`                                             | Interactive prompt |
-| `--native` | Shortcut for `--format native`                                     | `false`           |
-
-#### `plugin bundle`
-
-Validate a plugin and create its marketplace tarball:
-
-```bash
-npx emdash plugin bundle --dir ./my-plugin --outDir ./artifacts
-```
-
-| Option           | Alias | Description                                  | Default           |
-| ---------------- | ----- | -------------------------------------------- | ----------------- |
-| `--dir`          |       | Plugin directory                             | Current directory |
-| `--outDir`       | `-o`  | Tarball output directory                     | `./dist`          |
-| `--validateOnly` |       | Run validation without creating a tarball    | `false`           |
-
-#### `plugin validate`
-
-Run the same validation as `plugin bundle` without creating a tarball:
-
-```bash
-npx emdash plugin validate --dir ./my-plugin
-```
-
-The optional `--dir` selects the plugin directory and defaults to the current directory.
-
-#### `plugin publish`
-
-Upload a bundle to the marketplace and, by default, wait for its processing result:
-
-```bash
-npx emdash plugin publish --tarball ./dist/my-plugin-1.0.0.tar.gz
-```
-
-| Option       | Description                                                    | Default                              |
-| ------------ | -------------------------------------------------------------- | ------------------------------------ |
-| `--tarball`  | Existing plugin tarball                                        | —                                    |
-| `--dir`      | Plugin directory used with `--build`                           | Current directory                    |
-| `--build`    | Build the plugin before upload                                 | `false`                              |
-| `--registry` | Marketplace base URL                                           | `https://marketplace.emdashcms.com`  |
-| `--no-wait`  | Exit after upload without waiting for the processing result    | `false`                              |
-
-Provide `--tarball`, or pass `--build` to build from `--dir` first.
-
-#### `plugin login`
-
-Authenticate to the marketplace through GitHub device flow. `--registry` selects a different marketplace and defaults to `https://marketplace.emdashcms.com`.
-
-```bash
-npx emdash plugin login
-```
-
-#### `plugin logout`
-
-Remove the saved marketplace credential. The optional `--registry` must identify the same marketplace used for login.
-
-```bash
-npx emdash plugin logout
-```
 
 ### `emdash export-seed`
 

@@ -5,6 +5,8 @@
  */
 
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
+import { isSiteRelativeDestination } from "../redirects/destination.js";
+import { isPattern, validateDestinationParams, validatePattern } from "../redirects/patterns.js";
 import { validateBlockFields } from "../schema/block-type-contract.js";
 import {
 	FIELD_TYPES,
@@ -600,10 +602,22 @@ export function validateSeed(data: unknown): ValidationResult {
 
 				if (!destination) {
 					errors.push(`${prefix}: destination is required`);
-				} else if (!isValidRedirectPath(destination)) {
+				} else if (!isValidRedirectPath(destination) || !isSiteRelativeDestination(destination)) {
 					errors.push(
-						`${prefix}.destination: must be a path starting with / (no protocol-relative URLs, path traversal, or newlines)`,
+						`${prefix}.destination: must be a path starting with / (no protocol-relative URLs, backslash prefixes, path traversal, or control characters)`,
 					);
+				}
+
+				if (source && isPattern(source)) {
+					const patternError = validatePattern(source);
+					if (patternError) {
+						errors.push(`${prefix}.source: invalid pattern: ${patternError}`);
+					} else if (destination) {
+						const destinationError = validateDestinationParams(source, destination);
+						if (destinationError) {
+							errors.push(`${prefix}.destination: ${destinationError}`);
+						}
+					}
 				}
 
 				if (redirect.type !== undefined) {

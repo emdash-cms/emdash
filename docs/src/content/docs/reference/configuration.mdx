@@ -620,16 +620,18 @@ emdash({
 	admin: {
 		logo: "/images/agency-logo.webp",
 		siteName: "Agency CMS",
+		footerLabel: "AgencyX",
 		favicon: "/favicon.ico",
 	},
 });
 ```
 
-| Option     | Type     | Description                                      |
-| ---------- | -------- | ------------------------------------------------ |
-| `logo`     | `string` | Logo URL or path for the login page and sidebar  |
-| `siteName` | `string` | Name shown in the sidebar and browser title      |
-| `favicon`  | `string` | Favicon URL or path for admin pages               |
+| Option        | Type              | Description                                                                    |
+| ------------- | ----------------- | ------------------------------------------------------------------------------ |
+| `logo`        | `string`          | Logo URL or path for the login page and sidebar                                |
+| `siteName`    | `string`          | Name shown in the sidebar header and browser title                             |
+| `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
+| `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
 
 ### `toolbar`
 

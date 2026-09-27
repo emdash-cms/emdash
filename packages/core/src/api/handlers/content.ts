@@ -68,6 +68,7 @@ import {
 	applyStagedReferences,
 	liveReferenceSelection,
 	pageStagedGroups,
+	readStagedReferenceBaselines,
 	readStagedReferences,
 	recordPublishedReferences,
 	STAGED_REFERENCES_KEY,
@@ -2318,12 +2319,16 @@ export async function handleContentPublish(
 					? await new RevisionRepository(trx).findById(existing.draftRevisionId)
 					: undefined;
 			const stagedReferences = draftRevision ? readStagedReferences(draftRevision.data) : undefined;
+			const stagedReferenceBaselines = draftRevision
+				? readStagedReferenceBaselines(draftRevision.data)
+				: undefined;
 			if (existing?.translationGroup) {
 				const valid = await validateStagedReferences(
 					trx,
 					collection,
 					stagedReferences ?? {},
 					existing.translationGroup,
+					stagedReferenceBaselines,
 				);
 				if (!valid.success) {
 					throw Object.assign(new Error(valid.error.message), {
@@ -2353,7 +2358,13 @@ export async function handleContentPublish(
 						expectedScheduledAt: options.expectedScheduledAt,
 						expectedRevision,
 					});
-					await applyStagedReferences(trx, collection, existing.translationGroup, stagedReferences);
+					await applyStagedReferences(
+						trx,
+						collection,
+						existing.translationGroup,
+						stagedReferences,
+						stagedReferenceBaselines,
+					);
 				}
 			}
 

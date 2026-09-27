@@ -1,6 +1,7 @@
 import { z, type ZodType } from "zod";
 
 import { hashString } from "../utils/hash.js";
+import { isSafeUrlFieldValue } from "../utils/url.js";
 import type { BlockFieldDefinition } from "./block-types.js";
 import {
 	isStoragelessField,
@@ -80,7 +81,16 @@ export function generateBlockFieldSchema(field: BlockFieldDefinition): ZodType {
 function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodType {
 	switch (type) {
 		case "url":
-			return z.string().check(z.url());
+			// The admin localizes `invalid_format` issues with `format: "url"`.
+			return z.string().check((ctx) => {
+				if (isSafeUrlFieldValue(ctx.value)) return;
+				ctx.issues.push({
+					code: "invalid_format",
+					format: "url",
+					input: ctx.value,
+					message: "URL must use http, https, mailto, or tel, or be a site-relative path",
+				});
+			});
 
 		case "string":
 		case "text":

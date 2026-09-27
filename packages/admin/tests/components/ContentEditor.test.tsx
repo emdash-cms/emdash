@@ -122,6 +122,7 @@ const defaultFields: Record<string, FieldDescriptor> = {
 };
 
 const MOVE_TO_TRASH_PATTERN = /Move to Trash/i;
+const URL_FIELD_ERROR_PATTERN = /Enter a valid URL/;
 
 function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 	return {
@@ -646,6 +647,78 @@ describe("ContentEditor", () => {
 					}),
 				}),
 			);
+		});
+
+		it.each([
+			["/about", "/about"],
+			["#section", "#section"],
+			["mailto:hello@example.com", "mailto:hello@example.com"],
+			["tel:+1 555 0100", "tel:+1 555 0100"],
+			[" https://example.com/page ", "https://example.com/page"],
+		])("saves %j in a url field as %j", async (value, saved) => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test", website: "https://example.com" } }),
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					website: { kind: "url", label: "Website" },
+				},
+			});
+
+			await screen.getByLabelText("Website").fill(value);
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			await vi.waitFor(() =>
+				expect(onSave).toHaveBeenCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ website: saved }),
+					}),
+				),
+			);
+		});
+
+		it.each(["javascript:alert(1)", "data:text/html,x", "//evil.example", "/\\evil.example"])(
+			"refuses to save %j in a url field",
+			async (value) => {
+				const onSave = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ data: { title: "Test", website: "https://example.com" } }),
+					onSave,
+					fields: {
+						title: { kind: "string", label: "Title", required: true },
+						website: { kind: "url", label: "Website" },
+					},
+				});
+
+				const input = screen.getByLabelText("Website");
+				await input.fill(value);
+				await userEvent.tab();
+				await expect.element(screen.getByText(URL_FIELD_ERROR_PATTERN)).toBeInTheDocument();
+				await screen.getByRole("button", { name: "Save" }).first().click();
+
+				expect(onSave).not.toHaveBeenCalled();
+			},
+		);
+
+		it("keeps URL values left-to-right inside an RTL editor", async () => {
+			document.documentElement.dir = "rtl";
+			try {
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ data: { title: "Test", website: "/about" } }),
+					fields: {
+						title: { kind: "string", label: "Title", required: true },
+						website: { kind: "url", label: "Website" },
+					},
+				});
+
+				await expect.element(screen.getByLabelText("Website")).toHaveAttribute("dir", "ltr");
+			} finally {
+				document.documentElement.dir = "ltr";
+			}
 		});
 
 		it("multiSelect checkboxes reflect existing values", async () => {

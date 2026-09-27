@@ -23,7 +23,12 @@ import {
 	singleFlightCached,
 } from "../utils/single-flight-cache.js";
 import type { CompiledPattern } from "./patterns.js";
-import { compilePattern, interpolateDestination, matchPattern } from "./patterns.js";
+import {
+	compilePattern,
+	interpolateDestination,
+	matchPattern,
+	validatePattern,
+} from "./patterns.js";
 
 export interface CachedRedirectRule {
 	redirect: Redirect;
@@ -89,6 +94,11 @@ function compileRedirects(redirects: Redirect[]): CachedRedirects {
 	const patterns: CachedRedirectRule[] = [];
 	for (const r of redirects) {
 		if (r.isPattern) {
+			const patternError = validatePattern(r.source);
+			if (patternError) {
+				console.warn(`[emdash:redirects] Skipping redirect ${r.id}: ${patternError}`);
+				continue;
+			}
 			patterns.push({ redirect: r, compiled: compilePattern(r.source) });
 		} else {
 			exact.set(r.source, r);

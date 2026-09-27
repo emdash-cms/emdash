@@ -180,6 +180,43 @@ External links open in a new tab with `noopener noreferrer`. Link elements do no
 
 Block images use the same browser-resource policy. Root-relative image URLs are allowed. An external image must use HTTPS and its hostname must appear in the plugin's `allowedHosts`. A plugin with `network:request:unrestricted` can load an HTTPS image from any hostname. Other external images cause the complete Block Kit response to be rejected.
 
+## Row actions in tables
+
+Set a table column's `format` to `element` to place a button, link, or menu in each row. Each row stores the element under the column's key; a row without a value leaves the cell empty. Use a `menu` element when a row offers several choices behind one button:
+
+```typescript title="src/plugin.ts"
+return {
+	blocks: [
+		{
+			type: "table",
+			page_action_id: "missing_page",
+			columns: [
+				{ key: "title", label: "Entry" },
+				{ key: "languages", label: "Missing" },
+				{ key: "action", label: "Actions", format: "element" },
+			],
+			rows: [
+				{
+					title: "Hello world",
+					languages: "French, Italian",
+					action: {
+						type: "menu",
+						action_id: "translate",
+						label: "Translate",
+						items: [
+							{ label: "French", value: "fr:01K5POSTEXAMPLE" },
+							{ label: "Italian", value: "it:01K5POSTEXAMPLE" },
+						],
+					},
+				},
+			],
+		},
+	],
+};
+```
+
+Choosing a menu item sends a `block_action` with the menu's `action_id` and the item's `value`. Item values must be unique within a menu. Element cells accept only `button`, `link`, and `menu` elements. A menu can also appear in an `actions` block, as a section accessory, or in empty-state actions, but not as a form field. The `elements.menu(actionId, label, items, { style })` builder returns the same shape.
+
 ## Saved-entry panels and actions
 
 Declare an editor panel when a plugin needs to show information beside a saved entry. Panels start collapsed and call their private route only when an editor opens them.
@@ -283,6 +320,7 @@ Use `refresh: true` to reload the entry, `navigate` with a structured link targe
 | --------------- | -------------------------------------------- |
 | `button`        | Action button with optional confirmation dialog |
 | `link`          | Host-resolved internal or external navigation    |
+| `menu`          | Button that opens a list of choices; each choice dispatches an action |
 | `text_input`    | Single-line or multiline text input          |
 | `number_input`  | Numeric input with min/max                   |
 | `select`        | Dropdown select                              |
