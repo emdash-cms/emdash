@@ -167,17 +167,27 @@ const SHARED_COMMANDS = new Set(["install", "run"]);
 // `bun <name>` runs Bun's own command for these instead of the package.json script.
 const BUN_BUILT_IN_COMMANDS = new Set(["build", "deploy"]);
 
-function toPackageManagerCommand(pm: PackageManager, command: string): string {
+function toPackageManagerCommand(
+	pm: PackageManager,
+	command: string,
+	scripts: readonly string[],
+): string {
 	if (SHARED_COMMANDS.has(command)) return `${pm} ${command}`;
-	if (pm === "npm") return `npm run ${command}`;
+	if (pm === "npm" && scripts.includes(command)) return `npm run ${command}`;
+	// `pnpm <name>` also runs installed binaries such as `wrangler`, which npm needs npx for.
+	if (pm === "npm") return `npx ${command}`;
 	if (pm === "bun" && BUN_BUILT_IN_COMMANDS.has(command)) return `bun run ${command}`;
 	return `${pm} ${command}`;
 }
 
 /** Rewrites the pnpm commands in a template doc for the chosen package manager. */
-export function replacePackageManagerCommands(content: string, pm: PackageManager): string {
+export function replacePackageManagerCommands(
+	content: string,
+	pm: PackageManager,
+	scripts: readonly string[],
+): string {
 	if (pm === "pnpm") return content;
 	return content.replace(PNPM_COMMAND, (_match, command: string) =>
-		toPackageManagerCommand(pm, command),
+		toPackageManagerCommand(pm, command, scripts),
 	);
 }

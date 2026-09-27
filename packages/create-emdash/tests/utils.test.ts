@@ -376,6 +376,8 @@ describe("setWorkerLoader", () => {
 });
 
 describe("replacePackageManagerCommands", () => {
+	const scripts = ["dev", "build", "deploy"];
+
 	it.each([
 		["npm", "pnpm dev", "npm run dev"],
 		["npm", "pnpm install", "npm install"],
@@ -384,10 +386,12 @@ describe("replacePackageManagerCommands", () => {
 		["bun", "`pnpm deploy`", "`bun run deploy`"],
 		["bun", "pnpm build", "bun run build"],
 		["bun", "pnpm run build", "bun run build"],
+		["npm", "pnpm wrangler login", "npx wrangler login"],
+		["bun", "pnpm wrangler login", "bun wrangler login"],
 		["npm", "npx emdash types", "npx emdash types"],
 		["bun", "`pnpm-workspace.yaml`", "`pnpm-workspace.yaml`"],
 		["pnpm", "pnpm dev", "pnpm dev"],
 	] as const)("%s: %s -> %s", (pm, input, expected) => {
-		expect(replacePackageManagerCommands(input, pm)).toBe(expected);
+		expect(replacePackageManagerCommands(input, pm, scripts)).toBe(expected);
 	});
 });
