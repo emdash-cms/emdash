@@ -1,5 +1,5 @@
 ---
-"emdash": minor
+"emdash": patch
 ---
 
 Removes the deprecated `Comments` and `CommentForm` exports from `emdash/ui`. Sites that still import either component from `emdash/ui` fail to build after upgrading.

@@ -1,5 +1,5 @@
 ---
-"emdash": minor
+"emdash": patch
 ---
 
 Removes the deprecated `emdash dev` and `emdash auth secret` CLI commands. Scripts that still call either command now exit with `Unknown command`.

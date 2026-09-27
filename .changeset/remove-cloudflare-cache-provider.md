@@ -1,5 +1,5 @@
 ---
-"@emdash-cms/cloudflare": minor
+"@emdash-cms/cloudflare": patch
 ---
 
 Removes the deprecated `cloudflareCache()` route-cache provider and its `@emdash-cms/cloudflare/cache` and `@emdash-cms/cloudflare/cache/config` entry points. Sites that still import `cloudflareCache` fail to build after upgrading.

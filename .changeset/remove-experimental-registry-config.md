@@ -1,6 +1,6 @@
 ---
-"emdash": minor
-"@emdash-cms/admin": minor
+"emdash": patch
+"@emdash-cms/admin": patch
 ---
 
 Removes the deprecated `experimental.registry` integration option. Sites that still set it now fail at startup with an error pointing to the top-level `registry` option, including sites that already set `registry` alongside it. The value is not silently ignored, because that would drop the configured aggregator and release-age policy.
