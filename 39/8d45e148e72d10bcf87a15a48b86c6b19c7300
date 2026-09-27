@@ -1,0 +1,19 @@
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_eebc9619e69ac4::t_3aa4b13006be7d 1789
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "398d45e148e72d10bcf87a15a48b86c6b19c7300",
+  "prompts": {},
+  "sessions": {
+    "s_eebc9619e69ac4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3f-74f0-7711-ba4b-e1a223298d10",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
