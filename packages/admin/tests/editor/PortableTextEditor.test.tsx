@@ -20,6 +20,8 @@ import {
 	_prosemirrorToPortableText,
 	PortableTextEditor,
 } from "../../src/components/PortableTextEditor";
+
+import "../../dist/styles.css";
 import { render } from "../utils/render";
 
 // ---------------------------------------------------------------------------

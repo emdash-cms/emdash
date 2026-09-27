@@ -24,6 +24,7 @@ declare module "virtual:emdash/config" {
 		toolbar?: "server" | "client" | false;
 		/** Whether an object-cache adapter was configured at build time. */
 		objectCacheEnabled?: boolean;
+		updateCheck?: boolean | { minimumReleaseAge?: string | number };
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;

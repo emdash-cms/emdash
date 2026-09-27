@@ -1,5 +1,175 @@
 # emdash
 
+## 0.42.0
+
+### Minor Changes
+
+- [#3335](https://github.com/emdash-cms/emdash/pull/3335) [`0371107`](https://github.com/emdash-cms/emdash/commit/037110704e663ae7b4fe033501d20f14d546f058) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds multi-release fixtures to `emdash/testing/registry`, allowing browser and integration tests to exercise registry updates between authoritative package versions. Existing single-release fixtures continue to work unchanged.
+
+- [#3440](https://github.com/emdash-cms/emdash/pull/3440) [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212) Thanks [@swissky](https://github.com/swissky)! - Adds two settings to the Navigation section of the content type editor:
+  
+  - **Icon**: the Phosphor icon name shown for the collection in the admin sidebar and in command palette navigation, such as `calendar-blank`. A sidebar folder shows the icon of the first collection in it that declares one. A name that does not resolve falls back to the collection's default icon.
+  - **Hide from navigation**: removes the collection's sidebar entry, its command palette link, and its dashboard quick action. The collection stays reachable by URL, the API, and plugins. Collections that were already hidden now also drop out of the command palette.
+  
+  #### API and seed files
+  
+  The manifest now publishes each collection's `icon`. Collection icon names are now trimmed and limited to 64 characters in the schema API and the MCP collection tools, and limited to 64 characters in seed files, so longer values are rejected. Sending an empty `icon` clears the stored icon.
+
+- [#3440](https://github.com/emdash-cms/emdash/pull/3440) [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212) Thanks [@swissky](https://github.com/swissky)! - Adds an `admin.quickCreate` collection setting that removes the collection's "new entry" quick action from the admin dashboard. Set it to `false` in a seed file or through the schema API, or turn off "Quick action on the dashboard" in the content type editor's Navigation section. Collections without the setting keep their quick action. A schema API update replaces the whole `admin` object, so include any existing `admin.listColumns` in the same request.
+
+- [#1939](https://github.com/emdash-cms/emdash/pull/1939) [`2410395`](https://github.com/emdash-cms/emdash/commit/24103953cc5873f76c36625b11251ac5864dca78) Thanks [@swissky](https://github.com/swissky)! - Adds a core update notice to the admin dashboard. When a newer EmDash version is available, admins see a dismissible banner with a link to the release notes. The banner names the newest release that has been public on npm for at least 24 hours.
+  
+  The check is on by default: the server sends a GET request to `https://registry.npmjs.org/emdash` at most once a day, in the background, with no site data. To wait longer before a release is announced, for example to match pnpm's `minimumReleaseAge`, or to turn the check off:
+  
+  ```js
+  emdash({ updateCheck: { minimumReleaseAge: "7d" } }); // a duration string or seconds
+  emdash({ updateCheck: false });
+  ```
+  
+  The banner reads `GET /_emdash/api/admin/core-update`, which requires the new `updates:read` permission (admins only).
+
+- [#3059](https://github.com/emdash-cms/emdash/pull/3059) [`c36d974`](https://github.com/emdash-cms/emdash/commit/c36d974101cc5536a500228958412ea07b7aaf44) Thanks [@danielmlr](https://github.com/danielmlr)! - Updates the MCP content tools and revision restore to honor an entry's edit lock, so an AI tool connected over MCP no longer overwrites an entry that someone else has open in the admin.
+  
+  `content_update`, `content_delete`, `content_publish`, `content_unpublish`, `content_schedule`, `content_unschedule`, `content_discard_draft` and `revision_restore` fail with `ENTRY_LOCKED` while another user holds the entry's lock, where the call used to succeed. The error message names the holder, and `_meta.details` carries their `userId`, `userName`, `acquiredAt` and `expiresAt`. Reading the item again does not clear the refusal. Each of these tools takes an optional `overrideLock: true` to write anyway.
+  
+  `POST /_emdash/api/revisions/{revisionId}/restore` now returns `409 ENTRY_LOCKED` in the same case. Pass `"overrideLock": true` in the request body to restore anyway.
+  
+  To keep the previous behavior for a whole collection, switch edit locking off for it under **Content Types** → your collection → **Edit locking**.
+
+- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `byline:afterSave` and `byline:afterDelete` plugin hooks, so plugins can keep external copies of author data, such as a search index, current when byline profiles change.
+  
+  Both hooks require the `bylines:read` capability and receive the same public byline profile that `ctx.bylines.get()` returns. `byline:afterSave` runs after a byline or one of its translations is created or updated, with `isNew` set on creation. `byline:afterDelete` receives the byline as it was before deletion. They run after changes made through the admin API or MCP tools, not seeds or imports, and hook errors are logged without undoing the change.
+  
+  Credit changes on an entry are still reported through `content:afterSave`. Relinking a byline to another user can change the credits inferred for that user's entries without a per-entry event.
+
+- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `bylines:read` plugin capability, which lets plugins read public byline profiles and the bylines credited on content entries through `ctx.bylines`.
+  
+  `ctx.bylines` provides `get()` and cursor-paginated `list()` for profiles, plus `getEntriesBylines()` for credits. `getEntriesBylines()` resolves up to 100 entries of one collection in a single call, so a search indexer or feed plugin can attach author names to a page of `ctx.content.list()` results:
+  
+  ```ts
+  const page = await ctx.content.list("posts", { limit: 100 });
+  const credits = await ctx.bylines.getEntriesBylines(
+  	"posts",
+  	page.items.map((entry) => entry.id),
+  );
+  ```
+  
+  Credits match what the site renders: the credits assigned in the editor, or the author's linked byline, marked `source: "inferred"`, when an entry has none. They resolve at the entry's own locale. Profiles omit the linked user account, guest flag, and byline custom field values.
+  
+  The capability is independent of `content:read` and `users:read`. It is available to native plugins and to sandboxed plugins on Cloudflare Worker Loader and Node.js workerd. Installation and update consent list it as a new permission.
+
+- [#3501](https://github.com/emdash-cms/emdash/pull/3501) [`4d6a87b`](https://github.com/emdash-cms/emdash/commit/4d6a87b6fa4adc1a0c240df28fe8d8accfac2630) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the legacy `emdash plugin` command group, including its marketplace login, logout, scaffold, validation, bundle, and publish commands.
+  
+  Use the dedicated `@emdash-cms/plugin-cli` package for sandboxed plugin authoring and registry publishing:
+  
+  ```sh
+  pnpm add -D @emdash-cms/plugin-cli
+  pnpm exec emdash-plugin --help
+  ```
+  
+  Native plugins are npm packages and continue to use their package build scripts.
+
+- [#3495](https://github.com/emdash-cms/emdash/pull/3495) [`9358ede`](https://github.com/emdash-cms/emdash/commit/9358ede608670f3734be4e616f674bdf9a046dfe) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `admin.footerLabel` for customizing or hiding the label beside the version in the admin sidebar. The label defaults to `"EmDash"` instead of reusing the configured site name. Set it to a string to use another label, or set it to `false` to show the version alone.
+
+### Patch Changes
+
+- [#3493](https://github.com/emdash-cms/emdash/pull/3493) [`148ff3e`](https://github.com/emdash-cms/emdash/commit/148ff3ee3e7bb86e30e88284bfff54eb286598ed) Thanks [@MA2153](https://github.com/MA2153)! - Fixes bulk term assignment only working with the built-in `tag` taxonomy. Editors can now add a term from any taxonomy, such as a category or a custom taxonomy, to up to 50 posts from a collection's bulk-actions bar or from that taxonomy's page. When several taxonomies apply to a collection, the dialog asks which one to use. The `POST /_emdash/api/taxonomies/bulk-tag` endpoint now accepts a term from any taxonomy, and matches only entries in the collections that use that taxonomy.
+
+- [`43565ef`](https://github.com/emdash-cms/emdash/commit/43565efe85b19b6bb5ed2e3dead627a34341698d) Thanks [@MA2153](https://github.com/MA2153)! - List endpoints now treat a zero or negative `limit` as 1, matching the documented range of 1 to 100. Previously some lists, including public comment lists, could return more items than the maximum page size.
+
+- [#3517](https://github.com/emdash-cms/emdash/pull/3517) [`2987a51`](https://github.com/emdash-cms/emdash/commit/2987a514ff8816fff05a25470af0b90829805531) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes `emdash-env.d.ts` not updating when the schema changes during `astro dev` with the Cloudflare adapter. Adding or editing collections and fields now regenerates types on Cloudflare too, not only on Node.
+
+- [#2390](https://github.com/emdash-cms/emdash/pull/2390) [`2bce20c`](https://github.com/emdash-cms/emdash/commit/2bce20ccc908f921dff3a1904aab870ca7a1a996) Thanks [@dashimu](https://github.com/dashimu)! - Fixes the admin UI remaining on "Loading EmDash..." when running EmDash from source in development on Windows. No configuration change is required.
+
+- [#2898](https://github.com/emdash-cms/emdash/pull/2898) [`8b1b585`](https://github.com/emdash-cms/emdash/commit/8b1b585eed4d4a542ee24f449b5992e7aeb72380) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes rich text image settings so caption, alt text, tooltip, size, and alignment edits persist when authors click back into the post. Captions and tooltip titles also round-trip independently, so clearing a caption no longer restores it from the tooltip text.
+
+- [#3487](https://github.com/emdash-cms/emdash/pull/3487) [`9f721fb`](https://github.com/emdash-cms/emdash/commit/9f721fb01e0ef7b11311df1f92ac146fb3011f50) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes draft publication of a reference field from undoing link changes published from the opposite end of the relation in the meantime.
+  
+  Draft reference changes now merge with concurrent changes from either end of the relation. Additions and removals made in the draft take effect, while links changed only from the opposite end remain unchanged. Restoring a revision continues to replace the live selection exactly.
+
+- [#3439](https://github.com/emdash-cms/emdash/pull/3439) [`ff61df9`](https://github.com/emdash-cms/emdash/commit/ff61df9a518d12e57f5e134382413e4acccce3a9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes WordPress WXR imports failing partway through large exports. The admin now imports taxonomy terms, content, and reusable blocks in bounded requests while preserving translation links and the complete import summary.
+  
+  Direct API clients can continue using a single request for small exports. Larger exports return `WXR_IMPORT_TOO_LARGE` and must use the chunked `taxonomy`, `content`, and `finalize` phases.
+
+- [#3439](https://github.com/emdash-cms/emdash/pull/3439) [`ff61df9`](https://github.com/emdash-cms/emdash/commit/ff61df9a518d12e57f5e134382413e4acccce3a9) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes `POST /_emdash/api/import/wordpress/prepare` so it also accepts the post-type shape returned by `/import/wordpress/analyze` (`suggestedCollection` and `requiredFields`), in addition to the existing `collection`/`fields` shape.
+
+- [#3488](https://github.com/emdash-cms/emdash/pull/3488) [`54ef82f`](https://github.com/emdash-cms/emdash/commit/54ef82f084dc5cb207d5b137aabcb68701dcc4be) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes Astro route-cache fills rebuilding purged pages from stale object-cache data on Cloudflare KV. Anonymous cache fills now read from the database, while edge-cache hits continue to avoid the Worker. Content cache reads also stop fetching the retired legacy epoch, reducing KV reads while current publishers keep invalidating older rolling-deploy readers.
+
+- [#3468](https://github.com/emdash-cms/emdash/pull/3468) [`aa054ae`](https://github.com/emdash-cms/emdash/commit/aa054aea7f763fa29378ef80c14d5283a3f9ce57) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes missing MCP tools for plugins built with `emdash-plugin build` and registered in `plugins: []`. Administrators can now review and enable those tools with the plugin's **Agent access** switch, and enabled tools appear in `tools/list`, as they already did for sandboxed and registry installs.
+
+- [#3310](https://github.com/emdash-cms/emdash/pull/3310) [`e59d9b4`](https://github.com/emdash-cms/emdash/commit/e59d9b4f5a517a865e6a6482b688919eb83b8b54) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes `ctx.kv.list("settings:")` scanning the options table twice. The general prefix scan read every settings row and discarded it before `SettingsAccess.list()` read the same rows again, so a plugin that lists its settings in a `page:metadata` hook cost every page render an extra query.
+
+- [#3421](https://github.com/emdash-cms/emdash/pull/3421) [`530dabf`](https://github.com/emdash-cms/emdash/commit/530dabf04b6118ac7639b37ab556015115c16bef) Thanks [@swissky](https://github.com/swissky)! - Fixes the admin marketplace plugin icon and theme thumbnail proxies following redirects off the marketplace origin, which could make the server fetch an internal or loopback URL and return the response to any user with plugin read access (Editor and above). Sites with `marketplace` configured are affected. Redirects that stay on the marketplace origin still work; others now return `502` with `PROXY_REDIRECT_UNTRUSTED`, and chains longer than five hops return `502` with `PROXY_TOO_MANY_REDIRECTS`.
+
+- [#3473](https://github.com/emdash-cms/emdash/pull/3473) [`22575b7`](https://github.com/emdash-cms/emdash/commit/22575b760a24e88e40fae91507b1e16eef2c558f) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Adds an optional `caption` to the MCP `media_upload` tool, stored on the media record next to `alt`. The tool previously had no caption, and its schema dropped an unknown `caption` argument without an error, so a caption sent with an upload (often the picture's credit) was lost and the record stored none.
+
+- [#3463](https://github.com/emdash-cms/emdash/pull/3463) [`09a5bb0`](https://github.com/emdash-cms/emdash/commit/09a5bb07abc5b43c7f39777278800c874f9d27ce) Thanks [@akapug](https://github.com/akapug)! - Fixes `emdash migrate --from-config` failing with "Stripping types is currently unsupported for files under node_modules" when the Astro config imports a plugin that publishes TypeScript source, such as `@emdash-cms/plugin-forms`.
+
+- [#3422](https://github.com/emdash-cms/emdash/pull/3422) [`7097874`](https://github.com/emdash-cms/emdash/commit/7097874dd8758f2e68d96c3374f6d1a780626230) Thanks [@swissky](https://github.com/swissky)! - Fixes anonymous OAuth dynamic client registration (`POST /_emdash/api/oauth/register`) letting unauthenticated visitors create unlimited OAuth client records. Registration is now limited to 10 per minute per client IP. Requests over the limit get a `429` with `Retry-After: 60` and a `temporarily_unavailable` error body. Like the other auth rate limits, it applies only when EmDash can determine the client IP: on Cloudflare, or when `trustedProxyHeaders` (or `EMDASH_TRUSTED_PROXY_HEADERS`) is configured.
+
+- [#3409](https://github.com/emdash-cms/emdash/pull/3409) [`1ee3c4f`](https://github.com/emdash-cms/emdash/commit/1ee3c4f905256afcf44dce192d02de1cd172057b) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes taxonomy-filtered listings sorted by `updated_at` or a custom field reading the whole collection on D1. `published_at` and `created_at` sorts still use the indexed path that stops at `LIMIT`; `updated_at` and field sorts now seek from the term's assignments again.
+
+- [#3502](https://github.com/emdash-cms/emdash/pull/3502) [`ccf24b4`](https://github.com/emdash-cms/emdash/commit/ccf24b45b7d8d8034d092c0dc293d2d1a99a0cd9) Thanks [@marccardinal](https://github.com/marccardinal)! - Fixes type errors when registering native plugins whose options are declared as an interface, such as `formsPlugin()`, `embedsPlugin()`, and plugins scaffolded by `emdash plugin init --native`. A type-checked `astro.config.mjs` (for example, one checked by `astro check`) no longer reports TS2322 for these `plugins` entries. Plugin options must still be an object.
+
+- [#3484](https://github.com/emdash-cms/emdash/pull/3484) [`0993a3d`](https://github.com/emdash-cms/emdash/commit/0993a3d90ec16ccbcd2a48f2143a235106e3ebfc) Thanks [@ascorbic](https://github.com/ascorbic)! - Fix plugin one-shot schedules that use a space-separated date and time or a UTC offset. New and existing one-shot due times are stored as canonical UTC timestamps, so the scheduler wakes and runs them at the intended instant. Invalid saved task data or a recurring schedule with no future run is now disabled after it is claimed instead of blocking the rest of the batch and being retried indefinitely.
+
+- [#3325](https://github.com/emdash-cms/emdash/pull/3325) [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes an open redirect in the admin login page and the logout, magic-link sign-in, and dev-bypass routes: a `?redirect=` value containing a tab, carriage return, or line feed (for example `/%09/evil.example`) could send the browser to another site. Redirect values that contain control characters are now ignored.
+
+- [#3418](https://github.com/emdash-cms/emdash/pull/3418) [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13) Thanks [@swissky](https://github.com/swissky)! - Fixes registry plugin updates ignoring `policy.minimumReleaseAge`. Updating an installed plugin to a release younger than the configured age, or to a release without a valid index timestamp, is now refused, just as installing it is. Publishers and packages listed in `minimumReleaseAgeExclude` remain exempt.
+  
+  The admin update endpoint (`POST /_emdash/api/admin/plugins/registry/:id/update`) now refuses a `version` older than the installed one with `DOWNGRADE_NOT_ALLOWED`; the admin dashboard never sends one, so dashboard updates are unaffected. Updates without `version` still follow the aggregator's latest release, which can be older than the installed one after a publisher withdraws the newest release. To roll back to an older release, uninstall the plugin and install that version.
+
+- [#3485](https://github.com/emdash-cms/emdash/pull/3485) [`b869811`](https://github.com/emdash-cms/emdash/commit/b8698118b02b6ee1300f9e80b0cf8164a7b4ee74) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes fresh Cloudflare D1 sites remaining partially initialized when the first-request seed is interrupted while creating a collection. The next request now resumes the seed. Existing configured sites and sites initialized with `emdash seed` are left unchanged, so upgrades and cold starts do not recreate deleted sample content. Attempts to create a collection over an orphaned content table now return a specific conflict instead of a generic server error.
+
+- [#3436](https://github.com/emdash-cms/emdash/pull/3436) [`36a73e3`](https://github.com/emdash-cms/emdash/commit/36a73e3430c3d18f211cc79d8d70024178a81250) Thanks [@swissky](https://github.com/swissky)! - Fixes sites on Cloudflare D1 or SQLite that stay stuck on the `036_i18n_menus_and_taxonomies` migration after a first attempt stopped partway, for example on a slow cold start. Every retry failed with `no such table`, and pages rendered without CMS data. The migration now resumes where it stopped and completes, and content-taxonomy assignments come back intact.
+  
+  #### Already-stuck sites
+  
+  On a site that was already stuck at the menus, menu items, taxonomies, or taxonomy definitions table, earlier retries emptied that table. The migration completes after updating, but those rows must be restored from a backup, such as D1 Time Travel or a copy of the SQLite database file.
+
+- [#1814](https://github.com/emdash-cms/emdash/pull/1814) [`bb06e3f`](https://github.com/emdash-cms/emdash/commit/bb06e3fb4cf33aa53e669a5980b638e424e38519) Thanks [@masonjames](https://github.com/masonjames)! - Fixes seed application failing with a database uniqueness error when a seeded slug or slugless entry ID belongs to content in the trash. In `skip` and `update` modes, EmDash leaves the trashed content unchanged and counts the collision as skipped. In `error` mode, it reports a conflict identifying the trashed entry. References and translations do not resolve through skipped trashed entries.
+
+- [#3384](https://github.com/emdash-cms/emdash/pull/3384) [`7a8d368`](https://github.com/emdash-cms/emdash/commit/7a8d368c1ac987786c152316bfa655400a094711) Thanks [@swissky](https://github.com/swissky)! - Fixes the setup wizard creating two administrator accounts when two passkey setup verifications finish at the same time. Whichever verification saves its account second now fails with `ADMIN_EXISTS`, and no second account is created.
+
+- [#3326](https://github.com/emdash-cms/emdash/pull/3326) [`a3421ef`](https://github.com/emdash-cms/emdash/commit/a3421efde18db29aae068f42b79d712dc93ae2d1) Thanks [@ascorbic](https://github.com/ascorbic)! - Hardens redirect rules, including rules stored without going through the admin API:
+  
+  - The redirect middleware now only redirects to site-relative paths that start with a single `/`. It skips any rule whose destination has a scheme, starts with `//` or `/\`, or contains control characters, and logs a warning with the rule's ID.
+  - Pattern sources treat parentheses and other regex characters as literal text. Previously a source such as `/(.*.*.*x)/[slug]` compiled into a regex that could stall requests, and one with an unbalanced `(` stopped every redirect on the site from working.
+  - Fixes pattern rules that put a `[param]` before a `[...splat]`, such as `/[category]/[...rest]`, which swapped the two captured values.
+  - Stored pattern rules whose source is malformed (for example, `/[a][b][c]`) are skipped with a warning instead of being compiled.
+  - Seed files now get the same redirect checks as the redirects API. Validation fails when a pattern source is malformed, a destination uses a placeholder the source doesn't capture, or a destination would resolve to another site.
+
+- [#3281](https://github.com/emdash-cms/emdash/pull/3281) [`c0c0d73`](https://github.com/emdash-cms/emdash/commit/c0c0d73ebfee9915090f2ddacc07a383936410f2) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes `astro build` failing with `GetStaticPathsRequired` inside an EmDash route when the Astro config sets `output: "static"`. Every route EmDash adds, including the admin, the API, `sitemap.xml`, and `robots.txt`, now renders on demand under either output setting, so a static-output site still needs a server adapter. The site's own pages keep Astro's default: under `output: "static"` they prerender at build time and show content from that build. Builds with `output: "server"` are unchanged.
+
+- [#3455](https://github.com/emdash-cms/emdash/pull/3455) [`f9cc7b4`](https://github.com/emdash-cms/emdash/commit/f9cc7b4e163032a33b4a5d81a3a91a32902cb50e) Thanks [@mvanhorn](https://github.com/mvanhorn)! - Fixes `client.terms()` so dictionary consumers can skip usage counts. `client.terms("tag", { includeCounts: false })` leaves `count` off each term, and counts stay enabled by default.
+
+- [#3327](https://github.com/emdash-cms/emdash/pull/3327) [`f796444`](https://github.com/emdash-cms/emdash/commit/f79644435efa642ad4bca5d8735efe07cc7aee71) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes stored cross-site scripting through `url` content fields. EmDash previously accepted `javascript:` and `data:` values, so a theme rendering `<a href={entry.data.website}>` could run an attacker's script on the site origin. A `url` field, including one inside a repeater or block, now accepts only these values:
+  
+  - `http:` and `https:` URLs
+  - `mailto:` and `tel:` links
+  - site-relative paths such as `/about`, and fragments such as `#contact`
+  
+  The REST API, MCP tools, site transfers, WordPress imports, and the admin editor reject any other value with a validation error. Seeds and plugin content updates also reject unsafe schemes and path forms that browsers resolve to another site, including `//example.com` and `/\\example.com`. The admin editor now accepts relative paths, fragments, `mailto:`, and `tel:` and keeps URL input left-to-right in every locale.
+  
+  Existing entries are not changed. An unsafe stored value is still returned by queries, and saving or duplicating that entry fails until the field is corrected. `sanitizeHref()` and `isSafeHref()` now reject unsafe protocol-relative, backslash-prefixed, and control-character forms when rendering older content.
+
+- [#3303](https://github.com/emdash-cms/emdash/pull/3303) [`d8ea3fc`](https://github.com/emdash-cms/emdash/commit/d8ea3fc6538fe14fdefa553ae771bb2fa583e7ee) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes a denial-of-service in public URL routing: a collection URL pattern with several placeholders in one path segment, such as `/{a}{b}{c}{d}{e}x`, let a single crafted request tie up the server for seconds while `resolveEmDashPath()` matched it.
+  
+  Collection URL patterns now allow at most one placeholder per path segment. `/{year}/{month}/{slug}.html` and `/p-{id}/{slug}` are still valid, but `/{year}{month}/{slug}` and `/{slug}-{id}` are rejected when a collection is created or its pattern is changed through the admin, the REST API, the MCP `schema_update_collection` tool, or a seed. Seed files with such a pattern fail validation before anything is applied. The admin's collection editor shows the problem next to the URL Pattern field.
+  
+  If a collection already has a pattern that breaks this rule, it keeps working for generating links in menus, sitemaps and redirects, but `resolveEmDashPath()` no longer matches it, and the site logs a warning naming the collection. REST, MCP and admin updates that send the stored pattern back unchanged still succeed. Give each placeholder its own segment (for example, change `/{slug}-{id}` to `/{id}/{slug}`) to route those entries again.
+
+- [#3445](https://github.com/emdash-cms/emdash/pull/3445) [`b2ce32c`](https://github.com/emdash-cms/emdash/commit/b2ce32c31fb448da4a5b0eb2a817982d7613f3e3) Thanks [@swissky](https://github.com/swissky)! - Fixes admin sign-in silently returning to the login page when no Astro session driver is configured. Signing in with a passkey, magic link, invite link, or signup link now fails with a `SESSION_UNAVAILABLE` error explaining that a session driver is required, and OAuth sign-in returns to the login page with the same explanation, instead of reporting success without keeping the user signed in. Magic links, invite links, and signup links stay usable for a retry. `astro dev` and `astro build` also warn when the driver is missing or sessions are disabled with `session: false`. The Node, Cloudflare, and Netlify adapters configure a driver automatically; on other adapters, such as Vercel, configure `session.driver` in `astro.config.mjs`.
+- Updated dependencies [[`f465247`](https://github.com/emdash-cms/emdash/commit/f46524757512fa32293b7a38829b61d8be17d30a), [`70589bc`](https://github.com/emdash-cms/emdash/commit/70589bc8f35951bb40ec202416ad518ade6ffdc0), [`6e58b48`](https://github.com/emdash-cms/emdash/commit/6e58b48e6cb6db096daa5ed729b29f105e622a9a), [`f2f9119`](https://github.com/emdash-cms/emdash/commit/f2f9119738ba360d02e3fd00e1cf7d1d49b52fda), [`2e943ff`](https://github.com/emdash-cms/emdash/commit/2e943ff35fcffc5a4e35dd658ef73cf098030e3b), [`148ff3e`](https://github.com/emdash-cms/emdash/commit/148ff3ee3e7bb86e30e88284bfff54eb286598ed), [`1ba8fcb`](https://github.com/emdash-cms/emdash/commit/1ba8fcbb6d4236e96556b5486f4c89bd4fa16d18), [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212), [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212), [`cc91805`](https://github.com/emdash-cms/emdash/commit/cc9180504251425429f4b41cc0d68028f834072f), [`2410395`](https://github.com/emdash-cms/emdash/commit/24103953cc5873f76c36625b11251ac5864dca78), [`d583dfd`](https://github.com/emdash-cms/emdash/commit/d583dfd8d837850493174a1c76fb9de9aef7cbf5), [`db76eae`](https://github.com/emdash-cms/emdash/commit/db76eaee4dcd313e7f7e37c11b4bdd319ae33624), [`8b1b585`](https://github.com/emdash-cms/emdash/commit/8b1b585eed4d4a542ee24f449b5992e7aeb72380), [`ff61df9`](https://github.com/emdash-cms/emdash/commit/ff61df9a518d12e57f5e134382413e4acccce3a9), [`ccd80cb`](https://github.com/emdash-cms/emdash/commit/ccd80cb34d6ae031abd06c6665a21eba01be2cab), [`b84ea22`](https://github.com/emdash-cms/emdash/commit/b84ea2295d2402d5f6042c8cc1e9731e88ec50fc), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`72f10bd`](https://github.com/emdash-cms/emdash/commit/72f10bd493650d7e503966f8c74ce2bedc480308), [`bf1aa14`](https://github.com/emdash-cms/emdash/commit/bf1aa14e79f08e46961fc804fb1c36be4f0d51e7), [`bc32000`](https://github.com/emdash-cms/emdash/commit/bc3200026fc31aa45d325807d89e551fb3d7822b), [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a), [`42bf9f5`](https://github.com/emdash-cms/emdash/commit/42bf9f5d59125782cb688164a4d31cc91c93aefa), [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13), [`d96f039`](https://github.com/emdash-cms/emdash/commit/d96f039f4d5ebadfa46d304f77c6adb5a1db3958), [`9358ede`](https://github.com/emdash-cms/emdash/commit/9358ede608670f3734be4e616f674bdf9a046dfe), [`f796444`](https://github.com/emdash-cms/emdash/commit/f79644435efa642ad4bca5d8735efe07cc7aee71), [`d8ea3fc`](https://github.com/emdash-cms/emdash/commit/d8ea3fc6538fe14fdefa553ae771bb2fa583e7ee), [`b2ce32c`](https://github.com/emdash-cms/emdash/commit/b2ce32c31fb448da4a5b0eb2a817982d7613f3e3)]:
+  - @emdash-cms/admin@0.42.0
+  - @emdash-cms/blocks@0.42.0
+  - @emdash-cms/auth@0.42.0
+  - @emdash-cms/plugin-types@0.5.0
+  - @emdash-cms/registry-lexicons@0.7.0
+  - @emdash-cms/registry-client@0.7.0
+  - @emdash-cms/registry-verification@0.3.3
+  - @emdash-cms/gutenberg-to-portable-text@0.42.0
+
 ## 0.41.0
 
 ### Minor Changes

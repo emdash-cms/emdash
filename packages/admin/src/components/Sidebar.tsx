@@ -87,7 +87,7 @@ export function visibleCollectionEntries<T extends { hidden?: boolean }>(
 
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string; hidden?: boolean; group?: string }>;
+		collections: Record<string, { label: string; hidden?: boolean; icon?: string; group?: string }>;
 		plugins: Record<
 			string,
 			{
@@ -248,7 +248,7 @@ export function NavFolderMenu({
 	onToggle: () => void;
 }) {
 	const { state } = useSidebar();
-	const Icon = ADMIN_NAV_ICONS.folder;
+	const Icon = resolveNavIcon(folder.iconName, ADMIN_NAV_ICONS.folder);
 	const members = folder.items.map((item) => {
 		const path = resolveItemPath(item);
 		return { item, path, active: isItemActive(path, currentPath) };
@@ -399,7 +399,8 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,
-			icon: getCollectionNavIcon(name),
+			icon: getCollectionNavIcon(name, config.icon),
+			iconName: config.icon,
 			group: config.group,
 			groupRank: GROUP_RANK.collection,
 			params: { collection: name },

@@ -1,5 +1,33 @@
 # @emdash-cms/registry-cli
 
+## 0.13.0
+
+### Minor Changes
+
+- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `bylines:read` plugin capability, which lets plugins read public byline profiles and the bylines credited on content entries through `ctx.bylines`.
+  
+  `ctx.bylines` provides `get()` and cursor-paginated `list()` for profiles, plus `getEntriesBylines()` for credits. `getEntriesBylines()` resolves up to 100 entries of one collection in a single call, so a search indexer or feed plugin can attach author names to a page of `ctx.content.list()` results:
+  
+  ```ts
+  const page = await ctx.content.list("posts", { limit: 100 });
+  const credits = await ctx.bylines.getEntriesBylines(
+  	"posts",
+  	page.items.map((entry) => entry.id),
+  );
+  ```
+  
+  Credits match what the site renders: the credits assigned in the editor, or the author's linked byline, marked `source: "inferred"`, when an entry has none. They resolve at the entry's own locale. Profiles omit the linked user account, guest flag, and byline custom field values.
+  
+  The capability is independent of `content:read` and `users:read`. It is available to native plugins and to sandboxed plugins on Cloudflare Worker Loader and Node.js workerd. Installation and update consent list it as a new permission.
+
+### Patch Changes
+
+- Updated dependencies [[`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13)]:
+  - @emdash-cms/plugin-types@0.5.0
+  - @emdash-cms/registry-lexicons@0.7.0
+  - @emdash-cms/registry-client@0.7.0
+  - @emdash-cms/registry-verification@0.3.3
+
 ## 0.12.0
 
 ### Minor Changes

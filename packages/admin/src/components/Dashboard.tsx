@@ -19,6 +19,7 @@ import {
 	CONTENT_STATUS_ICONS,
 	type ContentStatusState,
 } from "./ContentStatusBadge.js";
+import { CoreUpdateBanner } from "./CoreUpdateBanner.js";
 import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
@@ -69,6 +70,8 @@ export function Dashboard({ manifest }: DashboardProps) {
 				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
+
+			<CoreUpdateBanner />
 
 			{isError && <DashboardDataError />}
 
@@ -318,7 +321,9 @@ function DashboardCardInset({ className, ...props }: React.ComponentPropsWithout
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const { t } = useLingui();
-	const collections = visibleCollectionEntries(manifest.collections);
+	const collections = visibleCollectionEntries(manifest.collections).filter(
+		([, config]) => config.quickCreate !== false,
+	);
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
@@ -516,7 +521,7 @@ function CountBadge({
 // --- Recent activity ---
 
 function RecentActivity({ items, loading }: { items: RecentItem[]; loading: boolean }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	return (
 		<LayerCard className="h-full">
@@ -550,7 +555,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 									data-testid="activity-time"
 									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
 								>
-									{formatRelativeTime(item.updatedAt)}
+									{formatRelativeTime(item.updatedAt, i18n.locale)}
 								</span>
 							</Link>
 						))}

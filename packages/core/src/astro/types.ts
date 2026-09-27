@@ -53,11 +53,15 @@ export interface ManifestCollection {
 	 * editor, and API keep working.
 	 */
 	hidden?: boolean;
+	/** Phosphor icon name for the sidebar entry (kebab-case, e.g. `calendar-blank`). */
+	icon?: string;
 	/**
 	 * Sidebar folder. Collections sharing a group render under one collapsible
 	 * entry labelled with the group.
 	 */
 	group?: string;
+	/** `false` omits the dashboard's "new entry" quick action. */
+	quickCreate?: boolean;
 	/** Valid custom field slugs to render in the admin content list. */
 	listColumns?: string[];
 	fields: Record<

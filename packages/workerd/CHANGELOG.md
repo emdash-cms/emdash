@@ -1,5 +1,30 @@
 # @emdash-cms/sandbox-workerd
 
+## 0.9.0
+
+### Minor Changes
+
+- [#3394](https://github.com/emdash-cms/emdash/pull/3394) [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811) Thanks [@ttmx](https://github.com/ttmx)! - Adds the `bylines:read` plugin capability, which lets plugins read public byline profiles and the bylines credited on content entries through `ctx.bylines`.
+  
+  `ctx.bylines` provides `get()` and cursor-paginated `list()` for profiles, plus `getEntriesBylines()` for credits. `getEntriesBylines()` resolves up to 100 entries of one collection in a single call, so a search indexer or feed plugin can attach author names to a page of `ctx.content.list()` results:
+  
+  ```ts
+  const page = await ctx.content.list("posts", { limit: 100 });
+  const credits = await ctx.bylines.getEntriesBylines(
+  	"posts",
+  	page.items.map((entry) => entry.id),
+  );
+  ```
+  
+  Credits match what the site renders: the credits assigned in the editor, or the author's linked byline, marked `source: "inferred"`, when an entry has none. They resolve at the entry's own locale. Profiles omit the linked user account, guest flag, and byline custom field values.
+  
+  The capability is independent of `content:read` and `users:read`. It is available to native plugins and to sandboxed plugins on Cloudflare Worker Loader and Node.js workerd. Installation and update consent list it as a new permission.
+
+### Patch Changes
+
+- Updated dependencies [[`0371107`](https://github.com/emdash-cms/emdash/commit/037110704e663ae7b4fe033501d20f14d546f058), [`148ff3e`](https://github.com/emdash-cms/emdash/commit/148ff3ee3e7bb86e30e88284bfff54eb286598ed), [`43565ef`](https://github.com/emdash-cms/emdash/commit/43565efe85b19b6bb5ed2e3dead627a34341698d), [`2987a51`](https://github.com/emdash-cms/emdash/commit/2987a514ff8816fff05a25470af0b90829805531), [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212), [`03b6b3b`](https://github.com/emdash-cms/emdash/commit/03b6b3b441f624bd4ec376a23ce8789d4bf9e212), [`2410395`](https://github.com/emdash-cms/emdash/commit/24103953cc5873f76c36625b11251ac5864dca78), [`2bce20c`](https://github.com/emdash-cms/emdash/commit/2bce20ccc908f921dff3a1904aab870ca7a1a996), [`8b1b585`](https://github.com/emdash-cms/emdash/commit/8b1b585eed4d4a542ee24f449b5992e7aeb72380), [`9f721fb`](https://github.com/emdash-cms/emdash/commit/9f721fb01e0ef7b11311df1f92ac146fb3011f50), [`ff61df9`](https://github.com/emdash-cms/emdash/commit/ff61df9a518d12e57f5e134382413e4acccce3a9), [`ff61df9`](https://github.com/emdash-cms/emdash/commit/ff61df9a518d12e57f5e134382413e4acccce3a9), [`54ef82f`](https://github.com/emdash-cms/emdash/commit/54ef82f084dc5cb207d5b137aabcb68701dcc4be), [`aa054ae`](https://github.com/emdash-cms/emdash/commit/aa054aea7f763fa29378ef80c14d5283a3f9ce57), [`e59d9b4`](https://github.com/emdash-cms/emdash/commit/e59d9b4f5a517a865e6a6482b688919eb83b8b54), [`530dabf`](https://github.com/emdash-cms/emdash/commit/530dabf04b6118ac7639b37ab556015115c16bef), [`c36d974`](https://github.com/emdash-cms/emdash/commit/c36d974101cc5536a500228958412ea07b7aaf44), [`22575b7`](https://github.com/emdash-cms/emdash/commit/22575b760a24e88e40fae91507b1e16eef2c558f), [`09a5bb0`](https://github.com/emdash-cms/emdash/commit/09a5bb07abc5b43c7f39777278800c874f9d27ce), [`7097874`](https://github.com/emdash-cms/emdash/commit/7097874dd8758f2e68d96c3374f6d1a780626230), [`1ee3c4f`](https://github.com/emdash-cms/emdash/commit/1ee3c4f905256afcf44dce192d02de1cd172057b), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`38d200d`](https://github.com/emdash-cms/emdash/commit/38d200d7033149f09725efb53c23534bbb35e811), [`ccf24b4`](https://github.com/emdash-cms/emdash/commit/ccf24b45b7d8d8034d092c0dc293d2d1a99a0cd9), [`0993a3d`](https://github.com/emdash-cms/emdash/commit/0993a3d90ec16ccbcd2a48f2143a235106e3ebfc), [`4d6a87b`](https://github.com/emdash-cms/emdash/commit/4d6a87b6fa4adc1a0c240df28fe8d8accfac2630), [`c23009d`](https://github.com/emdash-cms/emdash/commit/c23009d61d9366d4edd9b1dca8023708ed3b0b0a), [`895fb69`](https://github.com/emdash-cms/emdash/commit/895fb699223f27a26a1556c9d009e71019cece13), [`b869811`](https://github.com/emdash-cms/emdash/commit/b8698118b02b6ee1300f9e80b0cf8164a7b4ee74), [`36a73e3`](https://github.com/emdash-cms/emdash/commit/36a73e3430c3d18f211cc79d8d70024178a81250), [`bb06e3f`](https://github.com/emdash-cms/emdash/commit/bb06e3fb4cf33aa53e669a5980b638e424e38519), [`7a8d368`](https://github.com/emdash-cms/emdash/commit/7a8d368c1ac987786c152316bfa655400a094711), [`9358ede`](https://github.com/emdash-cms/emdash/commit/9358ede608670f3734be4e616f674bdf9a046dfe), [`a3421ef`](https://github.com/emdash-cms/emdash/commit/a3421efde18db29aae068f42b79d712dc93ae2d1), [`c0c0d73`](https://github.com/emdash-cms/emdash/commit/c0c0d73ebfee9915090f2ddacc07a383936410f2), [`f9cc7b4`](https://github.com/emdash-cms/emdash/commit/f9cc7b4e163032a33b4a5d81a3a91a32902cb50e), [`f796444`](https://github.com/emdash-cms/emdash/commit/f79644435efa642ad4bca5d8735efe07cc7aee71), [`d8ea3fc`](https://github.com/emdash-cms/emdash/commit/d8ea3fc6538fe14fdefa553ae771bb2fa583e7ee), [`b2ce32c`](https://github.com/emdash-cms/emdash/commit/b2ce32c31fb448da4a5b0eb2a817982d7613f3e3)]:
+  - emdash@0.42.0
+
 ## 0.8.2
 
 ### Patch Changes

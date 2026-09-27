@@ -24,7 +24,7 @@ import { validateIdentifier } from "../database/validate.js";
 import { resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { requestCached } from "../request-cache.js";
-import { isMissingTableError } from "../utils/db-errors.js";
+import { resolveBylineCredits, type BylineEntry } from "./credits.js";
 
 /**
  * No-op — kept for API compatibility.
@@ -153,20 +153,7 @@ export async function getEntryBylines(
 	return [];
 }
 
-/**
- * Entry reference for batch byline lookups. Passing `authorId`,
- * `primaryBylineId`, and `locale` in directly avoids a per-entry
- * `SELECT` against the content table during hydration.
- *
- * `primaryBylineId` is the explicit-credit sentinel — non-null suppresses
- * author fallback. `locale` drives the strict per-locale join.
- */
-export interface BylineEntry {
-	id: string;
-	authorId: string | null;
-	primaryBylineId?: string | null;
-	locale?: string | null;
-}
+export type { BylineEntry } from "./credits.js";
 
 /**
  * Batch-fetch byline credits for multiple content entries.
@@ -191,133 +178,8 @@ export async function getBylinesForEntries(
 	entries: BylineEntry[],
 ): Promise<Map<string, ContentBylineCredit[]>> {
 	validateIdentifier(collection, "collection");
-	const result = new Map<string, ContentBylineCredit[]>();
-
-	for (const { id } of entries) {
-		result.set(id, []);
-	}
-
-	if (entries.length === 0) {
-		return result;
-	}
-
-	const db = await getDb();
-	const repo = new BylineRepository(db);
-
-	// Bucket entries by locale so each bucket fires a single strict-locale
-	// `getContentBylinesMany` call. Items with no locale field share a
-	// bucket keyed by null (no `WHERE locale = ?` applied — legacy
-	// pre-i18n shape).
-	const buckets = new Map<string | null, BylineEntry[]>();
-	for (const entry of entries) {
-		const key = entry.locale ?? null;
-		const bucket = buckets.get(key);
-		if (bucket) bucket.push(entry);
-		else buckets.set(key, [entry]);
-	}
-
-	// Sites with no bylines get an empty map back at the same cost as the
-	// previous "has any bylines" probe, without the extra round-trip.
-	// Pre-migration databases (bylines table missing) fall through to the
-	// `isMissingTableError` catch below and return empty.
-	//
-	// Each bucket's `getContentBylinesMany` call uses `skipHydration: true`
-	// so the per-bucket fetches return bylines with `customFields = {}`.
-	// We then hydrate the union of returned bylines in a SINGLE batched
-	// pass via `hydrateBylineCustomFields`. This keeps mixed-locale list
-	// hydration at one batched group-shared query (and one batched
-	// translatable query) per request, even when locale buckets reference
-	// disjoint translation_groups — the strict reading of the Phase 3
-	// query-count envelope.
-	const explicitByEntry = new Map<string, ContentBylineCredit[]>();
-	const entriesNeedingAuthorCheck: BylineEntry[] = [];
-	const hydrationTargets: BylineSummary[] = [];
-	for (const [locale, bucket] of buckets) {
-		const localeOpt = locale ? { locale, skipHydration: true } : { skipHydration: true };
-		const bucketIds = bucket.map((e) => e.id);
-		let bylinesMap;
-		try {
-			bylinesMap = await repo.getContentBylinesMany(collection, bucketIds, localeOpt);
-		} catch (error) {
-			if (isMissingTableError(error)) return result;
-			throw error;
-		}
-		for (const [id, list] of bylinesMap) {
-			explicitByEntry.set(id, list);
-			for (const credit of list) hydrationTargets.push(credit.byline);
-		}
-
-		for (const entry of bucket) {
-			const hasResolved = bylinesMap.has(entry.id) && bylinesMap.get(entry.id)!.length > 0;
-			if (hasResolved) continue;
-			if (entry.authorId) entriesNeedingAuthorCheck.push(entry);
-		}
-	}
-
-	// Only entries without an explicit credit (primaryBylineId null) are
-	// eligible for author fallback.
-	const fallbackByEntry = new Map<string, BylineSummary>();
-	if (entriesNeedingAuthorCheck.length > 0) {
-		const authorBuckets = new Map<string | null, BylineEntry[]>();
-		for (const entry of entriesNeedingAuthorCheck) {
-			if (entry.primaryBylineId) continue;
-			const key = entry.locale ?? null;
-			const bucket = authorBuckets.get(key);
-			if (bucket) bucket.push(entry);
-			else authorBuckets.set(key, [entry]);
-		}
-
-		for (const [locale, bucket] of authorBuckets) {
-			const localeOpt: { locale?: string; skipHydration: true } = locale
-				? { locale, skipHydration: true }
-				: { skipHydration: true };
-			const authorIds = bucket.map((e) => e.authorId).filter((id): id is string => id !== null);
-			const uniqueAuthorIds = [...new Set(authorIds)];
-			if (uniqueAuthorIds.length === 0) continue;
-			// `skipHydration: true` returns bylines with `customFields = {}`
-			// so the fallback path participates in the single batched
-			// `hydrateBylineCustomFields` call below — keeping the query
-			// envelope at "+1 group-shared query per hydration pass" even
-			// when author bylines across locale buckets reference disjoint
-			// translation_groups.
-			const authorBylineMap = await repo.findByUserIds(uniqueAuthorIds, localeOpt);
-			for (const entry of bucket) {
-				if (!entry.authorId) continue;
-				const f = authorBylineMap.get(entry.authorId);
-				if (f) {
-					fallbackByEntry.set(entry.id, f);
-					hydrationTargets.push(f);
-				}
-			}
-		}
-	}
-
-	// Single batched hydration over every byline returned from both the
-	// per-bucket explicit-credit fetches AND the per-bucket author-
-	// fallback fetches. One translatable query + one group-shared query
-	// for the whole pass, regardless of bucket count or whether
-	// translation_groups overlap across locales.
-	if (hydrationTargets.length > 0) {
-		await repo.hydrateBylineCustomFields(hydrationTargets);
-	}
-
-	for (const { id } of entries) {
-		const explicit = explicitByEntry.get(id);
-		if (explicit && explicit.length > 0) {
-			result.set(
-				id,
-				explicit.map((c) => ({ ...c, source: "explicit" as const })),
-			);
-			continue;
-		}
-
-		const fallback = fallbackByEntry.get(id);
-		if (fallback) {
-			result.set(id, [{ byline: fallback, sortOrder: 0, roleLabel: null, source: "inferred" }]);
-		}
-	}
-
-	return result;
+	if (entries.length === 0) return new Map();
+	return resolveBylineCredits(await getDb(), collection, entries);
 }
 
 /**
