@@ -5,12 +5,15 @@ import { glob } from "node:fs/promises";
 const config = JSON.parse(readFileSync(".changeset/config.json", "utf8"));
 const fixedGroup = new Set(config.fixed.flat());
 
+const FRONTMATTER = /^---\n([\s\S]*?)\n---/;
+const RELEASE_LINE = /^\s*["']?([^"':]+)["']?\s*:/;
+
 function changesetPackages(file) {
-	const frontmatter = readFileSync(`.changeset/${file}`, "utf8").match(/^---\n([\s\S]*?)\n---/);
+	const frontmatter = readFileSync(`.changeset/${file}`, "utf8").match(FRONTMATTER);
 	if (!frontmatter) return [];
 	return frontmatter[1]
 		.split("\n")
-		.map((line) => line.match(/^\s*["']?([^"':]+)["']?\s*:/)?.[1])
+		.map((line) => line.match(RELEASE_LINE)?.[1])
 		.filter(Boolean);
 }
 
