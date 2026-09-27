@@ -17,7 +17,7 @@ import {
 	Toast,
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Plus,
@@ -420,7 +420,9 @@ function SectionCard({
 						))}
 						{section.keywords.length > 3 && (
 							<span className="text-xs text-kumo-subtle">
-								<bdi dir="auto">{t`+${section.keywords.length - 3} more`}</bdi>
+								<bdi dir="auto">
+									{plural(section.keywords.length - 3, { one: "+# more", other: "+# more" })}
+								</bdi>
 							</span>
 						)}
 					</div>
