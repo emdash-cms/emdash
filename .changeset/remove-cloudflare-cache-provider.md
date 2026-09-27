@@ -4,15 +4,7 @@
 
 Removes the deprecated `cloudflareCache()` route-cache provider and its `@emdash-cms/cloudflare/cache` and `@emdash-cms/cloudflare/cache/config` entry points. Sites that still import `cloudflareCache` fail to build after upgrading.
 
-Switch to native Workers Caching. Enable it in `wrangler.jsonc`:
-
-```jsonc title="wrangler.jsonc"
-{
-	"cache": { "enabled": true },
-}
-```
-
-Then use the Astro Cloudflare adapter's provider:
+Switch to native Workers Caching with the Astro Cloudflare adapter's provider. The adapter enables Workers Cache in the generated deployment configuration when this provider is set:
 
 ```diff title="astro.config.mjs"
 - import { cloudflareCache } from "@emdash-cms/cloudflare";
