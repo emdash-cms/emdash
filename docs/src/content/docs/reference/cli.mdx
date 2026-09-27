@@ -146,21 +146,6 @@ Interactive human-readable apply and lock release ask for confirmation. Non-inte
 
 See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and the D1 migration lock.
 
-### `emdash dev` (deprecated)
-
-<Aside type="caution" title="Deprecated command">
-	`emdash dev` remains available for backwards compatibility but is hidden from CLI help. Start the site with its package script, such as `pnpm dev`, or run `astro dev` directly.
-</Aside>
-
-The legacy command initializes and migrates a local SQLite database before starting Astro. That behavior does not use the database adapter configured by the site and is incompatible with Cloudflare D1 development. Existing invocations now print a deprecation warning before doing any database work.
-
-| Option       | Alias | Description                                      | Default       |
-| ------------ | ----- | ------------------------------------------------ | ------------- |
-| `--database` | `-d`  | Local SQLite database path                       | `./data.db`   |
-| `--types`    | `-t`  | Fetch remote types before starting Astro         | `false`       |
-| `--port`     | `-p`  | Astro development-server port                    | `4321`        |
-| `--cwd`      |       | Project working directory                        | Current directory |
-
 ### `emdash types`
 
 Generate TypeScript types from a running EmDash instance's schema.
@@ -751,24 +736,6 @@ value. This is useful in CI for verifying the right key was deployed. The follow
 ```bash
 npx emdash secrets fingerprint emdash_enc_v1_...
 ```
-
-### `emdash auth` (deprecated)
-
-<Aside type="caution" title="Deprecated command">
-	`emdash auth` is retained for scripts that still generate the legacy
-	`EMDASH_AUTH_SECRET`. New installations use `emdash secrets generate` to create the separate
-	`EMDASH_ENCRYPTION_KEY`.
-</Aside>
-
-#### `auth secret`
-
-Generate a legacy `EMDASH_AUTH_SECRET` value:
-
-```bash
-npx emdash auth secret
-```
-
-Existing installations can keep this variable to preserve stable commenter-IP hashes. It does not encrypt plugin secrets.
 
 ## Generated files
 

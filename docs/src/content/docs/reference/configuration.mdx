@@ -1095,8 +1095,7 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 	"emdash": {
 		"label": "My Blog Template",
 		"schema": ".emdash/schema.sql",
-		"seed": ".emdash/seed.json",
-		"url": "https://my-site.pages.dev"
+		"seed": ".emdash/seed.json"
 	}
 }
 ```
@@ -1106,7 +1105,6 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 | `label`       | Template name for display          |
 | `schema`      | Optional SQL schema read by `emdash init` |
 | `seed`        | Path to seed JSON file             |
-| `url`         | Remote URL used by the deprecated `emdash dev --types` flow |
 
 ## TypeScript configuration
 
