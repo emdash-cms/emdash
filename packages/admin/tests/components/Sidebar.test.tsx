@@ -45,6 +45,7 @@ import {
 	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
+	resolveSidebarTaxonomyLabel,
 	toPhosphorIconName,
 	visibleCollectionEntries,
 } from "../../src/components/Sidebar";
@@ -80,6 +81,67 @@ describe("getSidebarTaxonomies", () => {
 	it("falls back to the configured default locale, then deterministically", () => {
 		expect(getSidebarTaxonomies(taxonomies, "it", "fr")[0]?.label).toBe("Types de plats");
 		expect(getSidebarTaxonomies(taxonomies, "it")[0]?.label).toBe("Gänge");
+	});
+});
+
+describe("resolveSidebarTaxonomyLabel", () => {
+	const nlUiLabels = { categories: "Categorieën", tags: "Tags" };
+	const enCategory = {
+		id: "taxdef_category",
+		name: "category",
+		label: "Categories",
+		locale: "en",
+		translationGroup: "taxdef_category",
+	};
+
+	it("uses the Dutch admin label for an English site's built-in category", () => {
+		const [selected] = getSidebarTaxonomies([enCategory], "en", "en");
+		expect(resolveSidebarTaxonomyLabel(selected!, nlUiLabels)).toBe("Categorieën");
+	});
+
+	it("uses the Dutch admin label for a Dutch-default site's untouched category", () => {
+		const nlDefaultCategory = { ...enCategory, locale: "nl" };
+		const [selected] = getSidebarTaxonomies([nlDefaultCategory], "nl", "nl");
+		expect(resolveSidebarTaxonomyLabel(selected!, nlUiLabels)).toBe("Categorieën");
+	});
+
+	it("leaves a custom taxonomy named Categories as entered", () => {
+		expect(
+			resolveSidebarTaxonomyLabel(
+				{ ...enCategory, id: "custom_category", name: "course" },
+				nlUiLabels,
+			),
+		).toBe("Categories");
+	});
+
+	it("preserves a renamed built-in category", () => {
+		expect(resolveSidebarTaxonomyLabel({ ...enCategory, label: "Topics" }, nlUiLabels)).toBe(
+			"Topics",
+		);
+	});
+
+	it("keeps a content-locale taxonomy's own label", () => {
+		const [selected] = getSidebarTaxonomies(
+			[enCategory, { ...enCategory, id: "category-nl", label: "Onderwerpen", locale: "nl" }],
+			"nl",
+			"en",
+		);
+		expect(resolveSidebarTaxonomyLabel(selected!, nlUiLabels)).toBe("Onderwerpen");
+	});
+
+	it("keeps an explicitly localized taxonomy labeled Categories", () => {
+		expect(
+			resolveSidebarTaxonomyLabel({ ...enCategory, id: "category-nl", locale: "nl" }, nlUiLabels),
+		).toBe("Categories");
+	});
+
+	it("uses the admin translation for the unchanged built-in tag", () => {
+		expect(
+			resolveSidebarTaxonomyLabel(
+				{ id: "taxdef_tag", name: "tag", label: "Tags", locale: "en" },
+				{ categories: "Kategorien", tags: "Schlagwörter" },
+			),
+		).toBe("Schlagwörter");
 	});
 });
 

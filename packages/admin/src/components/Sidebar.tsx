@@ -136,6 +136,33 @@ export function getSidebarTaxonomies<T extends LocalizedTaxonomyDefinition>(
 	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale);
 }
 
+export function resolveSidebarTaxonomyLabel(
+	taxonomy: LocalizedTaxonomyDefinition,
+	builtInLabels: { categories: string; tags: string },
+): string {
+	if (
+		taxonomy.id === "taxdef_category" &&
+		taxonomy.name === "category" &&
+		taxonomy.label === "Categories"
+	) {
+		return builtInLabels.categories;
+	}
+	if (taxonomy.id === "taxdef_tag" && taxonomy.name === "tag" && taxonomy.label === "Tags") {
+		return builtInLabels.tags;
+	}
+	return taxonomy.label;
+}
+
+function resolveSidebarCollectionLabel(
+	name: string,
+	label: string,
+	builtInLabels: { posts: string; pages: string },
+): string {
+	if (name === "posts" && label === "Posts") return builtInLabels.posts;
+	if (name === "pages" && label === "Pages") return builtInLabels.pages;
+	return label;
+}
+
 export interface NavItem extends GroupableNavItem {
 	to: string;
 	label: string;
@@ -395,10 +422,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	const contentItems: NavItem[] = [
 		{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard },
 	];
+	const builtInCollectionLabels = { posts: t`Posts`, pages: t`Pages` };
 	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		contentItems.push({
 			to: "/content/$collection",
-			label: config.label,
+			label: resolveSidebarCollectionLabel(name, config.label, builtInCollectionLabels),
 			icon: getCollectionNavIcon(name, config.icon),
 			iconName: config.icon,
 			group: config.group,
@@ -431,6 +459,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 		{ to: "/sections", label: t`Sections`, icon: ADMIN_NAV_ICONS.sections, minRole: ROLE_EDITOR },
 		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
 	];
+	const builtInTaxonomyLabels = { categories: t`Categories`, tags: t`Tags` };
 	for (const tax of getSidebarTaxonomies(
 		manifest.taxonomies,
 		routeLocale,
@@ -438,7 +467,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	)) {
 		const item: NavItem = {
 			to: "/taxonomies/$taxonomy",
-			label: tax.label,
+			label: resolveSidebarTaxonomyLabel(tax, builtInTaxonomyLabels),
 			icon: getTaxonomyNavIcon(tax.name),
 			params: { taxonomy: tax.name },
 			search: routeLocale ? { locale: routeLocale } : undefined,
