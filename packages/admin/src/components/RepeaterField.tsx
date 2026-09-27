@@ -141,10 +141,8 @@ export function RepeaterField({
 		});
 	};
 
-	// The bulk control offers the one action that is useful for the current
-	// state: collapse while any row is open, expand once every row is closed.
-	// Deriving it from the items rather than from the set's size keeps keys
-	// left behind by removed rows from flipping the label.
+	// Derive the bulk state from current items so collapsed keys left behind by
+	// removed rows don't flip the label.
 	const allCollapsed = items.length > 0 && items.every((item) => collapsedItems.has(item._key));
 
 	const setAllCollapsed = (collapsed: boolean) => {
