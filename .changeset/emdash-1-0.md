@@ -9,7 +9,7 @@
 "create-emdash": patch
 ---
 
-Releases EmDash 1.0. Sites on 0.42 can upgrade without code or configuration changes.
+Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. The other entries for this version describe each one and how to migrate; check them before upgrading from 0.42.
 
 From this release, breaking changes ship only in a new major version.
 
