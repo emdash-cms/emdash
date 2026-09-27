@@ -12,8 +12,10 @@ import {
 	FIELD_TYPES,
 	isIndexableFieldType,
 	MAX_COLLECTION_GROUP_LENGTH,
+	MAX_COLLECTION_ICON_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
 } from "../schema/types.js";
+import { compileUrlPattern } from "../schema/url-pattern.js";
 import type { SeedFile, SeedMenuItem, SeedTaxonomy, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -201,6 +203,19 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (collection.routable !== undefined && typeof collection.routable !== "boolean") {
 					errors.push(`${prefix}.routable: must be a boolean`);
 				}
+				if (collection.urlPattern !== undefined) {
+					if (typeof collection.urlPattern !== "string") {
+						errors.push(`${prefix}.urlPattern: must be a string`);
+					} else if (collection.urlPattern) {
+						try {
+							compileUrlPattern(collection.urlPattern);
+						} catch (error) {
+							errors.push(
+								`${prefix}.urlPattern: ${error instanceof Error ? error.message : "invalid URL pattern"}`,
+							);
+						}
+					}
+				}
 				if (collection.group !== undefined) {
 					if (typeof collection.group !== "string") {
 						errors.push(`${prefix}.group: must be a string`);
@@ -208,6 +223,13 @@ export function validateSeed(data: unknown): ValidationResult {
 						errors.push(
 							`${prefix}.group: must be at most ${MAX_COLLECTION_GROUP_LENGTH} characters`,
 						);
+					}
+				}
+				if (collection.icon !== undefined) {
+					if (typeof collection.icon !== "string") {
+						errors.push(`${prefix}.icon: must be a string`);
+					} else if (collection.icon.trim().length > MAX_COLLECTION_ICON_LENGTH) {
+						errors.push(`${prefix}.icon: must be at most ${MAX_COLLECTION_ICON_LENGTH} characters`);
 					}
 				}
 
@@ -242,6 +264,13 @@ export function validateSeed(data: unknown): ValidationResult {
 								}
 							}
 						}
+					}
+					if (
+						isRecord(collection.admin) &&
+						collection.admin.quickCreate !== undefined &&
+						typeof collection.admin.quickCreate !== "boolean"
+					) {
+						errors.push(`${prefix}.admin.quickCreate: must be a boolean`);
 					}
 				}
 

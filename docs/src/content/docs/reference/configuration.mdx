@@ -633,6 +633,30 @@ emdash({
 | `footerLabel` | `string \| false` | Label shown beside the sidebar version. Defaults to `"EmDash"`; `false` hides it |
 | `favicon`     | `string`          | Favicon URL or path for admin pages                                             |
 
+### `updateCheck`
+
+**Optional.** Controls the core update notice in the admin dashboard. Defaults to `true`.
+
+When enabled, EmDash checks the public npm registry for published `emdash` releases — at most once per day, deferred after the response so it never slows down a request — and shows a dismissible banner in the admin dashboard when a newer version is available. Dismissing the banner hides it for that version; it reappears when a newer version becomes available.
+
+The banner names the newest stable release that has been public for at least 24 hours, so a release is announced a day after it ships. To match a release-age policy in your package manager, such as pnpm's `minimumReleaseAge`, set `minimumReleaseAge` to a duration string (`"48h"`, `"7d"`) or a number of seconds. With `"7d"`, the banner offers the newest release that is at least a week old:
+
+```js
+emdash({
+	updateCheck: { minimumReleaseAge: "7d" },
+})
+```
+
+The check is a plain GET to `https://registry.npmjs.org/emdash` and carries no site data. Deployments without outbound internet access simply never show the banner. Set to `false` to disable the check entirely:
+
+```js
+emdash({
+	updateCheck: false,
+})
+```
+
+The banner is informational only — updating EmDash means bumping the `emdash` package in your project and redeploying, which the admin can't (and shouldn't) trigger.
+
 ### `toolbar`
 
 **Optional.** Controls how the editor toolbar (the floating pill on public pages) is delivered. Defaults to `"server"`.

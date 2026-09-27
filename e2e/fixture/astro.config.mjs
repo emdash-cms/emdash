@@ -23,11 +23,51 @@ const registryFixturePath = process.env.EMDASH_REGISTRY_FIXTURE;
 if (registryFixturePath) {
 	installRegistryAuthoritativeFixture(JSON.parse(readFileSync(registryFixturePath, "utf8")));
 }
+const e2eHookNames = new Set([
+	"content:afterSave",
+	"content:beforeDelete",
+	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
+	"content:afterPublish",
+	"content:afterUnpublish",
+	"content:afterRestore",
+	"content:afterSchedule",
+	"content:afterUnschedule",
+	"media:afterUpload",
+	"comment:beforeCreate",
+	"comment:afterCreate",
+	"comment:afterModerate",
+	"email:beforeSend",
+	"email:deliver",
+	"email:afterSend",
+	"cron",
+	"page:metadata",
+]);
+const e2eHooks = registryTestPlugin.hooks.filter((hook) =>
+	e2eHookNames.has(typeof hook === "string" ? hook : hook.name),
+);
+const deniedPlugin = {
+	id: "sandbox-denied-test",
+	version: "1.0.0",
+	format: "standard",
+	entrypoint: fileURLToPath(new URL("../fixtures/sandbox-denied-plugin.mjs", import.meta.url)),
+	capabilities: [],
+	allowedHosts: [],
+	storage: {},
+	hooks: [],
+	routes: [
+		{ name: "admin", permission: "plugins:manage" },
+		{ name: "authority-probe", permission: "plugins:manage" },
+	],
+	adminPages: [{ path: "/denials", label: "Denied authority", icon: "shield" }],
+};
 const editorExtensionsPlugin = {
 	id: "editor-extensions-test",
 	version: "1.0.0",
 	format: "standard",
-	entrypoint: fileURLToPath(new URL("./src/editor-extensions-plugin.ts", import.meta.url)),
+	entrypoint: fileURLToPath(new URL("./src/editor-extensions-plugin.mjs", import.meta.url)),
 	capabilities: ["admin.editor-draft:read", "admin.editor-draft:patch"],
 	allowedHosts: [],
 	storage: {},
@@ -70,8 +110,8 @@ export default defineConfig({
 		emdash({
 			database: sqlite({ url: dbUrl }),
 			middleware: { outer: "./src/outer-middleware.ts" },
-			plugins: [colorPlugin(), editorExtensionsPlugin],
-			sandboxed: [{ ...registryTestPlugin, hooks: [] }],
+			plugins: [colorPlugin()],
+			sandboxed: [editorExtensionsPlugin, { ...registryTestPlugin, hooks: e2eHooks }, deniedPlugin],
 			marketplace: marketplaceUrl,
 			registry: registryUrl,
 			sandboxRunner: "@emdash-cms/sandbox-workerd",

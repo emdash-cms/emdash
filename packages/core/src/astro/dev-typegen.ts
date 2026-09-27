@@ -1,34 +1,27 @@
 /**
- * Dev-only hook for regenerating `emdash-env.d.ts` when the schema changes.
+ * Dev-only signal for regenerating `emdash-env.d.ts` when the schema changes.
  *
- * The Astro integration registers an environment-specific refresh function
- * (filesystem + local HTTP in Node dev, no-op everywhere else). Schema
- * mutation code just triggers the hook, so runtime modules stay free of
- * Node-only I/O.
+ * Schema mutations send an event over the Vite module runner's hot channel;
+ * the Astro integration listens for it in Node and does the filesystem work.
+ * The hot channel crosses realms (workerd under the Cloudflare adapter), and
+ * runtime modules stay free of Node-only I/O. When HMR is disabled there is
+ * no hot channel, so the integration also registers a same-realm global.
  */
 
-const REFRESH_FN_KEY = "__emdashDevTypegenRefresh";
+export const DEV_TYPEGEN_REFRESH_EVENT = "emdash:typegen-refresh";
 
-export interface DevTypegenRefreshFn {
-	(db: unknown): void | Promise<void>;
-}
+export const DEV_TYPEGEN_REFRESH_GLOBAL = "__emdashDevTypegenRefresh";
 
-export function setDevTypegenRefresh(fn: DevTypegenRefreshFn): void {
-	if (typeof globalThis !== "undefined") {
-		Reflect.set(globalThis, REFRESH_FN_KEY, fn);
-	}
-}
-
-export function refreshDevTypes(db: unknown): void {
+export function refreshDevTypes(): void {
 	if (typeof import.meta.env === "undefined" || !import.meta.env.DEV) return;
 
-	const fn = Reflect.get(globalThis, REFRESH_FN_KEY);
-	if (typeof fn !== "function") return;
-
 	try {
-		Promise.resolve(fn(db)).catch((error: unknown) => {
-			console.error("[emdash] dev typegen refresh failed:", error);
-		});
+		if (import.meta.hot) {
+			import.meta.hot.send(DEV_TYPEGEN_REFRESH_EVENT);
+			return;
+		}
+		const fn = Reflect.get(globalThis, DEV_TYPEGEN_REFRESH_GLOBAL);
+		if (typeof fn === "function") fn();
 	} catch (error) {
 		console.error("[emdash] dev typegen refresh failed:", error);
 	}

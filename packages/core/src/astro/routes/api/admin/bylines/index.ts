@@ -8,6 +8,7 @@ import { bylineCreateBody, bylinesListQuery } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
+import { after } from "../../../../../after.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../../../../../i18n/config.js";
 
 export const prerender = false;
@@ -75,7 +76,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			customFields: body.customFields,
 		});
 
-		if (result.success) invalidateBylineCache();
+		if (result.success) {
+			invalidateBylineCache();
+			const byline = result.data;
+			after(() => emdash.hooks.runBylineAfterSave(byline, true));
+		}
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create byline", "BYLINE_CREATE_ERROR");

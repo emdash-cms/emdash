@@ -8,13 +8,15 @@
  *   - GET /api/v1/themes/:id    (detail)
  *   - GET /xrpc/com.emdashcms.experimental.aggregator.getPackage
  *   - GET /xrpc/com.emdashcms.experimental.aggregator.listReleases
- *   - GET /registry/gallery.tgz (checksum-bound package artifact)
+ *   - GET /registry/gallery-:version.tgz (checksum-bound package artifacts)
  *   - GET /health               (health check)
  *
  * Runs on a configurable port and returns deterministic fixture data.
  */
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
+
+import type { PluginCapability, PluginManifest } from "@emdash-cms/plugin-types";
 
 import { createDelegatedReleaseConformanceFixture } from "../../packages/registry-verification/fixtures/conformance/delegated-release.js";
 
@@ -214,27 +216,69 @@ const THEME_DETAILS: Record<string, object> = {
 const PLUGIN_DETAIL_PATTERN = /^\/api\/v1\/plugins\/([^/]+)$/;
 const THEME_DETAIL_PATTERN = /^\/api\/v1\/themes\/([^/]+)$/;
 const REGISTRY_PROFILE_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
-const REGISTRY_RELEASE_CID = "bafyreic3z2zsc6hr3xnjg5z5vixd7baqfk7x3h5cxqv4hqe7dxr5zxmtnu";
+const REGISTRY_RELEASE_CIDS = {
+	"1.2.3": "bafyreic3z2zsc6hr3xnjg5z5vixd7baqfk7x3h5cxqv4hqe7dxr5zxmtnu",
+	"1.3.0": "bafyreie3w6g6zcf5m5ec7etj2vfjsh2jdvbhz4inlb4zc2rc6zjsa6yrpy",
+} as const;
 const PROFILE_NSID = "com.emdashcms.experimental.package.profile";
 const PROFILE_EXTENSION_NSID = "com.emdashcms.experimental.package.profileExtension";
 const RELEASE_NSID = "com.emdashcms.experimental.package.release";
 const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
 const REGISTRY_PACKAGE_PATH = "/xrpc/com.emdashcms.experimental.aggregator.getPackage";
 const REGISTRY_RELEASES_PATH = "/xrpc/com.emdashcms.experimental.aggregator.listReleases";
-const REGISTRY_ARTIFACT_PATH = "/registry/gallery.tgz";
+const REGISTRY_LATEST_RELEASE_PATH = "/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease";
+const REGISTRY_ARTIFACT_PATTERN = /^\/registry\/gallery-(1\.2\.3|1\.3\.0)\.tgz$/;
+
+interface RegistryFixtureReleaseDescriptor {
+	version: string;
+	releaseCid: string;
+	release: unknown;
+}
 
 export interface RegistryFixtureDescriptor {
 	publisherDid: string;
 	packageSlug: string;
-	version: string;
 	profileCid: string;
-	releaseCid: string;
 	profile: unknown;
-	release: unknown;
+	releases: RegistryFixtureReleaseDescriptor[];
 }
 
 let registryFixture: RegistryFixtureDescriptor | undefined;
-let registryArtifact: Uint8Array | undefined;
+const registryArtifacts = new Map<string, Uint8Array>();
+
+function registryBackendCode(version: string): string {
+	return `
+export default {
+	routes: {
+		admin: {
+			permission: "plugins:manage",
+			handler: async () => ({ blocks: [{ type: "header", text: "Installed Gallery ${version}" }] }),
+		},
+		hello: { public: true, handler: async () => ({ version: "${version}" }) },
+	},
+};`;
+}
+
+function registryManifest(
+	version: string,
+	capabilities: PluginCapability[],
+	declaredAccess: PluginManifest["declaredAccess"],
+): PluginManifest {
+	return {
+		id: "gallery",
+		version,
+		declaredAccess,
+		capabilities,
+		allowedHosts: [],
+		storage: {},
+		hooks: [],
+		routes: [
+			{ name: "admin", permission: "plugins:manage" },
+			{ name: "hello", public: true },
+		],
+		admin: { pages: [{ path: "/overview", label: "Overview", icon: "image" }] },
+	};
+}
 
 // ---------------------------------------------------------------------------
 // Request handler
@@ -260,7 +304,9 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 		json(res, { status: "ok" });
 		return;
 	}
-	if (path === REGISTRY_ARTIFACT_PATH && req.method === "GET" && registryArtifact) {
+	const artifactMatch = path.match(REGISTRY_ARTIFACT_PATTERN);
+	const registryArtifact = artifactMatch ? registryArtifacts.get(artifactMatch[1]!) : undefined;
+	if (artifactMatch && req.method === "GET" && registryArtifact) {
 		res.writeHead(200, { "Content-Type": "application/gzip" });
 		res.end(registryArtifact);
 		return;
@@ -273,7 +319,7 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 			did: registryFixture.publisherDid,
 			slug: registryFixture.packageSlug,
 			profile: registryFixture.profile,
-			latestVersion: registryFixture.version,
+			latestVersion: registryFixture.releases[0]?.version,
 			indexedAt: "2026-01-01T00:00:00.000Z",
 			labels: [],
 		});
@@ -281,21 +327,35 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 	}
 
 	if (path === REGISTRY_RELEASES_PATH && req.method === "GET" && registryFixture) {
-		const releases = [
-			{
-				uri: `at://${registryFixture.publisherDid}/${RELEASE_NSID}/${registryFixture.packageSlug}:${registryFixture.version}`,
-				cid: registryFixture.releaseCid,
-				did: registryFixture.publisherDid,
-				package: registryFixture.packageSlug,
-				version: registryFixture.version,
-				release: registryFixture.release,
-				artifactCaches: [],
-				indexedAt: "2026-01-01T00:00:00.000Z",
-				labels: [],
-			},
-		];
+		const releases = registryFixture.releases.map((fixtureRelease) => ({
+			uri: `at://${registryFixture.publisherDid}/${RELEASE_NSID}/${registryFixture.packageSlug}:${fixtureRelease.version}`,
+			cid: fixtureRelease.releaseCid,
+			did: registryFixture.publisherDid,
+			package: registryFixture.packageSlug,
+			version: fixtureRelease.version,
+			release: fixtureRelease.release,
+			artifactCaches: [],
+			indexedAt: "2026-01-01T00:00:00.000Z",
+			labels: [],
+		}));
 		json(res, {
 			releases,
+		});
+		return;
+	}
+
+	if (path === REGISTRY_LATEST_RELEASE_PATH && req.method === "GET" && registryFixture) {
+		const fixtureRelease = registryFixture.releases[0]!;
+		json(res, {
+			uri: `at://${registryFixture.publisherDid}/${RELEASE_NSID}/${registryFixture.packageSlug}:${fixtureRelease.version}`,
+			cid: fixtureRelease.releaseCid,
+			did: registryFixture.publisherDid,
+			package: registryFixture.packageSlug,
+			version: fixtureRelease.version,
+			release: fixtureRelease.release,
+			artifactCaches: [],
+			indexedAt: "2026-01-01T00:00:00.000Z",
+			labels: [],
 		});
 		return;
 	}
@@ -380,14 +440,48 @@ function json(res: ServerResponse, data: unknown, status = 200): void {
 export async function startMockMarketplace(
 	port: number,
 ): Promise<{ server: Server; registryFixture: RegistryFixtureDescriptor }> {
-	const generated = await createDelegatedReleaseConformanceFixture();
-	registryArtifact = generated.artifactBytes;
+	const readAccess = { content: { read: {} } };
+	const mediaAccess = { content: { read: {} }, media: { read: {} } };
+	const generated = await createDelegatedReleaseConformanceFixture({
+		version: "1.2.3",
+		declaredAccess: readAccess,
+		manifest: registryManifest("1.2.3", ["content:read"], readAccess),
+		backendCode: registryBackendCode("1.2.3"),
+	});
+	const update = await createDelegatedReleaseConformanceFixture({
+		version: "1.3.0",
+		declaredAccess: mediaAccess,
+		manifest: registryManifest("1.3.0", ["content:read", "media:read"], mediaAccess),
+		backendCode: registryBackendCode("1.3.0"),
+	});
+	registryArtifacts.set("1.2.3", generated.artifactBytes);
+	registryArtifacts.set("1.3.0", update.artifactBytes);
+	const releaseDescriptor = (
+		fixture: typeof generated,
+		releaseCid: string,
+	): RegistryFixtureReleaseDescriptor => ({
+		version: fixture.version,
+		releaseCid,
+		release: {
+			...fixture.release,
+			artifacts: {
+				package: {
+					url: `http://127.0.0.1:${port}/registry/gallery-${fixture.version}.tgz`,
+					checksum: fixture.artifactChecksum,
+				},
+			},
+			extensions: {
+				[RELEASE_EXTENSION_NSID]: {
+					$type: RELEASE_EXTENSION_NSID,
+					declaredAccess: fixture.release.extensions?.[RELEASE_EXTENSION_NSID]?.declaredAccess,
+				},
+			},
+		},
+	});
 	registryFixture = {
 		publisherDid: generated.publisherDid,
 		packageSlug: generated.packageSlug,
-		version: generated.version,
 		profileCid: REGISTRY_PROFILE_CID,
-		releaseCid: REGISTRY_RELEASE_CID,
 		profile: {
 			...generated.profile,
 			extensions: {
@@ -397,21 +491,10 @@ export async function startMockMarketplace(
 				},
 			},
 		},
-		release: {
-			...generated.release,
-			artifacts: {
-				package: {
-					url: `http://127.0.0.1:${port}${REGISTRY_ARTIFACT_PATH}`,
-					checksum: generated.artifactChecksum,
-				},
-			},
-			extensions: {
-				[RELEASE_EXTENSION_NSID]: {
-					$type: RELEASE_EXTENSION_NSID,
-					declaredAccess: { content: { read: {} } },
-				},
-			},
-		},
+		releases: [
+			releaseDescriptor(update, REGISTRY_RELEASE_CIDS["1.3.0"]),
+			releaseDescriptor(generated, REGISTRY_RELEASE_CIDS["1.2.3"]),
+		],
 	};
 	const server = await new Promise<Server>((resolve, reject) => {
 		const mockServer = createServer(handleRequest);

@@ -1,11 +1,6 @@
 import { expect, test } from "../fixtures";
 
 test.describe("Registry fixture Block Kit", () => {
-	test.skip(
-		process.env.EMDASH_E2E_TARGET === "cloudflare",
-		"The Node fixture owns the configured registry sandbox journey",
-	);
-
 	test.beforeEach(async ({ admin, page }) => {
 		await admin.devBypassAuth();
 		await page
@@ -54,10 +49,37 @@ test.describe("Registry fixture Block Kit", () => {
 		await expect(page.getByText("Direction")).toBeVisible();
 		await expect(page.getByText("rtl", { exact: true })).toBeVisible();
 		await expect(page.getByRole("tab", { name: "Context" })).toBeVisible();
+		const fixtureImage = page.getByRole("img", { name: "Fixture status" });
+		await expect(fixtureImage).toBeVisible();
+		expect(
+			await fixtureImage.evaluate(
+				(image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0,
+			),
+		).toBe(true);
 		await testInfo.attach("registry-fixture-components-ar-rtl", {
 			body: await page.screenshot({ fullPage: true }),
 			contentType: "image/png",
 		});
+	});
+
+	test("submits Block Kit forms and rejects unsafe responses", async ({ admin, page }) => {
+		await admin.goto("/plugins/marketplace-test/components");
+		await admin.waitForLoading();
+		await page.getByRole("textbox", { name: "Text" }).fill("submitted in browser");
+		await page.getByRole("spinbutton", { name: "Number" }).fill("7");
+		await page.getByRole("button", { name: "Submit" }).click();
+		await expect(page.getByText("Components submitted", { exact: true })).toBeVisible();
+		await expect(page.getByText("submitted in browser", { exact: true })).toBeVisible();
+		await expect(page.getByText("7", { exact: true })).toBeVisible();
+
+		await page.getByRole("button", { name: "Return unsafe image" }).click();
+		await expect(page.getByText(/INVALID_BLOCK_RESPONSE/)).toBeVisible();
+		await expect(page.getByText("tracker.example", { exact: false })).toHaveCount(0);
+
+		await page.reload();
+		await admin.waitForLoading();
+		await page.getByRole("button", { name: "Return oversized response" }).click();
+		await expect(page.getByText(/INVALID_BLOCK_RESPONSE|PLUGIN_RESPONSE_TOO_LARGE/)).toBeVisible();
 	});
 
 	test("loads the saved-entry panel lazily and runs the confirmed overflow action", async ({

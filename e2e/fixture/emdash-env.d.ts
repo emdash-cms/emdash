@@ -28,6 +28,7 @@ export interface Post {
   body?: PortableTextBlock[];
   excerpt?: string;
   theme_color?: string;
+  event?: unknown;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;

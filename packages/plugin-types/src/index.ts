@@ -64,6 +64,8 @@ export type PluginCapability =
 	// Taxonomies
 	| "taxonomies:read"
 	| "taxonomies:write"
+	// Bylines
+	| "bylines:read"
 	// Redirects
 	| "redirects:read"
 	| "redirects:write"
@@ -215,6 +217,7 @@ export interface DeclaredAccess {
 	schema?: { read?: AccessConstraints };
 	admin?: { editorDraftRead?: AccessConstraints; editorDraftPatch?: AccessConstraints };
 	taxonomies?: { read?: AccessConstraints; write?: AccessConstraints };
+	bylines?: { read?: AccessConstraints };
 	redirects?: { read?: AccessConstraints; write?: AccessConstraints };
 	media?: {
 		read?: AccessConstraints;
@@ -272,6 +275,7 @@ export function capabilitiesToDeclaredAccess(
 		out.taxonomies = { read: {} };
 		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
 	}
+	if (caps.has("bylines:read")) out.bylines = { read: {} };
 	if (caps.has("redirects:read") || caps.has("redirects:write")) {
 		out.redirects = { read: {} };
 		if (caps.has("redirects:write")) out.redirects.write = {};
@@ -344,6 +348,7 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("taxonomies:write");
 		caps.add("taxonomies:read");
 	}
+	if (declaredAccess.bylines?.read) caps.add("bylines:read");
 	if (declaredAccess.redirects?.read) caps.add("redirects:read");
 	if (declaredAccess.redirects?.write) {
 		caps.add("redirects:write");

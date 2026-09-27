@@ -81,7 +81,7 @@ export interface StorageCollectionDeclaration {
 	uniqueIndexes?: string[];
 }
 
-export interface PluginDescriptor<TOptions = Record<string, unknown>> {
+export interface PluginDescriptor<TOptions extends object = object> {
 	/** Unique plugin identifier */
 	id: string;
 	/** Plugin version (semver) */
@@ -169,7 +169,7 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
  * These run in isolated V8 isolates via Worker Loader on Cloudflare.
  * The `entrypoint` is resolved to a file and bundled at build time.
  */
-export type SandboxedPluginDescriptor<TOptions = Record<string, unknown>> =
+export type SandboxedPluginDescriptor<TOptions extends object = object> =
 	PluginDescriptor<TOptions>;
 
 export interface EmDashConfig {
@@ -404,6 +404,27 @@ export interface EmDashConfig {
 	 * @default "https://registry.emdashcms.com" when sandboxing is enabled
 	 */
 	registry?: RegistryConfigOption;
+
+	/**
+	 * Core update notice in the admin dashboard.
+	 *
+	 * When enabled (the default), EmDash checks the public npm registry
+	 * (`registry.npmjs.org`) at most once per day for published `emdash`
+	 * releases and shows a dismissible banner in the admin dashboard when
+	 * a newer version is available. The check is deferred after the
+	 * response and carries no site data — it's a plain GET to the public
+	 * registry. Sites without outbound internet simply never see the banner.
+	 *
+	 * The banner names the newest stable release that has been public for
+	 * `minimumReleaseAge`: a duration string (`"48h"`, `"7d"`) or a number
+	 * of seconds, `"24h"` by default. Set it to match a package manager's
+	 * release-age policy, such as pnpm's `minimumReleaseAge`.
+	 *
+	 * Set to `false` to disable the check entirely.
+	 *
+	 * @default true
+	 */
+	updateCheck?: boolean | { minimumReleaseAge?: string | number };
 
 	/**
 	 * Experimental features.

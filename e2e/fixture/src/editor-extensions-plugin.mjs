@@ -1,6 +1,4 @@
-import type { SandboxedPlugin } from "emdash/plugin";
-
-const plugin: SandboxedPlugin = {
+const plugin = {
 	routes: {
 		"entry-health": {
 			permission: "content:edit_own",
@@ -30,14 +28,10 @@ const plugin: SandboxedPlugin = {
 					return {
 						blocks: [],
 						patch: {
-							type: "editor-draft-patch" as const,
+							type: "editor-draft-patch",
 							operations: [
-								{ op: "set" as const, field: "title", value: `${title} translated` },
-								{
-									op: "set" as const,
-									field: "body",
-									value: body,
-								},
+								{ op: "set", field: "title", value: `${title} translated` },
+								{ op: "set", field: "body", value: body },
 							],
 						},
 					};

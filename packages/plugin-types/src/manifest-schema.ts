@@ -40,6 +40,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -130,6 +131,8 @@ export const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments",
 ] as const;
@@ -393,6 +396,7 @@ const declaredAccessSchema = z.object({
 	taxonomies: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
+	bylines: z.object({ read: accessConstraints.optional() }).optional(),
 	redirects: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
