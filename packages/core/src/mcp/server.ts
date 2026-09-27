@@ -30,6 +30,8 @@ import {
 	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
+import { after } from "../after.js";
+import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
@@ -79,6 +81,17 @@ const REV_PARAM_DESCRIPTION =
  */
 const REV_MISSING_ERROR =
 	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
+/**
+ * Shared wording for the `overrideLock` parameter on write tools. Agents only
+ * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
+ * override is stated here.
+ */
+const OVERRIDE_LOCK_PARAM_DESCRIPTION =
+	"Write even though someone else has this item open in the admin. Without it, " +
+	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
+	"content_get again does not clear it. Tell the user who holds the item, and " +
+	"set this only if they ask you to write anyway.";
 
 const SHA256_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 const TRANSFER_OPERATION_ID_PATTERN = /^[0-9A-Za-z_-]{1,64}$/;
@@ -220,7 +233,7 @@ const schemaUpdateCollectionToolSchema = z.object({
 		"Complete feature list to enable; omit to preserve the current list",
 	),
 	urlPattern: updateCollectionBody.shape.urlPattern.describe(
-		"New public URL pattern; pass null to clear it",
+		"New public URL pattern such as /blog/{slug}, with at most one placeholder per path segment; pass null to clear it",
 	),
 	routable: updateCollectionBody.shape.routable.describe(
 		"Whether entries require a slug before they can be published",
@@ -797,6 +810,24 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/**
+ * Refuses a write while another user holds the entry's edit lock. Resolves to
+ * `null` when the write may proceed, and extends the caller's own lease if they
+ * hold it.
+ */
+async function refuseLockedEntry(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	collection: string,
+	entryId: string,
+	overrideLock: boolean | undefined,
+): Promise<ErrorEnvelope | null> {
+	const { emdash, userId } = getExtra(extra);
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, entryId, userId, {
+		override: overrideLock,
+	});
+	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
+}
+
 /** Extract the `_rev` token from a content handler response. */
 function extractContentRev(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
@@ -1293,6 +1324,7 @@ export function createMcpServer(
 					.optional()
 					.describe("Treat an entirely keyless blocks array as an explicit replacement"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1328,9 +1360,15 @@ export function createMcpServer(
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 
+			if (args.status !== undefined) {
+				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+			}
+
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
 				let liveChanged = false;
 				if (
@@ -1371,7 +1409,6 @@ export function createMcpServer(
 			}
 
 			if (args.status === "draft") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
 				let liveChanged = false;
 				if (
@@ -1440,6 +1477,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1461,6 +1499,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
 				args.collection,
 				resolvedId,
@@ -1552,6 +1592,7 @@ export function createMcpServer(
 					.describe(
 						"Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",
 					),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1580,6 +1621,8 @@ export function createMcpServer(
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await emdash.handleContentPublish(args.collection, resolvedId, {
@@ -1605,6 +1648,7 @@ export function createMcpServer(
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1625,6 +1669,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentUnpublish(args.collection, resolvedId, {
@@ -1652,6 +1698,7 @@ export function createMcpServer(
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
 				),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1672,6 +1719,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
@@ -1695,6 +1744,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1714,6 +1764,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentUnschedule(args.collection, resolvedId),
@@ -1755,6 +1807,7 @@ export function createMcpServer(
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1776,6 +1829,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
@@ -1827,10 +1882,21 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
-			const ec = getEmDash(extra);
-			return unwrapAndInvalidate(extra, await ec.handleContentDuplicate(args.collection, args.id), [
-				args.collection,
-			]);
+			const { emdash, userId } = getExtra(extra);
+			const existing = await emdash.handleContentGet(args.collection, args.id);
+			if (!existing.success) return unwrap(existing);
+			requireOwnership(
+				extra,
+				extractContentAuthorId(existing.data),
+				"content:edit_own",
+				"content:edit_any",
+			);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
+			return unwrapAndInvalidate(
+				extra,
+				await emdash.handleContentDuplicate(args.collection, resolvedId, userId),
+				[args.collection],
+			);
 		},
 	);
 
@@ -1961,7 +2027,11 @@ export function createMcpServer(
 			try {
 				const { handleBylineCreate } = await import("../api/handlers/bylines.js");
 				const result = await handleBylineCreate(ec.db, args);
-				if (result.success) await invalidateBylines();
+				if (result.success) {
+					await invalidateBylines();
+					const byline = result.data;
+					after(() => ec.hooks.runBylineAfterSave(byline, true));
+				}
 				return unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_CREATE_ERROR");
@@ -1989,7 +2059,11 @@ export function createMcpServer(
 				const { handleBylineUpdate } = await import("../api/handlers/bylines.js");
 				const { id, ...input } = args;
 				const result = await handleBylineUpdate(ec.db, id, input);
-				if (result.success) await invalidateBylines();
+				if (result.success) {
+					await invalidateBylines();
+					const byline = result.data;
+					after(() => ec.hooks.runBylineAfterSave(byline, false));
+				}
 				return unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_UPDATE_ERROR");
@@ -2015,9 +2089,14 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { BylineRepository } = await import("../database/repositories/byline.js");
-				const deleted = await new BylineRepository(ec.db).delete(args.id);
+				const repo = new BylineRepository(ec.db);
+				const existing = ec.hooks.hasHooks("byline:afterDelete")
+					? await repo.findById(args.id)
+					: null;
+				const deleted = await repo.delete(args.id);
 				if (!deleted) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
 				await invalidateBylines();
+				if (existing) after(() => ec.hooks.runBylineAfterDelete(existing));
 				return jsonResult({ deleted: args.id });
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_DELETE_ERROR");
@@ -2231,7 +2310,7 @@ export function createMcpServer(
 				label: z.string().describe("Display name (plural, e.g. 'Blog Posts')"),
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
-				icon: z.string().optional().describe("Icon name for the admin UI"),
+				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
 					"Features to enable (default: ['drafts', 'revisions'])",
 				),
@@ -2536,27 +2615,15 @@ export function createMcpServer(
 	server.registerTool(
 		"media_create",
 		{
-			title: "Register Uploaded Media",
+			title: "Confirm Signed Media Upload",
 			description:
-				"Register a media file that has already been uploaded to storage. The " +
-				"caller is responsible for placing the file at `storageKey` (typically " +
-				"using a signed upload URL obtained from the admin UI or a separate API). " +
-				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. To upload the " +
-				"file itself, use media_upload (base64 data or a public URL) instead.",
+				"Confirm a file after uploading it with a signed URL obtained from " +
+				"POST /_emdash/api/media/upload-url. `storageKey` must be the key returned " +
+				"for the same user. Confirmation checks that the stored file exists and " +
+				"matches the size fixed when the URL was issued, then makes it available " +
+				"through media_list / media_get. To upload through MCP, use media_upload instead.",
 			inputSchema: z.object({
-				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
-				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
-				storageKey: z.string().describe("Storage path/key the file was uploaded to"),
-				size: z.number().int().nonnegative().optional().describe("File size in bytes"),
-				width: z.number().int().positive().optional().describe("Image width in pixels"),
-				height: z.number().int().positive().optional().describe("Image height in pixels"),
-				contentHash: z.string().optional().describe("Hash of the file contents (for dedupe)"),
-				blurhash: z.string().optional().describe("Blurhash for image placeholders"),
-				dominantColor: z
-					.string()
-					.optional()
-					.describe("Hex color string for the image's dominant color"),
+				storageKey: z.string().describe("Storage key returned by the signed upload URL request"),
 			}),
 		},
 		async (args, extra) => {
@@ -2564,16 +2631,8 @@ export function createMcpServer(
 			requireRole(extra, Role.AUTHOR);
 			const { emdash, userId } = getExtra(extra);
 			return unwrap(
-				await emdash.handleMediaCreate({
-					filename: args.filename,
-					mimeType: args.mimeType,
+				await emdash.handleMediaRegisterUpload({
 					storageKey: args.storageKey,
-					size: args.size,
-					width: args.width,
-					height: args.height,
-					contentHash: args.contentHash,
-					blurhash: args.blurhash,
-					dominantColor: args.dominantColor,
 					authorId: userId,
 				}),
 			);
@@ -2585,35 +2644,25 @@ export function createMcpServer(
 		{
 			title: "Upload Media",
 			description:
-				"Upload a media file from base64-encoded data or an external URL and " +
+				"Upload a media file from base64-encoded data and " +
 				"register it in the media library. Returns the media item with id, " +
 				"storageKey, and url — ready to reference from content fields (e.g. " +
 				"featured_image) via content_create / content_update. Uploads are " +
 				"deduplicated by content hash: re-uploading identical bytes returns " +
-				"the existing item with deduplicated: true. URL fetches must resolve " +
-				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"the existing item with deduplicated: true. Subject to the global " +
 				"upload MIME allowlist and the configured maximum upload size.",
 			inputSchema: z.object({
 				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
-				base64: z
-					.string()
-					.optional()
-					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
-				url: z
-					.url()
-					.optional()
-					.describe(
-						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
-					),
+				base64: z.string().describe("Base64-encoded file contents."),
 				contentType: z
 					.string()
 					.regex(CONTENT_TYPE_RE, "Invalid content type")
-					.optional()
-					.describe(
-						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
-							"defaults to the response's Content-Type header.",
-					),
+					.describe("MIME type (e.g. 'image/png')."),
 				alt: z.string().optional().describe("Alt text for accessibility"),
+				caption: z
+					.string()
+					.optional()
+					.describe("Caption stored on the media record, such as the credit"),
 			}),
 			annotations: { destructiveHint: false },
 		},
@@ -2629,9 +2678,9 @@ export function createMcpServer(
 					await emdash.handleMediaUpload({
 						filename: args.filename,
 						base64: args.base64,
-						url: args.url,
 						contentType: args.contentType,
 						alt: args.alt,
+						caption: args.caption,
 						authorId: userId,
 						maxUploadSize: emdash.config.maxUploadSize,
 					}),
@@ -2885,12 +2934,13 @@ export function createMcpServer(
 		{
 			title: "Create Taxonomy Definition",
 			description:
-				"Create a new taxonomy definition. Definitions are per-locale; pass " +
-				"`locale` when the same taxonomy name exists in multiple translations. " +
-				"`collections` names which content types the taxonomy applies to. " +
-				"If `translationOf` is set, the new definition joins the source's " +
-				"translation group and inherits `hierarchical` and `collections` from " +
-				"the source when those fields are omitted.",
+				"Create a taxonomy definition in one locale. `label` and `labelSingular` " +
+				"belong to that locale; `hierarchical` and `collections` belong to the " +
+				"taxonomy and are the same in every locale. `collections` names which " +
+				"content types the taxonomy applies to. A definition for a name that " +
+				"already exists in another locale joins that taxonomy and takes its " +
+				"`hierarchical` and `collections`; passing different values is an error " +
+				"(change them with taxonomy_update).",
 			inputSchema: z.object({
 				name: createTaxonomyDefBody.shape.name.describe(
 					"Taxonomy name (lowercase letters, numbers, underscores)",
@@ -2900,10 +2950,10 @@ export function createMcpServer(
 					"Singular form of the display name",
 				),
 				hierarchical: createTaxonomyDefBody.shape.hierarchical.describe(
-					"Whether the taxonomy supports parent/child terms (defaults to false, or inherited from translationOf)",
+					"Whether the taxonomy supports parent/child terms, in every locale (defaults to false; must match when the taxonomy exists in another locale)",
 				),
 				collections: createTaxonomyDefBody.shape.collections.describe(
-					"Collection slugs this taxonomy applies to (defaults to [], or inherited from translationOf)",
+					"Collection slugs this taxonomy applies to, in every locale (defaults to []; must match when the taxonomy exists in another locale)",
 				),
 				locale: z.string().optional().describe("Locale for this definition (e.g. 'fr-fr')"),
 				translationOf: z
@@ -2943,9 +2993,10 @@ export function createMcpServer(
 			title: "Update Taxonomy Definition",
 			description:
 				"Update an existing taxonomy definition. The taxonomy `name` cannot be " +
-				"changed. Pass `locale` to update a specific translation; otherwise the " +
-				"lowest matching locale is updated. Any field may be omitted to leave it " +
-				"unchanged.",
+				"changed. Pass `locale` to update a specific translation's `label` and " +
+				"`labelSingular`; otherwise the lowest matching locale is updated. " +
+				"`hierarchical` and `collections` change for every locale. Any field " +
+				"may be omitted to leave it unchanged.",
 			inputSchema: z.object({
 				name: z.string().describe("Taxonomy name to update"),
 				label: updateTaxonomyDefBody.shape.label.describe("New display name"),
@@ -2953,10 +3004,10 @@ export function createMcpServer(
 					"New singular display name; pass null to clear",
 				),
 				hierarchical: updateTaxonomyDefBody.shape.hierarchical.describe(
-					"Whether the taxonomy supports parent/child terms",
+					"Whether the taxonomy supports parent/child terms, in every locale",
 				),
 				collections: updateTaxonomyDefBody.shape.collections.describe(
-					"Collection slugs this taxonomy applies to",
+					"Collection slugs this taxonomy applies to, in every locale",
 				),
 				locale: z.string().optional().describe("Locale of the definition to update"),
 			}),
@@ -3047,7 +3098,7 @@ export function createMcpServer(
 
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
 				const repo = new TaxonomyRepository(ec.db);
-				const limit = Math.min(args.limit ?? 50, 100);
+				const limit = Math.max(1, Math.min(args.limit ?? 50, 100));
 				let cursor: TaxonomyListCursor | undefined;
 				if (args.cursor) {
 					try {
@@ -3559,6 +3610,7 @@ export function createMcpServer(
 				"use content_publish afterward if needed.",
 			inputSchema: z.object({
 				revisionId: z.string().describe("Revision ID to restore"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -3590,6 +3642,14 @@ export function createMcpServer(
 				"content:edit_own",
 				"content:edit_any",
 			);
+
+			const locked = await refuseLockedEntry(
+				extra,
+				revItem.collection,
+				revItem.entryId,
+				args.overrideLock,
+			);
+			if (locked) return locked;
 
 			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
 		},

@@ -93,6 +93,9 @@ export const Permissions = {
 	"transfer:export": Role.ADMIN,
 	"transfer:import": Role.ADMIN,
 
+	// Core update notice
+	"updates:read": Role.ADMIN,
+
 	// Search
 	"search:read": Role.SUBSCRIBER,
 	"search:manage": Role.ADMIN,

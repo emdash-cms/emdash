@@ -82,6 +82,7 @@ The consent dialog shows every permission declared by the plugin. Common permiss
 | `content:write`   | Create, update, and delete content              |
 | `content:revisions:read` | Read retained content revision history      |
 | `schema:read`     | Read collection and field definitions           |
+| `bylines:read`    | Read public byline profiles and content credits |
 | `redirects:read`  | Read redirect rules                              |
 | `redirects:write` | Change where visitors are sent                   |
 | `media:read`      | Read safe metadata for ready media              |
@@ -110,6 +111,8 @@ The dialog also identifies plugin routes exposed as Model Context Protocol (MCP)
 </Steps>
 
 Registry updates require another confirmation when they add permissions or MCP tools, or when a route changes from authenticated to public. EmDash leaves the installed version in place until you approve the change.
+
+Explicit updates move forward only. Updates that follow the registry's latest release can roll back if the publisher withdraws the newest release. To return to an older release any other time, uninstall the plugin and install that version from its registry page. Uninstalling keeps the plugin's stored data unless you choose to delete it.
 
 ## Uninstall a plugin
 

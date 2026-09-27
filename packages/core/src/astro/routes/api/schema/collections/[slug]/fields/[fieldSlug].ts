@@ -54,7 +54,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	return unwrapResult(result);
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
 	const collectionSlug = params.slug!;
 	const fieldSlug = params.fieldSlug!;
@@ -65,6 +65,10 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
 
-	const result = await handleSchemaFieldDelete(emdash.db, collectionSlug, fieldSlug);
+	// DELETE carries no body, so the cascade opt-in rides on the query string,
+	// matching `?force=true` on collection delete.
+	const result = await handleSchemaFieldDelete(emdash.db, collectionSlug, fieldSlug, {
+		deleteRelation: url.searchParams.get("deleteRelation") === "true",
+	});
 	return unwrapResult(result);
 };

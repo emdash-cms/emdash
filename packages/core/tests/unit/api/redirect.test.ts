@@ -21,6 +21,15 @@ describe("isSafeRedirect", () => {
 		expect(isSafeRedirect("\\evil.com")).toBe(false);
 	});
 
+	it("rejects control characters that browsers strip from URLs", () => {
+		expect(isSafeRedirect("/\t/evil.com")).toBe(false);
+		expect(isSafeRedirect("/\n/evil.com")).toBe(false);
+		expect(isSafeRedirect("/\r/evil.com")).toBe(false);
+		expect(isSafeRedirect("/admin\u0000")).toBe(false);
+		expect(isSafeRedirect("/admin\u001f")).toBe(false);
+		expect(isSafeRedirect("/admin\u007f")).toBe(false);
+	});
+
 	it("rejects URLs that do not start with /", () => {
 		expect(isSafeRedirect("https://evil.com")).toBe(false);
 		expect(isSafeRedirect("http://evil.com")).toBe(false);

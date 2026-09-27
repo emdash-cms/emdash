@@ -427,6 +427,7 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"hooks.content-policy:register": msg`Review and block publishing, scheduling, and unpublishing content`,
 	"taxonomies:read": msg`Read your taxonomies and terms`,
 	"taxonomies:write": msg`Create taxonomy terms and change content classifications`,
+	"bylines:read": msg`Read public byline profiles and content credits`,
 	"redirects:read": msg`Read redirect rules`,
 	"redirects:write": msg`Change where visitors are sent`,
 	"media:read": msg`Access your media library`,

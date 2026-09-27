@@ -140,12 +140,18 @@ function getString(value: unknown, key: string): string | undefined {
 }
 
 const MAX_RETRIES = 3;
+const MAX_DELIVERY_RECORDS = 500;
+// D1 rejects a statement with more than 100 bound parameters, and deleteMany
+// binds plugin_id and collection alongside the ids.
+const PRUNE_BATCH_SIZE = 50;
 
 async function getConfig(ctx: PluginContext) {
 	const url = await ctx.kv.get<string>("settings:webhookUrl");
 	const token = await ctx.kv.get<string>("settings:secretToken");
 	const enabled = await ctx.kv.get<boolean>("settings:enabled");
-	return { url, token, enabled };
+	const events = await ctx.kv.get<string>("settings:events");
+	const includeData = await ctx.kv.get<boolean>("settings:includeData");
+	return { url, token, enabled, events, includeData };
 }
 
 function getFetchFn(ctx: PluginContext): FetchFn {
@@ -153,6 +159,68 @@ function getFetchFn(ctx: PluginContext): FetchFn {
 		throw new Error("Webhook notifier requires network:request capability");
 	}
 	return ctx.http.fetch;
+}
+
+interface DeliveryRecord {
+	timestamp: string;
+	webhookUrl: string;
+	event: string;
+	resourceId: string;
+	status: "success" | "failed";
+	httpStatus?: number;
+	error?: string;
+	durationMs: number;
+}
+
+async function deliver(
+	ctx: PluginContext,
+	url: string,
+	token: string | null,
+	payload: WebhookPayload,
+): Promise<void> {
+	const start = Date.now();
+	let result: Awaited<ReturnType<typeof sendWebhook>>;
+	try {
+		result = await sendWebhook(
+			getFetchFn(ctx),
+			ctx.log,
+			url,
+			payload,
+			token ?? undefined,
+			MAX_RETRIES,
+		);
+	} catch (error) {
+		result = { success: false, error: error instanceof Error ? error.message : String(error) };
+	}
+
+	await recordDelivery(ctx, {
+		timestamp: payload.timestamp,
+		webhookUrl: url,
+		event: payload.event,
+		resourceId: payload.resourceId,
+		status: result.success ? "success" : "failed",
+		httpStatus: result.status,
+		error: result.error,
+		durationMs: Date.now() - start,
+	});
+}
+
+async function recordDelivery(ctx: PluginContext, record: DeliveryRecord): Promise<void> {
+	const deliveries = ctx.storage.deliveries!;
+	await deliveries.put(crypto.randomUUID(), record);
+
+	// Re-count after every batch: the excess can span several batches, and a
+	// concurrent delivery can insert between the count and the delete.
+	for (;;) {
+		const excess = (await deliveries.count()) - MAX_DELIVERY_RECORDS;
+		if (excess <= 0) return;
+		const oldest = await deliveries.query({
+			orderBy: { timestamp: "asc" },
+			limit: Math.min(excess, PRUNE_BATCH_SIZE),
+		});
+		if (oldest.items.length === 0) return;
+		await deliveries.deleteMany(oldest.items.map((item) => item.id));
+	}
 }
 
 // ── Plugin definition ──
@@ -164,8 +232,8 @@ export default {
 			timeout: 10000,
 			errorPolicy: "continue",
 			handler: async (event, ctx) => {
-				const { url, token, enabled } = await getConfig(ctx);
-				if (enabled === false || !url) return;
+				const { url, token, enabled, events, includeData } = await getConfig(ctx);
+				if (enabled === false || !url || events === "media") return;
 
 				const contentId =
 					typeof event.content.id === "string" ? event.content.id : String(event.content.id);
@@ -176,13 +244,15 @@ export default {
 					collection: event.collection,
 					resourceId: contentId,
 					resourceType: "content",
+					data: includeData && isRecord(event.content.data) ? event.content.data : undefined,
 					metadata: {
 						slug: event.content.slug,
 						status: event.content.status,
+						draftRevisionId: event.content.draftRevisionId ?? null,
 					},
 				};
 
-				await sendWebhook(getFetchFn(ctx), ctx.log, url, payload, token ?? undefined, MAX_RETRIES);
+				await deliver(ctx, url, token, payload);
 			},
 		},
 
@@ -191,8 +261,8 @@ export default {
 			timeout: 10000,
 			errorPolicy: "continue",
 			handler: async (event, ctx) => {
-				const { url, token, enabled } = await getConfig(ctx);
-				if (enabled === false || !url) return;
+				const { url, token, enabled, events } = await getConfig(ctx);
+				if (enabled === false || !url || events === "media") return;
 
 				const payload: WebhookPayload = {
 					event: "content:delete",
@@ -202,7 +272,7 @@ export default {
 					resourceType: "content",
 				};
 
-				await sendWebhook(getFetchFn(ctx), ctx.log, url, payload, token ?? undefined, MAX_RETRIES);
+				await deliver(ctx, url, token, payload);
 			},
 		},
 
@@ -211,17 +281,24 @@ export default {
 			timeout: 10000,
 			errorPolicy: "continue",
 			handler: async (event, ctx) => {
-				const { url, token, enabled } = await getConfig(ctx);
-				if (enabled === false || !url) return;
+				const { url, token, enabled, events, includeData } = await getConfig(ctx);
+				if (enabled === false || !url || events === "content") return;
 
 				const payload: WebhookPayload = {
 					event: "media:upload",
 					timestamp: new Date().toISOString(),
 					resourceId: event.media.id,
 					resourceType: "media",
+					data: includeData
+						? {
+								filename: event.media.filename,
+								mimeType: event.media.mimeType,
+								size: event.media.size,
+							}
+						: undefined,
 				};
 
-				await sendWebhook(getFetchFn(ctx), ctx.log, url, payload, token ?? undefined, MAX_RETRIES);
+				await deliver(ctx, url, token, payload);
 			},
 		},
 	},
@@ -261,19 +338,18 @@ export default {
 					const deliveries = ctx.storage.deliveries!;
 					const successful = await deliveries.count({ status: "success" });
 					const failed = await deliveries.count({ status: "failed" });
-					const pending = await deliveries.count({ status: "pending" });
 
 					return {
 						configured: !!url,
 						enabled: enabled ?? true,
-						stats: { successful, failed, pending },
+						stats: { successful, failed },
 					};
 				} catch (error) {
 					ctx.log.error("Failed to get status", error);
 					return {
 						configured: false,
 						enabled: true,
-						stats: { successful: 0, failed: 0, pending: 0 },
+						stats: { successful: 0, failed: 0 },
 					};
 				}
 			},
@@ -363,12 +439,10 @@ async function buildStatusWidget(ctx: PluginContext) {
 
 		let successful = 0;
 		let failed = 0;
-		let pending = 0;
 		try {
 			const deliveries = ctx.storage.deliveries!;
 			successful = await deliveries.count({ status: "success" });
 			failed = await deliveries.count({ status: "failed" });
-			pending = await deliveries.count({ status: "pending" });
 		} catch {
 			// Storage not available yet
 		}
@@ -395,7 +469,6 @@ async function buildStatusWidget(ctx: PluginContext) {
 				stats: [
 					{ label: "Delivered", value: String(successful) },
 					{ label: "Failed", value: String(failed) },
-					{ label: "Pending", value: String(pending) },
 				],
 			});
 		} else {
@@ -427,9 +500,9 @@ async function buildSettingsPage(ctx: PluginContext) {
 				resourceId: "abc123",
 				resourceType: "content",
 				...(includeData && {
-					data: { title: "Example Post", slug: "example-post" },
+					data: { title: "Example Post" },
 				}),
-				metadata: { slug: "example-post", status: "published" },
+				metadata: { slug: "example-post", status: "published", draftRevisionId: null },
 			},
 			null,
 			2,

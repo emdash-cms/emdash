@@ -52,7 +52,7 @@ import { cn, parseTimestamp } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
-import { BulkTagDialog, type SelectedBulkTagPost } from "./BulkTagDialog.js";
+import { BulkTagDialog, type BulkTagTaxonomy, type SelectedBulkTagPost } from "./BulkTagDialog.js";
 import {
 	BylineFilter,
 	EMPTY_BYLINE_FILTER,
@@ -184,7 +184,8 @@ export interface ContentListProps {
 	onBulkPublish?: BulkActionHandler;
 	onBulkUnpublish?: BulkActionHandler;
 	onBulkDelete?: BulkActionHandler;
-	bulkTagEnabled?: boolean;
+	/** Taxonomies editors can bulk-assign terms from; empty disables the action. */
+	bulkTagTaxonomies?: BulkTagTaxonomy[];
 	/** Current role used only for contributed-column visibility, not authorization. */
 	userRole?: number;
 	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
@@ -272,7 +273,7 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
-	bulkTagEnabled = false,
+	bulkTagTaxonomies = [],
 	userRole = 0,
 	pluginStates,
 }: ContentListProps) {
@@ -286,6 +287,8 @@ export function ContentList({
 		null,
 	);
 	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
+	const bulkTagEnabled = bulkTagTaxonomies.length > 0;
+	const soleBulkTagTaxonomy = bulkTagTaxonomies.length === 1 ? bulkTagTaxonomies[0] : undefined;
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
@@ -546,12 +549,14 @@ export function ContentList({
 											setBulkTagOpen(true);
 										}}
 									>
-										{t`Add tag`}
+										{soleBulkTagTaxonomy
+											? t`Add ${(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label).toLowerCase()}`
+											: t`Add term`}
 									</Button>
 								)}
 								{bulkTagEnabled && selectedCount > 50 && (
 									<span role="status" className="text-sm text-kumo-danger">
-										{t`Select up to 50 posts to add a tag.`}
+										{t`Select up to 50 posts at a time.`}
 									</span>
 								)}
 								{onBulkDelete && (
@@ -613,6 +618,7 @@ export function ContentList({
 						</div>
 					)}
 					<BulkTagDialog
+						taxonomies={bulkTagTaxonomies}
 						open={bulkTagOpen}
 						selected={bulkTagSelection ?? undefined}
 						activeLocale={activeLocale}

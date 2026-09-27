@@ -8,7 +8,7 @@ description: Use the EmDash CLI to inspect and manage an EmDash instance from th
 The EmDash CLI (`emdash`, with the short alias `em`) manages EmDash CMS instances. Commands fall into two categories:
 
 - **Local commands** work with project files or a configured database: `init`, `doctor`, `seed`, `migrate`, `export-seed`, and `secrets`.
-- **Remote commands** talk to a running EmDash instance: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, `site`, and `plugin`.
+- **Remote commands** talk to a running EmDash instance: `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu`, and `site`.
 
 Run `npx emdash --help` and `npx emdash <command> --help` for the installed version's exact commands and flags. Resolve the current target with a read command before a destructive or bulk mutation; examples in this skill do not authorize changing an instance the user did not place in scope.
 

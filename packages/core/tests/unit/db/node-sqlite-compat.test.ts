@@ -5,7 +5,10 @@ import { join } from "node:path";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { openNodeSqliteDatabase } from "../../../src/db/node-sqlite-compat.js";
+import {
+	NodeSqliteCompatDatabase,
+	openNodeSqliteDatabase,
+} from "../../../src/db/node-sqlite-compat.js";
 
 describe("openNodeSqliteDatabase", () => {
 	const openDatabases: ReturnType<typeof openNodeSqliteDatabase>[] = [];
@@ -54,6 +57,33 @@ describe("openNodeSqliteDatabase", () => {
 
 		openDatabases.pop();
 		await db.destroy();
+	});
+
+	it("supports direct statement calls", () => {
+		const database = new NodeSqliteCompatDatabase(":memory:");
+		openDatabases.push(database);
+		database.exec("CREATE TABLE entries (id INTEGER PRIMARY KEY, title TEXT NOT NULL)");
+		const insert = database.prepare("INSERT INTO entries (title) VALUES (?)");
+		insert.run("First");
+		insert.run("Second");
+
+		expect(database.open).toBe(true);
+		expect(database.prepare("SELECT title FROM entries ORDER BY id").all()).toEqual([
+			{ title: "First" },
+			{ title: "Second" },
+		]);
+		expect(database.prepare("SELECT title FROM entries WHERE id = ?").get(2)).toEqual({
+			title: "Second",
+		});
+	});
+
+	it("can be closed more than once", () => {
+		const database = open();
+		database.close();
+
+		expect(() => database.close()).not.toThrow();
+		expect(database.open).toBe(false);
+		openDatabases.pop();
 	});
 
 	it("normalizes supported positional values without shifting parameters", () => {

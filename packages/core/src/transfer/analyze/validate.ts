@@ -37,6 +37,7 @@ import { SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isTransferError, TransferError } from "../errors.js";
 import {
 	blocksFieldTypeSlugs,
+	referenceFieldRelationSlugs,
 	blockTypeVersionKey,
 	compareIds,
 	compareStreamOrder,
@@ -70,6 +71,7 @@ import {
 import { blockerForError, decodeRecordLine, readVerifiedChunk } from "./read.js";
 import { findUniqueCollisions, UNIQUE_CHECK_QUERIES, uniqueKeysOf } from "./unique-keys.js";
 import {
+	checkContentUrlFields,
 	checkEntryFields,
 	checkRecordNumbers,
 	recordLocale,
@@ -77,7 +79,9 @@ import {
 	scanRecordValues,
 	OTHER_PROVIDER,
 	type FieldInfo,
+	type BlockTypeInfo,
 	type TargetDialect,
+	type UrlValueField,
 	type ValueIssue,
 } from "./values.js";
 import { writeRuleIssues, type BylineFieldFacts } from "./write-rules.js";
@@ -85,6 +89,11 @@ import { writeRuleIssues, type BylineFieldFacts } from "./write-rules.js";
 const count = z.number().int().nonnegative();
 const kindSchema = z.enum(RECORD_KINDS);
 const kindCounts = z.array(z.tuple([kindSchema, count]));
+const urlValueFieldSchema = z.strictObject({
+	slug: z.string(),
+	type: z.enum(["url", "repeater"]),
+	urlSubFields: z.array(z.string()).optional(),
+});
 
 export const VALIDATION_PHASES = ["structure", "records", "references", "done"] as const;
 export type ValidationPhase = (typeof VALIDATION_PHASES)[number];
@@ -122,11 +131,23 @@ export const validationStateSchema = z.strictObject({
 					z.strictObject({
 						columnType: z.enum(["TEXT", "REAL", "INTEGER", "JSON"]),
 						required: z.boolean(),
+						storageless: z.boolean().optional(),
+						type: z.enum(["url", "repeater", "blocks"]).optional(),
+						urlSubFields: z.array(z.string()).optional(),
 					}),
 				]),
 			),
 		]),
 	),
+	blockTypes: z
+		.array(
+			z.tuple([
+				z.string(),
+				z.strictObject({ id: z.string(), currentVersion: z.number().int().positive() }),
+			]),
+		)
+		.default([]),
+	blockVersions: z.array(z.tuple([z.string(), z.array(urlValueFieldSchema)])).default([]),
 	principals: z.array(
 		z.strictObject({ id: z.string(), displayName: z.string(), email: z.string().optional() }),
 	),
@@ -204,6 +225,8 @@ interface WorkingState {
 	unreadableKinds: Set<RecordKind>;
 	collections: Map<string, { id: string; searchEnabled: boolean }>;
 	fields: Map<string, Map<string, FieldInfo>>;
+	blockTypes: Map<string, BlockTypeInfo>;
+	blockVersions: Map<string, UrlValueField[]>;
 	principals: PrincipalSummary[];
 	principalReferences: Map<string, number>;
 	principalBylineLocales: Map<string, Set<string>>;
@@ -238,6 +261,8 @@ function initialWorkingState(): WorkingState {
 		unreadableKinds: new Set(),
 		collections: new Map(),
 		fields: new Map(),
+		blockTypes: new Map(),
+		blockVersions: new Map(),
 		principals: [],
 		principalReferences: new Map(),
 		principalBylineLocales: new Map(),
@@ -279,6 +304,8 @@ function serialize(state: WorkingState): ValidationState {
 		unreadableKinds: [...state.unreadableKinds],
 		collections: sortedEntries(state.collections),
 		fields: sortedEntries(state.fields).map(([slug, fields]) => [slug, sortedEntries(fields)]),
+		blockTypes: sortedEntries(state.blockTypes),
+		blockVersions: sortedEntries(state.blockVersions),
 		principals: state.principals,
 		principalReferences: sortedEntries(state.principalReferences),
 		principalBylineLocales: sortedEntries(state.principalBylineLocales).map(([id, locales]) => [
@@ -315,6 +342,8 @@ function deserialize(state: ValidationState): WorkingState {
 		unreadableKinds: new Set(state.unreadableKinds),
 		collections: new Map(state.collections),
 		fields: new Map(state.fields.map(([slug, fields]) => [slug, new Map(fields)])),
+		blockTypes: new Map(state.blockTypes),
+		blockVersions: new Map(state.blockVersions),
 		principals: state.principals,
 		principalReferences: new Map(state.principalReferences),
 		principalBylineLocales: new Map(
@@ -722,7 +751,9 @@ function groupIdOf(record: SitePackageRecord): string {
 }
 
 function nameKeyOf(record: SitePackageRecord): string | null {
-	if (record.kind === "collection" || record.kind === "block_type") return record.slug;
+	if (record.kind === "collection" || record.kind === "block_type" || record.kind === "relation") {
+		return record.slug;
+	}
 	if (record.kind === "menu") return record.name;
 	if (record.kind === "block_type_version") {
 		return blockTypeVersionKey(record.blockTypeId, record.version);
@@ -888,8 +919,41 @@ function selectOptions(validation: unknown): string[] {
 		: [];
 }
 
+function repeaterUrlSubFields(validation: unknown): string[] {
+	if (typeof validation !== "object" || validation === null || Array.isArray(validation)) return [];
+	const subFields: unknown = Reflect.get(validation, "subFields");
+	if (!Array.isArray(subFields)) return [];
+	return subFields.flatMap((field) => {
+		if (typeof field !== "object" || field === null || Array.isArray(field)) return [];
+		const slug: unknown = Reflect.get(field, "slug");
+		return Reflect.get(field, "type") === "url" && typeof slug === "string" ? [slug] : [];
+	});
+}
+
+function urlValueFields(fields: readonly unknown[]): UrlValueField[] {
+	const result: UrlValueField[] = [];
+	for (const field of fields) {
+		if (typeof field !== "object" || field === null || Array.isArray(field)) continue;
+		const slug: unknown = Reflect.get(field, "slug");
+		const type: unknown = Reflect.get(field, "type");
+		if (typeof slug !== "string") continue;
+		if (type === "url") {
+			result.push({ slug, type });
+			continue;
+		}
+		if (type !== "repeater") continue;
+		const urlSubFields = repeaterUrlSubFields(Reflect.get(field, "validation"));
+		if (urlSubFields.length > 0) result.push({ slug, type, urlSubFields });
+	}
+	return result;
+}
+
 function isKnownFieldType(type: string): type is keyof typeof FIELD_TYPE_TO_COLUMN {
 	return FIELD_TYPE_SET.has(type);
+}
+
+function isUrlRelevantFieldType(type: string): type is "url" | "repeater" | "blocks" {
+	return type === "url" || type === "repeater" || type === "blocks";
 }
 
 /**
@@ -900,6 +964,8 @@ const MAX_TRACKED = {
 	principals: 10_000,
 	collections: 1_000,
 	fields: 20_000,
+	blockTypes: 1_000,
+	blockVersions: 20_000,
 	bylineFields: 1_000,
 	providers: 100,
 } as const;
@@ -926,6 +992,26 @@ function collectRecordFacts(
 ): void {
 	const { state } = context;
 	switch (record.kind) {
+		case "block_type":
+			if (state.blockTypes.size >= MAX_TRACKED.blockTypes) {
+				reportTrackingLimit(state, record.kind);
+				return;
+			}
+			state.blockTypes.set(record.slug, {
+				id: record.id,
+				currentVersion: record.currentVersion,
+			});
+			return;
+		case "block_type_version":
+			if (state.blockVersions.size >= MAX_TRACKED.blockVersions) {
+				reportTrackingLimit(state, record.kind);
+				return;
+			}
+			state.blockVersions.set(
+				blockTypeVersionKey(record.blockTypeId, record.version),
+				urlValueFields(record.fields),
+			);
+			return;
 		case "principal":
 			if (record.id === "__proto__") {
 				addBlocker(state.issues, {
@@ -1015,6 +1101,11 @@ function collectRecordFacts(
 			fields.set(record.slug, {
 				columnType: record.columnType,
 				required: record.required === true,
+				storageless: referenceFieldRelationSlugs(record).length > 0,
+				...(isUrlRelevantFieldType(record.type) ? { type: record.type } : {}),
+				...(record.type === "repeater"
+					? { urlSubFields: repeaterUrlSubFields(record.validation) }
+					: {}),
 			});
 			state.fields.set(collectionSlug, fields);
 			return;
@@ -1172,27 +1263,44 @@ interface NestedReference {
 	targets: readonly RecordKind[];
 	by: ReferenceKey;
 	values: (record: SitePackageRecord) => string[];
+	/** A dangling value is a warning, not a blocker (see `KindReference.soft`). */
+	soft?: boolean;
 }
 
 /**
  * References that live inside a property rather than being one: the block
- * types a `blocks` field names in `validation`, and the version a block type
- * names as current.
+ * types a `blocks` field names in `validation`, the relation a bound
+ * `reference` field names there, and the version a block type names as
+ * current.
+ *
+ * A bound field's relation is soft because the origin does not keep it
+ * resolvable: deleting a relation leaves the fields bound to it in place.
  */
-const NESTED_REFERENCES: Partial<Record<RecordKind, NestedReference>> = {
-	field: {
-		property: "validation",
-		targets: ["block_type"],
-		by: "slug",
-		values: (record) => (record.kind === "field" ? blocksFieldTypeSlugs(record) : []),
-	},
-	block_type: {
-		property: "currentVersion",
-		targets: ["block_type_version"],
-		by: "name",
-		values: (record) =>
-			record.kind === "block_type" ? [blockTypeVersionKey(record.id, record.currentVersion)] : [],
-	},
+const NESTED_REFERENCES: Partial<Record<RecordKind, readonly NestedReference[]>> = {
+	field: [
+		{
+			property: "validation",
+			targets: ["block_type"],
+			by: "slug",
+			values: (record) => (record.kind === "field" ? blocksFieldTypeSlugs(record) : []),
+		},
+		{
+			property: "validation",
+			targets: ["relation"],
+			by: "slug",
+			values: (record) => (record.kind === "field" ? referenceFieldRelationSlugs(record) : []),
+			soft: true,
+		},
+	],
+	block_type: [
+		{
+			property: "currentVersion",
+			targets: ["block_type_version"],
+			by: "name",
+			values: (record) =>
+				record.kind === "block_type" ? [blockTypeVersionKey(record.id, record.currentVersion)] : [],
+		},
+	],
 };
 
 async function checkNestedReferences(
@@ -1201,29 +1309,33 @@ async function checkNestedReferences(
 	records: readonly ChunkRecord[],
 	path: string,
 ): Promise<void> {
-	const reference = NESTED_REFERENCES[kind];
-	if (!reference) return;
-	const owners = new Map<string, ChunkRecord[]>();
-	for (const item of records) {
-		for (const value of reference.values(item.record)) {
-			const list = owners.get(value) ?? [];
-			list.push(item);
-			owners.set(value, list);
+	for (const reference of NESTED_REFERENCES[kind] ?? []) {
+		const owners = new Map<string, ChunkRecord[]>();
+		for (const item of records) {
+			for (const value of reference.values(item.record)) {
+				const list = owners.get(value) ?? [];
+				list.push(item);
+				owners.set(value, list);
+			}
 		}
-	}
-	if (owners.size === 0) return;
-	const missing = await context.index.findMissing(reference.targets, reference.by, [
-		...owners.keys(),
-	]);
-	for (const value of missing) {
-		for (const item of owners.get(value) ?? []) {
-			addBlocker(context.state.issues, {
-				code: "dangling_reference",
-				message: "Reference does not resolve to a record in the package",
-				kind,
-				id: item.record.id,
-				detail: { property: reference.property, path, line: item.line },
-			});
+		if (owners.size === 0) continue;
+		const missing = await context.index.findMissing(reference.targets, reference.by, [
+			...owners.keys(),
+		]);
+		for (const value of missing) {
+			for (const item of owners.get(value) ?? []) {
+				const issue = {
+					message: "Reference does not resolve to a record in the package",
+					kind,
+					id: item.record.id,
+					detail: { property: reference.property, path, line: item.line },
+				};
+				if (reference.soft) {
+					addWarning(context.state.issues, { code: "soft_reference_dangling", ...issue });
+				} else {
+					addBlocker(context.state.issues, { code: "dangling_reference", ...issue });
+				}
+			}
 		}
 	}
 }
@@ -1368,9 +1480,35 @@ function checkTargetValues(
 	if (record.kind === "entry") {
 		const fields = context.state.fields.get(record.collection);
 		if (!fields) return;
-		const values = checkEntryFields(record, fields, target.dialect);
+		const values = checkEntryFields(
+			record,
+			fields,
+			target.dialect,
+			context.state.blockTypes,
+			context.state.blockVersions,
+		);
 		context.state.float4Rounded += values.float4Rounded;
 		reportValueIssues(context, record, values.issues, location);
+	} else if (
+		record.kind === "revision" &&
+		typeof record.data === "object" &&
+		record.data !== null &&
+		!Array.isArray(record.data)
+	) {
+		const fields = context.state.fields.get(record.collection);
+		if (!fields) return;
+		reportValueIssues(
+			context,
+			record,
+			checkContentUrlFields(
+				record.data,
+				fields,
+				context.state.blockTypes,
+				context.state.blockVersions,
+				"data",
+			),
+			location,
+		);
 	}
 }
 

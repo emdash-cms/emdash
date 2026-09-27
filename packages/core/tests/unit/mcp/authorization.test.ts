@@ -43,6 +43,16 @@ const MEDIA_ID = "01MEDIA";
 // Mock EmDashHandlers
 // ---------------------------------------------------------------------------
 
+let db: Kysely<Database>;
+
+beforeAll(async () => {
+	db = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(db);
+});
+
 /** Create a minimal mock EmDashHandlers that returns content owned by `ownerId`. */
 function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	const contentItem = {
@@ -64,7 +74,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	};
 
 	return {
-		db: {} as EmDashHandlers["db"],
+		db,
 		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
 			success: true,
@@ -540,6 +550,84 @@ describe("MCP Authorization", () => {
 
 			expect(result.isError).toBe(true);
 			expect(handlers.handleContentDelete).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("content_duplicate ownership", () => {
+		it("CONTRIBUTOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR duplicates their own content as its author", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				AUTHOR_USER_ID,
+			);
+		});
+
+		it("EDITOR can duplicate any user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.EDITOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				OTHER_USER_ID,
+			);
 		});
 	});
 

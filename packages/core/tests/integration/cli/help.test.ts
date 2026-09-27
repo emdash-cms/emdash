@@ -17,6 +17,15 @@ describe("CLI help", () => {
 		expect(output).not.toMatch(/^\s+dev\s+/m);
 	});
 
+	it("does not offer the removed marketplace plugin commands", () => {
+		const output = execFileSync("node", [CLI_BIN, "--help"], {
+			encoding: "utf8",
+			env: CLI_ENV,
+		});
+
+		expect(output).not.toMatch(/^\s+plugin\s+/m);
+	});
+
 	it("keeps dev invokable with a warning before database work", () => {
 		const result = spawnSync(
 			"node",

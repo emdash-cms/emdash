@@ -9,12 +9,12 @@
  * - Lifecycle: activate → auto-select, deactivate → clears stale selection
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import type { KyselyPlugin } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { extractManifest } from "../../../src/cli/commands/bundle-utils.js";
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
+
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import { HookPipeline, resolveExclusiveHooks } from "../../../src/plugins/hooks.js";
@@ -444,72 +444,6 @@ describe("normalizeManifestHook", () => {
 });
 
 // ---------------------------------------------------------------------------
-// extractManifest — exclusive hook metadata
-// ---------------------------------------------------------------------------
-
-describe("extractManifest — exclusive hooks", () => {
-	it("emits plain hook names for non-exclusive hooks with default settings", () => {
-		const plugin = createTestPlugin({
-			id: "simple-plugin",
-			hooks: {
-				"content:beforeSave": createTestHook("simple-plugin", vi.fn()),
-			},
-		});
-
-		const manifest = extractManifest(plugin);
-		expect(manifest.hooks).toEqual(["content:beforeSave"]);
-	});
-
-	it("emits structured entries for exclusive hooks", () => {
-		const plugin = createTestPlugin({
-			id: "email-provider",
-			hooks: {
-				"content:beforeSave": createTestHook("email-provider", vi.fn(), {
-					exclusive: true,
-				}),
-			},
-		});
-
-		const manifest = extractManifest(plugin);
-		expect(manifest.hooks).toEqual([{ name: "content:beforeSave", exclusive: true }]);
-	});
-
-	it("emits structured entries for hooks with custom priority or timeout", () => {
-		const plugin = createTestPlugin({
-			id: "custom-plugin",
-			hooks: {
-				"content:afterSave": createTestHook("custom-plugin", vi.fn(), {
-					priority: 50,
-					timeout: 10000,
-				}),
-			},
-		});
-
-		const manifest = extractManifest(plugin);
-		expect(manifest.hooks).toEqual([{ name: "content:afterSave", priority: 50, timeout: 10000 }]);
-	});
-
-	it("handles mixed exclusive and non-exclusive hooks", () => {
-		const plugin = createTestPlugin({
-			id: "mixed-plugin",
-			hooks: {
-				"content:beforeSave": createTestHook("mixed-plugin", vi.fn(), { exclusive: true }),
-				"content:afterSave": createTestHook("mixed-plugin", vi.fn()),
-			},
-		});
-
-		const manifest = extractManifest(plugin);
-		expect(manifest.hooks).toHaveLength(2);
-
-		// One should be structured (exclusive), one should be a plain string
-		const structured = manifest.hooks.filter((h) => typeof h === "object");
-		const plain = manifest.hooks.filter((h) => typeof h === "string");
-		expect(structured).toHaveLength(1);
-		expect(plain).toHaveLength(1);
-	});
-});
-
-// ---------------------------------------------------------------------------
 // resolveExclusiveHooks (shared function)
 // ---------------------------------------------------------------------------
 
@@ -686,7 +620,7 @@ describe("resolveExclusiveHooks — shared function", () => {
 
 describe("PluginManager — resolveExclusiveHooks", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(async () => {
 		sqliteDb = new Database(":memory:");

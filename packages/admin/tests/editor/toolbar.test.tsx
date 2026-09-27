@@ -94,6 +94,7 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 				height: { default: null },
 				displayWidth: { default: null },
 				displayHeight: { default: null },
+				link: { default: null },
 			};
 		},
 		parseHTML() {
@@ -1911,6 +1912,50 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 		await vi.waitFor(() => {
 			expect(document.activeElement).toBe(lastButton);
+		});
+	});
+
+	it("keeps an image link's open-in-new-tab choice when only the URL changes", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.setImage({
+			src: "/img.jpg",
+			alt: "Example",
+			link: { href: "/old", blank: true },
+		});
+
+		let imagePos = -1;
+		editor.state.doc.descendants((node, pos) => {
+			if (node.type.name === "image") {
+				imagePos = pos;
+				return false;
+			}
+			return true;
+		});
+		expect(imagePos).toBeGreaterThanOrEqual(0);
+		editor.view.dispatch(
+			editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos)),
+		);
+		await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
+
+		screen.getByRole("button", { name: "Image link", exact: true }).element().click();
+		await vi.waitFor(() => {
+			expect(document.querySelector('[role="combobox"]')).toBeTruthy();
+		});
+		const input = document.querySelector('[role="combobox"]') as HTMLInputElement;
+		// The popover is pre-populated from the image's current link.
+		expect(input.value).toBe("/old");
+
+		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+			HTMLInputElement.prototype,
+			"value",
+		)!.set!;
+		nativeInputValueSetter.call(input, "/new");
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+		screen.getByRole("button", { name: "Apply" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "/new", blank: true });
 		});
 	});
 });

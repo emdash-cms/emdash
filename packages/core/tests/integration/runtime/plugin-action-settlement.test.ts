@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 const { deferred } = vi.hoisted(() => ({ deferred: [] as Array<() => void | Promise<void>> }));
 vi.mock("../../../src/after.js", () => ({

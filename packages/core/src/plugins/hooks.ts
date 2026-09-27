@@ -12,6 +12,8 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { BylineSummary } from "../database/repositories/types.js";
+import { toBylineInfo } from "./byline-access.js";
 import { inspectContentPolicyDecision } from "./content-policy.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import type {
@@ -56,6 +58,8 @@ import type {
 	CommentAfterCreateHandler,
 	CommentAfterModerateEvent,
 	CommentAfterModerateHandler,
+	BylineAfterSaveHandler,
+	BylineAfterDeleteHandler,
 	PageMetadataEvent,
 	PageMetadataHandler,
 	PageMetadataContribution,
@@ -95,6 +99,8 @@ type HookNameV2 =
 	| "comment:moderate"
 	| "comment:afterCreate"
 	| "comment:afterModerate"
+	| "byline:afterSave"
+	| "byline:afterDelete"
 	| "page:metadata"
 	| "page:fragments";
 
@@ -150,6 +156,8 @@ interface HookHandlerMap {
 	"comment:moderate": CommentModerateHandler;
 	"comment:afterCreate": CommentAfterCreateHandler;
 	"comment:afterModerate": CommentAfterModerateHandler;
+	"byline:afterSave": BylineAfterSaveHandler;
+	"byline:afterDelete": BylineAfterDeleteHandler;
 	"page:metadata": PageMetadataHandler;
 	"page:fragments": PageFragmentHandler;
 }
@@ -295,6 +303,8 @@ export class HookPipeline {
 			this.registerPluginHook(plugin, "comment:moderate");
 			this.registerPluginHook(plugin, "comment:afterCreate");
 			this.registerPluginHook(plugin, "comment:afterModerate");
+			this.registerPluginHook(plugin, "byline:afterSave");
+			this.registerPluginHook(plugin, "byline:afterDelete");
 			this.registerPluginHook(plugin, "page:metadata");
 			this.registerPluginHook(plugin, "page:fragments");
 		}
@@ -343,6 +353,8 @@ export class HookPipeline {
 		["comment:moderate", "users:read"],
 		["comment:afterCreate", "users:read"],
 		["comment:afterModerate", "users:read"],
+		["byline:afterSave", "bylines:read"],
+		["byline:afterDelete", "bylines:read"],
 		// Page fragments — can inject arbitrary scripts into every public page
 		["page:fragments", "hooks.page-fragments:register"],
 	]);
@@ -1240,6 +1252,41 @@ export class HookPipeline {
 					error instanceof Error ? error.message : error,
 				);
 			}
+		}
+	}
+
+	// =========================================================================
+	// Byline Hooks
+	// =========================================================================
+
+	/** Run byline:afterSave hooks. Errors are logged and never propagate. */
+	async runBylineAfterSave(byline: BylineSummary, isNew: boolean): Promise<void> {
+		const event = { byline: toBylineInfo(byline), isNew };
+		for (const hook of this.getTypedHooks("byline:afterSave")) {
+			await this.runLoggedHook("byline:afterSave", hook, (ctx) => hook.handler(event, ctx));
+		}
+	}
+
+	/** Run byline:afterDelete hooks. Errors are logged and never propagate. */
+	async runBylineAfterDelete(byline: BylineSummary): Promise<void> {
+		const event = { byline: toBylineInfo(byline) };
+		for (const hook of this.getTypedHooks("byline:afterDelete")) {
+			await this.runLoggedHook("byline:afterDelete", hook, (ctx) => hook.handler(event, ctx));
+		}
+	}
+
+	private async runLoggedHook(
+		name: HookNameV2,
+		hook: { pluginId: string; timeout: number },
+		run: (ctx: PluginContext) => Promise<void>,
+	): Promise<void> {
+		try {
+			await this.executeWithTimeout(() => run(this.getContext(hook.pluginId)), hook.timeout);
+		} catch (error) {
+			console.error(
+				`[${name}] Plugin "${hook.pluginId}" error:`,
+				error instanceof Error ? error.message : error,
+			);
 		}
 	}
 

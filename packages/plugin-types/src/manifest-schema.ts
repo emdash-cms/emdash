@@ -2,10 +2,9 @@
  * Zod schema for PluginManifest validation
  *
  * Used to validate manifest.json from plugin bundles at every parse site:
- * - Client-side download (marketplace.ts extractBundle)
- * - R2 load (api/handlers/marketplace.ts loadBundleFromR2)
- * - CLI publish preview (cli/commands/publish.ts readManifestFromTarball)
- * - Marketplace ingest extends this with publishing-specific fields
+ * - client-side bundle download
+ * - registry and legacy marketplace ingestion
+ * - `emdash-plugin` build and publish validation
  */
 
 import { z } from "zod";
@@ -41,6 +40,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -131,6 +131,8 @@ export const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments",
 ] as const;
@@ -394,6 +396,7 @@ const declaredAccessSchema = z.object({
 	taxonomies: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
+	bylines: z.object({ read: accessConstraints.optional() }).optional(),
 	redirects: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),

@@ -674,6 +674,66 @@ export interface TaxonomyAccessWithWrite extends TaxonomyAccess {
 	): Promise<TaxonomyTermInfo[]>;
 }
 
+/**
+ * Public byline profile returned from the byline API. Omits the linked user
+ * account, guest flag, and custom field values.
+ */
+export interface BylineInfo {
+	id: string;
+	slug: string;
+	displayName: string;
+	bio: string | null;
+	websiteUrl: string | null;
+	/** Media ID of the avatar image. Resolve it with `ctx.media.get()`. */
+	avatarMediaId: string | null;
+	locale: string;
+	/** Locale-agnostic identity shared by every translation of the byline. */
+	translationGroup: string;
+}
+
+/** A byline credited on a content entry. */
+export interface BylineCreditInfo {
+	byline: BylineInfo;
+	sortOrder: number;
+	roleLabel: string | null;
+	/**
+	 * `explicit` for a credit assigned in the editor; `inferred` when the entry
+	 * has no credits and the byline linked to the entry's author is used.
+	 */
+	source: "explicit" | "inferred";
+}
+
+export interface BylineListOptions {
+	/** Match one locale. Omit to list every locale. */
+	locale?: string;
+	/** Page size, clamped to 1–100. Defaults to 50. */
+	limit?: number;
+	cursor?: string;
+}
+
+/** Byline credits for one entry in a batched lookup. */
+export interface EntryBylineCredits {
+	entryId: string;
+	bylines: BylineCreditInfo[];
+}
+
+/**
+ * Byline access interface — capability-gated on `bylines:read`.
+ */
+export interface BylineAccess {
+	/** Get a byline by its row ID. */
+	get(id: string): Promise<BylineInfo | null>;
+	/** List bylines, newest first. */
+	list(options?: BylineListOptions): Promise<PaginatedResult<BylineInfo>>;
+	/**
+	 * Bylines credited on up to 100 entries of one collection, in the order the
+	 * IDs were given. Duplicate IDs are returned once. Credits resolve at each
+	 * entry's own locale, matching what the site renders. Trashed and missing
+	 * entries have no credits.
+	 */
+	getEntriesBylines(collection: string, entryIds: string[]): Promise<EntryBylineCredits[]>;
+}
+
 export type RedirectStatus = 301 | 302 | 307 | 308 | 410 | 451;
 
 export interface RedirectInfo {
@@ -987,6 +1047,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Taxonomy access - only if a taxonomy capability is declared. */
 	taxonomies?: TaxonomyAccess | TaxonomyAccessWithWrite;
+
+	/** Byline access - only if bylines:read capability */
+	bylines?: BylineAccess;
 
 	/** Redirect access - only if redirects:read or redirects:write capability */
 	redirects?: RedirectAccess | RedirectAccessWithWrite;
@@ -1463,6 +1526,34 @@ export type ContentAfterUnscheduleHandler = (
 	ctx: PluginContext,
 ) => Promise<void>;
 
+/**
+ * Event for `byline:afterSave`, fired after a byline profile or one of its
+ * locale translations is created or updated.
+ */
+export interface BylineAfterSaveEvent {
+	byline: BylineInfo;
+	isNew: boolean;
+}
+
+/**
+ * Event for `byline:afterDelete`, fired after a byline row is deleted. When it
+ * was the last locale of its translation group, its credits have already been
+ * removed from every entry.
+ */
+export interface BylineAfterDeleteEvent {
+	byline: BylineInfo;
+}
+
+export type BylineAfterSaveHandler = (
+	event: BylineAfterSaveEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
+export type BylineAfterDeleteHandler = (
+	event: BylineAfterDeleteEvent,
+	ctx: PluginContext,
+) => Promise<void>;
+
 export type MediaBeforeUploadHandler = (
 	event: MediaUploadEvent,
 	ctx: PluginContext,
@@ -1678,6 +1769,8 @@ export interface PluginHooks {
 	"comment:moderate"?: HookConfig<CommentModerateHandler> | CommentModerateHandler;
 	"comment:afterCreate"?: HookConfig<CommentAfterCreateHandler> | CommentAfterCreateHandler;
 	"comment:afterModerate"?: HookConfig<CommentAfterModerateHandler> | CommentAfterModerateHandler;
+	"byline:afterSave"?: HookConfig<BylineAfterSaveHandler> | BylineAfterSaveHandler;
+	"byline:afterDelete"?: HookConfig<BylineAfterDeleteHandler> | BylineAfterDeleteHandler;
 
 	// Public page hooks
 	"page:metadata"?: HookConfig<PageMetadataHandler> | PageMetadataHandler;
@@ -2077,6 +2170,8 @@ export interface ResolvedPluginHooks {
 	"comment:moderate"?: ResolvedHook<CommentModerateHandler>;
 	"comment:afterCreate"?: ResolvedHook<CommentAfterCreateHandler>;
 	"comment:afterModerate"?: ResolvedHook<CommentAfterModerateHandler>;
+	"byline:afterSave"?: ResolvedHook<BylineAfterSaveHandler>;
+	"byline:afterDelete"?: ResolvedHook<BylineAfterDeleteHandler>;
 	"page:metadata"?: ResolvedHook<PageMetadataHandler>;
 	"page:fragments"?: ResolvedHook<PageFragmentHandler>;
 }

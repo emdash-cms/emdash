@@ -9,9 +9,10 @@
  * - Error handling and error policies
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import { HookPipeline, createHookPipeline } from "../../../src/plugins/hooks.js";
@@ -66,7 +67,7 @@ describe("HookPipeline", () => {
 	// A real in-memory DB is needed for the context factory so hooks can
 	// actually execute (getContext throws without one).
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -838,6 +839,26 @@ describe("HookPipeline", () => {
 
 			const pipeline = new HookPipeline([plugin]);
 			expect(pipeline.hasHooks("comment:afterModerate")).toBe(false);
+		});
+	});
+
+	describe("capability enforcement — byline hooks", () => {
+		it("registers byline hooks only with bylines:read capability", () => {
+			const hooks = {
+				"byline:afterSave": createTestHook("p", vi.fn()),
+				"byline:afterDelete": createTestHook("p", vi.fn()),
+			};
+			const without = new HookPipeline([
+				createTestPlugin({ id: "p", capabilities: ["content:read", "users:read"], hooks }),
+			]);
+			const withCap = new HookPipeline([
+				createTestPlugin({ id: "p", capabilities: ["bylines:read"], hooks }),
+			]);
+
+			expect(without.hasHooks("byline:afterSave")).toBe(false);
+			expect(without.hasHooks("byline:afterDelete")).toBe(false);
+			expect(withCap.hasHooks("byline:afterSave")).toBe(true);
+			expect(withCap.hasHooks("byline:afterDelete")).toBe(true);
 		});
 	});
 

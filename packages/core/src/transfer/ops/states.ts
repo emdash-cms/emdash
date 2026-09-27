@@ -123,7 +123,7 @@ export const IMPORT_STAGES = [
 ] as const;
 export type ImportStage = (typeof IMPORT_STAGES)[number];
 
-export const REBUILD_STEPS = ["search", "media_usage", "options", "caches"] as const;
+export const REBUILD_STEPS = ["search", "media_usage", "options", "taxonomies", "caches"] as const;
 export type RebuildStep = (typeof REBUILD_STEPS)[number];
 
 // ── Cursors ─────────────────────────────────────────────────────

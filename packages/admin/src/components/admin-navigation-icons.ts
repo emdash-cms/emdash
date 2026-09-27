@@ -69,9 +69,16 @@ const COLLECTION_NAV_ICON_OVERRIDES: Record<string, Icon> = {
 	posts: ADMIN_NAV_ICONS.posts,
 };
 
-/** Use distinct icons for built-in collections and the default for custom collections. */
-export function getCollectionNavIcon(name: string): Icon {
-	return COLLECTION_NAV_ICON_OVERRIDES[name] ?? ADMIN_NAV_ICONS.collection;
+/**
+ * A collection's declared icon wins; built-in collections have distinct
+ * defaults and custom collections share the generic one. An icon name that
+ * does not resolve falls back to that default.
+ */
+export function getCollectionNavIcon(name: string, iconName?: string): React.ElementType {
+	const fallback = Object.hasOwn(COLLECTION_NAV_ICON_OVERRIDES, name)
+		? COLLECTION_NAV_ICON_OVERRIDES[name]!
+		: ADMIN_NAV_ICONS.collection;
+	return iconName ? resolveNavIcon(iconName, fallback) : fallback;
 }
 
 /** Tags have a distinct meaning; other taxonomies are collections of terms. */
@@ -122,7 +129,7 @@ export function toPhosphorIconName(name: string): string {
 		.join("");
 }
 
-const lazyIconCache = new Map<string, React.ElementType>();
+const lazyIconCache = new Map<React.ComponentType, Map<string, React.ElementType>>();
 
 function isIconComponent(value: unknown): value is React.ComponentType<{ className?: string }> {
 	return (
@@ -131,24 +138,34 @@ function isIconComponent(value: unknown): value is React.ComponentType<{ classNa
 	);
 }
 
-/** Resolve a plugin page icon while keeping uncommon Phosphor icons code-split. */
-export function resolveNavIcon(name?: string): React.ElementType {
+/**
+ * Resolve a declared icon name while keeping uncommon Phosphor icons
+ * code-split. Missing or unknown names render `fallback`.
+ */
+export function resolveNavIcon(
+	name?: string,
+	fallback: React.ComponentType = ADMIN_NAV_ICONS.plugins,
+): React.ElementType {
 	if (!name) {
-		return ADMIN_NAV_ICONS.plugins;
+		return fallback;
 	}
-	const mapped = PLUGIN_NAV_ICON_MAP[name];
-	if (mapped) {
-		return mapped;
+	if (Object.hasOwn(PLUGIN_NAV_ICON_MAP, name)) {
+		return PLUGIN_NAV_ICON_MAP[name]!;
 	}
 	const componentName = toPhosphorIconName(name);
-	let icon = lazyIconCache.get(componentName);
+	let perFallback = lazyIconCache.get(fallback);
+	if (!perFallback) {
+		perFallback = new Map();
+		lazyIconCache.set(fallback, perFallback);
+	}
+	let icon = perFallback.get(componentName);
 	if (!icon) {
 		icon = React.lazy(async () => {
 			const mod = await import("@phosphor-icons/react");
 			const candidate: unknown = (mod as Record<string, unknown>)[componentName];
-			return { default: isIconComponent(candidate) ? candidate : ADMIN_NAV_ICONS.plugins };
+			return { default: isIconComponent(candidate) ? candidate : fallback };
 		});
-		lazyIconCache.set(componentName, icon);
+		perFallback.set(componentName, icon);
 	}
 	return icon;
 }

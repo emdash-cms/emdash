@@ -36,7 +36,9 @@ characters. EmDash also rejects reserved names used by its own routes and entry 
 Collection settings control how editors and public pages use the entries:
 
 - **Routable** requires a public slug before an entry can be published. A URL pattern can combine
-  the entry slug or ID with its publication date to produce the public path.
+  the entry slug or ID with its publication date to produce the public path. Each placeholder
+  needs its own path segment: `/{year}/{month}/{slug}.html` is valid, but `/{year}{month}/{slug}`
+  and `/{slug}-{id}` are rejected.
 - **Drafts** lets editors save work before publishing it.
 - **Revisions** keeps snapshots of content history.
 - **Preview** provides signed preview URLs for unpublished content.
@@ -46,6 +48,12 @@ Collection settings control how editors and public pages use the entries:
 - **Edit locking** holds an entry while one editor is working and refuses other writers until the
   lock is released.
 - **Comments** can be enabled per collection, with moderation and automatic closing settings.
+- **Icon** names the Phosphor icon shown next to the collection in the sidebar and command
+  palette, such as `calendar-blank`; a name that does not resolve falls back to the default icon.
+- **Hide from navigation** removes the sidebar entry, the command palette link, and the dashboard
+  quick action while the collection stays reachable by URL, API, and plugins. Turning off **Quick action on the
+  dashboard** removes only the quick action, for collections that plugins or imports fill rather
+  than editors.
 - **Group** places the collection in a collapsible sidebar folder. Collections with the same group
   share one folder, positioned where the first of them would appear. A taxonomy joins the folder when
   every collection it is assigned to is shown in that folder.
@@ -95,9 +103,13 @@ Indexes are available for `string`, `url`, `number`, `integer`, `boolean`, `date
 `reference`, and `slug` fields. Rich text, JSON, repeaters, and multiple-choice values contain more
 complex data and cannot use this kind of index.
 
-References store the target entry's ID. Configure a reference with the target collection, and enable
-multiple values only when the field should hold several entry IDs. A reference lets code load or
-identify related content; it does not copy the target entry into the source entry.
+A reference field stores nothing in the collection's own table. Configure it with the target
+collection, and allow multiple values only when the field should link several entries. EmDash keeps
+the links separately and returns the linked entries under `references` rather than in `data`, so a
+reference lets code load or identify related content without copying the target entry into the
+source entry. See [`reference`](/reference/field-types/#reference) for the stored shape and the
+behavior of a field with no target collection, and [Relations](/guides/relations/) for the workflow
+around it.
 
 ## Changing fields later
 

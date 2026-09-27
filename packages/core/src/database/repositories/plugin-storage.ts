@@ -345,7 +345,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	 */
 	async query(options: QueryOptions = {}): Promise<PaginatedResult<{ id: string; data: T }>> {
 		const { where = {}, orderBy = {}, cursor } = options;
-		const limit = Math.min(options.limit ?? 50, 100);
+		const limit = Math.max(1, Math.min(options.limit ?? 50, 100));
 
 		// Validate that all queried fields are indexed
 		validateWhereClause(where, this.indexedFields, this.pluginId, this.collection);

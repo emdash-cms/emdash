@@ -140,7 +140,7 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | Tool | Registered title | Required scope |
 | --- | --- | --- |
 | `media_list` | List Media | `media:read` |
-| `media_create` | Register Uploaded Media | `media:write` |
+| `media_create` | Confirm Signed Media Upload | `media:write` |
 | `media_upload` | Upload Media | `media:write` |
 | `media_get` | Get Media Item | `media:read` |
 | `media_update` | Update Media Metadata | `media:write` |
@@ -249,7 +249,7 @@ permission, conflict, and hook behavior shared by MCP, REST, the CLI, and the ad
 
 Bylines are reusable author or contributor credits. `byline_create` can create a guest credit or link a byline to a CMS user. Pass the returned byline ID in the `bylines` input accepted by `content_create` and `content_update`. Deleting a byline removes that credit from content and clears it as the primary byline.
 
-MCP writes do not participate in the admin's [entry edit lock](/reference/rest-api/#entry-edit-lock). The `_rev` check protects the operations that accept it, but other write tools can change an entry while an editor has it open.
+While another user holds an entry's [edit lock](/reference/rest-api/#entry-edit-lock) because they have it open in the admin, `content_update`, `content_delete`, `content_publish`, `content_unpublish`, `content_schedule`, `content_unschedule`, `content_discard_draft` and `revision_restore` fail with `ENTRY_LOCKED`, and the error names the holder. Reading the item again does not clear the refusal. Pass `overrideLock: true` to write anyway.
 
 ## Translations
 
@@ -261,7 +261,9 @@ Content, byline, taxonomy term, and menu translation tools return every locale v
 
 Schema tools change the database structure. Use `schema_get_collection` before creating content or changing fields; it returns the available field names, types, constraints, and validation rules. Collection and field deletion remove stored content or field values and cannot be undone.
 
-Use `media_upload` to send base64-encoded bytes or fetch a public HTTP or HTTPS URL. URL uploads reject private-network destinations and re-check redirects. Use `media_create` only when the file already exists at the supplied storage key and you need to register its metadata. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
+Use `media_upload` to send base64-encoded bytes. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
+
+`media_create` confirms a pending upload created through `POST /_emdash/api/media/upload-url`. Upload the file with the returned signed URL, then call `media_create` from the same user account with the returned `storageKey`. The tool checks that the stored file exists and matches the size supplied when the upload URL was requested before making it available in the media library.
 
 Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. Creating or updating a term with `parentId` in a non-hierarchical taxonomy returns `VALIDATION_ERROR`. A term with children must have those children removed or moved before deletion.
 
@@ -349,6 +351,24 @@ A tool failure has `isError: true`. The first text block starts with a stable co
 	"content": [{ "type": "text", "text": "[NOT_FOUND] Collection 'articles' not found" }],
 	"isError": true,
 	"_meta": { "code": "NOT_FOUND" }
+}
+```
+
+A refusal from an entry's edit lock carries the holder in `_meta.details`:
+
+```json
+{
+	"content": [{ "type": "text", "text": "[ENTRY_LOCKED] Ada is holding this entry" }],
+	"isError": true,
+	"_meta": {
+		"code": "ENTRY_LOCKED",
+		"details": {
+			"userId": "01JB...",
+			"userName": "Ada",
+			"acquiredAt": "2026-05-01T09:12:04.117Z",
+			"expiresAt": "2026-05-01T09:19:04.117Z"
+		}
+	}
 }
 ```
 

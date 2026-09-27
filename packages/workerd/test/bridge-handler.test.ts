@@ -9,10 +9,10 @@
  * error handling at the bridge level.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
 import {
 	bytesOverLimit,
 	INVALID_PLUGIN_HTTP_BYTES,
@@ -92,7 +92,7 @@ async function setupTables(db: Kysely<any>) {
 
 describe("Bridge Handler Conformance", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 
 	beforeEach(async () => {
 		const ctx = createTestDb();
@@ -1075,6 +1075,19 @@ describe("Bridge Handler Conformance", () => {
 				locale: "de",
 			});
 			expect((localized.result as unknown[]).length).toBe(1);
+		});
+
+		it("rejects byline reads without bylines:read capability", async () => {
+			const handler = makeHandler({ capabilities: ["content:read", "users:read"] });
+			for (const [method, body] of [
+				["bylines/get", { id: "byline-1" }],
+				["bylines/list", {}],
+				["bylines/entriesBylines", { collection: "posts", entryIds: ["post-1"] }],
+			] as const) {
+				expect((await call(handler, method, body)).error).toContain(
+					"Missing capability: bylines:read",
+				);
+			}
 		});
 
 		it("rejects user read without users:read capability", async () => {

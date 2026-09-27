@@ -83,7 +83,7 @@ export interface CredentialStore {
 
 	/**
 	 * List all stored publisher sessions. Order is implementation-defined; the
-	 * CLI's `emdash plugin whoami` should sort for display.
+	 * CLI's `emdash-plugin whoami` should sort for display.
 	 */
 	list(): Promise<PublisherSession[]>;
 

@@ -24,6 +24,23 @@ describe("buildNavItems", () => {
 		expect(items.find((item) => item.id === "import")?.icon).toBe(Download);
 	});
 
+	it("leaves hidden collections out of the navigation links", () => {
+		const items = buildNavItems(
+			{
+				collections: {
+					posts: { label: "Posts" },
+					sync_runs: { label: "Sync runs", hidden: true },
+				},
+				plugins: {},
+			},
+			50,
+			(id) => id,
+		);
+
+		expect(items.some((item) => item.id === "collection-posts")).toBe(true);
+		expect(items.some((item) => item.id === "collection-sync_runs")).toBe(false);
+	});
+
 	it("uses a plugin page's declared icon", () => {
 		const items = buildNavItems(
 			{
