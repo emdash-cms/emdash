@@ -343,13 +343,27 @@ export function buildMiddlewareEntries(
 	return entries;
 }
 
+function assertNoRemovedRegistryOption(config: EmDashConfig): void {
+	const experimental: unknown = Reflect.get(config, "experimental");
+	if (
+		typeof experimental === "object" &&
+		experimental !== null &&
+		Reflect.get(experimental, "registry") !== undefined
+	) {
+		throw new Error(
+			"EmDash config: `experimental.registry` has been removed. Move its value to the top-level `registry` option.",
+		);
+	}
+}
+
 /**
  * Create the EmDash Astro integration
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
+	assertNoRemovedRegistryOption(config);
+
 	const registry = resolveRegistryConfigForSandbox({
 		registry: config.registry,
-		experimentalRegistry: config.experimental?.registry,
 		sandboxRunner: config.sandboxRunner,
 		sandboxEnabled: config.sandbox !== false,
 	});
@@ -359,16 +373,13 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
 		migrations: normalizeMigrationConfig(config.migrations),
-		registry: config.registry === false ? false : registry.input,
+		registry: config.registry === false ? false : registry,
 	};
 
 	// Validate environment-independent registry settings while Astro is still
 	// evaluating its config. The command-aware check in astro:config:setup
 	// applies the stricter production localhost policy.
-	normalizeRegistryConfig(registry.input, {
-		allowLocalhost: true,
-		fieldPrefix: registry.fieldPrefix,
-	});
+	normalizeRegistryConfig(registry, { allowLocalhost: true });
 
 	// Validate marketplace URL
 	if (resolvedConfig.marketplace) {
@@ -476,7 +487,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
 		registry: resolvedConfig.registry,
-		experimental: resolvedConfig.experimental,
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
 		maxUploadSize: resolvedConfig.maxUploadSize,
@@ -507,9 +517,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
-				normalizeRegistryConfig(registry.input, {
+				normalizeRegistryConfig(registry, {
 					allowLocalhost: command === "dev" || command === "sync",
-					fieldPrefix: registry.fieldPrefix,
 				});
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it

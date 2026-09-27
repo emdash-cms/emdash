@@ -308,10 +308,7 @@ export interface AdminManifest {
 		field:
 			| "registry.aggregatorUrl"
 			| "registry.policy.minimumReleaseAge"
-			| "registry.policy.minimumReleaseAgeExclude"
-			| "experimental.registry.aggregatorUrl"
-			| "experimental.registry.policy.minimumReleaseAge"
-			| "experimental.registry.policy.minimumReleaseAgeExclude";
+			| "registry.policy.minimumReleaseAgeExclude";
 	};
 	/**
 	 * Admin branding overrides for white-labeling.

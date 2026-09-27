@@ -24,10 +24,6 @@
  *   - The `@atcute/*` lexicon types for the registry's atproto records.
  *     Those live in `@emdash-cms/registry-lexicons` since they describe a
  *     different contract layer.
- *
- * EXPERIMENTAL: this package is published as part of the experimental plugin
- * registry roll-out. Pin to an exact version while RFC 0001 is in flight;
- * the manifest shape may evolve before the registry phase 1 cutover.
  */
 
 import type { ManifestRouteEntry } from "./routes.js";

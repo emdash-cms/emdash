@@ -307,10 +307,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			response.headers.set(
 				"Content-Security-Policy",
 				buildEmDashCsp(
-					getRegistryConfigInput(
-						context.locals.emdash?.config.registry,
-						context.locals.emdash?.config.experimental?.registry,
-					),
+					getRegistryConfigInput(context.locals.emdash?.config.registry),
 					getConfiguredStorageEndpoint(
 						context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
@@ -328,10 +325,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		response.headers.set(
 			"Content-Security-Policy",
 			buildEmDashCsp(
-				getRegistryConfigInput(
-					context.locals.emdash?.config.registry,
-					context.locals.emdash?.config.experimental?.registry,
-				),
+				getRegistryConfigInput(context.locals.emdash?.config.registry),
 				getConfiguredStorageEndpoint(
 					context.locals.emdash?.config.storage,
 					context.locals.emdash?.storage,

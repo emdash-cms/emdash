@@ -283,11 +283,7 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
-import {
-	getRegistryConfigInput,
-	resolveManifestRegistryConfig,
-	resolveRegistryConfigForSandbox,
-} from "./registry/config.js";
+import { getRegistryConfigInput, resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
@@ -1170,7 +1166,7 @@ export class EmDashRuntime {
 	 * update, and uninstall handlers complete.
 	 */
 	async syncRegistryPlugins(): Promise<void> {
-		if (!getRegistryConfigInput(this.config.registry, this.config.experimental?.registry)) return;
+		if (!getRegistryConfigInput(this.config.registry)) return;
 		await this.syncSandboxedSourcePlugins("registry");
 	}
 
@@ -1895,10 +1891,7 @@ export class EmDashRuntime {
 		}
 
 		// Cold-start: load registry-installed plugins from site R2
-		if (
-			getRegistryConfigInput(deps.config.registry, deps.config.experimental?.registry) &&
-			storage
-		) {
+		if (getRegistryConfigInput(deps.config.registry) && storage) {
 			installedTierPhases.push(
 				phase("rt.registry", "Registry plugins", () =>
 					EmDashRuntime.loadInstalledSandboxedPlugins(
@@ -3119,13 +3112,8 @@ export class EmDashRuntime {
 					}
 				: undefined;
 
-		const registryConfig = resolveRegistryConfigForSandbox({
-			registry: this.config.registry,
-			experimentalRegistry: this.config.experimental?.registry,
-		});
 		const { registry, error: registryConfigurationError } = resolveManifestRegistryConfig(
-			registryConfig.input,
-			{ fieldPrefix: registryConfig.fieldPrefix },
+			getRegistryConfigInput(this.config.registry),
 		);
 		if (registryConfigurationError) {
 			console.error(

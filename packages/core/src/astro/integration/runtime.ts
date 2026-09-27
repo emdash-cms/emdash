@@ -23,14 +23,10 @@ import type {
 	ResolvedPlugin,
 	SettingField,
 } from "../../plugins/types.js";
-import type { ExperimentalConfig, RegistryConfigOption } from "../../registry/types.js";
+import type { RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
-export type {
-	ExperimentalConfig,
-	RegistryConfig,
-	RegistryConfigOption,
-} from "../../registry/types.js";
+export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -404,16 +400,6 @@ export interface EmDashConfig {
 	 * @default "https://registry.emdashcms.com" when sandboxing is enabled
 	 */
 	registry?: RegistryConfigOption;
-
-	/**
-	 * Experimental features.
-	 *
-	 * These options are not yet stable. Shape, defaults, and behavior may
-	 * change between minor versions. Use only if you're comfortable
-	 * tracking the release notes and updating your config when an
-	 * experimental feature graduates or changes.
-	 */
-	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.

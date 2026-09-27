@@ -660,29 +660,6 @@ Notes on `"client"` mode:
 
 In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
 
-### `experimental`
-
-**Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
-
-<Aside type="caution">
-	Experimental options are unstable. Pin EmDash to an exact version when you depend on one, and check the changelog before upgrading.
-</Aside>
-
-#### `experimental.registry`
-
-**Deprecated.** Use the top-level [`registry`](#registry) option. Existing `experimental.registry` configuration continues to work when the top-level option is omitted. If both are present, the top-level value takes precedence.
-
-The following change moves an existing registry URL to the top level:
-
-```js title="astro.config.mjs" del={2-4} ins={5}
-emdash({
-	experimental: {
-		registry: "https://registry.example.com",
-	},
-	registry: "https://registry.example.com",
-});
-```
-
 ## Database adapters
 
 Import the adapters from `emdash/db`:
