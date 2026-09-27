@@ -109,9 +109,7 @@ export function getLocaleLabel(code: string): string {
 	try {
 		const name = new Intl.DisplayNames([code], { type: "language", fallback: "none" }).of(code);
 		if (name) return name.charAt(0).toLocaleUpperCase(code) + name.slice(1);
-	} catch {
-		// Not a valid BCP 47 tag.
-	}
+	} catch {}
 	return code.toUpperCase();
 }
 
