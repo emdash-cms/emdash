@@ -28,7 +28,8 @@ export function parseTimestamp(value: string): Date {
 	return new Date(value);
 }
 
-export function formatRelativeTime(dateString: string): string {
+/** "5 minutes ago" in the given locale for the past week, the date after that. */
+export function formatRelativeTime(dateString: string, locale: string): string {
 	const date = parseTimestamp(dateString);
 	const now = new Date();
 	const diffMs = now.getTime() - date.getTime();
@@ -37,12 +38,13 @@ export function formatRelativeTime(dateString: string): string {
 	const diffHours = Math.floor(diffMins / 60);
 	const diffDays = Math.floor(diffHours / 24);
 
-	if (diffSecs < 60) return "just now";
-	if (diffMins < 60) return `${diffMins} min${diffMins === 1 ? "" : "s"} ago`;
-	if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-	if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+	const relativeTime = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+	if (diffSecs < 60) return relativeTime.format(0, "second");
+	if (diffMins < 60) return relativeTime.format(-diffMins, "minute");
+	if (diffHours < 24) return relativeTime.format(-diffHours, "hour");
+	if (diffDays < 7) return relativeTime.format(-diffDays, "day");
 
-	return date.toLocaleDateString(undefined, {
+	return date.toLocaleDateString(locale, {
 		month: "short",
 		day: "numeric",
 		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,

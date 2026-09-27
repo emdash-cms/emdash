@@ -272,7 +272,7 @@ function RevisionItem({
 	onRestore,
 	onSelect,
 }: RevisionItemProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	return (
 		<div
 			className={`rounded-lg border p-3 transition-colors ${
@@ -282,7 +282,9 @@ function RevisionItem({
 			<div className="flex items-start justify-between gap-2">
 				<button type="button" onClick={onSelect} className="flex-1 text-start">
 					<div className="flex items-center gap-2">
-						<span className="text-base font-medium">{formatRelativeTime(revision.createdAt)}</span>
+						<span className="text-base font-medium">
+							{formatRelativeTime(revision.createdAt, i18n.locale)}
+						</span>
 						{isLatest && <Badge variant="outline">{t`Current`}</Badge>}
 					</div>
 					<div className="text-xs text-kumo-subtle mt-0.5">
