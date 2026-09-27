@@ -116,7 +116,7 @@ If you are left with an empty `experimental: {}` block, delete it. TypeScript co
 
 In earlier versions, `emdash` exposed entry points such as `emdash/routes/*`, `emdash/middleware/*`, `emdash/db/sqlite-migrations`, and `emdash/plugin-test-runtime` that only EmDash itself loads.
 
-These entry points are under `emdash/internal/`. They are not public API, and their exports can change in any release. Sites that configure EmDash through `emdash()` in `astro.config.mjs` are not affected.
+These entry points are under `emdash/internal/`. The same applies to the D1 and Hyperdrive migration executors in `@emdash-cms/cloudflare`, which are under `@emdash-cms/cloudflare/internal/db/`. They are not public API, and their exports can change in any release. Sites that configure EmDash through `emdash()` in `astro.config.mjs` are not affected.
 
 #### What should I do?
 
