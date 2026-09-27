@@ -133,7 +133,7 @@ import type {
 	PluginContentCreateCallback,
 	VersionedContentItem,
 } from "./plugins/types.js";
-import { normalizePluginCapabilities } from "./plugins/types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isStoragelessField, isStoragelessFieldRow } from "./schema/types.js";
@@ -2559,6 +2559,7 @@ export class EmDashRuntime {
 								: undefined,
 					}),
 				);
+				warnDeprecatedPluginCapabilities(entry.id, entry.capabilities ?? []);
 				const capabilities = normalizePluginCapabilities(entry.capabilities ?? []);
 
 				// Build manifest from entry's declared config
