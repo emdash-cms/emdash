@@ -86,7 +86,7 @@ describe("registry integration configuration", () => {
 				},
 				sandboxRunner: "./sandbox.mjs",
 			}),
-		).toThrow(/`experimental\.registry` has been removed.*top-level `registry` option/);
+		).toThrow(/`experimental\.registry` has been removed.*top-level `registry` option instead/);
 	});
 
 	it("ignores an empty experimental block", () => {

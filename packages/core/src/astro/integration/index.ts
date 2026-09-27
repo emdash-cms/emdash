@@ -351,7 +351,7 @@ function assertNoRemovedRegistryOption(config: EmDashConfig): void {
 		Reflect.get(experimental, "registry") !== undefined
 	) {
 		throw new Error(
-			"EmDash config: `experimental.registry` has been removed. Move its value to the top-level `registry` option.",
+			"EmDash config: `experimental.registry` has been removed. Configure the registry with the top-level `registry` option instead.",
 		);
 	}
 }
