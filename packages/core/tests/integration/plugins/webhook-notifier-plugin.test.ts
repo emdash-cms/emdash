@@ -6,10 +6,11 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import Database from "better-sqlite3";
 import { parse as parseJsonc } from "jsonc-parser";
 import { SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import webhookNotifier from "../../../../plugins/webhook-notifier/src/plugin.js";
 import type { PluginDescriptor } from "../../../src/astro/integration/runtime.js";

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 vi.mock("virtual:emdash/seed", () => ({ seed: { version: "unsupported" }, userSeed: null }), {
 	virtual: true,

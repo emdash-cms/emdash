@@ -1,7 +1,8 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DatabaseSchema } from "../../../src/database/types.js";

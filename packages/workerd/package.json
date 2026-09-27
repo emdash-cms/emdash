@@ -36,8 +36,6 @@
 		"miniflare": "^4.20250408.0"
 	},
 	"devDependencies": {
-		"@types/better-sqlite3": "catalog:",
-		"better-sqlite3": "catalog:",
 		"kysely": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",

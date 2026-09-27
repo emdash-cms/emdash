@@ -1,11 +1,11 @@
 import type { Server } from "node:http";
 import { createServer, request } from "node:http";
 
-import DatabaseDriver from "better-sqlite3";
 import type { Database, PluginCapability, PluginManifest } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as DatabaseDriver } from "../../core/src/db/node-sqlite-compat.js";
 import { createBackingServiceHandler } from "../src/sandbox/backing-service.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
@@ -122,7 +122,7 @@ async function callBridge(
 }
 
 describe("backing service authorization", () => {
-	let sqlite: DatabaseDriver.Database;
+	let sqlite: DatabaseDriver;
 	let db: Kysely<Database>;
 	let runner: WorkerdSandboxRunner;
 	let server: Server;

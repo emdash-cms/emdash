@@ -1,6 +1,7 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { setDevTypegenRefresh } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";

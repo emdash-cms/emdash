@@ -213,6 +213,7 @@
     }
   },
   "imports": {
+    "#node-sqlite": "./src/db/node-sqlite-compat.js",
     "#api/schemas.js": "./src/api/schemas/index.js",
     "#api/*": "./src/api/*",
     "#config/*": "./src/config/*",
@@ -333,8 +334,6 @@
     "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
-    "@types/better-sqlite3": "^7.6.12",
-    "better-sqlite3": "catalog:",
     "@types/pg": "^8.16.0",
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",

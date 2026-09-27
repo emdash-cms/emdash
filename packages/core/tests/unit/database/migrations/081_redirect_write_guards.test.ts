@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { up } from "../../../../src/database/migrations/081_redirect_write_guards.js";
 

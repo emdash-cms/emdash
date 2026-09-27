@@ -6,7 +6,7 @@
  * and assert exactly M succeed, N − M fail, and the final stock is 0.
  *
  * IMPORTANT — what each dialect proves:
- * - **better-sqlite3 [sqlite]** serializes all writes in-process (a single
+ * - **Node SQLite [sqlite]** serializes all writes in-process (a single
  *   process-wide lock), so this run proves the SQL / single-statement-guard is
  *   CORRECT, but it does NOT prove the race — the decrements never actually
  *   overlap. The real concurrent-race assertion is Postgres.
@@ -47,7 +47,7 @@ describeEachDialect("Plugin storage no-oversell", (dialect) => {
 
 	it(
 		dialect === "sqlite"
-			? "exactly M of N guarded decrements apply (better-sqlite3 serializes writes in-process → proves SQL correctness, NOT the race)"
+			? "exactly M of N guarded decrements apply (Node SQLite serializes writes in-process → proves SQL correctness, NOT the race)"
 			: "exactly M of N guarded decrements apply under real concurrent connections (the true no-oversell race)",
 		async () => {
 			const repo = new PluginStorageRepository<Item>(db, "shop", "inventory", ["stock"]);

@@ -1,8 +1,9 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import {
 	handleTaxonomyCreate,
@@ -493,7 +494,7 @@ describe("taxonomy delete with foreign keys enforced", () => {
 
 	beforeEach(async () => {
 		const sqlite = new BetterSqlite3(":memory:");
-		sqlite.pragma("foreign_keys = ON");
+		sqlite.exec("PRAGMA foreign_keys = ON");
 		db = new Kysely<DatabaseSchema>({ dialect: new SqliteDialect({ database: sqlite }) });
 		await runMigrations(db);
 		await new SchemaRegistry(db).createCollection({

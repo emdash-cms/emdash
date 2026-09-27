@@ -10,10 +10,11 @@
  * cache served it.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
@@ -28,7 +29,7 @@ import {
 
 let queryCount = 0;
 
-function makeDb(): { db: Kysely<EmDashDatabase>; sqlite: Database.Database } {
+function makeDb(): { db: Kysely<EmDashDatabase>; sqlite: Database } {
 	const sqlite = new Database(":memory:");
 	const db = new Kysely<EmDashDatabase>({
 		dialect: new SqliteDialect({ database: sqlite }),
@@ -66,7 +67,7 @@ function inScope<T>(
 
 describe("getTaxonomyDefs — isolate cache", () => {
 	let db: Kysely<EmDashDatabase>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 
 	beforeEach(async () => {
 		({ db, sqlite } = makeDb());

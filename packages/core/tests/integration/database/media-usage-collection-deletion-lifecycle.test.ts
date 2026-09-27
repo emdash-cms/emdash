@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { tableExists } from "../../../src/database/dialect-helpers.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";

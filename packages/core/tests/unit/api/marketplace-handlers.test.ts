@@ -11,9 +11,10 @@
  * Uses a real in-memory SQLite database and mock Storage/SandboxRunner/fetch.
  */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import {
 	diffRouteVisibility,
@@ -317,7 +318,7 @@ describe("Marketplace handlers", () => {
 		});
 	});
 	let db: Kysely<DbSchema>;
-	let sqliteDb: BetterSqlite3.Database;
+	let sqliteDb: BetterSqlite3;
 	let storage: Storage;
 	let sandboxRunner: ReturnType<typeof createMockSandboxRunner>;
 	let fetchSpy: ReturnType<typeof vi.fn>;

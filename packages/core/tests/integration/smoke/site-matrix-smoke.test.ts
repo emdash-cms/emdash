@@ -6,8 +6,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
-import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
@@ -536,7 +537,7 @@ describe.sequential("MCP endpoint verification", () => {
 					length: 5,
 				});
 
-				const db = new Database(join(PLUGIN_MCP_SITE.dir, "data.db"), { readonly: true });
+				const db = new Database(join(PLUGIN_MCP_SITE.dir, "data.db"), { readOnly: true });
 				try {
 					const auditRows = db
 						.prepare(

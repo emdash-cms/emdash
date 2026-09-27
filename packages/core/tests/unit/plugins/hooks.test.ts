@@ -9,9 +9,10 @@
  * - Error handling and error policies
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import { HookPipeline, createHookPipeline } from "../../../src/plugins/hooks.js";
@@ -66,7 +67,7 @@ describe("HookPipeline", () => {
 	// A real in-memory DB is needed for the context factory so hooks can
 	// actually execute (getContext throws without one).
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");

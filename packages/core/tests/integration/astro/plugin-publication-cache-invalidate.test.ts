@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { Role } from "@emdash-cms/auth";
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { POST } from "../../../src/astro/routes/api/plugins/[pluginId]/[...path].js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";

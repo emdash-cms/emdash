@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { Role } from "@emdash-cms/auth";
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { GET } from "../../../src/astro/routes/api/admin/hooks/exclusive/index.js";
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";

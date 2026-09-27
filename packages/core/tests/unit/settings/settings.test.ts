@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { generateEncryptionKey, parseEncryptionKeys } from "../../../src/config/secrets.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
