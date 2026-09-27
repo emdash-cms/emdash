@@ -11,7 +11,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, unwrapResult } from "#api/error.js";
-import { handleCoreUpdateStatus } from "#api/handlers/update-check.js";
+import { handleCoreUpdateStatus, minimumReleaseAgeSeconds } from "#api/handlers/update-check.js";
 
 export const prerender = false;
 
@@ -25,8 +25,10 @@ export const GET: APIRoute = async ({ locals }) => {
 	const denied = requirePerm(user, "updates:read");
 	if (denied) return denied;
 
+	const { updateCheck } = emdash.config;
 	const result = await handleCoreUpdateStatus(emdash.db, {
-		enabled: emdash.config.updateCheck !== false,
+		enabled: updateCheck !== false,
+		minimumReleaseAgeSeconds: minimumReleaseAgeSeconds(updateCheck),
 	});
 	return unwrapResult(result);
 };

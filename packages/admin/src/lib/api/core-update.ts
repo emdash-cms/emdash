@@ -10,10 +10,13 @@ import { API_BASE, apiFetch, parseApiResponse } from "./client.js";
 export interface CoreUpdateStatus {
 	/** The running EmDash version ("dev" in uncompiled dev runs). */
 	current: string;
-	/** Latest published version, or null when no check has completed yet. */
+	/**
+	 * Newest stable release that has been public for the minimum release
+	 * age, or null when no check has completed yet.
+	 */
 	latest: string | null;
 	updateAvailable: boolean;
-	/** ISO timestamp of the last successful registry check, if any. */
+	/** ISO timestamp of the last registry check, if any. */
 	checkedAt: string | null;
 }
 

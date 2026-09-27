@@ -637,9 +637,17 @@ emdash({
 
 **Optional.** Controls the core update notice in the admin dashboard. Defaults to `true`.
 
-When enabled, EmDash checks the public npm registry for the latest published `emdash` version — at most once per day, deferred after the response so it never slows down a request — and shows a dismissible banner in the admin dashboard when a newer version is available. Dismissing the banner hides it for that version; it reappears when the next version ships.
+When enabled, EmDash checks the public npm registry for published `emdash` releases — at most once per day, deferred after the response so it never slows down a request — and shows a dismissible banner in the admin dashboard when a newer version is available. Dismissing the banner hides it for that version; it reappears when a newer version becomes available.
 
-The check is a plain GET to `https://registry.npmjs.org/emdash/latest` and carries no site data. Deployments without outbound internet access simply never show the banner. Set to `false` to disable the check entirely:
+The banner names the newest stable release that has been public for at least 24 hours, so a release is announced a day after it ships. To match a release-age policy in your package manager, such as pnpm's `minimumReleaseAge`, set `minimumReleaseAge` to a duration string (`"48h"`, `"7d"`) or a number of seconds. With `"7d"`, the banner offers the newest release that is at least a week old:
+
+```js
+emdash({
+	updateCheck: { minimumReleaseAge: "7d" },
+})
+```
+
+The check is a plain GET to `https://registry.npmjs.org/emdash` and carries no site data. Deployments without outbound internet access simply never show the banner. Set to `false` to disable the check entirely:
 
 ```js
 emdash({
