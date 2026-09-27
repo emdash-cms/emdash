@@ -1,0 +1,21 @@
+docs/src/content/docs/guides/sections.mdx
+  s_eebc9619e69ac4::t_1241344c882137 18
+packages/admin/src/components/Sections.tsx
+  s_eebc9619e69ac4::t_8280fb64faeb3d 20,423-425
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6f39c6b9848376b182daac16a6a94255a3b088d0",
+  "prompts": {},
+  "sessions": {
+    "s_eebc9619e69ac4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3f-74f0-7711-ba4b-e1a223298d10",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
