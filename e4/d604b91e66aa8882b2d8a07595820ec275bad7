@@ -1,0 +1,21 @@
+packages/admin/src/components/Sections.tsx
+  s_eebc9619e69ac4::t_f55105b354b5a0 197
+packages/admin/tests/components/Sections.test.tsx
+  s_eebc9619e69ac4::t_cabfa0e6a67681 206-224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e4d604b91e66aa8882b2d8a07595820ec275bad7",
+  "prompts": {},
+  "sessions": {
+    "s_eebc9619e69ac4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3f-74f0-7711-ba4b-e1a223298d10",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
