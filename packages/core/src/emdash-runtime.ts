@@ -1660,8 +1660,8 @@ export class EmDashRuntime {
 						seedCollectionsReadable = true;
 					} catch (error) {
 						captureMissingManualSchema(error);
-						// Leave the "already set up" default so a read failure never
-						// triggers a seed onto a half-built db.
+						// Leave collections unreadable so a read failure never triggers
+						// a seed onto a half-built db.
 					}
 				}),
 			);
