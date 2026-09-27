@@ -2739,6 +2739,8 @@ export {
 const WORDS_PER_MINUTE = 200;
 const CJK_CHARACTERS_PER_MINUTE = 500;
 const WHITESPACE_REGEX = /\s+/;
+const URL_SCHEME_REGEX = /^[a-z][a-z0-9+.-]*:/i;
+const WWW_PREFIX_REGEX = /^www\./i;
 
 // CJK scripts do not separate words with spaces, so a split()-based count treats
 // a whole paragraph as a single word. Count those characters individually.
@@ -3136,6 +3138,7 @@ export function PortableTextEditor({
 				orderedList: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
+					shouldAutoLink: (url) => URL_SCHEME_REGEX.test(url) || WWW_PREFIX_REGEX.test(url),
 					openOnClick: false,
 					enableClickSelection: true,
 					HTMLAttributes: {

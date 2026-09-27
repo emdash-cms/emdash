@@ -154,6 +154,18 @@ function typeIntoEditor(editor: Editor, text: string) {
 	editor.chain().focus().insertContent(text).run();
 }
 
+function simulateTyping(editor: Editor, text: string) {
+	editor.commands.focus();
+	for (const char of text) {
+		const { from, to } = editor.state.selection;
+		const insertText = () => editor.state.tr.insertText(char, from, to);
+		const handled = editor.view.someProp("handleTextInput", (handler) =>
+			handler(editor.view, from, to, char, insertText),
+		);
+		if (!handled) editor.view.dispatch(insertText());
+	}
+}
+
 // Shorthand block builders
 function textBlock(
 	text: string,
@@ -932,6 +944,61 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		const linkDef = blocks[0]?.markDefs?.find((d) => d._type === "link");
 		expect(linkDef?.href).toBe("https://api.example.com");
 		expect(span?.marks).toContain(linkDef?._key);
+	});
+
+	it("saves typed dotted filenames as plain Portable Text", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		simulateTyping(editor, "open main.py and user.name now ");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; href?: string }>;
+		}>;
+		expect(blocks[0]?.children?.map((span) => span.text).join("")).toBe(
+			"open main.py and user.name now ",
+		);
+		expect(blocks[0]?.markDefs).toBeUndefined();
+		expect(blocks[0]?.children?.every((span) => !span.marks?.length)).toBe(true);
+	});
+
+	it("saves pasted dotted filenames as plain Portable Text", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		editor.commands.focus();
+		editor.view.pasteText("See README.md and setup.sh for details.");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; href?: string }>;
+		}>;
+		expect(blocks[0]?.children?.map((span) => span.text).join("")).toBe(
+			"See README.md and setup.sh for details.",
+		);
+		expect(blocks[0]?.markDefs).toBeUndefined();
+		expect(blocks[0]?.children?.every((span) => !span.marks?.length)).toBe(true);
+	});
+
+	it("continues to save typed explicit URLs as links", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({ onChange });
+
+		simulateTyping(editor, "Visit https://example.com now ");
+
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+		const blocks = onChange.mock.calls.at(-1)![0] as Array<{
+			children?: Array<{ text?: string; marks?: string[] }>;
+			markDefs?: Array<{ _type: string; _key: string; href?: string }>;
+		}>;
+		const linkDef = blocks[0]?.markDefs?.find((markDef) => markDef._type === "link");
+		expect(linkDef?.href).toBe("https://example.com");
+		expect(
+			blocks[0]?.children?.find((span) => span.text === "https://example.com")?.marks,
+		).toContain(linkDef?._key);
 	});
 
 	it("renders a bullet list", async () => {
