@@ -203,6 +203,25 @@ describe("Sections", () => {
 		await expect.element(screen.getByLabelText("Slug")).toHaveValue("my-great-section");
 	});
 
+	it("keeps the generated slug empty for blank titles", async () => {
+		const screen = await render(
+			<Wrapper>
+				<Sections />
+			</Wrapper>,
+		);
+		await screen.getByText("New section").click();
+		const titleInput = screen.getByLabelText("Title");
+		const slugInput = screen.getByLabelText("Slug");
+		await titleInput.fill("Draft");
+		await expect.element(slugInput).toHaveValue("draft");
+		await titleInput.fill("");
+		await expect.element(slugInput).toHaveValue("");
+		await titleInput.fill("   ");
+		await expect.element(slugInput).toHaveValue("");
+		await titleInput.fill("Ready");
+		await expect.element(slugInput).toHaveValue("ready");
+	});
+
 	it("search input filters sections", async () => {
 		const screen = await render(
 			<Wrapper>

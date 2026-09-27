@@ -194,7 +194,7 @@ export function Sections() {
 										onChange={(e) => {
 											const title = e.target.value;
 											setCreateTitle(title);
-											if (!slugTouched) setCreateSlug(slugify(title));
+											if (!slugTouched) setCreateSlug(title.trim() ? slugify(title) : "");
 										}}
 										required
 										placeholder={t`Hero Banner`}
