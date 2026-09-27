@@ -239,6 +239,7 @@ export interface EmDashManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
 		favicon?: string;
 	};
 }
@@ -453,6 +454,7 @@ export interface EmDashHandlers {
 		url?: string;
 		contentType?: string;
 		alt?: string;
+		caption?: string;
 		authorId?: string;
 		maxUploadSize?: number;
 	}) => Promise<HandlerResponse>;

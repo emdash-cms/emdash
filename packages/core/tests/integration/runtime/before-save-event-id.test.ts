@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
@@ -12,7 +13,7 @@ import type { ContentBeforeSaveHandler, ContentHookEvent } from "../../../src/pl
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 function baseDeps(
-	sqlite: Database.Database,
+	sqlite: Database,
 ): Pick<RuntimeDependencies, "config" | "createDialect" | "createStorage"> {
 	return {
 		config: {
@@ -27,10 +28,7 @@ function baseDeps(
 	};
 }
 
-function trustedDeps(
-	sqlite: Database.Database,
-	handler: ContentBeforeSaveHandler,
-): RuntimeDependencies {
+function trustedDeps(sqlite: Database, handler: ContentBeforeSaveHandler): RuntimeDependencies {
 	return {
 		...baseDeps(sqlite),
 		plugins: [
@@ -50,7 +48,7 @@ function trustedDeps(
 }
 
 function sandboxedDeps(
-	sqlite: Database.Database,
+	sqlite: Database,
 	invokeHook: SandboxedPluginInstance["invokeHook"],
 ): RuntimeDependencies {
 	const runner = {

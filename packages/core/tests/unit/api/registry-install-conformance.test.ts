@@ -9,9 +9,10 @@ import {
 } from "@emdash-cms/atproto-test-utils";
 import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import { DirectPdsClient } from "@emdash-cms/registry-client/direct-pds";
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { buildPlugin } from "../../../../plugin-cli/src/build/api.js";
 import {

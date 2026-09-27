@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, sql, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { down, up } from "../../../../src/database/migrations/059_revision_prune_queue.js";
 

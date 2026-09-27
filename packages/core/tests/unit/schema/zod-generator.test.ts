@@ -201,8 +201,37 @@ describe("Zod Generator", () => {
 			const schema = generateFieldSchema(field);
 			expect(schema.parse("https://example.com")).toBe("https://example.com");
 			expect(schema.parse("http://localhost:3000/path")).toBe("http://localhost:3000/path");
+			expect(schema.parse("mailto:hello@example.com")).toBe("mailto:hello@example.com");
+			expect(schema.parse("tel:+15550100")).toBe("tel:+15550100");
+			expect(schema.parse("/about")).toBe("/about");
+			expect(schema.parse("#section")).toBe("#section");
 			expect(() => schema.parse("not-a-url")).toThrow();
+			expect(() => schema.parse("https://")).toThrow();
 			expect(() => schema.parse(123)).toThrow();
+		});
+
+		it.each([
+			"javascript:alert(1)",
+			"JAVASCRIPT:alert(1)",
+			"data:text/html,<script>alert(1)</script>",
+			"vbscript:msgbox(1)",
+			"//evil.example",
+			"ftp://files.example/file",
+		])("rejects url field value %j", (value) => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "website",
+				label: "Website",
+				type: "url",
+				columnType: "TEXT",
+				required: false,
+				unique: false,
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			expect(generateFieldSchema(field).safeParse(value).success).toBe(false);
 		});
 
 		it("applies custom string validation to url fields", () => {

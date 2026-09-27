@@ -396,10 +396,9 @@ class MarketplaceClientImpl implements MarketplaceClient {
  * over plugin bundle tarballs regardless of distribution channel.
  */
 // Aligns with RFC 0001 §"Bundle size limits" (256 KiB decompressed,
-// 20 files). Matches `MAX_BUNDLE_SIZE` in cli/commands/bundle-utils.ts
-// (the publish-side cap). We don't import that constant to keep this
-// runtime module independent of the CLI; the two values are
-// load-bearing identical and must stay in sync.
+// 20 files). Matches `MAX_BUNDLE_SIZE` in @emdash-cms/plugin-cli. We
+// don't import that constant to keep this runtime module independent
+// of the authoring CLI; the two values must stay in sync.
 //
 // Tar adds per-file headers (~512 bytes each) plus directory entries,
 // so the entry count cap is set comfortably above RFC's 20-file limit.

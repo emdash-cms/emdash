@@ -318,13 +318,13 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 				<div className="flex items-center space-x-3">
 					<div
 						className={cn(
-							"flex h-8 w-8 items-center justify-center rounded-lg",
+							"flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
 							isFromCode ? "bg-kumo-badge-purple text-white" : "bg-kumo-badge-blue text-white",
 						)}
 					>
 						{isFromCode ? <FileText className="h-4 w-4" /> : <Database className="h-4 w-4" />}
 					</div>
-					<div>
+					<div className="min-w-0">
 						<Link
 							to="/content-types/$slug"
 							params={{ slug: collection.slug }}
@@ -346,7 +346,10 @@ function ContentTypeRow({ collection, canReorder, onRequestDelete }: ContentType
 			</td>
 			<td className="px-4 py-3">
 				<div className="flex flex-wrap gap-1">
-					{collection.supports.map((feature) => (
+					{[
+						...collection.supports.filter((feature) => feature !== "seo"),
+						...(collection.hasSeo ? ["seo"] : []),
+					].map((feature) => (
 						<Badge key={feature} variant="secondary">
 							{feature}
 						</Badge>

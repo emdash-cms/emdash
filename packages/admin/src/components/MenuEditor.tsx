@@ -34,6 +34,7 @@ import { ArrowPrev } from "./ArrowIcons.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { useI18nConfig } from "./LocaleSwitcher.js";
+import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
 /** A menu item with its nesting depth, in parent-then-children display order. */
@@ -354,98 +355,100 @@ export function MenuEditor() {
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-4">
-					<Button
-						variant="ghost"
-						size="sm"
-						aria-label={t`Back`}
-						onClick={() => navigate({ to: "/menus" })}
-					>
-						<ArrowPrev className="h-4 w-4" />
-					</Button>
-					<div>
+			<header className="space-y-3">
+				<RouterLinkButton
+					to="/menus"
+					variant="ghost"
+					size="sm"
+					className="h-7 px-1.5 text-sm"
+					icon={<ArrowPrev className="size-3.5" aria-hidden="true" />}
+					aria-label={t`Back to menus`}
+				>
+					{t`Back`}
+				</RouterLinkButton>
+				<div className="flex flex-wrap items-center justify-between gap-4">
+					<div className="min-w-0">
 						<h1 className="text-2xl font-semibold leading-tight">{menu.label}</h1>
 						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">{t`Edit menu items`}</p>
 					</div>
-				</div>
-				<div className="flex gap-2">
-					<Button
-						icon={<FileIcon />}
-						variant="outline"
-						onClick={() => setIsContentPickerOpen(true)}
-					>
-						{t`Add Content`}
-					</Button>
-					<Dialog.Root
-						open={isAddOpen}
-						onOpenChange={(open) => {
-							setIsAddOpen(open);
-							if (!open) setAddError(null);
-						}}
-					>
-						<Dialog.Trigger
-							render={(props) => (
-								<Button {...props} icon={<Plus />}>
-									{t`Add Custom Link`}
-								</Button>
-							)}
-						/>
-						<Dialog className="p-6" size="lg">
-							<div className="flex items-start justify-between gap-4 mb-4">
-								<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-									{t`Add Custom Link`}
-								</Dialog.Title>
-								<Dialog.Close
-									aria-label={t`Close`}
-									render={(props) => (
-										<Button
-											{...props}
-											variant="ghost"
-											shape="square"
-											aria-label={t`Close`}
-											className="absolute end-4 top-4"
-										>
-											<X className="h-4 w-4" />
-											<span className="sr-only">{t`Close`}</span>
-										</Button>
-									)}
-								/>
-							</div>
-							<form onSubmit={handleAddCustomLink} className="space-y-4">
-								<Input label={t`Label`} name="label" required placeholder={t`Home`} />
-								<Input
-									label={t`URL`}
-									name="url"
-									type="text"
-									required
-									pattern="(https?://.+|/.*)"
-									title={t`Enter a URL (https://…) or a relative path (/…)`}
-									placeholder={t`https://example.com or /about`}
-								/>
-								<Select
-									label={t`Target`}
-									name="target"
-									defaultValue=""
-									items={{ "": t`Same window`, _blank: t`New window` }}
-								>
-									<Select.Option value="">{t`Same window`}</Select.Option>
-									<Select.Option value="_blank">{t`New window`}</Select.Option>
-								</Select>
-								<DialogError message={addError || getMutationError(createMutation.error)} />
-								<div className="flex justify-end gap-2">
-									<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-										{t`Cancel`}
+					<div className="flex flex-wrap gap-2">
+						<Button
+							icon={<FileIcon />}
+							variant="secondary"
+							onClick={() => setIsContentPickerOpen(true)}
+						>
+							{t`Add Content`}
+						</Button>
+						<Dialog.Root
+							open={isAddOpen}
+							onOpenChange={(open) => {
+								setIsAddOpen(open);
+								if (!open) setAddError(null);
+							}}
+						>
+							<Dialog.Trigger
+								render={(props) => (
+									<Button {...props} variant="secondary" icon={<Plus />}>
+										{t`Add Custom Link`}
 									</Button>
-									<Button type="submit" disabled={createMutation.isPending}>
-										{createMutation.isPending ? t`Adding...` : t`Add`}
-									</Button>
+								)}
+							/>
+							<Dialog className="p-6" size="lg">
+								<div className="flex items-start justify-between gap-4 mb-4">
+									<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
+										{t`Add Custom Link`}
+									</Dialog.Title>
+									<Dialog.Close
+										aria-label={t`Close`}
+										render={(props) => (
+											<Button
+												{...props}
+												variant="ghost"
+												shape="square"
+												aria-label={t`Close`}
+												className="absolute end-4 top-4"
+											>
+												<X className="h-4 w-4" />
+												<span className="sr-only">{t`Close`}</span>
+											</Button>
+										)}
+									/>
 								</div>
-							</form>
-						</Dialog>
-					</Dialog.Root>
+								<form onSubmit={handleAddCustomLink} className="space-y-4">
+									<Input label={t`Label`} name="label" required placeholder={t`Home`} />
+									<Input
+										label={t`URL`}
+										name="url"
+										type="text"
+										required
+										pattern="(https?://.+|/.*)"
+										title={t`Enter a URL (https://…) or a relative path (/…)`}
+										placeholder={t`https://example.com or /about`}
+									/>
+									<Select
+										label={t`Target`}
+										name="target"
+										defaultValue=""
+										items={{ "": t`Same window`, _blank: t`New window` }}
+									>
+										<Select.Option value="">{t`Same window`}</Select.Option>
+										<Select.Option value="_blank">{t`New window`}</Select.Option>
+									</Select>
+									<DialogError message={addError || getMutationError(createMutation.error)} />
+									<div className="flex justify-end gap-2">
+										<Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+											{t`Cancel`}
+										</Button>
+										<Button type="submit" disabled={createMutation.isPending}>
+											{createMutation.isPending ? t`Adding...` : t`Add`}
+										</Button>
+									</div>
+								</form>
+							</Dialog>
+						</Dialog.Root>
+					</div>
 				</div>
-			</div>
+			</header>
 
 			<ContentPickerModal
 				open={isContentPickerOpen}
@@ -490,12 +493,12 @@ export function MenuEditor() {
 					<div className="flex justify-center gap-2">
 						<Button
 							icon={<FileIcon />}
-							variant="outline"
+							variant="secondary"
 							onClick={() => setIsContentPickerOpen(true)}
 						>
 							{t`Add Content`}
 						</Button>
-						<Button icon={<Plus />} onClick={() => setIsAddOpen(true)}>
+						<Button variant="secondary" icon={<Plus />} onClick={() => setIsAddOpen(true)}>
 							{t`Add Custom Link`}
 						</Button>
 					</div>

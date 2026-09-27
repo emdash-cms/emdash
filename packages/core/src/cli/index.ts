@@ -12,7 +12,6 @@ import { loginCommand, logoutCommand, whoamiCommand } from "./commands/login.js"
 import { mediaCommand } from "./commands/media.js";
 import { menuCommand } from "./commands/menu.js";
 import { migrateCommand } from "./commands/migrate.js";
-import { pluginCommand } from "./commands/plugin.js";
 import { schemaCommand } from "./commands/schema.js";
 import { searchCommand } from "./commands/search-cmd.js";
 import { secretsCommand } from "./commands/secrets.js";
@@ -47,7 +46,6 @@ const main = defineCommand({
 		search: searchCommand,
 		taxonomy: taxonomyCommand,
 		menu: menuCommand,
-		plugin: pluginCommand,
 		site: siteCommand,
 	},
 });

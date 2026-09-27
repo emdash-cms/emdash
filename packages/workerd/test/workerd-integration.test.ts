@@ -8,7 +8,6 @@
  * the workerd package installed).
  */
 
-import Database from "better-sqlite3";
 import {
 	ContentRepository,
 	createSandboxRouteError,
@@ -19,6 +18,7 @@ import type { RuntimeDependencies } from "emdash/plugin-test-runtime";
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as Database } from "../../core/src/db/node-sqlite-compat.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
 vi.mock("virtual:emdash/config", () => ({ default: null }), { virtual: true });
@@ -464,7 +464,7 @@ export default {
 
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let runner: WorkerdSandboxRunner;
 
 	beforeEach(async () => {

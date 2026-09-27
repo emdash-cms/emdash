@@ -40,7 +40,7 @@ export async function handleMediaList(
 ): Promise<ApiResult<MediaListResponse>> {
 	try {
 		if (params.page !== undefined) {
-			const limit = Math.min(params.limit || 50, 100);
+			const limit = Math.max(1, Math.min(params.limit || 50, 100));
 			const offset = (params.page - 1) * limit;
 			if (
 				params.cursor !== undefined ||
@@ -68,7 +68,7 @@ export async function handleMediaList(
 		const repo = new MediaRepository(db);
 		const result = await repo.findMany({
 			cursor: params.cursor,
-			limit: Math.min(params.limit || 50, 100),
+			limit: Math.max(1, Math.min(params.limit || 50, 100)),
 			mimeType: params.mimeType,
 			q: params.q,
 			folderId: params.folderId,

@@ -498,7 +498,7 @@ export class RelationRepository {
 		parentGroup: string,
 		options: { limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<ContentReference>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
 
 		let query = this.db
 			.selectFrom("_emdash_content_references")
@@ -853,7 +853,7 @@ export class RelationRepository {
 		childGroup: string,
 		options: { limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<ContentReference>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
 
 		let query = this.db
 			.selectFrom("_emdash_content_references")

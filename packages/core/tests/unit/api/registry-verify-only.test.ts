@@ -2,10 +2,11 @@ import { gzipSync } from "node:zlib";
 
 import { inspectPackageReleaseRecords } from "@emdash-cms/registry-verification";
 import { computeMultihash } from "@emdash-cms/registry-verification/checksum";
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { packTar, type TarEntry } from "modern-tar";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { handleRegistryInstall } from "../../../src/api/handlers/registry.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";

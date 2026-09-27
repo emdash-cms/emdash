@@ -715,3 +715,75 @@ describe("media_create (bug #14 / F1)", () => {
 		expect(extractText(otherUpdate)).toMatch(/insufficient|permission|forbidden/i);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// media_upload
+// ---------------------------------------------------------------------------
+
+describe("media_upload", () => {
+	const PNG_BASE64 =
+		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+	let storage: MemoryStorage;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		storage = createMemoryStorage();
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("stores the alt text and the caption on the media record", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: { storage },
+		});
+		const result = await harness.client.callTool({
+			name: "media_upload",
+			arguments: {
+				filename: "pixel.png",
+				base64: PNG_BASE64,
+				contentType: "image/png",
+				alt: "A single pixel",
+				caption: "Photo: Jane Doe, CC BY 2.0",
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { item } = extractJson<{ item: { id: string; alt: string; caption: string } }>(result);
+		expect(item.alt).toBe("A single pixel");
+		expect(item.caption).toBe("Photo: Jane Doe, CC BY 2.0");
+
+		const stored = await new MediaRepository(db).findById(item.id);
+		expect(stored?.caption).toBe("Photo: Jane Doe, CC BY 2.0");
+	});
+
+	it("keeps caption optional", async () => {
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: { storage },
+		});
+		const result = await harness.client.callTool({
+			name: "media_upload",
+			arguments: {
+				filename: "pixel.png",
+				base64: PNG_BASE64,
+				contentType: "image/png",
+				alt: "A single pixel",
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const { item } = extractJson<{ item: { id: string; caption: string | null } }>(result);
+		expect(item.caption).toBeNull();
+
+		const stored = await new MediaRepository(db).findById(item.id);
+		expect(stored?.caption).toBeNull();
+	});
+});

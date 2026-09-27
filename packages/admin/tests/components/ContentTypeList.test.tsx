@@ -106,6 +106,17 @@ describe("ContentTypeList", () => {
 			await expect.element(screen.getByText("preview")).toBeInTheDocument();
 			await expect.element(screen.getByText("search")).toBeInTheDocument();
 		});
+
+		it("shows the seo badge from hasSeo, not from supports", async () => {
+			const collections = [
+				makeCollection({ id: "1", slug: "pages", supports: ["drafts"], hasSeo: true }),
+				makeCollection({ id: "2", slug: "posts", supports: ["drafts", "seo"], hasSeo: false }),
+			];
+			const screen = await render(<ContentTypeList collections={collections} />);
+			const seoBadges = screen.getByText("seo", { exact: true }).elements();
+			expect(seoBadges).toHaveLength(1);
+			expect(seoBadges[0]!.closest("tr")?.textContent).toContain("pages");
+		});
 	});
 
 	describe("navigation", () => {
@@ -230,6 +241,33 @@ describe("ContentTypeList", () => {
 		it("shows loading message when isLoading is true", async () => {
 			const screen = await render(<ContentTypeList collections={[]} isLoading />);
 			await expect.element(screen.getByText("Loading collections...")).toBeInTheDocument();
+		});
+	});
+
+	describe("icon aspect ratio", () => {
+		it("pins the icon width and lets the description wrap in the name cell", async () => {
+			// Long description reproduces the over-constrained Name cell from #3447.
+			const collections = [
+				makeCollection({
+					id: "1",
+					slug: "albums",
+					label: "Albums",
+					description:
+						"A detailed description that is much wider than a squeezed name cell can hold without wrapping.",
+				}),
+			];
+			const screen = await render(<ContentTypeList collections={collections} />);
+
+			// Locate the text wrapper via its description, then select the icon sibling.
+			const description = screen.getByText(/much wider than a squeezed name cell/);
+			const textWrapper = description.element().closest("div")!;
+			const icon = textWrapper.previousElementSibling as HTMLElement;
+			expect(icon).not.toBeNull();
+
+			// The icon stays 32×32 because shrink-0 prevents flex shrinking.
+			expect(icon.classList.contains("shrink-0")).toBe(true);
+			// min-w-0 allows the text wrapper to shrink below its min-content and wrap.
+			expect(textWrapper.classList.contains("min-w-0")).toBe(true);
 		});
 	});
 

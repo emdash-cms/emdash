@@ -1,6 +1,7 @@
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { setDevTypegenRefresh } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -97,6 +98,14 @@ describe("SchemaRegistry", () => {
 				.execute();
 
 			expect(result).toBeDefined();
+		});
+
+		it("rejects an unregistered content table with a structured conflict", async () => {
+			await sql`CREATE TABLE ec_orphaned (id TEXT PRIMARY KEY)`.execute(db);
+
+			await expect(
+				registry.createCollection({ slug: "orphaned", label: "Orphaned" }),
+			).rejects.toMatchObject({ code: "COLLECTION_TABLE_ORPHANED" });
 		});
 
 		it("should list collections", async () => {

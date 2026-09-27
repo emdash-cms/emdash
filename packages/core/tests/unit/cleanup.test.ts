@@ -1,9 +1,10 @@
 /** Tests for cleanup subsystems and scheduled cleanup orchestration. */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { ulid } from "ulidx";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { runSystemCleanup } from "../../src/cleanup.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";

@@ -8,9 +8,10 @@
  * the pipeline was constructed once at startup and never rebuilt.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { createHookPipeline, resolveExclusiveHooks } from "../../../src/plugins/hooks.js";
 import type { ResolvedPlugin, ResolvedHook, ContentHookEvent } from "../../../src/plugins/types.js";

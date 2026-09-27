@@ -115,6 +115,7 @@ describe("faithful render of migrated image node", () => {
 			...node,
 			alt: "Migrated image",
 			caption: "A caption",
+			title: "Image details",
 			alignment: "center",
 			width: 1200,
 			height: 800,
@@ -126,6 +127,7 @@ describe("faithful render of migrated image node", () => {
 		expect(compact(html)).toContain('<figure class="emdash-image emdash-image--align-center"');
 		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png");
 		expect(attr(tag, "alt")).toBe("Migrated image");
+		expect(attr(tag, "title")).toBe("Image details");
 		expect(attr(tag, "width")).toBe("600");
 		expect(attr(tag, "height")).toBe("400");
 		expect(attr(tag, "loading")).toBe("lazy");
@@ -136,15 +138,31 @@ describe("faithful render of migrated image node", () => {
 		expect(html).toContain("A caption");
 	});
 
+	test("non-finite dimensions never reach rendered attributes or styles", async () => {
+		const html = await renderImage({
+			...node,
+			width: Number.NaN,
+			height: Number.POSITIVE_INFINITY,
+			displayWidth: Number.NaN,
+			displayHeight: Number.POSITIVE_INFINITY,
+		});
+
+		expect(html).not.toContain("NaN");
+		expect(html).not.toContain("Infinity");
+	});
+
 	test("linked image wraps the figure body in a sanitized anchor", async () => {
 		const html = await renderImage({
 			...node,
+			title: "Linked image details",
 			link: { href: "https://example.com/promo", blank: true },
 		});
 		const a = anchorTag(html);
+		const tag = imgTag(html);
 		expect(attr(a, "href")).toBe("https://example.com/promo");
 		expect(attr(a, "target")).toBe("_blank");
 		expect(attr(a, "rel")).toBe("noopener noreferrer");
+		expect(attr(tag, "title")).toBe("Linked image details");
 		expect(compact(html)).toMatch(/<a\b[^>]*>\s*<img\b/);
 	});
 

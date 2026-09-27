@@ -1,4 +1,3 @@
-import Database from "better-sqlite3";
 import type {
 	CompiledQuery,
 	DatabaseConnection,
@@ -9,6 +8,8 @@ import type {
 } from "kysely";
 import { SqliteAdapter, SqliteDialect, SqliteQueryCompiler } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { MIGRATION_NAMES } from "../../../src/database/migrations/runner.js";
 import { getI18nConfig, setI18nConfig, type I18nConfig } from "../../../src/i18n/config.js";
@@ -29,8 +30,8 @@ interface DialectTracker {
 }
 
 interface TrackedDialectOptions {
-	setup?: (database: Database.Database) => void;
-	beforeClose?: (database: Database.Database) => void;
+	setup?: (database: Database) => void;
+	beforeClose?: (database: Database) => void;
 	closeError?: Error;
 }
 
@@ -82,7 +83,7 @@ async function migrationRequest(action: MigrationRequest["action"]): Promise<Mig
 
 const LOCK_HELD_SINCE = Date.parse("2026-09-01T12:00:00.000Z");
 
-function holdMigrationLock(database: Database.Database): void {
+function holdMigrationLock(database: Database): void {
 	database.exec(`
 		CREATE TABLE _emdash_migrations_lock (
 			id TEXT PRIMARY KEY,
@@ -92,7 +93,7 @@ function holdMigrationLock(database: Database.Database): void {
 	`);
 }
 
-function lockValue(database: Database.Database): number {
+function lockValue(database: Database): number {
 	const row = database.prepare("SELECT is_locked FROM _emdash_migrations_lock").get() as {
 		is_locked: number;
 	};
@@ -196,10 +197,16 @@ describe("createDirectMigrationExecutor", () => {
 				const insert = database.prepare(
 					"INSERT INTO _emdash_migrations (name, timestamp) VALUES (?, ?)",
 				);
-				const insertAll = database.transaction((names: readonly string[]) => {
-					for (const name of names) insert.run(name, "2026-01-01T00:00:00.000Z");
-				});
-				insertAll([...MIGRATION_NAMES, "999_future"]);
+				database.exec("BEGIN");
+				try {
+					for (const name of [...MIGRATION_NAMES, "999_future"]) {
+						insert.run(name, "2026-01-01T00:00:00.000Z");
+					}
+					database.exec("COMMIT");
+				} catch (error) {
+					database.exec("ROLLBACK");
+					throw error;
+				}
 			},
 		});
 		const executor = createDirectMigrationExecutor({ target: TARGET, createDialect });
@@ -370,7 +377,7 @@ describe("createDirectMigrationExecutor", () => {
 
 	it("releases a migration lock only when it still has the confirmed id", async () => {
 		const values: number[] = [];
-		const recordLock = (database: Database.Database) => values.push(lockValue(database));
+		const recordLock = (database: Database) => values.push(lockValue(database));
 		const request = await migrationRequest("release-lock");
 
 		const stale = createTrackedDialectFactory({

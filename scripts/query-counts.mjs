@@ -63,6 +63,8 @@ import { dirname, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
+import { normalizeSql } from "./query-counts-normalize.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const fixtureDir = resolve(repoRoot, "fixtures/perf-site");
@@ -440,17 +442,6 @@ function aggregate(events) {
 		counts[key] = (counts[key] ?? 0) + 1;
 	}
 	return Object.fromEntries(Object.entries(counts).toSorted(([a], [b]) => a.localeCompare(b)));
-}
-
-// Normalize the parameterized SQL so the snapshot is stable: Kysely emits
-// `?` placeholders (already value-free), so we only collapse whitespace.
-// Variable-arity `IN (?, ?, ...)` lists are folded to `in (...)` so a
-// different batch size doesn't churn the text (the count still reflects it).
-function normalizeSql(sql) {
-	return sql
-		.replace(/\s+/g, " ")
-		.replace(/\bin\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/gi, "in (...)")
-		.trim();
 }
 
 // Per route+phase, a map of normalized SQL -> occurrence count. Sorted keys

@@ -177,6 +177,15 @@ export interface ImportResult {
 	comments?: { imported: number; skipped: number };
 	/** Site settings applied from the source (plugin import) */
 	siteSettings?: string[];
+	/** Reusable block import summary (WXR import) */
+	sections?: { created: number; skipped: number };
+	/** Taxonomy import summary (WXR import) */
+	taxonomies?: {
+		termsCreated: Record<string, number>;
+		termsReused: Record<string, number>;
+		assignments: number;
+		missingTaxonomies: string[];
+	};
 }
 
 // =============================================================================
@@ -210,9 +219,11 @@ interface WpImportChunkResponse {
 	chunk?: Partial<WpImportChunkState>;
 }
 
+type WpPluginImportPhase = "content" | "comments" | "finalize";
+
 /** Progress snapshot reported after every chunk. */
 export interface WpImportProgress {
-	phase: "content" | "comments" | "finalize";
+	phase: "taxonomy" | "content" | "comments" | "finalize" | "sections";
 	/** Content items imported + skipped so far (content phase) */
 	processed: number;
 	/** Comments imported + skipped so far (comments phase) */
@@ -223,7 +234,7 @@ async function executeWpPluginImportChunk(
 	url: string,
 	token: string,
 	config: ImportConfig,
-	phase: WpImportProgress["phase"],
+	phase: WpPluginImportPhase,
 	cursor: WpImportCursor | undefined,
 	state: WpImportChunkState,
 ): Promise<WpImportChunkResponse> {
@@ -271,6 +282,31 @@ function mergeImportResults(into: ImportResult, chunk: ImportResult): void {
 		};
 	}
 	if (chunk.siteSettings) into.siteSettings = chunk.siteSettings;
+	if (chunk.sections) {
+		into.sections = {
+			created: (into.sections?.created ?? 0) + chunk.sections.created,
+			skipped: (into.sections?.skipped ?? 0) + chunk.sections.skipped,
+		};
+	}
+	if (chunk.taxonomies) {
+		into.taxonomies ??= {
+			termsCreated: {},
+			termsReused: {},
+			assignments: 0,
+			missingTaxonomies: [],
+		};
+		for (const [taxonomy, count] of Object.entries(chunk.taxonomies.termsCreated)) {
+			into.taxonomies.termsCreated[taxonomy] =
+				(into.taxonomies.termsCreated[taxonomy] ?? 0) + count;
+		}
+		for (const [taxonomy, count] of Object.entries(chunk.taxonomies.termsReused)) {
+			into.taxonomies.termsReused[taxonomy] = (into.taxonomies.termsReused[taxonomy] ?? 0) + count;
+		}
+		into.taxonomies.assignments += chunk.taxonomies.assignments;
+		into.taxonomies.missingTaxonomies = [
+			...new Set([...into.taxonomies.missingTaxonomies, ...chunk.taxonomies.missingTaxonomies]),
+		];
+	}
 	into.success = into.errors.length === 0;
 }
 
@@ -298,7 +334,7 @@ export async function executeWpPluginImport(
 	const state: WpImportChunkState = { idMap: {}, translationGroups: {}, commentRoots: {} };
 	let comments = 0;
 
-	const runPhase = async (phase: WpImportProgress["phase"]) => {
+	const runPhase = async (phase: WpPluginImportPhase) => {
 		let cursor: WpImportCursor | undefined;
 		let done = false;
 		while (!done) {
@@ -354,16 +390,89 @@ export async function prepareWxrImport(request: PrepareRequest): Promise<Prepare
 /**
  * Execute WordPress import
  */
-export async function executeWxrImport(file: File, config: ImportConfig): Promise<ImportResult> {
+interface WxrImportCursor {
+	offset: number;
+	source: string;
+	taxonomiesReady: true;
+}
+
+interface WxrImportChunkState {
+	translationGroups: Record<string, string>;
+}
+
+interface WxrImportChunkResponse {
+	success: boolean;
+	result: ImportResult;
+	done: boolean;
+	cursor?: WxrImportCursor;
+	chunk?: WxrImportChunkState;
+}
+
+async function executeWxrImportChunk(
+	file: File,
+	config: ImportConfig,
+	phase: "taxonomy" | "content" | "finalize",
+	cursor?: WxrImportCursor,
+	chunk?: WxrImportChunkState,
+): Promise<WxrImportChunkResponse> {
 	const formData = new FormData();
 	formData.append("file", file);
 	formData.append("config", JSON.stringify(config));
+	formData.append("phase", phase);
+	if (cursor) formData.append("cursor", JSON.stringify(cursor));
+	if (chunk) formData.append("chunk", JSON.stringify(chunk));
 
 	const response = await apiFetch(`${API_BASE}/import/wordpress/execute`, {
 		method: "POST",
 		body: formData,
 	});
-	return parseApiResponse<ImportResult>(response, "Failed to import");
+	return parseApiResponse<WxrImportChunkResponse>(response, "Failed to import");
+}
+
+export async function executeWxrImport(
+	file: File,
+	config: ImportConfig,
+	onProgress?: (progress: WpImportProgress) => void,
+): Promise<ImportResult> {
+	const aggregate: ImportResult = {
+		success: true,
+		imported: 0,
+		skipped: 0,
+		errors: [],
+		byCollection: {},
+	};
+	let cursor: WxrImportCursor | undefined;
+	let state: WxrImportChunkState | undefined;
+	let done = false;
+	onProgress?.({ phase: "taxonomy", processed: 0, comments: 0 });
+	const prepared = await executeWxrImportChunk(file, config, "taxonomy");
+	mergeImportResults(aggregate, prepared.result);
+	cursor = prepared.cursor;
+	state = prepared.chunk;
+	if (!cursor) throw new Error(i18n._(msg`The import did not return a preparation cursor`));
+
+	while (!done) {
+		const response = await executeWxrImportChunk(file, config, "content", cursor, state);
+		mergeImportResults(aggregate, response.result);
+		cursor = response.cursor;
+		state = response.chunk;
+		done = response.done;
+		onProgress?.({
+			phase: "content",
+			processed: aggregate.imported + aggregate.skipped,
+			comments: 0,
+		});
+	}
+
+	if (!cursor) throw new Error(i18n._(msg`The import did not return a completion cursor`));
+	onProgress?.({
+		phase: "sections",
+		processed: aggregate.imported + aggregate.skipped,
+		comments: 0,
+	});
+	const finalized = await executeWxrImportChunk(file, config, "finalize", cursor, state);
+	mergeImportResults(aggregate, finalized.result);
+	return aggregate;
 }
 
 // =============================================================================

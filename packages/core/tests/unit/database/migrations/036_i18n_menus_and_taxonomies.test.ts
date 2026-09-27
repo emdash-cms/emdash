@@ -1,7 +1,8 @@
-import BetterSqlite3 from "better-sqlite3";
 import type { Kysely } from "kysely";
 import { Kysely as KyselyCtor, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { createDatabase } from "../../../../src/database/connection.js";
 import { down, up } from "../../../../src/database/migrations/036_i18n_menus_and_taxonomies.js";
@@ -10,7 +11,7 @@ import { setI18nConfig } from "../../../../src/i18n/config.js";
 import { seedPreI18nSchema } from "../../../utils/pre-i18n-schema.js";
 
 /**
- * Build a Kysely instance backed by better-sqlite3 with foreign keys ON and
+ * Build a Kysely instance backed by Node SQLite with foreign keys ON and
  * `PRAGMA foreign_keys = OFF` made into a no-op. This simulates Cloudflare
  * D1's behavior, where FKs are always enforced and the standard escape hatch
  * is silently ignored. Used to verify regressions for #1021 — bugs that only
@@ -18,7 +19,7 @@ import { seedPreI18nSchema } from "../../../utils/pre-i18n-schema.js";
  */
 function createD1LikeDatabase(): Kysely<Database> {
 	const sqlite = new BetterSqlite3(":memory:");
-	sqlite.pragma("foreign_keys = ON");
+	sqlite.exec("PRAGMA foreign_keys = ON");
 	const originalPrepare = sqlite.prepare.bind(sqlite);
 	sqlite.prepare = ((source: string) => {
 		// Make `PRAGMA foreign_keys = OFF/ON` a no-op like D1 does. `defer_foreign_keys`

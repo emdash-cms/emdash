@@ -5,8 +5,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import Database from "better-sqlite3";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { MIGRATE_EXIT_CODES } from "../../../src/cli/commands/migrate.js";
 import type { CoreMigrationIdentity } from "../../../src/migrations/identity.js";

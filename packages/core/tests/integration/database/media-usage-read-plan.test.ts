@@ -5,9 +5,10 @@
  * planner. Dialect result parity is covered by media-usage-read-repository.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -21,7 +22,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let repo: MediaUsageRepository;
 let captured: CapturedQuery[];
@@ -171,7 +172,7 @@ it("keeps a high-cardinality grouped read to one indexed statement", async () =>
 	expect(plan).not.toContain("SCAN u");
 });
 
-/** better-sqlite3 only binds primitives; coerce values captured from Kysely. */
+/** Normalize application values captured from Kysely for direct driver binding. */
 function bindable(parameter: unknown): unknown {
 	if (typeof parameter === "boolean") return parameter ? 1 : 0;
 	if (parameter instanceof Date) return parameter.toISOString();

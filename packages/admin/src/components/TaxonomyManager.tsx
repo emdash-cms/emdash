@@ -1328,6 +1328,13 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 							<Button icon={<Plus />} onClick={() => setFormOpen(true)}>
 								{t`Add ${taxonomyDef.labelSingular || t`Term`}`}
 							</Button>
+							<Button
+								variant="outline"
+								icon={<ADMIN_NAV_ICONS.posts weight="regular" aria-hidden="true" />}
+								onClick={() => setBulkTagOpen(true)}
+							>
+								{t`Add to posts`}
+							</Button>
 						</>
 					)}
 					<DropdownMenu>
@@ -1489,6 +1496,7 @@ export function TaxonomyManager({ taxonomyName, onDeleted }: TaxonomyManagerProp
 				onOpenTranslation={(tr) => setActiveLocale(tr.locale)}
 			/>
 			<BulkTagDialog
+				taxonomies={[taxonomyDef]}
 				open={bulkTagOpen}
 				activeLocale={activeLocale}
 				defaultLocale={i18n?.defaultLocale}

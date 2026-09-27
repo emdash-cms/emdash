@@ -99,6 +99,18 @@ describe("Editor image alignment", () => {
 		},
 	);
 
+	it("does not render non-finite image dimensions", async () => {
+		const { image } = await renderImage({
+			width: Number.NaN,
+			height: Number.POSITIVE_INFINITY,
+			displayWidth: Number.NaN,
+			displayHeight: Number.POSITIVE_INFINITY,
+		});
+
+		expect(image.outerHTML).not.toContain("NaN");
+		expect(image.outerHTML).not.toContain("Infinity");
+	});
+
 	it.each([
 		{ displayWidth: 1200, displayHeight: 800, ratio: 1.5 },
 		{ displayWidth: 1200, displayHeight: 600, ratio: 2 },

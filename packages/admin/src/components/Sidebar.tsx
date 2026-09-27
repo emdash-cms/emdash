@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
 
+import { formatAdminVersion } from "../lib/admin-version.js";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
@@ -120,6 +121,7 @@ export interface SidebarNavProps {
 		admin?: {
 			logo?: string;
 			siteName?: string;
+			footerLabel?: string | false;
 			favicon?: string;
 		};
 	};
@@ -622,8 +624,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						data-testid="admin-version"
 						className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle"
 					>
-						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-						{manifest.commit && ` (${manifest.commit})`}
+						{formatAdminVersion(manifest.version, manifest.commit, manifest.admin?.footerLabel)}
 					</p>
 				</div>
 			</KumoSidebar.Footer>

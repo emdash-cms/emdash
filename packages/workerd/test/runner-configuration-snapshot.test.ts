@@ -1,11 +1,11 @@
 import { ChildProcess, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-import DatabaseDriver from "better-sqlite3";
 import type { Database, PluginManifest } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { NodeSqliteCompatDatabase as DatabaseDriver } from "../../core/src/db/node-sqlite-compat.js";
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
 vi.mock("node:child_process", async (importOriginal) => {

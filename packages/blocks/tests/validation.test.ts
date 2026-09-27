@@ -1057,6 +1057,138 @@ describe("validateBlocks", () => {
 			);
 		});
 
+		it("accepts buttons, links, and menus in table element cells", () => {
+			const result = validateBlocks([
+				{
+					type: "table",
+					page_action_id: "page",
+					columns: [
+						{ key: "title", label: "Title" },
+						{ key: "action", label: "Actions", format: "element" },
+					],
+					rows: [
+						{
+							title: "Hello",
+							action: {
+								type: "menu",
+								action_id: "translate",
+								label: "Translate",
+								items: [{ label: "French", value: "fr" }],
+							},
+						},
+						{
+							title: "About",
+							action: {
+								type: "link",
+								label: "Open",
+								target: { kind: "external", url: "https://example.com" },
+							},
+						},
+						{ title: "Empty" },
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("rejects table element cells that are not buttons, links, or menus", () => {
+			const result = validateBlocks([
+				{
+					type: "table",
+					page_action_id: "page",
+					columns: [{ key: "action", label: "Actions", format: "element" }],
+					rows: [
+						{ action: { type: "text_input", action_id: "name", label: "Name" } },
+						{ action: "Open" },
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((error) => error.path)).toEqual([
+				"blocks[0].rows[0].action",
+				"blocks[0].rows[1].action",
+			]);
+		});
+
+		it("applies the response policy to links inside table element cells", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "table",
+							page_action_id: "page",
+							columns: [{ key: "action", label: "Actions", format: "element" }],
+							rows: [
+								{
+									action: {
+										type: "link",
+										label: "Open",
+										target: { kind: "plugin-page", path: "/undeclared" },
+									},
+								},
+							],
+						},
+					],
+				},
+				{ pluginPagePaths: ["/settings"] },
+			);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((error) => error.path)).toEqual([
+				"blocks[0].rows[0].action.target.path",
+			]);
+		});
+
+		it("rejects duplicate menu item values", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "menu",
+							action_id: "translate",
+							label: "Translate",
+							items: [
+								{ label: "French", value: "fr" },
+								{ label: "French (Canada)", value: "fr" },
+							],
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((error) => error.path)).toEqual([
+				"blocks[0].elements[0].items[1].value",
+			]);
+		});
+
+		it("rejects menus without items and menus in form fields", () => {
+			const empty = validateBlocks([
+				{
+					type: "actions",
+					elements: [{ type: "menu", action_id: "translate", label: "Translate", items: [] }],
+				},
+			]);
+			expect(empty.valid).toBe(false);
+			expect(empty.errors.map((error) => error.path)).toEqual(["blocks[0].elements[0].items"]);
+
+			const inForm = validateBlocks([
+				{
+					type: "form",
+					fields: [
+						{
+							type: "menu",
+							action_id: "translate",
+							label: "Translate",
+							items: [{ label: "French", value: "fr" }],
+						},
+					],
+					submit: { label: "Save", action_id: "save" },
+				},
+			]);
+			expect(inForm.valid).toBe(false);
+			expect(inForm.errors.map((error) => error.path)).toEqual(["blocks[0].fields[0].type"]);
+		});
+
 		it("rejects deeply nested responses without recursing on the host stack", () => {
 			let nested: unknown = { type: "context", text: "end" };
 			for (let i = 0; i < 5_000; i++) {

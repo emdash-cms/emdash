@@ -4,9 +4,10 @@ import type { Server } from "node:http";
 
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import DatabaseDriver from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as DatabaseDriver } from "#node-sqlite";
 
 import { createBackingServiceHandler } from "../../../../workerd/src/sandbox/backing-service.js";
 import { WorkerdSandboxRunner } from "../../../../workerd/src/sandbox/runner.js";
