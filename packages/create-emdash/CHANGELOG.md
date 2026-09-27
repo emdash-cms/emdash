@@ -1,5 +1,13 @@
 # create-emdash
 
+## 0.42.0
+
+### Patch Changes
+
+- [#3490](https://github.com/emdash-cms/emdash/pull/3490) [`9f90ed6`](https://github.com/emdash-cms/emdash/commit/9f90ed6b69463809a9eaff2fa12a47d70a568eb8) Thanks [@kgni](https://github.com/kgni)! - Fixes pnpm commands in the `README.md` and `AGENTS.md` of sites created with npm, yarn, or bun. They now show the chosen package manager's commands, such as `npm run dev`, `yarn dev`, or `bun dev`. Bun uses `bun run build` and `bun run deploy`, because `bun build` and `bun deploy` run Bun's own commands instead of the site's scripts.
+
+- [#3511](https://github.com/emdash-cms/emdash/pull/3511) [`9ef32ba`](https://github.com/emdash-cms/emdash/commit/9ef32ba4f5598c2d99cbe2ef25641c4aa75f4128) Thanks [@kgni](https://github.com/kgni)! - Fixes `npm run wrangler login` in the `README.md` of Cloudflare sites created with npm. It now shows `npx wrangler login`, because `npm run` only runs `package.json` scripts.
+
 ## 0.41.0
 
 No changes in this release.

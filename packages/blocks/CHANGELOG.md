@@ -1,5 +1,15 @@
 # @emdash-cms/blocks
 
+## 0.42.0
+
+### Minor Changes
+
+- [#3483](https://github.com/emdash-cms/emdash/pull/3483) [`2e943ff`](https://github.com/emdash-cms/emdash/commit/2e943ff35fcffc5a4e35dd658ef73cf098030e3b) Thanks [@swissky](https://github.com/swissky)! - Adds row actions to Block Kit tables and a new `menu` element. Set a table column's `format` to `"element"` to place a `button`, `link`, or `menu` in each row under that column's key. A `menu` is a button that opens a list of choices; choosing one sends a `block_action` with the menu's `action_id` and the choice's `value`. Menus also work in `actions` blocks, section accessories, and empty-state actions, but not as form fields. Build one with `elements.menu(actionId, label, items, { style })`; the `MenuElement` type is exported. Existing tables and elements are unchanged.
+
+### Patch Changes
+
+- [#3480](https://github.com/emdash-cms/emdash/pull/3480) [`f2f9119`](https://github.com/emdash-cms/emdash/commit/f2f9119738ba360d02e3fd00e1cf7d1d49b52fda) Thanks [@swissky](https://github.com/swissky)! - Fixes Block Kit table column headings being centered instead of aligned with their column's content. Headings in plugin admin pages, dashboard widgets, and content editor panels now line up at the start of each column, on the right in right-to-left admin languages.
+
 ## 0.41.0
 
 No changes in this release.
