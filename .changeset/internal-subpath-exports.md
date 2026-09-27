@@ -39,6 +39,6 @@ If your project or package imports one of the removed subpaths directly, replace
 
 - To configure a database, object cache or media provider, use `sqlite()`, `libsql()` or `postgres()` from `emdash/db`, `memoryCache()` from `emdash/astro`, or `localMedia()` from `emdash/media`, instead of writing their entrypoints by hand.
 - To test a plugin, use `@emdash-cms/plugin-test` instead of `emdash/plugin-test-runtime`.
-- To add request middleware, use `emdash/middleware` or the `middleware.outer` option.
+- To run your own middleware before EmDash's, set the `middleware.outer` option of `emdash()`. The internal auth, setup, redirect and request-context middleware have no public replacement.
 
 Rebuild after upgrading. `emdash migrate` rejects a migration manifest written by an earlier EmDash version.
