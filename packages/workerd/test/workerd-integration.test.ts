@@ -1058,7 +1058,8 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	}, 30_000);
 
 	it("runs runtime-owned taxonomy mutations through a real workerd isolate", async () => {
-		const { EmDashRuntime, TaxonomyRepository } = await import("emdash/internal/plugin-test-runtime");
+		const { EmDashRuntime, TaxonomyRepository } =
+			await import("emdash/internal/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
 		const deps: RuntimeDependencies = {
 			config: {
