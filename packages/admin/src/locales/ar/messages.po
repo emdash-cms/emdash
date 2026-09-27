@@ -1787,7 +1787,7 @@ msgstr "تم إلغاء المصادقة أو انتهت مهلتها. يرجى 
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:325
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1348
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1351
 #: packages/admin/src/components/RelationForm.tsx:319
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -2210,7 +2210,7 @@ msgstr "يمكنه عرض المحتوى"
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1310
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1313
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:604
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:817
 #: packages/admin/src/components/editor/ImageNode.tsx:309
@@ -7155,7 +7155,7 @@ msgstr "جاري تحميل القائمة..."
 msgid "Loading menus..."
 msgstr "جاري تحميل القوائم..."
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:225
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 msgid "Loading plugin panel"
 msgstr ""
 
@@ -7820,14 +7820,14 @@ msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:600
 #: packages/admin/src/components/ContentList.tsx:1450
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1297
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1300
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1320
 msgid "Move to Trash"
 msgstr "نقل إلى سلة المحذوفات"
 
 #: packages/admin/src/components/ContentList.tsx:578
 #: packages/admin/src/components/ContentList.tsx:1435
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1302
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1305
 msgid "Move to Trash?"
 msgstr "نقل إلى سلة المحذوفات؟"
 
@@ -8708,7 +8708,7 @@ msgstr "الأصلي:"
 msgid "Other"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "مخطط المستند"
@@ -9047,7 +9047,7 @@ msgstr ""
 msgid "Plugin pages"
 msgstr ""
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:231
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:265
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr ""
@@ -10025,7 +10025,7 @@ msgstr ""
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3141
@@ -10131,7 +10131,7 @@ msgstr ""
 msgid "Revision restored"
 msgstr "تم استعادة المراجعة"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
 #: packages/admin/src/components/ContentTypeEditor.tsx:95
 #: packages/admin/src/components/RevisionHistory.tsx:168
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12474,7 +12474,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "سيُحذف هذا منطقة عناصر الواجهة وجميع عناصرها. لا يمكن التراجع عن هذا الإجراء."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1304
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "سيؤدي هذا إلى نقل العنصر إلى سلة المحذوفات. يمكنك استعادته لاحقًا من سلة المحذوفات."
 
@@ -12786,8 +12786,8 @@ msgstr ""
 msgid "Unable to reach marketplace"
 msgstr "تعذّر الوصول إلى السوق"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1343
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1360
 msgid "Unassigned"
 msgstr "لم يتم التعيين"
 

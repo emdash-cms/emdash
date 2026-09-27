@@ -4,8 +4,8 @@
 	"modelIdentity": {
 		"adapterVersion": "listing-metadata-ai-v1",
 		"textModelId": "recorded/baseline-text-v1",
-		"textPromptVersion": "listing-text-v9",
-		"textPromptHash": "aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5",
+		"textPromptVersion": "listing-text-v10",
+		"textPromptHash": "05b2997bdac4d7c073648bda5839d0c90438906d712c06970c667c320b820abf",
 		"imageModelId": "recorded/baseline-image-v1",
 		"imagePromptVersion": "listing-image-v7",
 		"imagePromptHash": "7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0",
@@ -256,6 +256,55 @@
 				"inputTokens": 910,
 				"outputTokens": 92,
 				"totalTokens": 1002,
+				"configuredUnits": 1
+			}
+		},
+		"benign-registry-plugin-listing": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": [
+					"profile.slug",
+					"profile.name",
+					"profile.description",
+					"profile.keywords[0]",
+					"profile.keywords[1]",
+					"profile.keywords[2]",
+					"profile.keywords[3]",
+					"profile.keywords[4]",
+					"profile.license",
+					"profile.sections.installation",
+					"profile.authors[0].name",
+					"profile.authors[0].email",
+					"profile.security[0].email"
+				]
+			},
+			"latencyMs": 2782,
+			"usage": {
+				"inputTokens": 1574,
+				"outputTokens": 98,
+				"totalTokens": 1672,
+				"configuredUnits": 1
+			}
+		},
+		"benign-third-party-integration": {
+			"output": {
+				"schemaVersion": 1,
+				"findings": [],
+				"coveredEvidenceRefs": [
+					"profile.slug",
+					"profile.name",
+					"profile.description",
+					"profile.license",
+					"profile.authors[0].name",
+					"profile.security[0].email"
+				]
+			},
+			"latencyMs": 1439,
+			"usage": {
+				"inputTokens": 1090,
+				"outputTokens": 53,
+				"totalTokens": 1143,
 				"configuredUnits": 1
 			}
 		},

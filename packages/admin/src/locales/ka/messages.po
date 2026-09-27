@@ -1783,7 +1783,7 @@ msgstr "ავთენტიფიკაცია გაუქმდა ან 
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:325
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1348
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1351
 #: packages/admin/src/components/RelationForm.tsx:319
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -2206,7 +2206,7 @@ msgstr "შეუძლია შიგთავსის ნახვა"
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1310
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1313
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:604
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:817
 #: packages/admin/src/components/editor/ImageNode.tsx:309
@@ -7154,7 +7154,7 @@ msgstr "მენიუ იტვირთება..."
 msgid "Loading menus..."
 msgstr "მენიუები იტვირთება..."
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:225
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 msgid "Loading plugin panel"
 msgstr "პლაგინის პანელი იტვირთება"
 
@@ -7819,14 +7819,14 @@ msgstr "ნაგავში გადატანა"
 
 #: packages/admin/src/components/ContentList.tsx:600
 #: packages/admin/src/components/ContentList.tsx:1450
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1297
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1300
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1320
 msgid "Move to Trash"
 msgstr "ნაგავში გადატანა"
 
 #: packages/admin/src/components/ContentList.tsx:578
 #: packages/admin/src/components/ContentList.tsx:1435
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1302
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1305
 msgid "Move to Trash?"
 msgstr "გადავიტანოთ ნაგავში?"
 
@@ -8707,7 +8707,7 @@ msgstr "ორიგინალი:"
 msgid "Other"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "სარჩევი"
@@ -9046,7 +9046,7 @@ msgstr "პლაგინი ვერ მოიძებნა. გამო�
 msgid "Plugin pages"
 msgstr "პლაგინის გვერდები"
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:231
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:265
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr "პლაგინის პანელი მიუწვდომელია."
@@ -10024,7 +10024,7 @@ msgstr ""
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3141
@@ -10130,7 +10130,7 @@ msgstr ""
 msgid "Revision restored"
 msgstr "რევიზია აღდგა"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
 #: packages/admin/src/components/ContentTypeEditor.tsx:95
 #: packages/admin/src/components/RevisionHistory.tsx:168
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12473,7 +12473,7 @@ msgstr "ეს ვერსია საიტზე არ ჩანს"
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "ეს წაშლის ვიჯეტების არეალს და მის ყველა ვიჯეტს. ეს მოქმედება ვერ დაბრუნდება."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1304
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "ეს ელემენტს სანაგვეში გადაიტანს. მის აღდგენას მოგვიანებით შეძლებთ სანაგვიდან."
 
@@ -12785,8 +12785,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "მარკეტპლეისთან დაკავშირება ვერ მოხერხდა"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1343
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1360
 msgid "Unassigned"
 msgstr "მიუკუთვნებელი"
 

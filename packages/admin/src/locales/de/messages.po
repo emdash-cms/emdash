@@ -1783,7 +1783,7 @@ msgstr "Die Anmeldung wurde abgebrochen oder hat zu lange gedauert. Bitte versuc
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:325
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1348
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1351
 #: packages/admin/src/components/RelationForm.tsx:319
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -2206,7 +2206,7 @@ msgstr "Kann Inhalte ansehen"
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1310
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1313
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:604
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:817
 #: packages/admin/src/components/editor/ImageNode.tsx:309
@@ -7154,7 +7154,7 @@ msgstr "Lade Menü..."
 msgid "Loading menus..."
 msgstr "Lade Menüs..."
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:225
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 msgid "Loading plugin panel"
 msgstr "Erweiterungsbereich wird geladen"
 
@@ -7819,14 +7819,14 @@ msgstr "In den Papierkorb verschieben"
 
 #: packages/admin/src/components/ContentList.tsx:600
 #: packages/admin/src/components/ContentList.tsx:1450
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1297
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1300
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1320
 msgid "Move to Trash"
 msgstr "In den Papierkorb verschieben"
 
 #: packages/admin/src/components/ContentList.tsx:578
 #: packages/admin/src/components/ContentList.tsx:1435
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1302
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1305
 msgid "Move to Trash?"
 msgstr "In den Papierkorb verschieben?"
 
@@ -8707,7 +8707,7 @@ msgstr "Original:"
 msgid "Other"
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "Gliederung"
@@ -9046,7 +9046,7 @@ msgstr "Erweiterung nicht gefunden. Herausgeber oder Slug sind möglicherweise f
 msgid "Plugin pages"
 msgstr "Seiten von Erweiterungen"
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:231
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:265
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr "Erweiterungsbereich nicht verfügbar."
@@ -10024,7 +10024,7 @@ msgstr ""
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3141
@@ -10130,7 +10130,7 @@ msgstr ""
 msgid "Revision restored"
 msgstr "Revision wiederhergestellt"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
 #: packages/admin/src/components/ContentTypeEditor.tsx:95
 #: packages/admin/src/components/RevisionHistory.tsx:168
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12473,7 +12473,7 @@ msgstr "Diese Version ist auf der Webseite nicht sichtbar"
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Dadurch werden der Widget-Bereich und alle darin enthaltenen Widgets gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1304
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Dies verschiebt das Element in den Papierkorb. Du kannst es später von dort wiederherstellen."
 
@@ -12785,8 +12785,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Verbinden mit dem Marktplatz fehlgeschlagen"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1343
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1360
 msgid "Unassigned"
 msgstr "Nicht zugewiesen"
 

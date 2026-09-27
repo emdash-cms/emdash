@@ -1783,7 +1783,7 @@ msgstr "Authentication was cancelled or timed out. Please try again."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:77
 #: packages/admin/src/components/comments/CommentInbox.tsx:325
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1348
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1351
 #: packages/admin/src/components/RelationForm.tsx:319
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:27
@@ -2206,7 +2206,7 @@ msgstr "Can view content"
 #: packages/admin/src/components/ContentPickerModal.tsx:386
 #: packages/admin/src/components/ContentSettingsPanel.tsx:317
 #: packages/admin/src/components/ContentSettingsPanel.tsx:497
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1310
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1313
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:604
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:817
 #: packages/admin/src/components/editor/ImageNode.tsx:309
@@ -7154,7 +7154,7 @@ msgstr "Loading menu..."
 msgid "Loading menus..."
 msgstr "Loading menus..."
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:225
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:259
 msgid "Loading plugin panel"
 msgstr "Loading plugin panel"
 
@@ -7819,14 +7819,14 @@ msgstr "Move to trash"
 
 #: packages/admin/src/components/ContentList.tsx:600
 #: packages/admin/src/components/ContentList.tsx:1450
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1297
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1317
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1300
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1320
 msgid "Move to Trash"
 msgstr "Move to Trash"
 
 #: packages/admin/src/components/ContentList.tsx:578
 #: packages/admin/src/components/ContentList.tsx:1435
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1302
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1305
 msgid "Move to Trash?"
 msgstr "Move to Trash?"
 
@@ -8707,7 +8707,7 @@ msgstr "Original:"
 msgid "Other"
 msgstr "Other"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1256
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
 #: packages/admin/src/components/editor/DocumentOutline.tsx:191
 msgid "Outline"
 msgstr "Outline"
@@ -9046,7 +9046,7 @@ msgstr "Plugin not found. The publisher or slug may be incorrect."
 msgid "Plugin pages"
 msgstr "Plugin pages"
 
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:231
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:265
 #: packages/admin/src/lib/content-editor-panels.tsx:192
 msgid "Plugin panel unavailable."
 msgstr "Plugin panel unavailable."
@@ -10024,7 +10024,7 @@ msgstr "Retired"
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
 #: packages/admin/src/components/MediaPickerModal.tsx:1399
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
-#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:239
+#: packages/admin/src/components/SandboxedContentEditorPanel.tsx:273
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
 #: packages/admin/src/router.tsx:3141
@@ -10130,7 +10130,7 @@ msgstr "Reviewing…"
 msgid "Revision restored"
 msgstr "Revision restored"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1264
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1267
 #: packages/admin/src/components/ContentTypeEditor.tsx:95
 #: packages/admin/src/components/RevisionHistory.tsx:168
 #: packages/admin/src/components/settings/transfer/labels.ts:22
@@ -12473,7 +12473,7 @@ msgstr "This version is not visible on the site"
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "This will delete the widget area and all its widgets. This action cannot be undone."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1304
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1307
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "This will move the item to trash. You can restore it later from the trash."
 
@@ -12785,8 +12785,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Unable to reach marketplace"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1340
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1357
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1343
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1360
 msgid "Unassigned"
 msgstr "Unassigned"
 
