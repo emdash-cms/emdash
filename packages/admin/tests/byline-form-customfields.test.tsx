@@ -6,24 +6,18 @@
  * includes `customFields` with the entered value."
  *
  * The test stubs the byline + byline-fields APIs, mounts the bylines
- * page in a QueryClient + Toast.Provider wrapper, simulates selecting
- * an existing byline (which puts the form in edit mode where custom
- * fields render), and asserts the PATCH body forwarded to
+ * page in a QueryClient + Toast.Provider wrapper, opens an existing
+ * byline's profile dialog, and asserts the PATCH body forwarded to
  * `updateByline` includes the typed value.
- *
- * vitest-browser-react + Playwright actionability: Kumo's
- * `Dialog` overlay blocks clicks inside dialog bodies, but the
- * bylines page renders the sidebar list as plain `<button>` elements
- * (no dialog) and the Save button in the inline right-pane (also no
- * dialog). Both are clickable. The custom-field input is a plain Kumo
- * `<Input>`, which accepts `.fill()` directly.
  */
 
 import { Toast } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
+import "../dist/styles.css";
 import type { BylineFieldDefinition } from "../src/lib/api/byline-fields";
 import type { BylineSummary } from "../src/lib/api/bylines";
 import { render } from "./utils/render.tsx";
@@ -172,10 +166,10 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		// Edit mode: registered field renders inline (no "Custom fields" header).
-		const bylineButton = screen.getByRole("button", { name: /Jane Doe/ });
+		const bylineButton = screen.getByRole("button", { name: "Edit Jane Doe" });
 		await bylineButton.click();
 
+		await expect.element(screen.getByText("Additional details")).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Job title")).toBeInTheDocument();
 	});
 
@@ -192,7 +186,8 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		await expect.element(screen.getByText("Create byline")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		await expect.element(screen.getByRole("dialog", { name: "New byline" })).toBeInTheDocument();
 		await expect.element(screen.getByLabelText("Job title")).toBeInTheDocument();
 	});
 
@@ -213,7 +208,7 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		await screen.getByRole("button", { name: /Jane Doe/ }).click();
+		await screen.getByRole("button", { name: "Edit Jane Doe" }).click();
 
 		// Prefilled value from the byline's customFields hydration.
 		const input = screen.getByLabelText("Job title");
@@ -257,13 +252,14 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		await screen.getByRole("button", { name: /Jane Doe/ }).click();
+		await screen.getByRole("button", { name: "Edit Jane Doe" }).click();
 
 		// Error surface is shown — editor is told what's happening.
 		await expect.element(screen.getByText("Couldn't load custom fields.")).toBeInTheDocument();
 
 		// Save fixed columns; PATCH body must omit `customFields`.
-		await screen.getByRole("button", { name: "Save" }).click();
+		screen.getByRole("button", { name: "Save" }).element().focus();
+		await userEvent.keyboard("{Enter}");
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		expect(vi.mocked(updateByline)).toHaveBeenCalledTimes(1);
@@ -309,7 +305,7 @@ describe("BylinesPage — custom-field inputs (Phase 6 of #1174)", () => {
 			</TestWrapper>,
 		);
 
-		await screen.getByRole("button", { name: /Jane Doe/ }).click();
+		await screen.getByRole("button", { name: "Edit Jane Doe" }).click();
 
 		// `string` and `url` both render as `<input>`, but their `type`
 		// attribute differentiates them. `text` renders as `<textarea>`.

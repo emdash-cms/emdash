@@ -27,6 +27,7 @@ jobs:
       d1: ${{ steps.plan.outputs.d1 }}
       browser: ${{ steps.plan.outputs.browser }}
       browser_admin: ${{ steps.plan.outputs.browser_admin }}
+      browser_embeds: ${{ steps.plan.outputs.browser_embeds }}
       browser_release: ${{ steps.plan.outputs.browser_release }}
       e2e_node: ${{ steps.plan.outputs.e2e_node }}
       e2e_cloudflare: ${{ steps.plan.outputs.e2e_cloudflare }}
@@ -361,16 +362,18 @@ jobs:
         if: needs.change-plan.outputs.browser == 'true'
         env:
           BROWSER_ADMIN: ${{ needs.change-plan.outputs.browser_admin }}
+          BROWSER_EMBEDS: ${{ needs.change-plan.outputs.browser_embeds }}
           BROWSER_RELEASE: ${{ needs.change-plan.outputs.browser_release }}
         run: |
           filters=()
           if [ "$BROWSER_ADMIN" = true ]; then filters+=(--filter "@emdash-cms/admin..."); fi
+          if [ "$BROWSER_EMBEDS" = true ]; then filters+=(--filter "@emdash-cms/plugin-embeds..."); fi
           if [ "$BROWSER_RELEASE" = true ]; then filters+=(--filter "@emdash-cms/release-service..."); fi
           if [ "${#filters[@]}" -eq 0 ]; then
             echo "::error::Browser tests were selected without a browser suite"
             exit 1
           fi
-          pnpm run "${filters[@]}" build
+          pnpm run --if-present "${filters[@]}" build
       - name: Build playground
         if: needs.change-plan.outputs.e2e_playground == 'true'
         run: pnpm run --filter "@emdash-cms/playground^..." build
@@ -387,6 +390,9 @@ jobs:
       - name: Test admin UI
         if: needs.change-plan.outputs.browser_admin == 'true'
         run: pnpm run --filter @emdash-cms/admin test
+      - name: Test embeds in Chromium
+        if: needs.change-plan.outputs.browser_embeds == 'true'
+        run: pnpm --filter @emdash-cms/plugin-embeds test:browser
       - name: Test playground
         if: needs.change-plan.outputs.e2e_playground == 'true'
         run: pnpm run test:e2e:playground

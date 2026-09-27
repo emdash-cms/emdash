@@ -60,6 +60,16 @@ describe("test plan", () => {
 		assert.equal(plan.e2e_node, false);
 	});
 
+	it("runs the embeds browser suite only for embeds changes", () => {
+		const embeds = createTestPlan(["packages/plugins/embeds/src/astro/Gist.astro"]);
+		assert.equal(embeds.browser, true);
+		assert.equal(embeds.browser_embeds, true);
+		assert.equal(embeds.integration, true);
+
+		const forms = createTestPlan(["packages/plugins/forms/src/index.ts"]);
+		assert.equal(forms.browser_embeds, false);
+	});
+
 	it("runs shared E2E fixture changes against both runtimes", () => {
 		const plan = createTestPlan(["e2e/fixtures/admin.ts"]);
 

@@ -99,6 +99,14 @@ describe("SchemaRegistry", () => {
 			expect(result).toBeDefined();
 		});
 
+		it("rejects an unregistered content table with a structured conflict", async () => {
+			await sql`CREATE TABLE ec_orphaned (id TEXT PRIMARY KEY)`.execute(db);
+
+			await expect(
+				registry.createCollection({ slug: "orphaned", label: "Orphaned" }),
+			).rejects.toMatchObject({ code: "COLLECTION_TABLE_ORPHANED" });
+		});
+
 		it("should list collections", async () => {
 			await registry.createCollection({ slug: "posts", label: "Posts" });
 			await registry.createCollection({ slug: "pages", label: "Pages" });

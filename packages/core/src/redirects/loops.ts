@@ -14,6 +14,7 @@ import {
 	compilePattern,
 	matchPattern,
 	interpolateDestination,
+	validatePattern,
 	type CompiledPattern,
 } from "./patterns.js";
 
@@ -37,7 +38,7 @@ interface CompiledPatternRedirect {
 function compilePatterns(edges: RedirectEdge[]): CompiledPatternRedirect[] {
 	const result: CompiledPatternRedirect[] = [];
 	for (const edge of edges) {
-		if (edge.enabled && edge.isPattern) {
+		if (edge.enabled && edge.isPattern && validatePattern(edge.source) === null) {
 			result.push({
 				id: edge.id,
 				compiled: compilePattern(edge.source),
@@ -256,7 +257,8 @@ export function wouldCreateLoop(
 	// If the proposed source is a pattern, compile it so we can check
 	// whether resolved paths would match it (not just string equality)
 	const sourceIsPattern = source.includes("[");
-	const compiledSource = sourceIsPattern ? compilePattern(source) : null;
+	const compiledSource =
+		sourceIsPattern && validatePattern(source) === null ? compilePattern(source) : null;
 
 	// Determine starting points for the walk. If the destination is a
 	// template, generate representative concrete paths AND find existing
@@ -265,10 +267,12 @@ export function wouldCreateLoop(
 	if (destination.includes("[")) {
 		const reps = generateRepresentatives(destination, filtered);
 		// Also find existing exact graph keys that match this template
-		const compiled = compilePattern(destination);
-		for (const [key] of graph) {
-			if (!key.includes("[") && matchPattern(compiled, key) !== null) {
-				reps.push(key);
+		if (validatePattern(destination) === null) {
+			const compiled = compilePattern(destination);
+			for (const [key] of graph) {
+				if (!key.includes("[") && matchPattern(compiled, key) !== null) {
+					reps.push(key);
+				}
 			}
 		}
 		// Always include the destination itself — it may be an exact graph key

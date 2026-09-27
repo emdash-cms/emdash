@@ -6,16 +6,24 @@ import {
 	normalizeDatetime,
 	type DatetimeFieldDescriptor,
 } from "../datetime-normalization.js";
-import type { RepeaterSubField } from "../schema/types.js";
+import { requestCached } from "../request-cache.js";
+import type { FieldType, RepeaterSubField } from "../schema/types.js";
+import { isSafeUrlFieldWriteValue } from "../utils/url.js";
 import { EmDashValidationError } from "./repositories/types.js";
 import type { Database } from "./types.js";
+
+interface UrlFieldDescriptor {
+	slug: string;
+	urlSubFields?: readonly string[];
+}
 
 interface DatetimeContext {
 	timezone: string;
 	fields: DatetimeFieldDescriptor[];
+	urlFields: UrlFieldDescriptor[];
 }
 
-function repeaterDatetimeFields(validation: string | null): string[] {
+function repeaterSubFieldsOfType(validation: string | null, type: FieldType): string[] {
 	if (!validation) return [];
 	let parsed: unknown;
 	try {
@@ -32,7 +40,7 @@ function repeaterDatetimeFields(validation: string | null): string[] {
 				typeof field === "object" &&
 				field !== null &&
 				"type" in field &&
-				field.type === "datetime" &&
+				field.type === type &&
 				"slug" in field &&
 				typeof field.slug === "string",
 		)
@@ -54,13 +62,18 @@ export class ContentDatetimeNormalizer {
 	) {}
 
 	private context(collection: string): Promise<DatetimeContext> {
-		if (!this.contexts) return this.loadContext(collection);
-		let context = this.contexts.get(collection);
-		if (!context) {
-			context = this.loadContext(collection);
-			this.contexts.set(collection, context);
+		if (this.contexts) {
+			let context = this.contexts.get(collection);
+			if (!context) {
+				context = this.loadContext(collection);
+				this.contexts.set(collection, context);
+			}
+			return context;
 		}
-		return context;
+		// Fall back to the per-request cache so repeated writes in the same
+		// invocation (e.g. bulk imports) do not re-query field/timezone metadata
+		// for every item.
+		return requestCached(`datetimeContext:${collection}`, () => this.loadContext(collection));
 	}
 
 	private async loadContext(collection: string): Promise<DatetimeContext> {
@@ -70,7 +83,7 @@ export class ContentDatetimeNormalizer {
 				.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
 				.select(["field.slug", "field.type", "field.validation"])
 				.where("collection.slug", "=", collection)
-				.where("field.type", "in", ["datetime", "repeater"])
+				.where("field.type", "in", ["datetime", "repeater", "url"])
 				.execute(),
 			this.db
 				.selectFrom("options")
@@ -87,18 +100,39 @@ export class ContentDatetimeNormalizer {
 				// The datetime normalizer reports an invalid timezone when it encounters a value.
 			}
 		}
-		return {
-			timezone,
-			fields: rows.map((row) =>
-				row.type === "datetime"
-					? { slug: row.slug, type: "datetime" }
-					: {
-							slug: row.slug,
-							type: "repeater",
-							datetimeSubFields: repeaterDatetimeFields(row.validation),
-						},
-			),
-		};
+		const fields: DatetimeFieldDescriptor[] = [];
+		const urlFields: UrlFieldDescriptor[] = [];
+		for (const row of rows) {
+			if (row.type === "datetime") {
+				fields.push({ slug: row.slug, type: "datetime" });
+			} else if (row.type === "url") {
+				urlFields.push({ slug: row.slug });
+			} else {
+				fields.push({
+					slug: row.slug,
+					type: "repeater",
+					datetimeSubFields: repeaterSubFieldsOfType(row.validation, "datetime"),
+				});
+				const urlSubFields = repeaterSubFieldsOfType(row.validation, "url");
+				if (urlSubFields.length > 0) urlFields.push({ slug: row.slug, urlSubFields });
+			}
+		}
+		return { timezone, fields, urlFields };
+	}
+
+	/**
+	 * Normalizes datetimes in incoming field values and rejects `url` values
+	 * with unsafe schemes, control characters, or off-site path forms. Values
+	 * already stored are not checked, so restoring or syncing existing data
+	 * goes through {@link normalizeData} instead.
+	 */
+	async normalizeInput(
+		collection: string,
+		data: Record<string, unknown>,
+	): Promise<Record<string, unknown>> {
+		const context = await this.context(collection);
+		assertSafeUrlFields(data, context.urlFields);
+		return this.normalizeWithContext(context, [data])[0] ?? data;
 	}
 
 	async normalizeData(
@@ -113,7 +147,13 @@ export class ContentDatetimeNormalizer {
 		collection: string,
 		items: readonly Record<string, unknown>[],
 	): Promise<Record<string, unknown>[]> {
-		const context = await this.context(collection);
+		return this.normalizeWithContext(await this.context(collection), items);
+	}
+
+	private normalizeWithContext(
+		context: DatetimeContext,
+		items: readonly Record<string, unknown>[],
+	): Record<string, unknown>[] {
 		try {
 			return items.map(
 				(data) => normalizeContentDatetimes(data, context.fields, context.timezone).value,
@@ -135,6 +175,54 @@ export class ContentDatetimeNormalizer {
 				throw new EmDashValidationError(error.message);
 			}
 			throw error;
+		}
+	}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Reads parse a stored string that looks like JSON, so a repeater written as a JSON string
+// comes back as rows and must be checked as rows.
+function repeaterRows(value: unknown): unknown[] | undefined {
+	let rows = value;
+	if (typeof rows === "string" && rows.startsWith("[")) {
+		try {
+			rows = JSON.parse(rows);
+		} catch {
+			return undefined;
+		}
+	}
+	return Array.isArray(rows) ? rows : undefined;
+}
+
+function assertSafeUrl(path: string, value: unknown): void {
+	if (typeof value === "string" && !isSafeUrlFieldWriteValue(value)) {
+		throw new EmDashValidationError(
+			`Field "${path}" must use http, https, mailto, or tel, or be a safe relative path or fragment`,
+			{ path },
+		);
+	}
+}
+
+function assertSafeUrlFields(
+	data: Record<string, unknown>,
+	urlFields: readonly UrlFieldDescriptor[],
+): void {
+	for (const field of urlFields) {
+		const value = data[field.slug];
+		if (!field.urlSubFields) {
+			assertSafeUrl(field.slug, value);
+			continue;
+		}
+		const rows = repeaterRows(value);
+		if (!rows) continue;
+		for (const [index, row] of rows.entries()) {
+			if (!isRecord(row)) continue;
+			for (const subField of field.urlSubFields) {
+				assertSafeUrl(`${field.slug}.${index}.${subField}`, row[subField]);
+			}
 		}
 	}
 }

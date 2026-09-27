@@ -7965,10 +7965,9 @@ function isJsonPostRouteContract(route) {
 * Zod schema for PluginManifest validation
 *
 * Used to validate manifest.json from plugin bundles at every parse site:
-* - Client-side download (marketplace.ts extractBundle)
-* - R2 load (api/handlers/marketplace.ts loadBundleFromR2)
-* - CLI publish preview (cli/commands/publish.ts readManifestFromTarball)
-* - Marketplace ingest extends this with publishing-specific fields
+* - client-side bundle download
+* - registry and legacy marketplace ingestion
+* - `emdash-plugin` build and publish validation
 */
 /**
 * Current capability names — the ones authors should use going forward.

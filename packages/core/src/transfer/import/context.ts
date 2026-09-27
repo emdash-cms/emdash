@@ -6,6 +6,7 @@ import type { Kysely } from "kysely";
 
 import { isPostgres } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
+import { isStoragelessFieldRow } from "../../schema/types.js";
 import type { Storage } from "../../storage/types.js";
 import { TransferError } from "../errors.js";
 import {
@@ -90,7 +91,10 @@ export class ImportContext {
 		return records;
 	}
 
-	/** Target column type of each field of a collection, from the imported schema. */
+	/**
+	 * Target column type of each field of a collection that has a column, from
+	 * the imported schema.
+	 */
 	async fieldColumns(collection: string): Promise<ReadonlyMap<string, FieldColumnType>> {
 		return (await this.fields(collection)).columns;
 	}
@@ -110,9 +114,12 @@ export class ImportContext {
 					"_emdash_fields.slug as slug",
 					"_emdash_fields.column_type as column_type",
 					"_emdash_fields.required as required",
+					"_emdash_fields.type as type",
+					"_emdash_fields.validation as validation",
 				])
 				.where("_emdash_collections.slug", "=", collection)
 				.execute()
+				.then((all) => all.filter((row) => !isStoragelessFieldRow(row)))
 				.then((rows) => ({
 					columns: new Map(
 						rows.map((row) => [row.slug, toFieldColumnType(row.column_type)] as const),

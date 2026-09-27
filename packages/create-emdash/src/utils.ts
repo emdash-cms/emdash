@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { PackageManager } from "./flags.js";
+
 export const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
 const INVALID_PKG_NAME_CHARS = /[^a-z0-9-]/g;
 const LEADING_TRAILING_HYPHENS = /^-+|-+$/g;
@@ -157,4 +159,25 @@ export function setWorkerLoader(
 	lines.splice(startIndex, endIndex - startIndex + 1, ...replacement);
 	writeFileSync(target, lines.join(newline));
 	return enabled ? "enabled" : "disabled";
+}
+
+const PNPM_COMMAND = /\bpnpm ([a-z][\w:-]*)/g;
+// Every package manager has these commands under the same name.
+const SHARED_COMMANDS = new Set(["install", "run"]);
+// `bun <name>` runs Bun's own command for these instead of the package.json script.
+const BUN_BUILT_IN_COMMANDS = new Set(["build", "deploy"]);
+
+function toPackageManagerCommand(pm: PackageManager, command: string): string {
+	if (SHARED_COMMANDS.has(command)) return `${pm} ${command}`;
+	if (pm === "npm") return `npm run ${command}`;
+	if (pm === "bun" && BUN_BUILT_IN_COMMANDS.has(command)) return `bun run ${command}`;
+	return `${pm} ${command}`;
+}
+
+/** Rewrites the pnpm commands in a template doc for the chosen package manager. */
+export function replacePackageManagerCommands(content: string, pm: PackageManager): string {
+	if (pm === "pnpm") return content;
+	return content.replace(PNPM_COMMAND, (_match, command: string) =>
+		toPackageManagerCommand(pm, command),
+	);
 }

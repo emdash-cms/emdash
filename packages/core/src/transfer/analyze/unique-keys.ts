@@ -32,8 +32,7 @@ export const UNIQUE_CONSTRAINTS = [
 	"byline_principal_locale",
 	"byline_field_slug",
 	"menu_name_locale",
-	"relation_name_locale",
-	"relation_group_locale",
+	"relation_slug",
 	"widget_area_name",
 	"section_slug",
 	"content_reference_groups",
@@ -111,22 +110,14 @@ export function uniqueKeysOf(record: SitePackageRecord): UniqueKey[] {
 		case "menu":
 			return [key("menu_name_locale", record.name, record.locale)];
 		case "relation":
-			return [
-				key("relation_name_locale", record.name, record.locale),
-				key("relation_group_locale", record.translationGroup, record.locale),
-			];
+			return [key("relation_slug", record.slug)];
 		case "widget_area":
 			return [key("widget_area_name", record.name)];
 		case "section":
 			return [key("section_slug", record.slug)];
 		case "content_reference":
 			return [
-				key(
-					"content_reference_groups",
-					record.relationGroup,
-					record.parentGroup,
-					record.childGroup,
-				),
+				key("content_reference_groups", record.relationId, record.parentGroup, record.childGroup),
 			];
 		case "content_byline":
 			return [

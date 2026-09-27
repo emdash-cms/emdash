@@ -117,6 +117,10 @@ export interface SchemaField {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		targetCollection?: string;
+		multiple?: boolean;
+		relation?: string;
+		relationSide?: "parent" | "child";
 		allowedTypes?: string[];
 		retiredTypes?: string[];
 		minItems?: number;
@@ -188,6 +192,10 @@ export interface CreateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		targetCollection?: string;
+		multiple?: boolean;
+		relation?: string;
+		relationSide?: "parent" | "child";
 		allowedTypes?: string[];
 		retiredTypes?: string[];
 		minItems?: number;
@@ -212,6 +220,9 @@ export interface UpdateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		targetCollection?: string;
+		multiple?: boolean;
+		relation?: string;
 		allowedTypes?: string[];
 		retiredTypes?: string[];
 		minItems?: number;
@@ -429,9 +440,14 @@ export async function updateField(
 /**
  * Delete a field
  */
-export async function deleteField(collectionSlug: string, fieldSlug: string): Promise<void> {
+export async function deleteField(
+	collectionSlug: string,
+	fieldSlug: string,
+	options: { deleteRelation?: boolean } = {},
+): Promise<void> {
+	const qs = options.deleteRelation ? "?deleteRelation=true" : "";
 	const response = await apiFetch(
-		`${API_BASE}/schema/collections/${collectionSlug}/fields/${fieldSlug}`,
+		`${API_BASE}/schema/collections/${collectionSlug}/fields/${fieldSlug}${qs}`,
 		{ method: "DELETE" },
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete field`));

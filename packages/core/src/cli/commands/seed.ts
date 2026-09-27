@@ -13,6 +13,7 @@ import consola from "consola";
 import { createDatabase } from "../../database/connection.js";
 import { runMigrations } from "../../database/migrations/runner.js";
 import { applySeed } from "../../seed/apply.js";
+import { claimExplicitSeedOwnership } from "../../seed/ownership.js";
 import type { SeedFile, SeedApplyOptions } from "../../seed/types.js";
 import { validateSeed } from "../../seed/validate.js";
 import { LocalStorage } from "../../storage/local.js";
@@ -225,6 +226,7 @@ export const seedCommand = defineCommand({
 		// Apply seed
 		consola.start("Applying seed...");
 		try {
+			await claimExplicitSeedOwnership(db, seed);
 			const result = await applySeed(db, seed, options);
 
 			consola.success("Seed applied successfully!");

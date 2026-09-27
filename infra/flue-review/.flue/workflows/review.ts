@@ -31,6 +31,7 @@ import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
 	githubRateLimitGate,
+	fetchRepositoryTarball,
 	fetchUnifiedDiff,
 	fetchPullRequestRevision,
 	classifyPullRequestHeadMove,
@@ -195,7 +196,11 @@ function hydrateStep(payload: ReviewPayload, step: string, startedAt: number): v
 // the repo's shallow pack grows past roughly 16MB, so hydration must not
 // depend on git. gzip decompression is the runtime-native DecompressionStream.
 // Idempotent for one head and replaceable when a re-review advances to a new head.
-async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+async function hydrate(
+	env: Env,
+	payload: ReviewPayload,
+	token: GitHubToken | undefined,
+): Promise<void> {
 	const t0 = Date.now();
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	hydrateStep(payload, "workspace created", t0);
@@ -208,16 +213,10 @@ async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
 	}
 	await workspace.rm(REPO_DIR, { recursive: true, force: true });
 
-	const url = `https://api.github.com/repos/${payload.owner}/${payload.repo}/tarball/${payload.headSha}`;
-	const response = await fetch(url, {
-		headers: { "User-Agent": "emdash-flue-review", Accept: "application/vnd.github+json" },
-	});
-	if (!response.ok || !response.body) {
-		throw new Error(`tarball fetch failed: ${response.status} ${await response.text()}`);
-	}
+	const tarball = await fetchRepositoryTarball(payload.owner, payload.repo, payload.headSha, token);
 	hydrateStep(payload, "tarball response", t0);
 
-	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
+	const tarStream = tarball.pipeThrough(new DecompressionStream("gzip"));
 	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
 	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
 	await omitReviewArtifacts(workspace, REPO_DIR);
@@ -361,7 +360,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			) {
 				throw new Error("Review attempt is no longer active");
 			}
-			await hydrate(env, activePayload);
+			await hydrate(env, activePayload, token);
 
 			const session = await context.harness.session(`review-${revision.headSha}`);
 

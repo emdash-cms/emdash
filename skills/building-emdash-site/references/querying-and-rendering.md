@@ -81,6 +81,31 @@ interface PostData {
 
 **Important:** `entry.id` is the slug (for URLs), `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
 
+### Reference Fields
+
+A `reference` field's value is not in `data`. Ask for it by field slug through the `references` option, and read the page it returns:
+
+```typescript
+const { entry: post } = await getEmDashEntry("posts", slug, {
+	references: { author: true, related_posts: { limit: 6 } },
+});
+
+const author = post?.references?.author.entries[0];
+const related = post?.references?.related_posts.entries ?? [];
+```
+
+`true` is the first page at the default limit of 50; `{ limit, cursor }` takes at most 100 per page. `getEmDashReferences(collection, id, field, { cursor, limit })` fetches the next page of one field on its own.
+
+Each referenced entry is a full `ContentEntry` -- same `data` mapping, and an `edit` proxy scoped to the referenced entry. Bylines and taxonomy terms are **not** hydrated onto referenced entries; read those from the entry itself.
+
+Entries come back in the editor's order when the field sits on the parent end of its relation. A field on the child end lists whatever points at it, unordered.
+
+Ask only for the fields the page renders: a call with no `references` runs no extra queries, and each selected field costs one link query plus one entry query per distinct target collection.
+
+A public render sees published entries and the published selection. Preview and visual editing see the selection staged in the entry's draft.
+
+Generated types register a `{Collection}References` interface per collection with bound reference fields, so `post.references.author.entries[0].data` carries the target collection's interface and a field that was not selected is a type error.
+
 ### Caching
 
 Query results include a `cacheHint` for Astro's Route Caching:
@@ -88,11 +113,11 @@ Query results include a `cacheHint` for Astro's Route Caching:
 ```astro
 ---
 const { entries: posts, cacheHint } = await getEmDashCollection("posts");
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 ```
 
-Always call `Astro.cache.set(cacheHint)` -- it enables automatic cache invalidation when content changes.
+When Astro's route cache is enabled, call `Astro.cache.set(cacheHint)` so publishing invalidates cached output.
 
 ## Rendering Portable Text
 
@@ -109,17 +134,15 @@ Renders standard blocks (paragraphs, headings, lists, blockquotes, code blocks, 
 
 ### Custom block types
 
-For custom PT blocks (e.g., marketing components), pass a `components` prop:
+For custom Portable Text objects that belong inside a rich-text document, pass a `components` prop:
 
 ```astro
 ---
 import { PortableText } from "emdash/ui";
-import Hero from "./blocks/Hero.astro";
-import Features from "./blocks/Features.astro";
+import Diagram from "./blocks/Diagram.astro";
 
 const customTypes = {
-	"marketing.hero": Hero,
-	"marketing.features": Features,
+	"publication.diagram": Diagram,
 };
 ---
 <PortableText value={page.data.content} components={{ type: customTypes }} />
@@ -196,23 +219,18 @@ When an admin is logged in and views the site, these attributes enable click-to-
 
 ```astro
 ---
-import { getEmDashCollection, getEntryTerms } from "emdash";
+import { getEmDashCollection } from "emdash";
 import { Image } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
+	limit: 20,
 });
-Astro.cache.set(cacheHint);
-
-const sortedPosts = posts.toSorted((a, b) => {
-	const dateA = a.data.publishedAt?.getTime() ?? 0;
-	const dateB = b.data.publishedAt?.getTime() ?? 0;
-	return dateB - dateA;
-});
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 <Base title="Posts">
-	{sortedPosts.map(post => (
+		{posts.map(post => (
 		<article>
 			{post.data.featured_image && <Image image={post.data.featured_image} />}
 			<a href={`/posts/${post.id}`}>{post.data.title}</a>
@@ -226,7 +244,7 @@ const sortedPosts = posts.toSorted((a, b) => {
 
 ```astro
 ---
-import { getEmDashEntry, getEntryTerms, getSeoMeta } from "emdash";
+import { getEmDashEntry, getSeoMeta } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
@@ -236,7 +254,7 @@ if (!slug) return Astro.redirect("/404");
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
 if (!post) return Astro.redirect("/404");
 
-Astro.cache.set(cacheHint);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 const seo = getSeoMeta(post, {
 	siteTitle: "My Blog",
@@ -244,7 +262,7 @@ const seo = getSeoMeta(post, {
 	path: `/posts/${slug}`,
 });
 
-const tags = await getEntryTerms("posts", post.data.id, "tag");
+const tags = post.data.terms?.tag ?? [];
 ---
 <Base title={seo.title} description={seo.description}>
 	<article>
@@ -268,17 +286,23 @@ const tags = await getEntryTerms("posts", post.data.id, "tag");
 
 ```astro
 ---
-import { getTerm, getEmDashCollection } from "emdash";
+import { getTaxonomyTermsWithCacheHint, getEmDashCollection } from "emdash";
 import Base from "../../layouts/Base.astro";
 
 const { slug } = Astro.params;
-const term = slug ? await getTerm("category", slug) : null;
+const termsResult = await getTaxonomyTermsWithCacheHint("category", { includeCounts: false });
+const term = slug ? termsResult.data.find((item) => item.slug === slug) : null;
 if (!term) return Astro.redirect("/404");
 
-const { entries: posts } = await getEmDashCollection("posts", {
+const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
 	where: { category: term.slug },
 	orderBy: { published_at: "desc" },
+	limit: 20,
 });
+if (Astro.cache?.enabled) {
+	Astro.cache.set(termsResult.cacheHint);
+	Astro.cache.set(cacheHint);
+}
 ---
 <Base title={`${term.label} posts`}>
 	<h1>{term.label}</h1>

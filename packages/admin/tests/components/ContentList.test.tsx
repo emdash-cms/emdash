@@ -809,7 +809,13 @@ describe("ContentList", () => {
 			const items = Array.from({ length: 51 }, (_, index) =>
 				makeItem({ id: `item_${index}`, data: { title: `Post ${index}` } }),
 			);
-			const screen = await render(<ContentList {...defaultProps} items={items} bulkTagEnabled />);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					bulkTagTaxonomies={[{ name: "tag", label: "Tags", labelSingular: "Tag" }]}
+				/>,
+			);
 			for (let pageIndex = 0; pageIndex < 3; pageIndex++) {
 				await screen.getByRole("checkbox", { name: "Select all on this page" }).click();
 				if (pageIndex < 2) await screen.getByRole("button", { name: "Next page" }).click();
@@ -817,7 +823,7 @@ describe("ContentList", () => {
 			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeDisabled();
 			await expect
 				.element(screen.getByRole("status"))
-				.toHaveTextContent("Select up to 50 posts to add a tag.");
+				.toHaveTextContent("Select up to 50 posts at a time.");
 			await screen.getByRole("checkbox", { name: "Select Post 50" }).click();
 			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeEnabled();
 		});

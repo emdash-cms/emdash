@@ -27,6 +27,12 @@ function uniqueTerms(terms: TaxonomyTerm[]): TaxonomyTerm[] {
 	return [...groups.values()];
 }
 
+export interface BulkTagTaxonomy {
+	name: string;
+	label: string;
+	labelSingular?: string;
+}
+
 export interface SelectedBulkTagPost {
 	collection: string;
 	id: string;
@@ -58,7 +64,7 @@ function ResultBadge({ status }: { status: BulkTagResult["status"] }) {
 			: status === "added"
 				? t`Added`
 				: status === "skipped"
-					? t`Already tagged or duplicate`
+					? t`Already assigned or duplicate`
 					: status === "failed"
 						? t`Failed`
 						: t`Not matched`;
@@ -76,6 +82,7 @@ function ResultBadge({ status }: { status: BulkTagResult["status"] }) {
 }
 
 export function BulkTagDialog({
+	taxonomies,
 	open,
 	onClose,
 	onClosed,
@@ -84,6 +91,7 @@ export function BulkTagDialog({
 	defaultLocale,
 	onApplied,
 }: {
+	taxonomies: BulkTagTaxonomy[];
 	open: boolean;
 	onClose: () => void;
 	onClosed?: () => void;
@@ -95,6 +103,13 @@ export function BulkTagDialog({
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
 	const termLocale = activeLocale ?? defaultLocale ?? "en";
+	const [taxonomyName, setTaxonomyName] = React.useState<string | null>(null);
+	const taxonomy = taxonomies.find((def) => def.name === taxonomyName) ?? taxonomies[0];
+	const name = taxonomy?.name ?? "";
+	const singular = taxonomy?.labelSingular || taxonomy?.label || t`Term`;
+	const singularLower = singular.toLowerCase();
+	const plural = taxonomy?.label || t`Terms`;
+	const pluralLower = plural.toLowerCase();
 	const {
 		data: terms = [],
 		isLoading,
@@ -102,15 +117,10 @@ export function BulkTagDialog({
 		isFetching: termsFetching,
 		refetch: refetchTerms,
 	} = useQuery({
-		enabled: open,
-		queryKey: [
-			"taxonomy-terms",
-			"tag",
-			termLocale,
-			{ includeCounts: false, resolveFallback: true },
-		],
+		enabled: open && !!taxonomy,
+		queryKey: ["taxonomy-terms", name, termLocale, { includeCounts: false, resolveFallback: true }],
 		queryFn: () =>
-			fetchTerms("tag", { locale: termLocale, includeCounts: false, resolveFallback: true }),
+			fetchTerms(name, { locale: termLocale, includeCounts: false, resolveFallback: true }),
 	});
 	const options = uniqueTerms(terms);
 	const [termId, setTermId] = React.useState("");
@@ -123,6 +133,7 @@ export function BulkTagDialog({
 	const [error, setError] = React.useState<string | null>(null);
 	const [cacheRefreshFailed, setCacheRefreshFailed] = React.useState(false);
 	const reset = () => {
+		setTaxonomyName(null);
 		setTermId("");
 		setCreating(false);
 		setNewLabel("");
@@ -152,8 +163,8 @@ export function BulkTagDialog({
 		setBusy(true);
 		setError(null);
 		try {
-			const term = await createTerm("tag", { label: newLabel.trim(), locale: termLocale });
-			await queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", "tag"] });
+			const term = await createTerm(name, { label: newLabel.trim(), locale: termLocale });
+			await queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", name] });
 			setTermId(term.id);
 			setCreating(false);
 			setNewLabel("");
@@ -161,7 +172,7 @@ export function BulkTagDialog({
 			setApplied(false);
 			setCacheRefreshFailed(false);
 		} catch (caught) {
-			setError(caught instanceof Error ? caught.message : t`Could not create tag`);
+			setError(caught instanceof Error ? caught.message : t`Could not create ${singularLower}`);
 		} finally {
 			setBusy(false);
 		}
@@ -169,7 +180,7 @@ export function BulkTagDialog({
 
 	const preview = async () => {
 		if (!termId || sources.length === 0 || sources.length > 50) {
-			setError(t`Choose a tag and enter between 1 and 50 posts.`);
+			setError(t`Choose a term and enter between 1 and 50 posts.`);
 			return;
 		}
 		setBusy(true);
@@ -222,11 +233,11 @@ export function BulkTagDialog({
 			setCacheRefreshFailed((previous) =>
 				refreshOnly ? response.cacheRefreshFailed : previous || response.cacheRefreshFailed,
 			);
-			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", "tag"] });
+			void queryClient.invalidateQueries({ queryKey: ["taxonomy-terms", name] });
 			void queryClient.invalidateQueries({ queryKey: ["content"] });
 			onApplied?.(merged);
 		} catch (caught) {
-			setError(caught instanceof Error ? caught.message : t`Could not add tag`);
+			setError(caught instanceof Error ? caught.message : t`Could not add ${singularLower}`);
 		} finally {
 			setBusy(false);
 		}
@@ -249,9 +260,9 @@ export function BulkTagDialog({
 			>
 				<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
 					<div className="min-w-0">
-						<Dialog.Title className="text-lg font-semibold">{t`Add tag to posts`}</Dialog.Title>
+						<Dialog.Title className="text-lg font-semibold">{t`Add ${singularLower} to posts`}</Dialog.Title>
 						<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
-							{t`Existing tags stay in place.`}
+							{t`Existing ${pluralLower} stay in place.`}
 						</Dialog.Description>
 					</div>
 					<Button
@@ -267,12 +278,34 @@ export function BulkTagDialog({
 				<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto px-6 py-6">
 					{!review ? (
 						<>
+							{taxonomies.length > 1 && (
+								<Select
+									className="w-full"
+									label={t`Taxonomy`}
+									value={name}
+									disabled={busy}
+									onValueChange={(value) => {
+										setTaxonomyName(value ?? null);
+										setTermId("");
+										setCreating(false);
+										setNewLabel("");
+										setError(null);
+									}}
+									items={Object.fromEntries(taxonomies.map((def) => [def.name, def.label]))}
+								>
+									{taxonomies.map((def) => (
+										<Select.Option key={def.name} value={def.name}>
+											{def.label}
+										</Select.Option>
+									))}
+								</Select>
+							)}
 							<div className="space-y-2">
 								{creating ? (
 									<div className="flex flex-wrap items-end gap-2">
 										<div className="min-w-0 grow basis-full sm:basis-0">
 											<Input
-												label={t`New tag name`}
+												label={t`New ${singularLower} name`}
 												value={newLabel}
 												disabled={busy}
 												onChange={(event) => setNewLabel(event.target.value)}
@@ -284,7 +317,7 @@ export function BulkTagDialog({
 											disabled={busy || termsFailed || !newLabel.trim()}
 											onClick={() => void create()}
 										>
-											{t`Create tag`}
+											{t`Create ${singularLower}`}
 										</Button>
 										<Button type="button" variant="ghost" onClick={() => setCreating(false)}>
 											{t`Cancel`}
@@ -295,8 +328,8 @@ export function BulkTagDialog({
 										<div className="min-w-0 grow basis-full sm:basis-0">
 											<Select
 												className="w-full"
-												label={t`Tag`}
-												placeholder={t`Choose a tag`}
+												label={singular}
+												placeholder={t`Choose…`}
 												value={termId}
 												disabled={busy || isLoading || termsFailed}
 												onValueChange={(value) => {
@@ -318,21 +351,23 @@ export function BulkTagDialog({
 											disabled={busy || isLoading || termsFailed}
 											onClick={() => setCreating(true)}
 										>
-											{t`Create new tag`}
+											{t`Create new ${singularLower}`}
 										</Button>
 									</div>
 								)}
-								{isLoading && <p className="text-sm text-kumo-subtle">{t`Loading tags…`}</p>}
+								{isLoading && (
+									<p className="text-sm text-kumo-subtle">{t`Loading ${pluralLower}…`}</p>
+								)}
 								{termsFailed && (
 									<div className="flex flex-wrap items-center gap-2">
-										<DialogError message={t`Could not load tags.`} />
+										<DialogError message={t`Could not load ${pluralLower}.`} />
 										<Button
 											type="button"
 											variant="outline"
 											disabled={termsFetching}
 											onClick={() => void refetchTerms()}
 										>
-											{t`Retry loading tags`}
+											{t`Retry loading ${pluralLower}`}
 										</Button>
 									</div>
 								)}
@@ -385,10 +420,10 @@ export function BulkTagDialog({
 									<div className="min-w-0">
 										<h3 dir="auto" className="text-lg font-semibold">
 											{failed.length
-												? t`${added} tagged · ${failed.length} failed`
+												? t`${added} updated · ${failed.length} failed`
 												: added === 1
-													? t`1 post tagged`
-													: t`${added} posts tagged`}
+													? t`1 post updated`
+													: t`${added} posts updated`}
 										</h3>
 										<p className="text-sm text-kumo-subtle">{termLabel}</p>
 									</div>
@@ -396,7 +431,7 @@ export function BulkTagDialog({
 							) : (
 								<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-kumo-tint px-4 py-3 text-sm">
 									<div className="min-w-0">
-										<p className="text-kumo-subtle">{t`Tag`}</p>
+										<p className="text-kumo-subtle">{singular}</p>
 										<p className="font-semibold">{termLabel}</p>
 									</div>
 									<span dir="auto" className="text-kumo-subtle">
@@ -439,7 +474,7 @@ export function BulkTagDialog({
 							</div>
 							{cacheRefreshFailed && (
 								<p role="status" className="text-sm text-kumo-warning">
-									{t`Tags were saved, but cached pages may still show old tags. Retry the cache refresh.`}
+									{t`Changes were saved, but cached pages may still show old ${pluralLower}. Retry the cache refresh.`}
 								</p>
 							)}
 						</div>
@@ -449,7 +484,7 @@ export function BulkTagDialog({
 				<div className="flex shrink-0 flex-col gap-3 border-t border-kumo-line px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
 					{review && !applied && ready > 0 && (
 						<p dir="auto" className="text-sm text-kumo-info">
-							{t`Tags go live now; draft edits stay unpublished.`}
+							{t`${plural} go live now; draft edits stay unpublished.`}
 						</p>
 					)}
 					<div className="ms-auto flex flex-wrap justify-end gap-2">
@@ -523,8 +558,8 @@ export function BulkTagDialog({
 									{busy
 										? t`Adding…`
 										: ready === 1
-											? t`Add tag to 1 post`
-											: t`Add tag to ${ready} posts`}
+											? t`Add ${singularLower} to 1 post`
+											: t`Add ${singularLower} to ${ready} posts`}
 								</Button>
 							)
 						) : (

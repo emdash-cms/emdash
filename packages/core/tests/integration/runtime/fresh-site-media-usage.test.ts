@@ -16,6 +16,11 @@ vi.mock(
 					label: "Posts",
 					fields: [{ slug: "hero", label: "Hero", type: "image" }],
 				},
+				{
+					slug: "pages",
+					label: "Pages",
+					fields: [{ slug: "title", label: "Title", type: "string" }],
+				},
 			],
 			content: {
 				posts: [
@@ -38,8 +43,12 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import { activateMediaUsageCapture } from "../../../src/media/usage/activation.js";
 import { verifyMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
-import { SchemaRegistry } from "../../../src/schema/registry.js";
+import {
+	buildSeedCollectionCaptureFingerprint,
+	SchemaRegistry,
+} from "../../../src/schema/registry.js";
 import { applySeed } from "../../../src/seed/apply.js";
 import { loadSeed } from "../../../src/seed/load.js";
 
@@ -108,6 +117,41 @@ describe("fresh-site media usage tracking", () => {
 				.where("task_key", "=", "incremental_capture")
 				.executeTakeFirstOrThrow(),
 		).toEqual({ state: "expanded", activated_at: null });
+	});
+
+	it("resumes auto-seeding after a D1-style interruption leaves a registered collection", async () => {
+		const sqlite = new Database(":memory:");
+		setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await activateMediaUsageCapture(setupDb, { writersDrained: true });
+		const seed = await loadSeed();
+		await applySeed(setupDb, seed, { onConflict: "skip" });
+
+		const registry = new SchemaRegistry(setupDb);
+		const pages = await registry.getCollection("pages");
+		if (!pages) throw new Error("Expected seeded pages collection");
+		await setupDb.deleteFrom("_emdash_fields").where("collection_id", "=", pages.id).execute();
+		await setupDb.deleteFrom("_emdash_collections").where("id", "=", pages.id).execute();
+		const fingerprint = await buildSeedCollectionCaptureFingerprint(
+			{ slug: "pages", label: "Pages", supports: [] },
+			[{ slug: "title", label: "Title", type: "string" }],
+		);
+		await setupDb
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "installing", cursor: fingerprint })
+			.where("collection_id", "=", pages.id)
+			.execute();
+
+		runtime = await EmDashRuntime.create({
+			...createDeps(),
+			createDialect: () => new SqliteDialect({ database: sqlite }),
+		});
+
+		const resumed = await new SchemaRegistry(runtime.db).getCollectionWithFields("pages");
+		expect(resumed?.fields.map((field) => field.slug)).toEqual(["title"]);
+		expect(await new OptionsRepository(runtime.db).get("emdash:seed_complete")).toBe(true);
 	});
 });
 

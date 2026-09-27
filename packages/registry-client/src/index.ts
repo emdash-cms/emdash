@@ -109,6 +109,7 @@ export {
 	type HostEnv,
 	type SkippedEnvConstraint,
 	checkEnvCompatibility,
+	compareVersions,
 	findSkippedEnvConstraints,
 	hostEnvFromVersions,
 	isValidVersionRange,

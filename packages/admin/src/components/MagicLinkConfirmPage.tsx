@@ -51,7 +51,9 @@ export function MagicLinkConfirmPage({ token, redirectUrl }: MagicLinkConfirmPag
 			? t`This sign-in link has expired. Request a new one from the login page.`
 			: errorCode === "INVALID_TOKEN" || errorCode === "USER_NOT_FOUND"
 				? t`This sign-in link is invalid or has already been used. Request a new one from the login page.`
-				: t`Signing in failed. Please try again.`;
+				: errorCode === "SESSION_UNAVAILABLE"
+					? t`This site has no session storage configured, so sign-in cannot complete. Ask the site administrator to set session.driver in astro.config.mjs.`
+					: t`Signing in failed. Please try again.`;
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">

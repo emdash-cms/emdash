@@ -45,6 +45,7 @@ The following example contains every root property:
   "settings": {},
   "blockTypes": [],
   "collections": [],
+  "relations": [],
   "taxonomies": [],
   "bylines": [],
   "content": {},
@@ -216,6 +217,7 @@ A collection requires `slug`, `label`, and `fields`:
 | `unique` | `boolean` | Adds a uniqueness constraint |
 | `searchable` | `boolean` | Includes the field in collection search |
 | `indexed` | `boolean` | Adds a query index for supported scalar types |
+| `translatable` | `boolean` | Stores a value per locale; defaults to `true`. `false` shares one value across translations |
 | `defaultValue` | any | Initial value when the field is omitted |
 | `validation` | object | Validation rules used by generated content schemas |
 | `widget` | `string` | Admin field widget override |
@@ -231,7 +233,10 @@ Supported field types are:
 - `blocks`.
 - `image`, `file`, and `reference`.
 
-Only `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `reference`, and `slug` can set `indexed: true`.
+A `reference` field stores nothing in the collection table. Its links live in the relation it binds
+to; see [Relations](#relations).
+
+Only `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `reference`, and `slug` can set `indexed: true`. On a `reference` field the flag applies only while the field has no relation, since a bound field has no column to index.
 
 ### Field validation
 
@@ -249,6 +254,62 @@ The generated collection schema recognizes these rules where the field type supp
 `retiredTypes` on a blocks field is server-managed. Removing a slug from `allowedTypes` retires it so existing stored blocks remain valid while new blocks cannot use it.
 
 `validateSeed()` does not deeply type-check every rule in `validation` or `options`. An invalid rule can therefore pass seed validation and fail later when the collection schema is built or content is written.
+
+## Relations
+
+A relation joins two collections and owns the links between their entries. A reference field binds to
+one and views its links from one end. The following seed declares a relation between `posts` and
+`authors` that allows one author per post:
+
+```json
+{
+	"relations": [
+		{
+			"slug": "post_authors",
+			"parentCollection": "posts",
+			"childCollection": "authors",
+			"parentLabel": "Posts",
+			"parentLabelSingular": "Post",
+			"childLabel": "Authors",
+			"childLabelSingular": "Author",
+			"maxChildrenPerParent": 1
+		}
+	]
+}
+```
+
+| Property               | Type             | Required | Description                                            |
+| ---------------------- | ---------------- | -------- | ------------------------------------------------------ |
+| `slug`                 | `string`         | Yes      | Unique name a reference field addresses it by          |
+| `parentCollection`     | `string`         | Yes      | Collection on the parent end                           |
+| `childCollection`      | `string`         | Yes      | Collection on the child end                            |
+| `parentLabel`          | `string`         | Yes      | Names the parent's role, as seen from the child        |
+| `parentLabelSingular`  | `string`         | No       | Singular form of `parentLabel`                         |
+| `childLabel`           | `string`         | Yes      | Names the child's role, as seen from the parent        |
+| `childLabelSingular`   | `string`         | No       | Singular form of `childLabel`                          |
+| `maxChildrenPerParent` | `number \| null` | No       | How many children one parent may link (null: no limit) |
+| `maxParentsPerChild`   | `number \| null` | No       | How many parents one child may link (null: no limit)   |
+
+A reference field in `collections` names the relation it binds to:
+
+```json
+{
+	"slug": "author",
+	"label": "Author",
+	"type": "reference",
+	"validation": { "relation": "post_authors" }
+}
+```
+
+A field can name a `targetCollection` instead and have a relation created for it, which is the
+shorter path for a link only one collection views. Declare the relation in `relations` when both
+collections should view it, or to set its labels and limits.
+[`reference`](/reference/field-types/#reference) documents both forms and the validation keys each
+one takes.
+
+A relation's two collections are fixed once it exists: a seed naming different ones fails rather than
+leaving the links it holds pointing into a collection that is no longer an end of it. Labels and
+limits are updated when the seed is applied with `onConflict: "update"`.
 
 ## Taxonomies
 
@@ -379,6 +440,9 @@ Use a `$ref:` string inside `data` to replace a seed-local content ID with the c
 ```
 
 Reference targets must appear early enough to be present in the apply engine's ID map. An unresolved `$ref:` value remains as the original literal string; `validateSeed()` does not reject it.
+
+For a reference field, declare the links from the parent end of its relation. Both ends view one set
+of links, so a field on the child collection would restate links the parent already carries.
 
 ## Media references
 
@@ -511,7 +575,7 @@ Sections contain reusable Portable Text content:
 }
 ```
 
-Section slugs contain lowercase letters, digits, and hyphens. `source` is `theme` or `import`; a seed defaults it to `theme`. Sections are structural and are applied even when `includeContent` is false.
+Section slugs contain lowercase letters, digits, and hyphens. `source` is `theme`, `user`, or `import`; a seed defaults it to `theme`. Theme sections cannot be deleted in the admin. Sections are structural and are applied even when `includeContent` is false.
 
 ## Localization
 
@@ -612,7 +676,7 @@ Export the current local model and all content back to the template path:
 npx emdash export-seed --database ./data.db --with-content=all > seed/seed.json
 ```
 
-`export-seed` works directly on a local SQLite file. For a deployed D1 database, export it to a local file first. Review exported settings, content, and media references before committing the result.
+`export-seed` works directly on a local SQLite file. For a deployed D1 database, export it to a local file first. Review exported settings, content, and media references before committing the result. To make exported media importable on another site, pass `--media-base-url`; see [Media URLs](/reference/cli/#media-urls).
 
 ## Next steps
 

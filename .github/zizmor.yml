@@ -26,6 +26,13 @@ rules:
       # workflow_run head SHA, applies the diff, and pushes back via an app
       # token. It never checks out or executes PR-controlled code.
       - auto-format-apply.yml
+      # env-types-apply uses workflow_run to commit the regenerated
+      # emdash-env.d.ts patch computed by the untrusted `env-types` workflow.
+      # The trusted job only consumes the inert patch artifact, verifies the PR
+      # head SHA matches the workflow_run head SHA, refuses patches touching
+      # anything but emdash-env.d.ts, applies the diff, and pushes back via an
+      # app token. It never executes PR-controlled code.
+      - env-types-apply.yml
       # Lunaria only reads localized content and posts a status comment; does
       # not execute PR-controlled code.
       - lunaria.yml

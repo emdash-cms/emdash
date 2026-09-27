@@ -412,6 +412,8 @@ On a collection with revisions, publishing an entry copies the non-translatable 
 
 System fields like `status`, `published_at`, and `author_id` are always per-locale and never synced.
 
+A [reference field](/guides/relations/) is shared rather than synced: EmDash keys its links by the translation group, so every translation of an entry has one selection, and editing it from any locale changes it for all of them.
+
 <Aside>
   Non-translatable fields are useful for values that should stay consistent across locales, such as a product SKU or a sort order number.
 </Aside>
