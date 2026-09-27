@@ -1829,7 +1829,7 @@ importers:
         specifier: workspace:*
         version: link:../auth
       emdash:
-        specifier: workspace:>=0.15.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../core
       kysely:
         specifier: 'catalog:'
@@ -2065,7 +2065,7 @@ importers:
         specifier: workspace:*
         version: link:../auth
       '@emdash-cms/auth-atproto':
-        specifier: workspace:>=0.2.8
+        specifier: workspace:>=0.2.45-rc.0
         version: link:../auth-atproto
       '@emdash-cms/blocks':
         specifier: workspace:*
@@ -2523,7 +2523,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -2545,7 +2545,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.15.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -2554,7 +2554,7 @@ importers:
   packages/plugins/atproto:
     dependencies:
       emdash:
-        specifier: workspace:>=0.15.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
     devDependencies:
       '@emdash-cms/plugin-cli':
@@ -2576,7 +2576,7 @@ importers:
   packages/plugins/audit-log:
     dependencies:
       emdash:
-        specifier: workspace:>=0.15.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
     devDependencies:
       '@emdash-cms/plugin-cli':
@@ -2592,7 +2592,7 @@ importers:
   packages/plugins/color:
     dependencies:
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -2611,7 +2611,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0(astro@7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
       emdash:
-        specifier: workspace:>=0.15.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
       sanitize-html:
         specifier: ^2.17.1
@@ -2639,7 +2639,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.9.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
     devDependencies:
       '@testing-library/react':
@@ -2676,7 +2676,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       emdash:
-        specifier: workspace:>=0.11.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
       react:
         specifier: ^18.0.0 || ^19.0.0
@@ -2739,7 +2739,7 @@ importers:
   packages/plugins/webhook-notifier:
     dependencies:
       emdash:
-        specifier: workspace:>=0.15.0
+        specifier: workspace:>=1.0.1-rc.0
         version: link:../../core
     devDependencies:
       '@emdash-cms/plugin-cli':

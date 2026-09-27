@@ -1,5 +1,102 @@
 # emdash
 
+## 1.0.1-rc.0
+
+### Patch Changes
+
+- [#3515](https://github.com/emdash-cms/emdash/pull/3515) [`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d) Thanks [@ascorbic](https://github.com/ascorbic)! - Releases EmDash 1.0. This release includes breaking changes, such as removing APIs deprecated during 0.x. The other entries for this version describe each one and how to migrate; check them before upgrading from 0.42.
+  
+  From this release, breaking changes ship only in a new major version.
+  
+  The first 1.x version is 1.0.1. npm also lists a deprecated `emdash@1.0.0`, published by mistake from 0.7-era code; do not install it.
+
+- [#3518](https://github.com/emdash-cms/emdash/pull/3518) [`bc54886`](https://github.com/emdash-cms/emdash/commit/bc5488685c8a886e2375d066d7424ddf4aac9a78) Thanks [@ascorbic](https://github.com/ascorbic)! - Moves the subpaths that only EmDash itself loads under `emdash/internal/`, and the D1 and Hyperdrive migration executors under `@emdash-cms/cloudflare/internal/`. These paths are not public API: their exports can change or be removed in any release.
+  
+  Sites that use `emdash()` in `astro.config.mjs` need no changes. The integration, the database, cache and media adapter helpers, and the first-party Cloudflare, workerd sandbox and plugin-test packages all load the new paths automatically.
+  
+  The following subpaths are removed:
+  
+  | Removed subpath                                   | Now loaded from                                            |
+  | ------------------------------------------------- | ---------------------------------------------------------- |
+  | `emdash/routes/*`                                 | `emdash/internal/routes/*`                                 |
+  | `emdash/middleware/auth`                          | `emdash/internal/middleware/auth`                          |
+  | `emdash/middleware/redirect`                      | `emdash/internal/middleware/redirect`                      |
+  | `emdash/middleware/request-context`               | `emdash/internal/middleware/request-context`               |
+  | `emdash/middleware/setup`                         | `emdash/internal/middleware/setup`                         |
+  | `emdash/middleware/media-usage-write-fence`       | `emdash/internal/middleware/media-usage-write-fence`       |
+  | `emdash/image-endpoint`                           | `emdash/internal/image-endpoint`                           |
+  | `emdash/media/local-runtime`                      | `emdash/internal/media/local-runtime`                      |
+  | `emdash/object-cache/memory`                      | `emdash/internal/object-cache/memory`                      |
+  | `emdash/db/sqlite-migrations`                     | `emdash/internal/db/sqlite-migrations`                     |
+  | `emdash/db/libsql-migrations`                     | `emdash/internal/db/libsql-migrations`                     |
+  | `emdash/db/postgres-migrations`                   | `emdash/internal/db/postgres-migrations`                   |
+  | `emdash/database/migration-lock`                  | `emdash/internal/database/migration-lock`                  |
+  | `emdash/database/pg-migration-lock`               | `emdash/internal/database/pg-migration-lock`               |
+  | `emdash/plugins/host`                             | `emdash/internal/plugins/host`                             |
+  | `emdash/plugins/http-wire`                        | `emdash/internal/plugins/http-wire`                        |
+  | `emdash/plugins/adapt-sandbox-entry`              | `emdash/internal/plugins/adapt-sandbox-entry`              |
+  | `emdash/plugin-test-runtime`                      | `emdash/internal/plugin-test-runtime`                      |
+  | `emdash/testing/registry`                         | `emdash/internal/testing/registry`                         |
+  | `@emdash-cms/cloudflare/db/d1-migrations`         | `@emdash-cms/cloudflare/internal/db/d1-migrations`         |
+  | `@emdash-cms/cloudflare/db/hyperdrive-migrations` | `@emdash-cms/cloudflare/internal/db/hyperdrive-migrations` |
+  
+  #### What should I do?
+  
+  If your project or package imports one of the removed subpaths directly, replace the import with a public entrypoint:
+  
+  - To configure a database, object cache or media provider, use `sqlite()`, `libsql()` or `postgres()` from `emdash/db`, `memoryCache()` from `emdash/astro`, or `localMedia()` from `emdash/media`, instead of writing their entrypoints by hand.
+  - To test a plugin, use `@emdash-cms/plugin-test` instead of `emdash/plugin-test-runtime`.
+  - To run your own middleware before EmDash's, set the `middleware.outer` option of `emdash()`. The internal auth, setup, redirect and request-context middleware have no public replacement.
+  
+  Rebuild after upgrading. `emdash migrate` rejects a migration manifest written by an earlier EmDash version.
+
+- [#3519](https://github.com/emdash-cms/emdash/pull/3519) [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the deprecated `Comments` and `CommentForm` exports from `emdash/ui`. Sites that still import either component from `emdash/ui` fail to build after upgrading.
+  
+  Import them from `emdash/ui/comments` instead:
+  
+  ```diff
+  - import { Comments, CommentForm } from "emdash/ui";
+  + import { Comments, CommentForm } from "emdash/ui/comments";
+  ```
+  
+  The components themselves are unchanged. Importing them from `emdash/ui/comments` also keeps comment styles off pages that don't render comments.
+
+- [#3519](https://github.com/emdash-cms/emdash/pull/3519) [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the deprecated `emdash dev` and `emdash auth secret` CLI commands. Scripts that still call either command now exit with `Unknown command`.
+  
+  - Replace `emdash dev` with the site's own dev script, such as `pnpm dev`, or run `astro dev` directly. The site then uses its configured database adapter instead of a local `./data.db`, which `emdash dev` created and migrated even on D1 sites. The `url` key under `emdash` in `package.json` was only read by `emdash dev --types` and can be deleted. To generate types from a remote instance, run `emdash types --url <site-url>`, or set `EMDASH_URL`.
+  - Remove `emdash auth secret` from scripts. New installations don't need `EMDASH_AUTH_SECRET`. Existing installations should keep the value they already have, since EmDash still reads it to keep commenter-IP hashes stable. To encrypt plugin secrets at rest, generate `EMDASH_ENCRYPTION_KEY` with `emdash secrets generate`.
+
+- [#3519](https://github.com/emdash-cms/emdash/pull/3519) [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd) Thanks [@ascorbic](https://github.com/ascorbic)! - Removes the deprecated `experimental.registry` integration option. Sites that still set it now fail at startup with an error pointing to the top-level `registry` option, including sites that already set `registry` alongside it. The value is not silently ignored, because that would drop the configured aggregator and release-age policy.
+  
+  Move the value unchanged. The top-level option accepts the same URL string or configuration object:
+  
+  ```diff
+   emdash({
+  -	experimental: {
+  -		registry: {
+  -			aggregatorUrl: "https://registry.example.com",
+  -			policy: { minimumReleaseAge: "48h" },
+  -		},
+  -	},
+  +	registry: {
+  +		aggregatorUrl: "https://registry.example.com",
+  +		policy: { minimumReleaseAge: "48h" },
+  +	},
+   });
+  ```
+  
+  The `experimental` option is also removed from the `EmDashConfig` type, because it has no remaining settings. An empty `experimental: {}` block is still ignored at runtime, but TypeScript configs should delete it. Registry configuration errors in the admin now always name the top-level `registry.*` setting.
+
+- [#3519](https://github.com/emdash-cms/emdash/pull/3519) [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a startup warning when an installed or configured plugin declares deprecated capability names such as `read:content`, `network:fetch` or `page:inject`. The warning appears once per plugin and lists each current replacement, for example `read:content → content:read`. The deprecated names keep working throughout 1.x. If a plugin you use triggers the warning, update it, or ask its author to publish a version that uses the current names.
+  
+  `aiSearch()` from `@emdash-cms/cloudflare` now declares `content:read`, so it no longer triggers the warning.
+- Updated dependencies [[`d274172`](https://github.com/emdash-cms/emdash/commit/d27417232e61bf85c1c613fecbe6875e1172af0d), [`0b4be2c`](https://github.com/emdash-cms/emdash/commit/0b4be2c8388744153a7a82814bfe91af09a1fcfd)]:
+  - @emdash-cms/admin@1.0.1-rc.0
+  - @emdash-cms/auth@1.0.1-rc.0
+  - @emdash-cms/blocks@1.0.1-rc.0
+  - @emdash-cms/gutenberg-to-portable-text@1.0.1-rc.0
+  - @emdash-cms/auth-atproto@0.2.45-rc.0
+
 ## 0.42.0
 
 ### Minor Changes
