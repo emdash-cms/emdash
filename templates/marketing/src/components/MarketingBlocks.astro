@@ -1,6 +1,7 @@
 ---
 import { Blocks, defineBlockComponents } from "emdash/ui";
 import type { PageContentBlock } from "../../emdash-env";
+import CallToAction from "./blocks/CallToAction.astro";
 import FAQ from "./blocks/FAQ.astro";
 import Features from "./blocks/Features.astro";
 import Hero from "./blocks/Hero.astro";
@@ -19,6 +20,7 @@ const marketingComponents = defineBlockComponents<PageContentBlock>({
 	marketing_testimonials: Testimonials,
 	marketing_pricing: Pricing,
 	marketing_faq: FAQ,
+	marketing_cta: CallToAction,
 });
 ---
 

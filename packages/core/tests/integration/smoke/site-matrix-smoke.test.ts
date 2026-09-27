@@ -1,6 +1,14 @@
 import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import {
+	cpSync,
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	symlinkSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -9,6 +17,7 @@ import { promisify } from "node:util";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
+import { EmDashClient } from "../../../src/client/index.js";
 import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
 
@@ -71,7 +80,7 @@ const SITE_MATRIX: SiteCase[] = [
 		startupTimeoutMs: 90_000,
 		frontendExpectations: [
 			{ path: "/", text: "Build products people actually want" },
-			{ path: "/pricing", text: "Simple, transparent pricing" },
+			{ path: "/blog", text: "The work between releases" },
 		],
 	},
 	{
@@ -81,7 +90,7 @@ const SITE_MATRIX: SiteCase[] = [
 		startupTimeoutMs: 120_000,
 		frontendExpectations: [
 			{ path: "/", text: "Build products people actually want" },
-			{ path: "/pricing", text: "Simple, transparent pricing" },
+			{ path: "/blog", text: "The work between releases" },
 		],
 	},
 	{
@@ -257,6 +266,52 @@ async function killServer(serverProcess: ReturnType<typeof spawn>): Promise<void
 	await Promise.race([exited, delay(1000, undefined, { ref: false })]);
 }
 
+async function bootIsolatedMarketingSite(): Promise<
+	BootedServer & { cleanup: () => Promise<void> }
+> {
+	const sourceDir = resolve(WORKSPACE_ROOT, "templates/marketing");
+	const serversDir = resolve(import.meta.dirname, "../.servers");
+	mkdirSync(serversDir, { recursive: true });
+	const workDir = mkdtempSync(join(serversDir, "marketing-"));
+	const excludedNames = new Set([
+		".astro",
+		".wrangler",
+		"data.db",
+		"data.db-shm",
+		"data.db-wal",
+		"dist",
+		"node_modules",
+	]);
+
+	cpSync(sourceDir, workDir, {
+		recursive: true,
+		filter: (source) =>
+			source === sourceDir || !excludedNames.has(source.slice(sourceDir.length + 1).split("/")[0]!),
+	});
+	symlinkSync(join(sourceDir, "node_modules"), join(workDir, "node_modules"));
+
+	const site: SiteCase = {
+		name: "templates/marketing",
+		dir: workDir,
+		port: 4619,
+		startupTimeoutMs: 90_000,
+	};
+
+	try {
+		const server = await bootSite(site);
+		return {
+			...server,
+			cleanup: async () => {
+				await killServer(server.process);
+				rmSync(workDir, { recursive: true, force: true });
+			},
+		};
+	} catch (error) {
+		rmSync(workDir, { recursive: true, force: true });
+		throw error;
+	}
+}
+
 async function verifyCoreMcp(baseUrl: string, token: string): Promise<void> {
 	const headers = {
 		"Content-Type": "application/json",
@@ -374,6 +429,134 @@ describe.sequential("Site runtime verification", () => {
 			},
 		);
 	}
+});
+
+function linkHrefInSection(html: string, sectionId: string, linkText: string): string | undefined {
+	const section = html.match(
+		new RegExp(`<section\\b[^>]*\\bid=["']${sectionId}["'][^>]*>([\\s\\S]*?)<\\/section>`),
+	)?.[1];
+	if (!section) return undefined;
+
+	for (const match of section.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)) {
+		const text = match[2]
+			?.replace(/<[^>]+>/g, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+		if (text !== linkText) continue;
+		return match[1]?.match(/\bhref=["']([^"']+)["']/)?.[1];
+	}
+
+	return undefined;
+}
+
+describe.sequential("Marketing template frontend behavior", () => {
+	it(
+		"keeps pricing actions and every blog archive page reachable",
+		{ timeout: 210_000 },
+		async () => {
+			const server = await bootIsolatedMarketingSite();
+
+			try {
+				const setupResponse = await fetchWithRetry(
+					`${server.baseUrl}/_emdash/api/setup/dev-bypass?token=1`,
+				);
+				expect(setupResponse.status).toBe(200);
+				const setup = (await setupResponse.json()) as { data?: { token?: string } };
+				const token = setup.data?.token;
+				expect(token).toBeTruthy();
+				if (!token) throw new Error("Dev bypass did not return an admin token");
+
+				const client = new EmDashClient({ baseUrl: server.baseUrl, token });
+				const seededPosts = await client.list("posts", { limit: 12 });
+				const seededPost = seededPosts.items.find(
+					(item) => item.slug === "plan-the-week-after-a-product-launch",
+				);
+				expect(seededPost).toBeDefined();
+
+				const pricingResponse = await fetch(`${server.baseUrl}/pricing`, { redirect: "manual" });
+				expect(pricingResponse.status).toBe(302);
+				const pricingTarget = new URL(pricingResponse.headers.get("location")!, server.baseUrl);
+				expect(`${pricingTarget.pathname}${pricingTarget.hash}`).toBe("/#pricing");
+
+				const homepage = await fetchWithRetry(`${server.baseUrl}/`);
+				const homepageHtml = await homepage.text();
+				expect(linkHrefInSection(homepageHtml, "cta", "View Plans")).toBe("/#pricing");
+				const headerHtml = homepageHtml
+					.split('<header class="site-header"')[1]
+					?.split("</header>")[0];
+				expect(headerHtml).toBeDefined();
+				expect(headerHtml).not.toContain('href="/_emdash/admin"');
+
+				const seoUpdate = await fetch(
+					`${server.baseUrl}/_emdash/api/content/posts/${seededPost!.id}`,
+					{
+						method: "PUT",
+						headers: {
+							Authorization: `Bearer ${token}`,
+							"Content-Type": "application/json",
+							"X-EmDash-Request": "1",
+						},
+						body: JSON.stringify({ seo: { title: "Editor SEO title" } }),
+					},
+				);
+				expect(seoUpdate.status).toBe(200);
+				await client.publish("posts", seededPost!.id);
+
+				const article = await fetchWithRetry(
+					`${server.baseUrl}/blog/plan-the-week-after-a-product-launch`,
+				);
+				const articleHtml = await article.text();
+				expect(article.status).toBe(200);
+				expect(articleHtml.match(/<meta property="og:type" content="([^"]+)"/)?.[1]).toBe(
+					"article",
+				);
+				expect(articleHtml.match(/<title>([^<]+)<\/title>/)?.[1]).toContain("Editor SEO title");
+				expect(articleHtml).toContain('"@type":"BlogPosting"');
+
+				for (let index = 1; index <= 13; index++) {
+					const item = await client.create("posts", {
+						slug: `archive-regression-story-${index}`,
+						data: { title: `Archive regression story ${index}` },
+					});
+					await client.publish("posts", item.id);
+				}
+
+				const firstArchive = await fetchWithRetry(`${server.baseUrl}/blog`);
+				const firstArchiveHtml = await firstArchive.text();
+				const olderHref = firstArchiveHtml.match(
+					/<a\b[^>]*\bhref=["']([^"']+)["'][^>]*\bdata-pagination=["']older["']/,
+				)?.[1];
+				expect(olderHref).toBeTruthy();
+
+				const olderArchive = await fetchWithRetry(new URL(olderHref!, server.baseUrl).toString());
+				expect(
+					olderArchive.status,
+					`${olderHref} redirected to ${olderArchive.headers.get("location")}`,
+				).toBe(200);
+				expect(await olderArchive.text()).toMatch(/Archive regression story \d+/);
+
+				const invalidCursor = await fetch(`${server.baseUrl}/blog?cursor=not-a-cursor`, {
+					redirect: "manual",
+				});
+				expect(invalidCursor.status).toBe(302);
+				expect(new URL(invalidCursor.headers.get("location")!, server.baseUrl).pathname).toBe(
+					"/blog",
+				);
+
+				const invalidSlug = await fetch(`${server.baseUrl}/blog/%25ZZ`, { redirect: "manual" });
+				expect(invalidSlug.status).toBe(302);
+				expect(new URL(invalidSlug.headers.get("location")!, server.baseUrl).pathname).toBe("/404");
+			} catch (error) {
+				throw new Error(
+					`templates/marketing regression smoke failed: ${error instanceof Error ? error.message : String(error)}\n\n` +
+						server.output.slice(-3000),
+					{ cause: error },
+				);
+			} finally {
+				await server.cleanup();
+			}
+		},
+	);
 });
 
 const CLOUDFLARE_OPTIMIZER_SITE: SiteCase = {
