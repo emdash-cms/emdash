@@ -237,6 +237,7 @@ describe("media usage details handler and route", () => {
 						],
 					},
 				],
+				siteSettings: [],
 				coverage: { scope: "all_content_collections", status: "complete" },
 			},
 		});
@@ -265,6 +266,7 @@ describe("media usage details handler and route", () => {
 			success: true,
 			data: {
 				items: [],
+				siteSettings: [],
 				coverage: { scope: "all_content_collections", status: "complete" },
 			},
 		});

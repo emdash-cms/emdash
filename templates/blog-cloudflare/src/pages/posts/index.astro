@@ -5,8 +5,15 @@ import { getReadingTime } from "../../utils/reading-time";
 
 // Sort in the database rather than in JS — lets the DB use its index on
 // published_at and avoids a full-table scan on the client.
-const { entries: posts, cacheHint } = await getEmDashCollection("posts", {
+const cursor = Astro.url.searchParams.get("cursor") || undefined;
+const {
+	entries: posts,
+	cacheHint,
+	nextCursor,
+} = await getEmDashCollection("posts", {
 	orderBy: { published_at: "desc" },
+	limit: 20,
+	cursor,
 });
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
@@ -39,7 +46,7 @@ const formatDate = (date: Date) =>
 		<header class="page-header">
 			<h1 class="page-title">All Posts</h1>
 			<p class="page-description">
-				{posts.length}
+				{posts.length}{" "}
 				{posts.length === 1 ? "article" : "articles"}
 			</p>
 		</header>
@@ -86,9 +93,9 @@ const formatDate = (date: Date) =>
 									{post.data.publishedAt && <span class="meta-dot" />}
 									<span>{getReadingTime(post.data.content)} min read</span>
 								</div>
-								<h2 class="post-title">{post.data.title}</h2>
+								<h2 class="post-title" {...post.edit.title}>{post.data.title}</h2>
 								{post.data.excerpt && (
-									<p class="post-excerpt">{post.data.excerpt}</p>
+									<p class="post-excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
 								)}
 							</a>
 							{tags.length > 0 && (
@@ -105,6 +112,16 @@ const formatDate = (date: Date) =>
 				</div>
 			)
 		}
+		<nav class="pagination" aria-label="Pagination">
+			{cursor && <a href="/posts">First page</a>}
+			{
+				nextCursor && (
+					<a href={`/posts?cursor=${encodeURIComponent(nextCursor)}`}>
+						Next page
+					</a>
+				)
+			}
+		</nav>
 	</div>
 </Base>
 

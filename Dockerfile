@@ -34,8 +34,15 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 
 COPY . .
-RUN sed -i '/slidev/d' pnpm-workspace.yaml
+# The deps stage installs only packages/, templates/ and demos/. COPY . . adds
+# the rest of the workspace (apps/, fixtures/, i18n, infra/, ...), whose
+# dependencies were never installed, so pnpm's verifyDepsBeforeRun check would
+# refuse to run the build. The partial install is intended; drop the check.
+RUN sed -i '/slidev/d;/verifyDepsBeforeRun/d' pnpm-workspace.yaml
 RUN sed -i 's|file:./data.db|file:./data/data.db|' templates/blog/astro.config.mjs
+
+# Package compilation and the legacy deploy can exceed Node's default heap.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 RUN pnpm build && pnpm --filter @emdash-cms/template-blog build
 

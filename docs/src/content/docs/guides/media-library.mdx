@@ -211,12 +211,24 @@ Cropping an animated WebP creates a still WebP. The cropped result does not reta
 
 ## See where a file is used
 
-Open a local file and select **Used in** to list content entries that refer to it. Each result names
-the collection and fields that contain the reference and can open the entry for editing. Trashed
-entries are identified in the list.
+Open a local file and select **Used in** to list the content entries and site settings that refer to
+it. Each content result names the collection and fields that contain the reference and can open the
+entry for editing. Trashed entries are identified in the list. A **Site Settings** result names the
+settings that select the file: **Logo**, **Favicon**, or **Default Social Image**.
 
-Media usage tracking must be active before this list can be complete. An administrator turns it on
-once for the site:
+**Used in** checks these references:
+
+- image and file fields
+- image fields inside repeaters
+- image, file, and Portable Text fields inside `blocks` fields
+- image and gallery blocks in Portable Text fields
+- the site logo, favicon, and default social image
+
+When usage coverage is complete and the file has none of these references, the list shows **No
+tracked references found**. Until coverage is complete, an empty list shows **No usage to show yet**.
+
+Media usage tracking must be active before the content results can be complete. Site settings are
+listed whether or not tracking is active. An administrator turns tracking on once for the site:
 
 <Steps>
 1. Finish current content edits. Pause scripts, imports, and other tools that write to content, then
@@ -241,9 +253,10 @@ Once enabled, media usage tracking cannot be turned off. New content changes are
 capture becomes active; the background scan adds references from entries that already existed.
 
 <Aside type="caution">
-	**Used in** checks supported references stored in EmDash content. It does not inspect custom source
-	code, generated HTML, another database, or an external site. An empty or incomplete list does not
-	prove that deleting the file is safe.
+	**Used in** checks only the references listed above. It does not inspect custom Portable Text
+	blocks, custom source code, generated HTML, another database, or an external site. A file that only
+	a custom block refers to has no results. An empty or incomplete list does not prove that deleting
+	the file is safe.
 </Aside>
 
 If the **Used in** view reports that indexing is running, stale, partial, or failed, treat its results

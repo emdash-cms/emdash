@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect } from "vitest";
 
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { createMediaProvider } from "../../../src/media/local-runtime.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
@@ -61,6 +62,28 @@ describeEachDialect("image field dark variant normalization", (dialect) => {
 			slug: "attachment",
 			label: "Attachment",
 			type: "file",
+		});
+		await new BlockTypeRegistry(ctx.db).createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [
+				{ slug: "image", label: "Image", type: "image", options: { darkVariant: true } },
+				{ slug: "file", label: "File", type: "file" },
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					validation: {
+						subFields: [{ slug: "image", label: "Image", type: "image" }],
+					},
+				},
+			],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
 		});
 
 		runtime = createTestRuntime(ctx.db);
@@ -231,5 +254,39 @@ describeEachDialect("image field dark variant normalization", (dialect) => {
 			unknown
 		>;
 		expect(hero.darkVariant).toBeUndefined();
+	});
+
+	it("normalizes image, dark variant, file, and repeater image values inside blocks", async () => {
+		const result = await runtime.handleContentCreate("posts", {
+			slug: "block-media",
+			data: {
+				title: "Block media",
+				layout: [
+					{
+						_type: "feature",
+						_version: 1,
+						_key: "feature-key",
+						image: {
+							id: lightId,
+							provider: "local",
+							darkVariant: { id: darkId, provider: "local" },
+						},
+						file: { id: lightId, provider: "local" },
+						items: [{ image: { id: darkId, provider: "local" } }],
+					},
+				],
+			},
+		});
+		if (!result.success) throw new Error(JSON.stringify(result.error));
+
+		const [block] = (result.data.item.data as { layout: Record<string, unknown>[] }).layout;
+		const image = block!.image as Record<string, unknown>;
+		const file = block!.file as Record<string, unknown>;
+		const itemImage = (block!.items as Array<{ image: Record<string, unknown> }>)[0]!.image;
+
+		expect(image).toMatchObject({ id: lightId, provider: "local", width: 1200 });
+		expect(image.darkVariant).toMatchObject({ id: darkId, provider: "local", width: 1200 });
+		expect(file).toMatchObject({ id: lightId, provider: "local", filename: "hero-light.png" });
+		expect(itemImage).toMatchObject({ id: darkId, provider: "local", width: 1200 });
 	});
 });

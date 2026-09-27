@@ -1,6 +1,6 @@
 ---
-import { getMenu, getSiteSettings } from "emdash";
-import { EmDashHead } from "emdash/ui";
+import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
+import { EmDashBodyEnd, EmDashBodyStart, EmDashHead } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import { Font } from "astro:assets";
 import "../styles/tokens.css";
@@ -8,33 +8,65 @@ import "../styles/theme.css";
 
 interface Props {
 	title?: string;
-	description?: string;
-	image?: string;
+	pageTitle?: string | null;
+	description?: string | null;
+	image?: string | null;
+	canonical?: string | null;
+	robots?: string | null;
 	type?: "website" | "article";
+	content?: { collection: string; id: string; slug?: string | null };
 }
 
-const { title, description, image, type = "website" } = Astro.props;
-const settings = await getSiteSettings();
-const siteTitle = settings?.title || "Studio";
-const fullTitle = title ? `${title} — ${siteTitle}` : siteTitle;
-const siteDescription = settings?.tagline || "Design & Development";
-const siteLogo = (settings?.logo as any)?.url ? settings.logo as
-	{ mediaId: string; alt?: string; url: string } : null;
+const {
+	title,
+	pageTitle,
+	description,
+	image,
+	canonical,
+	robots,
+	type = "website",
+	content,
+} = Astro.props;
+const [settingsResult, menuResult] = await Promise.all([
+	getSiteSettingsWithCacheHint(),
+	getMenuWithCacheHint("primary"),
+]);
+const settings = settingsResult.data;
+const menu = menuResult.data;
+if (Astro.cache?.enabled) {
+	Astro.cache.set(settingsResult.cacheHint);
+	Astro.cache.set(menuResult.cacheHint);
+}
 
-const menu = await getMenu("primary");
+const siteTitle = settings?.title || "Studio";
+const separator = settings?.seo?.titleSeparator || " — ";
+const fullTitle = !title
+	? siteTitle
+	: title === siteTitle ||
+		  title.endsWith(` — ${siteTitle}`) ||
+		  title.endsWith(` | ${siteTitle}`)
+		? title
+		: `${title}${separator}${siteTitle}`;
+const siteDescription = settings?.tagline || "Design & Development";
+const siteLogo = settings?.logo?.url ? settings.logo : null;
+const canonicalUrl =
+	canonical ?? new URL(Astro.url.pathname, Astro.url.origin).href;
 
 const pageCtx = createPublicPageContext({
 	Astro,
-	kind: "custom",
+	kind: content ? "content" : "custom",
 	pageType: type,
 	title: fullTitle,
-	pageTitle: title ?? siteTitle,
+	pageTitle: pageTitle ?? title ?? siteTitle,
 	description: description || siteDescription,
-	canonical: Astro.url.href,
+	canonical: canonicalUrl,
 	image,
-	seo: { ogImage: image },
+	content,
+	seo: { ogImage: image, robots },
 	siteName: siteTitle,
 });
+
+const isLoggedIn = Boolean(Astro.locals.user);
 ---
 
 <!doctype html>
@@ -65,23 +97,43 @@ const pageCtx = createPublicPageContext({
 		</script>
 	</head>
 	<body>
+		<EmDashBodyStart page={pageCtx} />
 		<header class="site-header">
 			<nav class="nav">
 				<a href="/" class="site-title">
-					{siteLogo
-						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
-						: siteTitle
+					{
+						siteLogo ? (
+							<img
+								src={siteLogo.url}
+								alt={siteLogo.alt || siteTitle}
+								class="site-logo-img"
+							/>
+						) : (
+							siteTitle
+						)
 					}
 				</a>
 				<div class="nav-links">
 					{
 						menu?.items.map((item) => (
-							<a href={item.url} target={item.target}>
+							<a
+								href={item.url}
+								target={item.target}
+								rel={
+									item.target === "_blank" ? "noopener noreferrer" : undefined
+								}
+							>
 								{item.label}
 							</a>
 						))
 					}
-					<a href="/_emdash/admin" class="nav-admin">Admin</a>
+					{
+						isLoggedIn && (
+							<a href="/_emdash/admin" class="nav-admin">
+								Admin
+							</a>
+						)
+					}
 				</div>
 			</nav>
 		</header>
@@ -94,9 +146,16 @@ const pageCtx = createPublicPageContext({
 			<div class="footer-content">
 				<div class="footer-brand">
 					<span class="footer-logo">
-						{siteLogo
-							? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
-							: siteTitle
+						{
+							siteLogo ? (
+								<img
+									src={siteLogo.url}
+									alt={siteLogo.alt || siteTitle}
+									class="footer-logo-img"
+								/>
+							) : (
+								siteTitle
+							)
 						}
 					</span>
 					<p class="footer-tagline">
@@ -109,18 +168,21 @@ const pageCtx = createPublicPageContext({
 							type="button"
 							class="theme-btn"
 							data-theme="light"
+							aria-pressed="false"
 							aria-label="Light mode">Light</button
 						>
 						<button
 							type="button"
 							class="theme-btn"
 							data-theme="dark"
+							aria-pressed="false"
 							aria-label="Dark mode">Dark</button
 						>
 						<button
 							type="button"
 							class="theme-btn"
 							data-theme="system"
+							aria-pressed="false"
 							aria-label="System theme">System</button
 						>
 					</div>
@@ -130,6 +192,7 @@ const pageCtx = createPublicPageContext({
 				</div>
 			</div>
 		</footer>
+		<EmDashBodyEnd page={pageCtx} />
 
 		<script>
 			// Theme switcher
@@ -139,6 +202,9 @@ const pageCtx = createPublicPageContext({
 			const root = document.documentElement;
 
 			function setTheme(theme: string) {
+				if (theme !== "light" && theme !== "dark" && theme !== "system") {
+					theme = "system";
+				}
 				const secure = location.protocol === "https:" ? "; Secure" : "";
 				if (theme === "system") {
 					document.cookie = `theme=; path=/; max-age=0; SameSite=Lax${secure}`;
@@ -153,7 +219,9 @@ const pageCtx = createPublicPageContext({
 
 			function updateActiveBtn(theme: string) {
 				themeBtns.forEach((btn) => {
-					btn.classList.toggle("active", btn.dataset.theme === theme);
+					const active = btn.dataset.theme === theme;
+					btn.classList.toggle("active", active);
+					btn.setAttribute("aria-pressed", String(active));
 				});
 			}
 
@@ -417,6 +485,20 @@ const pageCtx = createPublicPageContext({
 
 				h1 {
 					font-size: var(--font-size-3xl);
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				html {
+					scroll-behavior: auto;
+				}
+
+				*,
+				*::before,
+				*::after {
+					animation-duration: 0.01ms !important;
+					animation-iteration-count: 1 !important;
+					transition-duration: 0.01ms !important;
 				}
 			}
 		</style>

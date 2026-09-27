@@ -156,6 +156,13 @@ body {
 	background-color: var(--color-kumo-interact) !important;
 }
 
+[data-mode="light"] [data-emdash-heading-item][data-highlighted],
+[data-mode="light"] [data-emdash-block-menu-item][data-highlighted],
+[data-mode="light"] [data-slash-command-menu] button:hover,
+[data-mode="light"] [data-slash-command-menu] button.bg-kumo-interact {
+	background-color: var(--color-kumo-tint) !important;
+}
+
 div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	width: var(--anchor-width);
 	min-width: var(--anchor-width);

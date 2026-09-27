@@ -805,6 +805,23 @@ describe("ContentList", () => {
 	});
 
 	describe("pagination", () => {
+		it("explains the bulk tag limit before opening the dialog", async () => {
+			const items = Array.from({ length: 51 }, (_, index) =>
+				makeItem({ id: `item_${index}`, data: { title: `Post ${index}` } }),
+			);
+			const screen = await render(<ContentList {...defaultProps} items={items} bulkTagEnabled />);
+			for (let pageIndex = 0; pageIndex < 3; pageIndex++) {
+				await screen.getByRole("checkbox", { name: "Select all on this page" }).click();
+				if (pageIndex < 2) await screen.getByRole("button", { name: "Next page" }).click();
+			}
+			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeDisabled();
+			await expect
+				.element(screen.getByRole("status"))
+				.toHaveTextContent("Select up to 50 posts to add a tag.");
+			await screen.getByRole("checkbox", { name: "Select Post 50" }).click();
+			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeEnabled();
+		});
+
 		it("shows pagination when items exceed page size", async () => {
 			const items = Array.from({ length: 25 }, (_, i) =>
 				makeItem({ id: `item_${i}`, data: { title: `Post ${i}` } }),

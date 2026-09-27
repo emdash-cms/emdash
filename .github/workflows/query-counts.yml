@@ -33,9 +33,13 @@ jobs:
           filters: |
             relevant:
               - 'packages/core/**'
+              - '!packages/core/tests/**'
               - 'packages/auth/**'
+              - '!packages/auth/tests/**'
               - 'packages/blocks/**'
+              - '!packages/blocks/tests/**'
               - 'packages/cloudflare/**'
+              - '!packages/cloudflare/tests/**'
               - 'fixtures/perf-site/**'
               - 'templates/starter-cloudflare/**'
               - 'scripts/query-counts*'
@@ -108,6 +112,12 @@ jobs:
           path: query-counts-out/
           retention-days: 7
           if-no-files-found: error
+
+      - name: Require updated snapshots on pull requests
+        if: github.event_name == 'pull_request' && steps.drift.outputs.changed == 'true'
+        run: |
+          echo "::error::Query-count snapshots changed; the Apply workflow will update the PR branch."
+          exit 1
 
       - name: Require committed snapshots in the merge queue
         if: github.event_name == 'merge_group' && steps.drift.outputs.changed == 'true'

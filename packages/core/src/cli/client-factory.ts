@@ -34,6 +34,11 @@ export const connectionArgs = {
 	},
 };
 
+/** The instance URL from `--url`, `EMDASH_URL`, or the local dev default. */
+export function resolveBaseUrl(args: ClientArgs): string {
+	return args.url || process.env["EMDASH_URL"] || "http://localhost:4321";
+}
+
 /**
  * Create an EmDashClient from CLI args, env vars, and stored credentials.
  *
@@ -49,7 +54,7 @@ export const connectionArgs = {
  * 3. --header CLI flags
  */
 export function createClientFromArgs(args: ClientArgs): EmDashClient {
-	const baseUrl = args.url || process.env["EMDASH_URL"] || "http://localhost:4321";
+	const baseUrl = resolveBaseUrl(args);
 	let token = args.token || process.env["EMDASH_TOKEN"];
 
 	const isLocal = baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1");

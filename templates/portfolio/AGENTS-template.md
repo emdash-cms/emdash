@@ -12,18 +12,20 @@ The design is intentionally restrained. Don't pile on colour, gradients, or deco
 | Work index     | `/work`        | Heading + summary, tag filter chips, full grid                                                         |
 | Project detail | `/work/[slug]` | Project meta line, big serif title, summary, featured image, Portable Text body, optional gallery, URL |
 | About          | `/about`       | Page content (Portable Text)                                                                           |
-| Contact        | `/contact`     | Form + email / location / social column                                                                |
+| Contact        | `/contact`     | Direct email call to action                                                                            |
 
 ## Schema
 
-- `projects` collection: `title`, `featured_image`, `client`, `year`, `summary` (text), `content` (Portable Text), `gallery` (json -- optional array of `{ url, alt? }` records, see below), `url`.
+- `projects` collection: `title`, `featured_image`, `client`, `year`, `summary` (text), `content` (Portable Text), `gallery` (repeater of media-library image + optional caption), `url`.
 - `pages` collection: `title`, `content` (Portable Text). Used for `/about`.
-- Taxonomies: `category`, `tag`. Used for filtering on the work index.
+- Taxonomy: `tag`. Used for filtering and project metadata on the work index.
 - Single `primary` menu.
 
 Site settings have `title` and `tagline` -- both render on the home page (title as the centred serif heading, tagline as italic subtitle).
 
-The `gallery` field on `projects` is a JSON field, not an EmDash image field. It expects a literal array of `{ url: string, alt?: string }` records (a flat external URL plus optional alt text), and is rendered as-is by `src/pages/work/[slug].astro`. Do NOT confuse it with EmDash image fields like `featured_image`, which take `{ id, provider, alt }` objects from the media library. If you need media-library images in a gallery in the future, the right fix is to change the field type and renderer together.
+The `gallery` field is a repeater. Each row contains a required `image` selected from the EmDash media library and an optional `caption`. Render gallery images with `<Image>` from `emdash/ui`; do not reduce media values to raw URLs.
+
+The contact page sends visitors to their email app instead of accepting a form submission. Replace the example address in `src/pages/contact.astro` before publishing the site.
 
 ## Visual character
 

@@ -11,7 +11,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui as useLinguiContext } from "@lingui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Gear, Users, MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Gear, Users, MagnifyingGlass } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
@@ -237,6 +237,14 @@ export function buildNavItems(
 			icon: Gear,
 			minRole: ROLE_ADMIN,
 			keywords: ["configuration", "preferences"],
+		},
+		{
+			id: "transfer",
+			title: msg`Site Transfer`,
+			to: "/settings/transfer",
+			icon: ArrowsLeftRight,
+			minRole: ROLE_ADMIN,
+			keywords: ["export", "import", "migrate", "move", "package"],
 		},
 		{
 			id: "security",

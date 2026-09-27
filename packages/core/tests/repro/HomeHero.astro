@@ -1,0 +1,24 @@
+---
+import { PortableText } from "../../src/ui.js";
+
+interface Props {
+	value: {
+		heading: string;
+		body: Array<Record<string, unknown>>;
+		link_label: string;
+		link_url: string;
+		image: { src?: string; alt?: string };
+	};
+}
+
+const { value } = Astro.props;
+---
+
+<section data-home-block="hero">
+	<div>
+		<h1>{value.heading}</h1>
+		<PortableText value={value.body} />
+		<a href={value.link_url}>{value.link_label}</a>
+	</div>
+	{value.image.src && <img src={value.image.src} alt={value.image.alt ?? ""} />}
+</section>

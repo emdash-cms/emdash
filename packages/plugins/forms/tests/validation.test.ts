@@ -54,3 +54,24 @@ describe("validateSubmission checkbox-group", () => {
 		]);
 	});
 });
+
+describe("validateSubmission file fields", () => {
+	const fileField = {
+		id: "f2",
+		type: "file" as const,
+		label: "Attachment",
+		name: "attachment",
+		required: true,
+		width: "full" as const,
+	};
+
+	it("accepts a required file field when the file was submitted", () => {
+		const result = validateSubmission([fileField], {}, new Set(["attachment"]));
+		expect(result).toEqual({ valid: true, errors: [], data: {} });
+	});
+
+	it("rejects a required file field with no file, whatever data holds", () => {
+		const result = validateSubmission([fileField], { attachment: "x.pdf" });
+		expect(result.errors).toEqual([{ field: "attachment", message: "Attachment is required" }]);
+	});
+});

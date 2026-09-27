@@ -1,5 +1,26 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.43
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.41.0
+
+## 0.2.42
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/auth@0.40.1
+
+## 0.2.41
+
+### Patch Changes
+
+- Updated dependencies [[`973699a`](https://github.com/emdash-cms/emdash/commit/973699a1ea439876b43c8efa8093e39934a116de), [`5a9d822`](https://github.com/emdash-cms/emdash/commit/5a9d822fa68acb4a48b39ba01f85edf5c61d83d4), [`bf6b0a9`](https://github.com/emdash-cms/emdash/commit/bf6b0a9623076a5fbe2368602bca42317f96ad03), [`1796cd5`](https://github.com/emdash-cms/emdash/commit/1796cd508c2bd6456abe77b458f7d177093df754), [`20858ed`](https://github.com/emdash-cms/emdash/commit/20858edbad9d8beabc33c120783e3ed771146d9d)]:
+  - @emdash-cms/auth@0.40.0
+
 ## 0.2.40
 
 ### Patch Changes

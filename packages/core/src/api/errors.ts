@@ -6,6 +6,8 @@
  * instead of using ad-hoc strings.
  */
 
+import { TransferErrorCode, transferErrorStatus } from "../transfer/errors.js";
+
 export const ErrorCode = {
 	// Shared (used across domains)
 	NOT_FOUND: "NOT_FOUND",
@@ -69,6 +71,10 @@ export const ErrorCode = {
 	SCHEMA_FIELD_UPDATE_ERROR: "SCHEMA_FIELD_UPDATE_ERROR",
 	SCHEMA_FIELD_DELETE_ERROR: "SCHEMA_FIELD_DELETE_ERROR",
 	SCHEMA_FIELD_REORDER_ERROR: "SCHEMA_FIELD_REORDER_ERROR",
+	BLOCK_TYPE_NOT_FOUND: "BLOCK_TYPE_NOT_FOUND",
+	BLOCK_TYPE_EXISTS: "BLOCK_TYPE_EXISTS",
+	BLOCK_TYPE_BREAKING_CHANGE: "BLOCK_TYPE_BREAKING_CHANGE",
+	BLOCK_TYPE_VERSION_CONFLICT: "BLOCK_TYPE_VERSION_CONFLICT",
 	// Byline schema (Discussion #1174). Reuses RESERVED_SLUG, INVALID_SLUG,
 	// INVALID_TYPE, FIELD_EXISTS, NOT_FOUND, VALIDATION_ERROR where the
 	// semantics match; the two below are byline-domain specific:
@@ -170,6 +176,7 @@ export const ErrorCode = {
 	USER_EXISTS: "USER_EXISTS",
 	INVALID_TOKEN: "INVALID_TOKEN",
 	TOKEN_EXPIRED: "TOKEN_EXPIRED",
+	SESSION_UNAVAILABLE: "SESSION_UNAVAILABLE",
 	DOMAIN_NOT_ALLOWED: "DOMAIN_NOT_ALLOWED",
 	INVITE_CREATE_ERROR: "INVITE_CREATE_ERROR",
 	INVITE_VALIDATE_ERROR: "INVITE_VALIDATE_ERROR",
@@ -236,6 +243,8 @@ export const ErrorCode = {
 	ALREADY_INSTALLED: "ALREADY_INSTALLED",
 	ALREADY_UP_TO_DATE: "ALREADY_UP_TO_DATE",
 	NO_VERSION: "NO_VERSION",
+	INVALID_VERSION: "INVALID_VERSION",
+	DOWNGRADE_NOT_ALLOWED: "DOWNGRADE_NOT_ALLOWED",
 	MANIFEST_MISMATCH: "MANIFEST_MISMATCH",
 	MANIFEST_VERSION_MISMATCH: "MANIFEST_VERSION_MISMATCH",
 	AUDIT_FAILED: "AUDIT_FAILED",
@@ -385,6 +394,9 @@ export const ErrorCode = {
 	NO_DB: "NO_DB",
 	INVALID_REQUEST: "INVALID_REQUEST",
 	UNKNOWN_ACTION: "UNKNOWN_ACTION",
+
+	// Site transfer
+	...TransferErrorCode,
 } as const;
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -413,6 +425,9 @@ export type OAuthErrorCode = (typeof OAuthErrorCode)[keyof typeof OAuthErrorCode
  * defaults to 400 (client error).
  */
 export function mapErrorStatus(code: string | undefined): number {
+	const transferStatus = transferErrorStatus(code);
+	if (transferStatus !== undefined) return transferStatus;
+
 	switch (code) {
 		// 400 Bad Request
 		case ErrorCode.VALIDATION_ERROR:
@@ -443,6 +458,8 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.UNKNOWN_ACTION:
 		case ErrorCode.AMBIGUOUS_LOCALE:
 		case ErrorCode.REORDER_MISMATCH:
+		case ErrorCode.INVALID_VERSION:
+		case ErrorCode.DOWNGRADE_NOT_ALLOWED:
 			return 400;
 
 		// 409 Conflict
@@ -477,6 +494,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.FILE_NOT_FOUND:
 		case ErrorCode.NO_VERSION:
 		case ErrorCode.AGGREGATOR_NOT_FOUND:
+		case ErrorCode.BLOCK_TYPE_NOT_FOUND:
 			return 404;
 
 		// 409 Conflict
@@ -496,6 +514,9 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.WORK_LEASE_ACTIVE:
 		case ErrorCode.WORK_CHANGED:
 		case ErrorCode.ENTRY_LOCKED:
+		case ErrorCode.BLOCK_TYPE_EXISTS:
+		case ErrorCode.BLOCK_TYPE_BREAKING_CHANGE:
+		case ErrorCode.BLOCK_TYPE_VERSION_CONFLICT:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_BUSY:
 		case ErrorCode.MEDIA_USAGE_ACTIVATION_CONFLICT:
@@ -528,6 +549,7 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.NO_DB:
 		case ErrorCode.STORAGE_NOT_CONFIGURED:
 		case ErrorCode.EMAIL_NOT_CONFIGURED:
+		case ErrorCode.SESSION_UNAVAILABLE:
 		case ErrorCode.COLLECTION_SCHEMA_MISMATCH:
 			return 500;
 

@@ -112,6 +112,7 @@ describe("registry fixture MCP tools", () => {
 			}),
 		);
 		const handlers = {
+			db,
 			handlePluginMcpTool,
 			handlePluginMcpDenied: vi.fn().mockResolvedValue(undefined),
 		} as unknown as EmDashHandlers;

@@ -18,6 +18,7 @@ import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "../../../src/media/usage/source-key.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -355,6 +356,69 @@ describeEachDialect("content media usage repair", (dialect) => {
 				lastErrorCode: "INVALID_REPEATER_VALIDATION",
 			}),
 		);
+	});
+
+	it("reports invalid blocks validation without replacing trusted usage", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		await blocks.createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
+		});
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: "{" })
+			.where("slug", "=", "layout")
+			.execute();
+		await usageRepo.replaceSource(contentSource("existing", "columns"), [
+			occurrence("layout.feature.image", "media-protected"),
+		]);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({ status: "failed", lastErrorCode: "INVALID_BLOCK_VALIDATION" }),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-protected")).toHaveLength(1);
+	});
+
+	it("reports unresolved block definitions without replacing trusted usage", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		await blocks.createBlockType({
+			slug: "feature",
+			label: "Feature",
+			fields: [{ slug: "image", label: "Image", type: "image" }],
+		});
+		await registry.createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["feature"] },
+		});
+		await ctx.db
+			.updateTable("_emdash_fields")
+			.set({ validation: JSON.stringify({ allowedTypes: ["missing"] }) })
+			.where("slug", "=", "layout")
+			.execute();
+		await usageRepo.replaceSource(contentSource("existing", "columns"), [
+			occurrence("layout.feature.image", "media-protected"),
+		]);
+
+		const result = await repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" });
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				status: "failed",
+				lastErrorCode: "UNSUPPORTED_BLOCK_DEFINITION",
+			}),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-protected")).toHaveLength(1);
 	});
 
 	it("treats repeater fields with non-array subfields as unsupported during repair", async () => {

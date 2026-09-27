@@ -89,6 +89,10 @@ export const Permissions = {
 	// Backups (full content export — admin-only, same tier as settings:manage)
 	"backups:manage": Role.ADMIN,
 
+	// Site transfer (whole-site export, and import into an empty site)
+	"transfer:export": Role.ADMIN,
+	"transfer:import": Role.ADMIN,
+
 	// Search
 	"search:read": Role.SUBSCRIBER,
 	"search:manage": Role.ADMIN,
@@ -200,6 +204,9 @@ const SCOPE_MIN_ROLE: Record<Exclude<ApiTokenScope, `mcp:tools:${string}`>, Role
 	"settings:read": Role.EDITOR,
 	"settings:manage": Role.ADMIN,
 	"mcp:tools": Role.ADMIN,
+	"transfer:export": Role.ADMIN,
+	"transfer:analyze": Role.ADMIN,
+	"transfer:execute": Role.ADMIN,
 	admin: Role.ADMIN,
 };
 

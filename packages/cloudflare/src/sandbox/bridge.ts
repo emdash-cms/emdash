@@ -62,6 +62,17 @@ function loadBridgeRuntime(): Promise<typeof import("./bridge-runtime.js")> {
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
+const MISSING_TRANSFER_OPERATIONS_TABLE_REGEX = /no such table.*_emdash_transfer_operations/i;
+interface SiteWriteFence {
+	mediaState: string | null;
+	importId: string | null;
+	exportId: string | null;
+}
+
+const SITE_WRITE_FENCE_SQL = `SELECT
+	(SELECT state FROM _emdash_media_usage_activation WHERE task_key = 'incremental_capture') AS media_state,
+	(SELECT id FROM _emdash_transfer_operations WHERE kind = 'import' AND (state IN ('running', 'verifying') OR (state IN ('failed', 'cancelled') AND mutation_started_at IS NOT NULL)) LIMIT 1) AS import_id,
+	(SELECT id FROM _emdash_transfer_operations WHERE kind = 'export' AND state = 'running' LIMIT 1) AS export_id`;
 const SETTINGS_KEY_PREFIX = "settings:";
 
 const SYSTEM_COLUMNS = new Set([
@@ -472,23 +483,58 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (result.meta?.changes ?? 0) > 0;
 	}
 
-	private async assertMediaUsageActivationWriteAllowed(): Promise<void> {
-		const { createSandboxRouteError, getSandboxRouteErrorDetails } = await loadBridgeRuntime();
+	private async readSiteWriteFence(): Promise<SiteWriteFence> {
 		try {
+			const row = await this.env.DB.prepare(SITE_WRITE_FENCE_SQL).first<{
+				media_state: string | null;
+				import_id: string | null;
+				export_id: string | null;
+			}>();
+			return {
+				mediaState: row?.media_state ?? null,
+				importId: row?.import_id ?? null,
+				exportId: row?.export_id ?? null,
+			};
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (!MISSING_TRANSFER_OPERATIONS_TABLE_REGEX.test(message)) throw error;
 			const activation = await this.env.DB.prepare(
 				"SELECT state FROM _emdash_media_usage_activation WHERE task_key = ? LIMIT 1",
 			)
 				.bind("incremental_capture")
 				.first<{ state: string }>();
-			if (activation?.state === "activating") {
-				throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
-			}
+			return { mediaState: activation?.state ?? null, importId: null, exportId: null };
+		}
+	}
+
+	/**
+	 * The unified site write fence (media usage activation and transfer
+	 * imports), read with one query. Records the write for running exports.
+	 */
+	private async assertSiteWriteAllowed(): Promise<void> {
+		const { createSandboxRouteError, getSandboxRouteErrorDetails } = await loadBridgeRuntime();
+		let fence: SiteWriteFence;
+		try {
+			fence = await this.readSiteWriteFence();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			if (MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX.test(message)) return;
 			if (getSandboxRouteErrorDetails(error)) throw error;
-			console.error("[media-usage] Failed to check the sandbox write fence:", error);
-			throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_CHECK_FAILED");
+			console.error("[transfer] Failed to check the sandbox write fence:", error);
+			throw createSandboxRouteError("TRANSFER_FENCE_CHECK_FAILED");
+		}
+		if (fence.importId) throw createSandboxRouteError("TRANSFER_IMPORT_IN_PROGRESS");
+		if (fence.mediaState === "activating") {
+			throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
+		}
+		if (fence.exportId) {
+			try {
+				await this.env.DB.prepare(
+					"UPDATE _emdash_transfer_operations SET write_epoch = write_epoch + 1 WHERE kind = 'export' AND state = 'running'",
+				).run();
+			} catch (error) {
+				console.error("[transfer] Failed to record a write for running exports:", error);
+			}
 		}
 	}
 
@@ -554,7 +600,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			return;
 		}
 		await this.env.DB.prepare(
-			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, '__kv', ?, ?, ?, datetime('now'))",
+			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, '__kv', ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
 		)
 			.bind(pluginId, key, JSON.stringify(value), crypto.randomUUID())
 			.run();
@@ -711,7 +757,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		await this.env.DB.prepare(
-			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
 		)
 			.bind(pluginId, collection, id, JSON.stringify(data), crypto.randomUUID())
 			.run();
@@ -864,7 +910,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 		for (const item of items) {
 			await this.env.DB.prepare(
-				"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+				"INSERT INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, revision = excluded.revision, updated_at = excluded.updated_at",
 			)
 				.bind(pluginId, collection, item.id, JSON.stringify(item.data), crypto.randomUUID())
 				.run();
@@ -1010,7 +1056,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 				error: { code: "VALIDATION_ERROR", message },
 			};
 		}
-		await this.assertMediaUsageActivationWriteAllowed();
+		await this.assertSiteWriteAllowed();
 		const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
 			? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
 			: undefined;
@@ -1113,7 +1159,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const db = new Kysely<Database>({
 			dialect: new D1Dialect({ database: this.env.DB }),
 		});
-		await this.assertMediaUsageActivationWriteAllowed();
+		await this.assertSiteWriteAllowed();
 		const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
 			data,
 			status: typeof data.status === "string" ? data.status : undefined,
@@ -1140,7 +1186,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
-		await this.assertMediaUsageActivationWriteAllowed();
+		await this.assertSiteWriteAllowed();
 		const now = new Date().toISOString();
 		const result = await this.env.DB.prepare(
 			`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
@@ -1845,6 +1891,8 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async emailSend(message: {
 		to: string;
+		cc?: string[];
+		replyTo?: string;
 		subject: string;
 		text: string;
 		html?: string;

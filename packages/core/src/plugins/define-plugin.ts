@@ -68,7 +68,8 @@ const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
  * `satisfies SandboxedPlugin` annotation from `emdash/plugin`. Calling
  * `definePlugin` with an object that has no `id` throws at runtime
  * (the type system already rejects it at compile time — this check is
- * for callers that bypass typechecking).
+ * for callers that bypass typechecking). Passing a plugin descriptor
+ * (an object with an `entrypoint`) also throws.
  */
 export function definePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
@@ -86,6 +87,15 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 				"`version`. For sandboxed plugins, drop `definePlugin()` entirely " +
 				"and `export default { hooks, routes } satisfies SandboxedPlugin` " +
 				'from "emdash/plugin" — identity comes from `emdash-plugin.jsonc`.',
+		);
+	}
+	// A descriptor's hooks live behind its entrypoint, which definePlugin()
+	// cannot load, so wrapping one would register a plugin that does nothing.
+	if ("entrypoint" in definition) {
+		throw new Error(
+			`definePlugin() received a plugin descriptor for "${definition.id}" (it has an ` +
+				"`entrypoint`). Pass the descriptor directly to the `plugins` array of the " +
+				"emdash() integration instead of wrapping it in definePlugin().",
 		);
 	}
 	return defineNativePlugin(definition);

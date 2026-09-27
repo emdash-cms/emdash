@@ -248,9 +248,13 @@ export const seedCommand = defineCommand({
 					`Fields: ${result.fields.created} created, ${result.fields.skipped} skipped, ${result.fields.updated} updated`,
 				);
 			}
-			if (result.taxonomies.created > 0 || result.taxonomies.terms > 0) {
+			if (
+				result.taxonomies.created > 0 ||
+				result.taxonomies.skipped > 0 ||
+				result.taxonomies.terms > 0
+			) {
 				consola.info(
-					`Taxonomies: ${result.taxonomies.created} created, ${result.taxonomies.terms} terms`,
+					`Taxonomies: ${result.taxonomies.created} created, ${result.taxonomies.skipped} skipped, ${result.taxonomies.terms} terms`,
 				);
 			}
 			if (result.bylines.created > 0 || result.bylines.skipped > 0 || result.bylines.updated > 0) {

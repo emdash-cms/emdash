@@ -1291,9 +1291,15 @@ importers:
 
   infra/discord-bot:
     devDependencies:
+      '@cloudflare/vitest-plugin':
+        specifier: 'catalog:'
+        version: 1.0.0(@cloudflare/workers-types@5.20260911.1)(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)))
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260911.1)
@@ -1481,9 +1487,6 @@ importers:
 
   packages/admin:
     dependencies:
-      '@atcute/identity-resolver':
-        specifier: 'catalog:'
-        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.0.0
@@ -1628,6 +1631,9 @@ importers:
       marked:
         specifier: ^17.0.3
         version: 17.0.3
+      modern-tar:
+        specifier: ^0.7.5
+        version: 0.7.7
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
@@ -2041,6 +2047,9 @@ importers:
       '@atcute/client':
         specifier: 'catalog:'
         version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.0.0
@@ -2608,10 +2617,22 @@ importers:
       emdash:
         specifier: workspace:>=0.15.0
         version: link:../../core
+      sanitize-html:
+        specifier: ^2.17.1
+        version: 2.17.1
     devDependencies:
+      '@types/sanitize-html':
+        specifier: ^2.16.0
+        version: 2.16.0
       astro:
         specifier: 'catalog:'
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)
+      playwright:
+        specifier: ^1.61.1
+        version: 1.61.1
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
 
   packages/plugins/field-kit:
     dependencies:
@@ -3029,9 +3050,6 @@ importers:
       '@astrojs/react':
         specifier: 'catalog:'
         version: 6.0.5(@types/node@26.1.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.7.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(tsx@4.21.0)(yaml@2.9.1)
-      '@emdash-cms/plugin-audit-log':
-        specifier: workspace:*
-        version: link:../../packages/plugins/audit-log
       astro:
         specifier: 'catalog:'
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)
@@ -3060,12 +3078,6 @@ importers:
       '@emdash-cms/cloudflare':
         specifier: workspace:*
         version: link:../../packages/cloudflare
-      '@emdash-cms/plugin-forms':
-        specifier: workspace:*
-        version: link:../../packages/plugins/forms
-      '@emdash-cms/plugin-webhook-notifier':
-        specifier: workspace:*
-        version: link:../../packages/plugins/webhook-notifier
       astro:
         specifier: 'catalog:'
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)
@@ -15143,6 +15155,21 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  '@cloudflare/vitest-plugin@1.0.0(@cloudflare/workers-types@5.20260911.1)(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)))':
+    dependencies:
+      '@vitest/runner': 4.1.5
+      '@vitest/snapshot': 4.1.5
+      cjs-module-lexer: 1.2.3
+      esbuild: 0.28.1
+      miniflare: 5.20260820.0-alpha
+      vitest: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(jsdom@26.1.0)(vite@8.0.16(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
+      wrangler: 4.125.0(@cloudflare/workers-types@5.20260911.1)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@cloudflare/workers-types'
+      - bufferutil
+      - utf-8-validate
+
   '@cloudflare/vitest-plugin@1.0.0(@cloudflare/workers-types@5.20260911.1)(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5)':
     dependencies:
       '@vitest/runner': 4.1.5
@@ -16018,7 +16045,7 @@ snapshots:
       '@iconify/types': 2.0.0
       '@iconify/utils': 3.1.1
       fflate: 0.8.3
-      modern-tar: 0.7.6
+      modern-tar: 0.7.7
       pathe: 2.0.3
       svgo: 4.0.1
 

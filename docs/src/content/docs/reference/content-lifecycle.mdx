@@ -47,10 +47,10 @@ entry.
 
 The REST API accepts `_rev` as an optional optimistic-concurrency precondition where shown. MCP tools
 require it for the same operations so an agent must read the entry before changing it. A stale token
-returns `CONFLICT`. Admin and REST writes protected by an entry lock return `ENTRY_LOCKED` unless an
-authorized request uses the supported lock override. MCP writes do not participate in entry locks.
+returns `CONFLICT`. Admin, REST, and MCP writes protected by an entry lock return `ENTRY_LOCKED`
+unless an authorized request uses the supported lock override.
 
-| Action | Permission | REST `_rev` | MCP `_rev` | Admin and REST lock | Hooks |
+| Action | Permission | REST `_rev` | MCP `_rev` | Entry lock | Hooks |
 | --- | --- | --- | --- | --- | --- |
 | Save changes | `content:edit_own` or `content:edit_any` | Optional | Required | Enforced | `content:beforeSave`, `content:afterSave` |
 | Publish | `content:publish_own` or `content:publish_any` | Optional | Required | Enforced | `content:beforePublish`, `content:afterPublish` |
@@ -61,7 +61,7 @@ authorized request uses the supported lock override. MCP writes do not participa
 | Move to Trash | `content:delete_own` or `content:delete_any` | Not accepted | Not accepted | Enforced | `content:beforeDelete`, `content:afterDelete` |
 | Restore from Trash | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Not enforced | `content:afterRestore` |
 | Delete permanently | `content:delete_permanent` | Not accepted | Not accepted | Not enforced | `content:afterDelete` |
-| Restore a revision | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Not enforced | None |
+| Restore a revision | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Enforced | None |
 
 The `content:afterDelete` event sets `permanent` to `false` when an entry moves to Trash and `true`
 after permanent deletion. Successful after-hooks run after the state change and may run after the

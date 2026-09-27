@@ -1,5 +1,31 @@
 # @emdash-cms/auth
 
+## 0.41.0
+
+No changes in this release.
+
+## 0.40.1
+
+No changes in this release.
+
+## 0.40.0
+
+### Minor Changes
+
+- [#3415](https://github.com/emdash-cms/emdash/pull/3415) [`973699a`](https://github.com/emdash-cms/emdash/commit/973699a1ea439876b43c8efa8093e39934a116de) Thanks [@swissky](https://github.com/swissky)! - Fixes a magic link or recovery link signing in twice when the same link is submitted by two requests at the same time, which created two separate sessions from one single-use link. Only one of the concurrent requests now succeeds; the other gets the "Invalid or expired link" error. Completing a signup or invite with a link that another request is already using now also fails with the invalid-link error instead of a server error. Custom `AuthAdapter` implementations must add the new `consumeToken(hash, type)` method, which atomically deletes and returns the matching token, or returns `null` when none exists.
+
+- [#1944](https://github.com/emdash-cms/emdash/pull/1944) [`bf6b0a9`](https://github.com/emdash-cms/emdash/commit/bf6b0a9623076a5fbe2368602bca42317f96ad03) Thanks [@swissky](https://github.com/swissky)! - Localizes invite, magic-link, and account-recovery emails: they now follow the site locale (falling back to the requesting user's admin language) instead of always being sent in English. Email HTML sets `lang` and `dir` on the root element, so right-to-left languages render correctly. A non-canonical site locale (`pt-br`) is normalized to its catalog (`pt-BR`); an unsupported value falls back to the requesting user's admin language.
+  
+  `@emdash-cms/auth`'s invite and magic-link builders (`buildInviteEmail`, `buildMagicLinkEmail`, now exported) accept optional injected copy and locale via new `emailStrings`/`emailLocale` config options (`InviteEmailStrings`/`MagicLinkEmailStrings`). `@emdash-cms/admin/locales` exports the copy resolvers `getInviteEmailStrings`/`getMagicLinkEmailStrings` and the BCP 47 matcher `matchLocale`.
+
+- [#3346](https://github.com/emdash-cms/emdash/pull/3346) [`1796cd5`](https://github.com/emdash-cms/emdash/commit/1796cd508c2bd6456abe77b458f7d177093df754) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds the `transfer:export`, `transfer:analyze`, and `transfer:execute` token scopes and the admin-only `transfer:export` and `transfer:import` permissions for site export and import. `admin` grants all three; each transfer scope grants only itself, so a token can be limited to one transfer action. The `TRANSFER_SCOPES` constant and `isTransferScope()` helper identify these scopes.
+
+### Patch Changes
+
+- [#3017](https://github.com/emdash-cms/emdash/pull/3017) [`5a9d822`](https://github.com/emdash-cms/emdash/commit/5a9d822fa68acb4a48b39ba01f85edf5c61d83d4) Thanks [@jakevis](https://github.com/jakevis)! - Fixes email-verification signup, which could not be completed: the verification email linked to the JSON API endpoint instead of the signup page, the signup page itself redirected anonymous visitors to login, and that redirect dropped the `?token=` from the URL. The email now links to `/_emdash/admin/signup?token=…` (as the invite email already did), the page is reachable without a session, and the login redirect preserves the query string of the page it returns to.
+
+- [#3380](https://github.com/emdash-cms/emdash/pull/3380) [`20858ed`](https://github.com/emdash-cms/emdash/commit/20858edbad9d8beabc33c120783e3ed771146d9d) Thanks [@swissky](https://github.com/swissky)! - Malformed invite, signup, and magic-link tokens now return a clean "invalid token" error instead of a 500. Token hashing tolerates values that aren't valid base64url, so an unrecognized token misses the lookup like any other unknown token.
+
 ## 0.39.1
 
 No changes in this release.

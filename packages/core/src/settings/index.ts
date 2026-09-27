@@ -12,6 +12,7 @@ import { siteSettingsTag } from "../cache/chrome-tags.js";
 import { resolvePluginEncryptionKeys } from "../config/secrets.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
@@ -32,7 +33,13 @@ import {
 	invalidateSingleFlightCache,
 	singleFlightCached,
 } from "../utils/single-flight-cache.js";
-import type { SiteSettings, SiteSettingKey, MediaReference, SeoSettings } from "./types.js";
+import type {
+	MediaReference,
+	SeoSettings,
+	SiteSettings,
+	SiteSettingsUpdate,
+	SiteSettingKey,
+} from "./types.js";
 
 /** Prefix for site settings in the options table */
 const SETTINGS_PREFIX = "site:";
@@ -349,21 +356,37 @@ export async function getSiteSettingsWithDb(
  * ```
  */
 export async function setSiteSettings(
-	settings: Partial<SiteSettings>,
+	settings: SiteSettingsUpdate,
 	db: Kysely<Database>,
 ): Promise<void> {
-	const options = new OptionsRepository(db);
-
-	// Convert settings to options format
 	const updates: Record<string, unknown> = {};
+	const deletions: string[] = [];
+	const seo = settings.seo;
+
 	for (const [key, value] of Object.entries(settings)) {
-		if (value !== undefined) {
-			updates[`${SETTINGS_PREFIX}${key}`] = value;
-		}
+		if (value === undefined || (key === "seo" && seo?.defaultOgImage === null)) continue;
+		if (value === null) deletions.push(`${SETTINGS_PREFIX}${key}`);
+		else updates[`${SETTINGS_PREFIX}${key}`] = value;
 	}
 
 	try {
-		await options.setMany(updates);
+		await withTransaction(db, async (trx) => {
+			const transactionOptions = new OptionsRepository(trx);
+			await transactionOptions.setMany(updates);
+			await transactionOptions.deleteMany(deletions);
+
+			if (seo?.defaultOgImage === null) {
+				const existingSeo =
+					(await transactionOptions.get<SeoSettings>(`${SETTINGS_PREFIX}seo`)) ?? {};
+				const nextSeo = { ...existingSeo, ...seo };
+				delete nextSeo.defaultOgImage;
+				if (Object.keys(nextSeo).length === 0) {
+					await transactionOptions.delete(`${SETTINGS_PREFIX}seo`);
+				} else {
+					await transactionOptions.set(`${SETTINGS_PREFIX}seo`, nextSeo);
+				}
+			}
+		});
 	} finally {
 		invalidateSiteSettingsCache();
 	}

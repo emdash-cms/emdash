@@ -11,9 +11,14 @@ import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
 import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
-import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
+import {
+	checkEnvCompatibility,
+	compareVersions,
+	findSkippedEnvConstraints,
+} from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
+import type { ReleaseHistoryEvidence } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
@@ -55,7 +60,7 @@ import {
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
 import { hasCurrentRecordLabel } from "../../registry/record-labels.js";
-import type { RegistryConfigInput } from "../../registry/types.js";
+import type { RegistryConfig, RegistryConfigInput } from "../../registry/types.js";
 import { resolveAndValidateExternalUrlTarget } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -393,6 +398,80 @@ interface EnvIncompatibleError {
 }
 
 /**
+ * Returns an error when the release is younger than `policy.minimumReleaseAge`,
+ * unless its publisher or package is in `minimumReleaseAgeExclude` or it is a
+ * proven first release.
+ *
+ * `releaseView.indexedAt` is aggregator operational data, not part of the
+ * signed release. The release schema has no publication timestamp, so minimum
+ * age remains a local discovery holdback rather than a cryptographic property.
+ * A missing or malformed timestamp fails closed.
+ */
+function checkMinimumReleaseAge(
+	registryConfig: RegistryConfig,
+	publisherDid: string,
+	slug: string,
+	packageView: ReleaseHistoryEvidence,
+	releaseView: { indexedAt: string },
+): ApiResult<never> | null {
+	const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
+	let minimumReleaseAgeSeconds = 0;
+	if (minimumReleaseAge !== undefined) {
+		// Normally rejected by `normalizeRegistryConfig`, but a config-mutation
+		// path could re-enter with a bad value; surface it as a structured error
+		// rather than a generic 500.
+		try {
+			minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
+		} catch (err) {
+			return {
+				success: false,
+				error: {
+					code: "REGISTRY_POLICY_INVALID",
+					message:
+						err instanceof Error
+							? err.message
+							: "Invalid minimumReleaseAge value in registry config",
+				},
+			};
+		}
+	}
+	if (minimumReleaseAgeSeconds > 0) {
+		const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
+			e.trim().toLowerCase(),
+		);
+		const exempt =
+			releaseExemptFromMinimumAge(exclude, publisherDid, slug) || isProvenFirstRelease(packageView);
+		if (!exempt) {
+			const indexedAt = Date.parse(releaseView.indexedAt);
+			if (!Number.isFinite(indexedAt)) {
+				return {
+					success: false,
+					error: {
+						code: "RELEASE_TIMESTAMP_INVALID",
+						message:
+							"Release record is missing a valid indexed-at timestamp; cannot evaluate minimum release age policy.",
+					},
+				};
+			}
+			const ageSeconds = (Date.now() - indexedAt) / 1000;
+			if (ageSeconds < minimumReleaseAgeSeconds) {
+				const remaining = Math.ceil(minimumReleaseAgeSeconds - ageSeconds);
+				return {
+					success: false,
+					error: {
+						code: "RELEASE_TOO_NEW",
+						message:
+							`This release does not meet the configured minimum release age of ` +
+							`${minimumReleaseAgeSeconds}s. It will be installable in ~${remaining}s.`,
+					},
+				};
+			}
+		}
+	}
+	return null;
+}
+
+/**
  * Gate a release's `requires` constraints against the running host
  * environment. `requires` is the lexicon-`unknown` value off the signed
  * release record — never trust its shape; `checkEnvCompatibility` guards it.
@@ -698,73 +777,15 @@ export async function handleRegistryInstall(
 		// Step 3a: enforce the configured minimum release age. The browser
 		// applies the same check up front for UX, but the gate lives here
 		// -- a stale browser tab, a deep link, or a non-admin-UI caller
-		// must still hit the holdback. The `minimumReleaseAgeExclude`
-		// allowlist short-circuits the check for trusted publisher DIDs.
-		//
-		// `releaseView.indexedAt` is aggregator operational data, not part
-		// of the signed release. The release schema has no publication
-		// timestamp, so minimum age remains a local discovery holdback
-		// rather than a cryptographic property. A missing or malformed
-		// timestamp fails closed.
-		// `registryConfig` is the user-supplied integration option, not
-		// the normalized manifest shape, so the duration parse runs once
-		// per install. Catch a malformed value here -- normally caught at
-		// `normalizeRegistryConfig` time, but a future config-mutation
-		// path could re-enter with a bad value -- and surface it as a
-		// structured error rather than letting it bubble out as a generic
-		// 500.
-		const minimumReleaseAge = registryConfig.policy?.minimumReleaseAge;
-		let minimumReleaseAgeSeconds = 0;
-		if (minimumReleaseAge !== undefined) {
-			try {
-				minimumReleaseAgeSeconds = parseDurationSeconds(minimumReleaseAge);
-			} catch (err) {
-				return {
-					success: false,
-					error: {
-						code: "REGISTRY_POLICY_INVALID",
-						message:
-							err instanceof Error
-								? err.message
-								: "Invalid minimumReleaseAge value in registry config",
-					},
-				};
-			}
-		}
-		if (minimumReleaseAgeSeconds > 0) {
-			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
-				e.trim().toLowerCase(),
-			);
-			const exempt =
-				releaseExemptFromMinimumAge(exclude, publisherDid, slug) ||
-				isProvenFirstRelease(packageView);
-			if (!exempt) {
-				const indexedAt = Date.parse(releaseView.indexedAt);
-				if (!Number.isFinite(indexedAt)) {
-					return {
-						success: false,
-						error: {
-							code: "RELEASE_TIMESTAMP_INVALID",
-							message:
-								"Release record is missing a valid indexed-at timestamp; cannot evaluate minimum release age policy.",
-						},
-					};
-				}
-				const ageSeconds = (Date.now() - indexedAt) / 1000;
-				if (ageSeconds < minimumReleaseAgeSeconds) {
-					const remaining = Math.ceil(minimumReleaseAgeSeconds - ageSeconds);
-					return {
-						success: false,
-						error: {
-							code: "RELEASE_TOO_NEW",
-							message:
-								`This release does not meet the configured minimum release age of ` +
-								`${minimumReleaseAgeSeconds}s. It will be installable in ~${remaining}s.`,
-						},
-					};
-				}
-			}
-		}
+		// must still hit the holdback.
+		const releaseAgeError = checkMinimumReleaseAge(
+			registryConfig,
+			publisherDid,
+			slug,
+			packageView,
+			releaseView,
+		);
+		if (releaseAgeError) return releaseAgeError;
 
 		// Derive the normalized opaque plugin id we'll use as the
 		// runtime-wide identifier from here on. The publisher_did + slug
@@ -1401,6 +1422,38 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
+		// Only an explicitly requested version is order-checked: on the latest
+		// path the aggregator selects the version, and a publisher yanking the
+		// newest release is how a rollback reaches installed sites.
+		if (opts?.version !== undefined) {
+			const order = compareVersions(newVersion, oldVersion);
+			if (order === null) {
+				return {
+					success: false,
+					error: {
+						code: "INVALID_VERSION",
+						message: "Installed or requested version is not valid semver",
+					},
+				};
+			}
+			if (order < 0) {
+				return {
+					success: false,
+					error: {
+						code: "DOWNGRADE_NOT_ALLOWED",
+						message: "An update cannot target a version older than the installed one",
+					},
+				};
+			}
+		}
+		const releaseAgeError = checkMinimumReleaseAge(
+			registryConfig,
+			publisherDid,
+			slug,
+			packageView,
+			releaseView,
+		);
+		if (releaseAgeError) return releaseAgeError;
 		const authoritative = await (opts?.readAuthoritativeRecords ?? readAuthoritativePackageRelease)(
 			publisherDid,
 			slug,

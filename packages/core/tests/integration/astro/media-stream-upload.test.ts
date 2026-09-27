@@ -1151,7 +1151,7 @@ describe("streamed media upload fallback", () => {
 					handleMediaDelete: async (id: string) => {
 						startDelete?.();
 						await allowDelete;
-						return handleMediaDelete(db, id);
+						return handleMediaDelete(db, id, storage);
 					},
 				},
 				user: {
@@ -1179,6 +1179,63 @@ describe("streamed media upload fallback", () => {
 		expect(deleteResponse.status).toBe(200);
 		expect(await repo.findById(pending.id)).toBeNull();
 		expect(storage.objects.size).toBe(0);
+	});
+
+	it("reports a failed storage delete and leaves the object reachable for cleanup", async () => {
+		const repo = new MediaRepository(db);
+		const media = await repo.create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		storage.delete.mockRejectedValueOnce(new Error("bucket unavailable"));
+
+		const response = await deleteMedia({
+			params: { id: media.id },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { data: unknown };
+		expect(body.data).toEqual({ deleted: true, storageDeleted: false });
+		expect(await repo.findById(media.id)).toBeNull();
+		expect(storage.objects.has(media.storageKey)).toBe(true);
+
+		await runSystemCleanup(db, storage);
+
+		expect(storage.objects.size).toBe(0);
+		expect(await repo.hasUploadAttempt(media.storageKey)).toBe(false);
+	});
+
+	it("keeps an object marked for cleanup tracked while its media row still exists", async () => {
+		const repo = new MediaRepository(db);
+		const media = await repo.create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		await repo.trackStorageKeyForCleanup(media.id, media.storageKey);
+
+		await runSystemCleanup(db, storage);
+
+		expect(await repo.hasUploadAttempt(media.storageKey)).toBe(true);
+		expect(storage.objects.size).toBe(1);
 	});
 
 	it("rejects a non-owner without media:edit_any", async () => {

@@ -5,7 +5,8 @@
  * Each call to `checkRateLimit` atomically upserts a counter and returns
  * whether the request is within the allowed limit.
  *
- * Key format: `{ip}:{endpoint}` — limits are per-IP, per-endpoint.
+ * Key format: `{ip}:{endpoint}` — limits are per-IP, per-endpoint. Callers
+ * may pass a salted IP hash instead of the raw address.
  * Window format: ISO timestamp truncated to the window size.
  */
 

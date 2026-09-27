@@ -67,7 +67,7 @@ describe("visible term counts are only computed on demand", () => {
 			labelSingular: "Post",
 		});
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();

@@ -14,7 +14,7 @@ import type { SubmitInput } from "../schemas.js";
 import { verifyTurnstile } from "../turnstile.js";
 import type { FormDefinition, Submission, SubmissionFile } from "../types.js";
 import { getFormFields } from "../types.js";
-import { validateSubmission } from "../validation.js";
+import { evaluateCondition, validateSubmission } from "../validation.js";
 
 /** Typed access to plugin storage collections */
 function forms(ctx: RouteContext): StorageCollection<FormDefinition> {
@@ -116,7 +116,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 3. Validate submission data
 	const allFields = getFormFields(form);
-	const result = validateSubmission(allFields, input.data);
+	const result = validateSubmission(allFields, input.data, new Set(Object.keys(input.files ?? {})));
 
 	if (!result.valid) {
 		return { success: false, errors: result.errors };
@@ -124,19 +124,26 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 
 	// 4. Upload files
 	const files: SubmissionFile[] = [];
-	if (input.files && ctx.media && "upload" in ctx.media) {
+	const pending = allFields.flatMap((field) => {
+		if (field.type !== "file") return [];
+		if (field.condition && !evaluateCondition(field.condition, input.data)) return [];
+		const fileData = input.files?.[field.name];
+		return fileData ? [{ field, fileData }] : [];
+	});
+	if (pending.length > 0 && !(ctx.media && "upload" in ctx.media)) {
+		throw PluginRouteError.internal("File uploads are not configured");
+	}
+	if (pending.length > 0) {
 		const mediaWithWrite = ctx.media as {
 			upload(
 				filename: string,
 				contentType: string,
 				bytes: ArrayBuffer,
 			): Promise<{ mediaId: string; storageKey: string; url: string }>;
+			delete(id: string): Promise<boolean>;
 		};
 
-		for (const field of allFields.filter((f) => f.type === "file")) {
-			const fileData = input.files[field.name];
-			if (!fileData) continue;
-
+		for (const { field, fileData } of pending) {
 			// Validate file type
 			if (field.validation?.accept) {
 				const allowed = field.validation.accept.split(",").map((s) => s.trim().toLowerCase());
@@ -161,20 +168,27 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 					`File too large for ${field.label}. Maximum: ${Math.round(field.validation.maxFileSize / 1024)} KB`,
 				);
 			}
+		}
 
-			const uploaded = await mediaWithWrite.upload(
-				fileData.filename,
-				fileData.contentType,
-				fileData.bytes,
-			);
+		try {
+			for (const { field, fileData } of pending) {
+				const uploaded = await mediaWithWrite.upload(
+					fileData.filename,
+					fileData.contentType,
+					fileData.bytes.buffer,
+				);
 
-			files.push({
-				fieldName: field.name,
-				filename: fileData.filename,
-				contentType: fileData.contentType,
-				size: fileData.bytes.byteLength,
-				mediaId: uploaded.mediaId,
-			});
+				files.push({
+					fieldName: field.name,
+					filename: fileData.filename,
+					contentType: fileData.contentType,
+					size: fileData.bytes.byteLength,
+					mediaId: uploaded.mediaId,
+				});
+			}
+		} catch (error) {
+			await Promise.allSettled(files.map((file) => mediaWithWrite.delete(file.mediaId)));
+			throw error;
 		}
 	}
 

@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.39.1",
+  "version": "0.41.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -250,9 +250,11 @@
     "test:workerd": "vitest run --config vitest.workerd.config.ts",
     "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:repro": "vitest run --config vitest.repro.config.ts"
+    "test:repro": "vitest run --config vitest.repro.config.ts",
+    "test:types": "vitest run --config vitest.types.config.ts"
   },
   "dependencies": {
+    "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@atcute/multibase": "catalog:",
     "@emdash-cms/admin": "workspace:*",

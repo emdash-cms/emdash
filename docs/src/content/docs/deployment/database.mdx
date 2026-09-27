@@ -61,6 +61,14 @@ database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
 	without additional configuration.
 </Aside>
 
+### Write-ahead logging
+
+EmDash opens SQLite databases in [write-ahead logging (WAL) mode](https://sqlite.org/wal.html). While the site runs, SQLite keeps two extra files next to the database, such as `emdash.db-wal` and `emdash.db-shm`. The process needs write access to the database directory to create them.
+
+The `-wal` file can hold committed changes that are not yet in the main database file. Back up with SQLite's backup command instead of copying only the `.db` file. See [SQLite backup and recovery](/guides/backups/#sqlite-backup-and-recovery).
+
+WAL requires shared memory, so keep the database on a local disk or block volume rather than a network filesystem such as NFS or SMB.
+
 ## Cloudflare D1
 
 D1 is Cloudflare's serverless SQLite database. Use it when deploying to Cloudflare Workers.

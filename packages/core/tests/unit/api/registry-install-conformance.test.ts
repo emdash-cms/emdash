@@ -770,6 +770,169 @@ describe("registry delegated-release conformance", () => {
 		});
 	});
 
+	it("holds back an update to a release newer than the configured minimum age", async () => {
+		const initial = await createDelegatedReleaseConformanceFixture();
+		const next = await createDelegatedReleaseConformanceFixture({ version: "1.2.4" });
+		const context = await createContext(initial);
+		await context.publisher.repo.putRecord(
+			"com.emdashcms.experimental.package.release",
+			next.packageSlug + ":" + next.version,
+			next.release,
+		);
+		const nextOptions: AuthoritativeRecordReadOptions = {
+			...context.options,
+			provenanceFetch: async () => new Response(next.provenanceDocument),
+			provenanceVerifier: next.provenanceVerifier,
+		};
+		await mockAggregator(next, context);
+		artifactFetch(next.artifactBytes);
+		const nextPreview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: next.publisherDid, slug: next.packageSlug, version: next.version },
+			{ verifyOnly: true, authoritativeRecords: nextOptions },
+		);
+		if (!nextPreview.success) throw new Error(nextPreview.error.message);
+
+		await mockAggregator(initial, context);
+		artifactFetch(initial.artifactBytes);
+		const preview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: initial.publisherDid, slug: initial.packageSlug, version: initial.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		if (!preview.success) throw new Error(preview.error.message);
+		const installed = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: initial.publisherDid,
+				slug: initial.packageSlug,
+				version: initial.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		if (!installed.success) throw new Error(installed.error.message);
+
+		await mockAggregator(next, context, {
+			indexedAt: new Date().toISOString(),
+			historicalReleaseCount: 2,
+			releaseHistoryComplete: true,
+		});
+		artifactFetch(next.artifactBytes);
+		const result = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			{ ...registryConfig, policy: { minimumReleaseAge: "48h" } },
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: nextPreview.data.verification.profileCid,
+				acknowledgedReleaseCid: nextPreview.data.verification.releaseCid,
+			},
+		);
+
+		expect(result).toMatchObject({ success: false, error: { code: "RELEASE_TOO_NEW" } });
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: "1.2.3",
+		});
+	});
+
+	it("refuses an explicit update to a version older than the installed one", async () => {
+		const installedFixture = await createDelegatedReleaseConformanceFixture({ version: "2.0.0" });
+		const older = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(installedFixture);
+		await context.publisher.repo.putRecord(
+			"com.emdashcms.experimental.package.release",
+			older.packageSlug + ":" + older.version,
+			older.release,
+		);
+		const olderOptions: AuthoritativeRecordReadOptions = {
+			...context.options,
+			provenanceFetch: async () => new Response(older.provenanceDocument),
+			provenanceVerifier: older.provenanceVerifier,
+		};
+		await mockAggregator(older, context);
+		artifactFetch(older.artifactBytes);
+		const olderPreview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{ did: older.publisherDid, slug: older.packageSlug, version: older.version },
+			{ verifyOnly: true, authoritativeRecords: olderOptions },
+		);
+		if (!olderPreview.success) throw new Error(olderPreview.error.message);
+
+		await mockAggregator(installedFixture, context);
+		artifactFetch(installedFixture.artifactBytes);
+		const preview = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: installedFixture.publisherDid,
+				slug: installedFixture.packageSlug,
+				version: installedFixture.version,
+			},
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+		if (!preview.success) throw new Error(preview.error.message);
+		const installed = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: installedFixture.publisherDid,
+				slug: installedFixture.packageSlug,
+				version: installedFixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		if (!installed.success) throw new Error(installed.error.message);
+
+		await mockAggregator(older, context);
+		artifactFetch(older.artifactBytes);
+		const result = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				version: older.version,
+				authoritativeRecords: olderOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: olderPreview.data.verification.profileCid,
+				acknowledgedReleaseCid: olderPreview.data.verification.releaseCid,
+			},
+		);
+
+		expect(result).toMatchObject({ success: false, error: { code: "DOWNGRADE_NOT_ALLOWED" } });
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: "2.0.0",
+		});
+	});
+
 	it("updates with CID-bound re-consent and keeps a concurrent downgrade bundle active", async () => {
 		storage = createMemoryStorage({ deferDeletes: true });
 		const initial = await createDelegatedReleaseConformanceFixture();

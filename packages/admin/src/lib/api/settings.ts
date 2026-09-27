@@ -41,6 +41,16 @@ export interface SiteSettings {
 		bingVerification?: string;
 	};
 }
+export interface SiteSettingsUpdate extends Omit<
+	Partial<SiteSettings>,
+	"logo" | "favicon" | "seo"
+> {
+	logo?: SiteSettings["logo"] | null;
+	favicon?: SiteSettings["favicon"] | null;
+	seo?: Omit<NonNullable<SiteSettings["seo"]>, "defaultOgImage"> & {
+		defaultOgImage?: NonNullable<SiteSettings["seo"]>["defaultOgImage"] | null;
+	};
+}
 
 /**
  * Fetch site settings
@@ -53,9 +63,7 @@ export async function fetchSettings(): Promise<Partial<SiteSettings>> {
 /**
  * Update site settings
  */
-export async function updateSettings(
-	settings: Partial<SiteSettings>,
-): Promise<Partial<SiteSettings>> {
+export async function updateSettings(settings: SiteSettingsUpdate): Promise<Partial<SiteSettings>> {
 	const response = await apiFetch(`${API_BASE}/settings`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },

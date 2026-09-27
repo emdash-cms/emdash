@@ -675,7 +675,10 @@ function TaxonomySection({
 			void queryClient.invalidateQueries({
 				queryKey: ["entry-terms", collection, entryId, taxonomy.name, entryLocale],
 			});
-			toastManager.add({ title: t`${taxonomy.label} updated` });
+			toastManager.add({
+				title: t`${taxonomy.label} updated`,
+				description: t`Saved immediately; term changes do not wait for Publish changes.`,
+			});
 		},
 		onError: (error) => {
 			toastManager.add({

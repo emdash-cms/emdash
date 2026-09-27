@@ -155,8 +155,10 @@ content automatically.
 
 ### Taxonomies (categories, tags)
 
-Terms are per-locale. Definitions (`_emdash_taxonomy_defs`) are also per-locale,
-so `label` / `labelSingular` can be translated too. The pivot
+Terms are per-locale. Each locale can have its own definition, so `label` and
+`labelSingular` can be translated too, while `hierarchical` and `collections`
+are shared by every locale (see
+[Translate taxonomies and terms](/guides/taxonomies/#translate-taxonomies-and-terms)). The pivot
 `content_taxonomies.taxonomy_id` stores the term's `translation_group`, so a
 single assignment spans every locale of the content.
 
@@ -409,6 +411,8 @@ Each field has a `translatable` setting (default: `true`). When creating a trans
 On a collection with revisions, publishing an entry copies the non-translatable values it changed to the other translations, and saving a draft changes only that entry. If another translation has a pending draft that changed one of those values, the draft keeps its own value, and publishing that translation copies it to the rest of the group.
 
 System fields like `status`, `published_at`, and `author_id` are always per-locale and never synced.
+
+A [reference field](/guides/relations/) is shared rather than synced: EmDash keys its links by the translation group, so every translation of an entry has one selection, and editing it from any locale changes it for all of them.
 
 <Aside>
   Non-translatable fields are useful for values that should stay consistent across locales, such as a product SKU or a sort order number.

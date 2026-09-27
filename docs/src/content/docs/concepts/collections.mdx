@@ -57,7 +57,7 @@ mode](/guides/preview/) for that complete flow.
 ## Field types
 
 Choose a field type for the value editors enter and the way application code receives it. EmDash
-supports 16 field types:
+supports 17 field types:
 
 | Content need | Field types | What editors work with |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ supports 16 field types:
 | Numbers | `number`, `integer` | Decimal or whole-number inputs |
 | State and time | `boolean`, `datetime` | A switch or date-and-time picker |
 | Fixed choices | `select`, `multiSelect` | One or several choices from configured options |
-| Rich or structured data | `portableText`, `json`, `repeater` | Rich text, JSON, or a repeated group of sub-fields |
+| Rich or structured data | `portableText`, `json`, `repeater`, `blocks` | Rich text, JSON, repeated groups, or an ordered block composition |
 | Media | `image`, `file` | An item selected from the media library |
 | Relationships | `reference` | An entry selected from another collection |
 
@@ -95,9 +95,13 @@ Indexes are available for `string`, `url`, `number`, `integer`, `boolean`, `date
 `reference`, and `slug` fields. Rich text, JSON, repeaters, and multiple-choice values contain more
 complex data and cannot use this kind of index.
 
-References store the target entry's ID. Configure a reference with the target collection, and enable
-multiple values only when the field should hold several entry IDs. A reference lets code load or
-identify related content; it does not copy the target entry into the source entry.
+A reference field stores nothing in the collection's own table. Configure it with the target
+collection, and allow multiple values only when the field should link several entries. EmDash keeps
+the links separately and returns the linked entries under `references` rather than in `data`, so a
+reference lets code load or identify related content without copying the target entry into the
+source entry. See [`reference`](/reference/field-types/#reference) for the stored shape and the
+behavior of a field with no target collection, and [Relations](/guides/relations/) for the workflow
+around it.
 
 ## Changing fields later
 

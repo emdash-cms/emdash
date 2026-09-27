@@ -113,7 +113,7 @@ describe("Bridge Handler Conformance", () => {
 		capabilities?: string[];
 		allowedHosts?: string[];
 		storageCollections?: string[];
-		beforeContentWrite?: () => Promise<void>;
+		beforeContentWrite?: BridgeHandlerOptions["beforeContentWrite"];
 		settingsSchema?: Record<string, { type: "secret"; label: string }>;
 		commentModerate?: () => (
 			pluginId: string,
@@ -1138,6 +1138,37 @@ describe("Bridge Handler Conformance", () => {
 			});
 			expect(result.error).toContain("Missing capability: email:send");
 		});
+
+		it("forwards cc and replyTo to the email pipeline", async () => {
+			const send = vi.fn(async () => {});
+			const handler = createBridgeHandler({
+				pluginId: "forms",
+				version: "1.0.0",
+				capabilities: ["email:send"],
+				allowedHosts: [],
+				storageCollections: [],
+				db,
+				emailSend: () => send,
+			});
+			const message = {
+				to: "a@b.com",
+				cc: ["team@b.com"],
+				replyTo: "visitor@b.com",
+				subject: "hi",
+				text: "hello",
+			};
+			const result = await call(handler, "email/send", { message });
+			expect(result.error).toBeUndefined();
+			expect(send).toHaveBeenCalledWith(message, "forms");
+
+			for (const invalid of [{ cc: "team@b.com" }, { cc: [42] }, { replyTo: 42 }]) {
+				const rejected = await call(handler, "email/send", {
+					message: { ...message, ...invalid },
+				});
+				expect(rejected.error).toContain("email/send requires message");
+			}
+			expect(send).toHaveBeenCalledTimes(1);
+		});
 	});
 
 	// ── Storage (document store) ──────────────────────────────────────────
@@ -1766,6 +1797,32 @@ describe("Bridge Handler Conformance", () => {
 				.execute();
 			expect(after).toHaveLength(1);
 			expect((after[0] as any).slug).toBe("conflict");
+		});
+
+		it("reports a content write to the guard only once it has succeeded", async () => {
+			const rowsWhenRecorded: number[] = [];
+			const recordWrite = vi.fn(async () => {
+				const rows = await db
+					.selectFrom("ec_atomic_posts" as any)
+					.selectAll()
+					.execute();
+				rowsWhenRecorded.push(rows.length);
+			});
+			const handler = makeHandler({
+				capabilities: ["write:content"],
+				beforeContentWrite: async () => recordWrite,
+			});
+
+			await call(handler, "content/create", {
+				collection: "atomic_posts",
+				data: { slug: "taken", title: "first" },
+			});
+			const refused = await call(handler, "content/createMany", {
+				collection: "atomic_posts",
+				items: [{ slug: "fresh" }, { slug: "taken" }],
+			});
+			expect(refused.error).toBeDefined();
+			expect(rowsWhenRecorded).toEqual([1]);
 		});
 
 		it("contentCreateMany commits all when no item fails", async () => {

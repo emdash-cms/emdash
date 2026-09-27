@@ -17,7 +17,7 @@ These are the things that silently break sites. Know them before you start.
 
 3. **Taxonomy names must match the seed exactly.** If your seed defines `"name": "category"`, you must query `getTerm("category", slug)` -- not `"categories"`. Wrong name = empty results, no error.
 
-4. **Always pass `cacheHint` to `Astro.cache.set()`.** Every query returns a `cacheHint`. Call `Astro.cache.set(cacheHint)` on every page that queries content, or cache invalidation won't work when editors publish changes.
+4. **Register cache hints when Astro's cache is enabled.** Content queries return a `cacheHint`; pass it to `Astro.cache.set(cacheHint)`. Use `getSiteSettingsWithCacheHint()`, `getMenuWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, and `getWidgetAreaWithCacheHint()` when a cached route renders those values.
 
 5. **No `getStaticPaths` for CMS content.** EmDash content is dynamic. Pages must be server-rendered (`output: "server"` in `astro.config.mjs`).
 
@@ -84,12 +84,16 @@ const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
 // Site features
 import {
 	getSiteSettings,
+	getSiteSettingsWithCacheHint,
 	getMenu,
+	getMenuWithCacheHint,
 	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
 	getTerm,
 	getEntryTerms,
 	getEntriesByTerm,
 	getWidgetArea,
+	getWidgetAreaWithCacheHint,
 	search,
 	getSection,
 	getSeoMeta,
@@ -101,6 +105,8 @@ import { getByline, getBylineBySlug } from "emdash";
 // UI components
 import {
 	PortableText,
+	Blocks,
+	defineBlockComponents,
 	Image,
 	WidgetArea,
 	EmDashHead,
@@ -120,7 +126,7 @@ EmDash supports plugins for extending the CMS with hooks, storage, settings, adm
 
 - React to content lifecycle events (e.g., send a notification on publish, sync to an external service)
 - Add custom admin pages or dashboard widgets
-- Add custom block types to the Portable Text editor (e.g., embedded maps, code playgrounds, CTAs)
+- Add reusable behavior or custom Portable Text types (e.g., embedded maps or code playgrounds)
 - Provide a reusable service (e.g., analytics, forms, comments via a third-party provider)
 
 Plugins are registered in `astro.config.mjs`:

@@ -111,4 +111,34 @@ describe("requireScope", () => {
 			}
 		});
 	});
+
+	describe("site transfer scopes", () => {
+		const TRANSFER = ["transfer:export", "transfer:analyze", "transfer:execute"] as const;
+
+		it.each(TRANSFER)("admin token passes for %s", (scope) => {
+			expect(requireScope({ tokenScopes: ["admin"] }, scope)).toBeNull();
+		});
+
+		it.each(TRANSFER)("other scopes are rejected for %s", async (scope) => {
+			const result = requireScope({ tokenScopes: ["content:write", "settings:manage"] }, scope);
+			expect(result?.status).toBe(403);
+			const body = (await result!.json()) as { error: { code: string } };
+			expect(body.error.code).toBe("INSUFFICIENT_SCOPE");
+		});
+
+		it("each transfer scope satisfies only itself", () => {
+			for (const held of TRANSFER) {
+				for (const required of TRANSFER) {
+					const result = requireScope({ tokenScopes: [held] }, required);
+					if (held === required) expect(result).toBeNull();
+					else expect(result?.status).toBe(403);
+				}
+				expect(requireScope({ tokenScopes: [held] }, "admin")?.status).toBe(403);
+			}
+		});
+
+		it("session auth passes (RBAC gates session callers)", () => {
+			expect(requireScope({}, "transfer:execute")).toBeNull();
+		});
+	});
 });

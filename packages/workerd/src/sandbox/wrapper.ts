@@ -269,25 +269,22 @@ function contentCreateErrorDetails(value) {
 	};
 }
 
+const SANDBOX_ROUTE_ERROR_MESSAGES = {
+	MEDIA_USAGE_ACTIVATION_IN_PROGRESS: "Media usage activation is in progress",
+	MEDIA_USAGE_ACTIVATION_CHECK_FAILED: "Unable to verify media usage activation state",
+	TRANSFER_IMPORT_IN_PROGRESS: "A site import is in progress or incomplete; writes are disabled",
+	TRANSFER_FENCE_CHECK_FAILED: "Unable to verify whether site writes are allowed",
+};
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
-	const code =
-		value.code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
-		value.code === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
-			? value.code
-			: value.name === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
-				  value.name === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
-				? value.name
-				: null;
+	const code = Object.hasOwn(SANDBOX_ROUTE_ERROR_MESSAGES, value.code)
+		? value.code
+		: Object.hasOwn(SANDBOX_ROUTE_ERROR_MESSAGES, value.name)
+			? value.name
+			: null;
 	if (!code || (value.status !== undefined && value.status !== 503)) return null;
-	return {
-		code,
-		message:
-			code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS"
-				? "Media usage activation is in progress"
-				: "Unable to verify media usage activation state",
-		status: 503,
-	};
+	return { code, message: SANDBOX_ROUTE_ERROR_MESSAGES[code], status: 503 };
 }
 
 function commentErrorDetails(value) {
