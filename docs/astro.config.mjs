@@ -40,6 +40,7 @@ export default defineConfig({
 					items: [
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Add to an Existing Project", slug: "existing-project" },
+						{ label: "Upgrade to EmDash 1.0", slug: "upgrade-to-v1" },
 						{ label: "Why EmDash?", slug: "why-emdash" },
 						{ label: "Docs MCP for AI Tools", slug: "docs-mcp" },
 					],
