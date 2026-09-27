@@ -14,6 +14,7 @@ import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
+const GITHUB_CODELOAD = "codeload.github.com";
 const USER_AGENT = "emdash-flue-review";
 const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
 const REVIEW_RATE_LIMIT_RETRIES = 3;
@@ -384,6 +385,14 @@ function installationHeaders(token: GitHubToken): Record<string, string> {
 	return { ...GITHUB_HEADERS, authorization: `Bearer ${tokenValue(token)}` };
 }
 
+function codeloadHeaders(token: GitHubToken): Record<string, string> {
+	return {
+		accept: "application/octet-stream",
+		authorization: `Basic ${btoa(`x-access-token:${tokenValue(token)}`)}`,
+		"user-agent": USER_AGENT,
+	};
+}
+
 function pullRequestUrl(owner: string, repo: string, prNumber: number, files = false): string {
 	return `https://github.com/${owner}/${repo}/pull/${prNumber}${files ? "/files" : ""}`;
 }
@@ -612,6 +621,61 @@ export async function removePullRequestLabel(
 		},
 	);
 	if (res.status !== 404) await requireGitHubResponse(res, "remove pull request label");
+}
+
+export async function fetchRepositoryTarball(
+	owner: string,
+	repo: string,
+	ref: string,
+	token?: GitHubToken,
+): Promise<ReadableStream<Uint8Array>> {
+	const apiUrl = `${GITHUB_API}/repos/${owner}/${repo}/tarball/${encodeURIComponent(ref)}`;
+	const apiHeaders = token
+		? installationHeaders(token)
+		: {
+				accept: "application/vnd.github+json",
+				"user-agent": USER_AGENT,
+				"x-github-api-version": "2022-11-28",
+			};
+	const archive = token
+		? await coordinatedFetch(token, apiUrl, { headers: apiHeaders, redirect: "manual" })
+		: await githubFetch(apiUrl, { headers: apiHeaders, redirect: "manual" });
+	if (archive.ok) {
+		if (!archive.body) throw new Error("repository tarball response had no body");
+		return archive.body;
+	}
+	if (![301, 302, 303, 307, 308].includes(archive.status)) {
+		await requireGitHubResponse(archive, "repository tarball request");
+	}
+
+	const location = archive.headers.get("location");
+	if (!location) throw new Error("repository tarball response had no redirect location");
+	const downloadUrl = new URL(location, apiUrl);
+	const repositoryPath = `/${owner}/${repo}/`.toLowerCase();
+	if (
+		downloadUrl.protocol !== "https:" ||
+		downloadUrl.hostname !== GITHUB_CODELOAD ||
+		downloadUrl.port !== "" ||
+		downloadUrl.username !== "" ||
+		downloadUrl.password !== "" ||
+		!downloadUrl.pathname.toLowerCase().startsWith(repositoryPath)
+	) {
+		throw new Error("repository tarball response had an unsafe redirect location");
+	}
+
+	await archive.body?.cancel();
+	const download = token
+		? await coordinatedFetch(token, downloadUrl.toString(), {
+				headers: codeloadHeaders(token),
+				redirect: "manual",
+			})
+		: await githubFetch(downloadUrl.toString(), {
+				headers: { accept: "application/octet-stream", "user-agent": USER_AGENT },
+				redirect: "manual",
+			});
+	await requireGitHubResponse(download, "repository tarball download");
+	if (!download.body) throw new Error("repository tarball download had no body");
+	return download.body;
 }
 
 /**

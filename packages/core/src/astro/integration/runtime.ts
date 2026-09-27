@@ -214,10 +214,12 @@ export interface EmDashConfig {
 	 * Preview and visual-edit requests bypass the cache, so editors previewing
 	 * see live content. All other reads — including authenticated browsing outside
 	 * edit mode — are served from the cache, which only ever stores published
-	 * content. After an edit, anonymous visitors may see stale content until other
-	 * isolates pick up the bumped epoch: immediate with the memory backend, and on
-	 * KV bounded by KV's edge-cache propagation (eventual consistency, up to ~60s)
-	 * plus the isolate-local `revalidate` window (default 1s).
+	 * content. When Astro route caching is enabled, a rendered cache fill bypasses
+	 * the object cache so a purged page cannot be rebuilt from an older snapshot.
+	 * Other requests may see stale content until isolates pick up the bumped epoch:
+	 * immediate with the memory backend, and on KV bounded by KV's edge-cache
+	 * propagation (eventual consistency, up to ~60s) plus the isolate-local
+	 * `revalidate` window (default 1s).
 	 *
 	 * Scheduled content becomes visible at query time (no write event fires when
 	 * its publish time passes), so a cached list/entry won't surface a newly-due
@@ -628,6 +630,7 @@ export interface EmDashConfig {
 	 *   admin: {
 	 *     logo: "/images/agency-logo.webp",
 	 *     siteName: "AgencyX CMS",
+	 *     footerLabel: "AgencyX",
 	 *     favicon: "/favicon.ico",
 	 *   },
 	 * })
@@ -636,8 +639,10 @@ export interface EmDashConfig {
 	admin?: {
 		/** URL or path to a custom logo image for the admin UI (login page, sidebar). */
 		logo?: string;
-		/** Custom name displayed in the admin sidebar and browser tab. */
+		/** Custom name displayed in the admin sidebar header and browser tab. */
 		siteName?: string;
+		/** Label displayed beside the version in the sidebar footer. Set to false to hide it. */
+		footerLabel?: string | false;
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
 	};

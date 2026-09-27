@@ -65,4 +65,20 @@ describe("MagicLinkConfirmPage", () => {
 		await expect.element(screen.getByText(/invalid or has already been used/)).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Continue" }).query()).toBeNull();
 	});
+
+	it("tells the user the site cannot store sessions", async () => {
+		mockApiFetch.mockResolvedValue(
+			Response.json(
+				{ success: false, error: { code: "SESSION_UNAVAILABLE", message: "No session driver" } },
+				{ status: 500 },
+			),
+		);
+		const screen = await render(
+			<MagicLinkConfirmPage token="tok-123" redirectUrl="/_emdash/admin" />,
+		);
+
+		await screen.getByRole("button", { name: "Continue" }).click();
+
+		await expect.element(screen.getByText(/session storage/)).toBeInTheDocument();
+	});
 });

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import * as migration088 from "../../../src/database/migrations/088_auto_seed_completion.js";
+import * as migration089 from "../../../src/database/migrations/089_auto_seed_completion.js";
 import { createMigrator } from "../../../src/database/migrations/runner.js";
 import {
 	createForDialect,
@@ -30,8 +30,8 @@ describeEachDialect("auto-seed completion migration", (dialect) => {
 			.values({ id: "posts", slug: "posts", label: "Posts" })
 			.execute();
 
-		await migration088.up(ctx.db);
-		await expect(migration088.up(ctx.db)).resolves.toBeUndefined();
+		await migration089.up(ctx.db);
+		await expect(migration089.up(ctx.db)).resolves.toBeUndefined();
 
 		await expect(
 			ctx.db
@@ -43,7 +43,7 @@ describeEachDialect("auto-seed completion migration", (dialect) => {
 	});
 
 	it("leaves a new empty site eligible for runtime auto-seeding", async () => {
-		await migration088.up(ctx.db);
+		await migration089.up(ctx.db);
 
 		await expect(
 			ctx.db

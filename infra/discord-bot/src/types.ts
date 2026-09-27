@@ -45,6 +45,7 @@ export interface GitHubPRPayload {
 		user: {
 			login: string;
 			id: number;
+			type?: string;
 		};
 	};
 	repository: {

@@ -3,7 +3,11 @@ import type { Kysely } from "kysely";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import type { Database } from "../../database/types.js";
-import { STAGED_REFERENCES_KEY, type StagedReferences } from "../../references/staged.js";
+import {
+	STAGED_REFERENCES_KEY,
+	type StagedReferenceBaselines,
+	type StagedReferences,
+} from "../../references/staged.js";
 import type { ApiResult } from "../types.js";
 import { validateOppositeSideLimit, writeReferenceSelection } from "./relations.js";
 import {
@@ -13,14 +17,21 @@ import {
 } from "./validate-references.js";
 
 export {
+	mergeStagedReferenceBaselines,
 	mergeStagedReferences,
 	pageStagedGroups,
+	readStagedReferenceBaselines,
 	readStagedReferences,
 	REFERENCE_PAGE_LIMIT,
 	REFERENCE_PAGE_MAX_LIMIT,
+	STAGED_REFERENCES_BASELINE_KEY,
 	STAGED_REFERENCES_KEY,
 } from "../../references/staged.js";
-export type { PageOfGroups, StagedReferences } from "../../references/staged.js";
+export type {
+	PageOfGroups,
+	StagedReferenceBaselines,
+	StagedReferences,
+} from "../../references/staged.js";
 
 /** One bound field's live selection as translation groups. */
 async function liveFieldSelection(
@@ -52,13 +63,18 @@ export async function validateStagedReferences(
 	collection: string,
 	staged: StagedReferences,
 	entryGroup: string,
+	baselines?: StagedReferenceBaselines,
 ): Promise<ApiResult<true>> {
 	const repo = new RelationRepository(db);
 	for (const field of (await referenceFieldConstraints(db, collection)).values()) {
 		const isStaged = Object.hasOwn(staged, field.slug);
-		const groups = isStaged
-			? (staged[field.slug] ?? [])
-			: await liveFieldSelection(repo, field, entryGroup);
+		let groups = isStaged ? (staged[field.slug] ?? []) : undefined;
+		const baseline = baselines?.[field.slug];
+		if (groups && baseline) {
+			const live = await liveFieldSelection(repo, field, entryGroup);
+			groups = applyReferenceDiff(baseline, groups, live);
+		}
+		groups ??= await liveFieldSelection(repo, field, entryGroup);
 		const valid = validateReferenceSelection(field, groups);
 		if (!valid.success) return valid;
 
@@ -98,6 +114,36 @@ export async function liveReferenceSelection(
 }
 
 /**
+ * Compute the selection that results from applying the staged-versus-baseline
+ * diff on top of the current live selection.
+ *
+ * Additions and removals made in the draft win. Items the draft left unchanged
+ * follow the current live selection, preserving additions and removals made
+ * from the relation's opposite end.
+ */
+function applyReferenceDiff(baseline: string[], staged: string[], live: string[]): string[] {
+	const baselineSet = new Set(baseline);
+	const stagedSet = new Set(staged);
+	const liveSet = new Set(live);
+	const additionSet = new Set(staged.filter((group) => !baselineSet.has(group)));
+	const removalSet = new Set(baseline.filter((group) => !stagedSet.has(group)));
+
+	const result: string[] = [];
+	const seen = new Set<string>();
+	for (const group of staged) {
+		if ((!additionSet.has(group) && !liveSet.has(group)) || seen.has(group)) continue;
+		result.push(group);
+		seen.add(group);
+	}
+	for (const group of live) {
+		if (removalSet.has(group) || seen.has(group)) continue;
+		result.push(group);
+		seen.add(group);
+	}
+	return result;
+}
+
+/**
  * Record the complete live selection in the revision publication just made live.
  *
  * A draft stages only the fields its saves named, and a revision written from
@@ -121,22 +167,42 @@ export async function recordPublishedReferences(
  * A field slug the collection no longer carries as a bound reference field is
  * skipped: the revision outlived the field, and there is no relation left to
  * write into.
+ *
+ * When `baselines` are provided, each staged field is promoted as a diff
+ * against its baseline rather than as a wholesale replacement. That prevents a
+ * draft saved before a concurrent opposite-end publish from undoing the links
+ * that publish added or removed.
  */
 export async function applyStagedReferences(
 	db: Kysely<Database>,
 	collection: string,
 	entryGroup: string,
 	staged: StagedReferences,
+	baselines?: StagedReferenceBaselines,
 ): Promise<void> {
 	const constraints = await referenceFieldConstraints(db, collection);
+	const repo = new RelationRepository(db);
 	for (const [fieldSlug, groups] of Object.entries(staged)) {
 		const field = constraints.get(fieldSlug);
 		if (!field) continue;
+
+		const baseline = baselines?.[fieldSlug];
+		let selection: string[];
+		if (baseline) {
+			const live = await liveFieldSelection(repo, field, entryGroup);
+			selection = applyReferenceDiff(baseline, groups, live);
+		} else {
+			// Older drafts and restored live revisions carry no baseline; keep the
+			// previous wholesale-replacement behavior rather than silently changing
+			// their semantics.
+			selection = groups;
+		}
+
 		await writeReferenceSelection(db, {
 			relation: field.relation,
 			side: field.relationSide,
 			entryGroup,
-			groups,
+			groups: selection,
 		});
 	}
 }
