@@ -3,11 +3,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
-import { setDevTypegenRefresh } from "../../../src/astro/dev-typegen.js";
+import { refreshDevTypes } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
 import { FTSManager } from "../../../src/search/fts-manager.js";
+
+vi.mock("../../../src/astro/dev-typegen.js", () => ({ refreshDevTypes: vi.fn() }));
 
 describe("SchemaRegistry", () => {
 	let db: Kysely<EmDashDatabase>;
@@ -1160,12 +1162,8 @@ describe("SchemaRegistry", () => {
 	});
 
 	describe("dev typegen hook", () => {
-		it("triggers the registered refresh callback after a schema mutation", async () => {
-			const originalDev = (import.meta.env as { DEV?: boolean }).DEV;
-			(import.meta.env as { DEV?: boolean }).DEV = true;
-
-			const refresh = vi.fn();
-			setDevTypegenRefresh(refresh);
+		it("signals a dev types refresh after a schema mutation", async () => {
+			vi.mocked(refreshDevTypes).mockClear();
 
 			await registry.createCollection({
 				slug: "typed",
@@ -1173,11 +1171,7 @@ describe("SchemaRegistry", () => {
 				supports: ["drafts", "revisions"],
 			});
 
-			expect(refresh).toHaveBeenCalledTimes(1);
-			expect(refresh).toHaveBeenCalledWith(db);
-
-			setDevTypegenRefresh(() => {});
-			(import.meta.env as { DEV?: boolean }).DEV = originalDev;
+			expect(refreshDevTypes).toHaveBeenCalledTimes(1);
 		});
 	});
 });

@@ -29,9 +29,8 @@ import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { normalizeRegistryConfig, resolveRegistryConfigForSandbox } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
-import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
-import { createDebouncedTypegenRefresh } from "./dev-typegen.js";
+import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
 	injectCoreRoutes,
@@ -705,8 +704,8 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					});
 				}
 
-				// Generate types once the server is listening, and register the
-				// refresh hook so schema mutations in dev update the file too.
+				// Generate types once the server is listening, and listen for
+				// schema mutations in dev so they update the file too.
 				// The endpoint returns the types content; we write the file here
 				// (in Node) because workerd has no real filesystem access.
 				server.httpServer?.once("listening", () => {
@@ -715,7 +714,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 
 					const port = address.port;
 					const refreshDevTypes = createDebouncedTypegenRefresh(port, logger);
-					setDevTypegenRefresh(refreshDevTypes);
+					listenForDevTypegenRefresh(server, refreshDevTypes);
 
 					// Initial generation now that the server is up.
 					refreshDevTypes();

@@ -1,5 +1,33 @@
 import type { AstroIntegrationLogger } from "astro";
 
+import { DEV_TYPEGEN_REFRESH_EVENT } from "../dev-typegen.js";
+
+interface DevServerEnvironments {
+	environments: Record<
+		string,
+		{
+			config: { consumer: string };
+			hot: { on(event: string, listener: () => void): void };
+		}
+	>;
+}
+
+/**
+ * Call `refresh` whenever server-side code in any Vite environment reports a
+ * schema change. Schema mutations can run in a separate realm from the
+ * integration (workerd under the Cloudflare adapter), so the signal travels
+ * over each environment's hot channel.
+ */
+export function listenForDevTypegenRefresh(
+	server: DevServerEnvironments,
+	refresh: () => void,
+): void {
+	for (const environment of Object.values(server.environments)) {
+		if (environment.config.consumer !== "server") continue;
+		environment.hot.on(DEV_TYPEGEN_REFRESH_EVENT, () => refresh());
+	}
+}
+
 /**
  * Create a debounced refresh function that fetches the generated types from
  * the dev server and writes them to `emdash-env.d.ts` in the project root.

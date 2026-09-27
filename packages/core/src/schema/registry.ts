@@ -330,7 +330,7 @@ export class SchemaRegistry {
 	 * Notify the dev typegen hook that the schema has changed.
 	 */
 	private notifyTypegen(): void {
-		refreshDevTypes(this.db);
+		refreshDevTypes();
 	}
 
 	// ============================================
