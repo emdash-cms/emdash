@@ -1,0 +1,31 @@
+e2e/tests/widgets.spec.ts
+  s_ad1c9419023c90::t_fd2f2aaa182695 25,28,34-45,56-58,106-110,127-128,135-139,156-158,165-166,188-190,200-202,214,217,225-227,231-239,246-247,261-263,272-274,281,288-289,302-304,310-312,322
+packages/admin/tests/components/Widgets.test.tsx
+  s_b617e4c40919cd::t_3888d13c049804 304-310
+packages/admin/tests/components/slugPatternRegression.test.tsx
+  s_b617e4c40919cd::t_723bab07eb725c 147-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a4bb9c34ece30c43e10298eb6a4c5099396b4c5e",
+  "prompts": {},
+  "sessions": {
+    "s_ad1c9419023c90": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0da3e-96b9-7120-a5bb-1933899c5ebc",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_b617e4c40919cd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e244-feb3-7643-b8d8-0ce485c7a33c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
