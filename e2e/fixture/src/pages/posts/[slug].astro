@@ -34,7 +34,6 @@ const pageCtx = createPublicPageContext({
 		<meta charset="utf-8" />
 		<title>{post.data.title}</title>
 		<EmDashHead page={pageCtx} />
-		{seo.canonical && <link rel="canonical" href={seo.canonical} />}
 		<style>
 			#body :global(pre) {
 				padding-block: 1.25rem;
