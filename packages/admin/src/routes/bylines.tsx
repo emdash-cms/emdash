@@ -86,6 +86,10 @@ export function loadMoreSnapshotMatches(
 	);
 }
 
+function isSameFormState(a: BylineFormState, b: BylineFormState): boolean {
+	return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function toFormState(byline?: BylineSummary | null): BylineFormState {
 	if (!byline) {
 		return {
@@ -270,10 +274,28 @@ export function BylinesPage() {
 	const selected = selectedRemote ?? items.find((item) => item.id === selectedId) ?? null;
 
 	const [form, setForm] = React.useState<BylineFormState>(() => toFormState(null));
+	// The byline record the form was populated from. Newer data for the same
+	// byline only replaces the form while it is unedited: the by-id query often
+	// resolves after the editor has started typing, and repopulating then
+	// discards those edits.
+	const [formSource, setFormSource] = React.useState<BylineSummary | null>(null);
 
 	React.useEffect(() => {
+		if (selectedId === null) {
+			if (formSource !== null) {
+				setForm(toFormState(null));
+				setFormSource(null);
+			}
+			return;
+		}
+		if (!selected || selected === formSource) return;
+		const edited =
+			formSource?.id === selected.id && !isSameFormState(form, toFormState(formSource));
+		if (edited) return;
 		setForm(toFormState(selected));
-	}, [selected]);
+		setFormSource(selected);
+	}, [selectedId, selected, formSource, form]);
+	const formLoaded = selectedId === null || formSource?.id === selectedId;
 
 	// Translations: only fetched when a multi-locale install has a byline
 	// open. The panel renders one row per configured locale, with Translate
@@ -341,11 +363,10 @@ export function BylinesPage() {
 			}
 			return updateByline(selectedId, body);
 		},
-		onSuccess: () => {
+		onSuccess: (updated) => {
+			queryClient.setQueryData(["byline", updated.id], updated);
+			setAllItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
 			void queryClient.invalidateQueries({ queryKey: ["bylines"] });
-			if (selectedId) {
-				void queryClient.invalidateQueries({ queryKey: ["byline", selectedId] });
-			}
 			setFormOpen(false);
 			setSelectedId(null);
 			toastManager.add({ title: t`Byline updated` });
@@ -412,6 +433,7 @@ export function BylinesPage() {
 	const openCreate = () => {
 		setSelectedId(null);
 		setForm(toFormState(null));
+		setFormSource(null);
 		createMutation.reset();
 		updateMutation.reset();
 		translateMutation.reset();
@@ -420,6 +442,7 @@ export function BylinesPage() {
 	const openEdit = (item: BylineSummary) => {
 		setSelectedId(item.id);
 		setForm(toFormState(item));
+		setFormSource(item);
 		createMutation.reset();
 		updateMutation.reset();
 		translateMutation.reset();
@@ -434,7 +457,7 @@ export function BylinesPage() {
 	};
 	const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (isSaving || !form.displayName || !form.slug) return;
+		if (isSaving || !formLoaded || !form.displayName || !form.slug) return;
 		if (selectedId) {
 			updateMutation.mutate();
 		} else {
@@ -667,12 +690,14 @@ export function BylinesPage() {
 						<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
 							<div className="min-w-0">
 								<Dialog.Title className="text-lg font-semibold">
-									{selected ? t`Edit byline` : t`New byline`}
+									{selectedId ? t`Edit byline` : t`New byline`}
 								</Dialog.Title>
 								<Dialog.Description className="mt-1 text-sm text-kumo-subtle">
 									{selected
 										? t`Update the profile for ${selected.displayName}.`
-										: t`Add a person or team to credit on your content.`}
+										: selectedId
+											? null
+											: t`Add a person or team to credit on your content.`}
 								</Dialog.Description>
 							</div>
 							<Dialog.Close
@@ -691,7 +716,10 @@ export function BylinesPage() {
 							/>
 						</div>
 
-						<div className="emdash-auto-scrollbar min-h-0 flex-1 space-y-5 overflow-x-hidden overflow-y-auto px-6 py-6">
+						<fieldset
+							disabled={!formLoaded}
+							className="emdash-auto-scrollbar min-h-0 min-w-0 flex-1 space-y-5 overflow-x-hidden overflow-y-auto px-6 py-6"
+						>
 							<Input
 								label={t`Display name`}
 								value={form.displayName}
@@ -805,7 +833,7 @@ export function BylinesPage() {
 									/>
 								</div>
 							) : null}
-						</div>
+						</fieldset>
 						<DialogError message={getMutationError(mutationError)} className="mx-6 mt-3" />
 
 						<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-kumo-line px-6 py-4">
@@ -826,9 +854,9 @@ export function BylinesPage() {
 								<Button
 									type="submit"
 									variant="primary"
-									disabled={!form.displayName || !form.slug || isSaving}
+									disabled={!formLoaded || !form.displayName || !form.slug || isSaving}
 								>
-									{isSaving ? t`Saving...` : selected ? t`Save` : t`Create`}
+									{isSaving ? t`Saving...` : selectedId ? t`Save` : t`Create`}
 								</Button>
 							</div>
 						</div>
