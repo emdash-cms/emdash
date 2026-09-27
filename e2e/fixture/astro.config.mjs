@@ -14,7 +14,7 @@ import registryTestPlugin from "@emdash-cms/plugin-marketplace-test";
 import { defineConfig } from "astro/config";
 import emdash from "emdash/astro";
 import { sqlite } from "emdash/db";
-import { installRegistryAuthoritativeFixture } from "emdash/testing/registry";
+import { installRegistryAuthoritativeFixture } from "emdash/internal/testing/registry";
 
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;

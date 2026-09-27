@@ -196,7 +196,7 @@ export function resolveImageEndpoint(opts: {
 		return {
 			entrypoint: opts.isCloudflare
 				? "@emdash-cms/cloudflare/image-endpoint"
-				: "emdash/image-endpoint",
+				: "emdash/internal/image-endpoint",
 		};
 	}
 	// A deliberate passthrough setup: leave it alone, no warning.
@@ -325,19 +325,19 @@ export function buildMiddlewareEntries(
 
 	entries.push(
 		{ entrypoint: "emdash/middleware", order: "pre" },
-		{ entrypoint: "emdash/middleware/redirect", order: "pre" },
+		{ entrypoint: "emdash/internal/middleware/redirect", order: "pre" },
 	);
 
 	if (!config.playground) {
 		entries.push(
-			{ entrypoint: "emdash/middleware/setup", order: "pre" },
-			{ entrypoint: "emdash/middleware/auth", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/setup", order: "pre" },
+			{ entrypoint: "emdash/internal/middleware/auth", order: "pre" },
 		);
 	}
 
 	entries.push(
-		{ entrypoint: "emdash/middleware/media-usage-write-fence", order: "pre" },
-		{ entrypoint: "emdash/middleware/request-context", order: "pre" },
+		{ entrypoint: "emdash/internal/middleware/media-usage-write-fence", order: "pre" },
+		{ entrypoint: "emdash/internal/middleware/request-context", order: "pre" },
 	);
 
 	return entries;

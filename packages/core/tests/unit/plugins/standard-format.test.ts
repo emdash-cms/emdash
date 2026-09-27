@@ -81,7 +81,7 @@ describe("generatePluginsModule() standard format", () => {
 		const code = generatePluginsModule(descriptors);
 
 		expect(code).toContain("adaptSandboxEntry");
-		expect(code).toContain('from "emdash/plugins/adapt-sandbox-entry"');
+		expect(code).toContain('from "emdash/internal/plugins/adapt-sandbox-entry"');
 		expect(code).toContain('import pluginDef0 from "@my/standard-plugin"');
 		expect(code).toContain("adaptSandboxEntry(pluginDef0");
 	});
@@ -265,7 +265,7 @@ describe("generatePluginsModule() for a built standard plugin", () => {
 			new URL("../../../src/plugins/adapt-sandbox-entry.ts", import.meta.url),
 		);
 		const module = join(dir, "plugins.mjs");
-		await writeFile(module, code.replace("emdash/plugins/adapt-sandbox-entry", adapter));
+		await writeFile(module, code.replace("emdash/internal/plugins/adapt-sandbox-entry", adapter));
 
 		const { plugins } = (await import(module)) as { plugins: ResolvedPlugin[] };
 		const tool = plugins[0]!.mcp?.tools.list_events;

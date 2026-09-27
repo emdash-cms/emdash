@@ -13,7 +13,7 @@ const TS_EXT = /\.tsx?$/;
  * Mirror each entry's path under src/ into dist/, preserving the original
  * filename verbatim. tsdown/rolldown's default name template rewrites `[` and
  * `]` to `_`, which would mangle dynamic-route entrypoints
- * (`[collection]`, `[...path]`) and decouple `emdash/routes/*` resolution from
+ * (`[collection]`, `[...path]`) and decouple `emdash/internal/routes/*` resolution from
  * the real filenames. Mirroring keeps dist a 1:1 image of src so route
  * injection resolves entrypoints by their actual paths.
  */

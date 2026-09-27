@@ -55,7 +55,7 @@ describe("built migrate CLI with SQLite", () => {
 				i18n: null,
 				database: {
 					type: "sqlite",
-					executorEntrypoint: "emdash/db/sqlite-migrations",
+					executorEntrypoint: "emdash/internal/db/sqlite-migrations",
 					executorConfig: { url: "file:./data.db" },
 				},
 			}),
@@ -126,7 +126,7 @@ describe("built migrate CLI with SQLite", () => {
 				i18n: null,
 				database: {
 					type: "sqlite",
-					executorEntrypoint: "emdash/db/sqlite-migrations",
+					executorEntrypoint: "emdash/internal/db/sqlite-migrations",
 					executorConfig: { url: "file:./lock.db" },
 				},
 			}),

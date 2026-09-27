@@ -43,7 +43,7 @@ import type {
 	PaginatedResult,
 	PluginStorageRepository,
 	SettingField,
-} from "emdash/plugins/host";
+} from "emdash/internal/plugins/host";
 import {
 	createPluginSecretRedactor,
 	type PluginSecretRedactor,

@@ -14,7 +14,7 @@
 import { Buffer } from "node:buffer";
 
 import { normalizePluginCapabilities, type PluginManifest } from "emdash";
-import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
+import { generatePluginHttpWireRuntimeSource } from "emdash/internal/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;

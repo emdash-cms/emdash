@@ -26,11 +26,11 @@
       "types": "./dist/plugin-types.d.mts",
       "default": "./dist/plugin-types.mjs"
     },
-    "./plugin-test-runtime": {
+    "./internal/plugin-test-runtime": {
       "types": "./dist/plugin-test-runtime.d.mts",
       "default": "./dist/plugin-test-runtime.mjs"
     },
-    "./testing/registry": {
+    "./internal/testing/registry": {
       "types": "./dist/registry/testing.d.mts",
       "default": "./dist/registry/testing.mjs"
     },
@@ -38,19 +38,19 @@
       "types": "./dist/astro/middleware.d.mts",
       "default": "./dist/astro/middleware.mjs"
     },
-    "./middleware/setup": {
+    "./internal/middleware/setup": {
       "types": "./dist/astro/middleware/setup.d.mts",
       "default": "./dist/astro/middleware/setup.mjs"
     },
-    "./middleware/auth": {
+    "./internal/middleware/auth": {
       "types": "./dist/astro/middleware/auth.d.mts",
       "default": "./dist/astro/middleware/auth.mjs"
     },
-    "./middleware/media-usage-write-fence": {
+    "./internal/middleware/media-usage-write-fence": {
       "types": "./dist/astro/middleware/media-usage-write-fence.d.mts",
       "default": "./dist/astro/middleware/media-usage-write-fence.mjs"
     },
-    "./middleware/redirect": {
+    "./internal/middleware/redirect": {
       "types": "./dist/astro/middleware/redirect.d.mts",
       "default": "./dist/astro/middleware/redirect.mjs"
     },
@@ -61,8 +61,8 @@
       "types": "./dist/cli/index.d.mts",
       "default": "./dist/cli/index.mjs"
     },
-    "./routes/*.astro": "./src/astro/routes/*.astro",
-    "./routes/*": {
+    "./internal/routes/*.astro": "./src/astro/routes/*.astro",
+    "./internal/routes/*": {
       "types": "./dist/astro/routes/*.d.mts",
       "default": "./dist/astro/routes/*.mjs"
     },
@@ -92,7 +92,7 @@
       "types": "./dist/db/sqlite.d.mts",
       "default": "./dist/db/sqlite.mjs"
     },
-    "./db/sqlite-migrations": {
+    "./internal/db/sqlite-migrations": {
       "types": "./dist/db/sqlite-migrations.d.mts",
       "default": "./dist/db/sqlite-migrations.mjs"
     },
@@ -100,7 +100,7 @@
       "types": "./dist/db/libsql.d.mts",
       "default": "./dist/db/libsql.mjs"
     },
-    "./db/libsql-migrations": {
+    "./internal/db/libsql-migrations": {
       "types": "./dist/db/libsql-migrations.d.mts",
       "default": "./dist/db/libsql-migrations.mjs"
     },
@@ -108,7 +108,7 @@
       "types": "./dist/db/postgres.d.mts",
       "default": "./dist/db/postgres.mjs"
     },
-    "./db/postgres-migrations": {
+    "./internal/db/postgres-migrations": {
       "types": "./dist/db/postgres-migrations.d.mts",
       "default": "./dist/db/postgres-migrations.mjs"
     },
@@ -120,11 +120,11 @@
       "types": "./dist/database/instrumentation.d.mts",
       "default": "./dist/database/instrumentation.mjs"
     },
-    "./database/pg-migration-lock": {
+    "./internal/database/pg-migration-lock": {
       "types": "./dist/database/pg-migration-lock.d.mts",
       "default": "./dist/database/pg-migration-lock.mjs"
     },
-    "./database/migration-lock": {
+    "./internal/database/migration-lock": {
       "types": "./dist/database/migration-lock.d.mts",
       "default": "./dist/database/migration-lock.mjs"
     },
@@ -136,7 +136,7 @@
       "types": "./dist/storage/s3.d.mts",
       "default": "./dist/storage/s3.mjs"
     },
-    "./object-cache/memory": {
+    "./internal/object-cache/memory": {
       "types": "./dist/object-cache/memory.d.mts",
       "default": "./dist/object-cache/memory.mjs"
     },
@@ -144,7 +144,7 @@
       "types": "./dist/media/index.d.mts",
       "default": "./dist/media/index.mjs"
     },
-    "./media/local-runtime": {
+    "./internal/media/local-runtime": {
       "types": "./dist/media/local-runtime.d.mts",
       "default": "./dist/media/local-runtime.mjs"
     },
@@ -152,7 +152,7 @@
       "types": "./dist/media/image-endpoint.d.mts",
       "default": "./dist/media/image-endpoint.mjs"
     },
-    "./image-endpoint": {
+    "./internal/image-endpoint": {
       "types": "./dist/astro/image-endpoint.d.mts",
       "default": "./dist/astro/image-endpoint.mjs"
     },
@@ -168,7 +168,7 @@
       "types": "./dist/seed/index.d.mts",
       "default": "./dist/seed/index.mjs"
     },
-    "./middleware/request-context": {
+    "./internal/middleware/request-context": {
       "types": "./dist/astro/middleware/request-context.d.mts",
       "default": "./dist/astro/middleware/request-context.mjs"
     },
@@ -195,11 +195,11 @@
       "types": "./dist/plugin-utils.d.mts",
       "default": "./dist/plugin-utils.mjs"
     },
-    "./plugins/adapt-sandbox-entry": {
+    "./internal/plugins/adapt-sandbox-entry": {
       "types": "./dist/plugins/adapt-sandbox-entry.d.mts",
       "default": "./dist/plugins/adapt-sandbox-entry.mjs"
     },
-    "./plugins/host": {
+    "./internal/plugins/host": {
       "types": "./dist/plugins/host.d.mts",
       "default": "./dist/plugins/host.mjs"
     },
@@ -207,7 +207,7 @@
       "types": "./dist/plugins/secret-redactor.d.mts",
       "default": "./dist/plugins/secret-redactor.mjs"
     },
-    "./plugins/http-wire": {
+    "./internal/plugins/http-wire": {
       "types": "./dist/plugins/http-wire.d.mts",
       "default": "./dist/plugins/http-wire.mjs"
     }
