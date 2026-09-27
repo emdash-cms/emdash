@@ -90,14 +90,6 @@
       "types": "./dist/media/stream-runtime.d.mts",
       "default": "./dist/media/stream-runtime.mjs"
     },
-    "./cache": {
-      "types": "./dist/cache/runtime.d.mts",
-      "default": "./dist/cache/runtime.mjs"
-    },
-    "./cache/config": {
-      "types": "./dist/cache/config.d.mts",
-      "default": "./dist/cache/config.mjs"
-    },
     "./cache/kv": {
       "types": "./dist/cache/kv.d.mts",
       "default": "./dist/cache/kv.mjs"

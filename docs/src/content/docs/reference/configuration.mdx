@@ -1016,31 +1016,6 @@ mediaProviders: [cloudflareStream({ controls: true })];
 
 See [Media Library: Media providers](/guides/media-library/#media-providers) for the required bindings and rendering components.
 
-## Astro cache adapter
-
-### `cloudflareCache(config?)`
-
-<Aside type="caution" title="Deprecated adapter">
-	`cloudflareCache()` is retained for existing sites. New Cloudflare sites should enable native
-	Workers Caching in `wrangler.jsonc` and use `cacheCloudflare()` from
-	`@astrojs/cloudflare/cache`. The native provider invalidates through `cache.purge()` and does
-	not need zone credentials.
-</Aside>
-
-The legacy adapter returns an Astro `cache.provider` that stores responses in the Workers Cache API and purges cache tags through the Cloudflare REST API:
-
-```js title="astro.config.mjs"
-import { cloudflareCache } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-	cache: {
-		provider: cloudflareCache(),
-	},
-});
-```
-
-It accepts `cacheName` (default `"emdash"`) and `bookmarkCookie` (default `"__em_d1_bookmark"`), plus `zoneId` or `zoneIdEnvVar` and `apiToken` or `apiTokenEnvVar` for purge-by-tag requests. The default variable names are `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN`.
-
 ## Live collections
 
 Configure the EmDash loader in `src/live.config.ts`:

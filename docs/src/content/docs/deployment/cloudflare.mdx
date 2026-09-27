@@ -176,18 +176,7 @@ Two things to know before enabling it:
 1. **Responses without a `Cache-Control` header are still cached.** Workers Cache applies RFC 9111 heuristic freshness — a `200` without any header is cached for 2 hours. Give every custom route an explicit `Cache-Control` (use `private, no-store` for anything session-dependent).
 2. **Cached pages are shared with logged-in editors.** The cache runs before your Worker, so it cannot bypass based on request cookies. A logged-in editor may receive the cached anonymous variant of a public page — without the visual editing toolbar — until the entry expires. Editor-rendered responses themselves are never stored (they carry `private, no-store`), so nothing leaks in the other direction.
 
-### Not the same as `cloudflareCache()` from `@emdash-cms/cloudflare`
-
-| | **Preferred: Workers Caching** | **Legacy: `cloudflareCache()`** |
-| --- | --- | --- |
-| Config | `"cache": { "enabled": true }` + `cacheCloudflare()` from `@astrojs/cloudflare/cache` | `cache: { provider: cloudflareCache() }` from `@emdash-cms/cloudflare` |
-| Storage | Platform Workers Caching | Cache API (`caches.open` / `put` / `match`) |
-| Purge | `cache.purge()` from `cloudflare:workers` | Zone REST `POST /zones/{id}/purge_cache` |
-| Secrets | None for purge | `CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN` |
-
-Use the preferred path for new sites. Keep `cloudflareCache()` only if you already depend on its Cache API behavior.
-
-Also do not confuse either of those with **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV — a separate layer under the Worker.
+Workers Caching is separate from the **object cache** (`objectCache: kvCache({ binding: "CACHE" })`), which caches database query results in KV under the Worker.
 
 ## Custom domains
 
