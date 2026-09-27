@@ -1,6 +1,6 @@
 ---
-"emdash": major
-"@emdash-cms/cloudflare": major
+"emdash": patch
+"@emdash-cms/cloudflare": patch
 "@emdash-cms/sandbox-workerd": patch
 "@emdash-cms/plugin-test": patch
 ---
