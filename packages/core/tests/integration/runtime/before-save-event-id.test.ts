@@ -129,7 +129,13 @@ describe("content:beforeSave event id", () => {
 
 			expect(result.success).toBe(true);
 			expect(events).toEqual([
-				{ content: { title: "Changed" }, collection: "post", isNew: false, id: item.id },
+				{
+					content: { title: "Changed" },
+					collection: "post",
+					isNew: false,
+					id: item.id,
+					locale: "en",
+				},
 			]);
 		});
 
@@ -168,6 +174,7 @@ describe("content:beforeSave event id", () => {
 				content: { title: "Hi" },
 				collection: "post",
 				isNew: true,
+				locale: "en",
 			});
 		});
 
@@ -184,6 +191,7 @@ describe("content:beforeSave event id", () => {
 				collection: "post",
 				isNew: false,
 				id: item.id,
+				locale: "en",
 			});
 		});
 
@@ -204,6 +212,7 @@ describe("content:beforeSave event id", () => {
 				collection: "post",
 				isNew: false,
 				id: item.id,
+				locale: "en",
 			});
 		});
 	});
