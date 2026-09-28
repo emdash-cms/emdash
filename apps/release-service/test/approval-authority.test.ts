@@ -398,8 +398,8 @@ describe("approval authority", () => {
 
 	it("rejects private DID-web resolution before fetching the DID document", async () => {
 		let didDocumentFetched = false;
-		const fetch = async (input: RequestInfo | URL): Promise<Response> => {
-			const url = new URL(input instanceof Request ? input.url : input.toString());
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(new Request(input, init).url);
 			if (url.hostname === "cloudflare-dns.com") {
 				return Response.json({
 					Status: 0,
