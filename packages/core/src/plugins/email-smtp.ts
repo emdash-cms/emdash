@@ -653,10 +653,17 @@ export async function loadSmtpConfigFromDb(
 	if (!host || !port || !secure || !user || !encryptedPass) {
 		return null;
 	}
-	if (!Number.isInteger(port) || port < 1 || port > 65535 || port === 25) {
+	if (port === 25) {
 		console.warn(
-			`[email-smtp] Stored SMTP port ${port} cannot be used (port 25 is blocked on Cloudflare) — ` +
+			"[email-smtp] Stored SMTP port 25 cannot be used (Cloudflare blocks outbound port 25) — " +
 				"save 587 or 465 in Settings → Email.",
+		);
+		return null;
+	}
+	if (!Number.isInteger(port) || port < 1 || port > 65535) {
+		console.warn(
+			`[email-smtp] Stored SMTP port ${port} is not a valid port number — ` +
+				"save a whole number between 1 and 65535 in Settings → Email.",
 		);
 		return null;
 	}

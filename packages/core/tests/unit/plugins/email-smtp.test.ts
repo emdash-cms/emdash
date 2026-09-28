@@ -451,7 +451,11 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 		expect(typeof raw).toBe("string");
 	});
 
-	it.each([25, 70000, 587.5])("ignores a stored port %s the transport cannot use", async (port) => {
+	it.each([
+		[25, "Cloudflare blocks outbound port 25"],
+		[70000, "not a valid port number"],
+		[587.5, "not a valid port number"],
+	])("ignores a stored port %s the transport cannot use", async (port, reason) => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, {
 			host: "smtp.example.com",
@@ -462,7 +466,7 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 		});
 
 		expect(await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY)).toBeNull();
-		expect(warn).toHaveBeenCalledWith(expect.stringContaining("Settings → Email"));
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining(reason));
 		warn.mockRestore();
 	});
 
