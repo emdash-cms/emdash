@@ -984,7 +984,7 @@ describe("astro middleware setup probe", () => {
 		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
 	});
 
-	it("initializes the runtime on the next request once the probe succeeds", async () => {
+	it("serves the next request from the runtime a failed-probe request started", async () => {
 		vi.mocked(getDb).mockResolvedValueOnce(
 			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
 		);

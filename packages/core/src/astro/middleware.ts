@@ -760,7 +760,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 							// render the page normally. Unless a runtime is already running,
 							// don't wait for runtime init on this request: it connects to the
 							// same database and would make the visitor wait through a second
-							// timeout. The init lock keeps it running for later requests.
+							// timeout. getRuntime anchors it with after(), so it can still
+							// finish for later requests.
 							probeFailed = !getRuntimeHolder().instance;
 							console.error("Setup probe failed (non-fatal):", error);
 						}
@@ -768,7 +769,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
 
-				// Initialize the runtime for page:metadata and page:fragments hooks.
+				// Wait for the runtime for page:metadata and page:fragments hooks.
 				// The runtime is a cached singleton — after the first request,
 				// getRuntime() is just a null-check. This enables SEO plugins to
 				// contribute meta tags for all visitors, not just logged-in editors,

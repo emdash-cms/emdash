@@ -249,6 +249,18 @@ export class MigrationLockHeldError extends Error {
 	}
 }
 
+/**
+ * Thrown when a migration itself fails. Callers with failure backoff apply it;
+ * errors reading migration state (a lost connection, an unavailable replica)
+ * are left retryable.
+ */
+export class MigrationFailedError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "MigrationFailedError";
+	}
+}
+
 /** Custom migration table name */
 const MIGRATION_TABLE = "_emdash_migrations";
 
@@ -547,7 +559,7 @@ export async function runMigrations(
 		}
 
 		const failedSuffix = failedMigration ? ` (migration: ${failedMigration.migrationName})` : "";
-		throw new Error(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
+		throw new MigrationFailedError(`Migration failed: ${msg || "unknown error"}${failedSuffix}`);
 	}
 
 	return { applied };
