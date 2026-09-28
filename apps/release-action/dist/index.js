@@ -13105,7 +13105,7 @@ function encodeBase32(bytes) {
 //#region src/prepare.ts
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const WORKFLOW_REF_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+const WORKFLOW_REF_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9.@_/-]+$/;
 var ReleasePreparationError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -13311,7 +13311,7 @@ async function runAction(runtime, dependencies = {}) {
 		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
 		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
 		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
-		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		const repositoryVisibility = runtime.getInput("repository-visibility");
 		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) throw new ActionConfigurationError("GitHub workflow identity is unavailable");
 		prepared = await (dependencies.prepareReleaseFiles ?? prepareReleaseFiles)({
 			workspace,
