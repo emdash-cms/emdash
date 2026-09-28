@@ -467,7 +467,7 @@ For outbound HTTP tests, queue one response per call with \`await host.http.resp
 
 Dispose either host after each test so its bindings reset. Keep Node/workerd parity opt-in unless the plugin depends on runner-sensitive behavior.
 
-Read generated settings with \`ctx.settings.get("<key>")\`. Existing \`ctx.kv.get("settings:<key>")\` reads remain compatible through EmDash 0.x, but new code should use \`ctx.settings\`.
+Read generated settings with \`ctx.settings.get("<key>")\`. Existing \`ctx.kv.get("settings:<key>")\` reads remain compatible throughout EmDash 1.x, but new code should use \`ctx.settings\`.
 
 Before handing off a change, run validation, typecheck, tests, and build. A release also requires a version bump in \`package.json\` when runtime behavior or the trust contract changes.
 
