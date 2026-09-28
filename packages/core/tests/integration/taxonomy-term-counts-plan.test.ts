@@ -4,9 +4,10 @@
  * the planner drives from content_taxonomies, not from ec_*.
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
@@ -20,7 +21,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-let sqlite: Database.Database;
+let sqlite: Database;
 let db: Kysely<DatabaseSchema>;
 let captured: CapturedQuery[];
 
@@ -70,7 +71,7 @@ afterEach(async () => {
 	await db.destroy();
 });
 
-/** better-sqlite3 only binds primitives; coerce the JS values Kysely captured. */
+/** Normalize application values captured from Kysely for direct driver binding. */
 function bindable(p: unknown): unknown {
 	if (typeof p === "boolean") return p ? 1 : 0;
 	if (p instanceof Date) return p.toISOString();
@@ -87,7 +88,7 @@ function explain(query: CapturedQuery): string {
 
 async function countQueryPlan(): Promise<string> {
 	captured = [];
-	await fetchVisibleTermCounts(db, "category", ["post"]);
+	await fetchVisibleTermCounts(db, "category", ["post"], "en");
 	const query = captured.find((q) => q.sql.includes("content_taxonomies"));
 	expect(query, "expected a term-count query against the pivot").toBeDefined();
 	return explain(query!);
@@ -102,10 +103,11 @@ it("seeks the terms on a content_taxonomies index rather than probing the pivot 
 	expect(plan).not.toContain("SCAN ct");
 });
 
-it("touches the content table only by primary key", async () => {
+it("seeks content rows by translation group", async () => {
 	const plan = await countQueryPlan();
 
-	expect(plan).toContain("SEARCH e USING");
-	expect(plan).toMatch(/SEARCH e USING (COVERING )?INDEX sqlite_autoindex_ec_post_1 \(id=\?\)/);
+	expect(plan).toMatch(
+		/SEARCH e USING (COVERING )?INDEX idx_ec_post_del_tg_locale \(deleted_at=\? AND translation_group=\? AND locale=\?\)/,
+	);
 	expect(plan).not.toContain("SCAN e");
 });

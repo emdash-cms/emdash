@@ -7,7 +7,7 @@
  * would re-implement what `@atcute/repo` already tests internally, and the
  * consumer-level test path stubs verification via `ConsumerDeps.verify`
  * (the FakePublisher / MockPds fixture from `@emdash-cms/atproto-test-utils`
- * can't load inside `@cloudflare/vitest-pool-workers` due to a transitive
+ * can't load inside `@cloudflare/vitest-plugin` due to a transitive
  * `@atproto/lex-data` incompatibility; see records-consumer test header).
  *
  * What we DO test here is the surface every reason code can be reached

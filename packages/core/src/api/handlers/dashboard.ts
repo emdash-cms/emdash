@@ -10,9 +10,17 @@ import { sql, type Kysely } from "kysely";
 
 import { ContentRepository } from "../../database/repositories/content.js";
 import { MediaRepository } from "../../database/repositories/media.js";
+import { OptionsRepository } from "../../database/repositories/options.js";
 import { UserRepository } from "../../database/repositories/user.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import {
+	SCHEDULED_POLICY_REJECTION_PREFIX,
+	isScheduledPolicyRejection,
+	type ScheduledPolicyRejection,
+	type VersionedScheduledPolicyRejection,
+} from "../../plugins/content-policy.js";
+import { getSchedulerHealth, type SchedulerHealth } from "../../scheduler-health.js";
 import type { ApiResult } from "../types.js";
 
 export interface CollectionStats {
@@ -22,6 +30,7 @@ export interface CollectionStats {
 	published: number;
 	draft: number;
 	scheduled: number;
+	overdueScheduled: number;
 }
 
 export interface RecentItem {
@@ -40,7 +49,12 @@ export interface DashboardStats {
 	mediaCount: number;
 	userCount: number;
 	recentItems: RecentItem[];
+	schedulerHealth: SchedulerHealth;
+	policyRejectedScheduled: number;
+	policyRejections: VersionedScheduledPolicyRejection[];
 }
+
+const POLICY_REJECTION_PREVIEW_LIMIT = 20;
 
 /**
  * Fetch dashboard statistics.
@@ -50,6 +64,7 @@ export interface DashboardStats {
  */
 export async function handleDashboardStats(
 	db: Kysely<Database>,
+	now = new Date(),
 ): Promise<ApiResult<DashboardStats>> {
 	try {
 		// Discover collections from the system table
@@ -63,7 +78,7 @@ export async function handleDashboardStats(
 		const contentRepo = new ContentRepository(db);
 		const collectionStats: CollectionStats[] = await Promise.all(
 			collections.map(async (col) => {
-				const stats = await contentRepo.getStats(col.slug);
+				const stats = await contentRepo.getStats(col.slug, now);
 				return {
 					slug: col.slug,
 					label: col.label,
@@ -71,6 +86,7 @@ export async function handleDashboardStats(
 					published: stats.published,
 					draft: stats.draft,
 					scheduled: stats.scheduled,
+					overdueScheduled: stats.overdueScheduled,
 				};
 			}),
 		);
@@ -78,7 +94,28 @@ export async function handleDashboardStats(
 		// Media and user counts
 		const mediaRepo = new MediaRepository(db);
 		const userRepo = new UserRepository(db);
-		const [mediaCount, userCount] = await Promise.all([mediaRepo.count(), userRepo.count()]);
+		const optionsRepo = new OptionsRepository(db);
+		const [
+			mediaCount,
+			userCount,
+			schedulerHealth,
+			policyRejectedScheduled,
+			versionedPolicyRejectionOptions,
+		] = await Promise.all([
+			mediaRepo.count(),
+			userRepo.count(),
+			getSchedulerHealth(db, now),
+			optionsRepo.countByPrefix(SCHEDULED_POLICY_REJECTION_PREFIX),
+			optionsRepo.getVersionedByPrefix<ScheduledPolicyRejection>(
+				SCHEDULED_POLICY_REJECTION_PREFIX,
+				{
+					limit: POLICY_REJECTION_PREVIEW_LIMIT,
+				},
+			),
+		]);
+		const policyRejections = [...versionedPolicyRejectionOptions.values()]
+			.filter(({ value }) => isScheduledPolicyRejection(value))
+			.map(({ value, revision }) => ({ ...value, _rev: revision }));
 
 		// Recent items across all collections (last 10 updated, any status)
 		const recentItems = await fetchRecentItems(db, collections);
@@ -90,6 +127,9 @@ export async function handleDashboardStats(
 				mediaCount,
 				userCount,
 				recentItems,
+				schedulerHealth,
+				policyRejectedScheduled,
+				policyRejections,
 			},
 		};
 	} catch (error) {

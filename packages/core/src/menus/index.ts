@@ -11,12 +11,19 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
+import {
+	resolveLocalizedContentRoutePath,
+	resolveLocale,
+	resolveLocaleChain,
+} from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
+import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
+import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { sanitizeHref } from "../utils/url.js";
 import type { Menu, MenuItem, MenuItemRow } from "./types.js";
 
@@ -24,6 +31,8 @@ export interface MenuQueryOptions {
 	/** Override the locale used for the lookup. When omitted, the locale comes
 	 * from the request context or the configured defaultLocale. */
 	locale?: string;
+	/** Astro's route trailing-slash policy for resolved content links. */
+	trailingSlash?: "always" | "never" | "ignore";
 }
 
 /**
@@ -35,18 +44,30 @@ export interface MenuQueryOptions {
  * const menuEs = await getMenu("primary", { locale: "es" });
  * ```
  */
-export function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
+export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
-	return requestCached(`menu:${name}:${locale ?? "*"}`, () =>
+	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
+	return requestCached(`menu:${name}:${locale ?? "*"}:${trailingSlash}`, () =>
 		cachedQuery({
 			namespace: CacheNamespace.MENUS,
-			key: `${name}:${locale ?? "*"}`,
+			key: `${name}:${locale ?? "*"}:${trailingSlash}`,
 			load: async () => {
 				const db = await getDb();
-				return getMenuWithDb(name, db, { locale });
+				return getMenuWithDb(name, db, { locale, trailingSlash });
 			},
 		}),
 	);
+}
+
+async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {
+	try {
+		const config = (await import("virtual:emdash/config")) as {
+			default?: { trailingSlash?: "always" | "never" | "ignore" };
+		};
+		return config.default?.trailingSlash ?? "ignore";
+	} catch {
+		return "ignore";
+	}
 }
 
 /**
@@ -83,7 +104,7 @@ export async function getMenuWithDb(
 		.orderBy("sort_order", "asc")
 		.execute();
 
-	const items = await buildMenuTree(itemRows, db, menuRow.locale);
+	const items = await buildMenuTree(itemRows, db, menuRow.locale, options.trailingSlash);
 
 	return {
 		id: menuRow.id,
@@ -126,6 +147,20 @@ export async function getMenusWithDb(
 }
 
 /**
+ * Get a menu by name with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * this menu can be purged automatically when the menu is edited.
+ */
+export async function getMenuWithCacheHint(
+	name: string,
+	options: MenuQueryOptions = {},
+): Promise<{ data: Menu | null; cacheHint: CacheHint }> {
+	const data = await getMenu(name, options);
+	return { data, cacheHint: { tags: [menuTag(name)] } };
+}
+
+/**
  * Build a hierarchical menu tree from a flat list of items. Items are
  * resolved against the given `locale` so references land on the right
  * per-locale content rows.
@@ -134,22 +169,26 @@ async function buildMenuTree(
 	items: MenuItemRow[],
 	db: Kysely<Database>,
 	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
 ): Promise<MenuItem[]> {
-	const collectionSlugs = new Set<string>();
-	for (const item of items) {
-		if (item.reference_collection) collectionSlugs.add(item.reference_collection);
-		if (item.type === "page" || item.type === "post") {
-			collectionSlugs.add(item.reference_collection || `${item.type}s`);
-		}
-	}
-
-	const urlPatterns =
-		collectionSlugs.size > 0
-			? await getCollectionUrlPatterns(db, collectionSlugs)
-			: new Map<string, string | null>();
+	const contentReferences = collectContentReferences(items);
+	const taxonomyReferences = new Set(
+		items.flatMap((item) =>
+			item.type === "taxonomy" && item.reference_id ? [item.reference_id] : [],
+		),
+	);
+	const [urlPatterns, contentLookup, taxonomyLookup] = await Promise.all([
+		contentReferences.size > 0
+			? getCollectionUrlPatterns(db, new Set(contentReferences.keys()))
+			: new Map<string, string | null>(),
+		resolveContentReferences(db, contentReferences, locale),
+		resolveTaxonomyReferences(db, taxonomyReferences, locale),
+	]);
 
 	const resolvedItems = await Promise.all(
-		items.map((item) => resolveMenuItem(item, db, urlPatterns, locale)),
+		items.map((item) =>
+			resolveMenuItem(item, urlPatterns, contentLookup, taxonomyLookup, locale, trailingSlash),
+		),
 	);
 	const validItems = resolvedItems.filter((item): item is MenuItem => item !== null);
 
@@ -173,6 +212,44 @@ async function buildMenuTree(
 	}
 
 	return rootItems;
+}
+
+function collectContentReferences(items: MenuItemRow[]): Map<string, Set<string>> {
+	const references = new Map<string, Set<string>>();
+	for (const item of items) {
+		const reference = getContentReference(item);
+		if (!reference) continue;
+		let ids = references.get(reference.collection);
+		if (!ids) {
+			ids = new Set();
+			references.set(reference.collection, ids);
+		}
+		ids.add(reference.id);
+	}
+	return references;
+}
+
+function getContentReference(item: MenuItemRow): { collection: string; id: string } | null {
+	if (item.type === "page" || item.type === "post") {
+		if (!item.reference_id) return null;
+		return {
+			collection: item.reference_collection || `${item.type}s`,
+			id: item.reference_id,
+		};
+	}
+	if (item.type === "collection") {
+		if (!item.reference_collection || !item.reference_id) return null;
+		return { collection: item.reference_collection, id: item.reference_id };
+	}
+	if (
+		item.type !== "custom" &&
+		item.type !== "taxonomy" &&
+		item.reference_collection &&
+		item.reference_id
+	) {
+		return { collection: item.reference_collection, id: item.reference_id };
+	}
+	return null;
 }
 
 /**
@@ -200,77 +277,77 @@ function getCollectionUrlPatterns(
 
 /**
  * Resolve a single menu item's URL. `reference_id` is a translation_group
- * (migration 036 remapped all existing references); we join it against
+ * (migration 036 remapped all existing references); we look it up against
  * the per-locale ec_* row or per-locale taxonomy row.
  */
 async function resolveMenuItem(
 	item: MenuItemRow,
-	db: Kysely<Database>,
 	urlPatterns: Map<string, string | null>,
+	contentLookup: ContentReferenceLookup,
+	taxonomyLookup: TaxonomyReferenceLookup,
 	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
 ): Promise<MenuItem | null> {
 	let url: string | null;
 
-	try {
-		switch (item.type) {
-			case "custom":
-				url = item.custom_url || "#";
-				break;
+	switch (item.type) {
+		case "custom":
+			url = item.custom_url || "#";
+			break;
 
-			case "page":
-			case "post":
+		case "page":
+		case "post":
+			url = await resolveContentUrl(
+				item.reference_collection || `${item.type}s`,
+				item.reference_id,
+				urlPatterns,
+				contentLookup,
+				locale,
+				trailingSlash,
+			);
+			if (url === null) return null;
+			break;
+
+		case "taxonomy":
+			url = resolveTaxonomyUrl(item.reference_id, taxonomyLookup);
+			if (url === null) return null;
+			break;
+
+		case "collection":
+			// Two shapes share this type: the admin content picker stores
+			// entries from custom collections as "collection" with a
+			// reference_id, while archive links carry only the collection
+			// slug. Entry references resolve like page/post items.
+			if (!item.reference_collection) return null;
+			if (item.reference_id) {
 				url = await resolveContentUrl(
-					item.reference_collection || `${item.type}s`,
+					item.reference_collection,
 					item.reference_id,
-					db,
 					urlPatterns,
+					contentLookup,
 					locale,
+					trailingSlash,
 				);
 				if (url === null) return null;
-				break;
+			} else {
+				url = `/${item.reference_collection}/`;
+			}
+			break;
 
-			case "taxonomy":
-				url = await resolveTaxonomyUrl(item.reference_id, db, locale);
+		default:
+			if (item.reference_collection && item.reference_id) {
+				url = await resolveContentUrl(
+					item.reference_collection,
+					item.reference_id,
+					urlPatterns,
+					contentLookup,
+					locale,
+					trailingSlash,
+				);
 				if (url === null) return null;
-				break;
-
-			case "collection":
-				// Two shapes share this type: the admin content picker stores
-				// entries from custom collections as "collection" with a
-				// reference_id, while archive links carry only the collection
-				// slug. Entry references resolve like page/post items.
-				if (!item.reference_collection) return null;
-				if (item.reference_id) {
-					url = await resolveContentUrl(
-						item.reference_collection,
-						item.reference_id,
-						db,
-						urlPatterns,
-						locale,
-					);
-					if (url === null) return null;
-				} else {
-					url = `/${item.reference_collection}/`;
-				}
-				break;
-
-			default:
-				if (item.reference_collection && item.reference_id) {
-					url = await resolveContentUrl(
-						item.reference_collection,
-						item.reference_id,
-						db,
-						urlPatterns,
-						locale,
-					);
-					if (url === null) return null;
-				} else {
-					url = "#";
-				}
-		}
-	} catch (error) {
-		console.error(`Failed to resolve menu item ${item.id}:`, error);
-		return null;
+			} else {
+				url = "#";
+			}
 	}
 
 	return {
@@ -284,16 +361,86 @@ async function resolveMenuItem(
 	};
 }
 
-const SLUG_PLACEHOLDER = /\{slug\}/g;
-const ID_PLACEHOLDER = /\{id\}/g;
+interface ContentReferenceRow {
+	id: string;
+	slug: string;
+	published_at: string | null;
+	locale: string;
+	translation_group: string;
+}
 
-/**
- * Interpolate a URL pattern with entry data
- *
- * Replaces `{slug}` and `{id}` placeholders.
- */
-function interpolateUrlPattern(pattern: string, slug: string, id: string): string {
-	return pattern.replace(SLUG_PLACEHOLDER, slug).replace(ID_PLACEHOLDER, id);
+interface ResolvedContentReference {
+	id: string;
+	slug: string;
+	publishedAt: string | null;
+}
+
+type ContentReferenceLookup = Map<string, Map<string, ResolvedContentReference>>;
+
+async function resolveContentReferences(
+	db: Kysely<Database>,
+	references: Map<string, Set<string>>,
+	locale: string,
+): Promise<ContentReferenceLookup> {
+	const entries = await Promise.all(
+		Array.from(references, async ([collection, referenceGroups]) => {
+			const lookup = new Map<string, ResolvedContentReference>();
+			const localized = new Map<string, ContentReferenceRow>();
+			try {
+				validateIdentifier(collection, "menu item collection");
+				for (const batch of chunks([...referenceGroups], SQL_BATCH_SIZE)) {
+					const result = await sql<ContentReferenceRow>`
+						SELECT id, slug, published_at, locale, translation_group
+						FROM ${sql.ref(`ec_${collection}`)}
+						WHERE translation_group IN (${sql.join(batch)})
+					`.execute(db);
+					for (const row of result.rows) {
+						const existing = localized.get(row.translation_group);
+						if (shouldPreferLocalizedRow(row, existing, locale)) {
+							localized.set(row.translation_group, row);
+						}
+					}
+				}
+				for (const [referenceGroup, row] of localized) {
+					lookup.set(referenceGroup, { id: row.id, slug: row.slug, publishedAt: row.published_at });
+				}
+
+				const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
+				for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
+					const result = await sql<Pick<ContentReferenceRow, "id" | "slug" | "published_at">>`
+						SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
+						WHERE id IN (${sql.join(batch)})
+					`.execute(db);
+					for (const row of result.rows) {
+						lookup.set(row.id, { id: row.id, slug: row.slug, publishedAt: row.published_at });
+					}
+				}
+			} catch (error) {
+				console.error(`Failed to resolve content URLs for ${collection}:`, error);
+			}
+			return [collection, lookup] as const;
+		}),
+	);
+	return new Map(entries);
+}
+
+interface LocalizedReference {
+	id: string;
+	locale: string;
+}
+
+function shouldPreferLocalizedRow(
+	candidate: LocalizedReference,
+	existing: LocalizedReference | undefined,
+	locale: string,
+): boolean {
+	if (!existing) return true;
+	if (candidate.locale === locale) return existing.locale !== locale || candidate.id < existing.id;
+	if (existing.locale === locale) return false;
+	return (
+		candidate.locale < existing.locale ||
+		(candidate.locale === existing.locale && candidate.id < existing.id)
+	);
 }
 
 /**
@@ -305,88 +452,91 @@ function interpolateUrlPattern(pattern: string, slug: string, id: string): strin
 async function resolveContentUrl(
 	collection: string,
 	referenceGroup: string | null,
-	db: Kysely<Database>,
 	urlPatterns: Map<string, string | null>,
+	contentLookup: ContentReferenceLookup,
 	locale: string,
+	trailingSlash?: "always" | "never" | "ignore",
 ): Promise<string | null> {
 	if (!referenceGroup) return null;
+	const row = contentLookup.get(collection)?.get(referenceGroup);
+	if (!row) return null;
+	return resolveLocalizedContentRoutePath({
+		pattern: urlPatterns.get(collection) ?? null,
+		collection,
+		slug: row.slug,
+		id: row.id,
+		date: row.publishedAt,
+		locale,
+		trailingSlash,
+	});
+}
 
+interface TaxonomyReferenceRow {
+	id: string;
+	name: string;
+	slug: string;
+	locale: string;
+	translation_group: string;
+}
+
+interface ResolvedTaxonomyReference {
+	name: string;
+	slug: string;
+}
+
+type TaxonomyReferenceLookup = Map<string, ResolvedTaxonomyReference>;
+
+async function resolveTaxonomyReferences(
+	db: Kysely<Database>,
+	referenceGroups: Set<string>,
+	locale: string,
+): Promise<TaxonomyReferenceLookup> {
+	const lookup = new Map<string, ResolvedTaxonomyReference>();
+	const localized = new Map<string, TaxonomyReferenceRow>();
 	try {
-		validateIdentifier(collection, "menu item collection");
-
-		// Try the requested locale first, then any locale (deterministic).
-		let result = await sql<{ id: string; slug: string }>`
-			SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
-			WHERE translation_group = ${referenceGroup} AND locale = ${locale}
-			LIMIT 1
-		`.execute(db);
-		let row = result.rows[0];
-		if (!row) {
-			result = await sql<{ id: string; slug: string }>`
-				SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
-				WHERE translation_group = ${referenceGroup}
-				ORDER BY locale ASC LIMIT 1
-			`.execute(db);
-			row = result.rows[0];
+		for (const batch of chunks([...referenceGroups], SQL_BATCH_SIZE)) {
+			const rows = await db
+				.selectFrom("taxonomies")
+				.select(["id", "name", "slug", "locale", "translation_group"])
+				.where("translation_group", "in", batch)
+				.$narrowType<{ translation_group: string }>()
+				.execute();
+			for (const row of rows) {
+				const existing = localized.get(row.translation_group);
+				if (shouldPreferLocalizedRow(row, existing, locale)) {
+					localized.set(row.translation_group, row);
+				}
+			}
 		}
-		if (!row) {
-			// Legacy rows whose reference_id still points at an id directly
-			// (defensive — migration 036 normalised these, but a row inserted
-			// between migrations could predate the remap).
-			const legacy = await sql<{ id: string; slug: string }>`
-				SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
-				WHERE id = ${referenceGroup} LIMIT 1
-			`.execute(db);
-			row = legacy.rows[0];
+		for (const [referenceGroup, row] of localized) {
+			lookup.set(referenceGroup, { name: row.name, slug: row.slug });
 		}
-		if (!row) return null;
 
-		const pattern = urlPatterns.get(collection);
-		if (pattern) return interpolateUrlPattern(pattern, row.slug, row.id);
-		return `/${collection}/${row.slug}`;
+		const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
+		for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
+			const rows = await db
+				.selectFrom("taxonomies")
+				.select(["id", "name", "slug"])
+				.where("id", "in", batch)
+				.execute();
+			for (const row of rows) lookup.set(row.id, { name: row.name, slug: row.slug });
+		}
 	} catch (error) {
-		console.error(`Failed to resolve content URL for ${collection}/${referenceGroup}:`, error);
-		return null;
+		console.error("Failed to resolve taxonomy URLs:", error);
 	}
+	return lookup;
 }
 
 /**
  * Resolve URL for a taxonomy term reference. `referenceGroup` is the term's
  * translation_group; we pick the row in the active locale (or fall back).
  */
-async function resolveTaxonomyUrl(
+function resolveTaxonomyUrl(
 	referenceGroup: string | null,
-	db: Kysely<Database>,
-	locale: string,
-): Promise<string | null> {
+	taxonomyLookup: TaxonomyReferenceLookup,
+): string | null {
 	if (!referenceGroup) return null;
-
-	let taxonomy = await db
-		.selectFrom("taxonomies")
-		.select(["name", "slug"])
-		.where("translation_group", "=", referenceGroup)
-		.where("locale", "=", locale)
-		.executeTakeFirst();
-
-	if (!taxonomy) {
-		taxonomy = await db
-			.selectFrom("taxonomies")
-			.select(["name", "slug"])
-			.where("translation_group", "=", referenceGroup)
-			.orderBy("locale", "asc")
-			.executeTakeFirst();
-	}
-
-	if (!taxonomy) {
-		// Legacy: id-based reference that predates the migration remap.
-		taxonomy = await db
-			.selectFrom("taxonomies")
-			.select(["name", "slug"])
-			.where("id", "=", referenceGroup)
-			.executeTakeFirst();
-	}
-
+	const taxonomy = taxonomyLookup.get(referenceGroup);
 	if (!taxonomy) return null;
-
 	return `/${taxonomy.name}/${taxonomy.slug}`;
 }

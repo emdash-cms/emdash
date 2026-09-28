@@ -30,12 +30,15 @@ import { groupBlockquoteRuns } from "./portable-text-blockquote-group.js";
 
 export interface Props extends Omit<PortableTextProps, "value"> {
 	value: PortableTextProps["value"];
+	/** Initial label for read-only inline tables; defaults to English. */
+	tablePlaceholder?: string;
 }
 
 const {
 	value,
 	components: userComponents,
 	listNestingMode = "html",
+	tablePlaceholder,
 	...rest
 } = Astro.props;
 
@@ -68,6 +71,7 @@ if (!editMeta) {
 		collection={editMeta.collection}
 		entryId={editMeta.id}
 		field={editMeta.field}
+		tablePlaceholder={tablePlaceholder}
 	/>
 ) : (
 	<BasePortableText

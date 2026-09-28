@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light dark" />
+		<title>EmDash bot workbench</title>
+		<style>
+			:root {
+				font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+				color: light-dark(#18191d, #f3f4f6);
+				background: light-dark(#f5f6f8, #0c0d10);
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				min-width: 320px;
+			}
+			a {
+				color: inherit;
+			}
+			button,
+			select {
+				font: inherit;
+				color: inherit;
+			}
+			.topbar {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				min-height: 58px;
+				padding: 0 max(22px, calc((100vw - 1120px) / 2));
+				border-bottom: 1px solid light-dark(#dfe1e6, #2b2d34);
+				background: light-dark(rgba(255, 255, 255, 0.92), rgba(17, 18, 22, 0.94));
+				position: sticky;
+				top: 0;
+				z-index: 2;
+			}
+			.brand {
+				font-weight: 650;
+				text-decoration: none;
+			}
+			.brand span,
+			.muted {
+				color: light-dark(#70747e, #989ca7);
+			}
+			.topbar-meta {
+				margin-inline-start: auto;
+				font-size: 12px;
+				color: light-dark(#626671, #a9adb7);
+			}
+			main {
+				max-width: 1120px;
+				margin: 0 auto;
+				padding: 28px;
+			}
+			.summary {
+				display: flex;
+				align-items: end;
+				gap: 24px;
+				margin-bottom: 20px;
+			}
+			.summary h1 {
+				margin: 0;
+				font-size: 22px;
+			}
+			.counts {
+				display: flex;
+				gap: 14px;
+				margin-inline-start: auto;
+				font-size: 12px;
+			}
+			.counts strong {
+				font-size: 18px;
+				font-weight: 600;
+			}
+			.workspace {
+				display: grid;
+				grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.5fr);
+				gap: 18px;
+			}
+			.panel {
+				border: 1px solid light-dark(#dfe1e6, #2b2d34);
+				border-radius: 12px;
+				background: light-dark(#fff, #141519);
+				overflow: hidden;
+				box-shadow: 0 12px 34px light-dark(rgba(32, 36, 48, 0.06), rgba(0, 0, 0, 0.18));
+			}
+			.panel-head {
+				padding: 15px 17px;
+				border-bottom: 1px solid light-dark(#e7e8ec, #292b31);
+			}
+			.panel-head h2 {
+				margin: 0;
+				font-size: 14px;
+			}
+			.issue-list {
+				display: flex;
+				flex-direction: column;
+			}
+			.issue-row {
+				display: grid;
+				grid-template-columns: 9px minmax(0, 1fr);
+				gap: 11px;
+				padding: 14px 17px;
+				border: 0;
+				border-bottom: 1px solid light-dark(#eceef1, #24262b);
+				background: transparent;
+				text-align: start;
+				cursor: pointer;
+			}
+			.issue-row:hover,
+			.issue-row[aria-pressed="true"] {
+				background: light-dark(#f4f1fb, #211d2a);
+			}
+			.dot {
+				width: 8px;
+				height: 8px;
+				margin-top: 5px;
+				border-radius: 50%;
+				background: #8357d7;
+			}
+			.dot.waiting {
+				background: #b47716;
+			}
+			.dot.attention {
+				background: #c2413a;
+			}
+			.issue-title {
+				display: block;
+				font-size: 13px;
+				line-height: 1.35;
+			}
+			.issue-meta {
+				display: flex;
+				gap: 8px;
+				margin-top: 5px;
+				font-size: 10px;
+				color: light-dark(#727681, #9297a2);
+			}
+			.detail-head {
+				display: flex;
+				gap: 16px;
+				align-items: start;
+				padding: 18px;
+				border-bottom: 1px solid light-dark(#e7e8ec, #292b31);
+			}
+			.detail-head h2 {
+				margin: 3px 0 0;
+				font-size: 18px;
+			}
+			.detail-head a {
+				margin-inline-start: auto;
+				font-size: 12px;
+				white-space: nowrap;
+			}
+			.kicker {
+				font:
+					10px ui-monospace,
+					monospace;
+				color: light-dark(#777b86, #9297a2);
+				text-transform: uppercase;
+			}
+			.facts {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 1px;
+				background: light-dark(#e7e8ec, #292b31);
+			}
+			.fact {
+				padding: 13px 15px;
+				background: light-dark(#fff, #141519);
+			}
+			.fact-label {
+				display: block;
+				margin-bottom: 5px;
+				font:
+					9px ui-monospace,
+					monospace;
+				color: light-dark(#777b86, #9297a2);
+				text-transform: uppercase;
+			}
+			.fact-value {
+				font-size: 12px;
+			}
+			.pr-card {
+				margin: 16px;
+				padding: 15px;
+				border: 1px solid light-dark(#d8d1e7, #433654);
+				border-radius: 10px;
+				background: light-dark(#f7f3fd, #211b2b);
+			}
+			.pr-head {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.pr-head a {
+				font-weight: 650;
+				text-decoration: none;
+			}
+			.chips {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 7px;
+				margin-top: 11px;
+			}
+			.chip {
+				padding: 4px 7px;
+				border-radius: 999px;
+				font:
+					10px ui-monospace,
+					monospace;
+				background: light-dark(#ebe7f2, #342b41);
+			}
+			.chip.passing {
+				background: light-dark(#e5f5ed, #18382a);
+				color: light-dark(#176b4c, #7bdab2);
+			}
+			.chip.failing,
+			.chip.conflicting,
+			.chip.changes-requested {
+				background: light-dark(#fde9e6, #3d201f);
+				color: light-dark(#a53530, #ef928b);
+			}
+			.chip.pending,
+			.chip.unknown {
+				background: light-dark(#fff2d9, #3b2c18);
+				color: light-dark(#8f5c0d, #efbe74);
+			}
+			.section {
+				padding: 0 18px 18px;
+			}
+			.section h3 {
+				margin: 18px 0 10px;
+				font-size: 12px;
+			}
+			.plan {
+				display: grid;
+				gap: 7px;
+			}
+			.plan-row {
+				display: grid;
+				grid-template-columns: 18px minmax(0, 1fr);
+				gap: 7px;
+				font-size: 12px;
+			}
+			.plan-row.completed {
+				color: light-dark(#69706f, #8e9693);
+			}
+			.activity {
+				display: grid;
+				gap: 8px;
+			}
+			.activity-row {
+				padding-inline-start: 10px;
+				border-inline-start: 2px solid light-dark(#d9dce3, #333640);
+			}
+			.activity-row strong {
+				display: block;
+				font-size: 11px;
+			}
+			.activity-row span {
+				font-size: 10px;
+				color: light-dark(#777b86, #9297a2);
+			}
+			.trace-controls {
+				display: flex;
+				gap: 8px;
+				margin-bottom: 9px;
+			}
+			.trace-controls select,
+			.trace-controls button {
+				min-height: 32px;
+				border: 1px solid light-dark(#d9dce3, #343741);
+				border-radius: 7px;
+				background: transparent;
+			}
+			.trace-controls select {
+				min-width: 0;
+				flex: 1;
+			}
+			.trace-list {
+				display: grid;
+				gap: 7px;
+				max-height: 520px;
+				overflow: auto;
+			}
+			details {
+				border: 1px solid light-dark(#e2e4e9, #2d3037);
+				border-radius: 7px;
+			}
+			summary {
+				padding: 9px;
+				cursor: pointer;
+				font-size: 11px;
+			}
+			.trace-body {
+				padding: 0 9px 9px;
+			}
+			pre {
+				margin: 7px 0 0;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+				font-size: 10px;
+			}
+			.empty {
+				padding: 28px;
+				color: light-dark(#747984, #9297a2);
+				font-size: 13px;
+			}
+			@media (max-width: 760px) {
+				main {
+					padding: 18px;
+				}
+				.summary {
+					align-items: start;
+					flex-direction: column;
+				}
+				.counts {
+					margin-inline-start: 0;
+				}
+				.workspace {
+					grid-template-columns: 1fr;
+				}
+				.facts {
+					grid-template-columns: 1fr;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header class="topbar">
+			<a class="brand" href="/">EmDash <span>bot</span></a>
+			<a id="repository-link" class="muted" href="#">Repository</a>
+			<span id="updated-at" class="topbar-meta">Loading…</span>
+		</header>
+		<main>
+			<section class="summary" aria-labelledby="page-title">
+				<div>
+					<div class="kicker">Issue lifecycle</div>
+					<h1 id="page-title">Bot workbench</h1>
+				</div>
+				<div id="counts" class="counts" aria-label="Work counts"></div>
+			</section>
+			<div class="workspace">
+				<section class="panel" aria-labelledby="issues-title">
+					<div class="panel-head"><h2 id="issues-title">Open work</h2></div>
+					<div id="issues" class="issue-list"></div>
+				</section>
+				<section id="detail" class="panel" aria-live="polite"></section>
+			</div>
+		</main>
+		<script>
+			let payload = null;
+			let selectedNumber = Number(new URLSearchParams(location.search).get("issue")) || null;
+			let tracePage = null;
+			const openTraceEvents = new Set();
+
+			const byId = (id) => document.getElementById(id);
+			const element = (tag, className = "", text = "") => {
+				const node = document.createElement(tag);
+				if (className) node.className = className;
+				if (text) node.textContent = text;
+				return node;
+			};
+			const label = (value) =>
+				String(value ?? "unknown")
+					.replaceAll("_", " ")
+					.replaceAll("-", " ");
+			const tone = (issue) => payload.machines.issue.states[issue.state]?.tone ?? "attention";
+			const relativeTime = (value) => {
+				const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
+				const abs = Math.abs(seconds);
+				const [amount, unit] =
+					abs < 60
+						? [seconds, "second"]
+						: abs < 3600
+							? [Math.round(seconds / 60), "minute"]
+							: abs < 86400
+								? [Math.round(seconds / 3600), "hour"]
+								: [Math.round(seconds / 86400), "day"];
+				return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(amount, unit);
+			};
+
+			function renderCounts() {
+				const counts = { active: 0, waiting: 0, attention: 0 };
+				for (const issue of payload.issues) counts[tone(issue)] += 1;
+				const target = byId("counts");
+				target.replaceChildren();
+				for (const [name, value] of Object.entries(counts)) {
+					const item = element("span");
+					item.append(element("strong", "", String(value)), document.createTextNode(` ${name}`));
+					target.append(item);
+				}
+			}
+
+			function renderIssues() {
+				const target = byId("issues");
+				target.replaceChildren();
+				if (!payload.issues.length) {
+					target.append(element("div", "empty", "No open bot-managed issues."));
+					return;
+				}
+				for (const issue of payload.issues) {
+					const row = element("button", "issue-row");
+					row.type = "button";
+					row.setAttribute("aria-pressed", String(issue.number === selectedNumber));
+					row.append(element("span", `dot ${tone(issue)}`));
+					const content = element("span");
+					content.append(element("span", "issue-title", `#${issue.number} ${issue.title}`));
+					const meta = element("span", "issue-meta");
+					meta.append(element("span", "", label(issue.state)));
+					if (issue.prNumber) meta.append(element("span", "", `PR #${issue.prNumber}`));
+					meta.append(element("span", "", relativeTime(issue.updatedAt)));
+					content.append(meta);
+					row.append(content);
+					row.addEventListener("click", () => {
+						selectedNumber = issue.number;
+						history.replaceState(null, "", `?issue=${issue.number}`);
+						tracePage = null;
+						render();
+						loadTrace(issue.number);
+					});
+					target.append(row);
+				}
+			}
+
+			function fact(name, value) {
+				const node = element("div", "fact");
+				node.append(element("span", "fact-label", name), element("span", "fact-value", value));
+				return node;
+			}
+
+			function renderPullRequest(issue, target) {
+				if (!issue.prNumber) return;
+				const pr = issue.pullRequest;
+				const card = element("section", "pr-card");
+				const head = element("div", "pr-head");
+				const link = element("a", "", `PR #${issue.prNumber}`);
+				link.href = pr?.url || `${payload.repositoryUrl}/pull/${issue.prNumber}`;
+				link.target = "_blank";
+				link.rel = "noreferrer";
+				head.append(link, element("span", "muted", pr ? label(pr.state) : "Checking status…"));
+				card.append(head);
+				if (pr) {
+					const chips = element("div", "chips");
+					chips.append(
+						element("span", `chip ${pr.checks}`, `Checks: ${label(pr.checks)}`),
+						element("span", `chip ${pr.review}`, `Review: ${label(pr.review)}`),
+						element("span", `chip ${pr.mergeability}`, `Merge: ${label(pr.mergeability)}`),
+						element("span", "chip", pr.draft ? "Draft" : "Ready"),
+					);
+					card.append(chips);
+					if (pr.failingChecks?.length) {
+						const failures = element(
+							"p",
+							"muted",
+							`Failing: ${pr.failingChecks.map((check) => check.name).join(", ")}`,
+						);
+						card.append(failures);
+					}
+				}
+				target.append(card);
+			}
+
+			function renderPlan(issue, target) {
+				if (!issue.workPlan) return;
+				const section = element("section", "section");
+				section.append(element("h3", "", "Work plan"));
+				const plan = element("div", "plan");
+				const marks = {
+					pending: "○",
+					in_progress: "→",
+					completed: "✓",
+					blocked: "!",
+					skipped: "–",
+				};
+				for (const step of issue.workPlan.steps) {
+					const row = element("div", `plan-row ${step.status}`);
+					row.append(
+						element("span", "", marks[step.status] ?? "○"),
+						element("span", "", step.title),
+					);
+					plan.append(row);
+				}
+				section.append(plan);
+				target.append(section);
+			}
+
+			function activityEntries(issue) {
+				return [
+					...issue.transitions.map((entry) => ({
+						at: entry.t,
+						title: `Moved to ${label(entry.to)}`,
+						detail: label(entry.event),
+					})),
+					...issue.progress.map((entry) => ({
+						at: entry.t,
+						title: entry.title,
+						detail: entry.detail,
+					})),
+				]
+					.sort((a, b) => b.at - a.at)
+					.slice(0, 10);
+			}
+
+			function renderActivity(issue, target) {
+				const section = element("section", "section");
+				section.append(element("h3", "", "Recent activity"));
+				const activity = element("div", "activity");
+				for (const entry of activityEntries(issue)) {
+					const row = element("div", "activity-row");
+					row.append(
+						element("strong", "", entry.title),
+						element("span", "", `${entry.detail ?? ""} · ${relativeTime(entry.at)}`),
+					);
+					activity.append(row);
+				}
+				if (!activity.children.length)
+					activity.append(element("div", "muted", "No activity recorded."));
+				section.append(activity);
+				target.append(section);
+			}
+
+			function renderTrace(issue, target) {
+				const section = element("section", "section");
+				section.append(element("h3", "", "Run trace"));
+				if (!tracePage || tracePage.issueNumber !== issue.number) {
+					section.append(element("div", "muted", "Loading trace…"));
+					target.append(section);
+					return;
+				}
+				const controls = element("div", "trace-controls");
+				const select = element("select");
+				select.setAttribute("aria-label", "Choose agent run");
+				for (const run of tracePage.runs) {
+					const option = element(
+						"option",
+						"",
+						`${label(run.mode)} · ${relativeTime(run.updatedAt)} · ${run.eventCount} events`,
+					);
+					option.value = run.runId;
+					option.selected = run.runId === tracePage.selectedRunId;
+					select.append(option);
+				}
+				select.addEventListener("change", () => loadTrace(issue.number, select.value));
+				controls.append(select);
+				section.append(controls);
+				const list = element("div", "trace-list");
+				for (const event of tracePage.events) {
+					const row = element("details");
+					row.open = openTraceEvents.has(event.id);
+					row.addEventListener("toggle", () =>
+						row.open ? openTraceEvents.add(event.id) : openTraceEvents.delete(event.id),
+					);
+					row.append(
+						element(
+							"summary",
+							"",
+							`${new Date(event.at).toLocaleTimeString()} · ${event.title}${event.detail ? ` · ${event.detail}` : ""}`,
+						),
+					);
+					if (event.input || event.output) {
+						const body = element("div", "trace-body");
+						if (event.input) body.append(element("pre", "", `Input\n${event.input}`));
+						if (event.output) body.append(element("pre", "", `Output\n${event.output}`));
+						row.append(body);
+					}
+					list.append(row);
+				}
+				if (!tracePage.events.length)
+					list.append(element("div", "muted", "No trace events recorded."));
+				section.append(list);
+				target.append(section);
+			}
+
+			function renderDetail(issue) {
+				const target = byId("detail");
+				target.replaceChildren();
+				if (!issue) {
+					target.append(element("div", "empty", "Select an issue to inspect its current work."));
+					return;
+				}
+				const head = element("div", "detail-head");
+				const copy = element("div");
+				copy.append(
+					element("div", "kicker", `#${issue.number} · ${label(issue.kind)}`),
+					element("h2", "", issue.title),
+				);
+				const link = element("a", "", "Open issue ↗");
+				link.href = issue.url;
+				link.target = "_blank";
+				link.rel = "noreferrer";
+				head.append(copy, link);
+				target.append(head);
+				const facts = element("div", "facts");
+				facts.append(
+					fact("Issue state", label(issue.state)),
+					fact(
+						"Agent run",
+						issue.run ? `${label(issue.run.mode)} · ${label(issue.run.status)}` : "No active run",
+					),
+					fact("Run phase", issue.run ? label(issue.run.phase) : "—"),
+				);
+				target.append(facts);
+				renderPullRequest(issue, target);
+				renderPlan(issue, target);
+				renderActivity(issue, target);
+				renderTrace(issue, target);
+			}
+
+			function render() {
+				if (!payload) return;
+				const selected =
+					payload.issues.find((issue) => issue.number === selectedNumber) ??
+					payload.issues[0] ??
+					null;
+				if (selected && selectedNumber === null) selectedNumber = selected.number;
+				renderCounts();
+				renderIssues();
+				renderDetail(selected);
+			}
+
+			async function loadTrace(issueNumber, runId) {
+				try {
+					const params = new URLSearchParams({ limit: "100" });
+					if (runId) params.set("run", runId);
+					const response = await fetch(`/api/issues/${issueNumber}/trace?${params}`, {
+						cache: "no-store",
+					});
+					if (!response.ok) throw new Error(String(response.status));
+					tracePage = { issueNumber, ...(await response.json()) };
+				} catch {
+					tracePage = { issueNumber, runs: [], events: [], selectedRunId: null };
+				}
+				render();
+			}
+
+			async function load() {
+				let nextLoadMs = 20_000;
+				try {
+					const response = await fetch("/api/dashboard", { cache: "no-store" });
+					if (!response.ok) {
+						const retryAfter = response.headers.get("retry-after");
+						if (retryAfter) {
+							const seconds = Number(retryAfter);
+							const retryAt = Number.isFinite(seconds)
+								? Date.now() + seconds * 1_000
+								: Date.parse(retryAfter);
+							if (Number.isFinite(retryAt)) nextLoadMs = Math.max(nextLoadMs, retryAt - Date.now());
+						}
+						throw new Error(String(response.status));
+					}
+					payload = await response.json();
+					byId("repository-link").href = payload.repositoryUrl;
+					byId("updated-at").textContent = `Updated ${relativeTime(payload.updatedAt)}`;
+					render();
+					const selected =
+						payload.issues.find((issue) => issue.number === selectedNumber) ?? payload.issues[0];
+					if (selected && tracePage?.issueNumber !== selected.number) loadTrace(selected.number);
+				} catch {
+					byId("updated-at").textContent = "Data unavailable";
+					if (!payload) {
+						byId("issues").replaceChildren(
+							element("div", "empty", "Could not load current bot work."),
+						);
+					}
+				} finally {
+					setTimeout(load, nextLoadMs);
+				}
+			}
+
+			load();
+		</script>
+	</body>
+</html>

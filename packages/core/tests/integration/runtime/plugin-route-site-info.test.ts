@@ -5,10 +5,10 @@ import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
-function buildRuntime(): EmDashRuntime {
-	// This route only reads site context, so it never touches the database.
-	const db = {} as never;
+async function buildRuntime() {
+	const db = await setupTestDatabase();
 	const plugin = definePlugin({
 		id: "site-aware-route",
 		version: "1.0.0",
@@ -44,7 +44,7 @@ function buildRuntime(): EmDashRuntime {
 		createSandboxRunner: null,
 	};
 
-	return new EmDashRuntime({
+	const runtime = new EmDashRuntime({
 		db,
 		storage: null,
 		configuredPlugins: [plugin],
@@ -64,29 +64,34 @@ function buildRuntime(): EmDashRuntime {
 		runtimeDeps,
 		pipelineRef,
 	});
+	return { db, runtime };
 }
 
 describe("EmDashRuntime.handlePluginApiRoute site context", () => {
 	it("passes configured site information to trusted plugin routes", async () => {
-		const runtime = buildRuntime();
-		const result = await runtime.handlePluginApiRoute(
-			"site-aware-route",
-			"GET",
-			"/inspect",
-			new Request("https://admin.example.com/_emdash/api/plugin/site-aware-route/inspect"),
-		);
+		const { db, runtime } = await buildRuntime();
+		try {
+			const result = await runtime.handlePluginApiRoute(
+				"site-aware-route",
+				"GET",
+				"/inspect",
+				new Request("https://admin.example.com/_emdash/api/plugin/site-aware-route/inspect"),
+			);
 
-		expect(result).toMatchObject({
-			success: true,
-			data: {
-				site: {
-					name: "Example Site",
-					url: "https://example.com",
-					locale: "nl",
-					trailingSlash: "ignore",
+			expect(result).toMatchObject({
+				success: true,
+				data: {
+					site: {
+						name: "Example Site",
+						url: "https://example.com",
+						locale: "nl",
+						trailingSlash: "ignore",
+					},
+					url: "https://example.com/checkout/success",
 				},
-				url: "https://example.com/checkout/success",
-			},
-		});
+			});
+		} finally {
+			await teardownTestDatabase(db);
+		}
 	});
 });

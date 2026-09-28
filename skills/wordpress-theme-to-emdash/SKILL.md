@@ -1,83 +1,59 @@
 ---
 name: wordpress-theme-to-emdash
-description: Port WordPress themes to EmDash CMS. Use when asked to convert, migrate, or port a WordPress theme to EmDash, or when creating an EmDash site that should match an existing WordPress site's design. Handles design extraction, template conversion, and EmDash-specific features like menus, taxonomies, and widgets.
+description: Port a WordPress theme's design and template behavior to an EmDash-powered Astro site. Use for theme migrations, design matching, PHP-template conversion, and CMS wiring. Do not use for WordPress plugin behavior that does not affect the site theme.
 ---
 
-# WordPress Theme to EmDash
+# Port a WordPress theme to EmDash
 
-Port WordPress themes to EmDash in six phases. **Read the phase file before starting each phase.**
+Recreate the theme's relevant layouts and interactions as an Astro site backed by EmDash. Preserve the user's requested visual fidelity and feature scope; do not assume every WordPress template or demo feature belongs in the port.
 
-## Critical Rules
+Load [building-emdash-site](../building-emdash-site/SKILL.md) for current EmDash schema, query, rendering, caching, and seed patterns. Load [agent-browser](../agent-browser/SKILL.md) when a live reference site is available for rendered comparison.
 
-1. **Copy scaffold first** - Start every theme by copying `scaffold/` from this skill
-2. **Take screenshots of demo** - Identify the demo URL and capture all page types using agent-browser before starting work
-3. **No hard-coded content** - Use `getSiteSettings()` for title/tagline, `getMenu()` for navigation
-4. **Server-rendered pages** - Never use `getStaticPaths()` for EmDash content
-5. **Astro 6** - Use `ClientRouter` not `ViewTransitions`, Zod 4 syntax, Node 22+
-6. **Use emdash Image component** - For all images, import Image from "emdash/ui"
+## Choose the evidence
 
-## Phases
+Use the best available sources in this order:
 
-| Phase | File                    | Summary                                         |
-| ----- | ----------------------- | ----------------------------------------------- |
-| 1     | `phases/1-discovery.md` | Download theme, screenshot demo, capture images |
-| 2     | `phases/2-design.md`    | Extract CSS variables, fonts, colors            |
-| 3     | `phases/3-templates.md` | Convert PHP templates to Astro                  |
-| 4     | `phases/4-dynamic.md`   | Site settings, menus, taxonomies, widgets       |
-| 5     | `phases/5-seed.md`      | Create seed file with demo content              |
-| 6     | `phases/6-verify.md`    | Screenshot, compare, iterate, build             |
+1. theme source and `theme.json`, stylesheets, templates, and `functions.php`;
+2. a live demo at representative desktop and mobile viewports;
+3. screenshots or design files supplied by the user;
+4. explicit design decisions where the source is ambiguous.
 
-## Checklist
+Do not infer that demo content or images share the theme code's license. Reuse an asset only when its license or the user's rights permit it; otherwise use a clearly licensed substitute with similar dimensions and visual weight.
 
-### Setup
+## Plan the port
 
-- [ ] Copy `scaffold/` to new theme directory. Unless otherwise specified by the user, make this a subdirectory of `themes/` and name it after the WordPress theme (e.g., `themes/twentytwentyfour/`).
-- [ ] Rename folder, update `package.json`
-- [ ] Verify build: `pnpm build`
+Inventory only the page types, components, responsive states, and interactions needed for the requested site. Map WordPress responsibilities before implementing:
 
-### Phase 1: Discovery
+- PHP templates become Astro routes, layouts, and components.
+- Custom post types, metadata, and taxonomies become EmDash collections, fields, and taxonomies.
+- Theme Customizer values become site settings or explicit project configuration.
+- Menu locations become named EmDash menus queried by templates.
+- Sidebars and widgets become widget areas or ordinary Astro components.
+- Shortcodes and plugin-owned behavior may require a separate plugin migration.
 
-- [ ] Theme source downloaded
-- [ ] Demo site identified
-- [ ] `discovery/` folder created with `screenshots/`, `images/`, `notes.md`
-- [ ] All page types screenshotted
-- [ ] Sample images downloaded
+Read [WordPress theme concept mapping](references/concept-mapping.md) when translating template hierarchy, `functions.php` registrations, template tags, hooks, widgets, or reusable blocks.
 
-### Phase 2: Design
+Dynamic EmDash content routes must remain server-rendered. Use the EmDash `Image` component for EmDash media fields; ordinary theme assets can use Astro's asset handling.
 
-- [ ] CSS variables in `global.css`
-- [ ] Fonts loading
-- [ ] Colors match demo
+## Work in scoped phases
 
-### Phase 3: Templates
+Read a phase file only when that phase applies:
 
-- [ ] Homepage, single post, archive, category, tag, page, 404
-- [ ] Components extracted (PostCard, etc.)
+- [Discovery and reference capture](phases/1-discovery.md)
+- [Design extraction](phases/2-design.md)
+- [Template conversion](phases/3-templates.md)
+- [Dynamic EmDash features](phases/4-dynamic.md)
+- [Schema and seed data](phases/5-seed.md)
+- [Rendered verification](phases/6-verify.md)
 
-### Phase 4: Dynamic
+When creating a standalone theme project, start from the repository's current site template or the user's existing project. Confirm the destination before writing and do not replace an existing site structure without explicit direction.
 
-- [ ] Site settings (title, tagline, logo from CMS)
-- [ ] Navigation menus (from CMS, not hard-coded)
-- [ ] Taxonomies
-- [ ] Widget areas (if applicable)
+## Verify the result
 
-### Phase 5: Seed
+Build the site and exercise each in-scope page and interaction. Compare matched viewports against the reference, including responsive navigation, content with long and missing values, RTL when admin or theme behavior depends on direction, and relevant empty or error states.
 
-- [ ] Seed file created with demo images at `.emdash/seed.json` (or wired up via `package.json#emdash.seed`)
+Capture before-and-after or reference-and-result screenshots when visual fidelity is part of acceptance. Report deliberate deviations, missing source evidence, unsupported WordPress behavior, and asset substitutions.
 
-### Phase 6: Verify
+## Licensing and attribution
 
-- [ ] Dev server applied seed cleanly on first request (no validation errors in logs)
-- [ ] Output screenshots captured
-- [ ] Visual comparison done
-- [ ] Build succeeds: `pnpm build`
-- [ ] LICENSE file downloaded (GPL-2.0 in most cases)
-- [ ] README credits original theme
-
-## Reference Documents
-
-- `references/astro-essentials.md` - Astro 6 patterns
-- `references/template-patterns.md` - PHP → Astro conversion
-- `references/concept-mapping.md` - WP → EmDash concepts
-- `references/emdash-api.md` - Full API reference
-- `references/design-extraction.md` - CSS extraction techniques
+Inspect the source theme's actual license and notices. Preserve required copyright and attribution, include the applicable license text for reused code, and identify third-party assets separately. Do not label a port GPL-2.0-or-later merely because the source is a WordPress theme.

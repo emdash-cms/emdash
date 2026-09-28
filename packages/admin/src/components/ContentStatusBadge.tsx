@@ -56,7 +56,7 @@ function useContentStatusLabel(state: ContentStatusState): string {
 
 	switch (state) {
 		case "published":
-			return t`Publish`;
+			return t`Published`;
 		case "draft":
 			return t`Draft`;
 		case "scheduled":

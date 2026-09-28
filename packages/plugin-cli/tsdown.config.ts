@@ -1,5 +1,9 @@
 import { defineConfig } from "tsdown";
 
+// pnpm applies the image-size patch only inside this workspace, so both
+// published entries must bundle the patched implementation.
+const bundledPatchedDependencies = ["image-size"];
+
 export default defineConfig([
 	// CLI binary: `emdash-plugin`. Bundled to a single .mjs.
 	{
@@ -11,6 +15,8 @@ export default defineConfig([
 		platform: "node",
 		target: "node22",
 		shims: false,
+		noExternal: bundledPatchedDependencies,
+		inlineOnly: bundledPatchedDependencies,
 	},
 	// Programmatic API entry. With tsdown's ESM defaults this emits
 	// `.mjs` + `.d.mts` (matching the `exports` field in package.json).
@@ -21,6 +27,8 @@ export default defineConfig([
 		clean: false,
 		platform: "node",
 		target: "node22",
+		noExternal: bundledPatchedDependencies,
+		inlineOnly: bundledPatchedDependencies,
 		external: [
 			"@atcute/client",
 			"@atcute/identity-resolver",
@@ -34,7 +42,6 @@ export default defineConfig([
 			"chokidar",
 			"citty",
 			"consola",
-			"image-size",
 			"jsonc-parser",
 			"modern-tar",
 			"picocolors",

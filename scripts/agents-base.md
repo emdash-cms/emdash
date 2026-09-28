@@ -3,8 +3,8 @@ This is an EmDash site -- a CMS built on Astro with a full admin UI.
 ## Commands
 
 ```bash
-npx emdash dev        # Start dev server (runs migrations, seeds, generates types)
-npx emdash types      # Regenerate TypeScript types from schema
+pnpm dev              # Start the Astro dev server
+npx emdash types      # Regenerate TypeScript types from a running site
 ```
 
 The admin UI is at `http://localhost:4321/_emdash/admin`.
@@ -39,5 +39,5 @@ This template ships with `.mcp.json`, `.cursor/mcp.json`, and `.vscode/mcp.json`
 - All content pages must be server-rendered (`output: "server"`). No `getStaticPaths()` for CMS content.
 - Image fields are objects (`{ src, alt }`), not strings. Use `<Image image={...} />` from `"emdash/ui"`.
 - `entry.id` is the slug (for URLs). `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
-- Always call `Astro.cache.set(cacheHint)` on pages that query content.
+- When Astro's cache is enabled, pass content-query hints to `Astro.cache.set(cacheHint)`. Use the `WithCacheHint` variants for site settings, menus, taxonomies, and widget areas rendered by cached routes.
 - Taxonomy names in queries must match the seed's `"name"` field exactly (e.g., `"category"` not `"categories"`).

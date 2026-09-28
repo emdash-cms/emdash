@@ -9,6 +9,10 @@ import { MediaRepository } from "../../database/repositories/media.js";
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import {
+	getMediaUsageActivationStatus,
+	MediaUsageActivationVersionMismatchError,
+} from "../../media/usage/activation.js";
+import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../media/usage/content-refresh.js";
@@ -19,6 +23,15 @@ import {
 	type ContentMediaUsageRepairCollectionResult,
 } from "../../media/usage/content-repair.js";
 import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../media/usage/content-snapshots.js";
+import {
+	runMediaUsageMaintenanceStep,
+	type MediaUsageMaintenanceContinuation,
+} from "../../media/usage/maintenance-engine.js";
+import {
+	groupSiteSettingMediaUsage,
+	MEDIA_USAGE_SITE_SETTING_OPTIONS,
+	type MediaUsageSiteSetting,
+} from "../../media/usage/site-settings.js";
 import { ErrorCode } from "../errors.js";
 import type {
 	MediaUsageCoverage,
@@ -26,8 +39,11 @@ import type {
 	MediaUsageDetailsResponse,
 	MediaUsageEntryDetail,
 	MediaUsageOccurrenceDetail,
+	MediaUsageProgress,
+	MediaUsageProgressAdvanceResponse,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
+	MediaUsageSiteSettingDetail,
 	MediaUsageSummary,
 } from "../schemas/media-usage.js";
 import type { ApiResult } from "../types.js";
@@ -38,15 +54,114 @@ export type {
 	MediaUsageDetailsResponse,
 	MediaUsageEntryDetail,
 	MediaUsageOccurrenceDetail,
+	MediaUsageProgress,
+	MediaUsageProgressAdvanceResponse,
 	MediaUsageSourceDetail,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
+	MediaUsageSiteSettingDetail,
 	MediaUsageSummary,
 } from "../schemas/media-usage.js";
 
 type ContentMediaUsageRepairResult =
 	| ContentMediaUsageRepairCollectionResult
 	| ContentMediaUsageRepairAllResult;
+
+export async function handleMediaUsageProgress(
+	db: Kysely<Database>,
+): Promise<ApiResult<MediaUsageProgress>> {
+	try {
+		const progress = await new MediaUsageRepository(db).findCollectionProgress();
+		if (!progress) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_PROGRESS_NOT_ACTIVE,
+					message: "Media Usage is not active",
+				},
+			};
+		}
+		return { success: true, data: progress };
+	} catch (error) {
+		if (error instanceof MediaUsageActivationVersionMismatchError) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH,
+					message: "Media Usage activation version does not match this runtime",
+				},
+			};
+		}
+		console.error("[media-usage] progress read failed:", error);
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.MEDIA_USAGE_PROGRESS_READ_ERROR,
+				message: "Failed to read media usage progress",
+			},
+		};
+	}
+}
+
+export async function handleMediaUsageProgressAdvance(
+	db: Kysely<Database>,
+): Promise<ApiResult<MediaUsageProgressAdvanceResponse>> {
+	try {
+		const step = await runMediaUsageMaintenanceStep(db);
+		const activation = await getMediaUsageActivationStatus(db);
+		if (activation.state === "expanded") {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_PROGRESS_NOT_ACTIVE,
+					message: "Media Usage activation has not started",
+				},
+			};
+		}
+
+		const progress =
+			activation.state === "active"
+				? await new MediaUsageRepository(db).findCollectionProgress()
+				: null;
+		return {
+			success: true,
+			data: {
+				activation,
+				progress,
+				nextRequestInMs: continuationDelayMs(step.continuation, progress),
+			},
+		};
+	} catch (error) {
+		if (error instanceof MediaUsageActivationVersionMismatchError) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH,
+					message: "Media Usage activation version does not match this runtime",
+				},
+			};
+		}
+		console.error("[media-usage] progress advance failed:", error);
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.MEDIA_USAGE_PROGRESS_ADVANCE_ERROR,
+				message: "Failed to advance media usage progress",
+			},
+		};
+	}
+}
+
+function continuationDelayMs(
+	continuation: MediaUsageMaintenanceContinuation,
+	progress: MediaUsageProgress | null,
+): 0 | 30_000 | null {
+	if (progress?.status === "needs_attention") return null;
+	if (continuation.kind === "immediate") return 0;
+	if (continuation.kind === "delayed") return 30_000;
+	if (progress?.status === "indexing") return 0;
+	return null;
+}
 
 export function aggregateMediaUsageCoverageStatus(
 	scopes: readonly MediaUsageCollectionIndexStatusScope[],
@@ -73,15 +188,18 @@ export async function handleMediaUsageSummaries(
 
 	try {
 		const repository = new MediaUsageRepository(db);
-		const coverage = await loadMediaUsageCoverage(repository);
-		const counts = options.includeCount
-			? await repository.findActiveEntryCountsByMediaIds(mediaIds)
-			: null;
+		const { coverage, siteSettings } = await loadMediaUsageCoverage(repository);
+		const counts =
+			options.includeCount && coverage.status === "complete"
+				? await repository.findActiveEntryCountsByMediaIds(mediaIds)
+				: null;
 		const summaries: Record<string, MediaUsageSummary> = {};
 
 		for (const mediaId of new Set(mediaIds)) {
 			summaries[mediaId] = {
-				count: counts ? (counts.get(mediaId) ?? 0) : null,
+				count: counts
+					? (counts.get(mediaId) ?? 0) + (siteSettings.get(mediaId)?.length ?? 0)
+					: null,
 				coverage,
 			};
 		}
@@ -117,13 +235,16 @@ export async function handleMediaUsageDetails(
 		}
 
 		const repository = new MediaUsageRepository(db);
-		const coverage = await loadMediaUsageCoverage(repository);
+		const { coverage, siteSettings } = await loadMediaUsageCoverage(repository);
 		const page = await repository.findCurrentEntryUsagePageByMediaId(mediaId, options);
 		return {
 			success: true,
 			data: {
 				items: page.items.map(toMediaUsageEntryDetail),
 				...(page.nextCursor ? { nextCursor: page.nextCursor } : {}),
+				siteSettings: (siteSettings.get(mediaId) ?? []).map(
+					(setting): MediaUsageSiteSettingDetail => ({ setting }),
+				),
 				coverage,
 			},
 		};
@@ -212,6 +333,7 @@ function normalizeMediaUsageCoverageStatus(
 ): MediaUsageCoverageStatus {
 	if (scope.status === null) return "never";
 	if (scope.status === "complete") {
+		if (scope.reconciliationRequired) return "stale";
 		return scope.schemaVersion === CONTENT_SOURCE_SCHEMA_VERSION ? "complete" : "stale";
 	}
 	if (
@@ -226,16 +348,23 @@ function normalizeMediaUsageCoverageStatus(
 	return "unknown";
 }
 
-async function loadMediaUsageCoverage(
-	repository: MediaUsageRepository,
-): Promise<MediaUsageCoverage> {
-	const scopes = await repository.findCollectionIndexStatusScopes({
-		adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
-		scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
-	});
+async function loadMediaUsageCoverage(repository: MediaUsageRepository): Promise<{
+	coverage: MediaUsageCoverage;
+	siteSettings: Map<string, MediaUsageSiteSetting[]>;
+}> {
+	const { scopes, options } = await repository.findCoverageWithOptions(
+		{
+			adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
+			scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
+		},
+		MEDIA_USAGE_SITE_SETTING_OPTIONS,
+	);
 	return {
-		scope: "all_content_collections",
-		status: aggregateMediaUsageCoverageStatus(scopes),
+		coverage: {
+			scope: "all_content_collections",
+			status: aggregateMediaUsageCoverageStatus(scopes),
+		},
+		siteSettings: groupSiteSettingMediaUsage(options),
 	};
 }
 

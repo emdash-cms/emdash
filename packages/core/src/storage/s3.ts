@@ -157,6 +157,7 @@ export class S3Storage implements Storage {
 		key: string;
 		body: Buffer | Uint8Array | ReadableStream<Uint8Array>;
 		contentType: string;
+		cacheControl?: string;
 	}): Promise<UploadResult> {
 		try {
 			// Convert ReadableStream to Buffer if needed
@@ -180,6 +181,7 @@ export class S3Storage implements Storage {
 					Key: options.key,
 					Body: body,
 					ContentType: options.contentType,
+					CacheControl: options.cacheControl,
 				}),
 			);
 

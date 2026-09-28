@@ -17,6 +17,10 @@ import type { MediaProviderDescriptor } from "emdash/media";
 
 /**
  * Cloudflare Stream configuration
+ *
+ * `*EnvVar` options are resolved in order: the matching direct config value,
+ * then a Cloudflare Workers binding of that name, then `process.env` (Node
+ * adapter, where there is no Workers binding).
  */
 export interface CloudflareStreamConfig {
 	/**

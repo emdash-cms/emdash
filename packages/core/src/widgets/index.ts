@@ -1,5 +1,7 @@
+import { widgetAreaTag } from "../cache/chrome-tags.js";
 import { getDb } from "../loader.js";
-import { requestCached } from "../request-cache.js";
+import type { CacheHint } from "../query.js";
+import { peekRequestCache, requestCached } from "../request-cache.js";
 import { getWidgetComponents as getComponentRegistry } from "./components.js";
 import type { Widget, WidgetArea, WidgetRow, WidgetComponentDef } from "./types.js";
 
@@ -24,6 +26,16 @@ export type {
  */
 export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 	return requestCached(`widget-area:${name}`, async () => {
+		const prefetched = peekRequestCache<WidgetArea[]>("widget-areas");
+		if (prefetched) {
+			try {
+				const areas = await prefetched;
+				return areas.find((area) => area.name === name) ?? null;
+			} catch {
+				// Optional prefetch failure must still allow the scoped read.
+			}
+		}
+
 		const db = await getDb();
 		const rows = await db
 			.selectFrom("_emdash_widget_areas as a")
@@ -81,6 +93,20 @@ export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 			widgets,
 		};
 	});
+}
+
+/**
+ * Get a widget area by name with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * this widget area can be purged automatically when its widgets change.
+ */
+export async function getWidgetAreaWithCacheHint(name: string): Promise<{
+	data: WidgetArea | null;
+	cacheHint: CacheHint;
+}> {
+	const data = await getWidgetArea(name);
+	return { data, cacheHint: { tags: [widgetAreaTag(name)] } };
 }
 
 /**

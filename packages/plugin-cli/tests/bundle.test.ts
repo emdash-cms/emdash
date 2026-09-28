@@ -129,6 +129,7 @@ describe("bundlePlugin", () => {
 		await bundlePlugin({
 			dir: FIXTURE,
 			outDir,
+			displayPublisher: "plugins.emdashcms.com",
 			logger: {
 				start: (m) => messages.push({ kind: "start", msg: m }),
 				info: (m) => messages.push({ kind: "info", msg: m }),
@@ -141,6 +142,13 @@ describe("bundlePlugin", () => {
 		// "Created ..." success line. Don't pin every intermediate step --
 		// they're implementation detail.
 		expect(messages[0]).toMatchObject({ kind: "start", msg: /Bundling/ });
+		expect(
+			messages.some(
+				(message) =>
+					message.kind === "success" &&
+					message.msg.includes("@plugins.emdashcms.com/fixture-minimal@1.2.3"),
+			),
+		).toBe(true);
 		expect(messages.some((m) => m.kind === "success" && /Created/.test(m.msg))).toBe(true);
 	});
 

@@ -14,7 +14,7 @@
  * `pg_try_advisory_xact_lock`: when another migrator holds the lock, the
  * adapter throws `MIGRATION_LOCK_BUSY_MESSAGE` immediately instead of
  * queueing inside the database. `runMigrations` treats that error like the
- * SQLite/D1 concurrent-migration race — it polls the migration table with
+ * SQLite concurrent-migration race — it polls the migration table with
  * cheap bounded SELECTs until the concurrent migrator finishes (or the
  * wait deadline passes), without holding a transaction open.
  */
@@ -23,7 +23,7 @@ import type { DialectAdapter, Kysely, MigrationLockOptions } from "kysely";
 import { PostgresAdapter as KyselyPostgresAdapter, PostgresDialect, sql } from "kysely";
 
 /**
- * Sentinel message thrown when another migrator holds the advisory lock.
+ * Sentinel message thrown when another migrator holds the migration lock.
  * `runMigrations` matches on it to route into the concurrent-migrator wait.
  */
 export const MIGRATION_LOCK_BUSY_MESSAGE = "EMDASH_MIGRATION_LOCK_BUSY";

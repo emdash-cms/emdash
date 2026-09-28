@@ -1,0 +1,33 @@
+export const PROHIBITED_ASSESSMENT_INPUTS_FIXTURE = {
+	neverFetch: [
+		"profile.authors[].url",
+		"profile.security[].url",
+		"release.repo",
+		"release.artifacts.package.url",
+		"release.sbom.url",
+		"release.provenance.url",
+		"release.sourceArchive.url",
+		"markdown.links[]",
+	],
+	neverModel: [
+		"release.artifacts.package",
+		"release.manifest",
+		"release.declaredAccess",
+		"release.sbom.checksum",
+		"release.sbom.document",
+		"release.provenance",
+		"release.sourceArchive",
+		"release.sourceRepository.content",
+		"release.provides",
+		"release.suggests",
+		"release.auth",
+		"release.extensions",
+	],
+	descriptorOnly: [
+		"profile.authors[].url",
+		"profile.security[].url",
+		"release.repo",
+		"release.sbom.format",
+		"release.sbom.url",
+	],
+} as const;

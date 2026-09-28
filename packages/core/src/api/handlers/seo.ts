@@ -19,6 +19,13 @@ export interface SitemapContentEntry {
 	/** ISO date of last modification */
 	updatedAt: string;
 	/**
+	 * ISO publish date, or null when never published. Used to resolve
+	 * date tokens (`{year}`/`{month}`/`{day}`) in the collection's
+	 * `url_pattern` — the published date keeps permalinks stable across
+	 * later edits (unlike `updatedAt`).
+	 */
+	publishedAt: string | null;
+	/**
 	 * Locale of this row (e.g. `"en"`, `"fr"`). Always present — rows in
 	 * pre-i18n databases are backfilled to the configured `defaultLocale`.
 	 */
@@ -88,7 +95,7 @@ function toW3CDate(value: string): string {
  * Collect all published, indexable content across SEO-enabled collections
  * for sitemap generation, grouped by collection.
  *
- * Only includes content from collections with `has_seo = 1`.
+ * Only includes content from routable collections with `has_seo = 1`.
  * Excludes content with `seo_no_index = 1` in the `_emdash_seo` table.
  *
  * Returns raw data grouped per collection. The caller (route) is
@@ -105,7 +112,8 @@ export async function handleSitemapData(
 		let query = db
 			.selectFrom("_emdash_collections")
 			.select(["slug", "url_pattern"])
-			.where("has_seo", "=", 1);
+			.where("has_seo", "=", 1)
+			.where("routable", "=", 1);
 
 		if (collectionSlug) {
 			query = query.where("slug", "=", collectionSlug);
@@ -138,17 +146,20 @@ export async function handleSitemapData(
 					slug: string | null;
 					id: string;
 					updated_at: string;
+					published_at: string | null;
 					locale: string;
 					translation_group: string | null;
 					seo_image: string | null;
 				}>`
-					SELECT c.slug, c.id, c.updated_at, c.locale, c.translation_group, s.seo_image
+					SELECT c.slug, c.id, c.updated_at, c.published_at, c.locale, c.translation_group, s.seo_image
 					FROM ${sql.ref(tableName)} c
 					LEFT JOIN _emdash_seo s
 						ON s.collection = ${col.slug}
 						AND s.content_id = c.id
 					WHERE c.status = 'published'
 					AND c.deleted_at IS NULL
+					AND c.slug IS NOT NULL
+					AND TRIM(c.slug) <> ''
 					AND (s.seo_no_index IS NULL OR s.seo_no_index = 0)
 					ORDER BY c.updated_at DESC
 					LIMIT ${SITEMAP_MAX_ENTRIES}
@@ -162,6 +173,7 @@ export async function handleSitemapData(
 						id: row.id,
 						slug: row.slug,
 						updatedAt: toW3CDate(row.updated_at),
+						publishedAt: row.published_at ?? null,
 						locale: row.locale,
 						translationGroup: row.translation_group,
 						image: row.seo_image ?? null,

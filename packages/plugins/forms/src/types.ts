@@ -61,18 +61,15 @@ export interface FormSettings {
 /**
  * Maps form submissions to content entries.
  *
- * When configured, each successful submission also creates a draft entry
- * in the target collection. The submission is always stored in the forms
- * inbox regardless — content creation is additive and a create failure
- * never loses the submission or fails the submit request.
+ * Each successful submission also creates a draft entry in the target
+ * collection. The submission is stored in the forms inbox either way, and a
+ * failed create is logged without failing the submission.
  */
 export interface ContentMapping {
 	/** Target collection slug, e.g. "events" */
 	collection: string;
 	/** Form field name → target collection field (optionally with a transform) */
 	fieldMappings: Record<string, string | ContentFieldMapping>;
-	/** Form field whose value derives the entry slug */
-	slugFrom?: string;
 	/** Constant fields merged into every created entry, e.g. { source: "form" } */
 	metadata?: Record<string, unknown>;
 }

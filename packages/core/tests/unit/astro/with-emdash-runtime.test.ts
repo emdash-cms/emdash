@@ -12,12 +12,13 @@ vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
 }));
 
-const { MOCK_RUNTIME } = vi.hoisted(() => ({
+const { MOCK_RUNTIME, mockGetLastContentWriteAt } = vi.hoisted(() => ({
 	MOCK_RUNTIME: {
 		_marker: "runtime",
 		handlePluginApiRoute: vi.fn(async () => ({ success: true, data: { done: true } })),
 		runScheduledTasks: vi.fn(async () => ({ published: [] })),
 	},
+	mockGetLastContentWriteAt: vi.fn(async () => 123_456),
 }));
 
 vi.mock(
@@ -60,8 +61,14 @@ vi.mock("../../../src/emdash-runtime.js", () => ({
 	},
 }));
 
+vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../src/object-cache/index.js")>()),
+	getLastContentWriteAt: mockGetLastContentWriteAt,
+}));
+
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
+import { after } from "../../../src/after.js";
 import { withEmDashRuntime } from "../../../src/astro/middleware.js";
 import { getRequestContext } from "../../../src/request-context.js";
 
@@ -72,6 +79,16 @@ describe("withEmDashRuntime (#1887)", () => {
 		// Reset the globalThis runtime singleton so each test builds fresh
 		delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+		mockGetLastContentWriteAt.mockClear();
+	});
+
+	it("does not read the content-write marker for write workloads", async () => {
+		await withEmDashRuntime(() => "ok");
+
+		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+		expect(createRequestScopedDb).toHaveBeenCalledWith(
+			expect.objectContaining({ canUseCachedBinding: false }),
+		);
 	});
 
 	it("passes the runtime to the callback and returns its result (stateless adapter)", async () => {
@@ -134,15 +151,55 @@ describe("withEmDashRuntime (#1887)", () => {
 		expect(close).toHaveBeenCalledTimes(1);
 	});
 
-	it("uses the singleton path for a close-less scope", async () => {
-		const commit = vi.fn();
+	it("does not finish an event before deferred work releases its scoped db", async () => {
+		let release!: () => void;
+		let returned = false;
+		const close = vi.fn();
 		vi.mocked(createRequestScopedDb).mockReturnValue({
 			db: { _marker: "scoped" } as never,
+			commit: vi.fn(),
+			close,
+		});
+
+		const resultPromise = withEmDashRuntime(async () => {
+			after(
+				() =>
+					new Promise<void>((resolve) => {
+						release = resolve;
+					}),
+			);
+			return "ok";
+		}).then((result) => {
+			returned = true;
+			return result;
+		});
+
+		await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+		await Promise.resolve();
+		expect(returned).toBe(false);
+		expect(close).not.toHaveBeenCalled();
+
+		release();
+		await expect(resultPromise).resolves.toBe("ok");
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it("runs outside-request work under a close-less scoped db", async () => {
+		const commit = vi.fn();
+		const scopedDb = { _marker: "scoped" };
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: scopedDb as never,
 			commit,
 		});
 
-		await expect(withEmDashRuntime(() => "ok")).resolves.toBe("ok");
-		// Close-less scope is discarded — nothing to commit outside a request
-		expect(commit).not.toHaveBeenCalled();
+		let dbSeenByCallback: unknown;
+		await expect(
+			withEmDashRuntime(() => {
+				dbSeenByCallback = getRequestContext()?.db;
+				return "ok";
+			}),
+		).resolves.toBe("ok");
+		expect(dbSeenByCallback).toBe(scopedDb);
+		expect(commit).toHaveBeenCalledOnce();
 	});
 });

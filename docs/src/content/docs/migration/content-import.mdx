@@ -1,327 +1,201 @@
 ---
-title: Content Import
-description: Import content from WordPress and other sources into EmDash.
+title: Content import
+description: Understand the WordPress import sources, conversion behavior, API shapes, and retry boundaries.
 ---
 
-import { Aside, Card, CardGrid, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash imports content from WordPress and other platforms. Each import source detects a platform, analyzes its content, and fetches it into your site.
+EmDash imports WordPress content through the **Import WordPress** page at `/_emdash/admin/import/wordpress`. The importer can analyze a WordPress eXtended RSS (WXR) file or connect to a site running the EmDash Exporter plugin.
 
-## Import Sources
+## Import sources
 
-| Source ID        | Platform              | Probe | OAuth | Full Import |
-| ---------------- | --------------------- | ----- | ----- | ----------- |
-| `wxr`            | WordPress export file | No    | No    | Yes         |
-| `wordpress-com`  | WordPress.com         | Yes   | Yes   | Yes         |
-| `wordpress-rest` | Self-hosted WordPress | Yes   | No    | Probe only  |
+The source registry contains three WordPress sources:
 
-### WXR File Upload
+| Source ID | Input | Imports content | Access |
+| --- | --- | --- | --- |
+| `wxr` | WordPress export `.xml` file | Yes | Data present in the export |
+| `wordpress-plugin` | Site URL plus EmDash Exporter credentials | Yes | Exporter endpoints, including authenticated content |
+| `wordpress-rest` | Public site URL | No | Probe and public counts only |
 
-The most complete import method. Upload a WordPress eXtended RSS (WXR) export file directly to the admin dashboard.
+There is no `wordpress-com` OAuth import source. A WordPress.com site must use a WXR export or a compatible EmDash Exporter connection.
 
-**Capabilities:**
+### Import a WXR file
 
-- All post types (including custom)
-- All meta fields
-- Drafts and private posts
-- Full taxonomy hierarchy
-- Media attachment metadata
-
-**How to get a WXR file:**
+Use WXR when WordPress can export the content you need and the EmDash Exporter cannot be installed.
 
 <Steps>
 
-1. In WordPress admin, go to **Tools → Export**
-2. Select **All content** or specific post types
-3. Click **Download Export File**
-4. Upload the `.xml` file to EmDash
+1. In WordPress, open **Tools → Export**, select the required content, and download the XML file.
+
+2. In EmDash, open **Import WordPress** and upload the file.
+
+3. Review the detected post types, fields, authors, taxonomies, reusable blocks, and attachment URLs before creating schema or content.
 
 </Steps>
 
-### WordPress.com OAuth
+The XML contains attachment metadata and source URLs, not the media bytes. Keep WordPress reachable until the optional media copy has finished.
 
-For sites hosted on WordPress.com, connect via OAuth to import without manual file exports.
+### Connect the EmDash Exporter
 
-<Steps>
+Use the exporter when you control the WordPress site and need authenticated data such as drafts, comments, menus, or supported settings. Generate a migration key under **Tools → EmDash Migration**, or connect with a WordPress username and application password. The exporter sends data through its `emdash/v1` API endpoints; it does not grant EmDash direct database access.
 
-1. Enter your WordPress.com site URL
-2. Click **Connect with WordPress.com**
-3. Authorize EmDash in the WordPress.com popup
-4. Select content to import
+## Admin import flow
 
-</Steps>
+The admin performs these stages:
 
-<Aside type="caution">
-	WordPress.com OAuth requires environment variables `WPCOM_CLIENT_ID` and `WPCOM_CLIENT_SECRET`.
-	Register an app at [developer.wordpress.com](https://developer.wordpress.com/apps/).
-</Aside>
+1. **Connect.** Upload a WXR file, paste an EmDash Exporter migration key, or enter a site URL.
+2. **Analyze.** Read post types, required fields, authors, attachments, and schema compatibility.
+3. **Review.** Select post types, collection mappings, authors, and supported extras.
+4. **Prepare.** Create missing collections and fields. Existing fields with incompatible types block that mapping.
+5. **Import.** Convert and create content. The exporter path uses bounded content, comment, and finalization requests.
+6. **Copy media.** Download selected WXR attachments into EmDash storage and rewrite matching URLs.
 
-**What's included:**
+The WXR path can import posts, pages, custom post types, taxonomies, reusable blocks, authors or guest bylines, and media listed in the export. The exporter path can additionally fetch comments, menus, selected site settings, and supported SEO values from the live WordPress API.
 
-- Published and draft content
-- Private posts (with authorization)
-- Media files via API
-- Custom fields exposed to REST API
+### Understand the analysis
 
-### WordPress REST API Probe
+For each detected post type, the review screen shows the suggested collection and one of four schema states:
 
-When you enter a URL, EmDash probes the site to detect WordPress and show available content:
+| State | Meaning |
+| --- | --- |
+| Ready | The collection and required fields already have compatible types |
+| New collection | The prepare step will create the collection and its required fields |
+| Add fields | The collection exists and the prepare step will add missing fields |
+| Incompatible | An existing field has a different type; fix the mapping or schema before importing that post type |
 
-```
-Detected: WordPress 6.4
-├── Posts: 127 (published)
-├── Pages: 12 (published)
-└── Media: 89 files
+The prepare step is additive. It does not change the type of an existing field to make an import fit.
 
-Note: Drafts and private content require authentication
-or a full WXR export.
-```
+## Status mapping
 
-The REST probe is informational. For complete imports, it suggests uploading a WXR file or connecting via OAuth (for WordPress.com).
+The content routes store two statuses from a WordPress import:
 
-## Import Flow
+| WordPress status | EmDash status |
+| --- | --- |
+| `publish` | `published` |
+| `draft` | `draft` |
+| `pending` | `draft` |
+| `private` | `draft` |
+| `future`, `trash`, or another value | `draft` |
 
-All sources follow the same flow:
+The importer does not preserve WordPress pending, private, scheduled, or trash semantics. Review those entries before publishing them in EmDash.
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Connect   │────▶│   Analyze   │────▶│   Prepare   │────▶│   Execute   │
-│  (probe/    │     │  (schema    │     │  (create    │     │  (import    │
-│   upload)   │     │   check)    │     │   schema)   │     │   content)  │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-```
+## Content and identifiers
 
-### Step 1: Connect
+The WXR and exporter sources convert Gutenberg markup to Portable Text. They map `post` to `posts`, `page` to `pages`, and known custom post types to collection slugs. Internal WordPress post types are excluded. Reusable blocks (`wp_block`) are handled as EmDash sections rather than ordinary entries.
 
-Enter a URL to probe or upload a file directly.
+For an imported entry:
 
-**URL probing** runs all registered sources in parallel. The highest-confidence match determines the suggested next action:
+- The WordPress post slug becomes the EmDash slug when available.
+- EmDash generates its own database ID.
+- Author mappings attach an EmDash user. An unmapped WordPress author can become a reusable guest byline.
+- WordPress IDs are used transiently to resolve relationships such as menus, comments, featured images, and translations. They are not the persistent identity used to detect an existing WXR entry.
 
-- **WordPress.com site** → Offer OAuth connection
-- **Self-hosted WordPress** → Show export instructions
-- **Unknown** → Suggest file upload
+WXR reruns with `skipExisting` match an existing entry by collection, slug, and locale. A changed slug can therefore create another entry. The exporter path uses the same slug-and-locale check and rebuilds its WordPress-ID relationship map from entries that it skips.
 
-### Step 2: Analyze
+## Media copy and deduplication
 
-The source parses content and checks schema compatibility:
+The media stage downloads each attachment URL, computes a SHA-1 hash of the downloaded bytes, and looks for an existing media row with that content hash. Identical bytes reuse the existing media record even when the WordPress URLs differ.
 
-```
-Post Types:
-├── post (127) → posts [New collection]
-├── page (12)  → pages [Existing, compatible]
-├── product (45) → products [Add 3 fields]
-└── revision (234) → [Skip - internal type]
+The hash is stored with a `sha1:` prefix. It is a deduplication key, not a security signature. Two URLs are not treated as duplicates merely because their filenames match.
 
-Required Schema Changes:
-├── Create collection: posts
-├── Add fields to pages: featured_image
-└── Create collection: products
-```
+After copying media, the importer rewrites matching URLs in Portable Text, text, string, image, and file fields. Keep the WordPress origin online until downloads and rewritten pages have been verified.
 
-Each post type shows its status:
+## Retry behavior
 
-| Status         | Meaning                                  |
-| -------------- | ---------------------------------------- |
-| Ready          | Collection exists with compatible fields |
-| New collection | Will be created automatically            |
-| Add fields     | Collection exists, missing fields added  |
-| Incompatible   | Field type conflicts (manual fix needed) |
+The admin does not store a durable resume token for a WXR import. If a request fails:
 
-### Step 3: Prepare Schema
+- Rerun the analysis and import with **skip existing** enabled.
+- Existing entries are skipped by collection, slug, and locale.
+- Rerunning media is safe for files that were already stored because byte-identical downloads reuse the content hash.
+- Inspect partial schema changes and entries with changed slugs before retrying.
 
-Click **Create Schema & Import** to:
+The exporter flow is chunked to fit Worker limits. The browser carries cursors and WordPress-to-EmDash relationship maps between requests. If the browser loses that state, restart the import; skipped entries rebuild the relationship map as the content pages are processed.
 
-1. Create new collections
-2. Add missing fields with correct column types
-3. Set up content tables with indexes
+The separate `emdash import wordpress` CLI writes converted JSON files to an output directory. Its `--resume` option reads `.wp-migration-progress.json` and skips WordPress post and attachment IDs already recorded there. That file-conversion workflow is not the admin database import and does not make admin requests resumable.
 
-### Step 4: Execute Import
+## Admin API contracts
 
-Content imports sequentially:
+These endpoints power the authenticated admin page. They require an admin session with `import:execute` and the `X-EmDash-Request: 1` header. Success responses normally use the envelope `{ "success": true, "data": ... }`; errors use `{ "success": false, "error": { "code", "message" } }`.
 
-- Gutenberg/HTML converted to Portable Text
-- WordPress status mapped to EmDash status
-- WordPress authors mapped to ownership (`authorId`) and presentation bylines
-- Taxonomies created and linked
-- Reusable blocks (`wp_block`) imported as [Sections](/guides/sections/)
-- Progress shown in real-time
+### Probe a URL
 
-Author import behavior:
+`POST /_emdash/api/import/probe` accepts JSON `{ "url": "https://example.com" }`.
 
-- If an author mapping points to an EmDash user, ownership is set to that user and a linked byline is created/reused for the same user.
-- If there is no user mapping, a guest byline is created/reused from the WordPress author identity.
-- Imported entries get ordered byline credits, with the first credit set as `primaryBylineId`.
+Its `data` value is `{ success: true, result }`. `result` contains `url`, `isWordPress`, `bestMatch`, and `allMatches`. A plain WordPress REST match recommends a WXR upload; it does not enable direct REST import.
 
-### Step 5: Media Import (Optional)
+### Analyze a WXR file
 
-After content, optionally import media:
+`POST /_emdash/api/import/wordpress/analyze` accepts `multipart/form-data` with a `file` part. Its `data` value contains the site, post-type analysis, attachment summary, author summary, taxonomy counts, and custom-field suggestions.
 
-<Steps>
+### Prepare the schema
 
-1. **Analysis** — Shows attachment counts by type
+`POST /_emdash/api/import/wordpress/prepare` accepts this JSON shape:
 
-   ```
-   Media found:
-   ├── Images: 75 files
-   ├── Video: 10 files
-   └── Other: 4 files
-   ```
-
-2. **Download** — Streams from WordPress URLs with progress
-
-   ```
-   Importing media...
-   ├── 45 of 89 (50%)
-   ├── Current: vacation-photo.jpg
-   └── Status: Uploading
-   ```
-
-3. **Rewrite URLs** — Content automatically updated with new URLs
-
-</Steps>
-
-Media import uses content hashing (xxHash64) for deduplication. The same image used in multiple posts is stored once.
-
-## API Endpoints
-
-The import system exposes these endpoints:
-
-### Probe URL
-
-Detect the platform behind a URL with a probe request:
-
-```http
-POST /_emdash/api/import/probe
-Content-Type: application/json
-
-{ "url": "https://example.com" }
-```
-
-The response contains the detected platform and suggested action.
-
-### Analyze WXR
-
-Upload a WXR file to analyze its post types and schema compatibility:
-
-```http
-POST /_emdash/api/import/wordpress/analyze
-Content-Type: multipart/form-data
-
-file: [WordPress export .xml]
-```
-
-The response contains the post type analysis with schema compatibility.
-
-### Prepare Schema
-
-Create the collections and fields for the selected post types:
-
-```http
-POST /_emdash/api/import/wordpress/prepare
-Content-Type: application/json
-
+```json title="Request body"
 {
   "postTypes": [
-    { "name": "post", "collection": "posts", "enabled": true }
+    {
+      "name": "post",
+      "collection": "posts",
+      "fields": [
+        {
+          "slug": "title",
+          "label": "Title",
+          "type": "string",
+          "required": true,
+          "searchable": true
+        }
+      ]
+    }
   ]
 }
 ```
 
-### Execute Import
+Its `data` value contains `success`, `collectionsCreated`, `fieldsCreated`, and per-collection `errors`.
 
-Import the content into the mapped collections:
+### Execute a WXR import
 
-```http
-POST /_emdash/api/import/wordpress/execute
-Content-Type: multipart/form-data
+`POST /_emdash/api/import/wordpress/execute` accepts `multipart/form-data` with:
 
-file: [WordPress export .xml]
-config: { "postTypeMappings": { "post": { "collection": "posts" } } }
-```
+- `file`: the WXR file.
+- `config`: a JSON string containing `postTypeMappings`, `skipExisting`, optional `authorMappings`, optional `importSections`, and an optional import-wide `locale`.
 
-### Import Media
+Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries.
 
-Download and store the media attachments referenced by the import:
+### Copy media
 
-```http
-POST /_emdash/api/import/wordpress/media
-Content-Type: application/json
+`POST /_emdash/api/import/wordpress/media` accepts JSON `{ "attachments": [...], "stream": true }`. Streaming is the default. A streaming response is newline-delimited JSON with `progress` records followed by one `result` record; it does not use the normal API envelope. Set `stream` to `false` to receive the normal envelope around `{ imported, failed, urlMap }`.
 
-{
-  "attachments": [{ "id": 123, "url": "https://..." }],
-  "stream": true
-}
-```
+### Rewrite media URLs
 
-The response streams NDJSON progress updates during download and upload.
+`POST /_emdash/api/import/wordpress/rewrite-urls` accepts JSON `{ "urlMap": { "old": "new" }, "collections": ["posts"] }`. The optional collection list limits the rewrite. Its `data` value contains updated-entry and rewritten-URL counts plus errors.
 
-### Rewrite URLs
+### Use the exporter API
 
-Replace old media URLs in imported content with their stored equivalents:
+`POST /_emdash/api/import/wordpress-plugin/analyze` accepts JSON `{ "url", "token" }`, where `token` is a Base64 Basic Authentication value for a WordPress user and application password. Its `data` value is `{ success: true, analysis }`.
 
-```http
-POST /_emdash/api/import/wordpress/rewrite-urls
-Content-Type: application/json
+`POST /_emdash/api/import/wordpress-plugin/execute` accepts JSON with `url`, `token`, and `config`. The admin also supplies a `phase` (`content`, `comments`, or `finalize`). Each response contains `done`, an optional next `cursor`, a partial `result`, and a `chunk` object with any updated `idMap`, `translationGroups`, or `commentRoots`. The admin merges the `chunk` values and sends the accumulated maps with the next request.
 
-{
-  "urlMap": { "https://old.com/image.jpg": "/_emdash/media/abc123" }
-}
-```
+<Aside type="caution">
+  The import endpoints create schema, content, media, and settings. Use the admin workflow unless you need to integrate these exact authenticated contracts, and test an integration against the installed EmDash version.
+</Aside>
 
-## Error Handling
+## Troubleshooting
 
-### Recoverable Errors
+### The site is detected but cannot import directly
 
-- **Network timeout** — Retried with backoff
-- **Single item parse failure** — Logged, skipped, import continues
-- **Media download failure** — Marked for manual handling
+A `wordpress-rest` result is a probe only. Upload a WXR file or install the EmDash Exporter and probe the site again.
 
-### Fatal Errors
+### A post type is incompatible
 
-- **Invalid file format** — Import stops with error message
-- **Database connection lost** — Import pauses, allows resume
-- **Storage quota exceeded** — Import stops, shows usage
+Expand the post type in the review screen to find the conflicting field. Change the target collection or reconcile that field in **Content Types**. The importer will not replace an existing field type.
 
-### Error Report
+### Some media failed
 
-After an import completes, EmDash shows a summary of what succeeded, what was adjusted, and what failed:
+The final media result lists failed source URLs. Confirm that each URL is public, still exists, and does not redirect to a private network address. Retry the media step after fixing access; completed byte-identical files will be reused.
 
-```
-Import Complete
+## Next steps
 
-✓ 125 posts imported
-✓ 12 pages imported
-✓ 85 media references recorded
-
-⚠ 2 items had warnings:
-  - Post "Special Characters ñ" - title encoding fixed
-  - Page "About" - duplicate slug renamed to "about-1"
-
-✗ 1 item failed:
-  - Post ID 456 - content parsing error (saved as draft)
-```
-
-Failed items are saved as drafts with original content in `_importError` for review.
-
-## Custom sources
-
-To import from a platform the built-in sources do not cover, implement the `ImportSource` interface and register it on the integration:
-
-```typescript title="astro.config.mjs"
-import { mySource } from "./src/import/custom-source";
-
-export default defineConfig({
-	integrations: [
-		emdash({
-			import: { sources: [mySource] },
-		}),
-	],
-});
-```
-
-The interface (`probe`, `analyze`, `fetchContent`) and the normalized output shape are documented in [Architecture (internals)](/contributing/architecture/#extending-the-content-importer).
-
-## Next Steps
-
-- **[WordPress Migration](/migration/from-wordpress/)** — Complete WordPress migration guide
-- **[Plugin Porting](/migration/porting-plugins/)** — Port WordPress plugins to EmDash
+- [Migrate from WordPress](/migration/from-wordpress/) for the operator procedure.
+- [Port a WordPress theme](/themes/porting-wp-themes/) after content has been imported.
+- [Port a WordPress plugin](/migration/porting-plugins/) when the site depends on custom behavior.

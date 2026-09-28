@@ -108,7 +108,7 @@ function validate<T extends z.ZodType>(schema: T, data: unknown): ParseResult<z.
 	}
 
 	// Format Zod errors into a readable structure
-	const issues = result.error.issues.map((issue: z.ZodIssue) => ({
+	const issues = result.error.issues.map((issue: z.core.$ZodIssue) => ({
 		path: issue.path.join("."),
 		message: issue.message,
 	}));

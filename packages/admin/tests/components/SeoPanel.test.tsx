@@ -40,7 +40,7 @@ describe("SeoPanel", () => {
 		);
 
 		screen.getByText("OG Image");
-		screen.getByRole("button", { name: "Select OG image" });
+		screen.getByRole("button", { name: "Drop an image here or browse for OG Image" });
 	});
 
 	it("associates visible SEO labels with their fields", async () => {
@@ -58,6 +58,24 @@ describe("SeoPanel", () => {
 			await userEvent.click(screen.getByText(label));
 			expect(document.activeElement).toBe(screen.getByLabelText(label).element());
 		}
+	});
+
+	it("keeps the meta description field mounted while its character count updates", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SeoPanel
+					contentKey="page-1"
+					seo={{ title: "", description: null, image: null, canonical: null, noIndex: false }}
+					onChange={() => {}}
+				/>
+			</QueryWrapper>,
+		);
+		const initialField = screen.getByLabelText("Meta Description").element();
+
+		await userEvent.type(initialField, "f");
+
+		expect(screen.getByLabelText("Meta Description").element()).toBe(initialField);
+		await expect.element(screen.getByText("1/160 characters")).toBeVisible();
 	});
 
 	it("renders the existing OG image preview when set", async () => {

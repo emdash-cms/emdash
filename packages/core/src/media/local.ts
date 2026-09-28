@@ -32,7 +32,7 @@ export function localMedia(config: LocalMediaConfig = {}): MediaProviderDescript
 		id: "local",
 		name: "Library",
 		icon: "📁",
-		entrypoint: "emdash/media/local-runtime",
+		entrypoint: "emdash/internal/media/local-runtime",
 		capabilities: {
 			browse: true,
 			search: false, // TODO: Add search support

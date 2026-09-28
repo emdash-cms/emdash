@@ -1,8 +1,10 @@
 node_modules
 dist
 .astro
+.emdash/migrations.json
 uploads
 data.db
+.wrangler
 
 # Environment / Wrangler secrets
 .env

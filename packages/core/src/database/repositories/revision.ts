@@ -1,10 +1,15 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import type { Database, RevisionTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 
 const monotonic = monotonicFactory();
+
+export function createRevisionId(): string {
+	return monotonic();
+}
 
 export interface Revision {
 	id: string;
@@ -22,6 +27,12 @@ export interface CreateRevisionInput {
 	authorId?: string;
 }
 
+export function normalizeRevisionLimit(value: unknown): number {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric)) return 50;
+	return Math.max(1, Math.min(Math.trunc(numeric), 100));
+}
+
 /**
  * Revision repository for version history
  *
@@ -29,19 +40,27 @@ export interface CreateRevisionInput {
  * Used when collection has `supports: ["revisions"]` enabled.
  */
 export class RevisionRepository {
-	constructor(private db: Kysely<Database>) {}
+	private readonly datetimes: ContentDatetimeNormalizer;
+
+	constructor(
+		private db: Kysely<Database>,
+		datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
+	}
 
 	/**
 	 * Create a new revision
 	 */
 	async create(input: CreateRevisionInput): Promise<Revision> {
-		const id = monotonic();
+		const id = createRevisionId();
+		const data = await this.datetimes.normalizeData(input.collection, input.data);
 
 		const row: Omit<RevisionTable, "created_at"> = {
 			id,
 			collection: input.collection,
 			entry_id: input.entryId,
-			data: JSON.stringify(input.data),
+			data: JSON.stringify(data),
 			author_id: input.authorId ?? null,
 		};
 
@@ -51,7 +70,31 @@ export class RevisionRepository {
 		if (!revision) {
 			throw new Error("Failed to create revision");
 		}
+
+		await this.queuePruning(input.collection, input.entryId, id);
+
 		return revision;
+	}
+
+	async queuePruning(collection: string, entryId: string, revisionId: string): Promise<void> {
+		try {
+			await this.db
+				.insertInto("_emdash_revision_prune_queue")
+				.values({
+					collection,
+					entry_id: entryId,
+					revision_id: revisionId,
+				})
+				.onConflict((conflict) =>
+					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: revisionId }),
+				)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to queue revision pruning for ${collection}/${entryId}:`,
+				error,
+			);
+		}
 	}
 
 	/**
@@ -64,7 +107,23 @@ export class RevisionRepository {
 			.where("id", "=", id)
 			.executeTakeFirst();
 
-		return row ? this.rowToRevision(row) : null;
+		return row ? this.normalizeRow(row) : null;
+	}
+
+	/** Shallow-merge `patch` into a stored revision's data. */
+	async mergeData(id: string, patch: Record<string, unknown>): Promise<void> {
+		const row = await this.db
+			.selectFrom("revisions")
+			.select("data")
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return;
+		const data: Record<string, unknown> = { ...JSON.parse(row.data), ...patch };
+		await this.db
+			.updateTable("revisions")
+			.set({ data: JSON.stringify(data) })
+			.where("id", "=", id)
+			.execute();
 	}
 
 	/**
@@ -90,7 +149,71 @@ export class RevisionRepository {
 		}
 
 		const rows = await query.execute();
-		return rows.map((row) => this.rowToRevision(row));
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			rows.map((row) => JSON.parse(row.data)),
+		);
+		return rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return this.rowToRevision(row, normalized);
+		});
+	}
+
+	/** Read revisions only when the owning content row is visible in the same statement snapshot. */
+	async findVisibleByEntry(
+		collection: string,
+		entryId: string,
+		options: { limit?: number } = {},
+	): Promise<Revision[]> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const limit = normalizeRevisionLimit(options.limit);
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			ORDER BY revisions.id DESC
+			LIMIT ${limit}
+		`.execute(this.db);
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			result.rows.map((row) => JSON.parse(row.data)),
+		);
+		return result.rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return this.rowToRevision(row, normalized);
+		});
+	}
+
+	/** Read one revision only when its owning content row is visible in the same statement snapshot. */
+	async findVisibleById(
+		collection: string,
+		entryId: string,
+		revisionId: string,
+	): Promise<Revision | null> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.id = ${revisionId}
+			AND revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			LIMIT 1
+		`.execute(this.db);
+		const row = result.rows[0];
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -106,7 +229,7 @@ export class RevisionRepository {
 			.limit(1)
 			.executeTakeFirst();
 
-		return row ? this.rowToRevision(row) : null;
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**
@@ -133,34 +256,58 @@ export class RevisionRepository {
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
 
+		try {
+			await this.db
+				.deleteFrom("_emdash_revision_prune_queue")
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to clear queued revision pruning for ${collection}/${entryId}:`,
+				error,
+			);
+		}
+
 		return Number(result.numDeletedRows ?? 0);
 	}
 
 	/**
 	 * Delete old revisions, keeping the most recent N
 	 */
-	async pruneOldRevisions(collection: string, entryId: string, keepCount: number): Promise<number> {
+	async pruneOldRevisions(
+		collection: string,
+		entryId: string,
+		keepCount: number,
+		throughRevisionId?: string,
+	): Promise<number> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
-		// Get IDs of revisions to keep
-		const keep = await this.db
+		let keepQuery = this.db
 			.selectFrom("revisions")
 			.select("id")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc") // ULID tiebreaker
-			.limit(keepCount)
-			.execute();
+			.limit(keepCount);
+
+		if (throughRevisionId) {
+			keepQuery = keepQuery.where("id", "<=", throughRevisionId);
+		}
+
+		const keep = await keepQuery.execute();
 
 		const keepIds = keep.map((r) => r.id);
 
 		if (keepIds.length === 0) return 0;
+		const revisionBoundary = throughRevisionId ? sql`AND id <= ${throughRevisionId}` : sql``;
 
 		const result = await sql`
 			DELETE FROM revisions
 			WHERE collection = ${collection}
 			AND entry_id = ${entryId}
+			${revisionBoundary}
 			AND id NOT IN (${sql.join(keepIds.map((id) => sql`${id}`))})
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
@@ -170,6 +317,22 @@ export class RevisionRepository {
 		`.execute(this.db);
 
 		return Number(result.numAffectedRows ?? 0);
+	}
+
+	async pruneQueuedEntry(
+		collection: string,
+		entryId: string,
+		queuedRevisionId: string,
+		keepCount: number,
+	): Promise<number> {
+		const pruned = await this.pruneOldRevisions(collection, entryId, keepCount, queuedRevisionId);
+		await this.db
+			.deleteFrom("_emdash_revision_prune_queue")
+			.where("collection", "=", collection)
+			.where("entry_id", "=", entryId)
+			.where("revision_id", "=", queuedRevisionId)
+			.execute();
+		return pruned;
 	}
 
 	async deleteIfUnreferenced(
@@ -196,19 +359,34 @@ export class RevisionRepository {
 	/**
 	 * Convert database row to Revision object
 	 */
-	private rowToRevision(row: {
+	private async normalizeRow(row: {
 		id: string;
 		collection: string;
 		entry_id: string;
 		data: string;
 		author_id: string | null;
 		created_at: string;
-	}): Revision {
+	}): Promise<Revision> {
+		const data = await this.datetimes.normalizeData(row.collection, JSON.parse(row.data));
+		return this.rowToRevision(row, data);
+	}
+
+	private rowToRevision(
+		row: {
+			id: string;
+			collection: string;
+			entry_id: string;
+			data: string;
+			author_id: string | null;
+			created_at: string;
+		},
+		data: Record<string, unknown>,
+	): Revision {
 		return {
 			id: row.id,
 			collection: row.collection,
 			entryId: row.entry_id,
-			data: JSON.parse(row.data),
+			data,
 			authorId: row.author_id,
 			createdAt: row.created_at,
 		};

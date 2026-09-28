@@ -1,7 +1,7 @@
 {
 	"lexicon": 1,
 	"id": "com.emdashcms.experimental.publisher.profile",
-	"description": "Identity-level metadata for a plugin publisher. One record per publisher DID, located at rkey `self`. Optional: a DID may publish packages without ever publishing a publisher.profile, in which case clients fall back to the publisher's handle and per-package metadata for display. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The shape is expected to migrate to either pm.fair.publisher.profile (if FAIR adopts it) or com.emdashcms.publisher.profile once stable.",
+	"description": "Identity-level metadata for a plugin publisher. One record per publisher DID, located at rkey `self`. Optional: a DID may publish packages without ever publishing a publisher.profile, in which case clients fall back to the publisher's handle and per-package metadata for display. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The stable namespace target is com.emdashcms.publisher.profile.",
 	"defs": {
 		"main": {
 			"type": "record",

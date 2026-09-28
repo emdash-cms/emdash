@@ -1,13 +1,13 @@
 ---
-title: Object Cache
+title: Configure the object cache
 description: Cache query results in Cloudflare KV or memory to serve reads without querying the database on every request.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash reads content and site configuration from the database on every request. The object cache stores those query results in a fast key/value store, so repeat requests are served from the cache instead of the database. It reduces read load on the database — useful on Cloudflare, where KV serves far more requests per second than D1.
+EmDash's per-request cache already deduplicates identical reads during one page render. The optional object cache keeps selected query results across requests, allowing a later request to avoid the same database read. It is useful when public traffic creates more database reads than the selected backend should handle.
 
-The object cache is optional and disabled by default. Enable it by adding an `objectCache` adapter to the `emdash()` integration.
+The database remains the source of truth. Cache reads fail open to the database, and writes invalidate the affected cache namespace. The object cache is disabled by default; enable it by adding an `objectCache` adapter to the `emdash()` integration.
 
 ## Overview
 
@@ -115,6 +115,8 @@ The object cache covers the reads that run on a typical page render:
 
 Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
 
+The object cache and an HTML edge cache solve different problems. A hit in the HTML layer does not run EmDash. A miss runs the Worker, and a response that may fill Astro's route cache bypasses the object cache. Its content queries read from the database, which prevents a page purged after a content change from being rebuilt with an older KV snapshot.
+
 ## Freshness
 
 Editing content through the admin panel or the REST API invalidates the affected cache entries automatically. Creating, updating, publishing, or deleting an entry clears the cached queries for its collection; changing a byline or taxonomy term clears the entries that display it.
@@ -123,7 +125,7 @@ Editing content through the admin panel or the REST API invalidates the affected
 Preview links and visual editing bypass the object cache, so editors previewing see the current content immediately. Other requests — including authenticated browsing outside edit mode — are served from the cache, which only ever stores published content.
 </Aside>
 
-For anonymous visitors, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
+For requests that are not route-cache fills, a change takes time to appear across all isolates as they pick up the bumped epoch. With the in-isolate memory backend this is immediate. With Workers KV it is bounded by KV's edge-cache propagation (eventual consistency, up to ~60 seconds) plus the isolate-local `revalidate` window (default one second). Lower `revalidate` for faster local propagation at the cost of more reads against the cache; raise it to read the cache less often.
 
 ### Scheduled content
 

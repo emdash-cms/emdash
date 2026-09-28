@@ -72,6 +72,9 @@ export const RESOLVED_VIRTUAL_SCHEDULER_ID = "\0" + VIRTUAL_SCHEDULER_ID;
 export const VIRTUAL_ENV_ID = "virtual:emdash/env";
 export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
 
+export const VIRTUAL_BUILD_ID = "virtual:emdash/build";
+export const RESOLVED_VIRTUAL_BUILD_ID = "\0" + VIRTUAL_BUILD_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -97,14 +100,17 @@ export function generateDialectModule(opts: {
 	type?: string;
 	supportsRequestScope: boolean;
 	supportsCoalescing: boolean;
+	supportsCollectionDeletionGuard: boolean;
 }): string {
-	const { entrypoint, supportsRequestScope, supportsCoalescing } = opts;
+	const { entrypoint, supportsRequestScope, supportsCoalescing, supportsCollectionDeletionGuard } =
+		opts;
 	if (!entrypoint) {
 		return [
 			`export const createDialect = undefined;`,
 			`export const dialectType = "sqlite";`,
 			`export const createRequestScopedDb = (_opts) => null;`,
 			`export const createCoalescingDialect = undefined;`,
+			`export const executeCollectionDeletionGuard = undefined;`,
 		].join("\n");
 	}
 	const type = opts.type ?? "sqlite";
@@ -113,12 +119,16 @@ export function generateDialectModule(opts: {
 		? `import { createCoalescingDialect as _createCoalescingDialect } from "${entrypoint}";
 export const createCoalescingDialect = _createCoalescingDialect;`
 		: `export const createCoalescingDialect = undefined;`;
+	const collectionDeletionExport = supportsCollectionDeletionGuard
+		? `export { executeCollectionDeletionGuard } from "${entrypoint}";`
+		: `export const executeCollectionDeletionGuard = undefined;`;
 
 	if (supportsRequestScope) {
 		return `
 import { createDialect as _createDialect } from "${entrypoint}";
 export { createRequestScopedDb } from "${entrypoint}";
 ${coalescingExport}
+${collectionDeletionExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 `;
@@ -127,6 +137,7 @@ export const dialectType = ${JSON.stringify(type)};
 	return `
 import { createDialect as _createDialect } from "${entrypoint}";
 ${coalescingExport}
+${collectionDeletionExport}
 export const createDialect = _createDialect;
 export const dialectType = ${JSON.stringify(type)};
 export const createRequestScopedDb = (_opts) => null;
@@ -279,9 +290,12 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 					storage: descriptor.storage,
 					adminPages: descriptor.adminPages,
 					adminWidgets: descriptor.adminWidgets,
+					editorPanels: descriptor.editorPanels,
+					editorActions: descriptor.editorActions,
 					settingsSchema: descriptor.settingsSchema,
 					portableTextBlocks: descriptor.portableTextBlocks,
 					fieldWidgets: descriptor.fieldWidgets,
+					mcp: descriptor.mcp,
 				})})`,
 			);
 		} else {
@@ -293,7 +307,7 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 	});
 
 	const adapterImport = needsAdapter
-		? `import { adaptSandboxEntry } from "emdash/plugins/adapt-sandbox-entry";\n`
+		? `import { adaptSandboxEntry } from "emdash/internal/plugins/adapt-sandbox-entry";\n`
 		: "";
 
 	return `
@@ -401,7 +415,7 @@ export function generateMediaProvidersModule(descriptors: MediaProviderDescripto
 	// Add local provider first if not disabled
 	if (!localDisabled) {
 		imports.push(
-			`import { createMediaProvider as createLocalProvider } from "emdash/media/local-runtime";`,
+			`import { createMediaProvider as createLocalProvider } from "emdash/internal/media/local-runtime";`,
 		);
 		entries.push(`{
 	id: "local",
@@ -495,6 +509,19 @@ export function generateEnvModule(adapterName: string | undefined): string {
 		return `export { env } from "cloudflare:workers";`;
 	}
 	return `export const env = undefined;`;
+}
+
+/**
+ * Generates the build virtual module.
+ *
+ * Content-hashed `/_astro/*` names make the response depend on the build, not
+ * only on the content. Exposing the build timestamp lets the middleware fold
+ * that dimension into the cache validator, so a code-only deploy stops
+ * answering conditional requests with 304 while the assets the cached HTML
+ * references are already gone.
+ */
+export function generateBuildModule(buildTime: number): string {
+	return `export const buildTime = ${buildTime};`;
 }
 
 /**
@@ -677,6 +704,8 @@ export const sandboxedPlugins = [];
     hooks: ${JSON.stringify(descriptor.hooks ?? [])},
     adminPages: ${JSON.stringify(descriptor.adminPages ?? [])},
     adminWidgets: ${JSON.stringify(descriptor.adminWidgets ?? [])},
+    editorPanels: ${JSON.stringify(descriptor.editorPanels ?? [])},
+    editorActions: ${JSON.stringify(descriptor.editorActions ?? [])},
     settingsSchema: ${JSON.stringify(descriptor.settingsSchema)},
     portableTextBlocks: ${JSON.stringify(descriptor.portableTextBlocks ?? [])},
     fieldWidgets: ${JSON.stringify(descriptor.fieldWidgets ?? [])},

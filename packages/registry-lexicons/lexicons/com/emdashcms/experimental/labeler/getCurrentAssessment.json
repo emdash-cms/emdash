@@ -1,0 +1,49 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeler.getCurrentAssessment",
+	"description": "Fetch the effective assessment and signed label state for an exact package-profile or release revision. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"parameters": {
+				"type": "params",
+				"required": ["kind", "uri", "cid"],
+				"properties": {
+					"kind": {
+						"type": "string",
+						"knownValues": ["profile", "release"]
+					},
+					"uri": {
+						"type": "string",
+						"format": "at-uri"
+					},
+					"cid": {
+						"type": "string",
+						"format": "cid"
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.labeler.defs#currentAssessmentView"
+				}
+			},
+			"errors": [
+				{
+					"name": "InvalidRequest",
+					"description": "The subject kind, URI, or CID is invalid or inconsistent."
+				},
+				{
+					"name": "NotFound",
+					"description": "No public assessment exists for this exact record revision."
+				},
+				{
+					"name": "ConflictingLabels",
+					"description": "The winning signed label state contains conflicting events and is withheld."
+				}
+			]
+		}
+	}
+}

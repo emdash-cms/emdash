@@ -1,9 +1,11 @@
 import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { page } from "vitest/browser";
 
-import type { Section } from "../../src/lib/api";
+import "../../dist/styles.css";
+import type { AdminManifest, Section } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 // Capture props passed to PortableTextEditor so the test can invoke the
@@ -37,6 +39,7 @@ vi.mock("@tanstack/react-router", async () => {
 
 const mockFetchSection = vi.fn<() => Promise<Section>>();
 const mockUpdateSection = vi.fn();
+const mockFetchManifest = vi.fn<() => Promise<AdminManifest>>();
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -44,6 +47,7 @@ vi.mock("../../src/lib/api", async () => {
 		...(actual as Record<string, unknown>),
 		fetchSection: (...args: unknown[]) => mockFetchSection(...(args as [])),
 		updateSection: (...args: unknown[]) => mockUpdateSection(...(args as [])),
+		fetchManifest: (...args: unknown[]) => mockFetchManifest(...(args as [])),
 	};
 });
 
@@ -65,6 +69,17 @@ function makeSection(overrides: Partial<Section> = {}): Section {
 	};
 }
 
+function makeManifest(overrides: Partial<AdminManifest> = {}): AdminManifest {
+	return {
+		version: "0.1.0",
+		hash: "abc123",
+		authMode: "passkey",
+		collections: {},
+		plugins: {},
+		...overrides,
+	};
+}
+
 function Wrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -81,7 +96,41 @@ describe("SectionEditor", () => {
 		vi.clearAllMocks();
 		portableTextProps.current = null;
 		mockFetchSection.mockResolvedValue(makeSection());
+		mockFetchManifest.mockResolvedValue(makeManifest());
 	});
+	afterEach(async () => {
+		await page.viewport(1280, 800);
+	});
+
+	it.each(["ltr", "rtl"])(
+		"keeps detail inputs within their panel at a narrow width in %s",
+		async (direction) => {
+			await page.viewport(938, 880);
+			const screen = await render(
+				<div dir={direction} style={{ display: "flex", width: "100vw" }}>
+					<aside style={{ width: 260, flexShrink: 0 }} />
+					<main style={{ flex: 1, minWidth: 0, padding: 24 }}>
+						<SectionEditor />
+					</main>
+				</div>,
+				{ wrapper: Wrapper },
+			);
+			await expect.element(screen.getByRole("textbox", { name: "Keywords" })).toBeInTheDocument();
+
+			const panel = screen
+				.getByRole("heading", { name: "Section Details" })
+				.element().parentElement!;
+			const panelBounds = panel.getBoundingClientRect();
+			const styles = getComputedStyle(panel);
+			const contentStart = panelBounds.left + parseFloat(styles.paddingLeft);
+			const contentEnd = panelBounds.right - parseFloat(styles.paddingRight);
+			for (const name of ["Title", "Slug", "Description", "Keywords"]) {
+				const fieldBounds = screen.getByRole("textbox", { name }).element().getBoundingClientRect();
+				expect(fieldBounds.left).toBeGreaterThanOrEqual(contentStart - 1);
+				expect(fieldBounds.right).toBeLessThanOrEqual(contentEnd + 1);
+			}
+		},
+	);
 
 	it("opens the image settings panel when a block requests the sidebar", async () => {
 		const screen = await render(<SectionEditor />, { wrapper: Wrapper });
@@ -132,5 +181,34 @@ describe("SectionEditor", () => {
 		expect(saveButtons).toHaveLength(2);
 		for (const button of saveButtons) await expect.element(button).toBeDisabled();
 		expect(screen.getByRole("status").element().textContent).toBe("Saved");
+	});
+
+	it("passes plugin block definitions to PortableTextEditor", async () => {
+		const manifest = makeManifest({
+			plugins: {
+				"plugin-embeds": {
+					portableTextBlocks: [
+						{
+							type: "youtube",
+							label: "YouTube",
+							icon: "YoutubeLogo",
+						},
+					],
+				},
+			},
+		});
+		mockFetchManifest.mockResolvedValue(manifest);
+
+		const screen = await render(<SectionEditor />, { wrapper: Wrapper });
+		await expect.element(screen.getByTestId("portable-text-editor")).toBeInTheDocument();
+
+		expect(portableTextProps.current?.pluginBlocks).toEqual([
+			{
+				type: "youtube",
+				pluginId: "plugin-embeds",
+				label: "YouTube",
+				icon: "YoutubeLogo",
+			},
+		]);
 	});
 });

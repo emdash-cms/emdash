@@ -19,7 +19,7 @@ export function select<T extends readonly [string, ...string[]]>(
 	const enumSchema = z.enum(selectOptions.options);
 
 	// Apply default first, then optional
-	let schema: z.ZodTypeAny;
+	let schema: z.ZodType;
 	if (selectOptions.default !== undefined) {
 		schema = enumSchema.default(selectOptions.default);
 	} else if (!selectOptions.required) {

@@ -12,11 +12,15 @@ import { Role } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Kysely } from "kysely";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import type { EmDashHandlers } from "../../../src/astro/types.js";
+import type { Database } from "../../../src/database/types.js";
 import { createMcpServer, type PluginMcpRegistration } from "../../../src/mcp/server.js";
+import type { RouteCallerInput } from "../../../src/plugins/routes.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // ---------------------------------------------------------------------------
 // Test constants
@@ -29,6 +33,8 @@ const AUTHOR_USER_ID = "user_author";
 const OTHER_USER_ID = "user_other";
 const ADMIN_USER_ID = "user_admin";
 const CONTENT_ID = "01CONTENT";
+/** Any string passes the schema; the mocked handlers never compare it with a revision. */
+const STUB_REV = "c3R1Yi1yZXY=";
 const CONTENT_SLUG = "test-post";
 const REVISION_ID = "01REVISION";
 const MEDIA_ID = "01MEDIA";
@@ -36,6 +42,16 @@ const MEDIA_ID = "01MEDIA";
 // ---------------------------------------------------------------------------
 // Mock EmDashHandlers
 // ---------------------------------------------------------------------------
+
+let db: Kysely<Database>;
+
+beforeAll(async () => {
+	db = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(db);
+});
 
 /** Create a minimal mock EmDashHandlers that returns content owned by `ownerId`. */
 function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
@@ -58,7 +74,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	};
 
 	return {
-		db: {} as EmDashHandlers["db"],
+		db,
 		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
 			success: true,
@@ -207,7 +223,9 @@ function createAuthenticatedPair(authInfo: {
 	emdash: EmDashHandlers;
 	userId: string;
 	userRole: RoleLevel;
+	user: RouteCallerInput;
 	tokenScopes?: string[];
+	cache?: { enabled: boolean; invalidate: (options: { tags: string[] }) => Promise<void> };
 }): [AuthInjectingTransport, InMemoryTransport] {
 	const clientTransport = new AuthInjectingTransport(authInfo);
 	const serverTransport = new InMemoryTransport();
@@ -221,14 +239,27 @@ function createAuthenticatedPair(authInfo: {
 // Test setup
 // ---------------------------------------------------------------------------
 
+/** Write tools read the site write fence, so the handlers need a migrated database. */
+let fenceDb: Kysely<Database>;
+
+beforeAll(async () => {
+	fenceDb = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(fenceDb);
+});
+
 async function setupMcpPair(opts: {
 	userId: string;
 	userRole: RoleLevel;
 	handlers?: EmDashHandlers;
 	tokenScopes?: string[];
 	pluginTools?: PluginMcpRegistration[];
+	user?: RouteCallerInput;
+	cache?: { enabled: boolean; invalidate: (options: { tags: string[] }) => Promise<void> };
 }): Promise<{ client: Client; cleanup: () => Promise<void> }> {
-	const handlers = opts.handlers ?? createMockHandlers();
+	const handlers = { ...(opts.handlers ?? createMockHandlers()), db: fenceDb };
 	const server = createMcpServer(
 		opts.pluginTools,
 		new Request("https://example.com/_emdash/api/mcp", { method: "POST" }),
@@ -237,7 +268,15 @@ async function setupMcpPair(opts: {
 		emdash: handlers,
 		userId: opts.userId,
 		userRole: opts.userRole,
+		user: opts.user ?? {
+			id: opts.userId,
+			email: `${opts.userId}@example.com`,
+			name: null,
+			role: opts.userRole,
+			createdAt: "2026-01-01T00:00:00.000Z",
+		},
 		tokenScopes: opts.tokenScopes,
+		cache: opts.cache,
 	});
 
 	const client = new Client({ name: "test", version: "1.0" });
@@ -309,16 +348,26 @@ describe("MCP Authorization", () => {
 
 		it("dispatches with a plugin-specific scope and returns structured output", async () => {
 			const handlers = createMockHandlers();
+			const caller: RouteCallerInput = {
+				id: AUTHOR_USER_ID,
+				email: "author@example.com",
+				name: "Author",
+				role: Role.CONTRIBUTOR,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
 			handlers.handlePluginMcpTool = vi.fn().mockResolvedValue({
 				success: true,
 				data: { id: "event-1" },
 			});
+			const invalidate = vi.fn().mockResolvedValue(undefined);
 			({ client, cleanup } = await setupMcpPair({
 				userId: AUTHOR_USER_ID,
 				userRole: Role.CONTRIBUTOR,
 				tokenScopes: ["mcp:tools:calendar"],
+				user: caller,
 				handlers,
 				pluginTools: [pluginTool],
+				cache: { enabled: true, invalidate },
 			}));
 
 			const listed = await client.listTools();
@@ -337,7 +386,12 @@ describe("MCP Authorization", () => {
 				{ title: "Launch" },
 				AUTHOR_USER_ID,
 				expect.any(Request),
+				caller,
+				expect.any(Function),
 			);
+			const invalidateContentCache = vi.mocked(handlers.handlePluginMcpTool).mock.calls[0]?.[7];
+			await invalidateContentCache?.(["posts", "post-1"]);
+			expect(invalidate).toHaveBeenCalledWith({ tags: ["posts", "post-1"] });
 		});
 
 		it("still enforces the route permission", async () => {
@@ -382,6 +436,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "Hacked" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -405,6 +460,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "My update" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -426,6 +482,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "Hacked" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -447,6 +504,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "Editor update" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -492,6 +550,84 @@ describe("MCP Authorization", () => {
 
 			expect(result.isError).toBe(true);
 			expect(handlers.handleContentDelete).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("content_duplicate ownership", () => {
+		it("CONTRIBUTOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.CONTRIBUTOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR cannot duplicate another user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBe(true);
+			expect(handlers.handleContentDuplicate).not.toHaveBeenCalled();
+		});
+
+		it("AUTHOR duplicates their own content as its author", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: AUTHOR_USER_ID,
+				userRole: Role.AUTHOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: "test-post" },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				AUTHOR_USER_ID,
+			);
+		});
+
+		it("EDITOR can duplicate any user's content", async () => {
+			const handlers = createMockHandlers(AUTHOR_USER_ID);
+			({ client, cleanup } = await setupMcpPair({
+				userId: OTHER_USER_ID,
+				userRole: Role.EDITOR,
+				handlers,
+			}));
+
+			const result = await client.callTool({
+				name: "content_duplicate",
+				arguments: { collection: "post", id: CONTENT_ID },
+			});
+
+			expect(result.isError).toBeFalsy();
+			expect(handlers.handleContentDuplicate).toHaveBeenCalledWith(
+				"post",
+				CONTENT_ID,
+				OTHER_USER_ID,
+			);
 		});
 	});
 
@@ -550,7 +686,7 @@ describe("MCP Authorization", () => {
 
 			const result = await client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id: CONTENT_ID },
+				arguments: { collection: "post", id: CONTENT_ID, _rev: STUB_REV },
 			});
 
 			expect(result.isError).toBeFalsy();
@@ -567,7 +703,7 @@ describe("MCP Authorization", () => {
 
 			const result = await client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id: CONTENT_ID },
+				arguments: { collection: "post", id: CONTENT_ID, _rev: STUB_REV },
 			});
 
 			expect(result.isError).toBe(true);
@@ -808,6 +944,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "No scope" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -831,6 +968,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "Valid scope" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -852,6 +990,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "Session auth" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -878,6 +1017,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					scheduledAt: "2030-01-01T00:00:00Z",
+					_rev: STUB_REV,
 				},
 			});
 
@@ -901,7 +1041,7 @@ describe("MCP Authorization", () => {
 
 			const result = await client.callTool({
 				name: "content_unpublish",
-				arguments: { collection: "post", id: CONTENT_ID },
+				arguments: { collection: "post", id: CONTENT_ID, _rev: STUB_REV },
 			});
 
 			expect(result.isError).toBe(true);
@@ -943,11 +1083,13 @@ describe("MCP Authorization", () => {
 
 			const result = await client.callTool({
 				name: "content_discard_draft",
-				arguments: { collection: "post", id: CONTENT_SLUG },
+				arguments: { collection: "post", id: CONTENT_SLUG, _rev: STUB_REV },
 			});
 
 			expect(result.isError).toBeFalsy();
-			expect(handlers.handleContentDiscardDraft).toHaveBeenCalledWith("post", CONTENT_ID);
+			expect(handlers.handleContentDiscardDraft).toHaveBeenCalledWith("post", CONTENT_ID, {
+				_rev: STUB_REV,
+			});
 		});
 
 		it("content_update passes resolvedId (not slug) to handler", async () => {
@@ -964,6 +1106,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_SLUG,
 					data: { title: "Updated" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -1013,6 +1156,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "ok" },
+					_rev: STUB_REV,
 				},
 			});
 
@@ -1038,6 +1182,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					data: { title: "Should fail" },
+					_rev: STUB_REV,
 				},
 			});
 

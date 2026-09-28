@@ -19,6 +19,10 @@ import { sql } from "kysely";
 import { buildStatusCondition, compoundSelectLimit } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import {
+	filterToRegisteredCollections,
+	noteStaleRegisteredCollections,
+} from "../schema/collection-slugs-cache.js";
 import { chunks } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 
@@ -30,7 +34,8 @@ interface CountRow {
 /**
  * Per-collection count branch. `taxonomy_id` stores the term's
  * translation_group, so results are keyed by group (locale-independent) and
- * each assignment is counted once no matter how many locales the term has.
+ * each assignment is counted once per content translation group. When a
+ * locale is provided, only that group's matching content row contributes.
  *
  * Scoping to the taxonomy uses `translation_group IN (...)` rather than a
  * join on `taxonomies.id` — the anchor row (id == group) can be deleted while
@@ -39,20 +44,23 @@ interface CountRow {
  *
  * CROSS JOIN with the join predicate in WHERE keeps stats-blind SQLite/D1 from
  * reordering content_taxonomies out of the outer position; it touches ec_* only
- * by primary key. Postgres treats this as an ordinary inner join and plans freely.
+ * through the translation-group index. Postgres treats this as an ordinary
+ * inner join and plans freely.
  */
 function collectionBranch(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collection: string,
+	locale?: string,
 ): ReturnType<typeof sql> {
 	return sql`
-		SELECT ct.taxonomy_id AS taxonomy_id, COUNT(*) AS count
+		SELECT ct.taxonomy_id AS taxonomy_id, COUNT(DISTINCT e.translation_group) AS count
 		FROM content_taxonomies AS ct
 		CROSS JOIN ${sql.ref(`ec_${collection}`)} AS e
-		WHERE e.id = ct.entry_id
+		WHERE e.translation_group = ct.entry_id
 			AND ct.collection = ${collection}
 			AND ct.taxonomy_id IN (SELECT translation_group FROM taxonomies WHERE name = ${taxonomyName})
+			${locale ? sql`AND e.locale = ${locale}` : sql``}
 			AND ${buildStatusCondition(db, "published", "e")}
 			AND e.deleted_at IS NULL
 		GROUP BY ct.taxonomy_id`;
@@ -62,8 +70,11 @@ async function runCounts(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collections: string[],
+	locale?: string,
 ): Promise<Map<string, number>> {
-	const branches = collections.map((collection) => collectionBranch(db, taxonomyName, collection));
+	const branches = collections.map((collection) =>
+		collectionBranch(db, taxonomyName, collection, locale),
+	);
 	const union = sql.join(branches, sql` UNION ALL `);
 	const result = await sql<CountRow>`
 		SELECT taxonomy_id, SUM(count) AS count
@@ -87,17 +98,23 @@ async function runBatch(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collections: string[],
+	locale?: string,
 ): Promise<Map<string, number>> {
 	try {
-		return await runCounts(db, taxonomyName, collections);
+		return await runCounts(db, taxonomyName, collections, locale);
 	} catch (error) {
 		if (!isMissingTableError(error)) throw error;
+		// The slug filter let a missing table through: the collection was
+		// deleted on another isolate (stale cache) or the registry drifted
+		// from the physical schema. Window-gated, so the delete case stops
+		// sending failing statements within one revalidation window.
+		noteStaleRegisteredCollections();
 	}
 
 	const counts = new Map<string, number>();
 	for (const collection of collections) {
 		try {
-			addCounts(counts, await runCounts(db, taxonomyName, [collection]));
+			addCounts(counts, await runCounts(db, taxonomyName, [collection], locale));
 		} catch (error) {
 			if (!isMissingTableError(error)) throw error;
 		}
@@ -108,12 +125,19 @@ async function runBatch(
 /**
  * Count publicly-visible term assignments for one taxonomy, keyed by the
  * term's translation_group (what `content_taxonomies.taxonomy_id` stores).
+ * When `locale` is provided, only entries in that locale contribute. Omitting
+ * it preserves the locale-agnostic API used by legacy callers.
  *
  * Counts are scoped to the taxonomy's declared collections — pass
- * `TaxonomyDef.collections` (`_emdash_taxonomy_defs.collections`). Collections
- * whose `ec_*` table doesn't exist (pre-migration drift, a declared collection
- * that was never created) are skipped, yielding a partial-but-correct count
- * rather than a throw.
+ * `TaxonomyDef.collections` (`_emdash_taxonomy_defs.collections`). Declared
+ * collections without a `_emdash_collections` row (the migration-seeded
+ * defaults declare `posts` unconditionally) are filtered out before any SQL
+ * is built, so no statement referencing a missing `ec_*` table is sent — a
+ * failed statement is logged by the database even when the caller recovers,
+ * flooding D1 observability with phantom errors. The missing-table guards in
+ * `runBatch` stay as the backstop for registry/table drift (e.g. a partially
+ * applied D1 create) and for a table dropped mid-flight, yielding a
+ * partial-but-correct count rather than a throw.
  *
  * One database round-trip for the whole taxonomy (UNION ALL across
  * collections). On a backend that caps compound-SELECT terms — D1 allows five
@@ -130,14 +154,20 @@ export async function fetchVisibleTermCounts(
 	db: Kysely<Database>,
 	taxonomyName: string,
 	collections: string[],
+	locale?: string,
 ): Promise<Map<string, number>> {
 	const unique = [...new Set(collections)];
 	for (const collection of unique) validateIdentifier(collection, "collection slug");
 	if (unique.length === 0) return new Map();
 
+	const present = await filterToRegisteredCollections(db, unique);
+	if (present.length === 0) return new Map();
+
 	const limit = compoundSelectLimit(db);
-	const batched = limit === null ? [unique] : chunks(unique, limit);
-	const batches = await Promise.all(batched.map((batch) => runBatch(db, taxonomyName, batch)));
+	const batched = limit === null ? [present] : chunks(present, limit);
+	const batches = await Promise.all(
+		batched.map((batch) => runBatch(db, taxonomyName, batch, locale)),
+	);
 
 	const counts = new Map<string, number>();
 	for (const batch of batches) addCounts(counts, batch);

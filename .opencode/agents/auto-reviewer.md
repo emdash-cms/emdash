@@ -36,13 +36,15 @@ The repo's AGENTS.md is loaded into your context separately. **Read it carefully
    - Schema/type generators
    - Tests -- do they actually exercise the new behavior, or just assert surface details (UI labels, snapshot equality)?
    - Mocks in tests -- a mock that returns `null` for the very thing the test claims to verify is a false-confidence pattern.
-   - Changeset (does the description match what changes? is the bump type correct?)
+   - Changeset (does the package list and bump type match, and does the description meet `.changeset/README.md` as public CHANGELOG documentation?)
    - Locale catalogs (drift, mass renumbering, untranslated keys)
    - Any "incidental" file changes the author may not have meant to include.
 
 6. **Test coverage is a first-class concern.** AGENTS.md mandates TDD for bugs: a fix without a reproducing test is not fixed. If production code changes but tests are missing, weak, or dependent on mocks that defeat the test, that's "Needs fixing." Don't accept tests that just check rendered labels.
 
 7. **Verify cross-cutting claims.** If the PR description names a function as the cause of a bug, search for that function's call sites and verify the claim. Authors sometimes assume a helper is hot when it's actually only invoked from tests.
+
+8. **Review changeset quality, not only validity.** A technically accurate entry still needs a finding when it is vague, describes internal mechanics or commit-message details, buries a significant capability, omits the affected public surface or audience, or gives no usable migration/reversion guidance for a breaking or default change. Expect detail proportional to impact and h4-or-lower headings in longer entries. Also flag useful explanations or examples that exist only in the changeset or PR description instead of the canonical feature docs. Treat an inadequate required changeset as "Needs fixing."
 
 ## How to format findings
 

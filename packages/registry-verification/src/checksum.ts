@@ -12,6 +12,28 @@ export interface DecodedMultihash {
 	digest: Uint8Array;
 }
 
+/** Derive the required artifact checksum from a raw sha2-256 blob CID. */
+export function multihashFromBlobCid(value: string): VerificationResult<string> {
+	if (!value.startsWith("b")) {
+		return verificationError("BLOB_REF_INVALID", "The blob reference CID is malformed.");
+	}
+	const bytes = decodeBase32(value.slice(1));
+	if (bytes === null || bytes.length !== 36 || bytes[0] !== 1 || bytes[1] !== 0x55) {
+		return verificationError(
+			"BLOB_REF_INVALID",
+			"Blob references must use a CIDv1 raw sha2-256 CID.",
+		);
+	}
+	const checksum = `b${encodeBase32(bytes.slice(2))}`;
+	if (!decodeMultihash(checksum).success) {
+		return verificationError(
+			"BLOB_REF_INVALID",
+			"Blob references must use a CIDv1 raw sha2-256 CID.",
+		);
+	}
+	return { success: true, value: checksum };
+}
+
 /** Decodes a lowercase base32 multibase-encoded multihash. */
 export function decodeMultihash(value: string): VerificationResult<DecodedMultihash> {
 	if (!value.startsWith("b")) {
@@ -65,6 +87,17 @@ export async function computeMultihash(
 	} catch {
 		return verificationError("UNSUPPORTED_MULTIHASH", "The sha2-256 algorithm is unavailable.");
 	}
+}
+
+export async function computeArtifactDigestCandidates(
+	bytes: Uint8Array,
+): Promise<readonly [Uint8Array, Uint8Array, Uint8Array]> {
+	const [sha256, sha384, sha512] = await Promise.all([
+		crypto.subtle.digest("SHA-256", new Uint8Array(bytes)),
+		crypto.subtle.digest("SHA-384", new Uint8Array(bytes)),
+		crypto.subtle.digest("SHA-512", new Uint8Array(bytes)),
+	]);
+	return [new Uint8Array(sha256), new Uint8Array(sha384), new Uint8Array(sha512)];
 }
 
 export async function verifyMultihash(

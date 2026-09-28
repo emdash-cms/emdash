@@ -159,6 +159,22 @@ describe("backup handlers", () => {
 			expect(backup.schema).not.toHaveProperty("credentials");
 			expect(backup.schema).not.toHaveProperty("_emdash_api_tokens");
 		});
+
+		it("excludes the deployment URL and unlisted emdash:site_* keys", async () => {
+			const options = new OptionsRepository(db);
+			await options.set("emdash:site_title", "My Site");
+			await options.set("emdash:locale", "en");
+			await options.set("emdash:site_url", "https://staging.example.com");
+			await options.set("emdash:site_future_key", "unlisted");
+
+			const backup = JSON.parse(await generateBackupJson(db));
+
+			const optionNames = (backup.tables.options ?? []).map((r: { name: string }) => r.name);
+			expect(optionNames).toContain("emdash:site_title");
+			expect(optionNames).toContain("emdash:locale");
+			expect(optionNames).not.toContain("emdash:site_url");
+			expect(optionNames).not.toContain("emdash:site_future_key");
+		});
 	});
 
 	describe("archive names", () => {

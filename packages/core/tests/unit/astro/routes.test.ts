@@ -1,7 +1,8 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -9,13 +10,36 @@ import {
 	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 } from "../../../src/astro/integration/routes.js";
+import * as mediaReplaceRoute from "../../../src/astro/routes/api/media/[id]/replace.js";
 import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
+import * as bulkTagRoute from "../../../src/astro/routes/api/taxonomies/bulk-tag.js";
 
-function mockMediaContext(key: string | undefined) {
+const SRC_ROUTES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../src/astro/routes");
+
+function resolveSourceRouteFile(entrypoint: string): string {
+	const normalized = entrypoint.replaceAll("\\", "/");
+	const marker = "astro/routes/";
+	const markerIndex = normalized.lastIndexOf(marker);
+	if (markerIndex === -1) {
+		throw new Error(`Route entrypoint has an unexpected shape: ${entrypoint}`);
+	}
+	const relative = normalized.slice(markerIndex + marker.length);
+	if (relative.endsWith(".astro")) {
+		return join(SRC_ROUTES_DIR, ...relative.split("/"));
+	}
+	const segments = relative
+		.replace(/\.mjs$/, "")
+		.split("/")
+		.map((segment) => segment.replace(/_([^_]+)_/g, "[$1]"));
+	const base = join(SRC_ROUTES_DIR, ...segments);
+	return existsSync(`${base}.ts`) ? `${base}.ts` : `${base}.tsx`;
+}
+
+function mockMediaContext(key: string | undefined, contentType = "image/png") {
 	const download = vi.fn().mockResolvedValue({
 		body: new Uint8Array([1, 2, 3]),
-		contentType: "image/png",
+		contentType,
 		size: 3,
 	});
 
@@ -48,10 +72,17 @@ describe("core media route injection", () => {
 		}
 	}
 
-	function collectRoutePatterns(srcDir?: URL): string[] {
+	function collectRoutePatternsWithEntrypoints(srcDir?: URL): Array<{
+		pattern: string;
+		entrypoint: string;
+	}> {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route), { srcDir });
-		return routes.map((route) => route.pattern);
+		return routes;
+	}
+
+	function collectRoutePatterns(srcDir?: URL): string[] {
+		return collectRoutePatternsWithEntrypoints(srcDir).map((route) => route.pattern);
 	}
 
 	it("uses a catch-all media file route so storage keys can contain slashes", () => {
@@ -74,6 +105,14 @@ describe("core media route injection", () => {
 		);
 	});
 
+	it("registers the opaque media asset route before the dynamic media item route", () => {
+		const patterns = collectRoutePatterns();
+		const asset = patterns.indexOf("/_emdash/api/media/asset/[id]/[filename]");
+		const mediaItem = patterns.indexOf("/_emdash/api/media/[id]");
+		expect(asset).toBeGreaterThan(-1);
+		expect(asset).toBeLessThan(mediaItem);
+	});
+
 	it("registers the pending-media upload route with PUT only", () => {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));
@@ -85,6 +124,89 @@ describe("core media route injection", () => {
 		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
 			expect(mediaUploadRoute).not.toHaveProperty(method);
 		}
+	});
+
+	it("injects the relation and reference-edge API routes", () => {
+		// Regression: these route files existed but were never wired into
+		// injectCoreRoutes, so /_emdash/api/relations 404'd and the admin's
+		// "Referenced by" backlinks panel silently hid itself.
+		const routes = collectRoutePatterns();
+
+		expect(routes).toContain("/_emdash/api/relations");
+		expect(routes).toContain("/_emdash/api/relations/[id]");
+		expect(routes).toContain(
+			"/_emdash/api/content/[collection]/[id]/references/[relation]/children",
+		);
+		expect(routes).toContain(
+			"/_emdash/api/content/[collection]/[id]/references/[relation]/parents",
+		);
+	});
+
+	it("registers every core route pattern exactly once, pointing at a file that exists", () => {
+		const routes = collectRoutePatternsWithEntrypoints();
+
+		const seen = new Map<string, number>();
+		for (const { pattern } of routes) {
+			seen.set(pattern, (seen.get(pattern) ?? 0) + 1);
+		}
+		const duplicates = [...seen.entries()]
+			.filter(([, count]) => count > 1)
+			.map(([pattern]) => pattern);
+		expect(duplicates).toEqual([]);
+
+		for (const { pattern, entrypoint } of routes) {
+			const sourceFile = resolveSourceRouteFile(entrypoint);
+			expect(existsSync(sourceFile), `${pattern} -> ${sourceFile}`).toBe(true);
+		}
+	});
+
+	it("registers the visual-editing action routes", () => {
+		const patterns = collectRoutePatterns();
+		expect(patterns).toContain("/_emdash/api/visual-editing/action-token");
+		expect(patterns).toContain("/_emdash/api/visual-editing/toolbar-labels");
+		expect(patterns).toContain("/_emdash/api/visual-editing/content/[collection]/[id]/publish");
+	});
+
+	it("registers the scheduled policy rejection dismissal route", () => {
+		const patterns = collectRoutePatterns();
+		expect(patterns).toContain("/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]");
+	});
+
+	it("injects the saved-entry plugin extension route", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				pattern:
+					"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]",
+			}),
+		);
+	});
+
+	it("registers the media replacement route with PUT only", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/media/[id]/replace" }),
+		);
+		expect(mediaReplaceRoute.PUT).toBeTypeOf("function");
+		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+			expect(mediaReplaceRoute).not.toHaveProperty(method);
+		}
+	});
+
+	it("registers static media folder routes before the dynamic media item route", () => {
+		const patterns = collectRoutePatterns();
+		const folders = patterns.indexOf("/_emdash/api/media/folders");
+		const folder = patterns.indexOf("/_emdash/api/media/folders/[id]");
+		const mediaItem = patterns.indexOf("/_emdash/api/media/[id]");
+
+		expect(folders).toBeGreaterThan(-1);
+		expect(folder).toBeGreaterThan(-1);
+		expect(folders).toBeLessThan(mediaItem);
+		expect(folder).toBeLessThan(mediaItem);
 	});
 
 	it("injects default root SEO routes when the site does not define them", () => {
@@ -107,6 +229,21 @@ describe("core media route injection", () => {
 				expect(routes).not.toContain("/robots.txt");
 				expect(routes).not.toContain("/sitemap.xml");
 				expect(routes).toContain("/sitemap-[collection].xml");
+			},
+		);
+	});
+
+	it("skips the collection sitemap route when the site defines its own", async () => {
+		await withTempSrcDir(
+			{
+				"pages/sitemap-[collection].xml.ts": "export const GET = () => new Response('');",
+			},
+			(srcDir) => {
+				const routes = collectRoutePatterns(srcDir);
+
+				expect(routes).not.toContain("/sitemap-[collection].xml");
+				expect(routes).toContain("/sitemap.xml");
+				expect(routes).toContain("/robots.txt");
 			},
 		);
 	});
@@ -145,12 +282,23 @@ describe("core media route injection", () => {
 	});
 });
 
+it("registers the bulk tag route as a POST endpoint", () => {
+	const routes: Array<{ pattern: string; entrypoint: string }> = [];
+	injectCoreRoutes((route) => routes.push(route));
+	expect(routes).toContainEqual(
+		expect.objectContaining({ pattern: "/_emdash/api/taxonomies/bulk-tag" }),
+	);
+	expect(bulkTagRoute.POST).toBeTypeOf("function");
+	expect(bulkTagRoute).not.toHaveProperty("GET");
+});
+
 describe("media file catch-all route", () => {
 	it("passes slash-containing keys through to storage.download", async () => {
 		const { context, download } = mockMediaContext("nested/path/file.png");
 
 		const response = await getMediaFile(context);
 		expect(response.status).toBe(200);
+		expect(response.headers.get("Cache-Control")).toBe("public, max-age=0, must-revalidate");
 		expect(download).toHaveBeenCalledWith("nested/path/file.png");
 	});
 
@@ -160,5 +308,13 @@ describe("media file catch-all route", () => {
 		const response = await getMediaFile(context);
 		expect(response.status).toBe(404);
 		expect(download).not.toHaveBeenCalled();
+	});
+
+	it("keeps immutable caching for media that cannot be cropped", async () => {
+		const { context } = mockMediaContext("clip.mp4", "video/mp4");
+
+		const response = await getMediaFile(context);
+
+		expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
 	});
 });

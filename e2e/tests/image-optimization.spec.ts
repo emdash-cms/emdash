@@ -17,23 +17,31 @@ test.describe("image optimization", () => {
 		request,
 	}) => {
 		const img = page.locator("figure.emdash-image img").first();
+		let src: string | null = null;
+		let lastError: unknown;
 
 		// The workerd dev runner's Vite dep optimizer can transiently 500 a cold
 		// route even after warm-up; reload until the page renders. (Dev-only; the
 		// deployed Worker has no optimizer.)
 		for (let attempt = 0; attempt < 5; attempt++) {
-			await page.goto("/posts/post-with-image");
-			if (await img.isVisible().catch(() => false)) break;
-			await page.waitForTimeout(1000);
+			try {
+				await page.goto("/posts/post-with-image");
+				await expect(img).toBeVisible();
+				await expect(img).toHaveJSProperty("naturalWidth", 1);
+				src = await img.getAttribute("src");
+				if (src) break;
+			} catch (error) {
+				lastError = error;
+			}
+			if (attempt < 4) await page.waitForTimeout(1000);
 		}
-		await expect(img).toBeVisible();
-
-		const src = await img.getAttribute("src");
+		if (!src && lastError) throw lastError;
 		expect(src, "image src should be optimized via Astro's image endpoint").toContain("/_image");
 
 		// The optimized URL must return real image bytes, not an Access redirect or 404.
 		const res = await request.get(src!);
 		expect(res.status()).toBe(200);
 		expect(res.headers()["content-type"]).toMatch(/^image\//);
+		expect((await res.body()).byteLength).toBeGreaterThan(0);
 	});
 });

@@ -20,6 +20,7 @@ import type { MediaValue } from "../fields/types.js";
 import type { EmbedResult, EmbedOptions } from "../media/types.js";
 import type { HTMLAttributes } from "astro/types";
 import { getMediaProvider } from "../media/provider-loader.js";
+import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
 
 interface Props extends Omit<HTMLAttributes<"img" | "video" | "audio">, "src" | "width" | "height"> {
 	/** Media value from content field */
@@ -42,7 +43,7 @@ function normalizeValue(val: MediaValue | string | undefined | null): MediaValue
 	if (typeof val === "string") {
 		return { id: "", src: val, provider: "local" };
 	}
-	return val;
+	return normalizeLegacyExternalMediaValue(val);
 }
 
 const media = normalizeValue(value);

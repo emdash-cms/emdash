@@ -1,10 +1,32 @@
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { PackageManager } from "./flags.js";
+
 export const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
 const INVALID_PKG_NAME_CHARS = /[^a-z0-9-]/g;
 const LEADING_TRAILING_HYPHENS = /^-+|-+$/g;
+
+export function runCommand(command: string, args: string[], cwd: string): Promise<void> {
+	return new Promise((resolvePromise, reject) => {
+		const child = spawn(command, args, {
+			cwd,
+			stdio: "inherit",
+			shell: process.platform === "win32",
+		});
+		child.once("error", reject);
+		child.once("close", (code, signal) => {
+			if (code === 0) {
+				resolvePromise();
+				return;
+			}
+			const reason = signal ? `signal ${signal}` : `code ${code ?? "unknown"}`;
+			reject(new Error(`${command} ${args.join(" ")} exited with ${reason}`));
+		});
+	});
+}
 
 /**
  * Generate a fresh `EMDASH_ENCRYPTION_KEY` value.
@@ -85,4 +107,87 @@ export function isDirNonEmpty(dir: string): boolean {
  */
 export function parseTargetArg(argv: string[]): string | undefined {
 	return argv.slice(2).find((a) => !a.startsWith("-"));
+}
+
+const WORKER_LOADER_LINE = `"worker_loaders": [{ "binding": "LOADER" }],`;
+const WORKER_LOADER_COMMENT =
+	"Sandboxed plugins require Worker Loader, available on Workers paid plans.";
+const WORKER_LOADER_DECL = /^(\s*)(?:\/\/\s*)?"worker_loaders"\s*:/;
+const WORKER_LOADER_OWN_COMMENT = /^\s*\/\/.*worker loader/i;
+const NEWLINE_SPLIT = /\r?\n/;
+
+/**
+ * Enable or disable Worker Loader in a project's `wrangler.jsonc`.
+ *
+ * Older templates used a multi-line active block; current templates use a
+ * canonical commented line so they deploy on the Workers free plan. Normalize
+ * both shapes to keep scaffolding idempotent across the template rollout.
+ */
+export function setWorkerLoader(
+	projectDir: string,
+	enabled: boolean,
+): "enabled" | "disabled" | "absent" {
+	const target = resolve(projectDir, "wrangler.jsonc");
+	if (!existsSync(target)) return "absent";
+
+	const original = readFileSync(target, "utf-8");
+	const newline = original.includes("\r\n") ? "\r\n" : "\n";
+	const lines = original.split(NEWLINE_SPLIT);
+	const declarationIndex = lines.findIndex((line) => WORKER_LOADER_DECL.test(line));
+	if (declarationIndex === -1) return "absent";
+
+	let endIndex = declarationIndex;
+	if (!lines[declarationIndex].includes("]")) {
+		while (endIndex < lines.length - 1 && !lines[endIndex].trim().startsWith("]")) {
+			endIndex++;
+		}
+	}
+
+	let startIndex = declarationIndex;
+	if (declarationIndex > 0 && WORKER_LOADER_OWN_COMMENT.test(lines[declarationIndex - 1])) {
+		startIndex = declarationIndex - 1;
+	}
+
+	const indent = WORKER_LOADER_DECL.exec(lines[declarationIndex])?.[1] ?? "\t";
+	const replacement = enabled
+		? [`${indent}// ${WORKER_LOADER_COMMENT}`, `${indent}${WORKER_LOADER_LINE}`]
+		: [
+				`${indent}// ${WORKER_LOADER_COMMENT} Uncomment to enable:`,
+				`${indent}// ${WORKER_LOADER_LINE}`,
+			];
+
+	lines.splice(startIndex, endIndex - startIndex + 1, ...replacement);
+	writeFileSync(target, lines.join(newline));
+	return enabled ? "enabled" : "disabled";
+}
+
+const PNPM_COMMAND = /\bpnpm ([a-z][\w:-]*)/g;
+// Every package manager has these commands under the same name.
+const SHARED_COMMANDS = new Set(["install", "run"]);
+// `bun <name>` runs Bun's own command for these instead of the package.json script.
+const BUN_BUILT_IN_COMMANDS = new Set(["build", "deploy"]);
+
+function toPackageManagerCommand(
+	pm: PackageManager,
+	command: string,
+	scripts: readonly string[],
+): string {
+	if (SHARED_COMMANDS.has(command)) return `${pm} ${command}`;
+	if (pm === "npm" && scripts.includes(command)) return `npm run ${command}`;
+	// `pnpm <name>` also runs installed binaries such as `wrangler`, which npm needs npx for.
+	if (pm === "npm") return `npx ${command}`;
+	if (pm === "bun" && BUN_BUILT_IN_COMMANDS.has(command)) return `bun run ${command}`;
+	return `${pm} ${command}`;
+}
+
+/** Rewrites the pnpm commands in a template doc for the chosen package manager. */
+export function replacePackageManagerCommands(
+	content: string,
+	pm: PackageManager,
+	scripts: readonly string[],
+): string {
+	if (pm === "pnpm") return content;
+	return content.replace(PNPM_COMMAND, (_match, command: string) =>
+		toPackageManagerCommand(pm, command, scripts),
+	);
 }

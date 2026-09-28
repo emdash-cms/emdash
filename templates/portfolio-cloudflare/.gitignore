@@ -6,11 +6,13 @@ node_modules/
 
 # astro
 .astro/
+.emdash/migrations.json
 
 # local data
 data.db
 data.db-journal
 uploads/
+.wrangler/
 
 # logs
 npm-debug.log*

@@ -1,477 +1,327 @@
 ---
 title: Media Library
-description: Upload and manage images and files in EmDash.
+description: Upload, organize, select, edit, track, and safely delete media in EmDash.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
-import mediaLibraryImg from "../../../assets/screenshots/admin-media-library.png";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, organizing, and using media in your content.
+The Media Library stores reusable images, documents, video, and audio. Editors can upload files once,
+select them from content fields and Portable Text, and see which content entries refer to a local
+media item.
 
-## Accessing the Media Library
+## Open the Media Library
 
-Open the media library from the admin sidebar by clicking **Media**. The library displays all uploaded files with previews, filenames, and upload dates.
+Select **Media** in the admin sidebar. The Main library contains folders and files that have not been
+placed in a folder. Select a folder to browse its files, or switch between grid and list views.
 
-<img src={mediaLibraryImg.src} alt="EmDash media library showing image grid with upload button" />
+If the site has external media providers, each provider appears as another source. Provider
+capabilities vary: a source may support browsing and selecting but not folders, local image editing,
+or deletion.
 
-## Uploading Files
+## Upload files
 
-### From the Media Library
+### Upload from the library
 
-1. Click **Media** in the admin sidebar
+<Steps>
+1. Select **Media**, then **Upload Files**.
 
-2. Click **Upload** or drag files onto the upload area
+2. Select **Browse files** and choose one or more files. You can also drag files onto the upload
+   area or the Media Library.
 
-3. Select one or more files from your computer
+3. Leave the dialog open while the files upload. Each row reports **Queued**, **Uploading**,
+   **Complete**, or **Upload failed**.
 
-4. Wait for uploads to complete
+4. For a failed file, select its retry action. You can cancel unfinished uploads, remove a failed
+   row, or clear completed rows without affecting files that already finished.
 
-### From the Content Editor
+5. Select **Done** when the queue has no unfinished uploads.
+</Steps>
 
-1. In the rich text editor, click the image button
+Uploads begin as soon as files are added. New local files enter the Main library, even when another
+folder was open before the upload.
 
-2. Click **Upload** in the media picker
+### Upload while editing content
 
-3. Select a file from your computer
+Image, file, gallery, and Portable Text image fields use a media picker. Open the field, select
+**Upload files**, and choose or drop files. A completed upload becomes part of the current selection;
+failed uploads stay visible so you can retry or remove them.
 
-4. Add alt text and click **Insert**
+For a gallery, review **Selected media** and use the move controls to set the order before selecting
+**Add images**. For a single image or file, select **Select** or **Insert image** after the upload
+finishes.
 
-## Supported File Types
+### Accepted files and size limit
 
-EmDash supports common web file types:
+The local Media Library accepts these file groups by default:
 
-| Category  | Extensions                                                |
-| --------- | --------------------------------------------------------- |
-| Images    | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.avif`, `.svg` |
-| Documents | `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx` |
-| Video     | `.mp4`, `.webm`, `.mov`                                   |
-| Audio     | `.mp3`, `.wav`, `.ogg`                                    |
+- PNG, JPEG, GIF, WebP, and AVIF images;
+- common video formats such as MP4, WebM, and QuickTime video;
+- common audio formats such as MP3, WAV, and Ogg audio; and
+- PDF documents.
+
+SVG is excluded from the default upload list because SVG files can contain active content. An image
+or file field can define its own list of accepted file types when the content model needs a narrower
+selection or another format. EmDash identifies each file by its media type, a label such as
+`image/png` or `application/pdf`, and checks the field's list again when content is saved. Changing
+the browser's file chooser does not bypass that server check.
+
+The default maximum is 50 MB per file. Site developers can change it with
+[`maxUploadSize`](/reference/configuration/#maxuploadsize). A provider may impose an additional
+format or size limit and will report that failure in the upload row.
+
+## Find and organize files
+
+Search matches partial filenames. The type filter limits results to images, documents, video, or
+audio. A filename search covers the whole local library, even while a folder is open; browsing a
+folder without a search shows only the files assigned to that folder.
+
+Editors can select **Add new folder** in the Main library. Move a local file by dragging its card or
+row onto a visible folder, or open the file, change **Location**, and select **Save**. Use **Main
+library** as the location to remove a file from its current folder.
+
+Authors can move local files they uploaded. Editors can move any local file. External-provider items
+cannot be assigned to Media Library folders.
+
+Deleting a folder moves its files back to the Main library. It does not delete the files, change
+their URLs, or remove their content references.
+
+## Select media for content
+
+### Portable Text images
+
+Place the cursor in a Portable Text field, open the block menu, and select **Image**. Choose or upload
+an image, then select **Insert image**. Select the image block afterward to add alt text, a caption,
+display dimensions, and alignment.
+
+### Image and file fields
+
+Select the field action, such as **Select image** or **Select file**, then choose an item and confirm
+the selection. A field's MIME-type rules limit which library items and media sources appear.
+
+The blog template's `featured_image` field stores the selected media value with the post. Saving the
+entry saves that reference to the draft; publishing makes it available to public content queries.
+
+### Gallery fields
+
+Select one or more images, arrange them under **Selected media**, and confirm. A gallery keeps its
+own order and per-image alt text and caption, even when several positions refer to Media Library
+items.
+
+## Edit an image used in content
+
+A selected local image offers actions with different scopes:
+
+- **Replace** chooses a different Media Library item for this field, block, or gallery position.
+  Other entries that use the original item do not change.
+- **Edit asset** opens the underlying Media Library item. Metadata changes and destructive image
+  changes may affect other uses of that item.
+- **Remove** clears this content reference. The Media Library item remains available.
+
+When **Edit asset** creates a cropped copy, the picker selects the new copy for the current use.
+Portable Text and gallery images keep that use's alt text, caption, layout, and position. When
+**Edit asset** replaces the original, the media ID stays the same, so every use of that item receives
+the changed image.
+
+External-provider images and file fields offer **Replace** and **Remove** but do not open the local
+asset editor.
+
+## Replace a local image
+
+**Replace image** uploads new bytes behind an existing Media Library item. Use it when every place
+that refers to the item should show a new version of the image.
+
+The action is available for ready JPEG, PNG, and WebP items. Authors can replace images they
+uploaded; editors can replace any local image.
+
+<Steps>
+1. Open **Media** and select the local image.
+
+2. Stay on **Details** and select **Replace image**.
+
+3. Choose a non-empty image in the same format. A JPEG must be replaced by a JPEG, for example, but
+   the new image may have different dimensions or a different aspect ratio.
+
+4. Read the confirmation, then select **Replace image**.
+</Steps>
+
+EmDash keeps the media ID, filename, URL, alt text, caption, and folder. Existing content references
+therefore continue to work and show the replacement. The replacement clears the saved focal point
+because its coordinates may not describe the new image.
 
 <Aside type="caution">
-	Maximum file size depends on your storage configuration. The default limit is 10MB per file.
+	Replacing an image cannot be undone. EmDash does not retain the previous file. The URL remains the
+	same, so a browser or content delivery network may briefly serve cached bytes from the earlier
+	image.
 </Aside>
 
-## Storage Backends
+Use **Replace** in the content editor instead when only one field or image block should change.
 
-EmDash supports multiple storage backends. Configure storage in your Astro config:
+## Set a focal point
 
-<Tabs>
-  <TabItem label="Local Storage">
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash, { local } from "emdash/astro";
+A focal point marks the part of an image that should remain visible when a layout crops the image to
+fill a square, landscape, portrait, or other fixed shape.
 
-export default defineConfig({
-  integrations: [
-    emdash({
-      storage: local({
-        directory: "./uploads",
-        baseUrl: "/_emdash/api/media/file",
-      }),
-    }),
-  ],
-});
-```
+<Steps>
+1. Open a local image in **Media**, or select **Edit asset** from an image used in content.
 
-Files are stored in the `./uploads` directory. Suitable for development and single-server deployments.
+2. Select **Edit image**, then **Focal point**.
 
-  </TabItem>
-  <TabItem label="Cloudflare R2">
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
-import { r2 } from "@emdash-cms/cloudflare";
+3. Select or drag the marker onto the important part of the image. The Arrow keys move a focused
+   marker without a pointer.
 
-export default defineConfig({
-  integrations: [
-    emdash({
-      storage: r2({
-        binding: "MEDIA_BUCKET",
-        publicUrl: "https://media.example.com",
-      }),
-    }),
-  ],
-});
-```
+4. Check the portrait, square, and landscape previews, then select **Save**.
+</Steps>
 
-Requires an R2 bucket configured in `wrangler.jsonc`:
+Select **Reset** to remove the custom point. When you choose an image for a field or gallery, EmDash
+copies the asset's current focal point into that content value. Content that already uses the image
+keeps its stored point until you select the image again. Opening **Edit asset** from a content field
+updates that current use with the point you save.
 
-```jsonc title="wrangler.jsonc"
-{
-	"r2_buckets": [
-		{
-			"binding": "MEDIA_BUCKET",
-			"bucket_name": "my-media-bucket",
-		},
-	],
-}
-```
+## Crop a local image
 
-  </TabItem>
-  <TabItem label="S3-Compatible">
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash, { s3 } from "emdash/astro";
+Cropping is available for ready JPEG, PNG, and WebP images stored by EmDash. External-provider
+images cannot be cropped in the local asset editor.
 
-export default defineConfig({
-  integrations: [
-    emdash({
-      storage: s3({
-        endpoint: "https://s3.amazonaws.com",
-        bucket: "my-media-bucket",
-        accessKeyId: process.env.S3_ACCESS_KEY_ID,
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-        region: "us-east-1",
-        publicUrl: "https://media.example.com",
-      }),
-    }),
-  ],
-});
-```
+<Steps>
+1. Open the image and select **Edit image**, then **Crop**.
 
-Works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
+2. Choose **Original**, **Freeform**, **Square**, `4:3`, `3:2`, or `16:9`. A fixed ratio keeps its
+   shape while you resize it. **Freeform** lets the width and height change independently.
 
-  </TabItem>
-</Tabs>
+3. Move and resize the crop frame. You can drag with a pointer or focus the frame and its handles
+   and use the Arrow keys. Hold Shift with an Arrow key for a larger step.
 
-## How Uploads Work
+4. Choose how to save the result:
 
-EmDash uses signed URLs for secure uploads:
+   - **Create cropped copy** creates a new Media Library item and leaves the source unchanged.
+   - **Replace original** keeps the media ID and changes the image everywhere it is used.
+</Steps>
 
-1. Client requests an upload URL from the API
-
-2. Server generates a signed URL with expiration
-
-3. Client uploads directly to storage using the signed URL
-
-4. Server records the file metadata in the database
-
-This approach keeps large files off your application server and enables direct uploads to cloud storage.
-
-<Aside>
-	R2 bindings do not support pre-signed URLs. When using the R2 binding adapter, uploads go through
-	your Worker.
-</Aside>
-
-## Organizing Media
-
-### Folders
-
-Create folders to organize your media:
-
-1. Click **New Folder** in the media library
-
-2. Enter a folder name
-
-3. Click **Create**
-
-4. Drag files into folders to organize them
-
-### Search
-
-Use the search box to find files by name. Search matches partial filenames.
-
-### Filters
-
-Filter media by:
-
-- **Type** - Images, Documents, Video, Audio
-- **Date** - Upload date range
-- **Folder** - Specific folder
-
-## Using Media in Content
-
-### In the Rich Text Editor
-
-1. Place your cursor where you want the image
-
-2. Click the image button in the toolbar
-
-3. Select an image from the media library or upload a new one
-
-4. Enter alt text
-
-5. Click **Insert**
-
-### As a Featured Image
-
-1. Open a content entry in the editor
-
-2. Find the **Featured Image** field in the sidebar
-
-3. Click **Select Image**
-
-4. Choose from the media library or upload
-
-5. Click **Save**
-
-### In Custom Fields
-
-For fields configured as image or file types, click the field to open the media picker.
-
-## Displaying Media in Templates
-
-Access media URLs from your content data:
-
-```astro title="src/pages/posts/[slug].astro"
----
-import { getEmDashEntry } from "emdash";
-
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
----
-
-{post?.data.featured_image && (
-  <img
-    src={post.data.featured_image}
-    alt={post.data.featured_image_alt ?? ""}
-  />
-)}
-```
-
-### Responsive Images
-
-For EmDash media fields, use the `Image` component from `emdash/ui`:
-
-```astro
----
-import { Image } from "emdash/ui";
-import { getEmDashEntry } from "emdash";
-
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
----
-
-{post?.data.featured_image && (
-  <Image
-    image={post.data.featured_image}
-    width={800}
-    height={450}
-    priority
-  />
-)}
-```
-
-`priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
-
-## Deleting Media
-
-1. Select the file(s) you want to delete
-
-2. Click **Delete**
-
-3. Confirm the deletion
+**Replace original** is available only with the **Original** aspect ratio. Use **Create cropped copy**
+for Freeform and the other ratios. A cropped copy stays in the same folder as its source and receives
+a unique filename.
 
 <Aside type="caution">
-	Deleting media does not remove references in your content. Ensure you update or remove content
-	that uses deleted files.
+	**Replace original** cannot be undone. EmDash keeps neither the uncropped bytes nor a crop history.
+	Existing entries keep the same media reference and are not rewritten or republished. Because the
+	URL stays the same, caches may briefly show the uncropped image.
 </Aside>
 
-## Media API
+Cropping an animated WebP creates a still WebP. The cropped result does not retain the animation.
 
-Access media programmatically using the admin API.
+## See where a file is used
 
-### Upload a File
+Open a local file and select **Used in** to list the content entries and site settings that refer to
+it. Each content result names the collection and fields that contain the reference and can open the
+entry for editing. Trashed entries are identified in the list. A **Site Settings** result names the
+settings that select the file: **Logo**, **Favicon**, or **Default Social Image**.
 
-Upload media as multipart form data:
+**Used in** checks these references:
 
-```bash
-POST /_emdash/api/media
-Content-Type: multipart/form-data
-Authorization: Bearer YOUR_API_TOKEN
+- image and file fields
+- image fields inside repeaters
+- image, file, and Portable Text fields inside `blocks` fields
+- image and gallery blocks in Portable Text fields
+- the site logo, favicon, and default social image
 
-file=<binary file data>
-```
+When usage coverage is complete and the file has none of these references, the list shows **No
+tracked references found**. Until coverage is complete, an empty list shows **No usage to show yet**.
 
-A successful upload returns the stored media item:
+Media usage tracking must be active before the content results can be complete. Site settings are
+listed whether or not tracking is active. An administrator turns tracking on once for the site:
 
-```json
-{
-	"success": true,
-	"data": {
-		"item": {
-			"id": "01ABC123",
-			"filename": "hero-image.jpg",
-			"mime_type": "image/jpeg",
-			"storage_key": "media/abc123/hero-image.jpg",
-			"width": 1200,
-			"height": 800
-		}
-	}
-}
-```
+<Steps>
+1. Finish current content edits. Pause scripts, imports, and other tools that write to content, then
+   wait for their in-progress writes to finish.
 
-### List Media
+2. Open **Settings**, then **Media usage tracking**, select **Enable tracking**, and acknowledge the
+   preparation steps.
 
-The following request lists media under a prefix:
+3. Keep editing paused while the status says **Setting up**. EmDash prepares each collection so
+   future saves can update its usage records. It temporarily refuses content, schema, revision,
+   import, and MCP writes so no change can occur between that preparation and tracking becoming
+   active.
 
-```bash
-GET /_emdash/api/media?prefix=images/&limit=20
-Authorization: Bearer YOUR_API_TOKEN
-```
+4. When the status changes to **Indexing existing content**, normal editing can resume. Keep the
+   settings page open while EmDash scans existing entries.
 
-### Delete Media
+5. Wait for **Ready**. If you leave the page, return later and the scan continues from its saved
+   progress.
+</Steps>
 
-The following request deletes a stored file:
+Once enabled, media usage tracking cannot be turned off. New content changes are tracked after
+capture becomes active; the background scan adds references from entries that already existed.
 
-```bash
-DELETE /_emdash/api/media/images/hero.jpg
-Authorization: Bearer YOUR_API_TOKEN
-```
+<Aside type="caution">
+	**Used in** checks only the references listed above. It does not inspect custom Portable Text
+	blocks, custom source code, generated HTML, another database, or an external site. A file that only
+	a custom block refers to has no results. An empty or incomplete list does not prove that deleting
+	the file is safe.
+</Aside>
 
-## Media Providers
+If the **Used in** view reports that indexing is running, stale, partial, or failed, treat its results
+as incomplete. An administrator can return to **Media usage tracking** for the current status and
+recovery guidance.
 
-In addition to local storage, EmDash supports external media providers for specialized image and video hosting. Media providers appear as tabs in the media picker, letting editors choose from multiple sources.
+## Render an image in a template
 
-### Available Providers
+Image fields return a media value rather than a plain URL. Render that value with `Image` from
+`emdash/ui` so local and provider-backed images use the appropriate URL, dimensions, focal point,
+responsive variants, and low-quality placeholder:
 
-<Tabs>
-  <TabItem label="Cloudflare Images">
-[Cloudflare Images](https://developers.cloudflare.com/images/) provides image hosting with automatic optimization, resizing, and format conversion.
-
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
-import { cloudflareImages } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-  integrations: [
-    emdash({
-      // ... database, storage config
-      mediaProviders: [
-        cloudflareImages({
-          accountId: import.meta.env.CF_ACCOUNT_ID,
-          apiToken: import.meta.env.CF_IMAGES_TOKEN,
-          // Optional: custom delivery domain
-          deliveryDomain: "images.example.com",
-        }),
-      ],
-    }),
-  ],
-});
-```
-
-**Features:**
-- Browse and upload images directly from the admin
-- Automatic image optimization and format conversion
-- URL-based transformations (resize, crop, format)
-- Flexible variants for responsive images
-
-</TabItem>
-<TabItem label="Cloudflare Stream">
-[Cloudflare Stream](https://developers.cloudflare.com/stream/) provides video hosting with HLS/DASH adaptive streaming.
-
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
-import { cloudflareStream } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-  integrations: [
-    emdash({
-      // ... database, storage config
-      mediaProviders: [
-        cloudflareStream({
-          accountId: import.meta.env.CF_ACCOUNT_ID,
-          apiToken: import.meta.env.CF_STREAM_TOKEN,
-          // Optional: player settings
-          controls: true,
-          autoplay: false,
-          loop: false,
-        }),
-      ],
-    }),
-  ],
-});
-```
-
-**Features:**
-- Browse, search, and upload videos from the admin
-- HLS and DASH adaptive streaming
-- Automatic thumbnail generation
-- Direct upload for large files
-
-</TabItem>
-</Tabs>
-
-### Using Multiple Providers
-
-You can configure multiple providers. Each appears as a tab in the media picker:
-
-```js title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
-import { cloudflareImages, cloudflareStream } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-  integrations: [
-    emdash({
-      database: d1({ binding: "DB" }),
-      storage: r2({ binding: "MEDIA" }),
-      mediaProviders: [
-        cloudflareImages({
-          accountId: import.meta.env.CF_ACCOUNT_ID,
-          apiToken: import.meta.env.CF_IMAGES_TOKEN,
-        }),
-        cloudflareStream({
-          accountId: import.meta.env.CF_ACCOUNT_ID,
-          apiToken: import.meta.env.CF_STREAM_TOKEN,
-        }),
-      ],
-    }),
-  ],
-});
-```
-
-The local media library ("Library" tab) is always available alongside any configured providers.
-
-### Rendering Provider Media
-
-Use the `Image` component to render media:
-
-```astro title="src/pages/posts/[slug].astro"
+```astro title="src/pages/posts/[slug].astro (excerpt)"
 ---
-import { Image } from "emdash/ui";
 import { getEmDashEntry } from "emdash";
+import { Image } from "emdash/ui";
 
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
+const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug);
+if (error) return new Response("Unable to load post", { status: 500 });
+if (!post) return Astro.redirect("/404");
 ---
 
-{post?.data.featured_image && (
-  <Image
-    image={post.data.featured_image}
-    width={800}
-    height={450}
-  />
+{post.data.featured_image && (
+  <Image image={post.data.featured_image} width={1200} height={675} priority />
 )}
 ```
 
-The component automatically:
-- Detects the provider from the stored value
-- Renders an optimized `<img>` element
-- Applies provider-specific optimizations (e.g., Cloudflare Images transformations)
+Use `priority` only for the main image visible at the top of the page. It requests eager loading and
+gives the browser a high fetch-priority hint. Other images should retain the component's lazy-loading
+default.
 
-### MediaValue Type
+If the field has a dark-mode counterpart, `Image` renders both sources and selects one from the
+visitor's color scheme. See [Dark mode images](/guides/dark-mode/#dark-image-variants) for the field and
+template setup.
 
-Media fields store a `MediaValue` object containing provider information:
+The template receives the media metadata stored with the content reference without another Media
+Library query. If a custom integration requires the provider's latest metadata, request that item
+explicitly and avoid one provider lookup per image on a collection page. The
+[field type reference](/reference/field-types/#file) describes stored file and image values.
 
-```ts
-interface MediaValue {
-  provider?: string;    // Provider ID, defaults to "local"
-  id: string;           // Provider-specific ID
-  src?: string;         // Direct URL (for local media or plain-string values)
-  previewUrl?: string;  // Preview URL for admin display (external providers)
-  filename?: string;    // Original filename
-  mimeType?: string;    // MIME type
-  width?: number;       // Image/video width
-  height?: number;      // Image/video height
-  alt?: string;         // Alt text
-  meta?: Record<string, unknown>; // Provider-specific metadata
-}
-```
+## Configure storage and providers
 
-This allows EmDash to render media correctly regardless of where it's hosted.
+The local library stores files through the site's configured storage adapter. Node.js sites can use
+local disk or S3-compatible storage; Cloudflare sites commonly use an R2 binding. The adapter decides
+where bytes are stored, while the Media Library keeps the same authoring workflow. See
+[Media storage](/deployment/storage/) for configuration and production persistence requirements.
 
-## Next Steps
+Cloudflare Images and Cloudflare Stream can be registered as external media providers. They appear
+as sources in the picker, and `Image` understands provider-backed image values. Provider items remain
+managed by that service, so local folders, focal points, cropping, and replacement are unavailable
+for those items in the EmDash asset editor.
 
-- [Working with Content](/guides/working-with-content/) - Use media in your content
-- [Create a Blog](/guides/create-a-blog/) - Add images to blog posts
-- [Querying Content](/guides/querying-content/) - Display media in templates
+## Delete media safely
+
+Open a file in the Media Library, select **Delete**, and confirm the permanent deletion. Authors can
+delete local files they uploaded; editors can delete any local file. A provider item is deleted from
+its provider only when that source exposes deletion and the current user has permission.
+
+<Aside type="caution">
+	Media deletion has no Trash and cannot be undone. It does not remove or rewrite content references.
+	Review **Used in**, search any custom templates or data stores that may contain the URL, and update
+	those uses first. Remaining references may render a broken image or file link.
+</Aside>
+
+For automated uploads and media management, see the
+[media endpoint reference](/reference/rest-api/#media-endpoints) or the
+[CLI media commands](/reference/cli/#emdash-media). Continue with
+[Working with Content](/guides/working-with-content/) to publish entries that use the selected media.

@@ -27,7 +27,7 @@ async function seedPosts(db: Db) {
 	}
 	const needle = await handleContentCreate(db, "posts", {
 		slug: "the-needle-post",
-		data: { title: "zzz Needle Headline" },
+		data: { title: "zzz Needle Headline", ticket_number: "TICKET2179" },
 	});
 	if (!needle.success) throw new Error("needle seed failed");
 
@@ -59,6 +59,12 @@ describe("content list search served by FTS (#1517)", () => {
 			type: "string",
 			searchable: true,
 		});
+		await registry.createField("posts", {
+			slug: "ticket_number",
+			label: "Ticket number",
+			type: "string",
+			searchable: true,
+		});
 		await seedPosts(db);
 		await new FTSManager(db).enableSearch("posts");
 	});
@@ -87,6 +93,11 @@ describe("content list search served by FTS (#1517)", () => {
 
 	it("finds an entry by slug prefix (slug is not in the FTS index)", async () => {
 		const result = await handleContentList(db, "posts", { q: "the-needle", limit: 20 });
+		expect(titlesOf(result)).toContain("zzz Needle Headline");
+	});
+
+	it("finds an entry by a searchable custom field", async () => {
+		const result = await handleContentList(db, "posts", { q: "ticket217", limit: 20 });
 		expect(titlesOf(result)).toContain("zzz Needle Headline");
 	});
 
@@ -144,6 +155,12 @@ describe("content list search falls back to LIKE when FTS cannot serve it", () =
 			type: "text",
 			searchable: true,
 		});
+		await registry.createField("posts", {
+			slug: "ticket_number",
+			label: "Ticket number",
+			type: "string",
+			searchable: true,
+		});
 		await seedPosts(db);
 		await new FTSManager(db).enableSearch("posts");
 	});
@@ -156,6 +173,11 @@ describe("content list search falls back to LIKE when FTS cannot serve it", () =
 		// Mid-word substring — only LIKE can match this; proves the handler
 		// did not route to FTS despite search being enabled.
 		const result = await handleContentList(db, "posts", { q: "eedle", limit: 20 });
+		expect(titlesOf(result)).toContain("zzz Needle Headline");
+	});
+
+	it("searches custom fields through the LIKE fallback", async () => {
+		const result = await handleContentList(db, "posts", { q: "CKET21", limit: 20 });
 		expect(titlesOf(result)).toContain("zzz Needle Headline");
 	});
 });

@@ -448,6 +448,36 @@ describe("extractRequestMeta", () => {
 			expect(result["cf-connecting-ip"]).toBe("5.6.7.8");
 		});
 
+		it("exposes only declared safe headers for declared route requests", () => {
+			const headers = new Headers({
+				"content-type": "application/json",
+				"x-webhook-signature": "sha256=abc",
+				"x-unlisted": "hidden",
+			});
+			expect(sanitizeHeadersForSandbox(headers, ["X-Webhook-Signature"])).toEqual({
+				"x-webhook-signature": "sha256=abc",
+			});
+		});
+
+		it("never exposes sensitive headers even when requested", () => {
+			const headers = new Headers({
+				authorization: "Bearer secret",
+				"cf-access-authenticated-user-email": "person@example.com",
+				"cf-access-token": "access-secret",
+				cookie: "session=secret",
+				"x-emdash-request": "1",
+			});
+			expect(
+				sanitizeHeadersForSandbox(headers, [
+					"authorization",
+					"cf-access-authenticated-user-email",
+					"cf-access-token",
+					"cookie",
+					"x-emdash-request",
+				]),
+			).toEqual({});
+		});
+
 		it("returns empty object for headers that are all sensitive", () => {
 			const headers = new Headers({
 				cookie: "session=abc",

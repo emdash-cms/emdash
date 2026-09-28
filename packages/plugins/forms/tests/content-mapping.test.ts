@@ -1,13 +1,4 @@
-/**
- * Tests for the submission → content entry mapping.
- *
- * Covers the behaviors agreed in discussion #1672: no mapping keeps the
- * current behavior, a successful mapping creates a draft and keeps the
- * inbox submission, invalid mappings are rejected on form save, and
- * submit-time create failures never lose the submission.
- */
-
-import type { CollectionInfo, RouteContext } from "emdash";
+import type { CollectionSchemaInfo, FieldSchemaInfo, RouteContext } from "emdash";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -54,16 +45,42 @@ const formPages: FormPage[] = [
 	},
 ];
 
-const eventsCollection: CollectionInfo = {
+function schemaField(
+	slug: string,
+	type: FieldSchemaInfo["type"],
+	required = false,
+): FieldSchemaInfo {
+	return {
+		slug,
+		label: slug,
+		type,
+		required,
+		unique: false,
+		searchable: false,
+		indexed: false,
+		translatable: true,
+		sortOrder: 0,
+	};
+}
+
+const eventsCollection: CollectionSchemaInfo = {
 	slug: "events",
 	label: "Events",
 	labelSingular: "Event",
+	description: null,
+	supports: ["drafts"],
+	hasSeo: false,
+	titleField: "title",
+	dateField: null,
+	urlPattern: null,
+	routable: true,
+	hidden: false,
 	fields: [
-		{ slug: "title", label: "Title", type: "text", required: true },
-		{ slug: "body", label: "Body", type: "portableText", required: false },
-		{ slug: "attendees", label: "Attendees", type: "number", required: false },
-		{ slug: "starts_at", label: "Starts at", type: "date", required: false },
-		{ slug: "source", label: "Source", type: "text", required: false },
+		schemaField("title", "text", true),
+		schemaField("body", "portableText"),
+		schemaField("attendees", "number"),
+		schemaField("starts_at", "datetime"),
+		schemaField("source", "text"),
 	],
 };
 
@@ -74,7 +91,6 @@ const validMapping: ContentMapping = {
 		event_details: { field: "body", transform: "portableText" },
 		attendee_count: { field: "attendees", transform: "number" },
 	},
-	slugFrom: "event_title",
 	metadata: { source: "form" },
 };
 
@@ -160,7 +176,7 @@ interface TestContext<TInput> {
 function createTestContext<TInput>(
 	input: TInput,
 	options: {
-		collections?: Record<string, CollectionInfo>;
+		collections?: Record<string, CollectionSchemaInfo>;
 		failCreate?: boolean;
 	} = {},
 ): TestContext<TInput> {
@@ -176,9 +192,6 @@ function createTestContext<TInput>(
 		},
 		async list() {
 			return { items: [], hasMore: false };
-		},
-		async getCollection(slug: string) {
-			return collections[slug] ?? null;
 		},
 		async create(collection: string, data: Record<string, unknown>) {
 			if (options.failCreate) {
@@ -213,6 +226,14 @@ function createTestContext<TInput>(
 			},
 		},
 		content,
+		schema: {
+			async listCollections() {
+				return Object.values(collections);
+			},
+			async getCollection(slug: string) {
+				return collections[slug] ?? null;
+			},
+		},
 		log,
 		site: { name: "Test Site", url: "https://example.com", locale: "en" },
 		url: (path: string) => `https://example.com${path}`,
@@ -311,12 +332,6 @@ describe("buildContentEntry", () => {
 		expect(entry.source).toBe("form");
 	});
 
-	it("sets the reserved slug key from slugFrom", () => {
-		const entry = buildContentEntry(validMapping, { event_title: "Community BBQ" });
-
-		expect(entry.slug).toBe("Community BBQ");
-	});
-
 	it("skips empty and missing values", () => {
 		const entry = buildContentEntry(validMapping, {
 			event_title: "Community BBQ",
@@ -367,14 +382,6 @@ describe("validateContentMapping", () => {
 				formPages,
 			),
 		).rejects.toThrow(/unknown field "nope"/);
-	});
-
-	it("rejects a slugFrom that references an unknown form field", async () => {
-		const { ctx } = createTestContext(undefined);
-
-		await expect(
-			validateContentMapping(ctx, { ...validMapping, slugFrom: "nope" }, formPages),
-		).rejects.toThrow(/slugFrom references unknown form field "nope"/);
 	});
 
 	it("rejects metadata that targets an unknown collection field", async () => {
@@ -557,7 +564,7 @@ describe("submitHandler with content mapping", () => {
 		expect(created).toHaveLength(0);
 	});
 
-	it("creates a draft entry and keeps the inbox submission", async () => {
+	it("creates an entry and keeps the inbox submission", async () => {
 		const { ctx, forms, submissions, created } = createTestContext(makeSubmitInput(submission));
 		await forms.put(
 			"form-1",
@@ -567,16 +574,13 @@ describe("submitHandler with content mapping", () => {
 		const result = await submitHandler(ctx);
 
 		expect(result).toMatchObject({ success: true });
-		// The submission is stored in the inbox regardless of the mapping
 		expect(submissions.items.size).toBe(1);
-
 		expect(created).toHaveLength(1);
 		expect(created[0]!.collection).toBe("events");
 		expect(created[0]!.data).toMatchObject({
 			title: "Community BBQ",
 			attendees: 25,
 			source: "form",
-			slug: "Community BBQ",
 		});
 		expect(created[0]!.data.body).toMatchObject([
 			{ _type: "block", children: [{ _type: "span", text: "Bring a dish." }] },

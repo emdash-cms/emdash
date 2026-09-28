@@ -30,6 +30,11 @@ import {
 	AggregatorSearchPackages,
 } from "@emdash-cms/registry-lexicons";
 
+import {
+	getListingPolicy,
+	InvalidAcceptedLabelersError,
+	validateAcceptedLabelersHeader,
+} from "../../listing-policy.js";
 import { getLatestRelease } from "./getLatestRelease.js";
 import { getPackage } from "./getPackage.js";
 import { listReleases } from "./listReleases.js";
@@ -85,10 +90,26 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 		applyCorsHeaders(headers);
 		return new Response(null, { status: 204, headers });
 	}
+	let acceptedLabelers: string | undefined;
+	try {
+		acceptedLabelers = validateAcceptedLabelersHeader(
+			request.headers.get("atproto-accept-labelers"),
+			await getListingPolicy(env),
+		);
+	} catch (error) {
+		if (!(error instanceof InvalidAcceptedLabelersError)) throw error;
+		const headers = new Headers({ "content-type": "application/json", "cache-control": NO_STORE });
+		applyCorsHeaders(headers);
+		return new Response(JSON.stringify({ error: "InvalidRequest", message: error.message }), {
+			status: 400,
+			headers,
+		});
+	}
 
 	if (url.pathname === SYNC_GET_RECORD_PATH) {
 		const response = await syncGetRecord(env, request);
 		const headers = new Headers(response.headers);
+		if (acceptedLabelers) headers.set("atproto-accept-labelers", acceptedLabelers);
 		applyCorsHeaders(headers);
 		return new Response(response.body, {
 			status: response.status,
@@ -107,6 +128,7 @@ export async function handleXrpc(env: Env, request: Request): Promise<Response |
 	// can be reasoned about end-to-end). Cloning so we don't mutate a
 	// frozen Response from `json()`.
 	const headers = new Headers(response.headers);
+	if (acceptedLabelers) headers.set("atproto-accept-labelers", acceptedLabelers);
 	headers.set("cache-control", NO_STORE);
 	applyCorsHeaders(headers);
 	return new Response(response.body, {

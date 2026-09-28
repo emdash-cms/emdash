@@ -20,6 +20,12 @@ export function buildSeoImageUrl(imageRef: string, siteUrl?: string): string {
 		return imageRef;
 	}
 
+	// `//host/path` is protocol-relative — already qualified, not a path
+	// to prefix with the site URL.
+	if (imageRef.startsWith("//")) {
+		return imageRef;
+	}
+
 	// Root-relative path (already includes the media API prefix). Without
 	// this branch we'd re-prefix and produce a doubled path that 404s.
 	if (imageRef.startsWith("/")) {
@@ -29,4 +35,24 @@ export function buildSeoImageUrl(imageRef: string, siteUrl?: string): string {
 	// Bare media id — build the full media API path.
 	const mediaPath = `/_emdash/api/media/file/${imageRef}`;
 	return siteUrl ? `${siteUrl.replace(TRAILING_SLASH_RE, "")}${mediaPath}` : mediaPath;
+}
+
+/**
+ * Resolve a stored SEO canonical value to a URL.
+ *
+ * The SEO panel accepts absolute URLs, root-relative paths, and bare
+ * relative paths. Relative paths are joined with `siteUrl` (adding a
+ * leading slash when missing, so we never produce
+ * `https://example.composts/x`). Without a `siteUrl` the value is
+ * returned as-is. Absolute output matters here: the resolved value feeds
+ * `<link rel="canonical">` and `og:url`, both of which search engines and
+ * scrapers expect fully qualified.
+ */
+export function resolveSeoCanonicalUrl(canonical: string, siteUrl?: string): string {
+	// `//host/path` is protocol-relative — already qualified, not a path.
+	if (!siteUrl || ABSOLUTE_URL_RE.test(canonical) || canonical.startsWith("//")) {
+		return canonical;
+	}
+	const path = canonical.startsWith("/") ? canonical : `/${canonical}`;
+	return `${siteUrl.replace(TRAILING_SLASH_RE, "")}${path}`;
 }

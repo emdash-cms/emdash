@@ -1,7 +1,8 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import {
 	aggregateMediaUsageCoverageStatus,
@@ -101,11 +102,13 @@ describe("media usage coverage aggregation", () => {
 		collectionSlug: "posts",
 		status,
 		schemaVersion: status === null ? null : schemaVersion,
+		reconciliationRequired: false,
 	});
 
 	it.each([
 		["no collections", [], "complete"],
 		["all complete", [scope("complete")], "complete"],
+		["reconciliation required", [{ ...scope("complete"), reconciliationRequired: true }], "stale"],
 		["all missing", [scope(null), { ...scope(null), collectionSlug: "pages" }], "never"],
 		["complete and missing", [scope("complete"), scope(null)], "partial"],
 		["old complete", [scope("complete", CONTENT_SOURCE_SCHEMA_VERSION - 1)], "stale"],
@@ -126,7 +129,7 @@ describe("media usage coverage aggregation", () => {
 });
 
 describe("media usage summary handler and routes", () => {
-	let sqlite: Database.Database;
+	let sqlite: Database;
 	let db: Kysely<DatabaseSchema>;
 	let queries: string[];
 	let usedMedia: MediaItem;
@@ -246,6 +249,37 @@ describe("media usage summary handler and routes", () => {
 		expect(queries.filter((query) => query.includes("visible_entries"))).toHaveLength(1);
 	});
 
+	it("returns unknown counts without querying entries while reconciliation is required", async () => {
+		await db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "complete", reconciliation_required: 1 })
+			.where("adapter_id", "=", CONTENT_MEDIA_USAGE_ADAPTER_ID)
+			.where("scope_type", "=", CONTENT_MEDIA_USAGE_COLLECTION_SCOPE)
+			.where("scope_key", "=", "posts")
+			.execute();
+		queries = [];
+
+		const result = await handleMediaUsageSummaries(db, [usedMedia.id, unusedMedia.id], {
+			includeCount: true,
+		});
+
+		expect(result).toEqual({
+			success: true,
+			data: {
+				[usedMedia.id]: {
+					count: null,
+					coverage: { scope: "all_content_collections", status: "stale" },
+				},
+				[unusedMedia.id]: {
+					count: null,
+					coverage: { scope: "all_content_collections", status: "stale" },
+				},
+			},
+		});
+		expect(queries).toHaveLength(1);
+		expect(queries.some((query) => query.includes("visible_entries"))).toBe(false);
+	});
+
 	it("chunks more than 50 media IDs without becoming N+1", async () => {
 		const mediaIds = [
 			usedMedia.id,
@@ -278,6 +312,41 @@ describe("media usage summary handler and routes", () => {
 			]),
 		);
 		expect(queries).toHaveLength(1);
+	});
+
+	it("returns an exact total only for page-mode list requests", async () => {
+		const response = await invokeList("?page=1&limit=1", Role.CONTRIBUTOR);
+		const data = await readSuccess<{
+			items: MediaListBodyItem[];
+			totalCount?: number;
+		}>(response);
+
+		expect(response.status).toBe(200);
+		expect(data.items).toHaveLength(1);
+		expect(data.totalCount).toBe(2);
+		expect(queries).toHaveLength(2);
+	});
+
+	it("preserves the page total when usage summaries are requested", async () => {
+		const response = await invokeList("?page=1&limit=1&includeUsage=1", Role.CONTRIBUTOR);
+		const data = await readSuccess<{
+			items: MediaListBodyItem[];
+			totalCount?: number;
+		}>(response);
+
+		expect(data.totalCount).toBe(2);
+		expect(data.items[0]?.usage).toBeDefined();
+		expect(queries).toHaveLength(4);
+	});
+
+	it("rejects cursor plus page without running a media query", async () => {
+		const response = await invokeList("?page=1&cursor=cursor", Role.CONTRIBUTOR);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()) as ErrorBody).toEqual(
+			expect.objectContaining({ error: expect.objectContaining({ code: "VALIDATION_ERROR" }) }),
+		);
+		expect(queries).toHaveLength(0);
 	});
 
 	it("attaches numeric usage counts to every list item for an authorized session", async () => {
@@ -499,6 +568,8 @@ function mediaItemFixture(): MediaItem {
 		size: null,
 		width: null,
 		height: null,
+		focalX: null,
+		focalY: null,
 		alt: null,
 		caption: null,
 		storageKey: "hero.png",
@@ -508,5 +579,6 @@ function mediaItemFixture(): MediaItem {
 		dominantColor: null,
 		createdAt: "2026-07-13T00:00:00.000Z",
 		authorId: null,
+		folderId: null,
 	};
 }

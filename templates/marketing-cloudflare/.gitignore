@@ -6,12 +6,14 @@ dist/
 
 # Astro
 .astro/
+.emdash/migrations.json
 
 # Data
 data.db
 data.db-shm
 data.db-wal
 uploads/
+.wrangler/
 
 # Environment
 .env

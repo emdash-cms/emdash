@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { handleContentPublish } from "../../src/api/handlers/content.js";
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import {
 	ContentMutationConflictError,
@@ -17,6 +18,7 @@ import {
 	type PublishedRef,
 	type ScheduledPublishFn,
 } from "../../src/scheduled-publish.js";
+import { SCHEDULER_HEARTBEAT_OPTION } from "../../src/scheduler-health.js";
 import { createPostFixture, createPageFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -117,7 +119,8 @@ describe("publishDueContent()", () => {
 
 	it("routes each publish through the provided callback with requireScheduledDue", async () => {
 		const post = await repo.create(createPostFixture());
-		const scheduledFor = new Date(Date.now() - 60_000).toISOString();
+		const currentTime = new Date("2030-01-02T03:04:06.000Z");
+		const scheduledFor = "2030-01-02T03:04:05.000Z";
 		await repo.update("post", post.id, { status: "scheduled", scheduledAt: scheduledFor });
 
 		const calls: Array<{ collection: string; id: string; options: unknown }> = [];
@@ -126,7 +129,7 @@ describe("publishDueContent()", () => {
 			return handleContentPublish(db, collection, id, options);
 		};
 
-		const published = await publishDueContent(db, { publish: spy });
+		const published = await publishDueContent(db, { publish: spy, currentTime });
 
 		expect(published).toEqual([{ collection: "post", id: post.id }]);
 		expect(calls).toHaveLength(1);
@@ -134,6 +137,7 @@ describe("publishDueContent()", () => {
 			publishedAt: scheduledFor,
 			requireScheduledDue: true,
 			expectedScheduledAt: scheduledFor,
+			currentTime,
 		});
 	});
 
@@ -168,6 +172,69 @@ describe("publishDueContent()", () => {
 		// A second sweep finds nothing — publish cleared scheduled_at.
 		const second = await publishDueContent(db);
 		expect(second).toEqual([]);
+	});
+
+	it("advances past a bounded window of repeatedly failing entries", async () => {
+		const scheduled = [];
+		for (let index = 0; index < 3; index++) {
+			const item = await repo.create(createPostFixture({ slug: `failing-${index}` }));
+			await repo.update("post", item.id, {
+				status: "scheduled",
+				scheduledAt: new Date(Date.now() - 60_000 + index).toISOString(),
+			});
+			scheduled.push(item.id);
+		}
+		const attempts: string[] = [];
+		const publish: ScheduledPublishFn = async (_collection, id) => {
+			attempts.push(id);
+			return { success: false, error: { code: "CONTENT_PUBLISH_ERROR" } };
+		};
+
+		await publishDueContent(db, { limit: 2, publish });
+		expect(attempts).toEqual(scheduled.slice(0, 2));
+		attempts.length = 0;
+
+		await publishDueContent(db, { limit: 2, publish });
+		expect(attempts.length).toBeLessThanOrEqual(2);
+		expect(attempts).toContain(scheduled[2]);
+	});
+
+	it("does not let an older concurrent sweep move the cursor backwards", async () => {
+		const scheduled = [];
+		for (let index = 0; index < 3; index++) {
+			const item = await repo.create(createPostFixture({ slug: `concurrent-${index}` }));
+			await repo.update("post", item.id, {
+				status: "scheduled",
+				scheduledAt: new Date(Date.now() - 60_000 + index).toISOString(),
+			});
+			scheduled.push(item.id);
+		}
+		let releaseOldest!: () => void;
+		const oldestBlocked = new Promise<void>((resolve) => {
+			releaseOldest = resolve;
+		});
+		let markOldestStarted!: () => void;
+		const oldestStarted = new Promise<void>((resolve) => {
+			markOldestStarted = resolve;
+		});
+		const failingResult = { success: false, error: { code: "CONTENT_PUBLISH_ERROR" } };
+		const oldSweep = publishDueContent(db, {
+			limit: 1,
+			publish: async () => {
+				markOldestStarted();
+				await oldestBlocked;
+				return failingResult;
+			},
+		});
+		await oldestStarted;
+		await publishDueContent(db, { limit: 1, publish: async () => failingResult });
+		await publishDueContent(db, { limit: 1, publish: async () => failingResult });
+		releaseOldest();
+		await oldSweep;
+
+		expect(
+			await new OptionsRepository(db).get("emdash:scheduled-publish-cursor:post"),
+		).toMatchObject({ id: scheduled[1] });
 	});
 
 	it("bounds promotions per collection per sweep and drains the rest on later sweeps", async () => {
@@ -257,6 +324,63 @@ describe("EmDashRuntime.runScheduledTasks()", () => {
 		expect(published).toEqual([{ collection: "post", id: post.id }]);
 		const updated = await repo.findById("post", post.id);
 		expect(updated?.status).toBe("published");
+	});
+
+	it("records a heartbeat after Cloudflare scheduled maintenance completes", async () => {
+		const runtime = buildRuntime(db);
+		const options = new OptionsRepository(db);
+		const startedAt = Date.now();
+
+		await runtime.runScheduledTasks();
+
+		const heartbeat = await options.get<string>(SCHEDULER_HEARTBEAT_OPTION);
+		expect(heartbeat).not.toBeNull();
+		expect(Date.parse(heartbeat!)).toBeGreaterThanOrEqual(startedAt);
+	});
+
+	it("does not fail Cloudflare scheduled maintenance when the heartbeat write fails", async () => {
+		await sql`
+			CREATE TRIGGER fail_scheduler_heartbeat
+			BEFORE INSERT ON options
+			WHEN NEW.name = ${sql.lit(SCHEDULER_HEARTBEAT_OPTION)}
+			BEGIN
+				SELECT RAISE(ABORT, 'heartbeat unavailable');
+			END
+		`.execute(db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(buildRuntime(db).runScheduledTasks()).resolves.toEqual({ published: [] });
+		expect(consoleError).toHaveBeenCalledWith(
+			"[scheduler] Failed to record heartbeat:",
+			expect.anything(),
+		);
+	});
+
+	it("leaves due content untouched while media usage activation is incomplete", async () => {
+		const post = await repo.create(createPostFixture());
+		const past = new Date(Date.now() - 60_000).toISOString();
+		await repo.update("post", post.id, { status: "scheduled", scheduledAt: past });
+		await db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "activating" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+		const runtime = buildRuntime(db);
+		const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(runtime.publishScheduled()).rejects.toMatchObject({
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				status: 503,
+			});
+
+			await expect(runtime.runScheduledTasks()).resolves.toEqual({ published: [] });
+			const unchanged = await repo.findById("post", post.id);
+			expect(unchanged?.status).toBe("scheduled");
+			expect(unchanged?.scheduledAt).toBe(past);
+		} finally {
+			consoleError.mockRestore();
+		}
 	});
 });
 

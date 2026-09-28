@@ -1,137 +1,120 @@
 ---
-title: Content Model
-description: How you shape and evolve your content model in EmDash — collections, fields, runtime changes, types, and seeds.
+title: Content model
+description: How collections, fields, entries, generated types, and seed files describe site content.
 ---
 
-import { Aside, Card, CardGrid, Steps } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-Your content model is the set of collections and fields your site stores. You define it in the admin panel or with the CLI, change it whenever you need to, and optionally generate TypeScript types from it. This page covers how to work with it.
+A content model describes the information your site stores. In EmDash, the model is made of
+collections and fields. The database stores that model, and the admin panel uses it to build the
+forms editors work with.
 
-## Collections and fields
+## Collections, fields, and entries
 
-A **collection** is a type of content (posts, products, authors). Each collection has **fields** you define (a title, a body, a price). Every entry also has system fields EmDash manages for you.
+A **collection** is a kind of content, such as Posts, Products, or Authors. A **field** is one piece
+of information on that content, such as a title, body, price, or author reference. An **entry** is
+one saved item in a collection.
 
-You create and edit collections and fields visually in the admin panel under **Content Types**, or with the CLI. Changes take effect immediately, and a non-developer can do it.
+For example, a Posts collection might have these fields:
 
-## System fields
-
-In addition to the fields you define, every entry has these, always present:
-
-| Field                                        | Purpose                                |
-| -------------------------------------------- | -------------------------------------- |
-| `id`                                         | Stable unique identifier               |
-| `slug`                                       | URL-safe identifier, unique per locale |
-| `status`                                     | `draft`, `published`, or `scheduled`   |
-| `author_id`                                  | The user who created the entry         |
-| `created_at` / `updated_at` / `published_at` | Timestamps                             |
-| `deleted_at`                                 | Set on soft delete; the row is kept    |
-| `version`                                    | Increments on each save                |
-
-Deleting an entry is a soft delete: it can be restored.
-
-## Changing the model anytime
-
-You can add, rename, remove, or retype a field on a live collection at any time, through the admin panel or the CLI. Existing content is preserved.
-
-<Aside type="tip">
-	Adding a field is always safe. Removing one drops its data. Rename rather
-	than remove-and-recreate when you want to keep existing values.
-</Aside>
-
-## TypeScript types
-
-Type generation is optional but recommended. Generate types from your current model:
-
-```bash
-npx emdash types
+```text
+Posts
+├── Title          short text, required
+├── Excerpt        long text, optional
+├── Content        rich text, optional
+└── Featured image image, optional
 ```
 
-This writes `.emdash/types.ts` with an interface per collection and typed query overloads, so `getEmDashCollection("posts")` returns fully typed entries:
+EmDash also manages information that every entry needs, including its ID, public slug, publishing
+state, author, creation and update times, locale, and revision references. Query results expose this
+standard information alongside the fields defined for the collection.
 
-```ts title=".emdash/types.ts (generated)"
-export interface Post {
-	title: string;
-	content: PortableTextBlock[];
-	excerpt?: string;
-}
+Deleting an entry moves it to the trash by setting its deletion time. An administrator can restore
+it until someone permanently deletes it from the trash. This entry workflow is different from
+deleting a field or collection, which changes the schema and removes stored data.
 
-declare module "emdash" {
-	export function getEmDashCollection(
-		type: "posts",
-	): Promise<{ entries: ContentEntry<Post>[]; error?: Error }>;
-}
-```
+## One model, two ways to manage it
 
-Re-run the command after changing the model to keep types in sync.
+Administrators can create and edit collections under **Content Types** in the admin panel. EmDash
+updates the database schema, and the content editor uses the change the next time it loads the
+collection.
 
-## Workflows
+A seed file describes a starting model in JSON. Templates use seeds to create collections and other
+site data during setup. Teams can also keep a seed in version control and apply it when creating
+another environment. The admin panel and a seed do not create separate models; both change the
+model stored in the target database.
 
-Both workflows change the same model.
+The following seed fragment defines the four custom fields in the Posts example:
 
-A non-developer uses the admin panel:
-
-<Steps>
-
-1. Open **Content Types** in the admin panel.
-2. Click **Add Collection**.
-3. Define fields with the visual builder.
-4. Start creating content.
-
-</Steps>
-
-A developer can use the CLI to generate types and move the model between environments:
-
-```bash
-npx emdash types                     # generate TypeScript types
-npx emdash export-seed > seed.json   # export the model as a seed file
-```
-
-## Seed files
-
-A seed file is a JSON description of collections, taxonomies, and menus. Templates ship one, and you can export your own for version control or to set up another environment.
-
-```json title=".emdash/seed.json"
+```json title="seed/seed.json"
 {
 	"version": "1",
 	"collections": [
 		{
 			"slug": "posts",
-			"label": "Blog Posts",
+			"label": "Posts",
 			"labelSingular": "Post",
-			"supports": ["drafts", "revisions", "preview"],
 			"fields": [
-				{ "slug": "title", "type": "string", "required": true },
-				{ "slug": "content", "type": "portableText" }
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true
+				},
+				{ "slug": "excerpt", "label": "Excerpt", "type": "text" },
+				{ "slug": "content", "label": "Content", "type": "portableText" },
+				{ "slug": "featured_image", "label": "Featured Image", "type": "image" }
 			]
 		}
-	],
-	"taxonomies": [{ "name": "category", "label": "Categories", "hierarchical": true }],
-	"menus": [{ "name": "primary", "label": "Primary Navigation" }]
+	]
 }
 ```
 
-Applying a seed is idempotent, so it is safe to re-run:
+The [seed file reference](/themes/seed-files/) covers conflict handling and the other objects a seed
+can contain, including settings, taxonomies, menus, widget areas, redirects, and sample content.
 
-```ts
-import { applySeed, validateSeed } from "emdash/seed";
-import seedData from "./.emdash/seed.json";
+## Changing a model with existing content
 
-const { valid, errors } = validateSeed(seedData);
-await applySeed(db, seedData, { includeContent: true, onConflict: "skip" });
-```
+Adding a collection creates an empty place for new entries. Adding an optional field adds that field
+to every entry, but existing entries have no value until an editor or migration supplies one. A
+default value can provide the initial value when the field is added.
 
-See [Seed file format](/themes/seed-files/) for the full schema.
+Labels, descriptions, validation rules, search settings, and field order can be updated without
+replacing the field. Collection and field slugs are stable identifiers: the admin panel sets them at
+creation and does not offer a rename later.
 
-## Next steps
+<Aside type="caution" title="Deletion and type changes need different plans">
+	Deleting a field drops its database column and removes that value from every entry. Deleting a
+	collection drops its content table and all entries in the collection. These actions are not the
+	same as moving an entry to the trash.
 
-<CardGrid>
-	<Card title="Collections" icon="document">
-		Define [field types and validation](/concepts/collections/).
-	</Card>
-	<Card title="Admin Panel" icon="setting">
-		See the [admin panel](/concepts/admin-panel/).
-	</Card>
-	<Card title="Seeding" icon="open-book">
-		Set up sites with [seed files](/themes/seed-files/).
-	</Card>
-</CardGrid>
+	The admin panel does not let you change the type of an existing field. The schema API only permits
+	in-place changes among `string`, `text`, and `slug`, which share compatible text storage. Other
+	type changes, changes to `required` or `unique`, and changing a translatable field to
+	non-translatable require a content migration.
+
+	Back up production data, test the migration against representative content, and update every
+	query or component that depends on the changed field before applying a destructive change.
+</Aside>
+
+Read [Evolving a deployed site's schema](/deployment/schema-evolution/) before changing a model used
+in production.
+
+## TypeScript declarations
+
+EmDash can generate TypeScript declarations from the model in the database. The declarations add
+your collection names and field shapes to the public query functions, so a query for `posts`
+returns entries whose `data.title`, `data.content`, and other fields are known to TypeScript.
+
+During local development, the Astro integration writes `emdash-env.d.ts` and refreshes it after
+schema changes. The file is generated output; edit the content model rather than the declaration.
+Remote workflows can run `emdash types` to write `.emdash/types.ts` from the selected EmDash site.
+Regenerate that file after changing the model it represents.
+
+Generated types help code match the current schema, but they do not migrate stored content. A model
+change and any required content migration remain separate operations.
+
+## Related concepts
+
+Read [Collections and fields](/concepts/collections/) for collection features and field choices. Read
+[Admin panel](/concepts/admin-panel/) for the editor and permission model.

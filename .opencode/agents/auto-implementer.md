@@ -130,7 +130,7 @@ Two reminders that apply specifically to CI work:
    - `pnpm typecheck` (or `pnpm typecheck:demos` if you touched a demo).
    - The package-level test suite for whatever you changed (`pnpm --filter <package> test`).
    - `pnpm format` once at the end (oxfmt, tabs).
-   - If your change affects a published package's runtime behavior, add a changeset (`pnpm changeset --empty`, edit the file). Skip changesets for docs/tests/CI/demos.
+   - If your change affects a published package's runtime behavior, add a changeset (`pnpm changeset --empty`, edit the file). Write it as public CHANGELOG documentation using `.changeset/README.md`; skip changesets for docs/tests/CI/demos.
 
    If a gate fails on code you didn't touch, AGENTS.md is explicit: "Don't dismiss failures as unrelated. Don't assign blame. Just fix them." Main is always green, so if it's failing then it's caused by your change, even if it's a different file.
 

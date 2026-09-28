@@ -56,7 +56,7 @@ export function TranslationsPanel({
 
 	return (
 		<div>
-			<Text bold as="h3" DANGEROUS_className={cn("mb-4", headingClassName)}>
+			<Text as="h3" DANGEROUS_className={cn("mb-4 font-semibold", headingClassName)}>
 				{title ?? t`Translations`}
 			</Text>
 			<div className="space-y-2">
@@ -67,7 +67,7 @@ export function TranslationsPanel({
 						<div
 							key={locale}
 							className={cn(
-								"-mx-3 flex items-center justify-between rounded-md px-3 py-2 text-sm",
+								"-mx-3 flex items-center justify-between rounded-md px-3 py-2 text-base",
 								isCurrent
 									? "bg-kumo-brand/10 font-medium"
 									: translation
@@ -78,9 +78,11 @@ export function TranslationsPanel({
 							<div className="flex items-center gap-2">
 								<span className="text-xs font-semibold uppercase">{locale}</span>
 								{locale === defaultLocale && (
-									<span className="text-[10px] text-kumo-subtle">{t` (default)`}</span>
+									<span className="text-xs leading-4 text-kumo-subtle">{t` (default)`}</span>
 								)}
-								{isCurrent && <span className="text-[10px] text-kumo-link">{t`current`}</span>}
+								{isCurrent && (
+									<span className="text-xs leading-4 text-kumo-link">{t`current`}</span>
+								)}
 							</div>
 							{isCurrent ? null : translation && onOpen ? (
 								<Button

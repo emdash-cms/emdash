@@ -154,7 +154,7 @@ describe("WordPress migration acceptance (#1691)", () => {
 		// The seeded category/tag defs target the conventional `posts` slug;
 		// point them at this site's `post` collection.
 		await db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "in", ["category", "tag"])
 			.execute();

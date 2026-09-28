@@ -186,6 +186,10 @@ export function refreshInterceptor(options: {
 	}
 
 	return async (request, next) => {
+		// A request body can only be read once; clone before sending so the
+		// 401 retry has an unconsumed request to rebuild from.
+		const retryTemplate = request.body ? request.clone() : request;
+
 		const response = await next(request);
 
 		if (response.status === 401) {
@@ -199,9 +203,9 @@ export function refreshInterceptor(options: {
 			const newToken = await refreshing;
 			if (newToken) {
 				// Retry with new token
-				const headers = new Headers(request.headers);
+				const headers = new Headers(retryTemplate.headers);
 				headers.set("Authorization", `Bearer ${newToken}`);
-				return next(new Request(request, { headers }));
+				return next(new Request(retryTemplate, { headers }));
 			}
 		}
 

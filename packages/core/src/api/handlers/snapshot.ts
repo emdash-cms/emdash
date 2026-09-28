@@ -12,6 +12,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -79,6 +80,8 @@ export function parsePreviewSignatureHeader(
 // ── Media URL rewriting ─────────────────────────────────────────
 
 const MEDIA_FILE_PREFIX = "/_emdash/api/media/file/";
+const MEDIA_FILE_SUFFIX = /[?#]/;
+const EXTERNAL_OR_ROOT_URL = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
 /**
  * Parse a JSON string value and inject `src` for local media objects.
@@ -165,9 +168,12 @@ export interface Snapshot {
  * Content tables (ec_*) are discovered dynamically.
  */
 const SYSTEM_TABLES = [
+	"_emdash_block_types",
+	"_emdash_block_type_versions",
 	"_emdash_collections",
 	"_emdash_fields",
 	"_emdash_taxonomy_defs",
+	"_emdash_taxonomy_def_groups",
 	"_emdash_menus",
 	"_emdash_menu_items",
 	"_emdash_sections",
@@ -175,12 +181,59 @@ const SYSTEM_TABLES = [
 	"_emdash_widgets",
 	"_emdash_seo",
 	"_emdash_migrations",
-	"taxonomies",
 	"content_taxonomies",
-	"media",
+	"taxonomies",
 	"options",
+	"media",
 	"revisions",
-];
+] as const;
+
+type SystemTable = (typeof SYSTEM_TABLES)[number];
+type PublishedTablePolicy = "full" | "content-linked" | "omit";
+
+/**
+ * Published snapshots are available to preview-signature callers, so every
+ * system table must be classified explicitly. Adding a snapshot table without
+ * choosing a policy is a type error rather than an accidental data export.
+ */
+const PUBLISHED_TABLE_POLICIES: Record<SystemTable, PublishedTablePolicy> = {
+	_emdash_block_types: "full",
+	_emdash_block_type_versions: "full",
+	_emdash_collections: "full",
+	_emdash_fields: "full",
+	_emdash_taxonomy_defs: "full",
+	_emdash_taxonomy_def_groups: "full",
+	_emdash_menus: "full",
+	_emdash_menu_items: "content-linked",
+	_emdash_sections: "full",
+	_emdash_widget_areas: "full",
+	_emdash_widgets: "full",
+	_emdash_seo: "content-linked",
+	_emdash_migrations: "full",
+	content_taxonomies: "content-linked",
+	taxonomies: "content-linked",
+	options: "content-linked",
+	media: "content-linked",
+	revisions: "omit",
+};
+
+const SYSTEM_TABLE_SET: ReadonlySet<string> = new Set(SYSTEM_TABLES);
+
+function isSystemTable(tableName: string): tableName is SystemTable {
+	return SYSTEM_TABLE_SET.has(tableName);
+}
+
+interface PublishedContentReferences {
+	ids: Set<string>;
+	translationGroups: Set<string>;
+}
+
+interface PublishedProjection {
+	content: Map<string, PublishedContentReferences>;
+	taxonomyGroups: Set<string>;
+	mediaIds: Set<string>;
+	mediaStorageKeys: Set<string>;
+}
 
 /**
  * Table name prefixes excluded from snapshots (auth/security data).
@@ -191,6 +244,7 @@ const EXCLUDED_PREFIXES = [
 	"_emdash_authorization_codes",
 	"_emdash_device_codes",
 	"_emdash_migrations_lock",
+	"_emdash_transfer_",
 	"_plugin_",
 	"users",
 	"sessions",
@@ -211,10 +265,229 @@ function isExcluded(tableName: string): boolean {
 	return EXCLUDED_PREFIXES.some((prefix) => tableName.startsWith(prefix));
 }
 
-/** Column info from PRAGMA table_info */
-interface ColumnInfo {
-	name: string;
-	type: string;
+type SnapshotColumnType = "TEXT" | "INTEGER" | "REAL" | "BLOB" | "JSON";
+
+function normalizeColumnType(type: string): SnapshotColumnType {
+	switch (type.toLowerCase()) {
+		case "smallint":
+		case "integer":
+		case "bigint":
+		case "boolean":
+			return "INTEGER";
+		case "real":
+		case "double precision":
+		case "numeric":
+		case "decimal":
+			return "REAL";
+		case "blob":
+		case "bytea":
+			return "BLOB";
+		case "json":
+		case "jsonb":
+			return "JSON";
+		default:
+			return "TEXT";
+	}
+}
+
+function normalizeRows(
+	rows: Record<string, unknown>[],
+	types: Record<string, SnapshotColumnType>,
+): Record<string, unknown>[] {
+	for (const row of rows) {
+		for (const [column, type] of Object.entries(types)) {
+			const value = row[column];
+			if (type === "JSON" && value !== null && value !== undefined && typeof value !== "string") {
+				row[column] = JSON.stringify(value);
+			}
+		}
+	}
+	return rows;
+}
+
+function createPublishedProjection(): PublishedProjection {
+	return {
+		content: new Map(),
+		taxonomyGroups: new Set(),
+		mediaIds: new Set(),
+		mediaStorageKeys: new Set(),
+	};
+}
+
+function readString(value: unknown): string | null {
+	return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function recordPublishedContent(
+	projection: PublishedProjection,
+	tableName: string,
+	rows: Record<string, unknown>[],
+): void {
+	const references: PublishedContentReferences = {
+		ids: new Set(),
+		translationGroups: new Set(),
+	};
+	for (const row of rows) {
+		const id = readString(row.id);
+		const translationGroup = readString(row.translation_group);
+		if (id) references.ids.add(id);
+		if (translationGroup) references.translationGroups.add(translationGroup);
+	}
+	projection.content.set(tableName.slice("ec_".length), references);
+}
+
+function isPublishedContentReference(
+	projection: PublishedProjection,
+	collection: unknown,
+	reference: unknown,
+): boolean {
+	const collectionName = readString(collection);
+	const id = readString(reference);
+	if (!collectionName || !id) return false;
+	const references = projection.content.get(collectionName);
+	return references?.ids.has(id) === true || references?.translationGroups.has(id) === true;
+}
+
+function collectMediaReferences(value: unknown, projection: PublishedProjection): void {
+	if (typeof value === "string") {
+		if (value.startsWith(MEDIA_FILE_PREFIX)) {
+			const storageKey = value.slice(MEDIA_FILE_PREFIX.length).split(MEDIA_FILE_SUFFIX, 1)[0];
+			if (storageKey) projection.mediaStorageKeys.add(storageKey);
+			return;
+		}
+		const trimmed = value.trimStart();
+		if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+			try {
+				collectMediaReferences(JSON.parse(value), projection);
+			} catch {
+				// Not structured data.
+			}
+		}
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const item of value) collectMediaReferences(item, projection);
+		return;
+	}
+	if (!isRecord(value)) return;
+
+	const mediaId = readString(value.mediaId);
+	if (mediaId) projection.mediaIds.add(mediaId);
+
+	const provider = readString(value.provider);
+	const meta = isRecord(value.meta) ? value.meta : null;
+	const localMediaId = readString(value.id);
+	if ((provider === "local" || (!provider && meta)) && localMediaId) {
+		projection.mediaIds.add(localMediaId);
+	}
+	const storageKey = readString(value.storageKey) ?? readString(meta?.storageKey);
+	if (storageKey) projection.mediaStorageKeys.add(storageKey);
+
+	const asset = isRecord(value.asset) ? value.asset : null;
+	const assetRef = readString(asset?._ref);
+	if (assetRef) {
+		projection.mediaIds.add(assetRef);
+		projection.mediaStorageKeys.add(assetRef);
+	}
+
+	for (const child of Object.values(value)) collectMediaReferences(child, projection);
+}
+
+function projectTaxonomyRows(
+	rows: Record<string, unknown>[],
+	projection: PublishedProjection,
+): Record<string, unknown>[] {
+	const includedGroups = new Set(projection.taxonomyGroups);
+	const includedIds = new Set(projection.taxonomyGroups);
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const row of rows) {
+			const id = readString(row.id);
+			const group = readString(row.translation_group);
+			if (!id) continue;
+			if (includedIds.has(id) || (group && includedGroups.has(group))) {
+				if (!includedIds.has(id)) {
+					includedIds.add(id);
+					changed = true;
+				}
+				if (group && !includedGroups.has(group)) {
+					includedGroups.add(group);
+					changed = true;
+				}
+				const parentId = readString(row.parent_id);
+				if (parentId && !includedIds.has(parentId)) {
+					includedIds.add(parentId);
+					changed = true;
+				}
+			}
+		}
+	}
+	return rows.filter((row) => {
+		const id = readString(row.id);
+		const group = readString(row.translation_group);
+		return (id && includedIds.has(id)) || (group && includedGroups.has(group));
+	});
+}
+
+function projectPublishedRows(
+	tableName: SystemTable,
+	rows: Record<string, unknown>[],
+	projection: PublishedProjection,
+): Record<string, unknown>[] {
+	switch (tableName) {
+		case "_emdash_seo":
+			return rows.filter((row) => {
+				const published = isPublishedContentReference(projection, row.collection, row.content_id);
+				if (!published) return false;
+				const image = readString(row.seo_image);
+				if (image) {
+					collectMediaReferences(image, projection);
+					if (!EXTERNAL_OR_ROOT_URL.test(image)) {
+						projection.mediaIds.add(image);
+						projection.mediaStorageKeys.add(image);
+					}
+				}
+				return true;
+			});
+		case "content_taxonomies":
+			return rows.filter((row) => {
+				const published = isPublishedContentReference(projection, row.collection, row.entry_id);
+				const taxonomyGroup = readString(row.taxonomy_id);
+				if (published && taxonomyGroup) projection.taxonomyGroups.add(taxonomyGroup);
+				return published;
+			});
+		case "taxonomies":
+			return projectTaxonomyRows(rows, projection);
+		case "_emdash_menu_items":
+			return rows.filter((row) => {
+				const type = readString(row.type);
+				const referenceId = readString(row.reference_id);
+				if (!referenceId || type === "custom") return true;
+				if (type === "taxonomy") {
+					projection.taxonomyGroups.add(referenceId);
+					return true;
+				}
+				if (type === "collection" && !row.reference_id) return true;
+				const collection =
+					readString(row.reference_collection) ??
+					(type === "post" || type === "page" ? `${type}s` : null);
+				return isPublishedContentReference(projection, collection, referenceId);
+			});
+		case "media":
+			return rows.filter((row) => {
+				const id = readString(row.id);
+				const storageKey = readString(row.storage_key);
+				return (
+					(id !== null && projection.mediaIds.has(id)) ||
+					(storageKey !== null && projection.mediaStorageKeys.has(storageKey))
+				);
+			});
+		case "options":
+			return rows;
+		default:
+			return [];
+	}
 }
 
 export interface GenerateSnapshotOptions {
@@ -231,6 +504,8 @@ export interface GenerateSnapshotOptions {
 	 * `emdash:passkey_pending:`) — the output may be user-downloadable.
 	 */
 	optionPrefixes?: string[];
+	/** Exact options-table keys to include in addition to `optionPrefixes`. */
+	optionKeys?: string[];
 }
 
 /**
@@ -246,16 +521,11 @@ export async function generateSnapshot(
 	const includeDrafts = options?.includeDrafts ?? false;
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
+	const optionKeys = new Set(options?.optionKeys);
+	const publishedOnly = !includeDrafts && !includeTrashed;
+	const publishedProjection = createPublishedProjection();
 
-	// Discover all ec_* content tables
-	const tableResult = await sql<{ name: string }>`
-		SELECT name FROM sqlite_master
-		WHERE type = 'table'
-		AND name LIKE 'ec_%'
-		ORDER BY name
-	`.execute(db);
-
-	const contentTables = tableResult.rows.map((r) => r.name);
+	const contentTables = await listTablesLike(db, "ec_%");
 
 	// Build list of all tables to export
 	const allTables = [...contentTables, ...SYSTEM_TABLES];
@@ -266,80 +536,83 @@ export async function generateSnapshot(
 	for (const tableName of allTables) {
 		if (isExcluded(tableName)) continue;
 
-		// Validate identifier before interpolating into sql.raw().
-		// SYSTEM_TABLES are hardcoded and safe, but ec_* names come from
-		// sqlite_master and must be validated.
+		// Content table names come from the database catalog. Validate them
+		// before passing them to sql.ref().
 		if (!SAFE_TABLE_NAME.test(tableName)) continue;
 
-		try {
-			// Get column info via PRAGMA
-			const pragmaResult = await sql<ColumnInfo>`
-				PRAGMA table_info(${sql.raw(`"${tableName}"`)})
-			`.execute(db);
+		const columnInfo = await listTableColumns(db, tableName);
+		if (columnInfo.length === 0) continue;
 
-			if (pragmaResult.rows.length === 0) continue;
+		const columns = columnInfo.map((column) => column.name);
+		const types: Record<string, SnapshotColumnType> = {};
+		for (const column of columnInfo) {
+			types[column.name] = normalizeColumnType(column.type);
+		}
 
-			const columns = pragmaResult.rows.map((r) => r.name);
-			const types: Record<string, string> = {};
-			for (const row of pragmaResult.rows) {
-				types[row.name] = row.type || "TEXT";
-			}
+		schema[tableName] = { columns, types };
 
-			schema[tableName] = { columns, types };
+		let rows: Record<string, unknown>[];
 
-			// Fetch rows
-			let rows: Record<string, unknown>[];
-
-			if (tableName.startsWith("ec_")) {
-				if (includeTrashed) {
-					// Everything, including trash — full-fidelity backup export
-					rows = (
-						await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.raw(`"${tableName}"`)}
-					`.execute(db)
-					).rows;
-				} else if (includeDrafts) {
-					// Include all non-deleted content (published, draft, scheduled)
-					rows = (
-						await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.raw(`"${tableName}"`)}
-						WHERE deleted_at IS NULL
-					`.execute(db)
-					).rows;
-				} else {
-					// Only export published content
-					rows = (
-						await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.raw(`"${tableName}"`)}
-						WHERE deleted_at IS NULL
-						AND status = 'published'
-					`.execute(db)
-					).rows;
-				}
-			} else if (tableName === "options") {
-				// Filter options to safe rendering-only prefixes.
-				// Excludes plugin secrets, passkey challenges, and setup state.
+		if (tableName.startsWith("ec_")) {
+			if (includeTrashed) {
 				rows = (
 					await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.raw(`"${tableName}"`)}
-				`.execute(db)
-				).rows.filter((row) => {
-					const name = typeof row.name === "string" ? row.name : "";
-					return optionPrefixes.some((prefix) => name.startsWith(prefix));
-				});
+						SELECT * FROM ${sql.ref(tableName)}
+					`.execute(db)
+				).rows;
+			} else if (includeDrafts) {
+				rows = (
+					await sql<Record<string, unknown>>`
+						SELECT * FROM ${sql.ref(tableName)}
+						WHERE deleted_at IS NULL
+					`.execute(db)
+				).rows;
 			} else {
 				rows = (
 					await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.raw(`"${tableName}"`)}
-				`.execute(db)
+						SELECT * FROM ${sql.ref(tableName)}
+						WHERE deleted_at IS NULL
+						AND status = 'published'
+					`.execute(db)
 				).rows;
 			}
+		} else if (
+			publishedOnly &&
+			isSystemTable(tableName) &&
+			PUBLISHED_TABLE_POLICIES[tableName] === "omit"
+		) {
+			rows = [];
+		} else if (tableName === "options") {
+			rows = (
+				await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+				`.execute(db)
+			).rows.filter((row) => {
+				const name = typeof row.name === "string" ? row.name : "";
+				return optionKeys.has(name) || optionPrefixes.some((prefix) => name.startsWith(prefix));
+			});
+		} else {
+			rows = (
+				await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+				`.execute(db)
+			).rows;
+		}
 
-			if (rows.length > 0) {
-				tables[tableName] = rows;
+		if (publishedOnly) {
+			if (tableName.startsWith("ec_")) {
+				recordPublishedContent(publishedProjection, tableName, rows);
+			} else if (
+				isSystemTable(tableName) &&
+				PUBLISHED_TABLE_POLICIES[tableName] === "content-linked"
+			) {
+				rows = projectPublishedRows(tableName, rows, publishedProjection);
 			}
-		} catch {
-			// Table might not exist yet (e.g. pre-migration) — skip silently
+			for (const row of rows) collectMediaReferences(row, publishedProjection);
+		}
+
+		if (rows.length > 0) {
+			tables[tableName] = normalizeRows(rows, types);
 		}
 	}
 

@@ -14,7 +14,7 @@ export function richText(options: RichTextOptions = {}): FieldDefinition<string>
 	const stringSchema = z.string();
 
 	// Optional vs required
-	const schema: z.ZodTypeAny = options.required ? stringSchema : stringSchema.optional();
+	const schema: z.ZodType = options.required ? stringSchema : stringSchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "richText",

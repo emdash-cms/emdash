@@ -1,6 +1,8 @@
 // Worker entry.
 //
 // Public surface:
+//   GET  /                 public workbench
+//   GET  /api/dashboard    managed issue state and safe activity
 //   GET  /health           liveness probe
 //   POST /webhook/github   GitHub App webhook ingress (signature-verified)
 //   /agents/investigate/*  Authenticated Flue agent control surface
@@ -13,6 +15,8 @@
 // Core routes live in `routes.ts` so the workers-pool test entry can mount
 // just those without pulling in Flue's routing.
 
+import { instrument } from "@flue/runtime";
+import { createCloudflareTracing } from "@flue/runtime/cloudflare";
 import { createAgentRouter } from "@flue/runtime/routing";
 import { Hono } from "hono";
 
@@ -20,6 +24,8 @@ import { Investigate } from "./agents/investigate.js";
 import { installAgentObserver } from "./lib/observer.js";
 import { registerCoreRoutes } from "./routes.js";
 
+// Must run at module scope, before Flue's default tracing install.
+instrument(createCloudflareTracing());
 installAgentObserver();
 
 const app = new Hono<{ Bindings: Env }>();

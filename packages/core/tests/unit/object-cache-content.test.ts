@@ -1,3 +1,4 @@
+import { LiveEntryNotFoundError } from "astro/content/runtime";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,9 +20,9 @@ import {
 	__setObjectCacheBackendForTests,
 	cachedQuery,
 	invalidateCollectionCache,
-	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
+import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
 import { createPostFixture } from "../utils/fixtures.js";
@@ -43,7 +44,7 @@ function spyBackend(): ObjectCacheBackend {
 }
 
 function backendWithCachedValue(value: unknown): ObjectCacheBackend {
-	const encoded = encode({ e: [0, 0, 0, 0], v: value });
+	const encoded = encode({ e: [0, 0, 0], v: value });
 	return {
 		get: (key) => Promise.resolve(key.includes(":epoch:") ? null : encoded),
 		set: () => Promise.resolve(),
@@ -137,6 +138,32 @@ describe("object cache: content read-through", () => {
 
 		expect(result.entries[0]!.data).not.toHaveProperty("liveRevisionId");
 		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("primes the SEO panel cache when an entry is served from the object cache", async () => {
+		const [entry] = mockEntries();
+		(entry!.data as Record<string, unknown>).seo = { title: "Panel Title", noIndex: true };
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		// Cold request populates the cache.
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "hello"));
+		await flush();
+
+		// Warm request: the loader never runs, so <EmDashHead>'s overlay
+		// depends on the revive path priming from the snapshot data.
+		await runWithContext({ editMode: false, db }, async () => {
+			await getEmDashEntry("post", "hello");
+			expect(await peekSeoPanel("post", "db-1")).toMatchObject({
+				title: "Panel Title",
+				noIndex: true,
+			});
+		});
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
 	});
 
 	it("omits revision metadata from anonymous entry results", async () => {
@@ -295,26 +322,6 @@ describe("object cache: content read-through", () => {
 		expect(getLiveCollection).toHaveBeenCalledTimes(2);
 	});
 
-	it("reloads new content caches after a legacy publisher invalidates the collection", async () => {
-		vi.mocked(getLiveCollection).mockResolvedValue({
-			entries: mockEntries(),
-			error: undefined,
-			cacheHint: {},
-			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
-		} as any);
-
-		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
-		await flush();
-		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
-		expect(getLiveCollection).toHaveBeenCalledTimes(1);
-
-		invalidateObjectCache("content:post");
-		await flush();
-
-		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
-		expect(getLiveCollection).toHaveBeenCalledTimes(2);
-	});
-
 	it("invalidates legacy content caches after a current publisher writes", async () => {
 		let loads = 0;
 		const readLegacy = () =>
@@ -354,6 +361,37 @@ describe("object cache: content read-through", () => {
 
 		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
 		expect(getLiveCollection).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not fetch the retired legacy content epoch", async () => {
+		const store = new Map<string, string>();
+		const get = vi.fn((key: string) => Promise.resolve(store.get(key) ?? null));
+		__setObjectCacheBackendForTests({
+			get,
+			set: (key, value) => {
+				store.set(key, value);
+				return Promise.resolve();
+			},
+			delete: (key) => {
+				store.delete(key);
+				return Promise.resolve();
+			},
+		});
+		vi.mocked(getLiveCollection).mockResolvedValue({
+			entries: mockEntries(),
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashCollection("post"));
+
+		const epochReads = get.mock.calls.map(([key]) => key).filter((key) => key.includes(":epoch:"));
+		expect(epochReads).toEqual([
+			"em:epoch:content:v2:post",
+			"em:epoch:bylines",
+			"em:epoch:taxonomies",
+		]);
 	});
 
 	it("keeps cached public content when a draft revision is staged or discarded", async () => {
@@ -505,5 +543,31 @@ describe("object cache: content read-through", () => {
 		expect(first.entry).toBeNull();
 		expect(second.entry).toBeNull();
 		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+	});
+
+	it("caches a missing entry until the collection changes", async () => {
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			error: new LiveEntryNotFoundError("_emdash", { type: "post", id: "missing" }),
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		const first = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "missing"),
+		);
+		await flush();
+		const second = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "missing"),
+		);
+		invalidateCollectionCache("post");
+		await flush();
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "missing"));
+
+		expect([first.entry, first.error, second.entry, second.error]).toEqual([
+			null,
+			undefined,
+			null,
+			undefined,
+		]);
+		expect(getLiveEntry).toHaveBeenCalledTimes(2);
 	});
 });

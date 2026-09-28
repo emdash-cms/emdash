@@ -10,12 +10,15 @@ import {
 	Key,
 	Envelope,
 	DownloadSimple,
+	ArrowsLeftRight,
 	CaretDown,
+	Images,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchManifest } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import { SUPPORTED_LOCALES } from "../locales/index.js";
 import { useLocale } from "../locales/useLocale.js";
 import { SettingsNavRow, SettingsSection } from "./settings/SettingsLayout.js";
@@ -24,6 +27,7 @@ import { SettingsNavRow, SettingsSection } from "./settings/SettingsLayout.js";
  * Settings hub page — links to all settings sub-pages.
  */
 export function Settings() {
+	const { data: currentUser } = useCurrentUser();
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
@@ -32,6 +36,8 @@ export function Settings() {
 	const { t } = useLingui();
 	const { locale, setLocale } = useLocale();
 	const showSecuritySettings = manifest?.authMode === "passkey";
+	const isAdmin = (currentUser?.role ?? 0) >= 50;
+	const showMediaUsageSettings = isAdmin;
 	const selectedLocale = SUPPORTED_LOCALES.find((option) => option.code === locale) ?? null;
 
 	return (
@@ -61,6 +67,17 @@ export function Settings() {
 						description={t`Search engine optimization and verification`}
 					/>
 				</SettingsSection>
+
+				{showMediaUsageSettings ? (
+					<SettingsSection title={t`Media`}>
+						<SettingsNavRow
+							to="/settings/media-usage"
+							icon={<Images className="h-5 w-5" />}
+							title={t`Media usage tracking`}
+							description={t`Track where media is used across your content`}
+						/>
+					</SettingsSection>
+				) : null}
 
 				{showSecuritySettings && (
 					<SettingsSection title={t`Security Settings`}>
@@ -101,6 +118,14 @@ export function Settings() {
 						title={t`Backups`}
 						description={t`Download backups and schedule automatic backups to storage`}
 					/>
+					{isAdmin ? (
+						<SettingsNavRow
+							to="/settings/transfer"
+							icon={<ArrowsLeftRight className="h-5 w-5" />}
+							title={t`Transfer`}
+							description={t`Move this site to another EmDash installation, or import a site package`}
+						/>
+					) : null}
 				</SettingsSection>
 
 				{SUPPORTED_LOCALES.length > 1 && (

@@ -4,8 +4,9 @@
  * Single source of truth for site-level cryptographic secrets:
  *
  * - `EMDASH_ENCRYPTION_KEY` — primary key for encrypting plugin secrets at
- *   rest. Multi-key (comma-separated) for rotation forward-compat. v1 ships
- *   single-key. Format: `emdash_enc_v1_<43 base64url chars>` representing
+ *   rest. A comma-separated list supports rotation: the first key encrypts
+ *   new values and every listed key remains available for decryption. Format:
+ *   `emdash_enc_v1_<43 base64url chars>` representing
  *   32 random bytes. **Operator-provided; never stored in the database.**
  *   Losing the key means losing every secret encrypted with it. Validated
  *   at runtime startup via `validateEncryptionKeyAtStartup` — request-time
@@ -123,8 +124,8 @@ export interface ResolveSecretsOptions {
 /** Environment-variable shape consulted by the resolver. */
 export interface SecretsEnv {
 	/**
-	 * Read by `validateEncryptionKeyAtStartup` and (in a follow-up PR) by the
-	 * plugin-secret encryption layer. **Not** consulted by `resolveSecrets`,
+	 * Read by `validateEncryptionKeyAtStartup` and the plugin-secret encryption
+	 * layer. **Not** consulted by `resolveSecrets`,
 	 * so a malformed value can't 500 the preview/comment hot paths.
 	 */
 	EMDASH_ENCRYPTION_KEY?: string;
@@ -243,6 +244,19 @@ export async function parseEncryptionKeys(
 }
 
 /**
+ * Resolve the encryption keys used for plugin secret settings.
+ *
+ * This is deliberately separate from `resolveSecrets`: plugin settings are
+ * not on the anonymous request path, and a missing or malformed key must only
+ * fail operations that need encrypted plugin settings.
+ */
+export function resolvePluginEncryptionKeys(
+	env?: SecretsEnv,
+): Promise<ParsedEncryptionKey[] | null> {
+	return parseEncryptionKeys((env ?? readDefaultEnv()).EMDASH_ENCRYPTION_KEY);
+}
+
+/**
  * Compute the kid for a raw key string (the env-var form including the
  * `emdash_enc_v1_` prefix). Public so the CLI's `fingerprint` subcommand
  * and admin endpoints can show kids without exposing raw keys.
@@ -308,8 +322,8 @@ export function generateEncryptionKey(): string {
  * Note: `EMDASH_ENCRYPTION_KEY` is **not** consumed here. It's validated
  * separately at runtime startup (see `validateEncryptionKeyAtStartup`) so a
  * malformed key can't take down preview-token verification or comment
- * submission for unrelated visitors. Future plugin-secret encryption code
- * will read it via its own dedicated helper.
+ * submission for unrelated visitors. Plugin-secret encryption reads it
+ * separately through `resolvePluginEncryptionKeys`.
  */
 export async function resolveSecrets(options: ResolveSecretsOptions): Promise<ResolvedSecrets> {
 	const env = options.env ?? readDefaultEnv();
@@ -342,10 +356,10 @@ export async function resolveSecrets(options: ResolveSecretsOptions): Promise<Re
 /**
  * Validate `EMDASH_ENCRYPTION_KEY` once at runtime startup. Logs an
  * operator-facing error if the value is malformed but does **not** throw —
- * the key is currently inert (no consumers), and the follow-up PR that
- * actually uses it will throw at point of use. This way, deployment
- * mistakes surface immediately in startup logs without wedging unrelated
- * request paths in the meantime.
+ * plugin secret-setting operations fail closed at their own boundary when
+ * the key is invalid. This way, deployment mistakes surface immediately in
+ * startup logs without wedging unrelated request paths such as preview-token
+ * verification or comment submission.
  *
  * Returns `true` if the key is unset or valid, `false` if it was malformed.
  */
@@ -358,7 +372,7 @@ export async function validateEncryptionKeyAtStartup(env?: SecretsEnv): Promise<
 		if (error instanceof EmDashSecretsError) {
 			console.error(
 				`[emdash] EMDASH_ENCRYPTION_KEY is invalid: ${error.message} ` +
-					"Plugin-secret encryption will fail once it ships. " +
+					"Plugin secret settings are unavailable until this is fixed. " +
 					"Generate a fresh key with `emdash secrets generate`.",
 			);
 			return false;

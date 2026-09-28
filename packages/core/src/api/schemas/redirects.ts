@@ -98,7 +98,12 @@ export const notFoundSummaryQuery = z.object({
 
 export const notFoundPruneBody = z
 	.object({
-		olderThan: z.string().datetime({ message: "olderThan must be an ISO 8601 datetime" }),
+		olderThan: z.iso.datetime({ message: "olderThan must be an ISO 8601 datetime" }).or(
+			z.iso.datetime({
+				precision: -1,
+				message: "olderThan must be an ISO 8601 datetime",
+			}),
+		),
 	})
 	.meta({ id: "NotFoundPruneBody" });
 

@@ -2,20 +2,24 @@ import { Empty } from "@cloudflare/kumo";
 import { Package } from "@phosphor-icons/react";
 
 import { renderElement } from "../render-element.js";
-import type { BlockInteraction, EmptyBlock } from "../types.js";
+import type { BlockInteraction, EmptyBlock, LinkTargetResolver } from "../types.js";
 
 export function EmptyBlockComponent({
 	block,
 	onAction,
+	resolveLinkTarget,
 }: {
 	block: EmptyBlock;
 	onAction: (interaction: BlockInteraction) => void;
+	resolveLinkTarget?: LinkTargetResolver;
 }) {
 	const contents =
 		block.actions && block.actions.length > 0 ? (
 			<div className="flex flex-wrap justify-center gap-2">
 				{block.actions.map((el, i) => (
-					<div key={el.action_id ?? i}>{renderElement(el, onAction)}</div>
+					<div key={"action_id" in el ? el.action_id : i}>
+						{renderElement(el, onAction, undefined, resolveLinkTarget)}
+					</div>
 				))}
 			</div>
 		) : undefined;

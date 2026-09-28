@@ -174,8 +174,9 @@ describe("AllowedDomainsSettings", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Edit example.com" }));
 		await expect.element(screen.getByRole("heading", { name: "Edit Domain" })).toBeInTheDocument();
 		const roleSelect = screen.getByLabelText("Default Role").element() as HTMLButtonElement;
-		roleSelect.focus();
-		await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+		roleSelect.click();
+		await expect.element(screen.getByRole("option", { name: "Editor" })).toBeVisible();
+		(screen.getByRole("option", { name: "Editor" }).element() as HTMLElement).click();
 
 		await vi.waitFor(() => {
 			expect(mockUpdateAllowedDomain).toHaveBeenCalledWith("example.com", { defaultRole: 40 });

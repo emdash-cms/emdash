@@ -169,6 +169,21 @@ describe("ApiTokenSettings", () => {
 		expect(screen.getByRole("alert").query()).toBeNull();
 	});
 
+	it("shows the created date from the stored UTC instant, not the viewer's local zone", async () => {
+		const storedCreatedAt = "2026-05-20 02:00:00";
+		const format = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+		const correct = format.format(new Date(Date.UTC(2026, 4, 20, 2, 0, 0)));
+		const localMisread = format.format(new Date(storedCreatedAt));
+		expect(correct).not.toBe(localMisread);
+
+		mockFetchApiTokens.mockResolvedValue([{ ...token, createdAt: storedCreatedAt }]);
+		const screen = await renderApiTokenSettings();
+
+		await expect.element(screen.getByText("CI token")).toBeInTheDocument();
+		await expect.element(screen.getByText(correct)).toBeInTheDocument();
+		expect(screen.getByText(localMisread).query()).toBeNull();
+	});
+
 	it("requires confirmation before revoking a token", async () => {
 		mockFetchApiTokens.mockResolvedValue([token]);
 		const screen = await renderApiTokenSettings();

@@ -5,152 +5,152 @@ description: How EmDash works under the hood, for people contributing to EmDash 
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-This page is for people working **on** EmDash, not building a site with it. It documents internal mechanics — table layouts, the Astro integration, the request path, code generation. None of it is needed to use EmDash. If you are building a site, read [Architecture](/concepts/architecture/) and the [Content Model](/concepts/content-model/) instead.
+This page is for people working **on** EmDash, not building a site with it. It explains the database layout, Astro integration, request paths, admin application, media flow, and import system. If you are building a site, read [Architecture](/concepts/architecture/) and the [Content Model](/concepts/content-model/) instead.
 
 ## The Astro integration
 
 EmDash runs as an Astro integration from the `emdash` package. At build time it:
 
-- Injects the admin SPA and REST API routes with Astro's `injectRoute` API. Nothing is copied into the user's project. The injected paths are:
+- Injects the admin application and REST API routes with Astro's `injectRoute` API. Nothing is copied into the user's project. The main route families are:
 
-  | Path pattern                        | Purpose                               |
-  | ----------------------------------- | ------------------------------------- |
-  | `/_emdash/admin/[...path]`          | Admin panel SPA                       |
-  | `/_emdash/api/manifest`             | Admin manifest (collections, plugins) |
-  | `/_emdash/api/content/[collection]` | Content entry CRUD                    |
-  | `/_emdash/api/media/*`              | Media library operations              |
-  | `/_emdash/api/schema/*`             | Schema management                     |
-  | `/_emdash/api/settings`             | Site settings                         |
-  | `/_emdash/api/menus/*`              | Navigation menus                      |
-  | `/_emdash/api/taxonomies/*`         | Categories, tags, custom taxonomies   |
+  | Path pattern                                  | Purpose                               |
+  | --------------------------------------------- | ------------------------------------- |
+  | `/_emdash/admin/[...path]`                    | Admin panel SPA                       |
+  | `/_emdash/api/manifest`                       | Admin manifest (collections, plugins) |
+  | `/_emdash/api/content/[collection]/...`       | Content entry operations              |
+  | `/_emdash/api/media/...`                      | Media library operations              |
+  | `/_emdash/api/schema/...`                     | Schema management                     |
+  | `/_emdash/api/settings/...`                   | Site settings                         |
+  | `/_emdash/api/menus/...`                      | Navigation menus                      |
+  | `/_emdash/api/taxonomies/...`                 | Categories, tags, custom taxonomies   |
+  | `/_emdash/api/plugins/[pluginId]/[...path]`   | Plugin-defined API routes             |
 
-- Generates virtual modules so the bundler can resolve and tree-shake configuration and plugin code:
+  The [route injector](https://github.com/emdash-cms/emdash/blob/main/packages/core/src/astro/integration/routes.ts) is the complete inventory, including authentication, comments, search, imports, widgets, and other route families.
 
-  | Module                         | Purpose                             |
-  | ------------------------------ | ----------------------------------- |
-  | `virtual:emdash/config`        | Database and storage configuration  |
-  | `virtual:emdash/dialect`       | Database dialect factory            |
-  | `virtual:emdash/plugin-admins` | Static imports for plugin admin UIs |
+- Generates virtual modules so the bundler can resolve configuration and extension code:
 
-- Provides the Live Collections loader, manages migrations, and opens the storage connection.
+  | Module                           | Purpose                                    |
+  | -------------------------------- | ------------------------------------------ |
+  | `virtual:emdash/config`          | Database, storage, and site configuration  |
+  | `virtual:emdash/dialect`         | Database dialect factory                   |
+  | `virtual:emdash/admin-registry`  | Static imports for plugin admin interfaces |
+  | `virtual:emdash/plugins`         | Configured plugin implementations          |
+  | `virtual:emdash/media-providers` | Configured external media providers        |
+
+  [`virtual-modules.ts`](https://github.com/emdash-cms/emdash/blob/main/packages/core/src/astro/integration/virtual-modules.ts) defines the remaining runtime helpers and generated module contents.
+
+- Provides the Live Content Collections loader and registers the runtime middleware. At request time, the middleware opens the configured database and storage connections and applies any pending migrations before routes use them.
 
 ## Database-first schema
 
-Schema definitions live in the database, not in code. Two system tables track structure.
+Schema definitions live in the database, not in a static configuration file. `_emdash_collections` stores one row per collection. Its core columns describe the collection and the features that the runtime and admin expose:
 
-`_emdash_collections` holds one row per collection:
+| Columns | Purpose |
+| ------- | ------- |
+| `id`, `slug` | Stable collection identity |
+| `label`, `label_singular`, `description`, `icon` | Names and guidance shown to editors |
+| `supports`, `has_seo`, `comments_enabled`, `edit_locking` | Optional collection capabilities |
+| `title_field`, `date_field`, `admin_config`, `hidden`, `sort_order` | Admin list and navigation behavior |
+| `url_pattern`, `routable` | Public URL and slug behavior |
+| `source` | How the collection was created |
 
-```sql
-CREATE TABLE _emdash_collections (
-  id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE NOT NULL,        -- "posts", "products"
-  label TEXT NOT NULL,              -- "Blog Posts"
-  label_singular TEXT,              -- "Post"
-  description TEXT,
-  icon TEXT,
-  supports JSON,                    -- ["drafts", "revisions", "preview"]
-  source TEXT,                      -- how it was created
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT
-);
-```
+The `source` value records provenance such as `manual`, `seed`, `template:<name>`, `import:<name>`, or `discovered`. Additional settings come from registered migrations, so [`database/types.ts`](https://github.com/emdash-cms/emdash/blob/main/packages/core/src/database/types.ts) and the migrations are the current column inventory.
 
-The `source` column records provenance: `manual` (admin UI), `template:<name>` (seed file), `import:wordpress` (importer), or `discovered` (auto-detected from existing tables).
+`_emdash_fields` stores the fields linked to each collection:
 
-`_emdash_fields` holds one row per field, linked to its collection:
+| Columns | Purpose |
+| ------- | ------- |
+| `id`, `collection_id`, `slug` | Field identity and owning collection |
+| `label`, `type`, `column_type` | Editor label, EmDash field type, and SQL storage type |
+| `required`, `unique`, `default_value`, `validation` | Content constraints and defaults |
+| `widget`, `options`, `sort_order` | Editor control and display order |
+| `searchable`, `indexed`, `translatable` | Search, query, and localization behavior |
 
-```sql
-CREATE TABLE _emdash_fields (
-  id TEXT PRIMARY KEY,
-  collection_id TEXT REFERENCES _emdash_collections(id),
-  slug TEXT NOT NULL,               -- column name
-  label TEXT NOT NULL,
-  type TEXT NOT NULL,               -- field type
-  column_type TEXT NOT NULL,        -- TEXT, REAL, INTEGER, JSON
-  required INTEGER DEFAULT 0,
-  unique_field INTEGER DEFAULT 0,
-  default_value TEXT,
-  validation JSON,
-  widget TEXT,
-  options JSON,
-  sort_order INTEGER,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(collection_id, slug)
-);
-```
+`collection_id` references `_emdash_collections.id`, and each field slug is unique within its collection.
 
 ### Per-collection content tables
 
-Each collection gets its own table, prefixed `ec_`. A `products` collection with `title` and `price` fields produces:
+Each collection gets its own table, prefixed `ec_`. A `products` collection with `title` and `price` fields produces a table with this shape:
 
 ```sql
 CREATE TABLE ec_products (
-  -- System columns, always present
+  -- System columns, present on every content table
   id TEXT PRIMARY KEY,
-  slug TEXT UNIQUE,
+  slug TEXT,
   status TEXT DEFAULT 'draft',
   author_id TEXT,
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now')),
+  primary_byline_id TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
   published_at TEXT,
-  deleted_at TEXT,                  -- soft delete
-  version INTEGER DEFAULT 1,        -- optimistic locking
+  scheduled_at TEXT,
+  deleted_at TEXT,
+  version INTEGER DEFAULT 1,
+  live_revision_id TEXT,
+  draft_revision_id TEXT,
+  locale TEXT NOT NULL DEFAULT 'en',
+  translation_group TEXT,
 
-  -- Content columns, from field definitions
+  -- Content columns, created from field definitions
   title TEXT NOT NULL,
-  price REAL
+  price REAL,
+
+  UNIQUE (slug, locale)
 );
 ```
 
-Real columns (rather than one table with a JSON blob) give proper indexing, working foreign keys, a schema database tools can inspect, and no per-field JSON parsing.
+Real columns give each field a database type, allow indexes and foreign keys, and let database tools inspect the schema without decoding a content JSON blob. The unique constraint allows translations to share a slug while keeping each slug unique within a locale. All locale variants of the same entry share a `translation_group` value, which lets EmDash find the rows that are translations of one another.
 
-The concerns stay separated:
+The main data concerns remain separate:
 
 | Concern  | Location                 | Tables                                  |
 | -------- | ------------------------ | --------------------------------------- |
 | Schema   | System tables            | `_emdash_collections`, `_emdash_fields` |
 | Content  | Per-collection tables    | `ec_posts`, `ec_products`, …            |
-| Media    | Separate table + storage | `media` table + R2/S3                   |
+| Media    | Separate table + storage | `media` table + configured storage      |
 | Settings | Options table            | `options` with a `site:` prefix         |
 
 ### Runtime schema changes
 
-Adding a field through the admin UI runs three steps:
+Adding a field through the admin UI runs these steps:
 
 <Steps>
 
-1. Insert a record into `_emdash_fields`.
-2. Run `ALTER TABLE ec_<collection> ADD COLUMN <name> <TYPE>`.
-3. Regenerate the Zod schema used for validation.
+1. Insert the field definition into `_emdash_fields`.
+2. Add the corresponding column to the collection's `ec_*` table and create an index when the field is configured as indexed.
+3. Refresh generated development types so the new field appears in editor tooling.
 
 </Steps>
 
-SQLite supports add, rename, and drop column (drop requires SQLite 3.35+) at runtime. Changing a column's type is not supported in place, so EmDash rebuilds the table transparently: create a new table, copy rows, drop the old table, rename the new one.
+Content validation reads the current field definitions and builds a Zod schema when content is created or updated. Changing a field's underlying SQL type, `required` or `unique` constraint, or localization behavior can require a manual content migration; `SchemaRegistry` rejects unsupported in-place changes instead of rebuilding the table implicitly.
 
 ### Runtime validation
 
-EmDash builds Zod schemas from the field definitions at startup and validates every create and update against them:
+EmDash derives a Zod schema from the collection's current fields. The generator delegates the type and constraint details to `generateFieldSchema()`:
 
-```ts
-function buildSchema(fields: Field[]): ZodSchema {
+```ts title="packages/core/src/schema/zod-generator.ts"
+export function generateZodSchema(
+	collection: CollectionWithFields,
+): z.ZodObject<Record<string, ZodType>> {
 	const shape: Record<string, ZodType> = {};
-	for (const field of fields) {
-		let zodType = fieldTypeToZod(field.type);
-		if (field.required) zodType = zodType.required();
-		if (field.validation?.min !== undefined) zodType = zodType.min(field.validation.min);
-		shape[field.slug] = zodType;
+
+	for (const field of collection.fields) {
+		shape[field.slug] = generateFieldSchema(field);
 	}
+
 	return z.object(shape);
 }
 ```
 
+The content handler also rejects unknown fields, checks required string values, and verifies references to other collections.
+
 ## Data layer
 
-EmDash uses [Kysely](https://kysely.dev) for type-safe SQL across every supported database (SQLite, libSQL, Cloudflare D1, and PostgreSQL). The dialect is selected by `virtual:emdash/dialect` from the configuration the site passes to the integration.
+EmDash uses [Kysely](https://kysely.dev) for typed SQL across SQLite, libSQL, Cloudflare D1, and PostgreSQL. The site configuration selects the database adapter; the integration exposes its dialect factory through `virtual:emdash/dialect`.
 
-## Live Collections loader
+## Live Content Collections loader
 
-Content is served at runtime through Astro's [Live Collections](https://docs.astro.build/en/reference/experimental-flags/live-content-collections/). `emdashLoader()` implements Astro's `LiveLoader` interface and is registered as a single `_emdash` collection:
+Content is served at runtime through Astro's [Live Content Collections](https://docs.astro.build/en/reference/experimental-flags/live-content-collections/). `emdashLoader()` implements Astro's `LiveLoader` interface and is registered as a single `_emdash` collection:
 
 ```ts title="src/live.config.ts"
 import { defineLiveCollection } from "astro:content";
@@ -161,79 +161,92 @@ export const collections = {
 };
 ```
 
-The single `_emdash` collection wraps every content type; the loader filters by type when `getEmDashCollection("posts")` is called.
+The single `_emdash` collection wraps every EmDash collection. `getEmDashCollection("posts")` supplies the `posts` type filter, and the loader maps it to the `ec_posts` table.
 
 ## Request paths
 
-A content request from a page:
+A content request from an Astro page follows this path:
 
 <Steps>
 
-1. Astro receives the request and runs the page component.
-2. `getEmDashCollection()` calls Astro's `getLiveCollection()`.
-3. `emdashLoader` queries the relevant `ec_*` table through Kysely.
-4. Rows are mapped to Astro's entry format (`id`, `slug`, `data`).
-5. The component renders.
+1. The page calls `getEmDashCollection()` or `getEmDashEntry()`.
+2. The query wrapper calls Astro's `getLiveCollection()` or `getLiveEntry()` with the internal `_emdash` collection and the requested EmDash collection type.
+3. `emdashLoader()` queries the relevant `ec_*` table through Kysely, applying publication, locale, filter, ordering, and pagination rules.
+4. The query wrapper maps rows to Astro entries and loads their bylines and taxonomy terms.
+5. The Astro component renders the returned entries.
 
 </Steps>
 
-An admin request:
+Preview and edit-mode state travels through the request context, so the same query functions can return draft content after middleware verifies the request.
+
+An admin API request follows a separate path:
 
 <Steps>
 
-1. Middleware validates the session token.
-2. The API route runs CRUD through a repository.
-3. Lifecycle hooks fire (for example `content:beforeSave`).
-4. Kysely executes the SQL.
-5. The route returns JSON to the admin SPA.
+1. Middleware authenticates the request and stores the resolved user in `Astro.locals`.
+2. The API route parses the request and checks the permission needed for that operation.
+3. The route delegates business logic to a handler or repository.
+4. The handler runs plugin lifecycle hooks around the database operation when that operation exposes hooks.
+5. The route returns a standard JSON success or error response to the admin application.
 
 </Steps>
 
 ## Admin panel internals
 
-The admin is one React island. Astro serves the shell and enforces authentication in middleware; everything inside is client-side, built on TanStack Router, TanStack Query, TanStack Table, React Hook Form + Zod, TipTap, and Kumo (Cloudflare's Base UI + Tailwind design system).
+The admin is a React single-page application. Astro serves its shell and the authentication middleware protects admin routes. Inside the application, TanStack Router handles navigation, TanStack Query loads server state, TanStack Table renders data grids, React Hook Form and Zod manage forms, TipTap edits Portable Text, and Kumo supplies the design system.
 
-The shell route gates access in middleware:
+For session authentication, the middleware redirects an unauthenticated browser request to the login page and returns a JSON error for an unauthenticated API request. After it loads an active user, it places that user on `Astro.locals` for the route:
 
-```ts
-export async function onRequest({ request, locals }, next) {
-	const session = await getSession(request);
-	if (request.url.includes("/_emdash/admin")) {
-		if (!session?.user) return redirect("/_emdash/admin/login");
-		locals.user = session.user;
+```ts title="packages/core/src/astro/middleware/auth.ts"
+const sessionUser = await resolveSessionUser(session);
+
+if (!sessionUser?.id) {
+	if (isApiRoute) {
+		return apiError("NOT_AUTHENTICATED", "Not authenticated", 401);
 	}
-	return next();
+
+	const loginUrl = new URL("/_emdash/admin/login", getPublicOrigin(url, emdash?.config));
+	loginUrl.searchParams.set("redirect", url.pathname);
+	return context.redirect(loginUrl.toString());
 }
+
 ```
+
+After this branch, the middleware loads the user, rejects missing or disabled accounts, places the active user on `Astro.locals`, and continues to the route.
 
 ### Manifest-driven UI
 
-The admin hardcodes nothing about collections or plugins. It fetches `GET /_emdash/api/manifest`, which returns the collections, plugins, and taxonomies the requesting user may access, filtered by role:
+The admin does not hardcode collection schemas or plugin contributions. It fetches `GET /_emdash/api/manifest`, which describes the current collections, fields, plugins, taxonomies, authentication mode, and other configured capabilities. An abridged manifest looks like this:
 
 ```json
 {
-	"collections": [
-		{
-			"slug": "posts",
+	"collections": {
+		"posts": {
 			"label": "Blog Posts",
-			"icon": "file-text",
+			"labelSingular": "Post",
 			"supports": ["drafts", "revisions", "preview"],
-			"fields": [{ "slug": "title", "type": "string", "required": true }]
+			"fields": {
+				"title": { "kind": "string", "label": "Title", "required": true }
+			}
 		}
+	},
+	"plugins": {
+		"audit-log": { "version": "0.2.1", "enabled": true }
+	},
+	"taxonomies": [
+		{ "name": "category", "label": "Categories", "hierarchical": true }
 	],
-	"plugins": [{ "id": "audit-log", "label": "Audit Log" }],
-	"taxonomies": [{ "name": "category", "label": "Categories", "hierarchical": true }],
-	"version": "abc123"
+	"version": "0.37.0"
 }
 ```
 
-Navigation, forms, and field editors are generated from this manifest, so schema and plugin changes appear without an admin rebuild, and Zod schemas stay server-side.
+The admin uses the manifest to build collection navigation and field editors. Because the endpoint reads the live schema, collection and field changes appear without rebuilding the admin application.
 
 ### Plugin admin UIs
 
-Plugin admin entry points are collected into a generated virtual module of static imports so the bundler can resolve and tree-shake them:
+Configured plugin admin entry points are collected into `virtual:emdash/admin-registry`. The generated module uses static imports so the bundler can include the React components:
 
-```ts title="virtual:emdash/plugin-admins (generated)"
+```ts title="virtual:emdash/admin-registry (generated)"
 import * as pluginAdmin0 from "@emdash-cms/plugin-seo/admin";
 
 export const pluginAdmins = { seo: pluginAdmin0 };
@@ -241,31 +254,38 @@ export const pluginAdmins = { seo: pluginAdmin0 };
 
 ### Rich text conversion
 
-Portable Text fields edit in TipTap (ProseMirror). Content is converted at the load and save boundaries by `portableTextToProsemirror()` and `prosemirrorToPortableText()`. Unknown blocks from plugins or imports are preserved as read-only placeholders.
+Portable Text fields use TipTap, which is based on ProseMirror. EmDash converts Portable Text to ProseMirror when the editor loads and converts it back to Portable Text when the entry is saved. Unknown blocks from plugins or imports are preserved as read-only placeholders instead of being discarded.
 
 ### Signed uploads
 
-Media uploads use direct-to-storage signed URLs when the adapter supports them and a same-origin streaming endpoint otherwise:
+Media uploads use direct-to-storage signed URLs when the storage adapter supports them and a same-origin streaming endpoint otherwise:
 
 <Steps>
 
-1. The client requests an upload URL (`POST /api/media/upload-url`).
-2. The client uploads to the returned target. S3-compatible adapters can return a signed URL that bypasses Worker body-size limits; native R2 bindings and local storage return an EmDash streaming endpoint.
-3. The client confirms (`POST /api/media/:id/confirm`).
-4. The server extracts metadata (dimensions, MIME type).
+1. The client requests an upload target from `POST /_emdash/api/media/upload-url`. EmDash creates a pending media item.
+2. The client uploads to the returned target. S3-compatible adapters can return a signed URL that bypasses application body-size limits; native R2 bindings and local storage return an EmDash streaming endpoint.
+3. The client confirms the upload with `POST /_emdash/api/media/:id/confirm`.
+4. EmDash validates the stored file and marks the media item as ready.
 
 </Steps>
 
 ## Extending the content importer
 
-The WordPress importer is built on a pluggable `ImportSource` interface. A custom source implements probe, analyze, and fetch:
+The WordPress importer uses a pluggable `ImportSource` interface. A source can probe a URL, analyze the available content against the current schema, and stream normalized content items:
 
-```ts
+```ts title="packages/core/src/import/types.ts"
 interface ImportSource {
-	probe(input: ImportInput): Promise<ProbeResult>;
-	analyze(input: ImportInput): Promise<AnalysisResult>;
-	fetchContent(input: ImportInput): AsyncIterable<NormalizedEntry>;
+	id: string;
+	name: string;
+	description: string;
+	icon: "upload" | "globe" | "wordpress" | "plug";
+	requiresFile?: boolean;
+	canProbe?: boolean;
+	probe?(url: string): Promise<SourceProbeResult | null>;
+	analyze(input: SourceInput, context: ImportContext): Promise<ImportAnalysis>;
+	fetchContent(input: SourceInput, options: FetchOptions): AsyncGenerator<NormalizedItem>;
+	fetchMedia?(url: string, input: SourceInput): Promise<Blob>;
 }
 ```
 
-`probe` validates the input and reports what it found, `analyze` maps source post types to EmDash collections and flags schema gaps, and `fetchContent` streams normalized entries the import pipeline writes through the same repositories the admin uses. Built-in sources cover WordPress WXR, WordPress.com, and the WordPress REST API; register a custom source to import from another system.
+The WXR source imports WordPress export files. The connector source imports directly from sites with the EmDash WordPress plugin. A separate REST source detects public WordPress sites, but directs the user to a WXR export because direct REST import is not implemented. Register another source when an importer can produce the same normalized analysis and content-item shapes.

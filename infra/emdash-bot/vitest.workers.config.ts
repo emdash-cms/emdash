@@ -2,7 +2,7 @@
  * Workers-pool test config.
  *
  * Runs tests under tests/integration/ inside a real workerd isolate via
- * `@cloudflare/vitest-pool-workers`. Bindings (Sandbox, OrchestratorDO, AI, R2,
+ * `@cloudflare/vitest-plugin`. Bindings (Sandbox, OrchestratorDO, AI, R2,
  * KV-equivalent DO storage) come from wrangler.jsonc -- the same config dev and
  * prod read -- so tests exercise the same shapes as the deployed Worker.
  *
@@ -22,16 +22,30 @@
  * real Workers AI live in a separate suite.
  */
 
-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
-import { defineConfig } from "vitest/config";
+import { cloudflareTest } from "@cloudflare/vitest-plugin";
+import { defineConfig, type Plugin } from "vitest/config";
+
+// The Flue Vite plugin transforms `SKILL.md` directory imports into skill
+// references at build time; this pool doesn't load it, and the integration
+// tests never run the agent, so stub the imports to keep the bundle parseable.
+const stubSkillMd: Plugin = {
+	name: "stub-skill-md",
+	enforce: "pre",
+	load(id) {
+		if (!id.endsWith("/SKILL.md")) return null;
+		return "export default { __flueSkillReference: true, id: 'stub', name: 'stub', description: 'stub' };";
+	},
+};
 
 export default defineConfig({
 	plugins: [
+		stubSkillMd,
 		cloudflareTest({
 			wrangler: { configPath: "./wrangler.test.jsonc" },
 			miniflare: {
 				bindings: {
 					GITHUB_WEBHOOK_SECRET: "test-webhook-secret",
+					EMDASH_BOT_OPERATOR_SECRET: "test-operator-secret",
 					// Empty key so readAppCreds returns null in tests and the
 					// orchestrator's side-effect path no-ops without hitting
 					// api.github.com. Tests that need a real key inject it via
@@ -43,5 +57,8 @@ export default defineConfig({
 	],
 	test: {
 		include: ["tests/integration/**/*.test.ts"],
+		// Below ~20s the first test flakes: the AI binding's remote-proxy warmup
+		// overruns vitest's 5s default.
+		testTimeout: 20_000,
 	},
 });

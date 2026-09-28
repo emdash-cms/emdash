@@ -58,9 +58,6 @@ export async function formsCreateHandler(ctx: RouteContext<FormCreateInput>) {
 	// Validate field names are unique across all pages
 	validateFieldNames(input.pages);
 
-	// Validate the content mapping against the target collection at save
-	// time — not only at submit time — so misconfigurations surface to the
-	// editor immediately.
 	if (input.settings.contentMapping) {
 		await validateContentMapping(ctx, input.settings.contentMapping, input.pages);
 	}
@@ -144,8 +141,7 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 	if (updated.settings.redirectUrl === "") updated.settings.redirectUrl = undefined;
 	if (updated.settings.webhookUrl === "") updated.settings.webhookUrl = undefined;
 
-	// Validate the merged result so page edits that break an existing
-	// mapping (e.g. renaming a mapped form field) are caught at save time.
+	// Validated after the merge so page edits that break a stored mapping are caught.
 	if (updated.settings.contentMapping) {
 		await validateContentMapping(ctx, updated.settings.contentMapping, updated.pages);
 	}
@@ -232,8 +228,6 @@ export async function formsDuplicateHandler(ctx: RouteContext<FormDuplicateInput
 		updatedAt: now,
 	};
 
-	// Re-validate like the other save paths — the target collection may have
-	// changed since the original form was saved.
 	if (duplicate.settings.contentMapping) {
 		await validateContentMapping(ctx, duplicate.settings.contentMapping, duplicate.pages);
 	}

@@ -10,14 +10,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { fetchSection, updateSection, type Section, type UpdateSectionInput } from "../lib/api";
+import {
+	fetchManifest,
+	fetchSection,
+	updateSection,
+	type Section,
+	type UpdateSectionInput,
+} from "../lib/api";
+import { getPluginBlocks } from "../lib/pluginBlocks";
 import { slugify } from "../lib/utils";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
 import { EditorHeader } from "./EditorHeader";
-import { PortableTextEditor, type BlockSidebarPanel } from "./PortableTextEditor";
+import {
+	PortableTextEditor,
+	type BlockSidebarPanel,
+	type PluginBlockDef,
+} from "./PortableTextEditor";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
@@ -37,6 +48,13 @@ export function SectionEditor() {
 		queryFn: () => fetchSection(slug),
 		staleTime: Infinity,
 	});
+
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+
+	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
 
 	const updateMutation = useMutation({
 		mutationFn: (input: UpdateSectionInput) => updateSection(slug, input),
@@ -92,6 +110,7 @@ export function SectionEditor() {
 			key={section.updatedAt}
 			section={section}
 			isSaving={updateMutation.isPending}
+			pluginBlocks={pluginBlocks}
 			onSave={(input) => updateMutation.mutate(input)}
 		/>
 	);
@@ -100,10 +119,11 @@ export function SectionEditor() {
 interface SectionEditorFormProps {
 	section: Section;
 	isSaving: boolean;
+	pluginBlocks: PluginBlockDef[];
 	onSave: (input: UpdateSectionInput) => void;
 }
 
-function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps) {
+function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionEditorFormProps) {
 	const { t } = useLingui();
 	const [title, setTitle] = React.useState(section.title);
 	const [sectionSlug, setSectionSlug] = React.useState(section.slug);
@@ -187,15 +207,16 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				</p>
 			</EditorHeader>
 
-			<div className="grid grid-cols-12 gap-6">
+			<div className="grid gap-6 xl:grid-cols-12">
 				{/* Main content */}
-				<div className="col-span-8 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-8">
 					{/* Content editor */}
 					<div className="rounded-lg border bg-kumo-base p-6">
 						<Label className="text-lg font-semibold mb-4 block">{t`Content`}</Label>
 						<PortableTextEditor
 							value={content as Parameters<typeof PortableTextEditor>[0]["value"]}
 							onChange={(value) => setContent(value)}
+							pluginBlocks={pluginBlocks}
 							onBlockSidebarOpen={handleBlockSidebarOpen}
 							onBlockSidebarClose={handleBlockSidebarClose}
 						/>
@@ -215,7 +236,7 @@ function SectionEditorForm({ section, isSaving, onSave }: SectionEditorFormProps
 				</div>
 
 				{/* Sidebar */}
-				<div className="col-span-4 space-y-6">
+				<div className="min-w-0 space-y-6 xl:col-span-4">
 					{blockSidebarPanel?.type === "image" ? (
 						<ImageDetailPanel
 							attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}

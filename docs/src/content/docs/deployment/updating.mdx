@@ -1,0 +1,119 @@
+---
+title: Update EmDash
+description: Move an existing site to a new EmDash release, from reading the release entries to verifying the deployed site.
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+This guide is for site operators: people who run a site built on EmDash and want it on a newer release. It covers the `emdash` package and `@emdash-cms/cloudflare`. Plugin packages have their own guide, [Upgrading plugins on your site](/plugins/upgrading-sites/), and changes to your own collections and fields are covered in [Evolving a Deployed Site](/deployment/schema-evolution/).
+
+## Releases and version numbers
+
+EmDash is released before version 1.0, and its version numbers follow two rules:
+
+- A patch release, for example 0.35.0 to 0.35.1, carries bug fixes and small improvements.
+- A minor release, for example 0.35 to 0.36, carries new features and any breaking change. A breaking change is marked **Breaking** in its release entry, and the entry states the action it requires from you.
+
+`emdash` and `@emdash-cms/cloudflare` are released together and share one version number. `@emdash-cms/cloudflare` depends on the exact matching `emdash` version, so update the two packages in one step. Plugin packages such as `@emdash-cms/plugin-forms` have their own version numbers and declare the minimum `emdash` version they need.
+
+The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry per package and version. Before an update, read the `emdash` entries between your installed version and the target, and the same range for `@emdash-cms/cloudflare` if the site runs on Cloudflare.
+
+## Before you update
+
+Take a restorable database backup and a separate media-storage backup. EmDash's JSON export cannot restore a site, and core migrations have no operational undo step. [Backups and recovery](/guides/backups/) describes the usable recovery point for each database.
+
+Check the Node.js version on the machine that builds the site and, for a Node.js deployment, on the server. [Getting Started](/getting-started/#prerequisites) lists the supported versions.
+
+## Update the packages
+
+The commands below use pnpm and a site created from a Cloudflare template. For a Node.js deployment, leave out `@emdash-cms/cloudflare`.
+
+<Steps>
+
+1. Check the installed versions and the latest release.
+
+   ```bash
+   pnpm outdated emdash @emdash-cms/cloudflare
+   ```
+
+2. Move both packages to the latest release.
+
+   A template-generated `package.json` lists the packages with a caret range such as `^0.35.0`. For versions below 1.0, a caret range admits patch releases only (0.35.1, not 0.36.0), and `pnpm up` without further options stays inside the range. The `--latest` flag rewrites the range to the newest release and installs it.
+
+   ```bash
+   pnpm up --latest emdash @emdash-cms/cloudflare
+   ```
+
+   Add the plugin packages from your `package.json` to the same command.
+
+3. Build the site.
+
+   ```bash
+   pnpm build
+   ```
+
+   The build writes the migration manifest for the installed version. If the build fails, see [If the site breaks after an update](#if-the-site-breaks-after-an-update).
+
+4. Start the site locally and open the admin at `/_emdash/admin`.
+
+   ```bash
+   pnpm dev
+   ```
+
+   The EmDash integration generates `emdash-env.d.ts` when the dev server starts. Pending core migrations run on the first request.
+
+</Steps>
+
+## Deploy and verify
+
+Deploy the build the same way as any other change. The following command deploys a Cloudflare site; for a Node.js deployment, restart the server process with the new build.
+
+```bash
+pnpm wrangler deploy
+```
+
+With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. To apply them before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
+
+After the deploy, open the admin, load at least one public page, edit and publish a disposable entry, and upload and retrieve a disposable media file. If the site uses scheduled tasks or sandboxed plugins, verify those paths too.
+
+## Notes for specific releases
+
+Most releases need nothing beyond the steps above. The entries below cover releases that changed data EmDash already stored, and say when that needs an action from you.
+
+### Changed: reference fields bind to relations
+
+A `reference` field used to hold the target entry's ID in a column on its collection's table, and named its target collection in a field option that the admin panel could not set.
+
+A reference field is now an entry picker backed by a [relation](/guides/relations/), and its links live outside the collection table. Updating binds each reference field that named a target collection to a new relation and copies the entry IDs in its column in as links, so the field becomes a picker with its selection intact. The column is left in place and the update deletes nothing.
+
+A field is left unbound when it:
+
+- names no target collection, or names one that no longer exists
+- is marked searchable or indexed
+- needs the relation slug `{collection}_{field}` and that slug is already taken
+- selects different entries in different locales of the same entry, on any entry
+
+That last one is about where links live. A link belongs to an entry's translation group, so one
+selection is shared by all of its translations, while the old column was per locale. A field whose
+locales disagree has no single selection to carry over — merging them would hand each locale the
+other's entries, and picking one locale's answer would discard the rest — so the update leaves the
+field alone and both values readable in the column.
+
+Two cases that look like disagreement are not. Locales that name their own translations of one
+entry have selected that entry once, so the update binds the field and the link resolves to each
+locale's own version. A locale that selected nothing contradicts no other locale, so the update
+binds the field and the group's one selection applies to every translation, including the empty
+one.
+
+An unbound field keeps behaving as it did. Its column holds the entry ID, the value saves and loads, and the field can still be indexed and used as a content-list filter. In the entry editor it renders as a text box rather than a picker.
+
+#### What should I do?
+
+Open an entry in each collection that has a reference field. A field that renders as a picker needs nothing. For a field that still renders as a text box, follow [Bind a field that has no relation](/guides/relations/#bind-a-field-that-has-no-relation), which creates the relation and copies the field's stored IDs in as links. On a multi-locale site, settle which entry each translation should point at before binding, since binding keeps one selection for all of them.
+
+## If the site breaks after an update
+
+- The build fails, or a page of your own errors at runtime: read the release entries marked **Breaking** for the versions you skipped and make the changes they state.
+- A plugin fails to load: read the plugin's own release entry and [Upgrading plugins on your site](/plugins/upgrading-sites/).
+- An error names an Astro API or an `@astrojs/*` package: EmDash requires Astro 6 or later. Astro's [upgrade guide](https://docs.astro.build/en/upgrade-astro/) explains how to update `astro` and its official integrations together.
+- To return to the previous release, reinstall the matching previous package versions and redeploy that artifact. Reinstalling does not undo core migrations. If the previous artifact cannot use the migrated database, stop traffic and restore the pre-update database and artifact together; restore media only if the update changed it.

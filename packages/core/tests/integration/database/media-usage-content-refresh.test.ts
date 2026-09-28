@@ -66,7 +66,7 @@ describeEachDialect("content media usage refresh", (dialect) => {
 				sourceKey: columnsKey,
 				sourceCompleteness: "complete",
 				contentTitle: "Hello World",
-				sourceFingerprint: expect.stringMatching(/^[a-f0-9]{16}$/),
+				sourceFingerprint: expect.stringMatching(/^media-usage-projection:v1:sha256:[a-f0-9]{64}$/),
 			}),
 		);
 		expect(await usageRepo.findCurrentUsageByMediaId("media-old")).toEqual([
@@ -111,6 +111,34 @@ describeEachDialect("content media usage refresh", (dialect) => {
 				occurrence: expect.objectContaining({ fieldPath: "hero", mediaId: "media-new" }),
 			}),
 		]);
+	});
+
+	it("does not create another generation when the full projection is unchanged", async () => {
+		const item = await insertPost(ctx, {
+			slug: "unchanged-post",
+			status: "published",
+			data: {
+				title: "Unchanged Post",
+				hero: { id: "media-stable", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		const columnsKey = sourceKey(item.id, "columns");
+		await refreshContentMediaUsage(ctx.db, "posts", item.id);
+		const before = await usageRepo.findSource(columnsKey);
+		const occurrenceCountBefore = await countOccurrences(ctx, columnsKey);
+
+		const repeated = await refreshContentMediaUsage(ctx.db, "posts", item.id);
+
+		expect(repeated).toEqual({
+			success: true,
+			refreshedSourceCount: 1,
+			deletedSourceCount: 0,
+			failedSourceCount: 0,
+		});
+		expect((await usageRepo.findSource(columnsKey))?.currentGeneration).toBe(
+			before?.currentGeneration,
+		);
+		expect(await countOccurrences(ctx, columnsKey)).toBe(occurrenceCountBefore);
 	});
 
 	it("refreshes columns and draft overlay sources when a draft exists", async () => {
@@ -274,7 +302,7 @@ describeEachDialect("content media usage refresh", (dialect) => {
 		).not.toEqual(expect.objectContaining({ lastErrorCode: "CONTENT_USAGE_GENERATION_CONFLICT" }));
 	});
 
-	it("does not delete a draft overlay source that changed after observation", async () => {
+	it("retries a draft overlay delete after a concurrent source change", async () => {
 		const item = await insertPost(ctx, {
 			slug: "guarded-delete-post",
 			status: "published",
@@ -290,37 +318,29 @@ describeEachDialect("content media usage refresh", (dialect) => {
 		});
 		await setDraftRevision(ctx, item.id, draft.id);
 		await refreshContentMediaUsage(ctx.db, "posts", item.id);
+		const observedColumnsGeneration = (await usageRepo.findSource(sourceKey(item.id, "columns")))
+			?.currentGeneration;
 		await clearDraftRevision(ctx, item.id);
+		await updatePostHero(ctx, item.id, {
+			id: "media-live-changed",
+			provider: "local",
+			mimeType: "image/webp",
+		});
 		await installDraftOverlayDeletionConflictTrigger(ctx);
 
 		const result = await refreshContentMediaUsage(ctx.db, "posts", item.id);
-
-		expect(result).toEqual({
-			success: false,
-			refreshedSourceCount: 1,
-			deletedSourceCount: 0,
-			failedSourceCount: 0,
-			errorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
-		});
-		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toEqual(
-			expect.objectContaining({
-				currentGeneration: expect.stringMatching(/^concurrent-draft-generation-/),
-			}),
+		expect((await usageRepo.findSource(sourceKey(item.id, "columns")))?.currentGeneration).not.toBe(
+			observedColumnsGeneration,
 		);
-		expect(await usageRepo.findCurrentUsageByMediaId("media-concurrent-draft-generation")).toEqual([
-			expect.objectContaining({ source: expect.objectContaining({ contentId: item.id }) }),
-		]);
-		expect(
-			await usageRepo.findIndexStatus({
-				adapterId: CONTENT_MEDIA_USAGE_ADAPTER_ID,
-				scopeType: CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
-				scopeKey: "posts",
-			}),
-		).toEqual(
-			expect.objectContaining({
-				status: "stale",
-				lastErrorCode: "CONTENT_USAGE_GENERATION_CONFLICT",
-			}),
+		expect(result).toEqual({
+			success: true,
+			refreshedSourceCount: 1,
+			deletedSourceCount: 1,
+			failedSourceCount: 0,
+		});
+		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-concurrent-draft-generation")).toEqual(
+			[],
 		);
 	});
 
@@ -353,6 +373,31 @@ describeEachDialect("content media usage refresh", (dialect) => {
 		expect(await usageRepo.findSource(sourceKey(item.id, "draft_overlay"))).toBeNull();
 		expect(await usageRepo.findCurrentUsageByMediaId("media-live")).toEqual([]);
 		expect(await usageRepo.findCurrentUsageByMediaId("media-draft")).toEqual([]);
+	});
+
+	it("removes the old projection when its collection registry row disappears", async () => {
+		const item = await insertPost(ctx, {
+			slug: "deleted-collection-post",
+			status: "published",
+			data: {
+				title: "Deleted Collection Post",
+				hero: { id: "media-old-collection", provider: "local", mimeType: "image/webp" },
+			},
+		});
+		await refreshContentMediaUsage(ctx.db, "posts", item.id);
+		await ctx.db.deleteFrom("_emdash_fields").where("collection_id", "is not", null).execute();
+		await ctx.db.deleteFrom("_emdash_collections").where("slug", "=", "posts").execute();
+
+		const result = await refreshContentMediaUsage(ctx.db, "posts", item.id);
+
+		expect(result).toEqual({
+			success: true,
+			refreshedSourceCount: 0,
+			deletedSourceCount: 1,
+			failedSourceCount: 0,
+		});
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-old-collection")).toEqual([]);
 	});
 
 	it("marks draft snapshot failures without replacing current usage", async () => {
@@ -495,6 +540,15 @@ async function insertPost(ctx: DialectTestContext, input: TestPostInput): Promis
 		status: input.status,
 		translationGroup: id,
 	};
+}
+
+async function countOccurrences(ctx: DialectTestContext, sourceKeyValue: string): Promise<number> {
+	const row = await ctx.db
+		.selectFrom("_emdash_media_usage")
+		.select((eb) => eb.fn.countAll<number>().as("count"))
+		.where("source_key", "=", sourceKeyValue)
+		.executeTakeFirstOrThrow();
+	return Number(row.count);
 }
 
 async function updatePostHero(

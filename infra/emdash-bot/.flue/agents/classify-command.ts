@@ -64,7 +64,7 @@ export function ClassifyCommand(_props: AgentProps) {
 				};
 				setResult(classification);
 				writeResult(classification);
-				return classification;
+				return { output: classification };
 			},
 		}),
 	);

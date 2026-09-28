@@ -303,7 +303,7 @@ export class CoalescingD1Dialect extends EmDashD1Dialect {
 	}
 
 	override createAdapter(): SqliteAdapter {
-		return new CoalescingD1Adapter();
+		return new CoalescingD1Adapter(this.#database);
 	}
 
 	override createDriver(): Driver {

@@ -32,6 +32,19 @@ test.describe("Byline custom fields", () => {
 		await admin.devBypassAuth();
 	});
 
+	test("top-aligns schema switches when one has helper text", async ({ admin, page }) => {
+		await admin.goto("/byline-schema");
+		await admin.waitForLoading();
+		await page.getByRole("button", { name: "New field" }).click();
+
+		const requiredBox = await page.getByRole("switch", { name: "Required" }).boundingBox();
+		const translatableBox = await page.getByRole("switch", { name: "Translatable" }).boundingBox();
+
+		expect(requiredBox).not.toBeNull();
+		expect(translatableBox).not.toBeNull();
+		expect(Math.abs(requiredBox!.y - translatableBox!.y)).toBeLessThanOrEqual(1);
+	});
+
 	test("custom field value round-trips through the API end to end", async ({
 		admin,
 		page,
@@ -83,12 +96,14 @@ test.describe("Byline custom fields", () => {
 		await page.getByRole("switch", { name: "Guest byline" }).click();
 		await page.getByRole("button", { name: "Create" }).click();
 
-		// After create, the form moves to edit mode and the sidebar list
-		// re-renders with the new byline highlighted. Custom-field inputs
-		// are gated on `selected`, so they appear only after create lands.
-		await expect(page.getByRole("button", { name: bylineDisplayName })).toBeVisible({
+		const editByline = page.getByRole("button", {
+			name: `Edit ${bylineDisplayName}`,
+			exact: true,
+		});
+		await expect(editByline).toBeVisible({
 			timeout: 5000,
 		});
+		await editByline.click();
 
 		// ---------------------------------------------------------------
 		// 3. Fill the custom field input and save
@@ -102,9 +117,7 @@ test.describe("Byline custom fields", () => {
 		// 4. Verify the round-trip via the REST API
 		// ---------------------------------------------------------------
 
-		// Find the byline id via the list endpoint (the sidebar's selected
-		// row is keyed by id internally; reading via API is easier than
-		// scraping the DOM). Filter by slug to avoid pagination concerns.
+		// Filter by slug to avoid pagination concerns when fetching the saved byline.
 		const headers = apiHeaders(serverInfo.token, serverInfo.baseUrl);
 		const listResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/admin/bylines?search=${encodeURIComponent(bylineSlug)}`,

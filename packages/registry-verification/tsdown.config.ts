@@ -1,8 +1,28 @@
 import { defineConfig } from "tsdown";
 
+// Consumers rebundle this artifact, where import.meta.url may no longer name a file.
+// The generated require only resolves Node builtins, so a stable absolute base is sufficient.
+// A drive letter keeps the synthetic URL valid on Windows.
+const rebundleSafeRequire = {
+	name: "rebundle-safe-require",
+	renderChunk(code: string) {
+		return code.replace(
+			"createRequire(import.meta.url)",
+			'createRequire("file:///C:/emdash-registry-verification.js")',
+		);
+	},
+};
+
 export default defineConfig([
 	{
-		entry: ["src/bundle.ts", "src/checksum.ts", "src/fetch-entry.ts"],
+		entry: [
+			"src/artifact.ts",
+			"src/bundle.ts",
+			"src/checksum.ts",
+			"src/fetch-entry.ts",
+			"src/records-entry.ts",
+			"src/repository.ts",
+		],
 		format: ["esm"],
 		outExtensions: () => ({ js: ".js" }),
 		dts: true,
@@ -19,6 +39,8 @@ export default defineConfig([
 		clean: false,
 		platform: "node",
 		target: "es2024",
+		plugins: [rebundleSafeRequire],
+		outputOptions: { codeSplitting: false },
 		// Sigstore is bundled so the published workerd path carries our pinned
 		// @sigstore/core algorithm-selection fix instead of resolving a pristine copy.
 		inlineOnly: false,

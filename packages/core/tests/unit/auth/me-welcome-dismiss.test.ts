@@ -16,6 +16,7 @@ describe("GET/POST /_emdash/api/auth/me – welcome dismiss", () => {
 	});
 
 	afterEach(async () => {
+		vi.restoreAllMocks();
 		await teardownTestDatabase(db);
 	});
 
@@ -34,7 +35,7 @@ describe("GET/POST /_emdash/api/auth/me – welcome dismiss", () => {
 
 		// 1. GET should report isFirstLogin = true for a brand-new user
 		const getRes1 = await GET({
-			locals: { emdash: { db }, user },
+			locals: { emdash: { db }, user, __playgroundDb: db },
 			session: { get: vi.fn().mockResolvedValue(undefined), set: vi.fn() },
 		} as unknown as Parameters<typeof GET>[0]);
 
@@ -56,20 +57,42 @@ describe("GET/POST /_emdash/api/auth/me – welcome dismiss", () => {
 
 		expect(postRes.status).toBe(200);
 
-		// 3. GET ignores the session entirely: even with a stale session flag
-		//    claiming the welcome hasn't been seen, the DB-persisted flag wins.
+		// Playground reuses its injected user object, so GET must read the persisted data.
 		const staleSession = {
 			get: vi.fn().mockResolvedValue(false),
 			set: vi.fn(),
 		};
 
 		const getRes2 = await GET({
-			locals: { emdash: { db }, user: await userRepo.findById(user.id) },
+			locals: { emdash: { db }, user, __playgroundDb: db },
 			session: staleSession,
 		} as unknown as Parameters<typeof GET>[0]);
 
 		const body2 = await getRes2.json();
 		expect(body2.data.isFirstLogin).toBe(false);
 		expect(staleSession.get).not.toHaveBeenCalled();
+	});
+
+	it("redacts playground user lookup failures", async () => {
+		const user = await userRepo.create({
+			email: "scott@example.com",
+			name: "Scott",
+			role: "admin",
+		});
+		await db.schema.dropTable("users").execute();
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const response = await GET({
+			locals: { emdash: { db }, user, __playgroundDb: db },
+		} as unknown as Parameters<typeof GET>[0]);
+
+		expect(response.status).toBe(500);
+		expect(await response.json()).toEqual({
+			success: false,
+			error: {
+				code: "CURRENT_USER_ERROR",
+				message: "Failed to fetch current user",
+			},
+		});
 	});
 });

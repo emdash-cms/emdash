@@ -35,11 +35,24 @@ const BLOCKED_PREFIXES = [
 	// Plugin installation (security boundary)
 	"/_emdash/api/plugins/install",
 	"/_emdash/api/plugins/marketplace",
-	// Media uploads (abuse vector -- no storage in playground)
+	// Media uploads (abuse vector -- writes are blocked in playground)
+	"/_emdash/api/import/wordpress/media",
 	"/_emdash/api/media/upload",
 	// Snapshot export (no point exporting a playground)
 	"/_emdash/api/snapshot",
 ];
+
+const MEDIA_ROOT = "/_emdash/api/media";
+const MEDIA_PROVIDER_PREFIX = `${MEDIA_ROOT}/providers/`;
+const MEDIA_ITEM_PATH = /^\/_emdash\/api\/media\/[^/]+$/;
+const MEDIA_ITEM_UPLOAD_PATH = /^\/_emdash\/api\/media\/[^/]+\/(?:upload|confirm)$/;
+
+function trimTrailingSlashes(pathname: string): string {
+	if (pathname === "/") return pathname;
+	let end = pathname.length;
+	while (end > 0 && pathname[end - 1] === "/") end--;
+	return pathname.slice(0, end);
+}
 
 /**
  * Check whether a request should be blocked in playground mode.
@@ -49,15 +62,27 @@ const BLOCKED_PREFIXES = [
  * Only auth, setup, user management, media uploads, and plugin
  * installation are blocked.
  */
-export function isBlockedInPlayground(pathname: string): boolean {
+export function isBlockedInPlayground(pathname: string, method = "GET"): boolean {
+	const normalizedPath = trimTrailingSlashes(pathname);
 	// Check allowlist first -- specific routes that must work despite
 	// their parent prefix being blocked (e.g. /auth/me for admin UI)
-	if (AUTH_ALLOWLIST.has(pathname)) {
+	if (AUTH_ALLOWLIST.has(normalizedPath)) {
 		return false;
 	}
 
+	const normalizedMethod = method.toUpperCase();
+	if (normalizedPath === MEDIA_ROOT && normalizedMethod === "POST") return true;
+	if (MEDIA_ITEM_PATH.test(normalizedPath) && normalizedMethod === "DELETE") return true;
+	if (MEDIA_ITEM_UPLOAD_PATH.test(normalizedPath)) return true;
+	if (normalizedPath.startsWith(MEDIA_PROVIDER_PREFIX)) {
+		const providerPath = normalizedPath.slice(MEDIA_PROVIDER_PREFIX.length).split("/");
+		if (providerPath.length === 1 && normalizedMethod === "POST") return true;
+		if (providerPath.length === 2 && normalizedMethod === "DELETE") return true;
+	}
+
 	for (const prefix of BLOCKED_PREFIXES) {
-		if (pathname === prefix || pathname.startsWith(prefix)) {
+		const prefixRoot = trimTrailingSlashes(prefix);
+		if (normalizedPath === prefixRoot || normalizedPath.startsWith(prefix)) {
 			return true;
 		}
 	}

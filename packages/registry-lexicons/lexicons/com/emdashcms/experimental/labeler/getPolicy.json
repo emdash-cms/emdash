@@ -1,0 +1,17 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeler.getPolicy",
+	"description": "Fetch the current public metadata-assessment and standard-label policy. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.labeler.defs#labelerPolicy"
+				}
+			}
+		}
+	}
+}

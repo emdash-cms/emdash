@@ -7,9 +7,10 @@
  * - Timestamp tracking
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -17,7 +18,7 @@ import { PluginStateRepository } from "../../../src/plugins/state.js";
 
 describe("PluginStateRepository", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 	let repo: PluginStateRepository;
 
 	beforeEach(async () => {
@@ -90,6 +91,53 @@ describe("PluginStateRepository", () => {
 			expect(state!.installedAt).toBeInstanceOf(Date);
 			expect(state!.activatedAt).toBeInstanceOf(Date);
 			expect(state!.deactivatedAt).toBeInstanceOf(Date);
+		});
+
+		it("parses zone-less database timestamps as UTC", async () => {
+			const previousTimezone = process.env.TZ;
+			process.env.TZ = "America/Los_Angeles";
+
+			try {
+				await db
+					.insertInto("_plugin_state")
+					.values({
+						plugin_id: "test-plugin",
+						status: "active",
+						version: "1.0.0",
+						installed_at: "2026-08-31 12:34:56",
+						activated_at: "2026-08-31 12:34:56",
+						deactivated_at: null,
+						data: null,
+					})
+					.execute();
+
+				const state = await repo.get("test-plugin");
+
+				expect(state!.installedAt.toISOString()).toBe("2026-08-31T12:34:56.000Z");
+				expect(state!.activatedAt!.toISOString()).toBe("2026-08-31T12:34:56.000Z");
+			} finally {
+				if (previousTimezone === undefined) delete process.env.TZ;
+				else process.env.TZ = previousTimezone;
+			}
+		});
+
+		it("parses PostgreSQL hour-only timezone offsets", async () => {
+			await db
+				.insertInto("_plugin_state")
+				.values({
+					plugin_id: "test-plugin",
+					status: "active",
+					version: "1.0.0",
+					installed_at: "2026-08-31 12:34:56.123456+00",
+					activated_at: null,
+					deactivated_at: null,
+					data: null,
+				})
+				.execute();
+
+			const state = await repo.get("test-plugin");
+
+			expect(state!.installedAt.toISOString()).toBe("2026-08-31T12:34:56.123Z");
 		});
 
 		it("handles null dates", async () => {

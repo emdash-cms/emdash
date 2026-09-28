@@ -3,12 +3,12 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { MediaItem, SiteSettings } from "../../../src/lib/api";
+import type { MediaItem, SiteSettings, SiteSettingsUpdate } from "../../../src/lib/api";
 import { render } from "../../utils/render";
 
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
 const mockUpdateSettings =
-	vi.fn<(settings: Partial<SiteSettings>) => Promise<Partial<SiteSettings>>>();
+	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -27,7 +27,7 @@ vi.mock("../../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchSettings: () => mockFetchSettings(),
-		updateSettings: (settings: Partial<SiteSettings>) => mockUpdateSettings(settings),
+		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
 	};
 });
 
@@ -43,7 +43,7 @@ vi.mock("../../../src/components/MediaPickerModal", () => ({
 	}) => {
 		if (!open) return null;
 		const modalTitle = typeof title === "string" ? title : "";
-		const isLogo = modalTitle === "Select Logo";
+		const isLogo = modalTitle === "Select logo";
 		return (
 			<div role="dialog" aria-label={modalTitle}>
 				<button
@@ -167,7 +167,7 @@ describe("GeneralSettings", () => {
 		const screen = await renderGeneralSettings();
 		await screen.getByLabelText("Site Title").fill("A better blog");
 
-		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
 
 		await vi.waitFor(() => expect(mockFetchSettings.mock.calls.length).toBeGreaterThanOrEqual(2));
 		await expect.element(screen.getByLabelText("Site Title")).toHaveValue("A better blog");
@@ -179,7 +179,7 @@ describe("GeneralSettings", () => {
 		const screen = await renderGeneralSettings();
 		await screen.getByLabelText("Tagline").fill("A changed tagline");
 
-		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
 		await expect.element(screen.getByText("Failed to save settings")).toBeInTheDocument();
 		await expect.element(screen.getByText("Could not persist settings")).toBeInTheDocument();
 
@@ -197,7 +197,7 @@ describe("GeneralSettings", () => {
 
 		await userEvent.click(screen.getByRole("button", { name: "Select Favicon" }));
 		await userEvent.click(screen.getByRole("button", { name: "Choose image" }));
-		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
 
 		await vi.waitFor(() => {
 			expect(mockUpdateSettings).toHaveBeenCalledWith(
@@ -234,5 +234,12 @@ describe("GeneralSettings", () => {
 		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
 			await expect.element(button).toBeEnabled();
 		}
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() => {
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ logo: null, favicon: null }),
+			);
+		});
 	});
 });

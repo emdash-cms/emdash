@@ -1,11 +1,44 @@
-import { describe, expect, it } from "vitest";
+import { createContext, runInContext, runInNewContext } from "node:vm";
 
-import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { renderToolbar as renderToolbarWithLabels } from "../../../src/visual-editing/toolbar.js";
+
+const TEST_LABELS = {
+	publish: "Publicar",
+	publishing: "Publicando…",
+	sessionExpired: "La sesión de edición ha caducado.",
+	refreshPage: "Actualizar página",
+	publishFailed: "No se pudo publicar.",
+	editMode: "Modo de edición",
+	openInAdmin: "Abrir en administración",
+	hideToolbar: "Ocultar barra de herramientas",
+};
+
+function renderToolbar(
+	config: Omit<Parameters<typeof renderToolbarWithLabels>[0], "labels">,
+): string {
+	return renderToolbarWithLabels({ ...config, labels: TEST_LABELS });
+}
 
 // Regex patterns for HTML validation
 const EDIT_TOGGLE_CHECKED_REGEX = /id="emdash-edit-toggle"\s+checked/;
 
+function toolbarScript(html: string): string {
+	const openTag = "<script>";
+	const closeTag = "</script>";
+	const start = html.indexOf(openTag);
+	const end = html.indexOf(closeTag, start + openTag.length);
+	if (start < 0 || end < 0) throw new Error("Toolbar script was not rendered");
+	return html.slice(start + openTag.length, end);
+}
+
+function actionToolbar(): string {
+	return renderToolbar({ editMode: true, isPreview: false, actionToken: "signed-action-token" });
+}
+
 describe("renderToolbar", () => {
+	afterEach(() => vi.useRealTimers());
 	it("renders toolbar with edit mode off", () => {
 		const html = renderToolbar({ editMode: false, isPreview: false });
 		expect(html).toContain('id="emdash-toolbar"');
@@ -28,12 +61,143 @@ describe("renderToolbar", () => {
 		const html = renderToolbar({ editMode: false, isPreview: false });
 		expect(html).toContain('id="emdash-edit-toggle"');
 		expect(html).toContain("emdash-tb-toggle");
+		expect(html).toContain(TEST_LABELS.editMode);
+		expect(html).not.toContain("Toggle edit mode");
+		expect(html).not.toContain(">Edit<");
+	});
+
+	it("localizes icon-only control labels", () => {
+		const html = renderToolbar({ editMode: false, isPreview: false });
+		expect(html).toContain(`title="${TEST_LABELS.openInAdmin}"`);
+		expect(html).toContain(`title="${TEST_LABELS.hideToolbar}"`);
+		expect(html).toContain(`aria-label="${TEST_LABELS.hideToolbar}"`);
+		expect(html).not.toContain("Open in admin");
+		expect(html).not.toContain("Hide toolbar");
 	});
 
 	it("includes publish button (hidden by default)", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain('id="emdash-tb-publish"');
 		expect(html).toContain('style="display:none"');
+	});
+
+	it("publishes through the dedicated visual-editing boundary", () => {
+		const html = actionToolbar();
+		expect(html).toContain("/_emdash/api/visual-editing/content/");
+		expect(html).not.toContain("X-EmDash-Action-Origin");
+		expect(html).toContain('"X-EmDash-Visual-Action": visualActionToken');
+		expect(html).toContain('visualActionToken = "signed-action-token"');
+	});
+
+	it("renews the action token and shows recovery when attestation expires", () => {
+		const html = actionToolbar();
+		expect(html).toContain("/_emdash/api/visual-editing/action-token");
+		expect(html).toContain("scheduleVisualActionTokenRefresh(240000)");
+		expect(html).toContain(TEST_LABELS.sessionExpired);
+		expect(html).toContain(TEST_LABELS.refreshPage);
+		expect(html).toContain(TEST_LABELS.publishFailed);
+		expect(html).toContain(TEST_LABELS.publishing);
+		expect(html).not.toContain("Editing session expired. Refresh the page to continue.");
+		expect(html).toContain("res.status === 401 || res.status === 403");
+	});
+
+	it("keeps renewal retries bounded and stops after authentication expires", async () => {
+		vi.useFakeTimers();
+		const html = actionToolbar();
+		const script = toolbarScript(html);
+		const refreshStart = script.indexOf("var visualActionToken");
+		const refreshEnd = script.indexOf("var dismissBtn");
+		expect(refreshStart).toBeGreaterThanOrEqual(0);
+		expect(refreshEnd).toBeGreaterThan(refreshStart);
+		const statusEl = { innerHTML: "" };
+		const publishBtn = { disabled: false, textContent: "Publish" };
+		const ecFetch = vi
+			.fn()
+			.mockResolvedValueOnce({ ok: false, status: 500 })
+			.mockResolvedValueOnce({ ok: false, status: 500 })
+			.mockResolvedValueOnce({ ok: false, status: 401 });
+
+		runInNewContext(script.slice(refreshStart, refreshEnd), {
+			statusEl,
+			publishBtn,
+			ecFetch,
+			setTimeout,
+			clearTimeout,
+			console,
+		});
+		expect(vi.getTimerCount()).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(240_000);
+		expect(ecFetch).toHaveBeenCalledTimes(1);
+		expect(vi.getTimerCount()).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(ecFetch).toHaveBeenCalledTimes(2);
+		expect(vi.getTimerCount()).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(ecFetch).toHaveBeenCalledTimes(3);
+		expect(vi.getTimerCount()).toBe(0);
+		expect(statusEl.innerHTML).toContain(TEST_LABELS.sessionExpired);
+		expect(publishBtn).toEqual({ disabled: true, textContent: TEST_LABELS.refreshPage });
+	});
+
+	it.each([
+		[
+			"permission denial",
+			{ code: "FORBIDDEN", message: "You cannot publish this entry" },
+			{
+				disabled: false,
+				textContent: TEST_LABELS.publish,
+				status: "You cannot publish this entry",
+				timers: 1,
+			},
+		],
+		[
+			"expired attestation",
+			{ code: "VISUAL_ACTION_TOKEN_INVALID", message: "Token expired" },
+			{
+				disabled: true,
+				textContent: TEST_LABELS.refreshPage,
+				status: TEST_LABELS.sessionExpired,
+				timers: 0,
+			},
+		],
+	])("distinguishes publish %s from token expiry", async (_label, error, expected) => {
+		vi.useFakeTimers();
+		const html = actionToolbar();
+		const script = toolbarScript(html);
+		const refreshStart = script.indexOf("var visualActionToken");
+		const refreshEnd = script.indexOf("var dismissBtn");
+		const publishStart = script.indexOf("function publish(");
+		const publishEnd = script.indexOf("// Edit mode toggle");
+		const statusEl = { innerHTML: "", textContent: "" };
+		const publishBtn = { disabled: false, textContent: "Publish" };
+		const ecFetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 403,
+			json: () => Promise.resolve({ success: false, error }),
+		});
+		const context = createContext({
+			statusEl,
+			publishBtn,
+			ecFetch,
+			setTimeout,
+			clearTimeout,
+			console,
+			pendingSavePromise: null,
+		});
+		runInContext(script.slice(refreshStart, refreshEnd), context);
+		runInContext(`${script.slice(publishStart, publishEnd)}\npublish("posts", "post-1");`, context);
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(ecFetch).toHaveBeenCalledTimes(1);
+		expect(publishBtn).toMatchObject({
+			disabled: expected.disabled,
+			textContent: expected.textContent,
+		});
+		expect(`${statusEl.innerHTML}${statusEl.textContent}`).toContain(expected.status);
+		expect(vi.getTimerCount()).toBe(expected.timers);
 	});
 
 	it("includes save status element", () => {

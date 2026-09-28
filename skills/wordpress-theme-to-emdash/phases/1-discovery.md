@@ -1,6 +1,6 @@
-# Phase 1: Discovery & Reference Capture
+# Phase 1: Discovery and reference capture
 
-Before writing any code, gather comprehensive reference materials from the demo site.
+Gather the reference material needed for the requested page types and viewports. A live demo is useful but not required when the user provides source files, screenshots, or design assets.
 
 ## 1.0 Create Discovery Folder
 
@@ -30,11 +30,11 @@ The `notes.md` file should capture:
 - Special components or interactions to recreate
 - Anything that might be forgotten between sessions
 
-## 1.1 Identify All Page Types
+## 1.1 Identify in-scope page types
 
 Identify the URL of the demo site for the WordPress theme you are converting. For wordpress.org themes, this is usually wp-themes.com/theme-name/. For other themes, use the "Live Preview" link. This may show it inside a frame; if so, ignore the frame and focus on the theme's actual content.
 
-Use the agent-browser to explore the demo site to find every distinct page type:
+Use agent-browser to explore the demo site and find the page types needed for the port:
 
 - **Homepage** - Often has unique layout (hero, featured posts, etc.)
 - **Blog/Archive** - Post listing page
@@ -53,7 +53,7 @@ agent-browser open https://demo-site.com
 # Look for "View all posts" or category links
 ```
 
-## 1.2 Screenshot All Page Types
+## 1.2 Screenshot representative page types
 
 Capture full-page screenshots of each page type to `discovery/screenshots/`:
 
@@ -83,9 +83,9 @@ agent-browser open https://demo-site.com/nonexistent-page-xyz/
 agent-browser screenshot discovery/screenshots/404.png --full
 ```
 
-## 1.3 Download Sample Images
+## 1.3 Select sample images
 
-If the theme is open source (GPL), download sample images from the demo to `discovery/images/`. This ensures visual consistency when comparing.
+The theme code's license does not establish the license of images shown on its demo. Reuse a demo image only when its license or the user's rights permit it. Otherwise use supplied assets or clearly licensed substitutes with similar dimensions and visual weight.
 
 ```bash
 # Find featured images in demo posts
@@ -96,7 +96,7 @@ curl -o discovery/images/featured-1.jpg "https://demo-site.com/wp-content/upload
 curl -o discovery/images/featured-2.jpg "https://demo-site.com/wp-content/uploads/photo2.jpg"
 ```
 
-For premium themes or when images aren't freely available, use Unsplash images that match the demo's visual style (same aspect ratios, similar subjects).
+Record the source and license for every reused or substitute asset.
 
 ## 1.4 Document Page Structure
 
@@ -138,12 +138,10 @@ For themes on wordpress.org (e.g., `https://wordpress.org/themes/theme-name/`):
 2. **Source**: Requires purchase - ask the user to provide the unzipped theme files
 3. **Documentation**: Usually included in the download or linked from the product page
 
-### Auto-Discovery
+### Source discovery
 
-When given only a theme URL or name, derive URLs yourself:
+When given only a theme URL or name, inspect the public listing for source and demo links. Ask the user for files that require a purchase or authentication.
 
 1. Fetch the listing page to extract demo URL, download URL, and theme info
 2. Download the source (if freely available)
-3. Open the demo in agent-browser
-
-Don't ask the user for URLs you can derive yourself.
+3. Open an accessible demo in agent-browser.

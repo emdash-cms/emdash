@@ -62,22 +62,11 @@ export const bundleCommand = defineCommand({
 			throw error;
 		}
 
-		// Bundling and publishing are two steps with a "go upload this somewhere"
-		// gap between them — the registry never accepts uploads, the publisher
-		// hosts the artifact (GitHub release asset, R2, S3, their own server)
-		// and the registry indexes the URL. Spell out the next step so users
-		// don't have to dig for it.
 		if (!args["validate-only"] && result.tarballPath) {
 			console.log();
-			consola.info("Next steps:");
-			console.log(`  1. Upload ${pc.cyan(result.tarballPath)} to a public URL.`);
-			console.log(
-				`  2. Publish the release record:\n` +
-					`     ${pc.cyan(`emdash-plugin publish --url <hosted-url>`)}`,
-			);
-			console.log(
-				`     ${pc.dim(`(or pass --local ${result.tarballPath} to verify the URL serves matching bytes before publishing)`)}`,
-			);
+			consola.info("Publish this plugin from its source directory:");
+			console.log(`  ${pc.cyan("emdash-plugin publish")}`);
+			console.log(pc.dim("  Publish rebuilds the bundle and uploads it to your PDS."));
 		}
 	},
 });

@@ -1,14 +1,15 @@
 ---
 title: Field Kit
-description: Composable field widgets for json fields, configured through seed options.
+description: Configure composable widgets for JSON fields through seed options.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash's `json` field type stores arbitrary structured data, edited by default through a single-line text input that takes raw JSON. **Field Kit** is a first-party plugin that ships four composable widgets for `json` fields, configured entirely through seed `options` so site builders can use them with seed schema alone.
+EmDash's `json` field type stores arbitrary structured data. Its default editor is a single-line input for raw JSON. Field Kit is a first-party native plugin that adds four widgets configured through field `options` in a seed file.
 
-<Aside type="tip">
-Field Kit widgets store **clean JSON**: the stored value is plain content data, so removing the plugin leaves valid content behind.
+<Aside type="note">
+	Field Kit stores plain JSON in the field's existing column. Removing the plugin leaves the content
+	data in place.
 </Aside>
 
 ## Installation
@@ -19,7 +20,7 @@ Install the package from npm:
 npm i @emdash-cms/plugin-field-kit
 ```
 
-The following configuration registers the plugin:
+Import `fieldKitPlugin`, call it, and add the result to `plugins: []`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -42,7 +43,9 @@ Attach a widget to any `json` field by setting `widget` to `field-kit:<name>`. T
 	"slug": "ingredients",
 	"type": "json",
 	"widget": "field-kit:list",
-	"options": { "fields": [...] }
+	"options": {
+		"fields": [{ "key": "name", "label": "Name", "type": "text", "required": true }]
+	}
 }
 ```
 

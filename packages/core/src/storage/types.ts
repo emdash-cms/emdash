@@ -162,6 +162,8 @@ export interface Storage {
 		key: string;
 		body: Buffer | Uint8Array | ReadableStream<Uint8Array>;
 		contentType: string;
+		/** Optional HTTP cache policy stored with publicly served objects. */
+		cacheControl?: string;
 	}): Promise<UploadResult>;
 
 	/**

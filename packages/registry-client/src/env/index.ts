@@ -15,6 +15,7 @@
  * (browser compat warning), all sharing one implementation.
  */
 
+import compare from "semver/functions/compare.js";
 import satisfies from "semver/functions/satisfies.js";
 import valid from "semver/functions/valid.js";
 import validRange from "semver/ranges/valid.js";
@@ -102,6 +103,15 @@ export function satisfiesRange(version: string, range: string): boolean {
 	if (valid(version) === null) return true;
 	if (validRange(range) === null) return true;
 	return satisfies(version, range, { includePrerelease: true });
+}
+
+/**
+ * Semver precedence of `a` relative to `b`: negative, zero, or positive.
+ * Returns `null` when either version is not valid semver.
+ */
+export function compareVersions(a: string, b: string): number | null {
+	if (valid(a) === null || valid(b) === null) return null;
+	return compare(a, b);
 }
 
 /**

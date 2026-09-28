@@ -26,17 +26,7 @@ export interface StoredCredential {
 	};
 }
 
-/** Credential for marketplace auth (GitHub OAuth JWT, no refresh token) */
-export interface MarketplaceCredential {
-	token: string;
-	expiresAt: string;
-	author?: {
-		id: string;
-		name: string;
-	};
-}
-
-type CredentialStore = Record<string, StoredCredential | MarketplaceCredential>;
+type CredentialStore = Record<string, StoredCredential>;
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -184,53 +174,4 @@ export function removeCredentials(baseUrl: string): boolean {
 export function listCredentialKeys(): string[] {
 	const store = readStore();
 	return Object.keys(store);
-}
-
-// ---------------------------------------------------------------------------
-// Marketplace credentials
-// ---------------------------------------------------------------------------
-
-function marketplaceKey(registryUrl: string): string {
-	try {
-		return `marketplace:${new URL(registryUrl).origin}`;
-	} catch {
-		return `marketplace:${registryUrl}`;
-	}
-}
-
-/**
- * Get stored marketplace credential for a registry URL.
- */
-export function getMarketplaceCredential(registryUrl: string): MarketplaceCredential | null {
-	const key = marketplaceKey(registryUrl);
-	const store = readStore();
-	const cred = store[key];
-	if (!cred || !("token" in cred)) return null;
-	// Check expiry
-	if (new Date(cred.expiresAt) < new Date()) return null;
-	return cred;
-}
-
-/**
- * Save marketplace credential for a registry URL.
- */
-export function saveMarketplaceCredential(registryUrl: string, cred: MarketplaceCredential): void {
-	const key = marketplaceKey(registryUrl);
-	const store = readStore();
-	store[key] = cred;
-	writeStore(store);
-}
-
-/**
- * Remove marketplace credential for a registry URL.
- */
-export function removeMarketplaceCredential(registryUrl: string): boolean {
-	const key = marketplaceKey(registryUrl);
-	const store = readStore();
-	if (key in store) {
-		delete store[key];
-		writeStore(store);
-		return true;
-	}
-	return false;
 }

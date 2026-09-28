@@ -15,7 +15,8 @@
 			"slug": "posts",
 			"label": "Posts",
 			"labelSingular": "Post",
-			"supports": ["drafts", "revisions", "search", "seo"],
+			"urlPattern": "/posts/{slug}",
+			"supports": ["drafts", "revisions", "preview", "scheduling", "search", "seo"],
 			"commentsEnabled": true,
 			"fields": [
 				{
@@ -47,7 +48,8 @@
 			"slug": "pages",
 			"label": "Pages",
 			"labelSingular": "Page",
-			"supports": ["drafts", "revisions", "search"],
+			"urlPattern": "/pages/{slug}",
+			"supports": ["drafts", "revisions", "preview", "search", "seo"],
 			"fields": [
 				{
 					"slug": "title",

@@ -76,6 +76,7 @@ describe("expandExtensionShorthand", () => {
 	it("expands known dot-extensions", () => {
 		expect(expandExtensionShorthand(".pdf")).toBe("application/pdf");
 		expect(expandExtensionShorthand(".PDF")).toBe("application/pdf");
+		expect(expandExtensionShorthand(".avif")).toBe("image/avif");
 		expect(expandExtensionShorthand(".docx")).toBe(
 			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		);

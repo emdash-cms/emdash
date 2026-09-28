@@ -17,6 +17,10 @@ const sourceRepository = "https://github.com/sigstore/sigstore-js";
 const builderId =
 	"https://github.com/sigstore/sigstore-js/.github/workflows/release.yml@refs/heads/main";
 const predicateType = "https://slsa.dev/provenance/v1";
+const repositoryId = "495574555";
+const workflowRef = "refs/heads/main";
+const commitSha = "d406ea60b342ca37cdeecd7afedb992cd189db92";
+const invocationId = "https://github.com/sigstore/sigstore-js/actions/runs/28204693054/attempts/1";
 
 const algorithmVectors = [
 	{
@@ -73,10 +77,35 @@ export function provenanceContract(): void {
 				value: {
 					artifactDigest,
 					builderId,
+					commitSha,
+					invocationId,
 					predicateType,
+					repositoryId,
 					sourceRepository,
+					workflowRef,
 				},
 			});
+		});
+
+		it("matches one of the caller's bounded artifact digest candidates", async () => {
+			const document = fixtureDocument();
+			const checksum = await computeMultihash(document);
+			if (!checksum.success) throw new Error("Test fixture checksum could not be computed");
+			const result = await new GitHubProvenanceVerifier().verify({
+				document,
+				reference: {
+					builderId,
+					checksum: checksum.value,
+					predicateType,
+					sourceRepository,
+					url: "https://registry.npmjs.org/-/npm/v1/attestations/@sigstore%2fcore@4.0.1",
+				},
+				artifactDigest: new Uint8Array(32),
+				artifactDigests: [artifactDigest],
+				profileRepository: sourceRepository,
+			});
+
+			expect(result).toMatchObject({ success: true, value: { artifactDigest } });
 		});
 
 		it("snapshots mutable inputs before checksum verification yields", async () => {

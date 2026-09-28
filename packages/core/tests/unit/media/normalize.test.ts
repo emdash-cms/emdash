@@ -46,6 +46,48 @@ describe("normalizeMediaValue", () => {
 		});
 	});
 
+	it.each([
+		{
+			name: "prefers src when both URLs exist",
+			value: {
+				src: "https://media.example/source.jpg",
+				previewUrl: "https://media.example/preview.jpg",
+			},
+			expectedSrc: "https://media.example/source.jpg",
+		},
+		{
+			name: "promotes previewUrl when src is missing",
+			value: { previewUrl: "https://media.example/preview.jpg" },
+			expectedSrc: "https://media.example/preview.jpg",
+		},
+		{
+			name: "does not invent a missing URL",
+			value: {},
+			expectedSrc: undefined,
+		},
+	])("canonicalizes legacy external URL media and $name", async ({ value, expectedSrc }) => {
+		const providerLookup = vi.fn();
+		const result = await normalizeMediaValue(
+			{
+				id: "",
+				provider: "external-url",
+				filename: "legacy.jpg",
+				mimeType: "image/jpeg",
+				...value,
+			},
+			providerLookup,
+		);
+
+		expect(result).toMatchObject({
+			id: "",
+			provider: "external",
+			filename: "legacy.jpg",
+			mimeType: "image/jpeg",
+		});
+		expect(result?.src).toBe(expectedSrc);
+		expect(providerLookup).not.toHaveBeenCalled();
+	});
+
 	it("converts bare local media ID to full local MediaValue when provider resolves it", async () => {
 		const providerItem: MediaProviderItem = {
 			id: "01KRZKN0BK219P9HBMPYYGYRHY",

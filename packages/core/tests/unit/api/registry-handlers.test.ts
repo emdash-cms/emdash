@@ -13,9 +13,10 @@
  * Uses a real in-memory SQLite database and a mock `Storage`.
  */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import {
 	handleRegistryUninstall,
@@ -175,11 +176,30 @@ describe("Registry handlers", () => {
 				})
 				.execute();
 
+			const encoder = new TextEncoder();
+			await storage.upload({
+				key: "registry/r_bbbbbbbbbbbbbbbb/0.1.0/manifest.json",
+				body: encoder.encode("{}"),
+				contentType: "application/json",
+			});
+			let cleanupSawState = false;
 			const result = await handleRegistryUninstall(db, storage, "r_bbbbbbbbbbbbbbbb", {
 				deleteData: true,
+				beforeDelete: async () => {
+					cleanupSawState =
+						(
+							await db
+								.selectFrom("_plugin_storage")
+								.select("id")
+								.where("plugin_id", "=", "r_bbbbbbbbbbbbbbbb")
+								.executeTakeFirst()
+						)?.id === "k" &&
+						(await storage.exists("registry/r_bbbbbbbbbbbbbbbb/0.1.0/manifest.json"));
+				},
 			});
 			expect(result.success).toBe(true);
 			expect(result.data?.dataDeleted).toBe(true);
+			expect(cleanupSawState).toBe(true);
 
 			const rows = await db
 				.selectFrom("_plugin_storage")

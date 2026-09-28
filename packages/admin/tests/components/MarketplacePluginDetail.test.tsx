@@ -2,7 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import type { MarketplacePluginDetail as PluginDetailType } from "../../src/lib/api/marketplace";
+import {
+	PluginInstallConsentRequiredError,
+	type MarketplacePluginDetail as PluginDetailType,
+} from "../../src/lib/api/marketplace";
 import { render } from "../utils/render.tsx";
 
 const INSTALL_RE = /Install/;
@@ -22,14 +25,14 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 const mockFetchMarketplacePlugin = vi.fn<() => Promise<PluginDetailType>>();
-const mockInstallMarketplacePlugin = vi.fn<() => Promise<void>>();
+const mockInstallMarketplacePlugin = vi.fn<(...args: unknown[]) => Promise<void>>();
 
 vi.mock("../../src/lib/api/marketplace", async () => {
 	const actual = await vi.importActual("../../src/lib/api/marketplace");
 	return {
 		...actual,
 		fetchMarketplacePlugin: (...args: unknown[]) => mockFetchMarketplacePlugin(...(args as [])),
-		installMarketplacePlugin: (...args: unknown[]) => mockInstallMarketplacePlugin(...(args as [])),
+		installMarketplacePlugin: (...args: unknown[]) => mockInstallMarketplacePlugin(...args),
 	};
 });
 
@@ -252,6 +255,27 @@ describe("MarketplacePluginDetail", () => {
 		await expect
 			.element(screen.getByText("SEO Helper requires the following permissions:"))
 			.toBeInTheDocument();
+	});
+
+	it("shows server-verified public routes before confirming installation", async () => {
+		mockInstallMarketplacePlugin.mockRejectedValueOnce(
+			new PluginInstallConsentRequiredError([], ["webhook"]),
+		);
+		const screen = await render(
+			<Wrapper>
+				<MarketplacePluginDetail pluginId="seo-helper" />
+			</Wrapper>,
+		);
+		await screen.getByRole("button", { name: INSTALL_RE }).click();
+		await screen.getByRole("button", { name: "Accept & Install" }).click();
+
+		await expect.element(screen.getByText("Public routes")).toBeInTheDocument();
+		await expect.element(screen.getByText("webhook", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Accept & Install" }).click();
+		expect(mockInstallMarketplacePlugin).toHaveBeenLastCalledWith(
+			"seo-helper",
+			expect.objectContaining({ acknowledgedPublicRoutes: ["webhook"] }),
+		);
 	});
 
 	it("shows error state when plugin fails to load", async () => {

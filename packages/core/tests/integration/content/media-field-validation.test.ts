@@ -2,6 +2,7 @@ import { ulid } from "ulidx";
 import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { handleContentCreate, handleContentUpdate } from "../../../src/api/handlers/content.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -116,6 +117,88 @@ describeEachDialect("save-side media-field MIME validation", (dialect) => {
 			},
 		});
 		expect(result.success).toBe(true);
+	});
+
+	it("validates nested block media and image dark variants", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		await blocks.createBlockType({
+			slug: "download",
+			label: "Download",
+			fields: [
+				{
+					slug: "file",
+					label: "File",
+					type: "file",
+					validation: { allowedMimeTypes: ["application/pdf"] },
+				},
+				{
+					slug: "image",
+					label: "Image",
+					type: "image",
+					validation: { allowedMimeTypes: ["image/png"] },
+					options: { darkVariant: true },
+				},
+			],
+		});
+		await new SchemaRegistry(ctx.db).createField("posts", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["download"] },
+		});
+
+		const invalidFile = await handleContentCreate(ctx.db, "posts", {
+			slug: "block-file",
+			data: {
+				title: "Block file",
+				layout: [
+					{
+						_type: "download",
+						_version: 1,
+						_key: "download-1",
+						file: { id: zipMediaId, provider: "local" },
+					},
+				],
+			},
+		});
+		expect(invalidFile).toMatchObject({
+			success: false,
+			error: {
+				code: "INVALID_MIME_FOR_FIELD",
+				message: expect.stringContaining("layout.download-1.file"),
+			},
+		});
+
+		const invalidDarkVariant = await handleContentCreate(ctx.db, "posts", {
+			slug: "block-image",
+			data: {
+				title: "Block image",
+				layout: [
+					{
+						_type: "download",
+						_version: 1,
+						_key: "download-2",
+						image: {
+							id: "light",
+							provider: "external-provider",
+							mimeType: "image/png",
+							darkVariant: {
+								id: "dark",
+								provider: "external-provider",
+								mimeType: "image/jpeg",
+							},
+						},
+					},
+				],
+			},
+		});
+		expect(invalidDarkVariant).toMatchObject({
+			success: false,
+			error: {
+				code: "INVALID_MIME_FOR_FIELD",
+				message: expect.stringContaining("layout.download-2.image.darkVariant"),
+			},
+		});
 	});
 
 	it("rejects a zip in a PDF-only field on create", async () => {

@@ -1,0 +1,299 @@
+---
+import { getLiveCollection } from "astro:content";
+
+import PluginCard from "../components/PluginCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
+
+const query = Astro.url.searchParams.get("q")?.trim() ?? "";
+if (!query) return Astro.redirect("/");
+
+const result = await getLiveCollection("plugins", { q: query, limit: 100 });
+const entries = result.entries ?? [];
+const hasError = Boolean(result.error);
+if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
+---
+
+<BaseLayout
+	title={`Search results for ${query}`}
+	description={`Search results for “${query}” in the EmDash plugin registry.`}
+	canonical={`/search?q=${encodeURIComponent(query)}`}
+>
+	<section class="search-hero shell">
+		<a class="back-link" href="/">← All plugins</a>
+		<p class="eyebrow">Search the registry</p>
+		<h1>Find your next<br /><span>plugin.</span></h1>
+		<form class="search" method="get" action="/search" role="search">
+			<svg viewBox="0 0 20 20" aria-hidden="true">
+				<circle cx="8.5" cy="8.5" r="5.25"></circle>
+				<path d="m12.4 12.4 4 4"></path>
+			</svg>
+			<label class="visually-hidden" for="plugin-search">Search plugins</label>
+			<input
+				id="plugin-search"
+				name="q"
+				type="search"
+				value={query}
+				placeholder="Search plugins, authors, and capabilities…"
+				autocomplete="off"
+			/>
+			<button type="submit">Search</button>
+		</form>
+	</section>
+
+	<section class="catalog shell" aria-labelledby="catalog-title">
+		<div class="catalog-heading">
+			<div>
+				<p class="section-kicker">Explore the registry</p>
+				<h2 id="catalog-title">Results for “{query}”</h2>
+			</div>
+			<a href="/">Clear search</a>
+		</div>
+
+		{
+			hasError ? (
+				<div class="empty-state">
+					<div class="empty-icon">↻</div>
+					<h3>The registry is taking a moment</h3>
+					<p>
+						Try again shortly. Published plugins remain available from inside
+						EmDash.
+					</p>
+					<a
+						class="button-secondary"
+						href={Astro.url.pathname + Astro.url.search}
+					>
+						Try again
+					</a>
+				</div>
+			) : entries.length === 0 ? (
+				<div class="empty-state">
+					<div class="empty-icon">⌕</div>
+					<h3>No plugins match that search</h3>
+					<p>Try a package name, publisher handle, or a broader capability.</p>
+					<a class="button-secondary" href="/">
+						Browse all plugins
+					</a>
+				</div>
+			) : (
+				<div class="plugin-grid">
+					{entries.map((entry) => (
+						<PluginCard entry={entry.data} />
+					))}
+				</div>
+			)
+		}
+	</section>
+</BaseLayout>
+
+<style>
+	.search-hero {
+		padding-top: 4rem;
+		padding-bottom: 5rem;
+	}
+
+	.back-link {
+		display: block;
+		width: fit-content;
+		margin-bottom: 4rem;
+		color: var(--muted);
+		font-size: 0.8rem;
+		text-decoration: none;
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(3.4rem, 7vw, 6.2rem);
+		line-height: 0.93;
+		letter-spacing: -0.07em;
+	}
+
+	h1 span {
+		color: var(--accent);
+	}
+
+	.search {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		width: min(52rem, 100%);
+		min-height: 4rem;
+		margin-top: 3rem;
+		padding: 0.48rem 0.5rem 0.48rem 1.25rem;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 0.95rem;
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.search svg {
+		width: 1.18rem;
+		color: var(--subtle);
+	}
+
+	.search svg * {
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.5;
+	}
+
+	.search input {
+		min-width: 0;
+		padding: 0.65rem 0.8rem;
+		color: var(--ink);
+		background: transparent;
+		border: 0;
+		outline: 0;
+	}
+
+	.search input::placeholder {
+		color: var(--subtle);
+	}
+
+	.search button {
+		align-self: stretch;
+		padding: 0 1.2rem;
+		color: white;
+		font-size: 0.82rem;
+		font-weight: 600;
+		cursor: pointer;
+		background: var(--accent);
+		border: 0;
+		border-radius: 0.66rem;
+	}
+
+	.search:focus-within {
+		border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+		box-shadow:
+			var(--shadow-card-hover),
+			0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		clip-path: inset(50%);
+	}
+
+	.catalog {
+		padding-top: 1rem;
+	}
+
+	.catalog-heading {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 2rem;
+		margin-bottom: 2rem;
+	}
+
+	.section-kicker {
+		margin: 0 0 0.55rem;
+		color: var(--accent-ink);
+		font-size: 0.7rem;
+		font-weight: 650;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+	}
+
+	.catalog-heading h2 {
+		margin: 0;
+		font-size: clamp(2rem, 4vw, 3.25rem);
+		line-height: 1.02;
+		letter-spacing: -0.055em;
+	}
+
+	.catalog-heading > a {
+		padding-bottom: 0.35rem;
+		color: var(--muted);
+		font-size: 0.8rem;
+		text-underline-offset: 0.2rem;
+	}
+
+	.plugin-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.9rem;
+	}
+
+	.empty-state {
+		display: flex;
+		min-height: 24rem;
+		padding: 3rem;
+		align-items: center;
+		justify-content: center;
+		flex-direction: column;
+		text-align: center;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.25rem;
+	}
+
+	.empty-icon {
+		display: grid;
+		place-items: center;
+		width: 3.5rem;
+		height: 3.5rem;
+		margin-bottom: 1.25rem;
+		color: var(--accent);
+		font-size: 1.35rem;
+		background: var(--accent-soft);
+		border-radius: 1rem;
+	}
+
+	.empty-state h3 {
+		margin: 0;
+		font-size: 1.35rem;
+		letter-spacing: -0.035em;
+	}
+
+	.empty-state p {
+		max-width: 28rem;
+		margin: 0.7rem 0 1.4rem;
+		color: var(--muted);
+		line-height: 1.55;
+	}
+
+	@media (max-width: 900px) {
+		.plugin-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 680px) {
+		.search-hero {
+			padding-top: 3rem;
+			padding-bottom: 4rem;
+		}
+
+		.back-link {
+			margin-bottom: 3rem;
+		}
+
+		.plugin-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.search {
+			grid-template-columns: auto 1fr;
+			padding-right: 1rem;
+		}
+
+		.search button {
+			display: none;
+		}
+
+		.catalog-heading {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 0.65rem;
+		}
+	}
+</style>

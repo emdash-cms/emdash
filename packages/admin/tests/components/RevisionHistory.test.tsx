@@ -1,8 +1,8 @@
 import { Toasty } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { userEvent } from "@vitest/browser/context";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { RevisionHistory } from "../../src/components/RevisionHistory";
 import type { Revision, RevisionListResponse } from "../../src/lib/api";
@@ -26,7 +26,7 @@ const mockRestoreRevision = restoreRevision as Mock;
 
 const REVISIONS_BUTTON_REGEX = /Revisions/i;
 const RESTORE_BUTTON_REGEX = /Restore this version/i;
-const TIME_REGEX_5_MINS = /5 mins ago/;
+const TIME_REGEX_5_MINS = /5 minutes ago/;
 const TIME_REGEX_3_HOURS = /3 hours ago/;
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
@@ -451,7 +451,7 @@ describe("RevisionHistory", () => {
 		await expect.element(screen.getByText("Current")).toBeInTheDocument();
 
 		// Click the second (non-latest) revision
-		const revisionButtons = screen.getByText("1 day ago").element().closest("button")!;
+		const revisionButtons = screen.getByText("yesterday").element().closest("button")!;
 		await userEvent.click(revisionButtons);
 
 		// Should show diff, not raw snapshot

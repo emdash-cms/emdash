@@ -62,4 +62,13 @@ describeEachDialect("MediaRepository.findMany filename search (#1221)", (dialect
 		const result = await repo.findMany({ q: "100%" });
 		expect(result.items.map((i) => i.filename)).toEqual(["100%_complete.png"]);
 	});
+
+	it("finds the next unused filename", async () => {
+		const repo = new MediaRepository(ctx.db);
+		await repo.create({ filename: "PHOTO.png", mimeType: "image/png", storageKey: "5.png" });
+		await repo.create({ filename: "photo-2.png", mimeType: "image/png", storageKey: "6.png" });
+
+		expect(await repo.findAvailableFilename("photo.png")).toBe("photo-3.png");
+		expect(await repo.findAvailableFilename("unused.png")).toBe("unused.png");
+	});
 });

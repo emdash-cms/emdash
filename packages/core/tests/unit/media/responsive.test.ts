@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
 	RESPONSIVE_BREAKPOINTS,
 	buildResponsiveImage,
+	gallerySizes,
 	responsiveSizes,
 	responsiveWidths,
 	toAbsoluteMediaUrl,
@@ -39,6 +40,29 @@ describe("responsiveSizes", () => {
 
 	it("falls back to 100vw when width is unknown", () => {
 		expect(responsiveSizes(undefined)).toBe("100vw");
+	});
+});
+
+describe("gallerySizes", () => {
+	it("estimates one cell of the grid, with two columns on narrow viewports", () => {
+		expect(gallerySizes(3)).toBe(
+			"(max-width: 640px) calc((100vw - 1rem) / 2), calc((100vw - 2rem) / 3)",
+		);
+		expect(gallerySizes(5)).toBe(
+			"(max-width: 640px) calc((100vw - 1rem) / 2), calc((100vw - 4rem) / 5)",
+		);
+	});
+
+	it("uses the full viewport for a single column above the breakpoint", () => {
+		expect(gallerySizes(1)).toBe("(max-width: 640px) calc((100vw - 1rem) / 2), 100vw");
+	});
+
+	it("falls back to three columns for a missing or unusable count", () => {
+		const three = gallerySizes(3);
+		expect(gallerySizes(undefined)).toBe(three);
+		expect(gallerySizes(0)).toBe(three);
+		expect(gallerySizes(2.5)).toBe(three);
+		expect(gallerySizes(Number.NaN)).toBe(three);
 	});
 });
 

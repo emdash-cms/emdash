@@ -11,10 +11,11 @@ import { handleError, unwrapResult } from "#api/error.js";
 import { handleMenuItemReorder } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, reorderMenuItemsBody } from "#api/schemas.js";
+import { menuTag } from "#cache/chrome-tags.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 
@@ -31,6 +32,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const result = await handleMenuItemReorder(emdash.db, name, body.items, {
 			locale: localeQ.locale,
 		});
+		if (!result.success) return unwrapResult(result);
+		if (cache?.enabled) await cache.invalidate({ tags: [menuTag(name)] });
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to reorder menu items", "MENU_REORDER_ERROR");

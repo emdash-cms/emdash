@@ -79,12 +79,15 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		);
 	}
 
+	const actor = user ? { id: user.id, role: user.role } : undefined;
+
 	// Auto-set authorId to current user when creating content
 	const result = await emdash.handleContentCreate(collection, {
 		...body,
 		authorId: user?.id,
 		locale: body.locale,
 		translationOf: body.translationOf,
+		actor,
 	});
 
 	if (!result.success) return unwrapResult(result);

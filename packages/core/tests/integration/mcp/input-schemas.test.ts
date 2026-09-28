@@ -132,6 +132,19 @@ describe("MCP input schema validation", () => {
 		expect(result.isError).toBe(true);
 	});
 
+	it("content_schedule rejects a datetime without an offset", async () => {
+		const result = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id: "01ANY",
+				scheduledAt: "2030-01-01T09:00",
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("scheduledAt");
+	});
+
 	it("media_list with limit > 100 is rejected by inputSchema", async () => {
 		const result = await harness.client.callTool({
 			name: "media_list",

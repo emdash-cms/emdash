@@ -271,7 +271,7 @@ export function BylineFieldEditor({
 					</div>
 
 					{/* Toggles */}
-					<div className="flex flex-wrap items-center gap-6">
+					<div className="flex flex-wrap items-start gap-6">
 						{/* TODO: enforce `required` on the write path — currently
 						 * descriptive only, see `BylineRepository.coerceFieldValue`. */}
 						<Switch

@@ -9,10 +9,11 @@
  * when there's a text selection in the editor.
  */
 
+import { NodeSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
-import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { PortableTextEditorProps } from "../../src/components/PortableTextEditor";
 import { PortableTextEditor } from "../../src/components/PortableTextEditor";
@@ -52,6 +53,7 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 				height: { default: null },
 				displayWidth: { default: null },
 				displayHeight: { default: null },
+				link: { default: null },
 			};
 		},
 		parseHTML() {
@@ -276,6 +278,54 @@ function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | 
 	return menu.querySelector(`[aria-label="${label}"]`);
 }
 
+/** The link destination field is a combobox that accepts a URL or a search term. */
+function getLinkInput(root: ParentNode = document): HTMLInputElement | null {
+	return root.querySelector<HTMLInputElement>('[role="combobox"]');
+}
+
+/** Set a React-controlled input's value through the native setter so React sees it. */
+function setInputValue(input: HTMLInputElement, value: string) {
+	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+		HTMLInputElement.prototype,
+		"value",
+	)!.set!;
+	nativeInputValueSetter.call(input, value);
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Insert an image block and select it. A selected image is a NodeSelection,
+ * which is a different selection class from the text selections above.
+ */
+async function insertAndSelectImage(
+	editor: Editor,
+	pm: HTMLElement,
+	link: { href: string; blank?: boolean } | null = null,
+) {
+	pm.focus();
+	await vi.waitFor(() => expect(document.activeElement).toBe(pm), { timeout: 1000 });
+	editor
+		.chain()
+		.focus()
+		.insertContent({ type: "image", attrs: { src: "/img.jpg", alt: "Example", link } })
+		.run();
+
+	let imagePos = -1;
+	editor.state.doc.descendants((node, pos) => {
+		if (node.type.name === "image") {
+			imagePos = pos;
+			return false;
+		}
+		return true;
+	});
+	expect(imagePos).toBeGreaterThanOrEqual(0);
+	editor.view.dispatch(
+		editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos)),
+	);
+	await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
+}
+
 // =============================================================================
 // Bubble Menu
 // =============================================================================
@@ -450,16 +500,20 @@ describe("Bubble Menu", () => {
 		expect(getBubbleMenu()).toBeNull();
 	});
 
-	it("exposes accessible table actions and toggle state", async () => {
+	it("exposes exactly three contextual shortcuts and the shared action menu", async () => {
 		const { screen, editor, pm } = await renderEditor({ value: tableValue });
 		await focusTableCell(editor, pm);
-		await waitForTableToolbar();
+		const controls = await waitForTableToolbar();
 
-		const addBefore = screen.getByRole("button", { name: "Add column before" });
-		const headerToggle = screen.getByRole("button", { name: "Toggle header row" });
-		await expect.element(addBefore).toBeVisible();
-		expect(addBefore.element().hasAttribute("aria-pressed")).toBe(false);
-		await expect.element(headerToggle).toHaveAttribute("aria-pressed", "true");
+		expect(Array.from(controls.querySelectorAll("button"), (button) => button.ariaLabel)).toEqual([
+			"Add row below",
+			"Add column after",
+			"More table actions",
+		]);
+		screen.getByRole("button", { name: "More table actions" }).element().click();
+		await expect
+			.element(screen.getByRole("menuitemcheckbox", { name: "Toggle header row" }))
+			.toHaveAttribute("aria-checked", "true");
 	});
 
 	it("uses purpose-built icons for table insertion actions", async () => {
@@ -467,22 +521,54 @@ describe("Bubble Menu", () => {
 		await focusTableCell(editor, pm);
 		await waitForTableToolbar();
 
-		for (const name of [
-			"Add column before",
-			"Add column after",
-			"Add row before",
-			"Add row after",
-		]) {
+		for (const name of ["Add row below", "Add column after", "More table actions"]) {
 			const button = screen.getByRole("button", { name }).element();
 			expect(button.querySelectorAll("svg")).toHaveLength(1);
 			expect(button.querySelector(".absolute")).toBeNull();
 		}
 
-		const beforeIcon = screen
-			.getByRole("button", { name: "Add column before" })
+		const afterIcon = screen
+			.getByRole("button", { name: "Add column after" })
 			.element()
 			.querySelector("svg");
-		expect(beforeIcon?.getAttribute("class")).toContain("rtl:-scale-x-100");
+		expect(afterIcon?.getAttribute("class")).toContain("rtl:-scale-x-100");
+	});
+
+	it("restores the editor after escaping from More table actions", async () => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue });
+		await focusTableCell(editor, pm);
+		await waitForTableToolbar();
+		const before = editor.state.selection.toJSON();
+		screen.getByRole("button", { name: "More table actions" }).element().click();
+		await expect.element(screen.getByRole("menu")).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		expect(editor.state.selection.toJSON()).toEqual(before);
+	});
+
+	it.each([
+		["Toggle header row", "false"],
+		["Toggle header column", "true"],
+	])("keeps the contextual menu anchored after %s", async (name, checked) => {
+		const { screen, editor, pm } = await renderEditor({ value: tableValue }, 180);
+		await focusTableCell(editor, pm, "Body");
+		await waitForTableToolbar();
+		const trigger = screen.getByRole("button", { name: "More table actions" });
+		const anchor = trigger.element();
+		await userEvent.click(trigger);
+		const menu = screen.getByRole("menu", { name: "More table actions" });
+		await expect.element(menu).toBeVisible();
+		const toggle = screen.getByRole("menuitemcheckbox", { name });
+		await userEvent.click(toggle);
+		await expect.element(toggle).toHaveAttribute("aria-checked", checked);
+		expect(anchor.isConnected).toBe(true);
+		expect(anchor.getBoundingClientRect().width).toBeGreaterThan(0);
+		await expect.element(menu).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(menu).not.toBeInTheDocument();
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
 	});
 
 	it("shows inline formatting buttons", async () => {
@@ -606,10 +692,9 @@ describe("Bubble Menu", () => {
 			expect(applyBtn).toBeTruthy();
 		});
 
-		// Should have a URL input with placeholder
-		const input = menu.querySelector('input[type="url"]');
+		// Should have a link destination input
+		const input = menu.querySelector('input[aria-label="Search or type a URL"]');
 		expect(input).toBeTruthy();
-		expect(input?.getAttribute("aria-label")).toBe("URL");
 	});
 
 	it("applies link URL when Apply button is clicked", async () => {
@@ -621,11 +706,13 @@ describe("Bubble Menu", () => {
 		linkBtn.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		// Type a URL into the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		// Use native value setter + input event for React controlled input
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
@@ -656,10 +743,12 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,
@@ -759,10 +848,12 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Add link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 
 		// Press Escape
@@ -799,11 +890,13 @@ describe("Bubble Menu", () => {
 		getBubbleButton(menu, "Edit link")!.click();
 
 		await vi.waitFor(() => {
-			expect(menu.querySelector('input[type="url"]')).toBeTruthy();
+			expect(menu.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
 		});
 
 		// Clear the input
-		const input = menu.querySelector('input[type="url"]') as HTMLInputElement;
+		const input = menu.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
 		input.focus();
 		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
 			HTMLInputElement.prototype,
@@ -860,5 +953,78 @@ describe("Bubble Menu", () => {
 		await vi.waitFor(() => expect(editor.isActive("bold")).toBe(false));
 
 		expect(pm.querySelector("strong")).toBeNull();
+	});
+});
+
+// =============================================================================
+// Bubble Menu on a selected image
+// =============================================================================
+
+describe("Bubble Menu on a selected image", () => {
+	it("appears for an image selection and shows only the link control", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		expect(getBubbleButton(menu, "Add link")).toBeTruthy();
+		// Text marks are meaningless on an image and must not be offered.
+		expect(getBubbleButton(menu, "Bold")).toBeNull();
+		expect(getBubbleButton(menu, "Italic")).toBeNull();
+		expect(getBubbleButton(menu, "Code")).toBeNull();
+	});
+
+	it("applies a link to the selected image", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		getBubbleButton(menu, "Add link")!.click();
+		await vi.waitFor(() => {
+			expect(getLinkInput(menu)).toBeTruthy();
+		});
+
+		setInputValue(getLinkInput(menu)!, "https://example.com/promo");
+		getBubbleButton(menu, "Apply link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "https://example.com/promo" });
+		});
+	});
+
+	it("keeps the open-in-new-tab choice when only the URL is edited", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
+
+		const menu = await waitForBubbleMenu();
+		expect(getBubbleButton(menu, "Edit link")).toBeTruthy();
+		getBubbleButton(menu, "Edit link")!.click();
+		await vi.waitFor(() => {
+			expect(getLinkInput(menu)).toBeTruthy();
+		});
+		const input = getLinkInput(menu)!;
+		expect(input.value).toBe("/old");
+
+		setInputValue(input, "/new");
+		getBubbleButton(menu, "Apply link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "/new", blank: true });
+		});
+	});
+
+	it("removes the image link with the Remove link button", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "https://example.com/promo" });
+
+		const menu = await waitForBubbleMenu();
+		getBubbleButton(menu, "Edit link")!.click();
+		await vi.waitFor(() => {
+			expect(getBubbleButton(menu, "Remove link")).toBeTruthy();
+		});
+		getBubbleButton(menu, "Remove link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toBeNull();
+		});
 	});
 });

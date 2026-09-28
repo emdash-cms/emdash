@@ -43,6 +43,7 @@ export interface GatedPr {
 	prNumber: number;
 	prTitle: string;
 	prBody: string;
+	authorLogin?: string;
 	headRef: string;
 	headSha: string;
 	baseRef: string;
@@ -77,24 +78,22 @@ interface PullRequestEvent {
 
 /**
  * Decide whether a `pull_request` webhook should trigger a review, and extract
- * the fields the workflow needs. Skips drafts, bot-authored PRs, and our own
- * account to avoid self-review loops.
+ * the fields the workflow needs. Skips drafts and unsolicited bot-authored PRs,
+ * except for emdashbot's PRs, which always need review.
  */
 export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 	const pr = event.pull_request;
 	if (!pr) return { review: false, reason: "no pull_request in payload" };
 
-	// Bot-author guard applies to BOTH auto and manual triggers, so labeling a
-	// bot-authored PR (or emdashbot's own PR) can't kick off a self-review loop.
-	const author = pr.user?.login ?? "";
-	if (author.endsWith("[bot]")) {
-		return { review: false, reason: `author "${author}" is a bot` };
-	}
-
 	const action = event.action ?? "";
 	const isManual = action === "labeled" && event.label?.name === MANUAL_LABEL;
 	if (!isManual && !REVIEWABLE_ACTIONS.has(action)) {
 		return { review: false, reason: `action "${action}" is not reviewable` };
+	}
+
+	const author = pr.user?.login ?? "";
+	if (!isManual && author.endsWith("[bot]") && author !== "emdashbot[bot]") {
+		return { review: false, reason: `author "${author}" is a bot` };
 	}
 
 	if (pr.draft && action !== "ready_for_review" && !isManual) {
@@ -118,6 +117,7 @@ export function gatePullRequestEvent(event: PullRequestEvent): GateDecision {
 			prNumber,
 			prTitle: pr.title,
 			prBody: pr.body ?? "",
+			authorLogin: author,
 			headRef,
 			headSha,
 			baseRef,

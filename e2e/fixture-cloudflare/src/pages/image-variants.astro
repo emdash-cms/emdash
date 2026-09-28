@@ -1,0 +1,20 @@
+---
+import { Image } from "emdash/ui";
+
+const theme = Astro.url.searchParams.get("theme");
+const htmlClass = theme === "dark" || theme === "light" ? theme : undefined;
+
+const light = { id: "light", src: "https://example.com/light.png", alt: "Diagram", width: 200, height: 100 };
+const dark = { id: "dark", src: "https://example.com/dark.png", alt: "Diagram (dark)", width: 200, height: 100 };
+---
+
+<html class={htmlClass}>
+	<head>
+		<title>Image variants</title>
+	</head>
+	<body>
+		<div id="with-variant"><Image image={{ ...light, darkVariant: dark }} /></div>
+		<div id="without-variant"><Image image={light} /></div>
+		<div id="explicit-variant"><Image image={light} darkVariant={dark} /></div>
+	</body>
+</html>

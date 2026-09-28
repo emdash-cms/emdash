@@ -20,7 +20,7 @@ export function slug(options: SlugOptions = {}): FieldDefinition<string> {
 	const stringSchema = z.string().regex(pattern, "Invalid slug format");
 
 	// Optional vs required
-	const schema: z.ZodTypeAny = options.required ? stringSchema : stringSchema.optional();
+	const schema: z.ZodType = options.required ? stringSchema : stringSchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "slug",

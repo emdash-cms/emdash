@@ -72,6 +72,7 @@ describe("normalizeLanguage", () => {
 		expect(normalizeLanguage("ts")).toBe("typescript");
 		expect(normalizeLanguage("TypeScript")).toBe("typescript");
 		expect(normalizeLanguage("c++")).toBe("cpp");
+		expect(normalizeLanguage("F#")).toBe("fsharp");
 	});
 
 	it("lowercases and trims unknown input so class names stay stable", () => {

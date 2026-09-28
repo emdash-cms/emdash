@@ -95,20 +95,24 @@ describe("SocialSettings", () => {
 		await expect.element(screen.getByLabelText("LinkedIn")).toHaveValue("example-profile");
 		await expect.element(screen.getByLabelText("YouTube")).toHaveValue("@example-video");
 
-		const saveButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
-		expect(saveButtons).toHaveLength(2);
-		for (const button of saveButtons) await expect.element(button).toBeDisabled();
+		const saveButtons = screen.getByRole("button", { name: "Saved", exact: true });
+		await expect.poll(() => saveButtons.elements()).toHaveLength(2);
+		for (const button of [saveButtons.first(), saveButtons.nth(1)]) {
+			await expect.element(button).toBeDisabled();
+		}
 	});
 
 	it("enables both save actions when dirty and returns to saved after a header save", async () => {
 		const screen = await renderSocialSettings();
 		await screen.getByLabelText("GitHub").fill("emdash-cms");
 
-		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
-		expect(dirtyButtons).toHaveLength(2);
-		for (const button of dirtyButtons) await expect.element(button).toBeEnabled();
+		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true });
+		await expect.poll(() => dirtyButtons.elements()).toHaveLength(2);
+		for (const button of [dirtyButtons.first(), dirtyButtons.nth(1)]) {
+			await expect.element(button).toBeEnabled();
+		}
 
-		await userEvent.click(dirtyButtons[0]);
+		await userEvent.click(dirtyButtons.first());
 		await vi.waitFor(() => {
 			expect(mockUpdateSettings).toHaveBeenCalledWith({
 				...defaultSettings,
@@ -117,9 +121,11 @@ describe("SocialSettings", () => {
 		});
 		await expect.element(screen.getByText("Social links saved")).toBeInTheDocument();
 
-		const savedButtons = screen.getByRole("button", { name: "Saved", exact: true }).all();
-		expect(savedButtons).toHaveLength(2);
-		for (const button of savedButtons) await expect.element(button).toBeDisabled();
+		const savedButtons = screen.getByRole("button", { name: "Saved", exact: true });
+		await expect.poll(() => savedButtons.elements()).toHaveLength(2);
+		for (const button of [savedButtons.first(), savedButtons.nth(1)]) {
+			await expect.element(button).toBeDisabled();
+		}
 	});
 
 	it("keeps cached social links visible when the post-save refetch fails", async () => {
@@ -130,7 +136,7 @@ describe("SocialSettings", () => {
 		const screen = await renderSocialSettings();
 		await screen.getByLabelText("GitHub").fill("emdash-cms");
 
-		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).first());
 
 		await vi.waitFor(() => expect(mockFetchSettings.mock.calls.length).toBeGreaterThanOrEqual(2));
 		await expect.element(screen.getByLabelText("GitHub")).toHaveValue("emdash-cms");
@@ -141,8 +147,8 @@ describe("SocialSettings", () => {
 		const screen = await renderSocialSettings();
 		await screen.getByLabelText("YouTube").fill("@emdash-cms");
 
-		const saveButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
-		await userEvent.click(saveButtons[1]);
+		const saveButtons = screen.getByRole("button", { name: "Save", exact: true });
+		await userEvent.click(saveButtons.nth(1));
 
 		await vi.waitFor(() => {
 			expect(mockUpdateSettings).toHaveBeenCalledWith({
@@ -157,12 +163,14 @@ describe("SocialSettings", () => {
 		const screen = await renderSocialSettings();
 		await screen.getByLabelText("Instagram").fill("new.photos");
 
-		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).first());
 		await expect.element(screen.getByText("Failed to save settings")).toBeInTheDocument();
 		await expect.element(screen.getByText("Could not persist settings")).toBeInTheDocument();
 
-		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true }).all();
-		expect(dirtyButtons).toHaveLength(2);
-		for (const button of dirtyButtons) await expect.element(button).toBeEnabled();
+		const dirtyButtons = screen.getByRole("button", { name: "Save", exact: true });
+		await expect.poll(() => dirtyButtons.elements()).toHaveLength(2);
+		for (const button of [dirtyButtons.first(), dirtyButtons.nth(1)]) {
+			await expect.element(button).toBeEnabled();
+		}
 	});
 });

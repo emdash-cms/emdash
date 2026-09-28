@@ -72,7 +72,7 @@ export function formsPlugin(
 		adminEntry: "@emdash-cms/plugin-forms/admin",
 		componentsEntry: "@emdash-cms/plugin-forms/astro",
 		options,
-		capabilities: ["content:write", "email:send", "media:write", "network:request"],
+		capabilities: ["content:write", "email:send", "media:write", "network:request", "schema:read"],
 		allowedHosts: ["*"],
 		adminPages: [
 			{ path: "/", label: "Forms", icon: "list" },
@@ -93,9 +93,7 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 	return definePlugin({
 		id: "emdash-forms",
 		version,
-		// content:write powers the optional per-form content mapping — it is
-		// only exercised for forms that have `contentMapping` configured.
-		capabilities: ["content:write", "email:send", "media:write", "network:request"],
+		capabilities: ["content:write", "email:send", "media:write", "network:request", "schema:read"],
 		allowedHosts: ["*"],
 
 		storage: FORMS_STORAGE_CONFIG,
@@ -122,22 +120,19 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 		},
 
-		// Route handlers are typed with specific input schemas but the route record
-		// erases the generic to `unknown`. The cast is safe because the input schema
-		// guarantees the runtime shape matches the handler's expected type.
 		routes: {
 			// --- Public routes ---
 
 			submit: {
 				public: true,
 				input: submitSchema,
-				handler: submitHandler as never,
+				handler: submitHandler,
 			},
 
 			definition: {
 				public: true,
 				input: definitionSchema,
-				handler: definitionHandler as never,
+				handler: definitionHandler,
 			},
 
 			// --- Admin routes (require auth) ---
@@ -147,40 +142,40 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			},
 			"forms/create": {
 				input: formCreateSchema,
-				handler: formsCreateHandler as never,
+				handler: formsCreateHandler,
 			},
 			"forms/update": {
 				input: formUpdateSchema,
-				handler: formsUpdateHandler as never,
+				handler: formsUpdateHandler,
 			},
 			"forms/delete": {
 				input: formDeleteSchema,
-				handler: formsDeleteHandler as never,
+				handler: formsDeleteHandler,
 			},
 			"forms/duplicate": {
 				input: formDuplicateSchema,
-				handler: formsDuplicateHandler as never,
+				handler: formsDuplicateHandler,
 			},
 
 			"submissions/list": {
 				input: submissionsListSchema,
-				handler: submissionsListHandler as never,
+				handler: submissionsListHandler,
 			},
 			"submissions/get": {
 				input: submissionGetSchema,
-				handler: submissionGetHandler as never,
+				handler: submissionGetHandler,
 			},
 			"submissions/update": {
 				input: submissionUpdateSchema,
-				handler: submissionUpdateHandler as never,
+				handler: submissionUpdateHandler,
 			},
 			"submissions/delete": {
 				input: submissionDeleteSchema,
-				handler: submissionDeleteHandler as never,
+				handler: submissionDeleteHandler,
 			},
 			"submissions/export": {
 				input: exportSchema,
-				handler: exportHandler as never,
+				handler: exportHandler,
 			},
 
 			"settings/turnstile-status": {

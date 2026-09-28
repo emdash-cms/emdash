@@ -10,6 +10,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../../src/database/repositories/taxonomy.js";
+import { primeRegisteredCollections } from "../../../src/schema/collection-slugs-cache.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -59,10 +60,13 @@ describeEachDialect("getTerm", (dialect) => {
 		// scoped to the def's declared collections, so point it at the test
 		// collection (`post`).
 		await ctx.db
-			.updateTable("_emdash_taxonomy_defs")
+			.updateTable("_emdash_taxonomy_def_groups")
 			.set({ collections: JSON.stringify(["post"]) })
 			.where("name", "=", "category")
 			.execute();
+		// In production the runtime's init read primes this; the query budget
+		// below reflects the steady state, not the once-per-isolate lookup.
+		primeRegisteredCollections(["post", "page"]);
 	});
 
 	afterEach(async () => {
@@ -114,8 +118,8 @@ describeEachDialect("getTerm", (dialect) => {
 		expect(term?.label).toBe("Technology");
 		expect(term?.description).toBe("All things tech");
 		expect(Number(term?.count)).toBe(2);
-		// Children ordered by label
-		expect(term?.children.map((c) => c.slug)).toEqual(["ai", "web"]);
+		// Children in their manual order, which starts out as creation order
+		expect(term?.children.map((c) => c.slug)).toEqual(["web", "ai"]);
 		expect(term?.children.every((c) => c.parentId === parent.id)).toBe(true);
 	});
 
