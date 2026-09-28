@@ -139,7 +139,9 @@ describe("registryLoader", () => {
 		const fetch: typeof globalThis.fetch = vi.fn(async (input) => {
 			const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
 			if (url.pathname.endsWith(".searchPackages")) return Response.json({ packages: [PACKAGE] });
-			return new Promise<Response>(() => {});
+			return new Promise<Response>((_resolve, reject) => {
+				setTimeout(() => reject(new Error("late failure")), LATEST_RELEASE_TIMEOUT_MS + 1000);
+			});
 		});
 		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -150,6 +152,7 @@ describe("registryLoader", () => {
 		});
 		await vi.advanceTimersByTimeAsync(LATEST_RELEASE_TIMEOUT_MS);
 		const result = await pending;
+		await vi.advanceTimersByTimeAsync(1000);
 
 		expect(result.entries).toHaveLength(1);
 		expect(result.entries?.[0]?.data.latestRelease).toBeUndefined();
