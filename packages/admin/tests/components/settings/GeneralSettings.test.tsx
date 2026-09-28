@@ -222,19 +222,35 @@ describe("GeneralSettings", () => {
 		}
 	});
 
-	it("offers matching timezones and rejects arbitrary text", async () => {
+	it("suggests valid timezones without rejecting custom values", async () => {
 		const screen = await renderGeneralSettings();
 		await screen.getByRole("combobox", { name: "Timezone" }).fill("London");
 		await expect.element(screen.getByText("Europe/London", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText(/isn't recognized/)).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
-		expect(mockUpdateSettings).not.toHaveBeenCalled();
-		await expect.element(screen.getByText(/Select a timezone/)).toBeInTheDocument();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "London" }),
+			),
+		);
 		await screen.getByRole("combobox", { name: "Timezone" }).fill("Lond");
 		await userEvent.click(screen.getByText("Europe/London", { exact: true }));
 		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
 		await vi.waitFor(() =>
 			expect(mockUpdateSettings).toHaveBeenCalledWith(
 				expect.objectContaining({ timezone: "Europe/London" }),
+			),
+		);
+	});
+
+	it("keeps an unrecognized existing timezone when saving another setting", async () => {
+		mockFetchSettings.mockResolvedValue({ ...defaultSettings, timezone: "Legacy/Local" });
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Updated tagline");
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Legacy/Local", tagline: "Updated tagline" }),
 			),
 		);
 	});
