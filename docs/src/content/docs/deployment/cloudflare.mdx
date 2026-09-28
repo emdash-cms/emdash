@@ -163,7 +163,7 @@ Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) p
 
 <Steps>
 
-1. Use Astro's Cloudflare cache provider so route rules and `Astro.cache` set cache headers and invalidation uses `cache.purge()`.
+1. Use Astro's Cloudflare cache provider so route rules and `Astro.cache` set cache headers and the provider can invalidate entries when content changes.
 
    ```js title="astro.config.mjs"
    import { cacheCloudflare } from "@astrojs/cloudflare/cache";
