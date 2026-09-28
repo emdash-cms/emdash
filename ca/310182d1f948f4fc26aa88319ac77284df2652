@@ -1,0 +1,21 @@
+packages/admin/tests/editor/CodeBlockNode.test.ts
+  s_d126c666154201::t_d6f4665ff29fc1 194
+packages/core/tests/unit/components/inline-code-block.test.ts
+  s_d126c666154201::t_c64c16343c83e1 123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ca310182d1f948f4fc26aa88319ac77284df2652",
+  "prompts": {},
+  "sessions": {
+    "s_d126c666154201": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e8d7-6a29-7880-a131-fc91fdd465aa",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
