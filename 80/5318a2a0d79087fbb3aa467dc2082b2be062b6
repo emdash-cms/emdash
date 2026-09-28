@@ -1,0 +1,23 @@
+.changeset/safe-code-block-select-all.md
+  s_d126c666154201::t_8c8c33839ee6ea 1-6
+packages/core/src/components/inline-code-block.tsx
+  s_d126c666154201::t_d6c2cb1583ff40 461-468
+packages/core/tests/unit/components/inline-code-block.test.ts
+  s_d126c666154201::t_2265cd73118640 13-24,33-44,104-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "805318a2a0d79087fbb3aa467dc2082b2be062b6",
+  "prompts": {},
+  "sessions": {
+    "s_d126c666154201": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e8d7-6a29-7880-a131-fc91fdd465aa",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
