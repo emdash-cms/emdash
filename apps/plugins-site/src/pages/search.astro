@@ -8,7 +8,11 @@ import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 const query = Astro.url.searchParams.get("q")?.trim() ?? "";
 if (!query) return Astro.redirect("/");
 
-const result = await getLiveCollection("plugins", { q: query, limit: 100 });
+const result = await getLiveCollection("plugins", {
+	q: query,
+	limit: 100,
+	includeLatestRelease: true,
+});
 const entries = result.entries ?? [];
 const hasError = Boolean(result.error);
 if (!hasError) Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });

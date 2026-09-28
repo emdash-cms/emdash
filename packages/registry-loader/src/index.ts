@@ -22,6 +22,11 @@ export interface RegistryCollectionFilter {
 	capability?: string;
 	/** Number of packages to return. The registry accepts 1 through 100. */
 	limit?: number;
+	/**
+	 * Also load each package's latest release, for listings that show release
+	 * artifacts such as icons. Costs one registry request per package.
+	 */
+	includeLatestRelease?: boolean;
 }
 
 export interface RegistryEntryFilter {
@@ -33,7 +38,10 @@ export interface RegistryEntryFilter {
 
 export interface RegistryEntryData {
 	package: ValidatedPackageView;
-	/** Present for single-entry loads when the package has a visible release. */
+	/**
+	 * Present when the package has a visible release, for single-entry loads
+	 * and for collection loads with `includeLatestRelease`.
+	 */
 	latestRelease?: ValidatedReleaseView;
 }
 
@@ -50,14 +58,32 @@ export function registryLoader(
 
 		async loadCollection({ filter }) {
 			try {
-				const result = await client.searchPackages(filter ?? {});
-				return {
-					entries: result.packages.map((pkg) => ({
-						id: packageId(pkg),
-						data: { package: pkg },
-						cacheHint: packageCacheHint(pkg),
-					})),
-				};
+				const { includeLatestRelease, ...query } = filter ?? {};
+				const result = await client.searchPackages(query);
+				const entries = await Promise.all(
+					result.packages.map(async (pkg) => {
+						const latestRelease =
+							includeLatestRelease && pkg.latestVersion
+								? await client
+										.getLatestRelease({ did: pkg.did, package: pkg.slug })
+										.catch((error: unknown) => {
+											if (!(error instanceof ClientResponseError && error.error === "NotFound")) {
+												console.warn(
+													`[registry-loader] failed to load the latest release of ${packageId(pkg)}:`,
+													error,
+												);
+											}
+											return undefined;
+										})
+								: undefined;
+						return {
+							id: packageId(pkg),
+							data: { package: pkg, ...(latestRelease ? { latestRelease } : {}) },
+							cacheHint: packageCacheHint(pkg, latestRelease),
+						};
+					}),
+				);
+				return { entries };
 			} catch (error) {
 				return { error: loaderError("collection", error) };
 			}

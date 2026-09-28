@@ -87,6 +87,53 @@ describe("registryLoader", () => {
 		expect(requestUrl.searchParams.get("limit")).toBe("12");
 	});
 
+	it("includes each package's latest release in collection entries when asked", async () => {
+		const fetch = fetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				packages: [PACKAGE, { ...PACKAGE, slug: "draft", latestVersion: undefined }],
+			},
+			"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease": RELEASE,
+		});
+		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
+
+		const result = await loader.loadCollection({
+			collection: "plugins",
+			filter: { q: "gallery", includeLatestRelease: true },
+		});
+
+		expect(result).toMatchObject({
+			entries: [
+				{
+					data: { package: { slug: "gallery" }, latestRelease: { version: "1.0.0" } },
+					cacheHint: { tags: [PACKAGE.uri, RELEASE.uri] },
+				},
+				{ data: { package: { slug: "draft" } } },
+			],
+		});
+		expect(result.entries?.[1]?.data.latestRelease).toBeUndefined();
+		const urls = vi.mocked(fetch).mock.calls.map((call) => new URL(call[0] as string));
+		expect(urls).toHaveLength(2);
+		expect(urls[0]!.searchParams.has("includeLatestRelease")).toBe(false);
+	});
+
+	it("keeps a collection entry when its latest release cannot be loaded", async () => {
+		const fetch = fetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": { packages: [PACKAGE] },
+		});
+		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const result = await loader.loadCollection({
+			collection: "plugins",
+			filter: { includeLatestRelease: true },
+		});
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries?.[0]?.data.latestRelease).toBeUndefined();
+		expect(warn).toHaveBeenCalledOnce();
+		warn.mockRestore();
+	});
+
 	it("resolves a handle and includes the latest visible release", async () => {
 		const fetch = fetchStub({
 			"/xrpc/com.emdashcms.experimental.aggregator.resolvePackage": PACKAGE,
