@@ -1,5 +1,22 @@
 # emdash
 
+## 1.0.1-rc.1
+
+### Patch Changes
+
+- [#3531](https://github.com/emdash-cms/emdash/pull/3531) [`f6674fa`](https://github.com/emdash-cms/emdash/commit/f6674fa346964f78ab329fbce1bc4f3b9f0d05ef) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes recreating a deleted collection failing with `Collection "…" already exists` (`COLLECTION_EXISTS`) on sites with media usage tracking turned on, which new sites turn on automatically. Creating a collection through the admin, the API, MCP or a seed now finishes the deleted collection's media usage cleanup first, so sites already stuck in this state can recreate the collection after upgrading.
+  
+  Each create attempt does a bounded amount of that cleanup. If it can't finish, for example because the deleted collection referenced media from many entries, the error says the collection is being deleted, and the next attempt continues where the last one stopped. If the cleanup has failed, the error says so and includes the deleted collection's ID in `details.deletedCollectionId`. Both errors keep the `COLLECTION_EXISTS` code. Send that ID as `{ "collectionId": "…" }` to `POST /_emdash/api/admin/media-usage/collection-deletions/retry`, which requires the `schema:manage` permission and, for API tokens, the `admin` scope, then create the collection again.
+
+- [#3537](https://github.com/emdash-cms/emdash/pull/3537) [`02c2ad3`](https://github.com/emdash-cms/emdash/commit/02c2ad3b2e6993ca3fbc19fe51086a4cb8c0bb8a) Thanks [@akapug](https://github.com/akapug)! - Fixes the WordPress media URL rewrite matching a URL map key that carries a query string by its base URL. A key such as an attachment's `?attachment_id=7` shortlink also matched the home page, so the rewrite pointed links to the home page at that file. Such a key now matches that URL only, and inside a text field only where the URL ends with it.
+
+- [#3322](https://github.com/emdash-cms/emdash/pull/3322) [`1cdca21`](https://github.com/emdash-cms/emdash/commit/1cdca21510fa10eec6969fa4f83b20e6f9663870) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes `routeCtx.ui` being undefined for the declared Block Kit pages and dashboard widgets of plugins registered in `plugins: []`. They now receive the administrator's locale, text direction, and surface, as sandboxed plugins do, so a plugin can localize its Block Kit text in both install modes.
+- Updated dependencies [[`c66b49b`](https://github.com/emdash-cms/emdash/commit/c66b49b8f98226e3fed4e63f25131551e278edbb), [`9e297d6`](https://github.com/emdash-cms/emdash/commit/9e297d6964c3b1875581167484491948f0677fe7), [`a3609fb`](https://github.com/emdash-cms/emdash/commit/a3609fb4c2f514d944e693e1f7eded82aeccdb56), [`618591e`](https://github.com/emdash-cms/emdash/commit/618591e94fb87af2bb0086d882f0c2c766635874)]:
+  - @emdash-cms/admin@1.0.1-rc.1
+  - @emdash-cms/auth@1.0.1-rc.1
+  - @emdash-cms/blocks@1.0.1-rc.1
+  - @emdash-cms/gutenberg-to-portable-text@1.0.1-rc.1
+
 ## 1.0.1-rc.0
 
 ### Patch Changes

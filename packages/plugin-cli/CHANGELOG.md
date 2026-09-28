@@ -1,5 +1,11 @@
 # @emdash-cms/registry-cli
 
+## 0.13.1-rc.0
+
+### Patch Changes
+
+- [#3532](https://github.com/emdash-cms/emdash/pull/3532) [`0ef2e5b`](https://github.com/emdash-cms/emdash/commit/0ef2e5b385547557833c517278dd5c2b984e0960) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes `emdash-plugin validate` accepting a manifest `name`, `description`, author name, or keyword longer than the registry package profile allows (100, 140, 64, and 64 graphemes), which made `release setup` fail later without naming the field. Commands that load or generate `emdash-plugin.jsonc`, such as `build`, `publish`, and `init`, now reject these values too and name the field and its limit. When a package profile still does not match the registry format, `profile setup` and `release setup` list the failing checks.
+
 ## 0.13.0
 
 ### Minor Changes

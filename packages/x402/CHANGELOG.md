@@ -1,5 +1,9 @@
 # @emdash-cms/x402
 
+## 1.0.1-rc.1
+
+No changes in this release.
+
 ## 1.0.1-rc.0
 
 ### Patch Changes
