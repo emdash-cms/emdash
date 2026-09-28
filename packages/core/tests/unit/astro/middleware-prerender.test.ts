@@ -918,17 +918,47 @@ describe("astro middleware setup probe", () => {
 		expect(response.status).toBe(200);
 	});
 
-	it("does not initialize the runtime after the probe failed to reach the database", async () => {
+	it("starts runtime init without waiting for the probe", async () => {
+		let releaseProbe = () => {};
+		const probeHeld = new Promise<void>((resolve) => {
+			releaseProbe = resolve;
+		});
+		vi.mocked(getDb).mockResolvedValue({
+			selectFrom: () => ({
+				selectAll: () => ({
+					limit: () => ({
+						execute: async () => {
+							await probeHeld;
+							return [];
+						},
+					}),
+				}),
+			}),
+		} as never);
+
+		const { context } = anonymousCategoryPageContext();
+		const pending = onRequest(
+			context as Parameters<typeof onRequest>[0],
+			async () => new Response("page"),
+		);
+		await vi.waitFor(() => expect(mockCreateRuntime).toHaveBeenCalledTimes(1));
+
+		releaseProbe();
+		expect((await pending).status).toBe(200);
+		expect(typeof (context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
+	it("does not wait for runtime init after the probe failed to reach the database", async () => {
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
 		);
+		mockCreateRuntime.mockReturnValue(new Promise(() => {}));
 
 		const { context } = anonymousCategoryPageContext();
 		const next = vi.fn(async () => new Response("page"));
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(mockCreateRuntime).not.toHaveBeenCalled();
 		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
