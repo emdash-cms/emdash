@@ -134,6 +134,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 				"rt.seedcheck",
 				"rt.plugins",
 				"rt.site",
+				"rt.hookselections",
 				"rt.sandbox",
 				"rt.hooks",
 				"rt.cron",
