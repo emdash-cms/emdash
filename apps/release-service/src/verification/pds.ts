@@ -127,7 +127,7 @@ async function resolveDnsType(
 	const parsed = await readBoundedJson(
 		await fetchImplementation(url, {
 			headers: { accept: "application/dns-json" },
-			redirect: "error",
+			redirect: "manual",
 			signal: AbortSignal.timeout(5_000),
 		}),
 		MAX_DNS_BYTES,

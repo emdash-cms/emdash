@@ -163,7 +163,7 @@ function authorityFetch(
 	} = {},
 ) {
 	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-		const url = new URL(input instanceof Request ? input.url : input.toString());
+		const url = new URL(new Request(input, init).url);
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
 				Status: 0,
@@ -361,6 +361,30 @@ describe("approval authority", () => {
 			}),
 		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
 		expect(proofRequests).toBe(3);
+	});
+
+	it("rejects DNS resolver redirects before fetching the record", async () => {
+		const requestedHosts: string[] = [];
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(new Request(input, init).url);
+			requestedHosts.push(url.hostname);
+			if (url.hostname === "cloudflare-dns.com") {
+				return Response.json(
+					{ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] },
+					{ status: 302, headers: { location: "https://resolver.example/dns-query" } },
+				);
+			}
+			return authorityFetch()(input, init);
+		};
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch,
+				retryDelaysMs: [0, 0],
+			}),
+		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
+		expect(requestedHosts).not.toContain("resolver.example");
+		expect(requestedHosts).not.toContain("pds.example.com");
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {

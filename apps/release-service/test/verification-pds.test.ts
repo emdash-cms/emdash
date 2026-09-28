@@ -83,8 +83,8 @@ function snapshotFetch(
 		tamperedProfile?: boolean;
 	} = {},
 ) {
-	return async (input: RequestInfo | URL): Promise<Response> => {
-		const url = new URL(input instanceof Request ? input.url : input.toString());
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		const url = new URL(new Request(input, init).url);
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
 				Status: 0,

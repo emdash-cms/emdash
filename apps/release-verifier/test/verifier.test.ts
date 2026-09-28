@@ -505,9 +505,8 @@ describe("isolated release verifier", () => {
 
 describe("Cloudflare DNS resolver", () => {
 	it("combines bounded A and AAAA answers", async () => {
-		const fetchImplementation = vi.fn(async (input: RequestInfo | URL) => {
-			const url =
-				input instanceof URL ? input : new URL(typeof input === "string" ? input : input.url);
+		const fetchImplementation = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = new URL(new Request(input, init).url);
 			const type = url.searchParams.get("type");
 			return Response.json({
 				Status: 0,
@@ -521,5 +520,25 @@ describe("Cloudflare DNS resolver", () => {
 			"203.0.113.5",
 			"2001:db8::5",
 		]);
+	});
+
+	it("rejects resolver redirects", async () => {
+		const fetchImplementation = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+			const type = new URL(new Request(input, init).url).searchParams.get("type");
+			return Response.json(
+				{
+					Status: 0,
+					Answer: [
+						{ type: type === "A" ? 1 : 28, data: type === "A" ? "203.0.113.5" : "2001:db8::5" },
+					],
+				},
+				{ status: 302, headers: { location: "https://resolver.example/dns-query" } },
+			);
+		});
+
+		await expect(resolvePublicHostname("artifact.example", fetchImplementation)).rejects.toThrow(
+			"DNS resolution failed",
+		);
+		expect(fetchImplementation).toHaveBeenCalledTimes(2);
 	});
 });
