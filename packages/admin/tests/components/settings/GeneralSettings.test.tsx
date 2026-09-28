@@ -1,4 +1,5 @@
 import { Toasty } from "@cloudflare/kumo";
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -188,17 +189,37 @@ describe("GeneralSettings", () => {
 		for (const button of dirtyButtons) await expect.element(button).toBeEnabled();
 	});
 
-	it("updates the date preview as the pattern changes and handles invalid patterns", async () => {
+	it("updates the date preview without preventing themes from using other patterns", async () => {
 		const screen = await renderGeneralSettings();
 		await expect.element(screen.getByText(/January 23, 2026/)).toBeInTheDocument();
 		await screen.getByLabelText("Date Format").fill("yyyy/MM/dd");
 		await expect.element(screen.getByText(/2026\/01\/23/)).toBeInTheDocument();
-		await screen.getByLabelText("Date Format").fill("yyyy Z/MM/DD");
+		await screen.getByLabelText("Date Format").fill("YYYY-MM-DD");
 		await expect
-			.element(screen.getByText("Invalid date format. Use tokens such as yyyy/MM/dd."))
+			.element(screen.getByText("Preview unavailable for this format"))
 			.toBeInTheDocument();
 		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
-		expect(mockUpdateSettings).not.toHaveBeenCalled();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ dateFormat: "YYYY-MM-DD" }),
+			),
+		);
+	});
+
+	it("previews month names in the active admin language", async () => {
+		const previousLocale = i18n.locale;
+		try {
+			const screen = await renderGeneralSettings();
+			await expect.element(screen.getByText(/January 23, 2026/)).toBeInTheDocument();
+			i18n.loadAndActivate({ locale: "ar", messages: {} });
+			await screen.rerender(<GeneralSettings />);
+			await expect.element(screen.getByText(/يناير/)).toBeInTheDocument();
+			i18n.loadAndActivate({ locale: "fr", messages: {} });
+			await screen.rerender(<GeneralSettings />);
+			await expect.element(screen.getByText(/janvier/)).toBeInTheDocument();
+		} finally {
+			i18n.loadAndActivate({ locale: previousLocale, messages: {} });
+		}
 	});
 
 	it("offers matching timezones and rejects arbitrary text", async () => {
