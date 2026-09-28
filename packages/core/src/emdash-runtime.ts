@@ -1646,7 +1646,7 @@ export class EmDashRuntime {
 					// options may not exist yet on a pre-migration db.
 				}
 			}),
-			(async () => {
+			phase("rt.hookselections", "Exclusive hook selections", async () => {
 				// Built-in and sandboxed providers register after these reads, so
 				// only configured plugins' hooks and the always-present
 				// comment:moderate are known here. Hook resolution reads the rest.
@@ -1668,7 +1668,7 @@ export class EmDashRuntime {
 					captureMissingManualSchema(error);
 					// Hook resolution reads the selections itself when this fails.
 				}
-			})(),
+			}),
 		];
 
 		if (ownsConfiguredDb) {
