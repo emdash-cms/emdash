@@ -299,6 +299,11 @@ function parseAddress(input: string): { email: string; name?: string } {
 	return { email: input.trim() };
 }
 
+/** RFC 5321 §4.5.2 transparency: double a period that starts a line of DATA. */
+export function dotStuff(data: string): string {
+	return data.replace(/^\./gm, "..");
+}
+
 /**
  * Build the MIME message. Bodies are base64-encoded and wrapped at 76
  * columns, so no line exceeds the SMTP 998-octet limit.
@@ -918,8 +923,7 @@ export async function deliverSmtp(
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
 		});
-		const stuffed = mime.replace(/^\./gm, "..");
-		await active.writer.write(encodeUtf8(`${stuffed}\r\n.\r\n`));
+		await active.writer.write(encodeUtf8(`${dotStuff(mime)}\r\n.\r\n`));
 		await recv("message accepted", 250);
 
 		// Quit

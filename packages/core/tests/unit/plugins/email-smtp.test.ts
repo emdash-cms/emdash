@@ -13,6 +13,7 @@ import type { Database as DatabaseSchema } from "../../../src/database/types.js"
 import {
 	createSmtpEmailDeliver,
 	deliverSmtp,
+	dotStuff,
 	loadSmtpConfig,
 	loadSmtpConfigFromDb,
 	loadSmtpConfigFromEnv,
@@ -306,7 +307,12 @@ describe("deliverSmtp", () => {
 		);
 	});
 
-	it("transmits body lines starting with a period intact", async () => {
+	it("doubles a period at the start of any DATA line", () => {
+		expect(dotStuff(".one\r\ntwo\r\n.three\r\n..four")).toBe("..one\r\ntwo\r\n..three\r\n...four");
+		expect(dotStuff("a.b\r\n c")).toBe("a.b\r\n c");
+	});
+
+	it("base64-encodes bodies so a line starting with a period arrives intact", async () => {
 		const script = [
 			makeReply(220, "ready"),
 			makeReply(250, "EHLO ok"),

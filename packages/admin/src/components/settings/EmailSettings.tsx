@@ -124,8 +124,8 @@ export function EmailSettings() {
 
 	const testMutation = useMutation({
 		mutationFn: (to: string) => sendTestEmail(to),
-		onSuccess: () => {
-			toastManager.add({ title: t`Test email sent`, variant: "success", timeout: 5000 });
+		onSuccess: (_result, to) => {
+			toastManager.add({ title: t`Test email sent to ${to}`, variant: "success", timeout: 5000 });
 			setTestEmail("");
 		},
 		onError: (error) => {
