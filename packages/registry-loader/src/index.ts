@@ -24,7 +24,7 @@ export interface RegistryCollectionFilter {
 	limit?: number;
 	/**
 	 * Also load each package's latest release, for listings that show release
-	 * artifacts such as icons. Costs one registry request per package.
+	 * artifacts such as icons. Costs one registry request per package that has a published release.
 	 */
 	includeLatestRelease?: boolean;
 }
@@ -64,17 +64,18 @@ export function registryLoader(
 					result.packages.map(async (pkg) => {
 						const latestRelease =
 							includeLatestRelease && pkg.latestVersion
-								? await client
-										.getLatestRelease({ did: pkg.did, package: pkg.slug })
-										.catch((error: unknown) => {
-											if (!(error instanceof ClientResponseError && error.error === "NotFound")) {
-												console.warn(
-													`[registry-loader] failed to load the latest release of ${packageId(pkg)}:`,
-													error,
-												);
-											}
-											return undefined;
-										})
+								? await withTimeout(
+										client.getLatestRelease({ did: pkg.did, package: pkg.slug }),
+										LATEST_RELEASE_TIMEOUT_MS,
+									).catch((error: unknown) => {
+										if (!(error instanceof ClientResponseError && error.error === "NotFound")) {
+											console.warn(
+												`[registry-loader] failed to load the latest release of ${packageId(pkg)}:`,
+												error,
+											);
+										}
+										return undefined;
+									})
 								: undefined;
 						return {
 							id: packageId(pkg),
@@ -127,6 +128,17 @@ export function registryLoader(
 			}
 		},
 	};
+}
+
+/** How long a collection load waits for each package's latest release. */
+export const LATEST_RELEASE_TIMEOUT_MS = 3000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<never>((_resolve, reject) => {
+		timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function packageId(pkg: ValidatedPackageView): string {

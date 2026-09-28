@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DEFAULT_REGISTRY_URL, registryLoader } from "../src/index.js";
+import { DEFAULT_REGISTRY_URL, LATEST_RELEASE_TIMEOUT_MS, registryLoader } from "../src/index.js";
 
 const CID = `bafyrei${"a".repeat(52)}`;
 const DID = "did:plc:abcdefghijklmnopqrstuvwx";
@@ -132,6 +132,30 @@ describe("registryLoader", () => {
 		expect(result.entries?.[0]?.data.latestRelease).toBeUndefined();
 		expect(warn).toHaveBeenCalledOnce();
 		warn.mockRestore();
+	});
+
+	it("stops waiting for a slow latest release after the timeout", async () => {
+		vi.useFakeTimers();
+		const fetch: typeof globalThis.fetch = vi.fn(async (input) => {
+			const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
+			if (url.pathname.endsWith(".searchPackages")) return Response.json({ packages: [PACKAGE] });
+			return new Promise<Response>(() => {});
+		});
+		const loader = registryLoader({ aggregatorUrl: "https://registry.test", fetch });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		const pending = loader.loadCollection({
+			collection: "plugins",
+			filter: { includeLatestRelease: true },
+		});
+		await vi.advanceTimersByTimeAsync(LATEST_RELEASE_TIMEOUT_MS);
+		const result = await pending;
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries?.[0]?.data.latestRelease).toBeUndefined();
+		expect(warn).toHaveBeenCalledOnce();
+		warn.mockRestore();
+		vi.useRealTimers();
 	});
 
 	it("resolves a handle and includes the latest visible release", async () => {
