@@ -8177,7 +8177,8 @@ const settingFieldSchema = discriminatedUnion("type", [
 const adminPageSchema = object({
 	path: string(),
 	label: string(),
-	icon: string().optional()
+	icon: string().optional(),
+	group: string().trim().min(1).max(100).optional()
 });
 const dashboardWidgetSchema = object({
 	id: string(),
