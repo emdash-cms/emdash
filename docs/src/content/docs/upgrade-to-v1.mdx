@@ -3,8 +3,6 @@ title: Upgrade to EmDash 1.0
 description: Breaking changes between EmDash 0.x and 1.0, and how to update your site.
 ---
 
-import { Aside } from "@astrojs/starlight/components";
-
 EmDash 1.0 removes APIs that were deprecated during 0.x and moves the entry points that only EmDash itself loads under `emdash/internal/`. This guide lists each breaking change and what to update in your site.
 
 ## Upgrade your dependencies
@@ -15,10 +13,6 @@ Update `emdash` and any other EmDash packages your site uses to their latest ver
 pnpm up --latest emdash @emdash-cms/cloudflare
 pnpm build
 ```
-
-<Aside type="caution">
-	The first 1.x release is `1.0.1`. npm also lists a deprecated `emdash@1.0.0`, published by mistake from 0.7-era code. Do not install `1.0.0` or pin your dependencies to it.
-</Aside>
 
 If your deployment runs [`emdash migrate`](/reference/cli/#emdash-migrate), run it against the `.emdash/migrations.json` produced by a build made after upgrading. The command rejects a manifest written by an earlier EmDash version.
 
