@@ -132,6 +132,7 @@ Each page declaration has the following fields:
 | `path` | Yes | Mounts the page at `/_emdash/admin/plugins/<plugin-id><path>`. Use a leading slash. |
 | `label` | Yes | Supplies the sidebar and command-palette label. |
 | `icon` | No | Names a Phosphor icon in kebab, snake, space-separated, or PascalCase form. Unknown names fall back to the plugin icon. |
+| `group` | No | Places the page in a collapsible sidebar folder. A group that matches the group of a collection shown in the sidebar (case-sensitive, ignoring surrounding whitespace) puts the page in that folder after its collections and taxonomies; otherwise pages sharing the group, from any plugin, form a folder in the Plugins section. |
 
 The admin module maps each declared path to a React component. A trailing slash is treated as equivalent, and the plugin root opens the first exported page when no `/` page exists.
 
