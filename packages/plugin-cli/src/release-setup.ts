@@ -608,7 +608,7 @@ export const releaseSetupCommand = defineCommand({
 					],
 					initialValue: "changesets",
 				});
-				if (typeof selected !== "string") {
+				if (clack.isCancel(selected) || typeof selected !== "string") {
 					clack.cancel("Cancelled.");
 					process.exit(0);
 				}
