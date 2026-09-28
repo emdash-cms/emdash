@@ -952,7 +952,12 @@ describe("astro middleware setup probe", () => {
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
 		);
-		mockCreateRuntime.mockReturnValue(new Promise(() => {}));
+		let releaseInit = () => {};
+		mockCreateRuntime.mockReturnValue(
+			new Promise((resolve) => {
+				releaseInit = () => resolve(MOCK_RUNTIME);
+			}),
+		);
 
 		const { context } = anonymousCategoryPageContext();
 		const next = vi.fn(async () => new Response("page"));
@@ -962,6 +967,7 @@ describe("astro middleware setup probe", () => {
 		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
+		releaseInit();
 	});
 
 	it("still uses an already-running runtime when the probe fails", async () => {
