@@ -20,7 +20,15 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+	cpSync,
+	existsSync,
+	lstatSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,45 +46,78 @@ const SKILLS = [
 	"wordpress-theme-to-emdash",
 ];
 
-const RE_FENCED_BLOCK = /^(```|~~~)[^\n]*\n[\s\S]*?^\1[^\n]*$/gm;
-const RE_INLINE_CODE = /(`+)[\s\S]*?\1/g;
-const RE_MARKDOWN_LINK = /\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g;
+const RE_FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
+const RE_FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
+const RE_INLINE_CODE = /(`+).*?\1/g;
+const RE_LINK_TARGETS = [
+	/\]\(\s*(?:<([^>\n]+)>|([^\s()]+(?:\([^\s()]*\)[^\s()]*)*))/g,
+	/^ {0,3}\[[^\]\n]+\]:\s*(?:<([^>\n]+)>|(\S+))/gm,
+	/\b(?:href|src)\s*=\s*["']([^"'\n]+)["']/g,
+];
 const RE_EXTERNAL_TARGET = /^(?:[a-z][a-z0-9+.-]*:|\/|#)/i;
 
-function listFiles(dir) {
-	const files = [];
+function listEntries(dir) {
+	const entries = [];
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
 		const path = join(dir, entry.name);
-		if (entry.isDirectory()) files.push(...listFiles(path));
-		else files.push(path);
+		entries.push({ path, isSymlink: entry.isSymbolicLink() });
+		if (entry.isDirectory()) entries.push(...listEntries(path));
 	}
-	return files;
+	return entries;
 }
 
-function isInside(child, parent) {
+function isWithin(child, parent) {
 	const rel = relative(parent, child);
-	return rel !== "" && !rel.startsWith("..") && !rel.startsWith(sep);
+	return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
+}
+
+function stripCode(markdown) {
+	const kept = [];
+	let fence = null;
+	for (const line of markdown.split("\n")) {
+		if (fence) {
+			const close = line.match(RE_FENCE_CLOSE)?.[1];
+			if (close && close[0] === fence[0] && close.length >= fence.length) fence = null;
+			continue;
+		}
+		const open = line.match(RE_FENCE_OPEN)?.[1];
+		if (open) {
+			fence = open;
+			continue;
+		}
+		kept.push(line.replace(RE_INLINE_CODE, ""));
+	}
+	return kept.join("\n");
+}
+
+function linkTargets(markdown) {
+	const text = stripCode(markdown);
+	return RE_LINK_TARGETS.flatMap((re) =>
+		Array.from(text.matchAll(re), (match) => match.slice(1).find(Boolean)),
+	);
 }
 
 /**
  * Relative links must resolve to a file inside one of the synced skills, so
  * a skill can't reach into the monorepo or depend on an unsynced sibling.
  */
-function findBrokenLinks(skillsRoot) {
+function findBrokenLinks(skillsRoot, files) {
 	const broken = [];
-	for (const skill of SKILLS) {
-		for (const file of listFiles(join(skillsRoot, skill))) {
-			if (!file.endsWith(".md")) continue;
-			const text = readFileSync(file, "utf8")
-				.replace(RE_FENCED_BLOCK, "")
-				.replace(RE_INLINE_CODE, "");
-			for (const [, rawTarget] of text.matchAll(RE_MARKDOWN_LINK)) {
-				if (RE_EXTERNAL_TARGET.test(rawTarget)) continue;
-				const target = resolve(dirname(file), decodeURIComponent(rawTarget.split("#")[0]));
-				const ok =
-					existsSync(target) && SKILLS.some((name) => isInside(target, join(skillsRoot, name)));
-				if (!ok) broken.push(`${relative(skillsRoot, file)} -> ${rawTarget}`);
+	for (const file of files) {
+		if (!file.endsWith(".md")) continue;
+		for (const rawTarget of linkTargets(readFileSync(file, "utf8"))) {
+			if (RE_EXTERNAL_TARGET.test(rawTarget)) continue;
+			let target;
+			try {
+				target = resolve(dirname(file), decodeURIComponent(rawTarget.split("#")[0]));
+			} catch {
+				target = null;
 			}
+			const ok =
+				target !== null &&
+				existsSync(target) &&
+				SKILLS.some((name) => isWithin(target, join(skillsRoot, name)));
+			if (!ok) broken.push(`${relative(skillsRoot, file)} -> ${rawTarget}`);
 		}
 	}
 	return broken;
@@ -87,7 +128,20 @@ function assertValid(skillsRoot) {
 	if (missing.length > 0) {
 		throw new Error(`Skills listed in SKILLS have no SKILL.md: ${missing.join(", ")}`);
 	}
-	const broken = findBrokenLinks(skillsRoot);
+	const entries = SKILLS.flatMap((skill) => listEntries(join(skillsRoot, skill)));
+	const symlinks = entries.filter((entry) => entry.isSymlink);
+	if (symlinks.length > 0) {
+		throw new Error(
+			[
+				"Synced skills must not contain symlinks:",
+				...symlinks.map((entry) => `  ${relative(skillsRoot, entry.path)}`),
+			].join("\n"),
+		);
+	}
+	const broken = findBrokenLinks(
+		skillsRoot,
+		entries.map((entry) => entry.path),
+	);
 	if (broken.length > 0) {
 		throw new Error(
 			[
@@ -105,6 +159,9 @@ function git(args, cwd) {
 
 function syncSkills(destSkillsDir) {
 	if (existsSync(destSkillsDir)) {
+		if (lstatSync(destSkillsDir).isSymbolicLink()) {
+			throw new Error(`${destSkillsDir} is a symlink; refusing to prune through it`);
+		}
 		for (const entry of readdirSync(destSkillsDir, { withFileTypes: true })) {
 			if (!SKILLS.includes(entry.name)) {
 				rmSync(join(destSkillsDir, entry.name), { recursive: true, force: true });
@@ -115,9 +172,62 @@ function syncSkills(destSkillsDir) {
 	for (const skill of SKILLS) {
 		const dest = join(destSkillsDir, skill);
 		rmSync(dest, { recursive: true, force: true });
-		cpSync(join(SKILLS_DIR, skill), dest, { recursive: true, dereference: true });
+		cpSync(join(SKILLS_DIR, skill), dest, { recursive: true });
 		console.log(`Synced ${skill}`);
 	}
+}
+
+/**
+ * A re-run of an older workflow run would push stale skills over newer ones.
+ * The run for the current tip of main always follows, so skipping is safe.
+ */
+function isStaleRun(sourceRepo, sourceSha) {
+	const tip = execFileSync(
+		"git",
+		["ls-remote", `https://github.com/${sourceRepo}.git`, "refs/heads/main"],
+		{ encoding: "utf8", stdio: "pipe" },
+	).split("\t")[0];
+	return tip !== sourceSha;
+}
+
+function commitAndPush(targetDir, { dryRun, localPath }) {
+	git(["add", "-A", "skills"], targetDir);
+	const diff = git(["diff", "--cached", "--stat"], targetDir);
+	if (!diff) {
+		console.log("No changes to sync.");
+		return false;
+	}
+
+	console.log("Changes:");
+	console.log(diff);
+	console.log("");
+
+	if (dryRun || localPath) {
+		console.log("Not pushing.");
+		return true;
+	}
+
+	const sourceSha = process.env.GITHUB_SHA || git(["rev-parse", "HEAD"], ROOT);
+	const sourceRepo = process.env.GITHUB_REPOSITORY || "emdash-cms/emdash";
+
+	if (process.env.CI) {
+		git(["config", "user.name", "github-actions[bot]"], targetDir);
+		git(["config", "user.email", "github-actions[bot]@users.noreply.github.com"], targetDir);
+	}
+
+	git(
+		[
+			"commit",
+			"-m",
+			`chore: sync skills from ${sourceRepo}@${sourceSha.slice(0, 12)}`,
+			"-m",
+			`Source: https://github.com/${sourceRepo}/commit/${sourceSha}`,
+		],
+		targetDir,
+	);
+	git(["push", "origin", "HEAD"], targetDir);
+	console.log(`Pushed to ${REPO}`);
+	return false;
 }
 
 // --- main ---
@@ -144,6 +254,17 @@ if (checkOnly) {
 	process.exit(0);
 }
 
+if (
+	!dryRun &&
+	!localPath &&
+	process.env.GITHUB_SHA &&
+	process.env.GITHUB_REPOSITORY &&
+	isStaleRun(process.env.GITHUB_REPOSITORY, process.env.GITHUB_SHA)
+) {
+	console.log(`${process.env.GITHUB_SHA} is no longer the tip of main; skipping sync.`);
+	process.exit(0);
+}
+
 let targetDir;
 let tempDir;
 
@@ -164,50 +285,12 @@ if (localPath) {
 	targetDir = tempDir;
 }
 
+let preserveTempDir = false;
 try {
 	syncSkills(join(targetDir, "skills"));
 	console.log("");
-
-	git(["add", "-A", "skills"], targetDir);
-	const diff = git(["diff", "--cached", "--stat"], targetDir);
-	if (!diff) {
-		console.log("No changes to sync.");
-		process.exit(0);
-	}
-
-	console.log("Changes:");
-	console.log(diff);
-	console.log("");
-
-	if (dryRun || localPath) {
-		console.log("Not pushing.");
-		if (tempDir) {
-			console.log(`Temp dir preserved at: ${tempDir}`);
-			tempDir = undefined;
-		}
-		process.exit(0);
-	}
-
-	const sourceSha = process.env.GITHUB_SHA || git(["rev-parse", "HEAD"], ROOT);
-	const sourceRepo = process.env.GITHUB_REPOSITORY || "emdash-cms/emdash";
-
-	if (process.env.CI) {
-		git(["config", "user.name", "github-actions[bot]"], targetDir);
-		git(["config", "user.email", "github-actions[bot]@users.noreply.github.com"], targetDir);
-	}
-
-	git(
-		[
-			"commit",
-			"-m",
-			`chore: sync skills from ${sourceRepo}@${sourceSha.slice(0, 12)}`,
-			"-m",
-			`Source: https://github.com/${sourceRepo}/commit/${sourceSha}`,
-		],
-		targetDir,
-	);
-	git(["push", "origin", "HEAD"], targetDir);
-	console.log(`Pushed to ${REPO}`);
+	preserveTempDir = commitAndPush(targetDir, { dryRun, localPath });
 } finally {
-	if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+	if (tempDir && preserveTempDir) console.log(`Temp dir preserved at: ${tempDir}`);
+	else if (tempDir) rmSync(tempDir, { recursive: true, force: true });
 }
