@@ -134,11 +134,10 @@ export function registryLoader(
 export const LATEST_RELEASE_TIMEOUT_MS = 3000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const timeout = new Promise<never>((_resolve, reject) => {
-		timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+	return new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+		promise.then(resolve, reject).finally(() => clearTimeout(timer));
 	});
-	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 function packageId(pkg: ValidatedPackageView): string {
