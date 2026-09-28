@@ -1,0 +1,21 @@
+packages/admin/src/components/editor/CodeBlockNode.tsx
+  s_d126c666154201::t_3683cc04a80832 341-348
+packages/admin/tests/editor/CodeBlockNode.test.ts
+  s_d126c666154201::t_0fb34fc325b9f7 24-36,47-59,175-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "44d3637637c7bcb9927dff3accea3d1b2dc2b3b3",
+  "prompts": {},
+  "sessions": {
+    "s_d126c666154201": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e8d7-6a29-7880-a131-fc91fdd465aa",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
