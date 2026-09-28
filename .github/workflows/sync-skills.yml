@@ -1,12 +1,6 @@
 name: Sync Skills
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "skills/**"
-      - "scripts/sync-skills-repo.mjs"
-      - ".github/workflows/sync-skills.yml"
   pull_request:
     branches: [main]
     paths:
@@ -14,21 +8,29 @@ on:
       - "scripts/sync-skills-repo.mjs"
       - ".github/workflows/sync-skills.yml"
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      APP_ID:
+        required: true
+        description: GitHub App client ID for emdashbot.
+      APP_PRIVATE_KEY:
+        required: true
+        description: GitHub App private key for emdashbot.
 
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  # Cancelling a main run could interrupt a push to emdash-cms/skills.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
+# Concurrency is per job: when called from release.yml, github.workflow is the
+# caller's name, so a workflow-level group would collide with the caller's.
 jobs:
   check:
     name: Check synced skills are self-contained
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    concurrency:
+      group: sync-skills-check-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -43,6 +45,10 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: sync-skills-repo
+      # Cancelling a run could interrupt a push to emdash-cms/skills.
+      cancel-in-progress: false
     steps:
       - name: Generate token
         id: app-token

@@ -9,6 +9,8 @@
  * - Fails if a synced skill links to a file outside the synced set
  * - Commits and pushes straight to the target's default branch
  *
+ * Runs after each release so the skills match the published packages.
+ *
  * Only skills/ is managed here. Harness manifests, README, and LICENSE in the
  * target repo are maintained there.
  *
@@ -177,19 +179,6 @@ function syncSkills(destSkillsDir) {
 	}
 }
 
-/**
- * A re-run of an older workflow run would push stale skills over newer ones.
- * The run for the current tip of main always follows, so skipping is safe.
- */
-function isStaleRun(sourceRepo, sourceSha) {
-	const tip = execFileSync(
-		"git",
-		["ls-remote", `https://github.com/${sourceRepo}.git`, "refs/heads/main"],
-		{ encoding: "utf8", stdio: "pipe" },
-	).split("\t")[0];
-	return tip !== sourceSha;
-}
-
 function commitAndPush(targetDir, { dryRun, localPath }) {
 	git(["add", "-A", "skills"], targetDir);
 	const diff = git(["diff", "--cached", "--stat"], targetDir);
@@ -209,6 +198,7 @@ function commitAndPush(targetDir, { dryRun, localPath }) {
 
 	const sourceSha = process.env.GITHUB_SHA || git(["rev-parse", "HEAD"], ROOT);
 	const sourceRepo = process.env.GITHUB_REPOSITORY || "emdash-cms/emdash";
+	const { version } = JSON.parse(readFileSync(join(ROOT, "packages/core/package.json"), "utf8"));
 
 	if (process.env.CI) {
 		git(["config", "user.name", "github-actions[bot]"], targetDir);
@@ -219,7 +209,7 @@ function commitAndPush(targetDir, { dryRun, localPath }) {
 		[
 			"commit",
 			"-m",
-			`chore: sync skills from ${sourceRepo}@${sourceSha.slice(0, 12)}`,
+			`chore: sync skills from emdash v${version}`,
 			"-m",
 			`Source: https://github.com/${sourceRepo}/commit/${sourceSha}`,
 		],
@@ -251,17 +241,6 @@ try {
 
 if (checkOnly) {
 	console.log(`All ${SKILLS.length} synced skills are self-contained.`);
-	process.exit(0);
-}
-
-if (
-	!dryRun &&
-	!localPath &&
-	process.env.GITHUB_SHA &&
-	process.env.GITHUB_REPOSITORY &&
-	isStaleRun(process.env.GITHUB_REPOSITORY, process.env.GITHUB_SHA)
-) {
-	console.log(`${process.env.GITHUB_SHA} is no longer the tip of main; skipping sync.`);
 	process.exit(0);
 }
 
