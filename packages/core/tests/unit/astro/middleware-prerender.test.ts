@@ -964,10 +964,13 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
-		expect(next).toHaveBeenCalledTimes(1);
-		expect(response.status).toBe(200);
-		releaseInit();
+		try {
+			expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
+			expect(next).toHaveBeenCalledTimes(1);
+			expect(response.status).toBe(200);
+		} finally {
+			releaseInit();
+		}
 	});
 
 	it("still uses an already-running runtime when the probe fails", async () => {
