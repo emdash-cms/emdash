@@ -16,7 +16,7 @@ import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import { sanitizeHeadersForSandbox } from "./request-meta.js";
-import { normalizePluginCapabilities } from "./types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./types.js";
 import type {
 	ManifestMcpTool,
 	ResolvedPlugin,
@@ -285,7 +285,7 @@ export function adaptSandboxEntry(
 	// Build capabilities from descriptor.
 	// Validate against the known set (same as defineNativePlugin). Both
 	// current and deprecated names are accepted; deprecated names are
-	// silently normalized to current names below so the runtime only ever
+	// normalized to current names below so the runtime only ever
 	// sees the canonical form.
 	const rawCapabilities = descriptor.capabilities ?? [];
 	for (const cap of rawCapabilities) {
@@ -297,7 +297,7 @@ export function adaptSandboxEntry(
 		}
 	}
 
-	// Silent normalization: rewrite deprecated names to current names.
+	warnDeprecatedPluginCapabilities(pluginId, rawCapabilities);
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated above; normalization only returns capabilities from the union
 	const capabilities = normalizePluginCapabilities(rawCapabilities as PluginCapability[]);
 	const allowedHosts = descriptor.allowedHosts ?? [];

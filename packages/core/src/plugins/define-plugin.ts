@@ -16,7 +16,7 @@ import {
 	type PluginRouteBodyMode,
 } from "@emdash-cms/plugin-types";
 
-import { normalizePluginCapabilities } from "./types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -205,9 +205,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	}
 
 	// Validate capabilities. Both current names and deprecated aliases are
-	// accepted; aliases are silently rewritten to current names below so the
-	// runtime only ever sees the canonical form. Authors are warned at
-	// bundle/validate and hard-failed at publish.
+	// accepted; aliases are rewritten to current names below so the runtime only
+	// ever sees the canonical form.
 	const validCapabilities = new Set<string>(PLUGIN_CAPABILITIES);
 	for (const cap of capabilities) {
 		if (!validCapabilities.has(cap)) {
@@ -215,6 +214,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		}
 	}
 
+	warnDeprecatedPluginCapabilities(id, capabilities);
 	const normalizedCapabilities = normalizePluginCapabilities(capabilities);
 
 	// Normalize hooks

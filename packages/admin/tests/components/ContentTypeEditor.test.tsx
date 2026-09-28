@@ -210,6 +210,7 @@ describe("ContentTypeEditor", () => {
 			urlPattern: undefined,
 			routable: true,
 			editLocking: true,
+			hidden: false,
 			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
@@ -234,7 +235,9 @@ describe("ContentTypeEditor", () => {
 			urlPattern: undefined,
 			routable: true,
 			editLocking: true,
+			icon: "",
 			group: null,
+			hidden: false,
 			supports: ["drafts"],
 			hasSeo: false,
 			commentsEnabled: false,
@@ -242,6 +245,32 @@ describe("ContentTypeEditor", () => {
 			commentsClosedAfterDays: 90,
 			commentsAutoApproveUsers: true,
 		});
+	});
+
+	it("creates a collection without a dashboard quick action when switched off", async () => {
+		const onSave = vi.fn();
+		const screen = await render(<ContentTypeEditor {...defaultProps({ onSave })} isNew />);
+
+		await screen.getByLabelText("Label (Plural)").fill("Sync runs");
+		await screen.getByRole("switch", { name: /Quick action on the dashboard/ }).click();
+		await screen.getByRole("button", { name: CREATE_CONTENT_TYPE_BUTTON_REGEX }).click();
+
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ admin: { quickCreate: false } }));
+	});
+
+	it("keeps existing admin settings when turning off the dashboard quick action", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ admin: { listColumns: ["event_date"] } });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByRole("switch", { name: /Quick action on the dashboard/ }).click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ admin: { listColumns: ["event_date"], quickCreate: false } }),
+		);
 	});
 
 	// ---- Field list displays existing fields with type and badges ----
@@ -685,6 +714,25 @@ describe("ContentTypeEditor", () => {
 		await screen.getByLabelText("Group").fill("");
 		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
 		expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ group: null }));
+	});
+
+	it("saves the icon and navigation visibility", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ hidden: false, admin: { listColumns: ["title"] } });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Icon").fill(" trophy ");
+		await screen.getByLabelText("Hide from navigation").click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				icon: "trophy",
+				hidden: true,
+			}),
+		);
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {

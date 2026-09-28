@@ -35,7 +35,6 @@ import type {
 	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
-import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import type {
 	ContentItem,
 	ContentListOptions,
@@ -43,7 +42,8 @@ import type {
 	PaginatedResult,
 	PluginStorageRepository,
 	SettingField,
-} from "emdash/plugins/host";
+} from "emdash/internal/plugins/host";
+import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import {
 	createPluginSecretRedactor,
 	type PluginSecretRedactor,
@@ -1495,6 +1495,33 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.bind(...params)
 			.all();
 		return (results.results ?? []).map(rowToTaxonomyTerm);
+	}
+
+	// =========================================================================
+	// Byline Operations - capability-gated
+	// =========================================================================
+
+	private async bylineAccess() {
+		this.requireCapability("bylines:read");
+		const { createBylineAccess } = await loadBridgeRuntime();
+		return createBylineAccess(await this.db());
+	}
+
+	async bylineGet(id: string) {
+		return (await this.bylineAccess()).get(id);
+	}
+
+	async bylineList(opts: { locale?: string; limit?: number; cursor?: string } = {}) {
+		return (await this.bylineAccess()).list(opts);
+	}
+
+	async bylineEntriesBylines(collection: string, entryIds: string[]) {
+		const access = await this.bylineAccess();
+		this.validateCollection(collection);
+		if (!Array.isArray(entryIds) || !entryIds.every((id) => typeof id === "string")) {
+			throw new Error("entryIds must be an array of strings");
+		}
+		return access.getEntriesBylines(collection, entryIds);
 	}
 
 	async taxonomyCreateTerm(

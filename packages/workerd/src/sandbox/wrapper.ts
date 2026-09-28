@@ -14,7 +14,7 @@
 import { Buffer } from "node:buffer";
 
 import { normalizePluginCapabilities, type PluginManifest } from "emdash";
-import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
+import { generatePluginHttpWireRuntimeSource } from "emdash/internal/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -102,6 +102,7 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const hasContentPublish = capabilities.includes("content:publish");
 	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasBylinesRead = capabilities.includes("bylines:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
 	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
@@ -487,6 +488,12 @@ function createContext(originHook, invocationId) {
 		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridgeCall("taxonomy/removeEntryTerms", { collection, entryId, taxonomy, termIds }),
 	};
 
+	const bylines = ${hasBylinesRead} ? {
+		get: (id) => bridgeCall("bylines/get", { id }),
+		list: (opts) => bridgeCall("bylines/list", { ...opts }),
+		getEntriesBylines: (collection, entryIds) => bridgeCall("bylines/entriesBylines", { collection, entryIds }),
+	} : undefined;
+
 	const redirects = ${hasRedirectRead} ? {
 		list: (opts) => unwrapRedirectResult(bridgeCall("redirect/list", opts || {})),
 		get: (id) => unwrapRedirectResult(bridgeCall("redirect/get", { id })),
@@ -639,6 +646,7 @@ function createContext(originHook, invocationId) {
 		content: ${hasContentAccess} ? content : undefined,
 		schema,
 		taxonomies,
+		bylines,
 		redirects,
 		media,
 		http,

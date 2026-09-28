@@ -2,9 +2,7 @@
 
 import { defineCommand, runMain } from "citty";
 
-import { authCommand } from "./commands/auth.js";
 import { contentCommand } from "./commands/content.js";
-import { devCommand } from "./commands/dev.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { exportSeedCommand } from "./commands/export-seed.js";
 import { initCommand } from "./commands/init.js";
@@ -29,14 +27,11 @@ const main = defineCommand({
 	subCommands: {
 		init: initCommand,
 		types: typesCommand,
-		dev: devCommand,
 		doctor: doctorCommand,
 		seed: seedCommand,
 		migrate: migrateCommand,
 		"export-seed": exportSeedCommand,
 		secrets: secretsCommand,
-		// Deprecated alias kept for backwards compat; will be removed in a future minor.
-		auth: authCommand,
 		login: loginCommand,
 		logout: logoutCommand,
 		whoami: whoamiCommand,

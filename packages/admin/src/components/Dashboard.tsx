@@ -321,7 +321,9 @@ function DashboardCardInset({ className, ...props }: React.ComponentPropsWithout
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const { t } = useLingui();
-	const collections = visibleCollectionEntries(manifest.collections);
+	const collections = visibleCollectionEntries(manifest.collections).filter(
+		([, config]) => config.quickCreate !== false,
+	);
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
@@ -519,7 +521,7 @@ function CountBadge({
 // --- Recent activity ---
 
 function RecentActivity({ items, loading }: { items: RecentItem[]; loading: boolean }) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 
 	return (
 		<LayerCard className="h-full">
@@ -553,7 +555,7 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 									data-testid="activity-time"
 									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
 								>
-									{formatRelativeTime(item.updatedAt)}
+									{formatRelativeTime(item.updatedAt, i18n.locale)}
 								</span>
 							</Link>
 						))}

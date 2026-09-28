@@ -97,7 +97,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
+			getRegistryConfigInput(emdash.config.registry),
 			{
 				did: body.did,
 				slug: body.slug,

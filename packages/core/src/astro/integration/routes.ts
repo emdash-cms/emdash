@@ -24,13 +24,13 @@ function resolveRoute(route: string): string {
 	const __dirname = dirname(fileURLToPath(import.meta.url));
 
 	// .astro routes ship as source (the consumer's Astro build processes them);
-	// .ts/.tsx routes are compiled, exported extensionless via emdash/routes/*.
+	// .ts/.tsx routes are compiled, exported extensionless via emdash/internal/routes/*.
 	const isAstro = route.endsWith(".astro");
 	const specifier = isAstro ? route : routeArtifactName(route.replace(TS_EXT, ""));
 
 	try {
 		// Try to resolve as package export
-		return require.resolve(`emdash/routes/${specifier}`);
+		return require.resolve(`emdash/internal/routes/${specifier}`);
 	} catch {
 		// Fallback for development (e.g. dist not yet built).
 		return isAstro

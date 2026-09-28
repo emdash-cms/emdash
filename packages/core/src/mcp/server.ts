@@ -30,6 +30,7 @@ import {
 	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
+import { after } from "../after.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
@@ -2026,7 +2027,11 @@ export function createMcpServer(
 			try {
 				const { handleBylineCreate } = await import("../api/handlers/bylines.js");
 				const result = await handleBylineCreate(ec.db, args);
-				if (result.success) await invalidateBylines();
+				if (result.success) {
+					await invalidateBylines();
+					const byline = result.data;
+					after(() => ec.hooks.runBylineAfterSave(byline, true));
+				}
 				return unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_CREATE_ERROR");
@@ -2054,7 +2059,11 @@ export function createMcpServer(
 				const { handleBylineUpdate } = await import("../api/handlers/bylines.js");
 				const { id, ...input } = args;
 				const result = await handleBylineUpdate(ec.db, id, input);
-				if (result.success) await invalidateBylines();
+				if (result.success) {
+					await invalidateBylines();
+					const byline = result.data;
+					after(() => ec.hooks.runBylineAfterSave(byline, false));
+				}
 				return unwrap(result);
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_UPDATE_ERROR");
@@ -2080,9 +2089,14 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { BylineRepository } = await import("../database/repositories/byline.js");
-				const deleted = await new BylineRepository(ec.db).delete(args.id);
+				const repo = new BylineRepository(ec.db);
+				const existing = ec.hooks.hasHooks("byline:afterDelete")
+					? await repo.findById(args.id)
+					: null;
+				const deleted = await repo.delete(args.id);
 				if (!deleted) return respondError("NOT_FOUND", `Byline '${args.id}' not found`);
 				await invalidateBylines();
+				if (existing) after(() => ec.hooks.runBylineAfterDelete(existing));
 				return jsonResult({ deleted: args.id });
 			} catch (error) {
 				return respondHandlerError(error, "BYLINE_DELETE_ERROR");
@@ -2296,7 +2310,7 @@ export function createMcpServer(
 				label: z.string().describe("Display name (plural, e.g. 'Blog Posts')"),
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
-				icon: z.string().optional().describe("Icon name for the admin UI"),
+				icon: createCollectionBody.shape.icon.describe("Icon name for the admin UI"),
 				supports: createCollectionBody.shape.supports.describe(
 					"Features to enable (default: ['drafts', 'revisions'])",
 				),

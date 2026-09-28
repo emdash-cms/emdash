@@ -684,29 +684,6 @@ Notes on `"client"` mode:
 
 In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
 
-### `experimental`
-
-**Optional.** Opt-in features whose behaviour or wire format may change, or be removed, in a minor release. Each field is independently enabled.
-
-<Aside type="caution">
-	Experimental options are unstable. Pin EmDash to an exact version when you depend on one, and check the changelog before upgrading.
-</Aside>
-
-#### `experimental.registry`
-
-**Deprecated.** Use the top-level [`registry`](#registry) option. Existing `experimental.registry` configuration continues to work when the top-level option is omitted. If both are present, the top-level value takes precedence.
-
-The following change moves an existing registry URL to the top level:
-
-```js title="astro.config.mjs" del={2-4} ins={5}
-emdash({
-	experimental: {
-		registry: "https://registry.example.com",
-	},
-	registry: "https://registry.example.com",
-});
-```
-
 ## Database adapters
 
 Import the adapters from `emdash/db`:
@@ -1063,31 +1040,6 @@ mediaProviders: [cloudflareStream({ controls: true })];
 
 See [Media Library: Media providers](/guides/media-library/#media-providers) for the required bindings and rendering components.
 
-## Astro cache adapter
-
-### `cloudflareCache(config?)`
-
-<Aside type="caution" title="Deprecated adapter">
-	`cloudflareCache()` is retained for existing sites. New Cloudflare sites should enable native
-	Workers Caching in `wrangler.jsonc` and use `cacheCloudflare()` from
-	`@astrojs/cloudflare/cache`. The native provider invalidates through `cache.purge()` and does
-	not need zone credentials.
-</Aside>
-
-The legacy adapter returns an Astro `cache.provider` that stores responses in the Workers Cache API and purges cache tags through the Cloudflare REST API:
-
-```js title="astro.config.mjs"
-import { cloudflareCache } from "@emdash-cms/cloudflare";
-
-export default defineConfig({
-	cache: {
-		provider: cloudflareCache(),
-	},
-});
-```
-
-It accepts `cacheName` (default `"emdash"`) and `bookmarkCookie` (default `"__em_d1_bookmark"`), plus `zoneId` or `zoneIdEnvVar` and `apiToken` or `apiTokenEnvVar` for purge-by-tag requests. The default variable names are `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN`.
-
 ## Live collections
 
 Configure the EmDash loader in `src/live.config.ts`:
@@ -1142,8 +1094,7 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 	"emdash": {
 		"label": "My Blog Template",
 		"schema": ".emdash/schema.sql",
-		"seed": ".emdash/seed.json",
-		"url": "https://my-site.pages.dev"
+		"seed": ".emdash/seed.json"
 	}
 }
 ```
@@ -1153,7 +1104,6 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 | `label`       | Template name for display          |
 | `schema`      | Optional SQL schema read by `emdash init` |
 | `seed`        | Path to seed JSON file             |
-| `url`         | Remote URL used by the deprecated `emdash dev --types` flow |
 
 ## TypeScript configuration
 

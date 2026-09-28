@@ -155,19 +155,39 @@ describe("generateManifest()", () => {
 		});
 	});
 
-	it("publishes the sidebar group for database collections", async () => {
+	it("publishes the sidebar icon and group for database collections", async () => {
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({
 			slug: "calendar_entries",
 			label: "Entries",
+			icon: "calendar-blank",
 			group: "Calendar",
 		});
 		await registry.createCollection({ slug: "team", label: "Team" });
 
 		const manifest = await generateManifest({}, {}, { db });
 
-		expect(manifest.collections.calendar_entries?.group).toBe("Calendar");
+		expect(manifest.collections.calendar_entries).toMatchObject({
+			icon: "calendar-blank",
+			group: "Calendar",
+		});
+		expect(manifest.collections.team).not.toHaveProperty("icon");
 		expect(manifest.collections.team).not.toHaveProperty("group");
+	});
+
+	it("publishes the dashboard quick-action opt-out only when set", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "sync_runs",
+			label: "Sync runs",
+			admin: { quickCreate: false },
+		});
+		await registry.createCollection({ slug: "team", label: "Team", admin: { listColumns: [] } });
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.sync_runs?.quickCreate).toBe(false);
+		expect(manifest.collections.team).not.toHaveProperty("quickCreate");
 	});
 
 	it("keeps config collection fields when the database has the same slug", async () => {
@@ -473,24 +493,6 @@ describe("EmDashRuntime.getManifest()", () => {
 	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
 		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const runtime = buildRuntime(db, {
-			experimental: { registry: { aggregatorUrl: "not a URL" } },
-		});
-
-		const manifest = await runtime.getManifest();
-
-		expect(manifest.registry).toBeUndefined();
-		expect(manifest.registryConfigurationError).toEqual({
-			code: "REGISTRY_AGGREGATOR_URL_INVALID",
-			field: "experimental.registry.aggregatorUrl",
-		});
-		expect(log).toHaveBeenCalledWith(
-			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
-		);
-	});
-
-	it("reports top-level registry configuration fields", async () => {
-		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-		const runtime = buildRuntime(db, {
 			registry: { aggregatorUrl: "not a URL" },
 		});
 
@@ -504,18 +506,6 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(log).toHaveBeenCalledWith(
 			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
 		);
-	});
-
-	it("lets the top-level false option override legacy registry configuration", async () => {
-		const runtime = buildRuntime(db, {
-			registry: false,
-			experimental: { registry: { aggregatorUrl: "not a URL" } },
-		});
-
-		const manifest = await runtime.getManifest();
-
-		expect(manifest.registry).toBeUndefined();
-		expect(manifest.registryConfigurationError).toBeUndefined();
 	});
 
 	it("reports the configured content default independently of admin language", async () => {

@@ -10,42 +10,34 @@ describe("registry integration configuration", () => {
 	it("uses the hosted registry by default when the plugin sandbox is enabled", () => {
 		expect(
 			resolveRegistryConfigForSandbox({ sandboxRunner: "./sandbox.mjs", sandboxEnabled: true }),
-		).toEqual({ input: DEFAULT_REGISTRY_AGGREGATOR_URL, fieldPrefix: "registry" });
+		).toBe(DEFAULT_REGISTRY_AGGREGATOR_URL);
 		expect(
 			resolveRegistryConfigForSandbox({ sandboxRunner: "./sandbox.mjs", sandboxEnabled: false }),
-		).toEqual({ fieldPrefix: "registry" });
+		).toBeUndefined();
 	});
 
-	it("gives the top-level registry option precedence over the legacy option", () => {
+	it("uses the configured registry in place of the hosted default", () => {
 		const registry = { aggregatorUrl: "https://registry.example.com" };
 
 		expect(
 			resolveRegistryConfigForSandbox({
 				registry,
-				experimentalRegistry: { aggregatorUrl: "not a URL" },
 				sandboxRunner: "./sandbox.mjs",
 				sandboxEnabled: true,
 			}),
-		).toEqual({ input: registry, fieldPrefix: "registry" });
+		).toBe(registry);
 	});
 
-	it("allows the top-level option to disable registry discovery", () => {
+	it("allows the registry option to disable registry discovery", () => {
 		expect(
 			resolveRegistryConfigForSandbox({
 				registry: false,
-				experimentalRegistry: { aggregatorUrl: "not a URL" },
 				sandboxRunner: "./sandbox.mjs",
 				sandboxEnabled: true,
 			}),
-		).toEqual({ fieldPrefix: "registry" });
+		).toBeUndefined();
 
-		expect(() =>
-			emdash({
-				registry: false,
-				experimental: { registry: { aggregatorUrl: "not a URL" } },
-				sandboxRunner: "./sandbox.mjs",
-			}),
-		).not.toThrow();
+		expect(() => emdash({ registry: false, sandboxRunner: "./sandbox.mjs" })).not.toThrow();
 	});
 
 	it.each([
@@ -80,8 +72,25 @@ describe("registry integration configuration", () => {
 				},
 			}),
 		).not.toThrow();
+	});
+
+	it("rejects the removed experimental.registry option with a migration hint", () => {
 		expect(() =>
-			emdash({ experimental: { registry: "https://legacy-registry.example.com" } }),
-		).not.toThrow();
+			emdash({
+				// @ts-expect-error - removed option still present in untyped JavaScript configuration
+				experimental: {
+					registry: {
+						aggregatorUrl: "https://registry.example.com",
+						policy: { minimumReleaseAge: "48h" },
+					},
+				},
+				sandboxRunner: "./sandbox.mjs",
+			}),
+		).toThrow(/`experimental\.registry` has been removed.*top-level `registry` option instead/);
+	});
+
+	it("ignores an empty experimental block", () => {
+		// @ts-expect-error - removed option still present in untyped JavaScript configuration
+		expect(() => emdash({ experimental: {} })).not.toThrow();
 	});
 });

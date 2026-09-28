@@ -173,6 +173,28 @@ describe("PluginBridge content discovery capability enforcement", () => {
 	});
 });
 
+describe("PluginBridge byline capability enforcement", () => {
+	it("rejects every byline method without bylines:read", async () => {
+		const { bridge, recorded } = makeBridge(["content:read", "users:read"]);
+		await expect(bridge.bylineGet("b1")).rejects.toThrow(/bylines:read/);
+		await expect(bridge.bylineList()).rejects.toThrow(/bylines:read/);
+		await expect(bridge.bylineEntriesBylines("posts", ["p1"])).rejects.toThrow(/bylines:read/);
+		expect(recorded).toEqual([]);
+	});
+
+	it("rejects invalid collection names and entry ID lists before querying", async () => {
+		const { bridge, recorded } = makeBridge(["bylines:read"]);
+		await expect(bridge.bylineEntriesBylines("posts; --", ["p1"])).rejects.toThrow(
+			/Invalid collection name/,
+		);
+		await expect(
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- RPC callers are untyped
+			bridge.bylineEntriesBylines("posts", [1] as unknown as string[]),
+		).rejects.toThrow(/entryIds must be an array of strings/);
+		expect(recorded).toEqual([]);
+	});
+});
+
 describe("taxonomyList", () => {
 	it("maps rows: int→bool, JSON collections, nullable label_singular", async () => {
 		const { bridge } = makeBridge(

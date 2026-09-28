@@ -25,7 +25,9 @@ import {
 	handleMarketplaceSearch,
 	handleMarketplaceGetPlugin,
 	diffCapabilities,
+	loadBundleFromR2,
 	rollbackPluginUpdate,
+	storeBundleInR2,
 } from "../../../src/api/handlers/marketplace.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -1454,5 +1456,31 @@ describe("Marketplace handlers", () => {
 
 			expect(result.success).toBe(true);
 		});
+	});
+});
+
+describe("stored bundles with deprecated capability names", () => {
+	it("loads the bundle and warns that the plugin should be updated", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		try {
+			const storage = createMockStorage();
+			await storeBundleInR2(storage, "legacy-stored-bundle", "1.0.0", {
+				manifest: {
+					...mockManifest("legacy-stored-bundle"),
+					capabilities: ["read:content", "network:fetch"],
+				},
+				backendCode: "export default {};",
+			});
+
+			const bundle = await loadBundleFromR2(storage, "legacy-stored-bundle", "1.0.0");
+
+			expect(bundle).not.toBeNull();
+			expect(warn).toHaveBeenCalledOnce();
+			const message = String(warn.mock.calls[0]?.[0]);
+			expect(message).toContain('"legacy-stored-bundle"');
+			expect(message).toContain("read:content → content:read");
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });

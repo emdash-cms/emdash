@@ -304,13 +304,63 @@ describe("approval authority", () => {
 		});
 	});
 
-	it("distinguishes a missing profile from a transient profile read failure", async () => {
+	it("does not retry a missing profile", async () => {
+		let proofRequests = 0;
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				proofRequests += 1;
+			}
+			return authorityFetch({ missing: true })(input, init);
+		};
 		await expect(
 			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
 				didDocumentResolver: proofResolver(),
-				fetch: authorityFetch({ missing: true }),
+				fetch,
+				retryDelaysMs: [0, 0],
 			}),
 		).rejects.toMatchObject({ code: "PROFILE_NOT_FOUND" });
+		expect(proofRequests).toBe(1);
+	});
+
+	it("retries transient profile status failures", async () => {
+		let proofRequests = 0;
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				proofRequests += 1;
+				if (proofRequests === 1) return new Response(null, { status: 503 });
+			}
+			return authorityFetch()(input, init);
+		};
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch,
+				retryDelaysMs: [0, 0],
+			}),
+		).resolves.toMatchObject({ profileCid: PROFILE_CID });
+		expect(proofRequests).toBe(2);
+	});
+
+	it("retries transient profile network failures and remains fail-closed", async () => {
+		let proofRequests = 0;
+		const fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				proofRequests += 1;
+				throw new TypeError("upstream connection reset");
+			}
+			return authorityFetch()(input, init);
+		};
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch,
+				retryDelaysMs: [0, 0],
+			}),
+		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
+		expect(proofRequests).toBe(3);
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {

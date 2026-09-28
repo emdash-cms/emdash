@@ -12,6 +12,7 @@ import {
 	FIELD_TYPES,
 	isIndexableFieldType,
 	MAX_COLLECTION_GROUP_LENGTH,
+	MAX_COLLECTION_ICON_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
 } from "../schema/types.js";
 import { compileUrlPattern } from "../schema/url-pattern.js";
@@ -224,6 +225,13 @@ export function validateSeed(data: unknown): ValidationResult {
 						);
 					}
 				}
+				if (collection.icon !== undefined) {
+					if (typeof collection.icon !== "string") {
+						errors.push(`${prefix}.icon: must be a string`);
+					} else if (collection.icon.trim().length > MAX_COLLECTION_ICON_LENGTH) {
+						errors.push(`${prefix}.icon: must be at most ${MAX_COLLECTION_ICON_LENGTH} characters`);
+					}
+				}
 
 				const declaredFieldSlugs = new Set(
 					Array.isArray(collection.fields)
@@ -256,6 +264,13 @@ export function validateSeed(data: unknown): ValidationResult {
 								}
 							}
 						}
+					}
+					if (
+						isRecord(collection.admin) &&
+						collection.admin.quickCreate !== undefined &&
+						typeof collection.admin.quickCreate !== "boolean"
+					) {
+						errors.push(`${prefix}.admin.quickCreate: must be a boolean`);
 					}
 				}
 

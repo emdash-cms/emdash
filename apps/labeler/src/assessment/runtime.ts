@@ -4,6 +4,7 @@ import {
 	PlcDidDocumentResolver,
 } from "@atcute/identity-resolver";
 import { isDid, type AtprotoDid } from "@atcute/lexicons/syntax";
+import { REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
@@ -34,6 +35,7 @@ import {
 	createCloudflareImagesDecoder,
 	createR2MediaContentStore,
 	createR2ModerationMediaReader,
+	createTrustedOriginServiceBindingTransport,
 	createWorkersSocketPinnedTransport,
 } from "./runtime-media.js";
 import type { AssessmentWorkflowDependencies } from "./workflow.js";
@@ -87,7 +89,11 @@ export async function createProductionAssessmentWorkflowDependencies(
 					return addresses;
 				},
 			},
-			transport: createWorkersSocketPinnedTransport(connect),
+			transport: createTrustedOriginServiceBindingTransport(
+				REGISTRY_CUMULUS_ORIGIN,
+				env.REGISTRY_BLOB_CACHE,
+				createWorkersSocketPinnedTransport(connect),
+			),
 			store: createR2MediaContentStore(env.MEDIA_QUARANTINE, env.DB),
 			decoder: createCloudflareImagesDecoder(env.IMAGES),
 		}),

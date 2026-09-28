@@ -23,14 +23,10 @@ import type {
 	ResolvedPlugin,
 	SettingField,
 } from "../../plugins/types.js";
-import type { ExperimentalConfig, RegistryConfigOption } from "../../registry/types.js";
+import type { RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
-export type {
-	ExperimentalConfig,
-	RegistryConfig,
-	RegistryConfigOption,
-} from "../../registry/types.js";
+export type { RegistryConfig, RegistryConfigOption } from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -81,7 +77,7 @@ export interface StorageCollectionDeclaration {
 	uniqueIndexes?: string[];
 }
 
-export interface PluginDescriptor<TOptions = Record<string, unknown>> {
+export interface PluginDescriptor<TOptions extends object = object> {
 	/** Unique plugin identifier */
 	id: string;
 	/** Plugin version (semver) */
@@ -169,7 +165,7 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
  * These run in isolated V8 isolates via Worker Loader on Cloudflare.
  * The `entrypoint` is resolved to a file and bundled at build time.
  */
-export type SandboxedPluginDescriptor<TOptions = Record<string, unknown>> =
+export type SandboxedPluginDescriptor<TOptions extends object = object> =
 	PluginDescriptor<TOptions>;
 
 export interface EmDashConfig {
@@ -425,16 +421,6 @@ export interface EmDashConfig {
 	 * @default true
 	 */
 	updateCheck?: boolean | { minimumReleaseAge?: string | number };
-
-	/**
-	 * Experimental features.
-	 *
-	 * These options are not yet stable. Shape, defaults, and behavior may
-	 * change between minor versions. Use only if you're comfortable
-	 * tracking the release notes and updating your config when an
-	 * experimental feature graduates or changes.
-	 */
-	experimental?: ExperimentalConfig;
 
 	/**
 	 * Maximum allowed media file upload size in bytes.

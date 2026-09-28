@@ -30,7 +30,7 @@ import {
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
 } from "../../plugins/storage-indexes.js";
-import { normalizeCapabilities } from "../../plugins/types.js";
+import { normalizeCapabilities, warnDeprecatedPluginCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -300,6 +300,7 @@ export async function loadBundleFromR2(
 		const result = pluginManifestSchema.safeParse(parsed);
 		if (!result.success) return null;
 		const manifest = reconcileManifestAccess(result.data);
+		warnDeprecatedPluginCapabilities(manifest.id, manifest.capabilities);
 
 		// Try to load admin code (optional)
 		let adminCode: string | undefined;
