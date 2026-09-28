@@ -546,6 +546,9 @@ function makeSubmitInput(data: Record<string, unknown>): SubmitInput {
 	return { formId: "form-1", data };
 }
 
+/** The entry is created after the response, so let deferred work drain before asserting. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("submitHandler with content mapping", () => {
 	const submission = {
 		event_title: "Community BBQ",
@@ -558,6 +561,7 @@ describe("submitHandler with content mapping", () => {
 		await forms.put("form-1", makeForm());
 
 		const result = await submitHandler(ctx);
+		await settle();
 
 		expect(result).toMatchObject({ success: true });
 		expect(submissions.items.size).toBe(1);
@@ -572,6 +576,7 @@ describe("submitHandler with content mapping", () => {
 		);
 
 		const result = await submitHandler(ctx);
+		await settle();
 
 		expect(result).toMatchObject({ success: true });
 		expect(submissions.items.size).toBe(1);
@@ -599,6 +604,7 @@ describe("submitHandler with content mapping", () => {
 		);
 
 		const result = await submitHandler(ctx);
+		await settle();
 
 		expect(result).toMatchObject({ success: true });
 		expect(submissions.items.size).toBe(1);

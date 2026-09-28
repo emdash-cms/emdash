@@ -221,22 +221,26 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		lastSubmissionAt: new Date().toISOString(),
 	});
 
-	// 7. Create a content entry from the mapping. The submission is already stored,
-	// so a failed create is logged rather than thrown.
+	// Create a content entry from the mapping after the response. The submission is
+	// already stored, so a failed create is logged rather than thrown.
 	if (settings.contentMapping && ctx.content?.create) {
-		try {
-			const entry = buildContentEntry(settings.contentMapping, result.data);
-			await ctx.content.create(settings.contentMapping.collection, entry);
-		} catch (err: unknown) {
-			ctx.log.error("Failed to create content entry from submission", {
-				error: String(err),
-				submissionId,
-				collection: settings.contentMapping.collection,
-			});
-		}
+		const mapping = settings.contentMapping;
+		const { content, log } = ctx;
+		after(async () => {
+			try {
+				const entry = buildContentEntry(mapping, result.data);
+				await content.create!(mapping.collection, entry);
+			} catch (err: unknown) {
+				log.error("Failed to create content entry from submission", {
+					error: String(err),
+					submissionId,
+					collection: mapping.collection,
+				});
+			}
+		});
 	}
 
-	// 8. Immediate email notifications (not digest)
+	// 7. Immediate email notifications (not digest)
 	if (settings.notifyEmails.length > 0 && !settings.digestEnabled && ctx.email) {
 		const text = formatSubmissionText(form, result.data, files);
 		for (const email of settings.notifyEmails) {
@@ -255,7 +259,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		}
 	}
 
-	// 9. Autoresponder
+	// 8. Autoresponder
 	if (settings.autoresponder && ctx.email) {
 		const emailField = allFields.find((f) => f.type === "email");
 		const submitterEmail = emailField ? result.data[emailField.name] : null;
@@ -272,7 +276,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		}
 	}
 
-	// 10. Webhook, deferred past the response rather than dropped.
+	// 9. Webhook, deferred past the response rather than dropped.
 	//
 	// `after()` hands the promise to the host's lifetime extender (`waitUntil` under workerd), so the
 	// call is still guaranteed to run once the visitor has their confirmation. A bare floating promise
@@ -308,7 +312,7 @@ export async function submitHandler(ctx: RouteContext<SubmitInput>) {
 		});
 	}
 
-	// 11. Return success
+	// 10. Return success
 	return {
 		success: true,
 		message: settings.confirmationMessage,
