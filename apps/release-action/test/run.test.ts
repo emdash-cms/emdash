@@ -243,7 +243,7 @@ describe("delegated release Action", () => {
 			"GITHUB_WORKFLOW_REF",
 			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
 		);
-		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		runtime.inputs.set("repository-visibility", "public");
 		const prepared = preparedFiles();
 		const requests: Request[] = [];
 		const responses = sequenceFetch([
@@ -321,7 +321,7 @@ describe("delegated release Action", () => {
 			"GITHUB_WORKFLOW_REF",
 			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
 		);
-		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		runtime.inputs.set("repository-visibility", "public");
 		const requests: Request[] = [];
 		await executeAction(runtime, {
 			prepareReleaseFiles: async () => preparedFiles(),

@@ -39,6 +39,9 @@ export {
 	type RecentItem,
 } from "./dashboard.js";
 
+// Core update check
+export { handleCoreUpdateStatus, type CoreUpdateStatus } from "./update-check.js";
+
 // Manifest generation
 export { generateManifest } from "./manifest.js";
 
@@ -56,6 +59,7 @@ export {
 	handleMediaList,
 	handleMediaGet,
 	handleMediaCreate,
+	handleMediaRegisterUpload,
 	handleMediaUpdate,
 	handleMediaReplaceMetadata,
 	handleMediaDelete,
@@ -86,6 +90,7 @@ export {
 	type MediaUsageProgress,
 	type MediaUsageProgressAdvanceResponse,
 	type MediaUsageRepairResponse,
+	type MediaUsageSiteSettingDetail,
 	type MediaUsageSourceDetail,
 	type MediaUsageSummary,
 } from "./media-usage.js";
@@ -129,6 +134,15 @@ export {
 	type OrphanedTable,
 	type OrphanedTableListResponse,
 } from "./schema.js";
+export {
+	handleBlockTypeList,
+	handleBlockTypeGet,
+	handleBlockTypeCreate,
+	handleBlockTypeUpdate,
+	handleBlockTypeVersionActivate,
+	type BlockTypeListResponse,
+	type BlockTypeResponse,
+} from "./block-types.js";
 
 // SEO handlers
 export {

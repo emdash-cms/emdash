@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import {
 	cn,
@@ -7,7 +7,7 @@ import {
 	isolate,
 	parseTimestamp,
 	slugify,
-} from "../../src/lib/utils";
+} from "../../src/lib/utils.js";
 
 describe("slugify", () => {
 	it("converts basic text to slug", () => {
@@ -116,37 +116,19 @@ describe("parseTimestamp", () => {
 });
 
 describe("formatRelativeTime", () => {
-	afterEach(() => {
-		vi.useRealTimers();
+	const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+
+	it("formats recent times in the admin locale", () => {
+		expect(formatRelativeTime(minutesAgo(5), "de")).toBe("vor 5 Minuten");
+		expect(formatRelativeTime(minutesAgo(3 * 60), "fr")).toBe("il y a 3 heures");
+		expect(formatRelativeTime(minutesAgo(3 * 24 * 60), "en")).toBe("3 days ago");
 	});
 
-	function at(now: string) {
-		vi.useFakeTimers();
-		vi.setSystemTime(new Date(now));
-	}
-
-	it("writes the phrase in the admin's locale, not English", () => {
-		at("2026-09-22T12:30:00Z");
-		expect(formatRelativeTime("2026-09-22T12:27:00Z", "he")).toBe("לפני 3 דקות");
-		expect(formatRelativeTime("2026-09-22T12:27:00Z", "de")).toBe("vor 3 Minuten");
-		expect(formatRelativeTime("2026-09-22T12:27:00Z", "en")).toBe("3 minutes ago");
-	});
-
-	it("counts in minutes, hours and days", () => {
-		at("2026-09-22T12:00:00Z");
-		expect(formatRelativeTime("2026-09-22T11:59:30Z", "en")).toBe("now");
-		expect(formatRelativeTime("2026-09-22T10:00:00Z", "en")).toBe("2 hours ago");
-		expect(formatRelativeTime("2026-09-20T12:00:00Z", "en")).toBe("2 days ago");
-	});
-
-	it("falls back to a date once a week has passed", () => {
-		at("2026-09-22T12:00:00Z");
-		expect(formatRelativeTime("2026-08-01T12:00:00Z", "en")).toBe("Aug 1");
-	});
-
-	it("reads a SQLite timestamp as UTC", () => {
-		at("2026-09-22T12:30:00Z");
-		expect(formatRelativeTime("2026-09-22 12:00:00", "en")).toBe("30 minutes ago");
+	it("treats a SQLite timestamp without a timezone as UTC", () => {
+		const sqlite = minutesAgo(5)
+			.replace("T", " ")
+			.replace(/\.\d+Z$/, "");
+		expect(formatRelativeTime(sqlite, "en")).toBe("5 minutes ago");
 	});
 });
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Syncs agent skills and AGENTS.md into each template directory.
-# Creates .claude/skills symlink and CLAUDE.md symlink for Claude Code compatibility.
+# Creates the .claude/skills symlink used for skill discovery.
 #
 # Usage: ./scripts/sync-template-skills.sh
 #
@@ -82,15 +82,6 @@ sync_skills() {
 			echo "  Generated: AGENTS.md (base only, no AGENTS-template.md)"
 		fi
 
-		# Create CLAUDE.md symlink
-		local claude_md="$template_dir/CLAUDE.md"
-		if [[ -L "$claude_md" ]]; then
-			rm "$claude_md"
-		elif [[ -f "$claude_md" ]]; then
-			rm "$claude_md"
-		fi
-		ln -s AGENTS.md "$claude_md"
-		echo "  Linked: CLAUDE.md -> AGENTS.md"
 	fi
 }
 

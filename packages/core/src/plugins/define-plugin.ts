@@ -16,7 +16,7 @@ import {
 	type PluginRouteBodyMode,
 } from "@emdash-cms/plugin-types";
 
-import { normalizePluginCapabilities } from "./types.js";
+import { normalizePluginCapabilities, warnDeprecatedPluginCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -68,7 +68,8 @@ const MCP_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
  * `satisfies SandboxedPlugin` annotation from `emdash/plugin`. Calling
  * `definePlugin` with an object that has no `id` throws at runtime
  * (the type system already rejects it at compile time — this check is
- * for callers that bypass typechecking).
+ * for callers that bypass typechecking). Passing a plugin descriptor
+ * (an object with an `entrypoint`) also throws.
  */
 export function definePlugin<TStorage extends PluginStorageConfig>(
 	definition: PluginDefinition<TStorage>,
@@ -86,6 +87,15 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 				"`version`. For sandboxed plugins, drop `definePlugin()` entirely " +
 				"and `export default { hooks, routes } satisfies SandboxedPlugin` " +
 				'from "emdash/plugin" — identity comes from `emdash-plugin.jsonc`.',
+		);
+	}
+	// A descriptor's hooks live behind its entrypoint, which definePlugin()
+	// cannot load, so wrapping one would register a plugin that does nothing.
+	if ("entrypoint" in definition) {
+		throw new Error(
+			`definePlugin() received a plugin descriptor for "${definition.id}" (it has an ` +
+				"`entrypoint`). Pass the descriptor directly to the `plugins` array of the " +
+				"emdash() integration instead of wrapping it in definePlugin().",
 		);
 	}
 	return defineNativePlugin(definition);
@@ -195,9 +205,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	}
 
 	// Validate capabilities. Both current names and deprecated aliases are
-	// accepted; aliases are silently rewritten to current names below so the
-	// runtime only ever sees the canonical form. Authors are warned at
-	// bundle/validate and hard-failed at publish.
+	// accepted; aliases are rewritten to current names below so the runtime only
+	// ever sees the canonical form.
 	const validCapabilities = new Set<string>(PLUGIN_CAPABILITIES);
 	for (const cap of capabilities) {
 		if (!validCapabilities.has(cap)) {
@@ -205,6 +214,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		}
 	}
 
+	warnDeprecatedPluginCapabilities(id, capabilities);
 	const normalizedCapabilities = normalizePluginCapabilities(capabilities);
 
 	// Normalize hooks

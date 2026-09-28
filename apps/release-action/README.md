@@ -104,6 +104,7 @@ The following step uses the bundle and provenance outputs created earlier in the
 | `plugin-directory`      | No          | `.`            | Plugin source directory inside `GITHUB_WORKSPACE`.                                                    |
 | `provenance-file`       | Conditional | —              | Raw Sigstore bundle under `RUNNER_TEMP`; required with a bundle or plugin directory.                  |
 | `release-file`          | No          | —              | Compatibility input for a URL-source release record inside `GITHUB_WORKSPACE`.                        |
+| `repository-visibility` | No          | From the event | Visibility of the repository running the workflow. Only public repositories can publish.              |
 | `idempotency-key`       | No          | Current run ID | Stable key used to replay the same submission.                                                        |
 | `poll-interval-seconds` | No          | `5`            | Delay between intent status requests.                                                                 |
 | `timeout-minutes`       | No          | `30`           | Maximum time to wait for workflow approval, publication, or release approval.                         |

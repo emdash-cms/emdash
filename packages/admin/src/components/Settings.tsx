@@ -10,6 +10,7 @@ import {
 	Key,
 	Envelope,
 	DownloadSimple,
+	ArrowsLeftRight,
 	CaretDown,
 	Images,
 } from "@phosphor-icons/react";
@@ -35,7 +36,8 @@ export function Settings() {
 	const { t } = useLingui();
 	const { locale, setLocale } = useLocale();
 	const showSecuritySettings = manifest?.authMode === "passkey";
-	const showMediaUsageSettings = (currentUser?.role ?? 0) >= 50;
+	const isAdmin = (currentUser?.role ?? 0) >= 50;
+	const showMediaUsageSettings = isAdmin;
 	const selectedLocale = SUPPORTED_LOCALES.find((option) => option.code === locale) ?? null;
 
 	return (
@@ -116,6 +118,14 @@ export function Settings() {
 						title={t`Backups`}
 						description={t`Download backups and schedule automatic backups to storage`}
 					/>
+					{isAdmin ? (
+						<SettingsNavRow
+							to="/settings/transfer"
+							icon={<ArrowsLeftRight className="h-5 w-5" />}
+							title={t`Transfer`}
+							description={t`Move this site to another EmDash installation, or import a site package`}
+						/>
+					) : null}
 				</SettingsSection>
 
 				{SUPPORTED_LOCALES.length > 1 && (

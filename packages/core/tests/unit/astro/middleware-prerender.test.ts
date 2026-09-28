@@ -77,6 +77,7 @@ const {
 			handleMediaGet: ok,
 			handleMediaUpload,
 			handleMediaCreate: ok,
+			handleMediaRegisterUpload: ok,
 			handleMediaUpdate: ok,
 			handleMediaDelete: ok,
 			handleRevisionList: ok,
@@ -864,7 +865,7 @@ describe("astro middleware setup probe", () => {
 		};
 	}
 
-	it("redirects to setup when the migrations table is genuinely missing", async () => {
+	it("migrates and renders a public page when the migrations table is genuinely missing", async () => {
 		// Fresh, un-migrated database: the probe query reports a missing table.
 		vi.mocked(getDb).mockResolvedValue(
 			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
@@ -875,10 +876,28 @@ describe("astro middleware setup probe", () => {
 
 		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
 
-		expect(redirect).toHaveBeenCalledWith("/_emdash/admin/setup");
-		expect(response.status).toBe(302);
-		expect(response.headers.get("Location")).toBe("/_emdash/admin/setup");
+		expect(redirect).not.toHaveBeenCalled();
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("answers with an uncached 503 when an un-migrated database cannot be initialized", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("no such table: _emdash_migrations")) as never,
+		);
+		mockCreateRuntime.mockRejectedValue(new Error("migration 001 failed"));
+
+		const { context, redirect } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(redirect).not.toHaveBeenCalled();
 		expect(next).not.toHaveBeenCalled();
+		expect(response.status).toBe(503);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect(await response.text()).toContain('href="/_emdash/admin/setup"');
 	});
 
 	it("does NOT redirect to setup on a transient DB error (regression)", async () => {
@@ -897,6 +916,61 @@ describe("astro middleware setup probe", () => {
 		expect(redirect).not.toHaveBeenCalled();
 		expect(next).toHaveBeenCalledTimes(1);
 		expect(response.status).toBe(200);
+	});
+
+	it("does not initialize the runtime after the probe failed to reach the database", async () => {
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+
+		const { context } = anonymousCategoryPageContext();
+		const next = vi.fn(async () => new Response("page"));
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(mockCreateRuntime).not.toHaveBeenCalled();
+		expect((context.locals as Record<string, unknown>).emdash).toBeUndefined();
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(200);
+	});
+
+	it("still uses an already-running runtime when the probe fails", async () => {
+		vi.mocked(getDb).mockResolvedValueOnce({
+			selectFrom: () => ({
+				selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+			}),
+		} as never);
+		const first = anonymousCategoryPageContext();
+		await onRequest(first.context as Parameters<typeof onRequest>[0], async () => new Response());
+		delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
+		vi.mocked(getDb).mockResolvedValue(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+
+		const second = anonymousCategoryPageContext();
+		await onRequest(second.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
+	});
+
+	it("initializes the runtime on the next request once the probe succeeds", async () => {
+		vi.mocked(getDb).mockResolvedValueOnce(
+			getDbThatFailsProbe(new Error("D1_ERROR: Network connection lost")) as never,
+		);
+		const first = anonymousCategoryPageContext();
+		await onRequest(first.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		vi.mocked(getDb).mockResolvedValue({
+			selectFrom: () => ({
+				selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
+			}),
+		} as never);
+		const second = anonymousCategoryPageContext();
+		await onRequest(second.context as Parameters<typeof onRequest>[0], async () => new Response());
+
+		expect(mockCreateRuntime).toHaveBeenCalledTimes(1);
+		expect(typeof (second.context.locals as Record<string, unknown>).emdash).toBe("object");
 	});
 
 	it("does NOT redirect to setup during prerender even when migrations are missing (regression)", async () => {

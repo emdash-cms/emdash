@@ -232,7 +232,7 @@ export function GalleryDetailPanel({
 	const body = (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h3 className="text-sm font-semibold">{t`Gallery`}</h3>
+				<h3 className="text-base font-semibold">{t`Gallery`}</h3>
 				<Button
 					type="button"
 					variant="ghost"
@@ -267,7 +267,9 @@ export function GalleryDetailPanel({
 			</div>
 
 			{images.length === 0 ? (
-				<p className="text-sm text-kumo-subtle text-center py-4">{t`No images in this gallery yet.`}</p>
+				<p className="py-4 text-center text-xs leading-4 text-kumo-subtle">
+					{t`No images in this gallery yet.`}
+				</p>
 			) : (
 				<DndContext
 					sensors={sensors}
@@ -392,7 +394,7 @@ function SortableGalleryThumb({
 				<Trash className="h-3 w-3" aria-hidden="true" />
 			</Button>
 			<span
-				className="absolute bottom-1 start-1 text-[10px] bg-black/60 text-white rounded px-1"
+				className="absolute bottom-1 start-1 rounded bg-black/60 px-1 text-xs leading-4 text-white"
 				aria-hidden
 			>
 				{index + 1}
@@ -472,7 +474,7 @@ function GalleryImageSettings({
 				</Button>
 			</div>
 			{hasOriginalSize && (
-				<div className="flex items-center gap-2 text-sm">
+				<div className="flex items-center gap-2 text-xs leading-4">
 					<span className="text-kumo-subtle">{t`Original:`}</span>
 					<span>
 						{image.width} × {image.height}
@@ -505,7 +507,7 @@ function GalleryImageSettings({
 			/>
 			{assetEditor.dialog}
 			{assetEditor.error && (
-				<p role="alert" className="text-sm text-kumo-danger">
+				<p role="alert" className="text-xs leading-4 text-kumo-danger">
 					{assetEditor.error}
 				</p>
 			)}

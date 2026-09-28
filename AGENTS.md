@@ -8,7 +8,7 @@ When writing, revising, or reviewing documentation, load the `writing-emdash-doc
 
 # Rules
 
-**Backwards compatibility matters.** EmDash is published and in active use, pre-1.0. Prefer additive changes (new fields, new routes, new options with defaults). Breaking changes need an explicit decision, a package bump, and a changeset that calls the break out clearly. Database migrations are forward-only -- never write one that leaves existing content inaccessible. When the compatibility decision is unclear, propose a Discussion instead of choosing a breaking design.
+**Backwards compatibility matters.** EmDash is published, in active use, and on 1.x. Prefer additive changes (new fields, new routes, new options with defaults). Breaking changes need an explicit decision, a major version bump, and a changeset that calls the break out clearly. Database migrations are forward-only -- never write one that leaves existing content inaccessible. When the compatibility decision is unclear, propose a Discussion instead of choosing a breaking design.
 
 **Regression evidence for bugs.** A fix must demonstrate that it changes the reported behavior. Add a regression test when it can protect meaningful behavior; otherwise report the reproduction and verification. See [Testing](#testing).
 

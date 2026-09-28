@@ -26,7 +26,7 @@ const oauthProviderSchema = z.object({
 export const authConfigSchema = z.object({
 	/**
 	 * Secret key for encrypting tokens and session data.
-	 * Generate with: `emdash auth secret`
+	 * Use a random value of at least 32 characters.
 	 */
 	secret: z.string().min(32, "Auth secret must be at least 32 characters"),
 

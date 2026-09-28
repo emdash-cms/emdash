@@ -1,6 +1,7 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterAll, beforeAll, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
@@ -37,14 +38,19 @@ beforeAll(async () => {
 	const insert = sqlite.prepare(
 		'INSERT INTO "ec_post" ("id", "locale", "priority") VALUES (?, ?, ?)',
 	);
-	sqlite.transaction(() => {
+	sqlite.exec("BEGIN");
+	try {
 		for (let i = 0; i < 1_100; i++) {
 			insert.run(`post-en-${i.toString().padStart(4, "0")}`, "en", i < 100 ? null : (i - 100) % 20);
 		}
 		for (let i = 0; i < 20; i++) {
 			insert.run(`post-nl-${i.toString().padStart(4, "0")}`, "nl", i % 5);
 		}
-	})();
+		sqlite.exec("COMMIT");
+	} catch (error) {
+		sqlite.exec("ROLLBACK");
+		throw error;
+	}
 	sqlite.exec("ANALYZE");
 });
 

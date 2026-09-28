@@ -5,7 +5,7 @@ import { isPluginSlug } from "@emdash-cms/plugin-types";
 import type { PublishingClient } from "@emdash-cms/registry-client";
 import { NSID, PackageProfile, PackageProfileExtension } from "@emdash-cms/registry-lexicons";
 
-import type { ProfileInput } from "../publish/api.js";
+import { formatValidationIssues, type ProfileInput } from "../publish/api.js";
 
 const GITHUB_REPOSITORY_SEGMENT = /^[A-Za-z0-9_.-]+$/;
 const GIT_SUFFIX = /\.git$/i;
@@ -187,13 +187,14 @@ function validateCandidate(
 	if (!profile.ok) {
 		throw new PackageProfileSetupError(
 			"PROFILE_INVALID",
-			"The package profile does not match the registry profile format.",
+			`The package profile does not match the registry profile format. Issues: ${formatValidationIssues(profile)}`,
 		);
 	}
-	if (!safeParse(PackageProfileExtension.mainSchema, extension).ok) {
+	const parsedExtension = safeParse(PackageProfileExtension.mainSchema, extension);
+	if (!parsedExtension.ok) {
 		throw new PackageProfileSetupError(
 			"PROFILE_EXTENSION_INVALID",
-			"The delegated release settings do not match the registry profile format.",
+			`The delegated release settings do not match the registry profile format. Issues: ${formatValidationIssues(parsedExtension)}`,
 		);
 	}
 	return profile.value;

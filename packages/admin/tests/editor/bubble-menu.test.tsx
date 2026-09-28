@@ -9,6 +9,7 @@
  * when there's a text selection in the editor.
  */
 
+import { NodeSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import { describe, it, expect, vi } from "vitest";
@@ -52,6 +53,7 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 				height: { default: null },
 				displayWidth: { default: null },
 				displayHeight: { default: null },
+				link: { default: null },
 			};
 		},
 		parseHTML() {
@@ -274,6 +276,54 @@ function expectRoundedFloatingWrapper(menu: HTMLElement) {
 /** Get a bubble menu button by aria-label */
 function getBubbleButton(menu: HTMLElement, label: string): HTMLButtonElement | null {
 	return menu.querySelector(`[aria-label="${label}"]`);
+}
+
+/** The link destination field is a combobox that accepts a URL or a search term. */
+function getLinkInput(root: ParentNode = document): HTMLInputElement | null {
+	return root.querySelector<HTMLInputElement>('[role="combobox"]');
+}
+
+/** Set a React-controlled input's value through the native setter so React sees it. */
+function setInputValue(input: HTMLInputElement, value: string) {
+	const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+		HTMLInputElement.prototype,
+		"value",
+	)!.set!;
+	nativeInputValueSetter.call(input, value);
+	input.dispatchEvent(new Event("input", { bubbles: true }));
+	input.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+/**
+ * Insert an image block and select it. A selected image is a NodeSelection,
+ * which is a different selection class from the text selections above.
+ */
+async function insertAndSelectImage(
+	editor: Editor,
+	pm: HTMLElement,
+	link: { href: string; blank?: boolean } | null = null,
+) {
+	pm.focus();
+	await vi.waitFor(() => expect(document.activeElement).toBe(pm), { timeout: 1000 });
+	editor
+		.chain()
+		.focus()
+		.insertContent({ type: "image", attrs: { src: "/img.jpg", alt: "Example", link } })
+		.run();
+
+	let imagePos = -1;
+	editor.state.doc.descendants((node, pos) => {
+		if (node.type.name === "image") {
+			imagePos = pos;
+			return false;
+		}
+		return true;
+	});
+	expect(imagePos).toBeGreaterThanOrEqual(0);
+	editor.view.dispatch(
+		editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, imagePos)),
+	);
+	await vi.waitFor(() => expect(editor.isActive("image")).toBe(true));
 }
 
 // =============================================================================
@@ -903,5 +953,78 @@ describe("Bubble Menu", () => {
 		await vi.waitFor(() => expect(editor.isActive("bold")).toBe(false));
 
 		expect(pm.querySelector("strong")).toBeNull();
+	});
+});
+
+// =============================================================================
+// Bubble Menu on a selected image
+// =============================================================================
+
+describe("Bubble Menu on a selected image", () => {
+	it("appears for an image selection and shows only the link control", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		expect(getBubbleButton(menu, "Add link")).toBeTruthy();
+		// Text marks are meaningless on an image and must not be offered.
+		expect(getBubbleButton(menu, "Bold")).toBeNull();
+		expect(getBubbleButton(menu, "Italic")).toBeNull();
+		expect(getBubbleButton(menu, "Code")).toBeNull();
+	});
+
+	it("applies a link to the selected image", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm);
+
+		const menu = await waitForBubbleMenu();
+		getBubbleButton(menu, "Add link")!.click();
+		await vi.waitFor(() => {
+			expect(getLinkInput(menu)).toBeTruthy();
+		});
+
+		setInputValue(getLinkInput(menu)!, "https://example.com/promo");
+		getBubbleButton(menu, "Apply link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "https://example.com/promo" });
+		});
+	});
+
+	it("keeps the open-in-new-tab choice when only the URL is edited", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "/old", blank: true });
+
+		const menu = await waitForBubbleMenu();
+		expect(getBubbleButton(menu, "Edit link")).toBeTruthy();
+		getBubbleButton(menu, "Edit link")!.click();
+		await vi.waitFor(() => {
+			expect(getLinkInput(menu)).toBeTruthy();
+		});
+		const input = getLinkInput(menu)!;
+		expect(input.value).toBe("/old");
+
+		setInputValue(input, "/new");
+		getBubbleButton(menu, "Apply link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toEqual({ href: "/new", blank: true });
+		});
+	});
+
+	it("removes the image link with the Remove link button", async () => {
+		const { editor, pm } = await renderEditor();
+		await insertAndSelectImage(editor, pm, { href: "https://example.com/promo" });
+
+		const menu = await waitForBubbleMenu();
+		getBubbleButton(menu, "Edit link")!.click();
+		await vi.waitFor(() => {
+			expect(getBubbleButton(menu, "Remove link")).toBeTruthy();
+		});
+		getBubbleButton(menu, "Remove link")!.click();
+
+		await vi.waitFor(() => {
+			expect(editor.getAttributes("image").link).toBeNull();
+		});
 	});
 });

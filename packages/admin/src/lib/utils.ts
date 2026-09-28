@@ -28,13 +28,7 @@ export function parseTimestamp(value: string): Date {
 	return new Date(value);
 }
 
-/**
- * Format a timestamp as "3 minutes ago" in the admin's locale.
- *
- * `Intl.RelativeTimeFormat` writes the phrase itself, so nothing here goes through the message
- * catalog — a wrapped English template would still be wrong in every language it has no plural
- * rules for. Anything older than a week reads as a date instead.
- */
+/** "5 minutes ago" in the given locale for the past week, the date after that. */
 export function formatRelativeTime(dateString: string, locale: string): string {
 	const date = parseTimestamp(dateString);
 	const now = new Date();
@@ -50,7 +44,7 @@ export function formatRelativeTime(dateString: string, locale: string): string {
 	if (diffHours < 24) return relativeTime.format(-diffHours, "hour");
 	if (diffDays < 7) return relativeTime.format(-diffDays, "day");
 
-	return formatDate(date, locale, {
+	return date.toLocaleDateString(locale, {
 		month: "short",
 		day: "numeric",
 		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,

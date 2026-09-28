@@ -170,6 +170,8 @@ Apply the same pattern to the configured Facebook, Instagram, LinkedIn, and YouT
 
 The logo, favicon, and default social image are stored as media references. On read, EmDash adds the current URL and any known content type, width, and height. If the referenced media item has been deleted, those resolved values can be absent, so check `url` before rendering an image.
 
+Remove one of these images in the admin with its **Remove** button. API and MCP clients can remove `logo`, `favicon`, or `seo.defaultOgImage` by setting that field to `null`; omitting a field leaves its current value unchanged.
+
 Site settings hold one logo and one favicon. A dark image variant belongs to an EmDash image field, where the editor can choose the counterpart and the `Image` component can switch between them. See [Dark Mode](/guides/dark-mode/#dark-image-variants) for that pattern.
 
 <Aside type="tip">

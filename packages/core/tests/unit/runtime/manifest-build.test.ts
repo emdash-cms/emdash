@@ -25,6 +25,7 @@ import { setI18nConfig } from "../../../src/i18n/config.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
+import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
@@ -63,6 +64,7 @@ function buildRuntime(
 	db: Kysely<Database>,
 	config: EmDashConfig = {},
 	configuredPlugins: ResolvedPlugin[] = [],
+	sandboxEnabled = false,
 ): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline(configuredPlugins, pipelineFactoryOptions);
@@ -75,7 +77,7 @@ function buildRuntime(
 			throw new Error("createDialect not used in this test");
 		}) as any,
 		createStorage: null,
-		sandboxEnabled: false,
+		sandboxEnabled,
 		sandboxedPluginEntries: [],
 		createSandboxRunner: null,
 	};
@@ -153,19 +155,39 @@ describe("generateManifest()", () => {
 		});
 	});
 
-	it("publishes the sidebar group for database collections", async () => {
+	it("publishes the sidebar icon and group for database collections", async () => {
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({
 			slug: "calendar_entries",
 			label: "Entries",
+			icon: "calendar-blank",
 			group: "Calendar",
 		});
 		await registry.createCollection({ slug: "team", label: "Team" });
 
 		const manifest = await generateManifest({}, {}, { db });
 
-		expect(manifest.collections.calendar_entries?.group).toBe("Calendar");
+		expect(manifest.collections.calendar_entries).toMatchObject({
+			icon: "calendar-blank",
+			group: "Calendar",
+		});
+		expect(manifest.collections.team).not.toHaveProperty("icon");
 		expect(manifest.collections.team).not.toHaveProperty("group");
+	});
+
+	it("publishes the dashboard quick-action opt-out only when set", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "sync_runs",
+			label: "Sync runs",
+			admin: { quickCreate: false },
+		});
+		await registry.createCollection({ slug: "team", label: "Team", admin: { listColumns: [] } });
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.sync_runs?.quickCreate).toBe(false);
+		expect(manifest.collections.team).not.toHaveProperty("quickCreate");
 	});
 
 	it("keeps config collection fields when the database has the same slug", async () => {
@@ -269,6 +291,48 @@ describe("generateManifest()", () => {
 				path: "type",
 			},
 		});
+	});
+
+	it("includes retained block definitions and changes hash when their contract changes", async () => {
+		const blocks = new BlockTypeRegistry(db);
+		const registry = new SchemaRegistry(db);
+		const hero = await blocks.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: [{ slug: "heading", label: "Heading", type: "string", required: true }],
+		});
+		await registry.createCollection({ slug: "landing_pages", label: "Landing pages" });
+		await registry.createField("landing_pages", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			validation: { allowedTypes: ["hero"] },
+		});
+
+		const before = await generateManifest({}, {}, { db });
+		expect(before.collections.landing_pages?.fields.layout).toMatchObject({
+			kind: "blocks",
+			blockTypes: [
+				{
+					slug: "hero",
+					currentVersion: 1,
+					versions: [{ version: 1, active: true }],
+				},
+			],
+		});
+		expect(before.collections.landing_pages?.fields.layout?.blockTypeFingerprint).toMatch(
+			/^blocks-field:v1:sha256:/,
+		);
+
+		await blocks.updateBlockType("hero", {
+			expectedFingerprint: hero.versions[0]!.fingerprint,
+			fields: [
+				{ slug: "heading", label: "Heading", type: "string", required: true },
+				{ slug: "eyebrow", label: "Eyebrow", type: "string" },
+			],
+		});
+		const after = await generateManifest({}, {}, { db });
+		expect(after.hash).not.toBe(before.hash);
 	});
 });
 
@@ -384,6 +448,11 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
 	});
 
+	it("reports whether the plugin sandbox is enabled", async () => {
+		expect((await buildRuntime(db).getManifest()).sandboxEnabled).toBe(false);
+		expect((await buildRuntime(db, {}, [], true).getManifest()).sandboxEnabled).toBe(true);
+	});
+
 	it("exposes configured saved-entry panels and actions to the admin", async () => {
 		const plugin = definePlugin({
 			id: "content-guard",
@@ -424,24 +493,6 @@ describe("EmDashRuntime.getManifest()", () => {
 	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
 		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const runtime = buildRuntime(db, {
-			experimental: { registry: { aggregatorUrl: "not a URL" } },
-		});
-
-		const manifest = await runtime.getManifest();
-
-		expect(manifest.registry).toBeUndefined();
-		expect(manifest.registryConfigurationError).toEqual({
-			code: "REGISTRY_AGGREGATOR_URL_INVALID",
-			field: "experimental.registry.aggregatorUrl",
-		});
-		expect(log).toHaveBeenCalledWith(
-			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
-		);
-	});
-
-	it("reports top-level registry configuration fields", async () => {
-		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-		const runtime = buildRuntime(db, {
 			registry: { aggregatorUrl: "not a URL" },
 		});
 
@@ -455,18 +506,6 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(log).toHaveBeenCalledWith(
 			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
 		);
-	});
-
-	it("lets the top-level false option override legacy registry configuration", async () => {
-		const runtime = buildRuntime(db, {
-			registry: false,
-			experimental: { registry: { aggregatorUrl: "not a URL" } },
-		});
-
-		const manifest = await runtime.getManifest();
-
-		expect(manifest.registry).toBeUndefined();
-		expect(manifest.registryConfigurationError).toBeUndefined();
 	});
 
 	it("reports the configured content default independently of admin language", async () => {

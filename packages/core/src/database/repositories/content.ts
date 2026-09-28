@@ -5,12 +5,12 @@ import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
-import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
+import { isIndexableFieldType, isStoragelessFieldRow, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
-import { ContentDatetimeNormalizer } from "../content-datetime.js";
+import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
 import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
@@ -323,8 +323,11 @@ function escapeRegExp(s: string): string {
 export class ContentRepository {
 	private readonly datetimes: ContentDatetimeNormalizer;
 
-	constructor(private db: Kysely<Database>) {
-		this.datetimes = new ContentDatetimeNormalizer(db);
+	constructor(
+		private db: Kysely<Database>,
+		private readonly datetimeContexts?: DatetimeContextCache,
+	) {
+		this.datetimes = new ContentDatetimeNormalizer(db, datetimeContexts);
 	}
 
 	/**
@@ -347,7 +350,7 @@ export class ContentRepository {
 			publishedAt,
 			createdAt,
 		} = input;
-		const data = await this.datetimes.normalizeData(type, inputData);
+		const data = await this.datetimes.normalizeInput(type, inputData);
 		const normalizedCreatedAt = createdAt
 			? await this.datetimes.normalizeValue(type, createdAt)
 			: now;
@@ -575,11 +578,63 @@ export class ContentRepository {
 		return this.mapRow(type, row);
 	}
 
+	async findManyByIds(
+		type: string,
+		ids: string[],
+		options: { includeTrashed?: boolean } = {},
+	): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (ids.length === 0) return items;
+		const tableName = getTableName(type);
+		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
+		for (const batch of chunks([...new Set(ids)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE id IN (${sql.join(batch)}) ${deletedFilter}
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				items.set(item.id, item);
+			}
+		}
+		return items;
+	}
+
+	async findManyBySlugsInLocale(
+		type: string,
+		slugs: string[],
+		locale: string,
+		options: { includeTrashed?: boolean } = {},
+	): Promise<Map<string, ContentItem>> {
+		const items = new Map<string, ContentItem>();
+		if (slugs.length === 0) return items;
+		const tableName = getTableName(type);
+		const deletedFilter = options.includeTrashed ? sql`` : sql`AND deleted_at IS NULL`;
+		for (const batch of chunks([...new Set(slugs)], SQL_BATCH_SIZE)) {
+			const result = await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)}
+				WHERE slug IN (${sql.join(batch)}) AND locale = ${locale} ${deletedFilter}
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const item = this.mapRow(type, row);
+				if (item.slug !== null) items.set(item.slug, item);
+			}
+		}
+		return items;
+	}
+
 	/**
 	 * Find content by id, including trashed (soft-deleted) items.
 	 * Used by restore endpoint for ownership checks.
+	 *
+	 * `deletedAt` rides along because the row is already in hand: a caller that
+	 * has to know whether the row is trashed before touching anything else would
+	 * otherwise pay a second read for a column this row already carries.
 	 */
-	async findByIdIncludingTrashed(type: string, id: string): Promise<ContentItem | null> {
+	async findByIdIncludingTrashed(
+		type: string,
+		id: string,
+	): Promise<(ContentItem & { deletedAt: string | null }) | null> {
 		const tableName = getTableName(type);
 
 		const result = await sql<Record<string, unknown>>`
@@ -592,7 +647,10 @@ export class ContentRepository {
 			return null;
 		}
 
-		return this.mapRow(type, row);
+		return {
+			...this.mapRow(type, row),
+			deletedAt: typeof row.deleted_at === "string" ? row.deleted_at : null,
+		};
 	}
 
 	/**
@@ -737,7 +795,7 @@ export class ContentRepository {
 		options: FindManyOptions = {},
 	): Promise<FindManyResult<ContentItem>> {
 		const tableName = getTableName(type);
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
 
 		// Determine ordering
 		const orderField = options.orderBy?.field || "createdAt";
@@ -938,7 +996,7 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			const data = await this.datetimes.normalizeInput(type, writableContentData(input.data));
 			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
@@ -978,7 +1036,12 @@ export class ContentRepository {
 		if (!existing) throw new EmDashValidationError("Content item not found");
 
 		const normalizedSnapshot = await this.datetimes.normalizeData(type, revisionData);
-		const { _slug, ...snapshotFields } = normalizedSnapshot;
+		const { _slug } = normalizedSnapshot;
+		// Leading-underscore keys are staged metadata (`_slug`, `_references`), not columns.
+		const snapshotFields: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(normalizedSnapshot)) {
+			if (!key.startsWith("_")) snapshotFields[key] = value;
+		}
 		const fieldData = writableContentData(snapshotFields);
 		const revisionId = createRevisionId();
 		const now = new Date().toISOString();
@@ -1066,7 +1129,7 @@ export class ContentRepository {
 		const item = await this.findById(type, id);
 		if (!item) throw new Error("Content not found");
 
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return { item, revisionId };
 	}
 
@@ -1136,7 +1199,7 @@ export class ContentRepository {
 		}
 
 		invalidateCollectionCache(type);
-		await new RevisionRepository(this.db).queuePruning(type, id, revisionId);
+		await new RevisionRepository(this.db, this.datetimeContexts).queuePruning(type, id, revisionId);
 		return revisionId;
 	}
 
@@ -1150,7 +1213,7 @@ export class ContentRepository {
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
 		const data = input.data
-			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			? await this.datetimes.normalizeInput(type, writableContentData(input.data))
 			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
@@ -1175,7 +1238,7 @@ export class ContentRepository {
 			collectionRows.map((row) => row.fieldSlug).filter((slug): slug is string => Boolean(slug)),
 		);
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let existing = await this.findById(type, id);
 
 		// A key with no field is rejected unless the entry already stores it: deleting a field
@@ -1398,7 +1461,7 @@ export class ContentRepository {
 		usesRevisions: boolean,
 	): Promise<boolean> {
 		const tableName = getTableName(type);
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let sibling: ContentItem | null = initial;
 
 		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
@@ -1578,7 +1641,7 @@ export class ContentRepository {
 		options: Omit<FindManyOptions, "where"> & { where?: { locale?: string } } = {},
 	): Promise<FindManyResult<ContentItem & { deletedAt: string }>> {
 		const tableName = getTableName(type);
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
 
 		// Determine ordering - default to most recently deleted
 		const orderField = options.orderBy?.field || "deletedAt";
@@ -2107,6 +2170,37 @@ export class ContentRepository {
 		return result.rows.map((row) => this.mapRow(type, row));
 	}
 
+	async findTranslationIds(type: string, translationGroup: string): Promise<string[]> {
+		const tableName = getTableName(type);
+		const result = await sql<{ id: string }>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			AND deleted_at IS NULL
+		`.execute(this.db);
+		return result.rows.map((row) => row.id);
+	}
+
+	async findTranslationIdsForGroups(
+		type: string,
+		translationGroups: string[],
+	): Promise<Map<string, string[]>> {
+		const ids = new Map<string, string[]>();
+		if (translationGroups.length === 0) return ids;
+		const tableName = getTableName(type);
+		for (const batch of chunks([...new Set(translationGroups)], SQL_BATCH_SIZE)) {
+			const result = await sql<{ id: string; translation_group: string }>`
+				SELECT id, translation_group FROM ${sql.ref(tableName)}
+				WHERE translation_group IN (${sql.join(batch)}) AND deleted_at IS NULL
+			`.execute(this.db);
+			for (const row of result.rows) {
+				const group = ids.get(row.translation_group) ?? [];
+				group.push(row.id);
+				ids.set(row.translation_group, group);
+			}
+		}
+		return ids;
+	}
+
 	/**
 	 * Find all translations in a translation group
 	 */
@@ -2123,13 +2217,26 @@ export class ContentRepository {
 		return result.rows.map((row) => this.mapRow(type, row));
 	}
 
-	/** Whether any row of `translationGroup` exists, trashed rows included. */
-	async hasTranslationsIncludingTrashed(type: string, translationGroup: string): Promise<boolean> {
+	/**
+	 * Whether any row still shares `translationGroup`, trashed rows included.
+	 * Group-keyed satellite data (term assignments, reference edges) is owned by
+	 * the group, not by a single locale row, so a purge may only cascade to it
+	 * once nothing is left to own it — and a trashed sibling is still restorable.
+	 */
+	async hasTranslationsIncludingTrashed(
+		type: string,
+		translationGroup: string,
+		options: { excludeId?: string } = {},
+	): Promise<boolean> {
 		const tableName = getTableName(type);
+		// Asked before a row is deleted, "does anything else hold this group?"
+		// has to leave that row out of the answer.
+		const exclusion = options.excludeId ? sql`AND id != ${options.excludeId}` : sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT id FROM ${sql.ref(tableName)}
 			WHERE translation_group = ${translationGroup}
+			${exclusion}
 			LIMIT 1
 		`.execute(this.db);
 
@@ -2306,7 +2413,7 @@ export class ContentRepository {
 		}
 
 		if (!promoteRevision) {
-			const revisionRepo = new RevisionRepository(this.db);
+			const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 			let provisionalRevisionId: string | null = null;
 			try {
 				let liveRevisionId = existing.liveRevisionId;
@@ -2399,7 +2506,7 @@ export class ContentRepository {
 			}
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let revisionToPublish = existing.draftRevisionId || existing.liveRevisionId;
@@ -2560,7 +2667,7 @@ export class ContentRepository {
 			return existing;
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		let provisionalRevisionId: string | null = null;
 		try {
 			let draftRevisionId = existing.draftRevisionId;
@@ -2632,7 +2739,7 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 
-		const revisionRepo = new RevisionRepository(this.db);
+		const revisionRepo = new RevisionRepository(this.db, this.datetimeContexts);
 		const revision = await revisionRepo.findById(revisionId);
 		if (!revision) {
 			throw new EmDashValidationError("Revision not found");
@@ -2898,9 +3005,16 @@ export class ContentRepository {
 			.where("collection.slug", "=", type)
 			.where("field.slug", "in", fields)
 			.where("field.indexed", "=", 1)
-			.select(["field.slug", "field.type"])
+			.select(["field.slug", "field.type", "field.validation"])
 			.execute();
-		const metadata = new Map(rows.map((row) => [row.slug, row.type as FieldType]));
+		// `indexed` alone is not enough: a storage-less field has no column to
+		// filter on. A reference field bound to a relation after it was indexed can
+		// still carry the flag, and its column no longer receives writes.
+		const metadata = new Map(
+			rows
+				.filter((row) => !isStoragelessFieldRow(row))
+				.map((row) => [row.slug, row.type as FieldType]),
+		);
 
 		if (metadata.size === 0 && !(await this.collectionExists(type))) return [];
 

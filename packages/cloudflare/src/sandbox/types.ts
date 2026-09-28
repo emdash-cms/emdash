@@ -4,6 +4,9 @@
 
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 import type {
+	BylineInfo,
+	BylineListOptions,
+	EntryBylineCredits,
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
 	ContentCreateOptions,
@@ -380,6 +383,10 @@ export interface PluginBridgeBinding {
 		entryId: string,
 		opts?: { taxonomy?: string; locale?: string },
 	): Promise<BridgeTaxonomyTerm[]>;
+	// Bylines
+	bylineGet(id: string): Promise<BylineInfo | null>;
+	bylineList(opts?: BylineListOptions): Promise<PaginatedResult<BylineInfo>>;
+	bylineEntriesBylines(collection: string, entryIds: string[]): Promise<EntryBylineCredits[]>;
 	taxonomyCreateTerm(
 		taxonomy: string,
 		input: {
@@ -441,7 +448,14 @@ export interface PluginBridgeBinding {
 	// Network
 	httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire>;
 	// Email
-	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
+	emailSend(message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	}): Promise<void>;
 	// Cron
 	cronSchedule(
 		name: string,

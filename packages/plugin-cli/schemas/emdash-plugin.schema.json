@@ -1002,7 +1002,7 @@
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 256,
-			"description": "Display name."
+			"description": "Display name (<= 64 graphemes)."
 		},
 		"__schema57": {
 			"type": "string",
@@ -1072,14 +1072,14 @@
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Display name",
-			"description": "Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted."
+			"description": "Human-readable name shown in directory listings (<= 100 graphemes). Defaults to the plugin's `id` when omitted."
 		},
 		"__schema66": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Description",
-			"description": "Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists."
+			"description": "Short description (<= 140 graphemes)."
 		},
 		"__schema67": {
 			"maxItems": 5,
@@ -1088,7 +1088,7 @@
 				"$ref": "#/$defs/__schema68"
 			},
 			"title": "Keywords",
-			"description": "Search keywords (<= 5 entries, FAIR convention)."
+			"description": "Search keywords (<= 5 entries, FAIR convention; each <= 64 graphemes)."
 		},
 		"__schema68": {
 			"type": "string",

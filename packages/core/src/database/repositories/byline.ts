@@ -174,7 +174,10 @@ function assignCustomFieldValue(
  * toggle but the backend accepts missing values; design pass needed
  * on the enforcement model.
  */
-function coerceFieldValue(field: BylineFieldDefinition, raw: unknown): CustomFieldValue {
+export function coerceFieldValue(
+	field: Pick<BylineFieldDefinition, "slug" | "type" | "validation">,
+	raw: unknown,
+): CustomFieldValue {
 	if (raw === null) return null;
 
 	switch (field.type) {

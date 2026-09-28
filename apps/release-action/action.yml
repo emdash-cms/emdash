@@ -24,6 +24,10 @@ inputs:
   provenance-file:
     description: Path to the Sigstore bundle emitted by actions/attest-build-provenance.
     required: false
+  repository-visibility:
+    description: Visibility of the repository running the workflow. Defaults to the triggering event's repository.
+    required: false
+    default: ${{ github.event.repository.visibility }}
   idempotency-key:
     description: Stable key for replaying this submission. Defaults to the GitHub run.
     required: false

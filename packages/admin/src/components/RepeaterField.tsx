@@ -147,10 +147,10 @@ export function RepeaterField({
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center justify-between">
-				<label htmlFor={id} className="text-sm font-medium">
+				<label htmlFor={id} className="text-base font-medium text-kumo-default">
 					{label}
 					{items.length > 0 && (
-						<span className="ms-2 text-kumo-subtle font-normal">
+						<span className="ms-2 text-xs font-normal leading-4 text-kumo-subtle">
 							{plural(items.length, { one: "(# item)", other: "(# items)" })}
 						</span>
 					)}
@@ -164,7 +164,7 @@ export function RepeaterField({
 
 			{items.length === 0 ? (
 				<div className="border-2 border-dashed rounded-lg p-6 text-center text-kumo-subtle">
-					<p className="text-sm">{t`No items yet`}</p>
+					<p className="text-xs leading-4">{t`No items yet`}</p>
 					{canAdd && (
 						<Button
 							variant="outline"
@@ -189,6 +189,7 @@ export function RepeaterField({
 									key={item._key}
 									item={item}
 									index={index}
+									pathPrefix={id}
 									subFields={subFields}
 									isCollapsed={collapsedItems.has(item._key)}
 									onToggleCollapse={() => toggleCollapse(item._key)}
@@ -210,6 +211,7 @@ export function RepeaterField({
 interface SortableRepeaterItemProps {
 	item: RepeaterItem;
 	index: number;
+	pathPrefix: string;
 	subFields: RepeaterSubFieldDef[];
 	isCollapsed: boolean;
 	onToggleCollapse: () => void;
@@ -221,6 +223,7 @@ interface SortableRepeaterItemProps {
 function SortableRepeaterItem({
 	item,
 	index,
+	pathPrefix,
 	subFields,
 	isCollapsed,
 	onToggleCollapse,
@@ -268,7 +271,7 @@ function SortableRepeaterItem({
 				) : (
 					<CaretDown className="h-4 w-4 text-kumo-subtle shrink-0" />
 				)}
-				<span className="text-sm font-medium flex-1 truncate">{summaryLabel}</span>
+				<span className="flex-1 truncate text-base font-medium">{summaryLabel}</span>
 				{onRemove && (
 					<Button
 						variant="ghost"
@@ -290,6 +293,7 @@ function SortableRepeaterItem({
 					{subFields.map((sf) => (
 						<SubFieldInput
 							key={sf.slug}
+							id={`${pathPrefix}.${index}.${sf.slug}`}
 							subField={sf}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
@@ -303,18 +307,20 @@ function SortableRepeaterItem({
 }
 
 interface SubFieldInputProps {
+	id: string;
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
 	timezone: string;
 }
 
-function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputProps) {
+function SubFieldInput({ id, subField, value, onChange, timezone }: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
@@ -325,6 +331,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "text":
 			return (
 				<InputArea
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}
@@ -337,6 +344,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "integer":
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					type="number"
 					value={typeof value === "number" ? String(value) : ""}
@@ -348,14 +356,16 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "boolean":
 			return (
 				<Switch
+					id={id}
 					checked={Boolean(value)}
 					onCheckedChange={(checked) => onChange(checked)}
-					label={<span className="text-sm">{subField.label}</span>}
+					label={<span className="text-base">{subField.label}</span>}
 				/>
 			);
 		case "datetime":
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					type="datetime-local"
 					value={toDatetimeLocalInputValue(value, timezone)}
@@ -376,6 +386,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 			const options = Array.isArray(subField.options) ? subField.options : [];
 			return (
 				<Combobox
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" && value ? value : null}
 					onValueChange={(v) => onChange(typeof v === "string" ? v : "")}
@@ -399,6 +410,8 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		case "image":
 			return (
 				<ImageFieldRenderer
+					id={id}
+					fieldId={id}
 					label={subField.label}
 					// Same backwards-compat contract as top-level image fields:
 					// objects are MediaValues, strings are legacy URLs.
@@ -416,6 +429,7 @@ function SubFieldInput({ subField, value, onChange, timezone }: SubFieldInputPro
 		default:
 			return (
 				<Input
+					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
 					onChange={(e) => onChange(e.target.value)}

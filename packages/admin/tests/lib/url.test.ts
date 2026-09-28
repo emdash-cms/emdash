@@ -96,6 +96,13 @@ describe("sanitizeRedirectUrl", () => {
 		expect(sanitizeRedirectUrl("/\\evil.com")).toBe("/_emdash/admin");
 	});
 
+	it("rejects control characters that browsers strip (/\\t/evil.com)", () => {
+		expect(sanitizeRedirectUrl("/\t/evil.com")).toBe("/_emdash/admin");
+		expect(sanitizeRedirectUrl("/\n/evil.com")).toBe("/_emdash/admin");
+		expect(sanitizeRedirectUrl("/\r/evil.com")).toBe("/_emdash/admin");
+		expect(sanitizeRedirectUrl("/_emdash/admin\u007f")).toBe("/_emdash/admin");
+	});
+
 	it("rejects empty string", () => {
 		expect(sanitizeRedirectUrl("")).toBe("/_emdash/admin");
 	});

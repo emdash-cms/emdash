@@ -1,13 +1,19 @@
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
+
+import { handleContentCreate } from "../../../src/api/handlers/content.js";
 import { tableExists } from "../../../src/database/dialect-helpers.js";
+import { kyselyLogOption } from "../../../src/database/instrumentation.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import type { Database } from "../../../src/database/types.js";
 import { activateMediaUsageCapture } from "../../../src/media/usage/activation.js";
 import { removeMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
+import { MediaUsageCollectionDeletionRepository } from "../../../src/media/usage/collection-deletion.js";
+import { MEDIA_USAGE_MAINTENANCE_LIMITS } from "../../../src/media/usage/maintenance-engine.js";
+import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -177,13 +183,28 @@ describeEachDialect("media usage activated collection deletion", (dialect) => {
 	it("holds the deleted slug until durable cleanup finalizes", async () => {
 		await registry.createCollection({ slug: "reserved", label: "Reserved" });
 		await registry.deleteCollection("reserved", { force: true });
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({
+				state: "leased",
+				lease_token: "other-request",
+				lease_expires_at: "2100-01-01T00:00:00.000Z",
+			})
+			.where("collection_slug", "=", "reserved")
+			.execute();
 
 		await expect(
 			registry.createCollection({ slug: "reserved", label: "Replacement" }),
-		).rejects.toThrow();
+		).rejects.toMatchObject({
+			code: "COLLECTION_EXISTS",
+			message: expect.stringMatching(/being deleted/),
+		});
 		await expect(
 			registry.createSeedCollection({ slug: "reserved", label: "Replacement" }, []),
-		).rejects.toThrow();
+		).rejects.toMatchObject({
+			code: "COLLECTION_EXISTS",
+			message: expect.stringMatching(/being deleted/),
+		});
 		await sql`CREATE TABLE ${sql.ref("ec_reserved")} (id text primary key)`.execute(ctx.db);
 		await expect(registry.registerOrphanedTable("reserved")).rejects.toThrow();
 
@@ -194,6 +215,121 @@ describeEachDialect("media usage activated collection deletion", (dialect) => {
 				.where("collection_slug", "=", "reserved")
 				.executeTakeFirst(),
 		).toEqual({ collection_slug: "reserved" });
+	});
+
+	it("finishes the pending cleanup when a new collection reuses a deleted slug", async () => {
+		const deleted = await registry.createCollection({ slug: "products", label: "Products" });
+		await registry.deleteCollection("products");
+
+		const recreated = await registry.createCollection({ slug: "products", label: "Products" });
+
+		expect(recreated.id).not.toBe(deleted.id);
+		expect(await tableExists(ctx.db, "ec_products")).toBe(true);
+		expect(await deletionCount("products")).toBe(0);
+		expect(await statusCount(deleted.id)).toBe(0);
+	});
+
+	it("removes a force-deleted collection's media usage before reusing its slug", async () => {
+		const deleted = await registry.createCollection({ slug: "products", label: "Products" });
+		await registry.createField("products", { slug: "hero", label: "Hero", type: "image" });
+		const entry = await handleContentCreate(ctx.db, "products", {
+			slug: "first",
+			data: { hero: { id: "media-1", provider: "local", mimeType: "image/webp" } },
+		});
+		expect(entry.success).toBe(true);
+		expect(await usageRowCount(deleted.id)).toBeGreaterThan(0);
+		await registry.deleteCollection("products", { force: true });
+
+		await registry.createCollection({ slug: "products", label: "Products" });
+
+		expect(await usageRowCount(deleted.id)).toBe(0);
+		expect(await deletionCount("products")).toBe(0);
+	});
+
+	it("finishes the pending cleanup when a seed reuses a deleted slug", async () => {
+		await registry.createCollection({ slug: "products", label: "Products" });
+		await registry.deleteCollection("products");
+
+		await registry.createSeedCollection({ slug: "products", label: "Products" }, [
+			{ slug: "title", label: "Title", type: "string" },
+		]);
+
+		expect(await registry.getCollectionWithFields("products")).toMatchObject({
+			slug: "products",
+			fields: [expect.objectContaining({ slug: "title" })],
+		});
+		expect(await deletionCount("products")).toBe(0);
+	});
+
+	it("leaves the cleanup for a later request once the query budget is spent", async () => {
+		await registry.createCollection({ slug: "products", label: "Products" });
+		await registry.deleteCollection("products");
+		const metrics = createRequestMetrics(performance.now());
+		metrics.dbCount = MEDIA_USAGE_MAINTENANCE_LIMITS.eventQueryCeiling;
+
+		await expect(
+			runWithContext({ editMode: false, metrics }, () =>
+				registry.createCollection({ slug: "products", label: "Products" }),
+			),
+		).rejects.toMatchObject({
+			code: "COLLECTION_EXISTS",
+			message: expect.stringMatching(/being deleted/),
+		});
+		expect(await registry.getCollection("products")).toBeNull();
+		expect(await deletionCount("products")).toBe(1);
+
+		await expect(
+			registry.createCollection({ slug: "products", label: "Products" }),
+		).resolves.toMatchObject({ slug: "products" });
+	});
+
+	it("reports a failed deletion until an operator retries it", async () => {
+		const deleted = await registry.createCollection({ slug: "products", label: "Products" });
+		await registry.deleteCollection("products");
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ state: "failed", last_error_code: "MEDIA_USAGE_COLLECTION_DELETION_FAILED" })
+			.where("collection_slug", "=", "products")
+			.execute();
+
+		await expect(
+			registry.createCollection({ slug: "products", label: "Products" }),
+		).rejects.toMatchObject({
+			code: "COLLECTION_EXISTS",
+			message: expect.stringContaining(
+				`failed. Retry it by sending {"collectionId":"${deleted.id}"}`,
+			),
+			details: { deletedCollectionId: deleted.id },
+		});
+		expect(await deletionCount("products")).toBe(1);
+
+		await expect(
+			new MediaUsageCollectionDeletionRepository(ctx.db).retryOperatorDeletion({
+				collectionId: deleted.id,
+			}),
+		).resolves.toMatchObject({ outcome: "pending" });
+		await expect(
+			registry.createCollection({ slug: "products", label: "Products" }),
+		).resolves.toMatchObject({ slug: "products" });
+	});
+
+	it("reports a deletion that fails its last attempt during create as failed", async () => {
+		const deleted = await registry.createCollection({ slug: "products", label: "Products" });
+		await registry.deleteCollection("products");
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ phase: "finalize", attempt_count: 4 })
+			.where("collection_slug", "=", "products")
+			.execute();
+		await sql`CREATE TABLE ${sql.ref("ec_products")} (id text primary key)`.execute(ctx.db);
+
+		await expect(
+			registry.createCollection({ slug: "products", label: "Products" }),
+		).rejects.toMatchObject({
+			code: "COLLECTION_EXISTS",
+			message: expect.stringContaining("failed"),
+			details: { deletedCollectionId: deleted.id },
+		});
 	});
 
 	it("rejects a replacement identity that bypasses the slug producer fence", async () => {
@@ -447,6 +583,38 @@ describeEachDialect("media usage activated collection deletion", (dialect) => {
 			).toEqual({ source_key: sourceKey });
 		},
 	);
+
+	async function deletionCount(slug: string): Promise<number> {
+		const rows = await ctx.db
+			.selectFrom("_emdash_media_usage_collection_deletions")
+			.select("collection_id")
+			.where("collection_slug", "=", slug)
+			.execute();
+		return rows.length;
+	}
+
+	async function statusCount(collectionId: string): Promise<number> {
+		const rows = await ctx.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select("collection_id")
+			.where("collection_id", "=", collectionId)
+			.execute();
+		return rows.length;
+	}
+
+	async function usageRowCount(collectionId: string): Promise<number> {
+		const work = await ctx.db
+			.selectFrom("_emdash_media_usage_work")
+			.select("content_id")
+			.where("collection_id", "=", collectionId)
+			.execute();
+		const sources = await ctx.db
+			.selectFrom("_emdash_media_usage_sources")
+			.select("source_key")
+			.where("collection_id", "=", collectionId)
+			.execute();
+		return work.length + sources.length;
+	}
 });
 
 it.each(["collection", "seed", "orphan"] as const)(
@@ -509,3 +677,55 @@ it.each(["collection", "seed", "orphan"] as const)(
 		await db.destroy();
 	},
 );
+
+it("stops a create's cleanup after one maintenance step's queries and resumes on the next attempt", async () => {
+	const db = new Kysely<Database>({
+		dialect: new SqliteDialect({ database: new BetterSqlite3(":memory:") }),
+		log: kyselyLogOption(),
+	});
+	await runMigrations(db);
+	await activateMediaUsageCapture(db, { writersDrained: true });
+	const registry = new SchemaRegistry(db);
+	const deleted = await registry.createCollection({ slug: "products", label: "Products" });
+	const sourceCount = 40;
+	await db
+		.insertInto("_emdash_media_usage_sources")
+		.values(
+			Array.from({ length: sourceCount }, (_, index) => ({
+				source_key: `products-source-${String(index).padStart(2, "0")}`,
+				source_type: "content",
+				collection_id: deleted.id,
+				collection_slug: "products",
+				content_id: `entry-${index}`,
+				source_variant: "columns",
+				current_generation: "generation",
+			})),
+		)
+		.execute();
+	await registry.deleteCollection("products", { force: true });
+	const remainingSources = async () =>
+		(
+			await db
+				.selectFrom("_emdash_media_usage_sources")
+				.select("source_key")
+				.where("collection_id", "=", deleted.id)
+				.execute()
+		).length;
+
+	const metrics = createRequestMetrics(performance.now());
+	await expect(
+		runWithContext({ editMode: false, metrics }, () =>
+			registry.createCollection({ slug: "products", label: "Products" }),
+		),
+	).rejects.toMatchObject({ message: expect.stringMatching(/being deleted/) });
+	const afterFirstAttempt = await remainingSources();
+	expect(afterFirstAttempt).toBeGreaterThan(0);
+	expect(afterFirstAttempt).toBeLessThan(sourceCount);
+
+	await expect(
+		registry.createCollection({ slug: "products", label: "Products" }),
+	).resolves.toMatchObject({ slug: "products" });
+	expect(await remainingSources()).toBe(0);
+
+	await db.destroy();
+});

@@ -71,6 +71,32 @@ describe("release Action file preparation", () => {
 		});
 	});
 
+	it("accepts workflows triggered by a package@version tag", async () => {
+		const bundlePath = join(workspace, "artifacts", "gallery.tar.gz");
+		const provenancePath = join(runnerTemp, "attestation.json");
+		await Promise.all([
+			writeFile(bundlePath, PACKAGE_BYTES),
+			writeFile(provenancePath, PROVENANCE_BYTES),
+		]);
+
+		const prepared = await prepareReleaseFiles(
+			{
+				workspace,
+				runnerTemp,
+				bundleFile: "artifacts/gallery.tar.gz",
+				provenanceFile: provenancePath,
+				repository: "example/gallery",
+				workflowRef: "example/gallery/.github/workflows/emdash-release.yml@refs/tags/gallery@1.2.3",
+				repositoryVisibility: "public",
+			},
+			validationDependencies,
+		);
+
+		expect(prepared.builderId).toBe(
+			"https://github.com/example/gallery/.github/workflows/emdash-release.yml@refs/tags/gallery@1.2.3",
+		);
+	});
+
 	it("builds a project when no bundle is supplied", async () => {
 		const bundlePath = join(workspace, "generated.tar.gz");
 		const provenancePath = join(runnerTemp, "attestation.json");

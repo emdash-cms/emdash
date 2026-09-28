@@ -202,7 +202,7 @@ export function SortableContentSettingsSection({
 					className="flex items-center px-4 pe-12"
 					style={{ minHeight: 48 }}
 				>
-					<span className="text-[15px] font-semibold">{label}</span>
+					<span className="text-base font-semibold">{label}</span>
 				</div>
 			)}
 			{children}

@@ -149,7 +149,7 @@ export function sqlite(config: SqliteConfig): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "emdash/db/sqlite-migrations",
+			entrypoint: "emdash/internal/db/sqlite-migrations",
 			manifestConfig: { url: config.url },
 		},
 	};
@@ -175,7 +175,7 @@ export function libsql(config: LibsqlConfig): DatabaseDescriptor {
 		config: runtimeConfig,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "emdash/db/libsql-migrations",
+			entrypoint: "emdash/internal/db/libsql-migrations",
 			manifestConfig: {
 				url: config.url,
 				authTokenEnv: migrationEnvironmentVariable(
@@ -227,7 +227,7 @@ export function postgres(config: PostgresConfig): DatabaseDescriptor {
 		config: runtimeConfig,
 		type: "postgres",
 		migrations: {
-			entrypoint: "emdash/db/postgres-migrations",
+			entrypoint: "emdash/internal/db/postgres-migrations",
 			manifestConfig: {
 				connectionStringEnv: migrationEnvironmentVariable(
 					migrationConnectionStringEnv,

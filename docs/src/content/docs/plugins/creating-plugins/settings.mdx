@@ -47,7 +47,7 @@ const allSettings = await ctx.settings.list();
 
 `get` returns `null` when the key does not exist. `list` returns keys without EmDash's internal plugin namespace prefix.
 
-Existing plugins can continue to read `ctx.kv.get("settings:<key>")`. The complete `settings:` KV alias remains supported for the rest of the 0.x release line. EmDash will not remove it before 1.0, and any later removal will include a deprecation period and migration guidance. New code should use `ctx.settings`.
+Existing plugins can continue to read `ctx.kv.get("settings:<key>")`. The complete `settings:` KV alias remains supported throughout 1.x. Any removal in a later major version will include a deprecation period and migration guidance. New code should use `ctx.settings`.
 
 ## Add a settings page
 

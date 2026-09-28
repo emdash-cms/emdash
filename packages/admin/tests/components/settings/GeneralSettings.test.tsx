@@ -3,12 +3,12 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
-import type { MediaItem, SiteSettings } from "../../../src/lib/api";
+import type { MediaItem, SiteSettings, SiteSettingsUpdate } from "../../../src/lib/api";
 import { render } from "../../utils/render";
 
 const mockFetchSettings = vi.fn<() => Promise<Partial<SiteSettings>>>();
 const mockUpdateSettings =
-	vi.fn<(settings: Partial<SiteSettings>) => Promise<Partial<SiteSettings>>>();
+	vi.fn<(settings: SiteSettingsUpdate) => Promise<Partial<SiteSettings>>>();
 
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
@@ -27,7 +27,7 @@ vi.mock("../../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchSettings: () => mockFetchSettings(),
-		updateSettings: (settings: Partial<SiteSettings>) => mockUpdateSettings(settings),
+		updateSettings: (settings: SiteSettingsUpdate) => mockUpdateSettings(settings),
 	};
 });
 
@@ -234,5 +234,12 @@ describe("GeneralSettings", () => {
 		for (const button of screen.getByRole("button", { name: "Save", exact: true }).all()) {
 			await expect.element(button).toBeEnabled();
 		}
+
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() => {
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ logo: null, favicon: null }),
+			);
+		});
 	});
 });

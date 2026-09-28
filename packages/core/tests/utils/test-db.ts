@@ -504,6 +504,26 @@ export async function setupForDialectWithCollections(
 }
 
 /**
+ * A handle that `withTransaction` treats as an open transaction, so a handler
+ * given it runs its statements inline instead of opening one of its own — D1's
+ * boundary, where each statement that has run stays run.
+ *
+ * A real transaction can't stand in for that: Postgres aborts one on the first
+ * error, so the read that checks what survived the failure fails too.
+ */
+export function asInlineTransaction(db: Kysely<DatabaseSchema>): Kysely<DatabaseSchema> {
+	return new Proxy(db, {
+		get(target, prop) {
+			if (prop === "isTransaction") return true;
+			// Kysely reads private fields off `this`, which a proxy doesn't carry,
+			// so both getters and methods have to see the real instance.
+			const value = Reflect.get(target, prop);
+			return typeof value === "function" ? value.bind(target) : value;
+		},
+	});
+}
+
+/**
  * Tear down a test database for any dialect.
  */
 export async function teardownForDialect(ctx: DialectTestContext | undefined): Promise<void> {

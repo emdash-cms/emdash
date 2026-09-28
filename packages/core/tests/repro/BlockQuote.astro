@@ -1,0 +1,11 @@
+---
+interface Props {
+	value: { text: string };
+	index: number;
+	blockKey: string;
+}
+
+const { value, index, blockKey } = Astro.props;
+---
+
+<blockquote data-block="quote" data-index={index} data-key={blockKey}>{value.text}</blockquote>
