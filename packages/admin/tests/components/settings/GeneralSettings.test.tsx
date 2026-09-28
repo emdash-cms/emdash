@@ -188,6 +188,48 @@ describe("GeneralSettings", () => {
 		for (const button of dirtyButtons) await expect.element(button).toBeEnabled();
 	});
 
+	it("updates the date preview as the pattern changes and handles invalid patterns", async () => {
+		const screen = await renderGeneralSettings();
+		await expect.element(screen.getByText(/January 23, 2026/)).toBeInTheDocument();
+		await screen.getByLabelText("Date Format").fill("yyyy/MM/dd");
+		await expect.element(screen.getByText(/2026\/01\/23/)).toBeInTheDocument();
+		await screen.getByLabelText("Date Format").fill("yyyy Z/MM/DD");
+		await expect
+			.element(screen.getByText("Invalid date format. Use tokens such as yyyy/MM/dd."))
+			.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		expect(mockUpdateSettings).not.toHaveBeenCalled();
+	});
+
+	it("offers matching timezones and rejects arbitrary text", async () => {
+		const screen = await renderGeneralSettings();
+		await screen.getByRole("combobox", { name: "Timezone" }).fill("London");
+		await expect.element(screen.getByText("Europe/London", { exact: true })).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		expect(mockUpdateSettings).not.toHaveBeenCalled();
+		await expect.element(screen.getByText(/Select a timezone/)).toBeInTheDocument();
+		await screen.getByRole("combobox", { name: "Timezone" }).fill("Lond");
+		await userEvent.click(screen.getByText("Europe/London", { exact: true }));
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Europe/London" }),
+			),
+		);
+	});
+
+	it("preserves a valid existing timezone alias when saving another setting", async () => {
+		mockFetchSettings.mockResolvedValue({ ...defaultSettings, timezone: "Etc/GMT" });
+		const screen = await renderGeneralSettings();
+		await screen.getByLabelText("Tagline").fill("Updated tagline");
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Etc/GMT", tagline: "Updated tagline" }),
+			),
+		);
+	});
+
 	it("marks media selections dirty and includes them in the saved settings", async () => {
 		const screen = await renderGeneralSettings();
 

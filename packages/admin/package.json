@@ -61,6 +61,7 @@
     "@emdash-cms/registry-client": "workspace:*",
     "@emdash-cms/registry-lexicons": "workspace:*",
     "@floating-ui/react": "^0.27.16",
+    "date-fns": "^4.1.0",
     "@lingui/core": "catalog:",
     "@lingui/react": "catalog:",
     "@phosphor-icons/react": "catalog:",

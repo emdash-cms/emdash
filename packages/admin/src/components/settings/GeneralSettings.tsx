@@ -5,10 +5,11 @@
  * (posts per page, date format, timezone).
  */
 
-import { Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
+import { Autocomplete, Banner, Button, Input, Loader, useKumoToastManager } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { WarningCircle, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import * as React from "react";
 
 import {
@@ -21,6 +22,26 @@ import {
 import { MediaPickerModal } from "../MediaPickerModal";
 import { SaveButton } from "../SaveButton.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
+
+const timezones = ["UTC", ...Intl.supportedValuesOf("timeZone")];
+const exampleDate = new Date(2026, 0, 23);
+
+function datePreview(pattern: string): string | null {
+	try {
+		return pattern.trim() ? format(exampleDate, pattern) : null;
+	} catch {
+		return null;
+	}
+}
+
+function isValidTimezone(timezone: string): boolean {
+	try {
+		Intl.DateTimeFormat("en", { timeZone: timezone });
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 function generalSettingsSnapshot(settings: SiteSettingsUpdate) {
 	return JSON.stringify({
@@ -54,6 +75,7 @@ export function GeneralSettings() {
 	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
+	const [showReadingErrors, setShowReadingErrors] = React.useState(false);
 
 	React.useEffect(() => {
 		if (settings) {
@@ -89,8 +111,17 @@ export function GeneralSettings() {
 		},
 	});
 
+	const pattern = formData.dateFormat ?? "MMMM d, yyyy";
+	const preview = datePreview(pattern);
+	const timezone = formData.timezone ?? "UTC";
+	const validTimezone =
+		timezones.includes(timezone) ||
+		(timezone === savedFormData.timezone && isValidTimezone(timezone));
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		setShowReadingErrors(true);
+		if (preview === null || !validTimezone) return;
 		saveMutation.mutate(formData);
 	};
 
@@ -329,18 +360,41 @@ export function GeneralSettings() {
 					<SettingRow>
 						<Input
 							label={t`Date Format`}
-							value={formData.dateFormat ?? "MMMM d, yyyy"}
+							value={pattern}
 							onChange={(e) => handleChange("dateFormat", e.target.value)}
-							description={t`Example: ${formData.dateFormat ?? "MMMM d, yyyy"} → January 23, 2026`}
+							description={
+								preview === null
+									? t`Invalid date format. Use tokens such as yyyy/MM/dd.`
+									: t`Example: ${pattern} → ${preview}`
+							}
+							error={showReadingErrors && preview === null ? t`Invalid date format` : undefined}
 						/>
 					</SettingRow>
 					<SettingRow>
-						<Input
+						<Autocomplete
 							label={t`Timezone`}
-							value={formData.timezone ?? "UTC"}
-							onChange={(e) => handleChange("timezone", e.target.value)}
-							description={t`Timezone for displaying dates (e.g., America/New_York)`}
-						/>
+							items={timezones}
+							value={timezone}
+							onValueChange={(value: string) => handleChange("timezone", value)}
+							description={t`Search for an IANA timezone (e.g., Europe/London)`}
+							error={
+								showReadingErrors && !validTimezone
+									? t`Select a timezone from the suggestions`
+									: undefined
+							}
+						>
+							<Autocomplete.InputGroup placeholder={t`Search timezones…`} />
+							<Autocomplete.Content>
+								<Autocomplete.List className="max-h-64 overflow-y-auto">
+									{(item: string) => (
+										<Autocomplete.Item key={item} value={item}>
+											{item}
+										</Autocomplete.Item>
+									)}
+								</Autocomplete.List>
+								<Autocomplete.Empty>{t`No matching timezones`}</Autocomplete.Empty>
+							</Autocomplete.Content>
+						</Autocomplete>
 					</SettingRow>
 				</SettingsSection>
 
