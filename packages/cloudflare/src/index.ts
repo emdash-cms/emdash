@@ -290,7 +290,7 @@ export function d1(config: D1Config): DatabaseDescriptor {
 		config,
 		type: "sqlite",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/d1-migrations",
 			manifestConfig: { binding: config.binding },
 		},
 		supportsRequestScope: true,
@@ -390,7 +390,7 @@ export function hyperdrive(config: HyperdriveConfig = {}): DatabaseDescriptor {
 		},
 		type: "postgres",
 		migrations: {
-			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			entrypoint: "@emdash-cms/cloudflare/internal/db/hyperdrive-migrations",
 			manifestConfig: { binding, connectionStringEnv },
 		},
 		// Each request gets a fresh pg connection that is closed afterwards —
@@ -622,8 +622,3 @@ export function kvCache(config: KVCacheConfig): ObjectCacheDescriptor {
 // Re-export media providers (config-time)
 export { cloudflareImages, type CloudflareImagesConfig } from "./media/images.js";
 export { cloudflareStream, type CloudflareStreamConfig } from "./media/stream.js";
-
-// Legacy Cache API + zone REST purge provider (config-time). Prefer
-// cacheCloudflare() from @astrojs/cloudflare/cache with wrangler
-// "cache": { "enabled": true } for native Workers Caching.
-export { cloudflareCache, type CloudflareCacheConfig } from "./cache/config.js";

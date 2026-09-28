@@ -97,13 +97,13 @@ export async function handleBulkTag(
 	try {
 		const taxonomy = new TaxonomyRepository(db);
 		const term = await taxonomy.findById(input.termId);
-		if (!term || term.name !== "tag") {
-			return { success: false, error: { code: "NOT_FOUND", message: "Tag not found" } };
+		if (!term) {
+			return { success: false, error: { code: "NOT_FOUND", message: "Term not found" } };
 		}
 		const definitions = await db
 			.selectFrom("_emdash_taxonomy_defs")
 			.select("collections")
-			.where("name", "=", "tag")
+			.where("name", "=", term.name)
 			.execute();
 		const allowed = new Set(
 			definitions.flatMap((def) => {
@@ -230,7 +230,7 @@ export async function handleBulkTag(
 			}
 		}
 		const seen = new Set<string>();
-		const purge = new Set<string>([taxonomyTag("tag")]);
+		const purge = new Set<string>([taxonomyTag(term.name)]);
 		const results: BulkTagResult[] = [];
 		let changed = false;
 		for (const { source, resolved } of prepared) {

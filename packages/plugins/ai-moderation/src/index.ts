@@ -3,7 +3,8 @@
  *
  * Uses Cloudflare Workers AI (Llama Guard 3 8B) to moderate comments.
  * Registers as the exclusive comment:moderate provider, replacing the
- * built-in default moderator.
+ * built-in default moderator unless the site has already stored a
+ * comment:moderate selection.
  */
 
 import type { ResolvedPlugin } from "emdash";
@@ -52,7 +53,9 @@ export function createPlugin(options: AIModerationOptions = {}): ResolvedPlugin 
 	return definePlugin({
 		id: "ai-moderation",
 		version: "0.1.0",
-		capabilities: [],
+		// Comment hooks receive the commenter's email and IP hash, so EmDash
+		// only registers them for plugins that declare `users:read`.
+		capabilities: ["users:read"],
 		allowedHosts: [],
 
 		admin: {

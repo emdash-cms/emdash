@@ -46,13 +46,14 @@ import {
 } from "../lib/content-list-columns.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { useDebouncedValue } from "../lib/hooks.js";
+import { inlineLabel } from "../lib/inline-label.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, parseTimestamp } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
-import { BulkTagDialog, type SelectedBulkTagPost } from "./BulkTagDialog.js";
+import { BulkTagDialog, type BulkTagTaxonomy, type SelectedBulkTagPost } from "./BulkTagDialog.js";
 import {
 	BylineFilter,
 	EMPTY_BYLINE_FILTER,
@@ -184,7 +185,8 @@ export interface ContentListProps {
 	onBulkPublish?: BulkActionHandler;
 	onBulkUnpublish?: BulkActionHandler;
 	onBulkDelete?: BulkActionHandler;
-	bulkTagEnabled?: boolean;
+	/** Taxonomies editors can bulk-assign terms from; empty disables the action. */
+	bulkTagTaxonomies?: BulkTagTaxonomy[];
 	/** Current role used only for contributed-column visibility, not authorization. */
 	userRole?: number;
 	/** Manifest state used to omit disabled or stale trusted-plugin contributions. */
@@ -272,11 +274,11 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
-	bulkTagEnabled = false,
+	bulkTagTaxonomies = [],
 	userRole = 0,
 	pluginStates,
 }: ContentListProps) {
-	const { t } = useLingui();
+	const { t, i18n: lingui } = useLingui();
 	const pluginAdmins = usePluginAdmins();
 	const [activeTab, setActiveTab] = React.useState<ViewTab>("all");
 	const [searchQuery, setSearchQuery] = React.useState("");
@@ -286,6 +288,8 @@ export function ContentList({
 		null,
 	);
 	const [bulkTagOpen, setBulkTagOpen] = React.useState(false);
+	const bulkTagEnabled = bulkTagTaxonomies.length > 0;
+	const soleBulkTagTaxonomy = bulkTagTaxonomies.length === 1 ? bulkTagTaxonomies[0] : undefined;
 
 	// Bulk selection is opt-in: the checkbox column + toolbar only render when
 	// the parent wired at least one bulk handler.
@@ -471,8 +475,8 @@ export function ContentList({
 						<TableToolbar>
 							{(serverSearch || items.length > 0) && (
 								<TableToolbarSearch
-									placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
-									aria-label={t`Search ${collectionLabel.toLowerCase()}`}
+									placeholder={t`Search ${inlineLabel(collectionLabel, lingui.locale)}...`}
+									aria-label={t`Search ${inlineLabel(collectionLabel, lingui.locale)}`}
 									value={searchQuery}
 									onChange={handleSearchChange}
 								/>
@@ -546,12 +550,14 @@ export function ContentList({
 											setBulkTagOpen(true);
 										}}
 									>
-										{t`Add tag`}
+										{soleBulkTagTaxonomy
+											? t`Add ${inlineLabel(soleBulkTagTaxonomy.labelSingular || soleBulkTagTaxonomy.label, lingui.locale)}`
+											: t`Add term`}
 									</Button>
 								)}
 								{bulkTagEnabled && selectedCount > 50 && (
 									<span role="status" className="text-sm text-kumo-danger">
-										{t`Select up to 50 posts to add a tag.`}
+										{t`Select up to 50 posts at a time.`}
 									</span>
 								)}
 								{onBulkDelete && (
@@ -613,6 +619,7 @@ export function ContentList({
 						</div>
 					)}
 					<BulkTagDialog
+						taxonomies={bulkTagTaxonomies}
 						open={bulkTagOpen}
 						selected={bulkTagSelection ?? undefined}
 						activeLocale={activeLocale}
@@ -714,7 +721,7 @@ export function ContentList({
 												t`No results for "${activeSearch}"`
 											) : (
 												<>
-													{t`No ${collectionLabel.toLowerCase()} yet.`}{" "}
+													{t`No ${inlineLabel(collectionLabel, lingui.locale)} yet.`}{" "}
 													<Link
 														to="/content/$collection/new"
 														params={{ collection }}

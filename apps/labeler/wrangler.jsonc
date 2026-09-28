@@ -53,6 +53,10 @@
 			"binding": "AGGREGATOR_RECONCILIATION",
 			"service": "emdash-aggregator",
 		},
+		{
+			"binding": "REGISTRY_BLOB_CACHE",
+			"service": "blob-proxy",
+		},
 	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",

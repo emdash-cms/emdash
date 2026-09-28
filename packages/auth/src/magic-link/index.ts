@@ -160,35 +160,17 @@ export function buildMagicLinkEmail(
 export async function verifyMagicLink(adapter: AuthAdapter, token: string): Promise<User> {
 	const hash = hashToken(token);
 
-	// Find and validate token
-	const authToken = await adapter.getToken(hash, "magic_link");
+	const authToken =
+		(await adapter.consumeToken(hash, "magic_link")) ??
+		(await adapter.consumeToken(hash, "recovery"));
 	if (!authToken) {
-		// Also check for recovery tokens
-		const recoveryToken = await adapter.getToken(hash, "recovery");
-		if (!recoveryToken) {
-			throw new MagicLinkError("invalid_token", "Invalid or expired link");
-		}
-		return verifyTokenAndGetUser(adapter, recoveryToken, hash);
+		throw new MagicLinkError("invalid_token", "Invalid or expired link");
 	}
 
-	return verifyTokenAndGetUser(adapter, authToken, hash);
-}
-
-async function verifyTokenAndGetUser(
-	adapter: AuthAdapter,
-	authToken: { userId: string | null; expiresAt: Date },
-	hash: string,
-): Promise<User> {
-	// Check expiry
 	if (authToken.expiresAt < new Date()) {
-		await adapter.deleteToken(hash);
 		throw new MagicLinkError("token_expired", "This link has expired");
 	}
 
-	// Delete token (single-use)
-	await adapter.deleteToken(hash);
-
-	// Get user
 	if (!authToken.userId) {
 		throw new MagicLinkError("invalid_token", "Invalid token");
 	}

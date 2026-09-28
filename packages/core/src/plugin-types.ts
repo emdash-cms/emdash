@@ -51,6 +51,8 @@ import type { ZodType } from "zod";
 import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
 import type {
 	ActorInfo,
+	BylineAfterDeleteHandler,
+	BylineAfterSaveHandler,
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
 	CommentAfterModerateEvent,
@@ -140,6 +142,8 @@ export interface HookHandlers {
 	"comment:moderate": CommentModerateHandler;
 	"comment:afterCreate": CommentAfterCreateHandler;
 	"comment:afterModerate": CommentAfterModerateHandler;
+	"byline:afterSave": BylineAfterSaveHandler;
+	"byline:afterDelete": BylineAfterDeleteHandler;
 	"page:metadata": PageMetadataHandler;
 	"page:fragments": PageFragmentHandler;
 }
@@ -381,6 +385,9 @@ export type {
 };
 
 export type {
+	BylineAfterDeleteEvent,
+	BylineAfterSaveEvent,
+	BylineInfo,
 	PaginatedResult,
 	VersionedValue,
 	ConditionalWriteResult,

@@ -1,5 +1,5 @@
 ---
-import { getMenu, getEmDashCollection, getSiteSettings } from "emdash";
+import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
 import {
 	WidgetArea,
 	EmDashHead,
@@ -41,20 +41,25 @@ const {
 	author,
 	content,
 } = Astro.props;
-const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(await getSiteSettings());
-// If title already includes site title (from getSeoMeta), use as-is
-const fullTitle = title.includes(siteTitle) ? title : `${title} — ${siteTitle}`;
+const [settingsResult, menuResult] = await Promise.all([
+	getSiteSettingsWithCacheHint(),
+	getMenuWithCacheHint("primary"),
+]);
+if (Astro.cache?.enabled) {
+	Astro.cache.set(settingsResult.cacheHint);
+	Astro.cache.set(menuResult.cacheHint);
+}
 
-// Fetch primary menu defined in seed
-const menu = await getMenu("primary");
+const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(
+	settingsResult.data,
+);
+const titleIncludesSiteName =
+	title === siteTitle ||
+	title.endsWith(` | ${siteTitle}`) ||
+	title.endsWith(` — ${siteTitle}`);
+const fullTitle = titleIncludesSiteName ? title : `${title} — ${siteTitle}`;
 
-// Optional "social" menu. If a site defines a `social` menu in its seed,
-// it'll render in the footer's "Connect" column. Otherwise that column
-// just shows RSS, avoiding duplication with the "Navigate" column above.
-const socialMenu = await getMenu("social");
-
-// Fetch pages for footer
-const { entries: pages } = await getEmDashCollection("pages");
+const menu = menuResult.data;
 
 // Build public page context for plugin contributions
 // SEO data is passed here and rendered securely by EmDashHead
@@ -90,9 +95,10 @@ const isLoggedIn = !!Astro.locals.user;
 			// Apply an explicit theme choice immediately to prevent flash.
 			// With no cookie, color-scheme: light dark follows the OS.
 			(function () {
-				var c = document.cookie;
-				var i = c.indexOf("theme=");
-				var theme = i >= 0 ? c.slice(i + 6).split(";")[0] : null;
+				var row = document.cookie.split("; ").find(function (item) {
+					return item.startsWith("theme=");
+				});
+				var theme = row ? row.slice(6) : null;
 				if (theme === "dark" || theme === "light") {
 					document.documentElement.classList.add(theme);
 				}
@@ -104,9 +110,16 @@ const isLoggedIn = !!Astro.locals.user;
 		<header class="site-header">
 			<nav class="nav">
 				<a href="/" class="site-title">
-					{siteLogo
-						? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
-						: siteTitle
+					{
+						siteLogo ? (
+							<img
+								src={siteLogo.url}
+								alt={siteLogo.alt || siteTitle}
+								class="site-logo-img"
+							/>
+						) : (
+							siteTitle
+						)
 					}
 				</a>
 				<div class="nav-right">
@@ -121,7 +134,13 @@ const isLoggedIn = !!Astro.locals.user;
 					<div class="nav-links">
 						{
 							menu?.items.map((item) => (
-								<a href={item.url} target={item.target}>
+								<a
+									href={item.url}
+									target={item.target}
+									rel={
+										item.target === "_blank" ? "noopener noreferrer" : undefined
+									}
+								>
 									{item.label}
 								</a>
 							))
@@ -147,34 +166,25 @@ const isLoggedIn = !!Astro.locals.user;
 				<div class="footer-grid">
 					<div class="footer-brand">
 						<a href="/" class="footer-logo">
-							{siteLogo
-								? <img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="footer-logo-img" />
-								: siteTitle
+							{
+								siteLogo ? (
+									<img
+										src={siteLogo.url}
+										alt={siteLogo.alt || siteTitle}
+										class="footer-logo-img"
+									/>
+								) : (
+									siteTitle
+								)
 							}
 						</a>
 						<p class="footer-tagline">{siteTagline}</p>
 					</div>
 					<div class="footer-nav">
-						<h4 class="footer-heading">Navigate</h4>
-						<ul class="footer-links">
-							<li><a href="/">Home</a></li>
-							<li><a href="/posts">All Posts</a></li>
-							{
-								pages.slice(0, 3).map((page) => (
-									<li>
-										<a href={`/pages/${page.data.slug || page.id}`}>
-											{page.data.title}
-										</a>
-									</li>
-								))
-							}
-						</ul>
-					</div>
-					<div class="footer-nav">
-						<h4 class="footer-heading">Connect</h4>
+						<h2 class="footer-heading">Navigate</h2>
 						<ul class="footer-links">
 							{
-								socialMenu?.items.map((item) => (
+								menu?.items.map((item) => (
 									<li>
 										<a
 											href={item.url}
@@ -190,6 +200,11 @@ const isLoggedIn = !!Astro.locals.user;
 									</li>
 								))
 							}
+						</ul>
+					</div>
+					<div class="footer-nav">
+						<h2 class="footer-heading">Connect</h2>
+						<ul class="footer-links">
 							<li><a href="/rss.xml">RSS Feed</a></li>
 						</ul>
 					</div>
@@ -282,7 +297,6 @@ const isLoggedIn = !!Astro.locals.user;
 
 		<script>
 			// Theme switcher
-			const THEME_REGEX = /theme=([^;]+)/;
 			const themeBtns =
 				document.querySelectorAll<HTMLButtonElement>(".theme-btn");
 			const root = document.documentElement;
@@ -290,7 +304,7 @@ const isLoggedIn = !!Astro.locals.user;
 			function setCookie(
 				name: string,
 				value: string,
-				maxAge: number = 31536000
+				maxAge: number = 31536000,
 			) {
 				const secure = location.protocol === "https:" ? "; Secure" : "";
 				if (value === "") {
@@ -314,13 +328,17 @@ const isLoggedIn = !!Astro.locals.user;
 
 			function updateActiveBtn(theme: string) {
 				themeBtns.forEach((btn) => {
-					btn.classList.toggle("active", btn.dataset.theme === theme);
+					const active = btn.dataset.theme === theme;
+					btn.classList.toggle("active", active);
+					btn.setAttribute("aria-pressed", String(active));
 				});
 			}
 
 			function getStoredTheme(): string {
-				const match = document.cookie.match(THEME_REGEX);
-				return match ? match[1] : "system";
+				const row = document.cookie
+					.split("; ")
+					.find((item) => item.startsWith("theme="));
+				return row?.slice(6) || "system";
 			}
 
 			// Initialize
@@ -877,7 +895,7 @@ const isLoggedIn = !!Astro.locals.user;
 				if ((e.metaKey || e.ctrlKey) && e.key === "k") {
 					e.preventDefault();
 					const searchInput = document.querySelector(
-						".site-search-input"
+						".site-search-input",
 					) as HTMLInputElement;
 					if (searchInput) {
 						searchInput.focus();

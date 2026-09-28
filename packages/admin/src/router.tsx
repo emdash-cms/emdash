@@ -30,7 +30,7 @@ import * as React from "react";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
-import { ContentEditor } from "./components/ContentEditor";
+import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
 	ContentList,
 	EMPTY_DATE_FILTER,
@@ -54,6 +54,7 @@ import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
+import { RelationList } from "./components/RelationList";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -67,6 +68,7 @@ import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
+import { TransferSettings } from "./components/settings/TransferSettings";
 import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
@@ -87,7 +89,13 @@ import {
 	fetchMediaList,
 	updateMedia,
 	uploadMedia,
+	createRelation,
+	deleteRelation,
 	fetchCollections,
+	fetchRelations,
+	updateRelation,
+	type CreateRelationInput,
+	type UpdateRelationInput,
 	fetchBlockTypes,
 	fetchCollection,
 	createCollection,
@@ -164,6 +172,7 @@ interface ContentUpdateChanges {
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	references?: Record<string, string[]>;
 	/** Optimistic-concurrency token from the latest response. */
 	_rev?: string;
 }
@@ -178,11 +187,41 @@ interface ContentUpdateMutationInput {
 interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "_rev">;
+	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "references" | "_rev">;
+	referenceRows?: Record<string, ReferenceEntryRow[]>;
 }
 
 function isSaveConflict(error: unknown): boolean {
 	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
+/**
+ * The editor's reference pages once an autosave has written `saved`: fields the
+ * save left alone keep their cached page, and each saved field holds exactly the
+ * entries that were sent.
+ */
+function withAutosavedReferences(
+	cached: ContentItem["references"],
+	saved: Record<string, ReferenceEntryRow[]> | undefined,
+	fields: Record<string, { validation?: Record<string, unknown> }>,
+): ContentItem["references"] {
+	if (!saved) return cached;
+	const next = { ...cached };
+	for (const [field, rows] of Object.entries(saved)) {
+		const targetCollection = fields[field]?.validation?.targetCollection;
+		if (typeof targetCollection !== "string") continue;
+		next[field] = {
+			children: rows.map((row) => ({
+				id: row.id,
+				slug: row.slug,
+				collection: targetCollection,
+				title: row.title ?? null,
+				locale: row.locale ?? null,
+				translationGroup: row.translationGroup ?? null,
+			})),
+		};
+	}
+	return next;
 }
 
 function patchAutosaveQueries(
@@ -195,9 +234,11 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
+		referenceRows?: Record<string, ReferenceEntryRow[]>;
+		fields: Record<string, { validation?: Record<string, unknown> }>;
 	},
 ) {
-	const { collection, id, savedItem, payload } = params;
+	const { collection, id, savedItem, payload, referenceRows, fields } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -226,7 +267,14 @@ function patchAutosaveQueries(
 	// editor reads `{ locale: activeLocale }`, undefined when i18n is off, while the
 	// saved item carries the DB default "en". An exact key would write to an entry
 	// nobody observes, leaving the editor on stale revision pointers.
-	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, savedItem);
+	// The save response carries no `references` (only the editor GET hydrates
+	// them), and an entry reopened from this cache would show its reference
+	// fields empty, so the cached pages are carried over.
+	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, (cached) => ({
+		...savedItem,
+		references:
+			savedItem.references ?? withAutosavedReferences(cached?.references, referenceRows, fields),
+	}));
 }
 
 // Create a base root route without Shell for setup
@@ -696,11 +744,10 @@ function ContentListPage() {
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
-			bulkTagEnabled={
-				(currentUser?.role ?? 0) >= ROLE_EDITOR &&
-				manifest.taxonomies.some(
-					(taxonomy) => taxonomy.name === "tag" && taxonomy.collections.includes(collection),
-				)
+			bulkTagTaxonomies={
+				(currentUser?.role ?? 0) >= ROLE_EDITOR
+					? manifest.taxonomies.filter((taxonomy) => taxonomy.collections.includes(collection))
+					: []
 			}
 			pluginStates={manifest.plugins}
 			userRole={currentUser?.role ?? 0}
@@ -746,6 +793,7 @@ function ContentNewPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
 			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
@@ -804,7 +852,12 @@ function ContentNewPage() {
 	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
 	// would defeat the memo. mutate/mutateAsync are referentially stable.
 	const handleSave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			createMutation.mutate(payload);
 		},
 		[createMutation.mutate],
@@ -919,13 +972,13 @@ function ContentEditPage() {
 	// that runs before the next render still sees the conflict.
 	const conflictedEntryIdRef = React.useRef("");
 	const serializeEditorSave = React.useCallback(
-		<T,>(operation: () => Promise<T>, { explicitSave = false } = {}) => {
+		<T,>(operation: () => Promise<T>, { explicitSave = false, allowConflict = false } = {}) => {
 			const savesOverConflict = explicitSave && conflictedEntryIdRef.current === id;
 			const result = editorSaveQueueRef.current.then(() => {
 				// The token the recovery fetched is only for a save the writer starts
 				// while the conflict shows; anything else would write over a version
 				// they have not seen.
-				if (!savesOverConflict && conflictedEntryIdRef.current === id) {
+				if (!savesOverConflict && !allowConflict && conflictedEntryIdRef.current === id) {
 					throw new Error(
 						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
 					);
@@ -1173,16 +1226,20 @@ function ContentEditPage() {
 			const savedItem = await updateContent(
 				collection,
 				id,
-				{ publishedAt },
+				{ publishedAt, _rev: revisionTokensRef.current.get(id) },
 				{ locale: rawItem?.locale ?? activeLocale },
 			);
 			revisionTokensRef.current.set(id, savedItem._rev);
 			return savedItem;
 		},
 		onSuccess: () => {
+			setConflictedEntryId((current) => (current === id ? "" : current));
 			handleContentUpdateSuccess(id);
 		},
-		onError: (error) => handleContentUpdateError(error, id),
+		onError: async (error) => {
+			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
+			handleContentUpdateError(error, id);
+		},
 	});
 
 	// Autosave mutation - skips revision creation
@@ -1208,6 +1265,8 @@ function ContentEditPage() {
 					data: variables.changes.data,
 					slug: variables.changes.slug,
 				},
+				referenceRows: variables.referenceRows,
+				fields: collectionFields,
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
@@ -1227,17 +1286,26 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: (revision: string | undefined) =>
+		mutationFn: ({ revision }: { revision: string | undefined; savedReferences: boolean }) =>
 			publishContent(collection, id, {
 				locale: rawItem?.locale ?? activeLocale,
 				_rev: revision,
 			}),
-		onSuccess: (publishedItem) => {
+		onSuccess: (publishedItem, { savedReferences }) => {
 			revisionTokensRef.current.set(id, publishedItem._rev);
+			// A selection the preceding save sent is in no cached page yet, so the
+			// entry is read again instead of keeping the pages from before it.
 			queryClient.setQueriesData<ContentItem>(
 				{ queryKey: ["content", collection, id] },
-				publishedItem,
+				(cached) => ({
+					...publishedItem,
+					references:
+						publishedItem.references ?? (savedReferences ? undefined : cached?.references),
+				}),
 			);
+			if (savedReferences) {
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			}
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -1299,7 +1367,11 @@ function ContentEditPage() {
 		},
 	});
 	const applyScheduleChange = React.useCallback(
-		async (changedItem: ContentItem, savedItem?: ContentItem) => {
+		async (
+			changedItem: ContentItem,
+			savedItem?: ContentItem,
+			savedPayload?: { references?: Record<string, string[]> },
+		) => {
 			await queryClient.cancelQueries({ queryKey: ["content", collection, id] });
 			const currentChangedItem = changedItem._rev
 				? changedItem
@@ -1319,10 +1391,18 @@ function ContentEditPage() {
 								slug: currentItem.slug,
 								byline: currentItem.byline ?? existing?.byline,
 								bylines: currentItem.bylines ?? existing?.bylines,
+								references: savedPayload?.references
+									? undefined
+									: (currentItem.references ?? existing?.references),
 							}
 						: currentChangedItem;
 				},
 			);
+			// The save's own refetch was cancelled above, so a selection it sent is
+			// in no cached page yet.
+			if (savedPayload?.references) {
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+			}
 		},
 		[activeLocale, collection, id, queryClient, rawItem?.locale],
 	);
@@ -1425,7 +1505,12 @@ function ContentEditPage() {
 	// (twice per autosave cycle) would defeat the memo. mutate/mutateAsync
 	// are referentially stable.
 	const handleSave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			void serializeEditorSave(
 				() =>
 					updateMutation.mutateAsync({
@@ -1441,12 +1526,20 @@ function ContentEditPage() {
 	);
 
 	const handleAutosave = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+			referenceRows?: Record<string, ReferenceEntryRow[]>;
+		}) => {
+			const { referenceRows, ...changes } = payload;
 			void serializeEditorSave(() =>
 				autosaveMutation.mutateAsync({
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
-					changes: payload,
+					changes,
+					referenceRows,
 				}),
 			).catch(() => undefined);
 		},
@@ -1472,15 +1565,18 @@ function ContentEditPage() {
 				bylines?: BylineCreditInput[];
 			},
 		) => {
-			await serializeEditorSave(async () => {
-				if (!payload) return;
-				return updateMutation.mutateAsync({
-					targetId: id,
-					targetLocale: rawItem?.locale ?? activeLocale,
-					source: "editor",
-					changes: payload,
-				});
-			});
+			await serializeEditorSave(
+				async () => {
+					if (!payload) return;
+					return updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					});
+				},
+				{ allowConflict: !payload },
+			);
 			await publishedAtMutation.mutateAsync(publishedAt);
 		},
 		[
@@ -1506,7 +1602,12 @@ function ContentEditPage() {
 	);
 
 	const handlePublish = React.useCallback(
-		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+		(payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
+		}) => {
 			if (publishRequestRef.current) return publishRequestRef.current;
 
 			const request = (async () => {
@@ -1518,7 +1619,10 @@ function ContentEditPage() {
 						changes: payload,
 					}),
 				);
-				await publishMutation.mutateAsync(savedItem._rev);
+				await publishMutation.mutateAsync({
+					revision: savedItem._rev,
+					savedReferences: Boolean(payload.references),
+				});
 			})();
 			publishRequestRef.current = request;
 			void request
@@ -1586,6 +1690,7 @@ function ContentEditPage() {
 				data: Record<string, unknown>;
 				slug?: string;
 				bylines?: BylineCreditInput[];
+				references?: Record<string, string[]>;
 			},
 		) => {
 			const savedItem = await serializeEditorSave(async () => {
@@ -1598,7 +1703,7 @@ function ContentEditPage() {
 				});
 			});
 			const scheduledItem = await scheduleMutation.mutateAsync(scheduledAt);
-			await applyScheduleChange(scheduledItem, savedItem);
+			await applyScheduleChange(scheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,
@@ -1615,6 +1720,7 @@ function ContentEditPage() {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
+			references?: Record<string, string[]>;
 		}) => {
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
@@ -1626,7 +1732,7 @@ function ContentEditPage() {
 				});
 			});
 			const unscheduledItem = await unscheduleMutation.mutateAsync();
-			await applyScheduleChange(unscheduledItem, savedItem);
+			await applyScheduleChange(unscheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,
@@ -2262,6 +2368,19 @@ const backupSettingsRoute = createRoute({
 	component: BackupSettings,
 });
 
+const transferSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/transfer",
+	component: TransferSettingsPage,
+	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
+		search.start === "import" ? { start: "import" } : {},
+});
+
+function TransferSettingsPage() {
+	const { start } = transferSettingsRoute.useSearch();
+	return <TransferSettings focusImport={start === "import"} />;
+}
+
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2548,6 +2667,9 @@ function ContentTypesListPage() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// Every relationship the collection was an end of went with it, along
+			// with the reference fields on the other collections.
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
 		},
 	});
 
@@ -2623,6 +2745,68 @@ function ContentTypesNewPage() {
 	);
 }
 
+// Relations: link definitions between two content types. Under /content-types
+// because a relation is schema, like a collection.
+const relationsListRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/content-types/relations",
+	component: RelationsListPage,
+});
+
+function RelationsListPage() {
+	const { data: relations, isLoading, error } = useRelationsQuery();
+	const { data: collections = [] } = useQuery({
+		queryKey: ["schema", "collections"],
+		queryFn: fetchCollections,
+	});
+	const queryClient = useQueryClient();
+
+	// Deleting a relation takes the reference fields bound to it, on both of
+	// the content types it joins.
+	const invalidateRelations = () => {
+		void queryClient.invalidateQueries({ queryKey: ["relations"] });
+		void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+		void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+	};
+
+	const createMutation = useMutation({
+		mutationFn: (input: CreateRelationInput) => createRelation(input),
+		onSuccess: invalidateRelations,
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: ({ id, input }: { id: string; input: UpdateRelationInput }) =>
+			updateRelation(id, input),
+		onSuccess: invalidateRelations,
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (id: string) => deleteRelation(id),
+		onSuccess: invalidateRelations,
+	});
+
+	return (
+		<RelationList
+			relations={relations ?? []}
+			collections={collections}
+			isLoading={isLoading}
+			error={error ? error.message : undefined}
+			onCreateRelation={(input) => createMutation.mutateAsync(input)}
+			onUpdateRelation={(id, input) => updateMutation.mutateAsync({ id, input })}
+			onDeleteRelation={(id) => deleteMutation.mutateAsync(id)}
+			isDeleting={deleteMutation.isPending}
+			deleteError={deleteMutation.error}
+		/>
+	);
+}
+
+function useRelationsQuery() {
+	return useQuery({
+		queryKey: ["relations"],
+		queryFn: () => fetchRelations(),
+	});
+}
+
 const contentTypesEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/$slug",
@@ -2690,6 +2874,9 @@ function ContentTypesEditPage() {
 				queryKey: ["schema", "collections", slug],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// A reference field creates a relationship server-side, so the list the
+			// next dialog computes its free sides from is stale without this.
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
 		},
 	});
 
@@ -2701,15 +2888,59 @@ function ContentTypesEditPage() {
 				queryKey: ["schema", "collections", slug],
 			});
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// Binding a field creates a relationship, and a relabel renames a role
+			// on one.
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
 		},
 	});
 
 	const deleteFieldMutation = useMutation({
-		mutationFn: (fieldSlug: string) => deleteField(slug, fieldSlug),
+		mutationFn: ({
+			fieldSlug,
+			alsoDeleteRelation,
+		}: {
+			fieldSlug: string;
+			alsoDeleteRelation?: boolean;
+		}) => deleteField(slug, fieldSlug, { deleteRelation: alsoDeleteRelation }),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["schema", "collections", slug],
 			});
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+			// Deleting the relationship takes the field on its other end with it,
+			// so every collection's field list and the relations list can change.
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+		},
+	});
+
+	const createRelationMutation = useMutation({
+		mutationFn: (input: CreateRelationInput) => createRelation(input),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+		},
+	});
+
+	const updateRelationMutation = useMutation({
+		mutationFn: ({ id, input }: { id: string; input: UpdateRelationInput }) =>
+			updateRelation(id, input),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+			// The relation's limits are what the manifest reports as a bound
+			// field's `multiple`, so the entry editor's picker is stale without
+			// this.
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
+	const deleteRelationMutation = useMutation({
+		mutationFn: (id: string) => deleteRelation(id),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["relations"] });
+			// The fields bound to the relation went with it, on both of the
+			// content types it joined.
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections", slug] });
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 		},
 	});
@@ -2739,8 +2970,15 @@ function ContentTypesEditPage() {
 			onSave={(input) => updateMutation.mutate(input)}
 			onAddField={(input) => addFieldMutation.mutateAsync(input)}
 			onUpdateField={(fieldSlug, input) => updateFieldMutation.mutateAsync({ fieldSlug, input })}
-			onDeleteField={(fieldSlug) => deleteFieldMutation.mutate(fieldSlug)}
+			onDeleteField={(fieldSlug, options) =>
+				deleteFieldMutation.mutate({ fieldSlug, alsoDeleteRelation: options?.deleteRelation })
+			}
 			onReorderFields={(fieldSlugs) => reorderFieldsMutation.mutate(fieldSlugs)}
+			onCreateRelation={(input) => createRelationMutation.mutateAsync(input)}
+			onUpdateRelation={(id, input) => updateRelationMutation.mutateAsync({ id, input })}
+			onDeleteRelation={(id) => deleteRelationMutation.mutateAsync(id)}
+			isDeletingRelation={deleteRelationMutation.isPending}
+			deleteRelationError={deleteRelationMutation.error}
 		/>
 	);
 }
@@ -2797,6 +3035,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	contentEditRoute,
 	contentTypesListRoute,
 	contentTypesNewRoute,
+	relationsListRoute,
 	contentTypesEditRoute,
 	mediaRoute,
 	commentsRoute,
@@ -2829,6 +3068,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	apiTokenSettingsRoute,
 	emailSettingsRoute,
 	backupSettingsRoute,
+	transferSettingsRoute,
 	wordpressImportRoute,
 	notFoundRoute,
 ]);

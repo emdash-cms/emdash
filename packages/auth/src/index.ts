@@ -64,10 +64,13 @@ export {
 	hashPrefixedToken,
 	// Scopes
 	VALID_SCOPES,
+	TRANSFER_SCOPES,
 	validateScopes,
 	isValidScope,
+	isTransferScope,
 	hasScope,
 	type ApiTokenScope,
+	type TransferScope,
 	// PKCE
 	computeS256Challenge,
 } from "./tokens.js";

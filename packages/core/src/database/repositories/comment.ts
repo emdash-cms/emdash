@@ -147,7 +147,7 @@ export class CommentRepository {
 		contentId: string,
 		options: { status?: CommentStatus; limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<Comment>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
 
 		let query = this.db
 			.selectFrom("_emdash_comments")
@@ -195,7 +195,7 @@ export class CommentRepository {
 		status: CommentStatus,
 		options: { collection?: string; search?: string; limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<Comment>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = Math.max(1, Math.min(options.limit || 50, 100));
 
 		let query = this.db.selectFrom("_emdash_comments").selectAll().where("status", "=", status);
 

@@ -70,6 +70,7 @@ export {
 	type MediaUsageOccurrenceDetail,
 	type MediaUsageSourceDetail,
 	type MediaUsageEntryDetail,
+	type MediaUsageSiteSettingDetail,
 	type MediaUsageDetailsResponse,
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,
@@ -424,6 +425,25 @@ export {
 
 // Current user
 export { type CurrentUser, useCurrentUser } from "./current-user.js";
+
+// Relations (reference fields)
+export {
+	type BoundField,
+	type CreateRelationInput,
+	type EntryRef,
+	type ReferencePageOptions,
+	type RelationDef,
+	type RelationSide,
+	type RelationWithUsage,
+	type UpdateRelationInput,
+	createRelation,
+	deleteRelation,
+	fetchReferenceChildren,
+	fetchReferenceParents,
+	fetchRelation,
+	fetchRelations,
+	updateRelation,
+} from "./relations.js";
 
 // Entry edit locks
 export {

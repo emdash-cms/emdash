@@ -26,6 +26,7 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import { resolveImageMedia } from "../content/converters/gallery.js";
 import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
@@ -153,13 +154,21 @@ function attrStr(attrs: Record<string, unknown> | undefined, key: string): strin
 /** Safely extract an optional string attribute from ProseMirror attrs */
 function attrStrOpt(attrs: Record<string, unknown> | undefined, key: string): string | undefined {
 	const v = attrs?.[key];
-	return typeof v === "string" ? v : undefined;
+	return typeof v === "string" && v ? v : undefined;
 }
 
 /** Safely extract a number attribute from ProseMirror attrs */
 function attrNum(attrs: Record<string, unknown> | undefined, key: string): number | undefined {
 	const v = attrs?.[key];
 	return typeof v === "number" ? v : undefined;
+}
+
+function attrDimension(
+	attrs: Record<string, unknown> | undefined,
+	key: string,
+): number | undefined {
+	const value = attrNum(attrs, key);
+	return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function canonicalMediaProviderId(provider: string | undefined): string | undefined {
@@ -266,6 +275,10 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const provider = attrStrOpt(node.attrs, "provider");
 			const blurhash = attrStrOpt(node.attrs, "blurhash");
 			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
+			const title = attrStrOpt(node.attrs, "title");
+			const caption = Object.hasOwn(node.attrs ?? {}, "caption")
+				? (attrStrOpt(node.attrs, "caption") ?? (title ? "" : undefined))
+				: title;
 			// Persist LQIP as first-class block fields (matching the image-field
 			// MediaValue path) rather than nesting in `asset.meta`, so read sites
 			// and normalize don't need a dual-shape fallback. `asset.meta` is left
@@ -280,13 +293,14 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStrOpt(node.attrs, "alt"),
-				caption: attrStrOpt(node.attrs, "caption") ?? attrStrOpt(node.attrs, "title"),
-				width: attrNum(node.attrs, "width"),
-				height: attrNum(node.attrs, "height"),
+				caption,
+				title,
+				width: attrDimension(node.attrs, "width"),
+				height: attrDimension(node.attrs, "height"),
 				...(blurhash ? { blurhash } : {}),
 				...(dominantColor ? { dominantColor } : {}),
-				displayWidth: attrNum(node.attrs, "displayWidth"),
-				displayHeight: attrNum(node.attrs, "displayHeight"),
+				displayWidth: attrDimension(node.attrs, "displayWidth"),
+				displayHeight: attrDimension(node.attrs, "displayHeight"),
 			};
 		}
 		case "horizontalRule":
@@ -572,6 +586,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			url?: string;
 			alt?: string;
 			caption?: string;
+			title?: string;
 			width?: number;
 			height?: number;
 			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
@@ -580,8 +595,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			displayWidth?: number;
 			displayHeight?: number;
 		};
-		const asset = ib.asset;
-		const meta = asset?.meta;
+		const meta = ib.asset?.meta;
+		const { asset, alt, width, height } = resolveImageMedia(ib);
 		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
 		const blurhash =
 			typeof ib.blurhash === "string"
@@ -598,14 +613,14 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return {
 			type: "image",
 			attrs: {
-				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
-				alt: ib.alt || "",
-				title: ib.caption || "",
-				caption: ib.caption || "",
-				mediaId: asset?._ref,
-				provider: canonicalMediaProviderId(asset?.provider),
-				width: ib.width,
-				height: ib.height,
+				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
+				alt: alt || "",
+				title: ib.title || "",
+				caption: Object.hasOwn(ib, "caption") ? ib.caption || "" : ib.title || "",
+				mediaId: asset._ref || undefined,
+				provider: canonicalMediaProviderId(asset.provider),
+				width,
+				height,
 				blurhash,
 				dominantColor,
 				displayWidth: ib.displayWidth,
@@ -2259,6 +2274,9 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						displayWidth: { default: null },
+						displayHeight: { default: null },
+						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
 					};

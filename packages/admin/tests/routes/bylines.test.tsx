@@ -1,7 +1,11 @@
+import { Toast } from "@cloudflare/kumo";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { page, userEvent } from "vitest/browser";
 
+import "../../dist/styles.css";
 import { fetchBylines } from "../../src/lib/api";
+import type { BylineSummary } from "../../src/lib/api/bylines";
 import { BylinesPage } from "../../src/routes/bylines";
 import { render } from "../utils/render.tsx";
 import { QueryWrapper } from "../utils/test-helpers.tsx";
@@ -38,7 +42,16 @@ vi.mock("../../src/lib/api", async () => {
 	};
 });
 
+vi.mock("../../src/lib/api/byline-fields.js", async () => {
+	const actual = await vi.importActual("../../src/lib/api/byline-fields.js");
+	return { ...actual, listBylineFields: vi.fn().mockResolvedValue({ items: [] }) };
+});
+
 const fetchBylinesMock = vi.mocked(fetchBylines);
+
+afterEach(async () => {
+	await page.viewport(1280, 800);
+});
 
 function searchArgs(): (string | undefined)[] {
 	return fetchBylinesMock.mock.calls.map((call) => call[0]?.search);
@@ -55,7 +68,9 @@ describe("BylinesPage search", () => {
 		try {
 			const screen = await render(
 				<QueryWrapper>
-					<BylinesPage />
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
 				</QueryWrapper>,
 			);
 
@@ -114,7 +129,9 @@ describe("BylinesPage search", () => {
 
 			const screen = await render(
 				<QueryWrapper>
-					<BylinesPage />
+					<Toast.Provider>
+						<BylinesPage />
+					</Toast.Provider>
 				</QueryWrapper>,
 			);
 
@@ -140,5 +157,103 @@ describe("BylinesPage search", () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+});
+
+describe("BylinesPage directory", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		fetchBylinesMock.mockResolvedValue({
+			items: [
+				{
+					id: "guest",
+					slug: "guest-contributor",
+					displayName: "Guest Contributor",
+					bio: "A visiting writer",
+					avatarMediaId: null,
+					websiteUrl: null,
+					userId: null,
+					isGuest: true,
+					locale: "en",
+					translationGroup: null,
+					createdAt: "2026-01-01",
+					updatedAt: "2026-01-01",
+				} satisfies BylineSummary,
+			],
+			nextCursor: undefined,
+		});
+	});
+
+	it("keeps the create dialog and its actions within a narrow viewport", async () => {
+		await page.viewport(320, 640);
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "New byline" }).first().click();
+		const dialog = screen.getByRole("dialog", { name: "New byline" });
+		await expect.element(dialog).toBeVisible();
+		const bounds = dialog.element().getBoundingClientRect();
+		expect(bounds.left).toBeGreaterThanOrEqual(0);
+		expect(bounds.right).toBeLessThanOrEqual(window.innerWidth);
+
+		await dialog.getByRole("button", { name: "Cancel" }).click();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("includes the visible delete label in the action's accessible name", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await screen.getByRole("button", { name: "More actions for Guest Contributor" }).click();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Delete byline Guest Contributor" }))
+			.toBeVisible();
+	});
+
+	it("shows byline identities and discards edits when the profile dialog is cancelled", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<Toast.Provider>
+					<BylinesPage />
+				</Toast.Provider>
+			</QueryWrapper>,
+		);
+
+		await expect.element(screen.getByText("Guest Contributor")).toBeInTheDocument();
+		await expect.element(screen.getByText("A visiting writer")).toBeInTheDocument();
+		await expect.element(screen.getByText("Guest", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Display name" }))
+			.not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Edit byline" });
+		await expect.element(dialog).toBeInTheDocument();
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Display name" }))
+			.toHaveValue("Guest Contributor");
+		await dialog.getByRole("textbox", { name: "Display name" }).fill("Unsaved name");
+		dialog.getByRole("button", { name: "Cancel" }).element().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(dialog).not.toBeInTheDocument();
+
+		await screen.getByRole("button", { name: "Edit Guest Contributor" }).click();
+		await expect
+			.element(
+				screen
+					.getByRole("dialog", { name: "Edit byline" })
+					.getByRole("textbox", { name: "Display name" }),
+			)
+			.toHaveValue("Guest Contributor");
 	});
 });

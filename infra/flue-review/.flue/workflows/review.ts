@@ -31,6 +31,7 @@ import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
 	githubRateLimitGate,
+	fetchRepositoryTarball,
 	fetchUnifiedDiff,
 	fetchPullRequestRevision,
 	classifyPullRequestHeadMove,
@@ -39,6 +40,7 @@ import {
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
+	POST_MODEL_PERMIT_WAIT_MS,
 	type GitHubToken,
 } from "../lib/github.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
@@ -194,7 +196,11 @@ function hydrateStep(payload: ReviewPayload, step: string, startedAt: number): v
 // the repo's shallow pack grows past roughly 16MB, so hydration must not
 // depend on git. gzip decompression is the runtime-native DecompressionStream.
 // Idempotent for one head and replaceable when a re-review advances to a new head.
-async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
+async function hydrate(
+	env: Env,
+	payload: ReviewPayload,
+	token: GitHubToken | undefined,
+): Promise<void> {
 	const t0 = Date.now();
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	hydrateStep(payload, "workspace created", t0);
@@ -207,16 +213,10 @@ async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
 	}
 	await workspace.rm(REPO_DIR, { recursive: true, force: true });
 
-	const url = `https://api.github.com/repos/${payload.owner}/${payload.repo}/tarball/${payload.headSha}`;
-	const response = await fetch(url, {
-		headers: { "User-Agent": "emdash-flue-review", Accept: "application/vnd.github+json" },
-	});
-	if (!response.ok || !response.body) {
-		throw new Error(`tarball fetch failed: ${response.status} ${await response.text()}`);
-	}
+	const tarball = await fetchRepositoryTarball(payload.owner, payload.repo, payload.headSha, token);
 	hydrateStep(payload, "tarball response", t0);
 
-	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
+	const tarStream = tarball.pipeThrough(new DecompressionStream("gzip"));
 	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
 	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
 	await omitReviewArtifacts(workspace, REPO_DIR);
@@ -360,7 +360,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			) {
 				throw new Error("Review attempt is no longer active");
 			}
-			await hydrate(env, activePayload);
+			await hydrate(env, activePayload, token);
 
 			const session = await context.harness.session(`review-${revision.headSha}`);
 
@@ -441,14 +441,36 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 
 		let data: ReviewResult;
 		if (token) {
-			const reviewToken = token;
+			const postModelToken =
+				typeof token !== "string"
+					? { ...token, maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS }
+					: token;
 			data = await reviewUntilCurrentHead(initialRevision, {
 				review: reviewRevision,
-				currentRevision: () =>
-					fetchPullRequestRevision(reviewToken, payload.owner, payload.repo, payload.prNumber),
+				currentRevision: async () => {
+					stage = "posting_review";
+					if (
+						!(await reportStage(
+							env,
+							postModelToken,
+							payload,
+							runId,
+							"posting_review",
+							"The model review is complete; the bot is verifying the PR head before publishing.",
+						))
+					) {
+						throw new Error("Review attempt is no longer active");
+					}
+					return fetchPullRequestRevision(
+						postModelToken,
+						payload.owner,
+						payload.repo,
+						payload.prNumber,
+					);
+				},
 				classifyMove: async (fromHeadSha, toHeadSha) => {
 					const move = await classifyPullRequestHeadMove(
-						reviewToken,
+						postModelToken,
 						payload.owner,
 						payload.repo,
 						fromHeadSha,
@@ -467,7 +489,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 					if (
 						!(await reportStage(
 							env,
-							reviewToken,
+							postModelToken,
 							reviewedPayload,
 							runId,
 							"posting_review",
@@ -477,7 +499,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 						throw new Error("Review attempt is no longer active");
 					}
 					await postReview(
-						reviewToken,
+						postModelToken,
 						payload.owner,
 						payload.repo,
 						payload.prNumber,
@@ -493,10 +515,14 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 											`review-publication-retry:${payload.attemptId ?? runId}`,
 										)
 									: undefined;
+								const postModelRetryToken =
+									retryToken && typeof retryToken !== "string"
+										? { ...retryToken, maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS }
+										: retryToken;
 								if (
 									!(await reportStage(
 										env,
-										retryToken,
+										postModelRetryToken,
 										reviewedPayload,
 										runId,
 										"posting_review",
@@ -505,7 +531,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 								) {
 									throw new Error("Review attempt is no longer active");
 								}
-								return retryToken;
+								return postModelRetryToken;
 							},
 						},
 					);

@@ -164,8 +164,7 @@ export async function completeSignup(
 ): Promise<User> {
 	const hash = hashToken(token);
 
-	// Validate token one more time
-	const authToken = await adapter.getToken(hash, "email_verify");
+	const authToken = await adapter.consumeToken(hash, "email_verify");
 	if (!authToken || authToken.expiresAt < new Date()) {
 		throw new SignupError("invalid_token", "Invalid or expired verification");
 	}
@@ -177,12 +176,8 @@ export async function completeSignup(
 	// Check user doesn't already exist
 	const existing = await adapter.getUserByEmail(authToken.email);
 	if (existing) {
-		await adapter.deleteToken(hash);
 		throw new SignupError("user_exists", "An account with this email already exists");
 	}
-
-	// Delete token (single-use)
-	await adapter.deleteToken(hash);
 
 	// Create user
 	const user = await adapter.createUser({

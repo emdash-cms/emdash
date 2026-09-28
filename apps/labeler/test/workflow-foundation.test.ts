@@ -222,6 +222,7 @@ describe("assessment Workflow foundation", () => {
 	});
 
 	it("finalizes as an error when required display media cannot be acquired", async () => {
+		const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const checksum = await computeMultihash(PNG_BYTES);
 		if (!checksum.success) throw new Error("test checksum could not be computed");
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
@@ -297,6 +298,15 @@ describe("assessment Workflow foundation", () => {
 				.bind(params.runKey)
 				.first<string>("val"),
 		).toBe("listing-error");
+		expect(errorLog).toHaveBeenCalledWith(
+			JSON.stringify({
+				event: "assessment_media_acquisition_failed",
+				subjectUri: RELEASE_URI,
+				subjectCid: RELEASE_CID,
+				error: "fixture media service unavailable",
+			}),
+		);
+		errorLog.mockRestore();
 	});
 
 	it("bounds concurrent image inference for a release with many display images", async () => {

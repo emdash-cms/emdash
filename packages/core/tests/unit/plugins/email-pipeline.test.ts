@@ -10,9 +10,10 @@
  * - Dev console provider captures emails
  */
 
-import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -91,7 +92,7 @@ function createTestMessage(overrides: Partial<EmailMessage> = {}): EmailMessage 
 
 describe("HookPipeline — email:beforeSend", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -230,7 +231,7 @@ describe("HookPipeline — email:beforeSend", () => {
 
 describe("HookPipeline — email:afterSend", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -317,7 +318,7 @@ describe("HookPipeline — email:afterSend", () => {
 
 describe("EmailPipeline", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -532,6 +533,40 @@ describe("EmailPipeline", () => {
 		).rejects.toThrow("'replyTo' must be a string");
 	});
 
+	it("logs delivery errors before propagating them", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const deliverHandler: EmailDeliverHandler = async () => {
+			throw new Error("binding.send rejected: sender domain not verified");
+		};
+
+		const provider = createTestPlugin({
+			id: "cloudflare-email",
+			capabilities: ["hooks.email-transport:register"],
+			hooks: {
+				"email:deliver": createTestHook("cloudflare-email", deliverHandler, { exclusive: true }),
+			},
+		});
+
+		const hookPipeline = new HookPipeline([provider], { db });
+		hookPipeline.setExclusiveSelection("email:deliver", "cloudflare-email");
+
+		const emailPipeline = new EmailPipeline(hookPipeline);
+		await expect(
+			emailPipeline.send(createTestMessage({ to: "admin@example.com" }), "system"),
+		).rejects.toThrow("binding.send rejected: sender domain not verified");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('[email:deliver] Provider "cloudflare-email" failed'),
+			expect.objectContaining({ message: "binding.send rejected: sender domain not verified" }),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("admin@example.com"),
+			expect.anything(),
+		);
+
+		errorSpy.mockRestore();
+	});
+
 	it("afterSend errors do not propagate to caller", async () => {
 		const deliverHandler: EmailDeliverHandler = async () => {};
 		const afterSendHandler: EmailAfterSendHandler = async () => {
@@ -687,7 +722,7 @@ describe("definePlugin — email capabilities", () => {
 
 describe("Capability enforcement — email hooks", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -780,7 +815,7 @@ describe("Capability enforcement — email hooks", () => {
 
 describe("ctx.email gating", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(async () => {
 		sqliteDb = new Database(":memory:");
@@ -903,7 +938,7 @@ describe("ctx.email gating", () => {
 
 describe("Email Pipeline — full integration with PluginManager", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(async () => {
 		sqliteDb = new Database(":memory:");
@@ -948,7 +983,7 @@ describe("Email Pipeline — full integration with PluginManager", () => {
 
 describe("Dev Console — as pipeline provider", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(async () => {
 		sqliteDb = new Database(":memory:");
@@ -1039,7 +1074,7 @@ describe("Dev Console — as pipeline provider", () => {
 
 describe("EmailPipeline — recursion guard", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -1143,7 +1178,7 @@ describe("EmailPipeline — recursion guard", () => {
 
 describe("EmailPipeline — system email protection", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");
@@ -1310,7 +1345,7 @@ describe("EmailPipeline — system email protection", () => {
 
 describe("EmailPipeline — cancellation audit", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: Database.Database;
+	let sqliteDb: Database;
 
 	beforeEach(() => {
 		sqliteDb = new Database(":memory:");

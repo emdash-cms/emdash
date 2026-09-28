@@ -168,7 +168,7 @@ export async function runAction(
 		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
 		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
 		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
-		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		const repositoryVisibility = runtime.getInput("repository-visibility");
 		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) {
 			throw new ActionConfigurationError("GitHub workflow identity is unavailable");
 		}

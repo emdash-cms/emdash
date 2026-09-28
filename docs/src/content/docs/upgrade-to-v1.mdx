@@ -1,0 +1,135 @@
+---
+title: Upgrade to EmDash 1.0
+description: Breaking changes between EmDash 0.x and 1.0, and how to update your site.
+---
+
+EmDash 1.0 removes APIs that were deprecated during 0.x and moves the entry points that only EmDash itself loads under `emdash/internal/`. This guide lists each breaking change and what to update in your site.
+
+## Upgrade your dependencies
+
+Update `emdash` and any other EmDash packages your site uses to their latest versions, then rebuild. The following example updates a Cloudflare site:
+
+```sh
+pnpm up --latest emdash @emdash-cms/cloudflare
+pnpm build
+```
+
+If your deployment runs [`emdash migrate`](/reference/cli/#emdash-migrate), run it against the `.emdash/migrations.json` produced by a build made after upgrading. The command rejects a manifest written by an earlier EmDash version.
+
+After upgrading, your site may build and run without further changes. If the build fails or EmDash reports an error at startup, work through the breaking changes below.
+
+For the full list of changes in each package, see its entry on the [releases page](https://github.com/emdash-cms/emdash/releases).
+
+## Breaking changes
+
+### Removed: `cloudflareCache()`
+
+In earlier versions, `cloudflareCache()` from `@emdash-cms/cloudflare` provided a route-cache provider that purged cached pages through the Cloudflare REST API.
+
+`cloudflareCache()` and its `@emdash-cms/cloudflare/cache` and `@emdash-cms/cloudflare/cache/config` entry points are removed. A site that imports it fails to build.
+
+#### What should I do?
+
+Replace it with the Astro Cloudflare adapter's `cacheCloudflare()` provider, which uses [Workers Cache](/deployment/cloudflare/#workers-cache). The adapter enables Workers Cache in the generated deployment configuration when this provider is set.
+
+The following example shows the change in `astro.config.mjs`:
+
+```js title="astro.config.mjs" del={1,6} ins={2,7}
+import { cloudflareCache } from "@emdash-cms/cloudflare";
+import { cacheCloudflare } from "@astrojs/cloudflare/cache";
+
+export default defineConfig({
+	cache: {
+		provider: cloudflareCache(),
+		provider: cacheCloudflare(),
+	},
+});
+```
+
+Workers Cache purges with `cache.purge()` from `cloudflare:workers`, so you can delete the `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN` secrets from your Worker. The KV [object cache](/deployment/object-cache/) (`kvCache()`) is unchanged.
+
+### Removed: `Comments` and `CommentForm` from `emdash/ui`
+
+In earlier versions, the `Comments` and `CommentForm` components were exported from both `emdash/ui` and `emdash/ui/comments`.
+
+They are exported only from `emdash/ui/comments`. A site that imports either component from `emdash/ui` fails to build.
+
+#### What should I do?
+
+Update the import. The components themselves are unchanged.
+
+```astro title="src/pages/posts/[slug].astro" del={2} ins={3}
+---
+import { Comments, CommentForm } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
+---
+```
+
+### Removed: `emdash dev` and `emdash auth secret`
+
+In earlier versions, `emdash dev` started a development server backed by a local `./data.db`, and `emdash auth secret` generated a value for `EMDASH_AUTH_SECRET`.
+
+Both commands are removed. Running either exits with `Unknown command`.
+
+#### What should I do?
+
+Replace `emdash dev` with your site's own dev script, such as `pnpm dev`, or run `astro dev`. The site then uses the database adapter from its configuration.
+
+If your `package.json` has a `url` key under `emdash`, delete it. To generate types from a remote site, run [`emdash types --url <site-url>`](/reference/cli/#emdash-types) or set `EMDASH_URL`.
+
+Remove `emdash auth secret` from your scripts. If your site already has `EMDASH_AUTH_SECRET` set, keep it: EmDash still reads it so that stored commenter IP hashes stay stable. To encrypt plugin secrets at rest, generate an [encryption key](/deployment/secrets/#the-encryption-key) with `emdash secrets generate`.
+
+### Removed: `experimental.registry`
+
+In earlier versions, you could configure the plugin registry with `experimental.registry` in the `emdash()` options.
+
+The option is removed, along with the `experimental` option itself. A site that still sets `experimental.registry` fails at startup with an error that names the top-level `registry` option.
+
+#### What should I do?
+
+Move the value to the top-level [`registry`](/reference/configuration/#registry) option unchanged. It accepts the same URL string or configuration object.
+
+```js title="astro.config.mjs" del={2-7} ins={8-11}
+emdash({
+	experimental: {
+		registry: {
+			aggregatorUrl: "https://registry.example.com",
+			policy: { minimumReleaseAge: "48h" },
+		},
+	},
+	registry: {
+		aggregatorUrl: "https://registry.example.com",
+		policy: { minimumReleaseAge: "48h" },
+	},
+});
+```
+
+If you are left with an empty `experimental: {}` block, delete it. TypeScript configs report it as an error.
+
+### Changed: internal entry points moved to `emdash/internal/`
+
+In earlier versions, `emdash` exposed entry points such as `emdash/routes/*`, `emdash/middleware/*`, `emdash/db/sqlite-migrations`, and `emdash/plugin-test-runtime` that only EmDash itself loads.
+
+These entry points are under `emdash/internal/`. The same applies to the D1 and Hyperdrive migration executors in `@emdash-cms/cloudflare`, which are under `@emdash-cms/cloudflare/internal/db/`. They are not public API, and their exports can change in any release. Sites that configure EmDash through `emdash()` in `astro.config.mjs` are not affected.
+
+#### What should I do?
+
+If your project imports any of these paths directly, replace the import with the public API:
+
+- To configure a database, object cache, or media provider, use `sqlite()`, `libsql()`, or `postgres()` from `emdash/db`, `memoryCache()` from `emdash/astro`, or `localMedia()` from `emdash/media`.
+- To test a plugin, use `@emdash-cms/plugin-test` instead of `emdash/plugin-test-runtime`.
+- To run your own middleware before EmDash's, set the `middleware.outer` option of `emdash()`.
+
+The internal auth, setup, redirect, and request-context middleware have no public replacement.
+
+## Deprecations
+
+### Deprecated: earlier plugin capability names
+
+In earlier versions, plugins could declare capabilities by names such as `read:content`, `network:fetch`, and `page:inject` without any warning.
+
+EmDash logs a warning at startup for each plugin that declares one of these deprecated names, listing the current replacement for each (for example, `read:content → content:read`). The deprecated names keep working throughout 1.x.
+
+#### What should I do?
+
+If a plugin you use triggers the warning, update it to a version that uses the current names, or ask its author to publish one. If you maintain the plugin, rename the capabilities in its manifest. See [Capabilities & Security](/plugins/creating-plugins/capabilities/) for the current names.

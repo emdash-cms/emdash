@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { getI18nConfig } from "../../i18n/config.js";
-import { currentTimestamp, isSqlite } from "../dialect-helpers.js";
+import { currentTimestamp, isSqlite, tableExists } from "../dialect-helpers.js";
 import { validateIdentifier } from "../validate.js";
 
 /**
@@ -51,37 +51,53 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 	await remapMenuItemRefs(db);
 }
 
+/**
+ * D1 commits each statement of a rebuild on its own. A run that stopped
+ * between dropping `table` and renaming `<table>_new` leaves the staged copy
+ * as the only one, and the guards below read the old table, so rename the
+ * staged copy back before they run.
+ */
+async function resumeStagedRebuild(db: Kysely<unknown>, table: string): Promise<void> {
+	const staged = `${table}_new`;
+	if ((await tableExists(db, table)) || !(await tableExists(db, staged))) return;
+	await db.schema.alterTable(staged).renameTo(table).execute();
+}
+
 async function rebuildMenus(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
-	if (await hasColumn(db, "_emdash_menus", "locale")) return;
-	await sql.raw(`DROP TABLE IF EXISTS "_emdash_menus_new"`).execute(db);
+	await resumeStagedRebuild(db, "_emdash_menus");
+	if (!(await hasColumn(db, "_emdash_menus", "locale"))) {
+		await sql.raw(`DROP TABLE IF EXISTS "_emdash_menus_new"`).execute(db);
 
-	await db.schema
-		.createTable("_emdash_menus_new")
-		.addColumn("id", "text", (c) => c.primaryKey())
-		.addColumn("name", "text", (c) => c.notNull())
-		.addColumn("label", "text", (c) => c.notNull())
-		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
-		.addColumn("updated_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
-		.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
-		.addColumn("translation_group", "text")
-		.addUniqueConstraint("_emdash_menus_name_locale_unique", ["name", "locale"])
-		.execute();
+		await db.schema
+			.createTable("_emdash_menus_new")
+			.addColumn("id", "text", (c) => c.primaryKey())
+			.addColumn("name", "text", (c) => c.notNull())
+			.addColumn("label", "text", (c) => c.notNull())
+			.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+			.addColumn("updated_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+			.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
+			.addColumn("translation_group", "text")
+			.addUniqueConstraint("_emdash_menus_name_locale_unique", ["name", "locale"])
+			.execute();
 
-	await sql`
-		INSERT INTO _emdash_menus_new (id, name, label, created_at, updated_at, locale, translation_group)
-		SELECT id, name, label, created_at, updated_at, ${defaultLocale}, id FROM _emdash_menus
-	`.execute(db);
+		await sql`
+			INSERT INTO _emdash_menus_new (id, name, label, created_at, updated_at, locale, translation_group)
+			SELECT id, name, label, created_at, updated_at, ${defaultLocale}, id FROM _emdash_menus
+		`.execute(db);
 
-	await db.schema.dropTable("_emdash_menus").execute();
-	await sql`ALTER TABLE _emdash_menus_new RENAME TO _emdash_menus`.execute(db);
+		await db.schema.dropTable("_emdash_menus").execute();
+		await sql`ALTER TABLE _emdash_menus_new RENAME TO _emdash_menus`.execute(db);
+	}
 
 	await db.schema
 		.createIndex("idx__emdash_menus_locale")
+		.ifNotExists()
 		.on("_emdash_menus")
 		.column("locale")
 		.execute();
 	await db.schema
 		.createIndex("idx__emdash_menus_translation_group")
+		.ifNotExists()
 		.on("_emdash_menus")
 		.column("translation_group")
 		.execute();
@@ -94,29 +110,30 @@ async function rebuildMenuItems(db: Kysely<unknown>, defaultLocale: string): Pro
 	// on D1 (#1021). The FKs were never load-bearing at runtime — D1
 	// disables FK enforcement, and `MenuRepository` always deletes
 	// children explicitly. Mirrors `rebuildContentTaxonomies` below.
-	if (await hasColumn(db, "_emdash_menu_items", "locale")) return;
-	await sql.raw(`DROP TABLE IF EXISTS "_emdash_menu_items_new"`).execute(db);
+	await resumeStagedRebuild(db, "_emdash_menu_items");
+	if (!(await hasColumn(db, "_emdash_menu_items", "locale"))) {
+		await sql.raw(`DROP TABLE IF EXISTS "_emdash_menu_items_new"`).execute(db);
 
-	await db.schema
-		.createTable("_emdash_menu_items_new")
-		.addColumn("id", "text", (c) => c.primaryKey())
-		.addColumn("menu_id", "text", (c) => c.notNull())
-		.addColumn("parent_id", "text")
-		.addColumn("sort_order", "integer", (c) => c.notNull().defaultTo(0))
-		.addColumn("type", "text", (c) => c.notNull())
-		.addColumn("reference_collection", "text")
-		.addColumn("reference_id", "text")
-		.addColumn("custom_url", "text")
-		.addColumn("label", "text", (c) => c.notNull())
-		.addColumn("title_attr", "text")
-		.addColumn("target", "text")
-		.addColumn("css_classes", "text")
-		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
-		.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
-		.addColumn("translation_group", "text")
-		.execute();
+		await db.schema
+			.createTable("_emdash_menu_items_new")
+			.addColumn("id", "text", (c) => c.primaryKey())
+			.addColumn("menu_id", "text", (c) => c.notNull())
+			.addColumn("parent_id", "text")
+			.addColumn("sort_order", "integer", (c) => c.notNull().defaultTo(0))
+			.addColumn("type", "text", (c) => c.notNull())
+			.addColumn("reference_collection", "text")
+			.addColumn("reference_id", "text")
+			.addColumn("custom_url", "text")
+			.addColumn("label", "text", (c) => c.notNull())
+			.addColumn("title_attr", "text")
+			.addColumn("target", "text")
+			.addColumn("css_classes", "text")
+			.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+			.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
+			.addColumn("translation_group", "text")
+			.execute();
 
-	await sql`
+		await sql`
 		INSERT INTO _emdash_menu_items_new (
 			id, menu_id, parent_id, sort_order, type, reference_collection,
 			reference_id, custom_url, label, title_attr, target, css_classes,
@@ -129,73 +146,91 @@ async function rebuildMenuItems(db: Kysely<unknown>, defaultLocale: string): Pro
 		FROM _emdash_menu_items
 	`.execute(db);
 
-	await db.schema.dropTable("_emdash_menu_items").execute();
-	await sql`ALTER TABLE _emdash_menu_items_new RENAME TO _emdash_menu_items`.execute(db);
+		await db.schema.dropTable("_emdash_menu_items").execute();
+		await sql`ALTER TABLE _emdash_menu_items_new RENAME TO _emdash_menu_items`.execute(db);
+	}
 
 	// Indexes from migration 005 are dropped with the underlying table; recreate.
 	await db.schema
 		.createIndex("idx_menu_items_menu")
+		.ifNotExists()
 		.on("_emdash_menu_items")
 		.columns(["menu_id", "sort_order"])
 		.execute();
 	await db.schema
 		.createIndex("idx_menu_items_parent")
+		.ifNotExists()
 		.on("_emdash_menu_items")
 		.column("parent_id")
 		.execute();
 	await db.schema
 		.createIndex("idx__emdash_menu_items_locale")
+		.ifNotExists()
 		.on("_emdash_menu_items")
 		.column("locale")
 		.execute();
 	await db.schema
 		.createIndex("idx__emdash_menu_items_translation_group")
+		.ifNotExists()
 		.on("_emdash_menu_items")
 		.column("translation_group")
 		.execute();
 }
 
 async function rebuildTaxonomies(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
-	if (await hasColumn(db, "taxonomies", "locale")) return;
-	await sql.raw(`DROP TABLE IF EXISTS "taxonomies_new"`).execute(db);
-	await sql`DROP INDEX IF EXISTS idx_taxonomies_name`.execute(db);
+	await resumeStagedRebuild(db, "taxonomies");
+	if (!(await hasColumn(db, "taxonomies", "locale"))) {
+		await sql.raw(`DROP TABLE IF EXISTS "taxonomies_new"`).execute(db);
+		await sql`DROP INDEX IF EXISTS idx_taxonomies_name`.execute(db);
 
-	await db.schema
-		.createTable("taxonomies_new")
-		.addColumn("id", "text", (c) => c.primaryKey())
-		.addColumn("name", "text", (c) => c.notNull())
-		.addColumn("slug", "text", (c) => c.notNull())
-		.addColumn("label", "text", (c) => c.notNull())
-		.addColumn("parent_id", "text")
-		.addColumn("data", "text")
-		.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
-		.addColumn("translation_group", "text")
-		.addUniqueConstraint("taxonomies_name_slug_locale_unique", ["name", "slug", "locale"])
-		// Self-FK points at `taxonomies_new` (not `taxonomies`) so dropping
-		// the old table doesn't fire ON DELETE SET NULL against parent_id
-		// values on D1. SQLite's RENAME rewrites the FK target to the new
-		// name automatically.
-		.addForeignKeyConstraint(
-			"taxonomies_parent_fk",
-			["parent_id"],
-			"taxonomies_new",
-			["id"],
-			(cb) => cb.onDelete("set null"),
-		)
-		.execute();
+		await db.schema
+			.createTable("taxonomies_new")
+			.addColumn("id", "text", (c) => c.primaryKey())
+			.addColumn("name", "text", (c) => c.notNull())
+			.addColumn("slug", "text", (c) => c.notNull())
+			.addColumn("label", "text", (c) => c.notNull())
+			.addColumn("parent_id", "text")
+			.addColumn("data", "text")
+			.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
+			.addColumn("translation_group", "text")
+			.addUniqueConstraint("taxonomies_name_slug_locale_unique", ["name", "slug", "locale"])
+			// Self-FK points at `taxonomies_new` (not `taxonomies`) so dropping
+			// the old table doesn't fire ON DELETE SET NULL against parent_id
+			// values on D1. SQLite's RENAME rewrites the FK target to the new
+			// name automatically.
+			.addForeignKeyConstraint(
+				"taxonomies_parent_fk",
+				["parent_id"],
+				"taxonomies_new",
+				["id"],
+				(cb) => cb.onDelete("set null"),
+			)
+			.execute();
 
-	await sql`
+		await sql`
 		INSERT INTO taxonomies_new (id, name, slug, label, parent_id, data, locale, translation_group)
 		SELECT id, name, slug, label, parent_id, data, ${defaultLocale}, id FROM taxonomies
 	`.execute(db);
 
-	await db.schema.dropTable("taxonomies").execute();
-	await sql`ALTER TABLE taxonomies_new RENAME TO taxonomies`.execute(db);
+		await db.schema.dropTable("taxonomies").execute();
+		await sql`ALTER TABLE taxonomies_new RENAME TO taxonomies`.execute(db);
+	}
 
-	await db.schema.createIndex("idx_taxonomies_name").on("taxonomies").column("name").execute();
-	await db.schema.createIndex("idx_taxonomies_locale").on("taxonomies").column("locale").execute();
+	await db.schema
+		.createIndex("idx_taxonomies_name")
+		.ifNotExists()
+		.on("taxonomies")
+		.column("name")
+		.execute();
+	await db.schema
+		.createIndex("idx_taxonomies_locale")
+		.ifNotExists()
+		.on("taxonomies")
+		.column("locale")
+		.execute();
 	await db.schema
 		.createIndex("idx_taxonomies_translation_group")
+		.ifNotExists()
 		.on("taxonomies")
 		.column("translation_group")
 		.execute();
@@ -211,40 +246,44 @@ async function rebuildTaxonomies(db: Kysely<unknown>, defaultLocale: string): Pr
 }
 
 async function rebuildTaxonomyDefs(db: Kysely<unknown>, defaultLocale: string): Promise<void> {
-	if (await hasColumn(db, "_emdash_taxonomy_defs", "locale")) return;
-	await sql.raw(`DROP TABLE IF EXISTS "_emdash_taxonomy_defs_new"`).execute(db);
+	await resumeStagedRebuild(db, "_emdash_taxonomy_defs");
+	if (!(await hasColumn(db, "_emdash_taxonomy_defs", "locale"))) {
+		await sql.raw(`DROP TABLE IF EXISTS "_emdash_taxonomy_defs_new"`).execute(db);
 
-	await db.schema
-		.createTable("_emdash_taxonomy_defs_new")
-		.addColumn("id", "text", (c) => c.primaryKey())
-		.addColumn("name", "text", (c) => c.notNull())
-		.addColumn("label", "text", (c) => c.notNull())
-		.addColumn("label_singular", "text")
-		.addColumn("hierarchical", "integer", (c) => c.defaultTo(0))
-		.addColumn("collections", "text")
-		.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
-		.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
-		.addColumn("translation_group", "text")
-		.addUniqueConstraint("_emdash_taxonomy_defs_name_locale_unique", ["name", "locale"])
-		.execute();
+		await db.schema
+			.createTable("_emdash_taxonomy_defs_new")
+			.addColumn("id", "text", (c) => c.primaryKey())
+			.addColumn("name", "text", (c) => c.notNull())
+			.addColumn("label", "text", (c) => c.notNull())
+			.addColumn("label_singular", "text")
+			.addColumn("hierarchical", "integer", (c) => c.defaultTo(0))
+			.addColumn("collections", "text")
+			.addColumn("created_at", "text", (c) => c.defaultTo(currentTimestamp(db)))
+			.addColumn("locale", "text", (c) => c.notNull().defaultTo(defaultLocale))
+			.addColumn("translation_group", "text")
+			.addUniqueConstraint("_emdash_taxonomy_defs_name_locale_unique", ["name", "locale"])
+			.execute();
 
-	await sql`
+		await sql`
 		INSERT INTO _emdash_taxonomy_defs_new
 			(id, name, label, label_singular, hierarchical, collections, created_at, locale, translation_group)
 		SELECT id, name, label, label_singular, hierarchical, collections, created_at, ${defaultLocale}, id
 		FROM _emdash_taxonomy_defs
 	`.execute(db);
 
-	await db.schema.dropTable("_emdash_taxonomy_defs").execute();
-	await sql`ALTER TABLE _emdash_taxonomy_defs_new RENAME TO _emdash_taxonomy_defs`.execute(db);
+		await db.schema.dropTable("_emdash_taxonomy_defs").execute();
+		await sql`ALTER TABLE _emdash_taxonomy_defs_new RENAME TO _emdash_taxonomy_defs`.execute(db);
+	}
 
 	await db.schema
 		.createIndex("idx__emdash_taxonomy_defs_locale")
+		.ifNotExists()
 		.on("_emdash_taxonomy_defs")
 		.column("locale")
 		.execute();
 	await db.schema
 		.createIndex("idx__emdash_taxonomy_defs_translation_group")
+		.ifNotExists()
 		.on("_emdash_taxonomy_defs")
 		.column("translation_group")
 		.execute();
@@ -258,6 +297,7 @@ async function rebuildContentTaxonomies(db: Kysely<unknown>): Promise<void> {
 	// translation_group references after the migration completes. This coupling
 	// is load-bearing — if the translation_group seed ever changes, this needs
 	// an explicit remap *after* `rebuildTaxonomies` runs.
+	await resumeStagedRebuild(db, "content_taxonomies");
 	const fks = await sql<{ id: number }>`PRAGMA foreign_key_list(content_taxonomies)`.execute(db);
 	if (fks.rows.length > 0) {
 		await sql.raw(`DROP TABLE IF EXISTS "content_taxonomies_new"`).execute(db);

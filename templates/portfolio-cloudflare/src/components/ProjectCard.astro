@@ -1,40 +1,57 @@
 ---
-import type { MediaValue } from "emdash";
+import type { EditProxy, MediaValue } from "emdash";
 import { Image } from "emdash/ui";
 
 interface Props {
 	title: string;
 	summary?: string;
-	featuredImage: MediaValue | string;
+	featuredImage: MediaValue;
 	href: string;
 	client?: string;
 	year?: string;
-	categories?: string[];
 	tags?: string[];
+	edit?: EditProxy;
 }
 
-const { title, summary, featuredImage, href, client, year, categories, tags } =
+const { title, summary, featuredImage, href, client, year, tags, edit } =
 	Astro.props;
-// Combine categories and tags for display
-const allTags = [...(categories || []), ...(tags || [])];
+const allTags = tags || [];
 ---
 
 <article class="project-card">
 	<a href={href} class="card-link">
-		<div class="card-image">
+		<div class="card-image" {...edit?.featured_image}>
 			<Image image={featuredImage} />
 			<div class="card-overlay">
 				<span class="card-view">View Project</span>
 			</div>
 		</div>
 		<div class="card-content">
-			<h2 class="card-title">{title}</h2>
+			<h2 class="card-title" {...edit?.title}>{title}</h2>
 			<div class="card-meta">
-				{client && <span class="card-client">{client}</span>}
+				{
+					client && (
+						<span class="card-client" {...edit?.client}>
+							{client}
+						</span>
+					)
+				}
 				{client && year && <span class="card-separator">·</span>}
-				{year && <span class="card-year">{year}</span>}
+				{
+					year && (
+						<span class="card-year" {...edit?.year}>
+							{year}
+						</span>
+					)
+				}
 			</div>
-			{summary && <p class="card-summary">{summary}</p>}
+			{
+				summary && (
+					<p class="card-summary" {...edit?.summary}>
+						{summary}
+					</p>
+				)
+			}
 			{
 				allTags.length > 0 && (
 					<div class="card-categories">
@@ -104,11 +121,24 @@ const allTags = [...(categories || []), ...(tags || [])];
 		transform: scale(1.03);
 	}
 
+	.card-link:focus-visible .card-image img {
+		transform: scale(1.03);
+	}
+
 	.project-card:hover .card-overlay {
 		background: rgba(0, 0, 0, 0.4);
 	}
 
+	.card-link:focus-visible .card-overlay {
+		background: rgba(0, 0, 0, 0.4);
+	}
+
 	.project-card:hover .card-view {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.card-link:focus-visible .card-view {
 		opacity: 1;
 		transform: translateY(0);
 	}

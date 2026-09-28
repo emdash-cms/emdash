@@ -18,6 +18,7 @@ export {
 	hashPrefixedToken,
 	hashPrefixedToken as hashApiToken,
 	VALID_SCOPES,
+	TRANSFER_SCOPES,
 	validateScopes,
 	isValidScope,
 	hasScope,

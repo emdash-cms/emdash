@@ -58,7 +58,7 @@ export interface GuardedMediaTransport {
 		redirect: "manual";
 		signal: AbortSignal;
 		deadline: number;
-	}): Promise<{ response: Response; connectedAddress: string }>;
+	}): Promise<{ response: Response; connectedAddress: string | null }>;
 }
 
 export interface PinnedMediaFetchImplementation {
@@ -169,7 +169,10 @@ export function createPinnedMediaTransport(
 				},
 				deadline: input.deadline,
 			});
-			if (!input.allowedAddresses.includes(result.connectedAddress)) {
+			if (
+				result.connectedAddress === null ||
+				!input.allowedAddresses.includes(result.connectedAddress)
+			) {
 				await cancelResponseBody(result.response);
 				throw new Error("display media connection was not pinned to an approved address");
 			}

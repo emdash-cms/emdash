@@ -80,6 +80,11 @@
 					"ref": "#taxonomiesAccess",
 					"description": "Access to taxonomy definitions and terms."
 				},
+				"bylines": {
+					"type": "ref",
+					"ref": "#bylinesAccess",
+					"description": "Read access to public byline profiles and the bylines credited on content entries."
+				},
 				"redirects": {
 					"type": "ref",
 					"ref": "#redirectsAccess",
@@ -258,6 +263,21 @@
 		"taxonomiesWriteConstraints": {
 			"type": "object",
 			"description": "Constraint object for taxonomies.write. No constraint keys are normatively defined here."
+		},
+		"bylinesAccess": {
+			"type": "object",
+			"description": "Operations under bylines. Read-only: there is no plugin-facing byline write operation.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#bylinesReadConstraints",
+					"description": "Plugin may read public byline profiles and the bylines credited on content entries."
+				}
+			}
+		},
+		"bylinesReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for bylines.read. No constraint keys are normatively defined here."
 		},
 		"redirectsAccess": {
 			"type": "object",

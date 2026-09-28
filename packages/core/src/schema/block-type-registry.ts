@@ -284,7 +284,7 @@ export class BlockTypeRegistry {
 				);
 			}
 		}
-		refreshDevTypes(this.db);
+		refreshDevTypes();
 	}
 
 	async createBlockType(input: CreateBlockTypeInput): Promise<BlockType> {

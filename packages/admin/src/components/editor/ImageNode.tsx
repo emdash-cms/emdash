@@ -44,9 +44,14 @@ declare module "@tiptap/react" {
 				displayWidth?: number;
 				displayHeight?: number;
 				alignment?: "left" | "center" | "right" | "wide" | "full";
+				link?: { href: string; blank?: boolean } | null;
 			}) => ReturnType;
 		};
 	}
+}
+
+function imageDimension(value: number | undefined): number | undefined {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 // React component for the image node view
@@ -122,6 +127,7 @@ function ImageNodeView({
 		displayWidth: node.attrs.displayWidth,
 		displayHeight: node.attrs.displayHeight,
 		alignment: node.attrs.alignment,
+		link: node.attrs.link,
 	});
 
 	const openSidebar = () => {
@@ -188,18 +194,22 @@ function ImageNodeView({
 	const alignmentStyle: React.CSSProperties =
 		alignment === "center" ? { width: "fit-content", marginInline: "auto" } : {};
 	const { width, height, displayWidth, displayHeight } = node.attrs as ImageAttributes;
-	const aspectRatio = width && height ? width / height : undefined;
-	let renderWidth = width;
-	let renderHeight = height;
-	if (displayWidth && displayHeight) {
-		renderWidth = displayWidth;
-		renderHeight = displayHeight;
-	} else if (displayWidth && aspectRatio) {
-		renderWidth = displayWidth;
-		renderHeight = Math.round(displayWidth / aspectRatio);
-	} else if (displayHeight && aspectRatio) {
-		renderWidth = Math.round(displayHeight * aspectRatio);
-		renderHeight = displayHeight;
+	const originalWidth = imageDimension(width);
+	const originalHeight = imageDimension(height);
+	const customWidth = imageDimension(displayWidth);
+	const customHeight = imageDimension(displayHeight);
+	const aspectRatio = originalWidth && originalHeight ? originalWidth / originalHeight : undefined;
+	let renderWidth = originalWidth;
+	let renderHeight = originalHeight;
+	if (customWidth && customHeight) {
+		renderWidth = customWidth;
+		renderHeight = customHeight;
+	} else if (customWidth && aspectRatio) {
+		renderWidth = customWidth;
+		renderHeight = Math.round(customWidth / aspectRatio);
+	} else if (customHeight && aspectRatio) {
+		renderWidth = Math.round(customHeight * aspectRatio);
+		renderHeight = customHeight;
 	}
 
 	return (
@@ -410,6 +420,9 @@ export const ImageExtension = Node.create({
 			alignment: {
 				default: null,
 			},
+			link: {
+				default: null,
+			},
 		};
 	},
 
@@ -446,6 +459,7 @@ export const ImageExtension = Node.create({
 					displayWidth?: number;
 					displayHeight?: number;
 					alignment?: "left" | "center" | "right" | "wide" | "full";
+					link?: { href: string; blank?: boolean } | null;
 				}) =>
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				({ commands }: any) => {

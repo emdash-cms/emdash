@@ -105,7 +105,7 @@ describe("migration manifest integration", () => {
 			},
 			database: {
 				type: "sqlite",
-				executorEntrypoint: "emdash/db/libsql-migrations",
+				executorEntrypoint: "emdash/internal/db/libsql-migrations",
 				executorConfig: {
 					url: "libsql://public-db.example.com",
 					authTokenEnv: "TURSO_AUTH_TOKEN",
@@ -155,7 +155,7 @@ describe("migration manifest integration", () => {
 			database: {
 				type: "sqlite",
 				migrations: {
-					entrypoint: "emdash/db/libsql-migrations",
+					entrypoint: "emdash/internal/db/libsql-migrations",
 					manifestConfig: {
 						url: "libsql://public-db.example.com",
 						authTokenEnv: "TURSO_AUTH_TOKEN",

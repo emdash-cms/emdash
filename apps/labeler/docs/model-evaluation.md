@@ -12,8 +12,8 @@ The automatic moderation bundle uses the following Workers AI catalog models:
   `@cf/zai-org/glm-5.3-flash`
 - Images: `@cf/zai-org/glm-5.3-flash`, with thinking disabled and a 512-pixel WebP derivative
 
-The text prompt is `listing-text-v9`, with content hash
-`aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5`. The image prompt is
+The text prompt is `listing-text-v10`, with content hash
+`05b2997bdac4d7c073648bda5839d0c90438906d712c06970c667c320b820abf`. The image prompt is
 `listing-image-v7`, with content hash
 `7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`. The runtime computes
 these hashes from the embedded prompts; operators do not configure separate prompt-hash values.

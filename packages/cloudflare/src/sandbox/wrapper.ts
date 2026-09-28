@@ -12,7 +12,7 @@
  */
 
 import { normalizePluginCapabilities, type PluginManifest } from "emdash";
-import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
+import { generatePluginHttpWireRuntimeSource } from "emdash/internal/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -63,6 +63,7 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const hasContentPublish = capabilities.includes("content:publish");
 	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasBylinesRead = capabilities.includes("bylines:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
 	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
@@ -97,25 +98,22 @@ function storageSerializationErrorDetails(value) {
 	};
 }
 
+const SANDBOX_ROUTE_ERROR_MESSAGES = {
+	MEDIA_USAGE_ACTIVATION_IN_PROGRESS: "Media usage activation is in progress",
+	MEDIA_USAGE_ACTIVATION_CHECK_FAILED: "Unable to verify media usage activation state",
+	TRANSFER_IMPORT_IN_PROGRESS: "A site import is in progress or incomplete; writes are disabled",
+	TRANSFER_FENCE_CHECK_FAILED: "Unable to verify whether site writes are allowed",
+};
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
-	const code =
-		value.code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
-		value.code === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
-			? value.code
-			: value.name === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
-				  value.name === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
-				? value.name
-				: null;
+	const code = Object.hasOwn(SANDBOX_ROUTE_ERROR_MESSAGES, value.code)
+		? value.code
+		: Object.hasOwn(SANDBOX_ROUTE_ERROR_MESSAGES, value.name)
+			? value.name
+			: null;
 	if (!code || (value.status !== undefined && value.status !== 503)) return null;
-	return {
-		code,
-		message:
-			code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS"
-				? "Media usage activation is in progress"
-				: "Unable to verify media usage activation state",
-		status: 503,
-	};
+	return { code, message: SANDBOX_ROUTE_ERROR_MESSAGES[code], status: 503 };
 }
 
 function unwrapCommentResult(value) {
@@ -271,6 +269,12 @@ function createContext(env, originHook, invocationId) {
 		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyRemoveEntryTerms(collection, entryId, taxonomy, termIds)
 	};
 
+	const bylines = ${hasBylinesRead} ? {
+		get: (id) => bridge.bylineGet(id),
+		list: (opts) => bridge.bylineList(opts),
+		getEntriesBylines: (collection, entryIds) => bridge.bylineEntriesBylines(collection, entryIds)
+	} : undefined;
+
 	const redirects = ${hasRedirectRead} ? {
 		list: (opts) => unwrapRedirectResult(bridge.redirectList(opts)),
 		get: (id) => unwrapRedirectResult(bridge.redirectGet(id)),
@@ -372,6 +376,7 @@ function createContext(env, originHook, invocationId) {
 		content: ${hasContentAccess} ? content : undefined,
 		schema,
 		taxonomies,
+		bylines,
 		redirects,
 		media,
 		http,

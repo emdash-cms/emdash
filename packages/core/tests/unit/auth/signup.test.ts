@@ -281,6 +281,25 @@ describe("Self-Signup", () => {
 			expect(user.emailVerified).toBe(true);
 		});
 
+		it("redeems a signup token only once when completed twice at the same time", async () => {
+			await adapter.createAllowedDomain("allowed.com", Role.AUTHOR);
+			await requestSignup(
+				{ baseUrl: "https://example.com", email: mockEmailSend, siteName: "Test Site" },
+				adapter,
+				"newuser@allowed.com",
+			);
+
+			const results = await Promise.allSettled([
+				completeSignup(adapter, capturedToken!, { name: "First" }),
+				completeSignup(adapter, capturedToken!, { name: "Second" }),
+			]);
+
+			expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+			expect(results.filter((r) => r.status === "rejected")).toMatchObject([
+				{ reason: { code: "invalid_token" } },
+			]);
+		});
+
 		it("should throw user_exists if user created during signup flow (race condition)", async () => {
 			await adapter.createAllowedDomain("allowed.com", Role.AUTHOR);
 

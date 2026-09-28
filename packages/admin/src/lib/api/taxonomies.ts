@@ -117,7 +117,7 @@ export async function bulkTagPosts(
 	});
 	return parseApiResponse<{ results: BulkTagResult[]; cacheRefreshFailed: boolean }>(
 		response,
-		"Failed to add tag to posts",
+		"Failed to add term to entries",
 	);
 }
 

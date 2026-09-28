@@ -7,8 +7,8 @@
 
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
@@ -70,16 +70,22 @@ import {
 } from "./virtual-modules.js";
 
 const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
+
+export function pathToImportUrl(path: string): string {
+	return pathToFileURL(path, { windows: win32.isAbsolute(path) }).href;
+}
+
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
  * @babel/core is dynamically imported from admin's devDependencies —
  * not declared by core, never ships to end users.
  */
-function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plugin {
-	// Resolve @babel/core from admin's devDependencies, not core's.
+export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plugin {
 	const adminRequire = createRequire(resolve(adminDistPath, "index.js"));
 	const babelCorePath = adminRequire.resolve("@babel/core");
+	const linguiMacroPluginPath = adminRequire.resolve("@lingui/babel-plugin-lingui-macro");
+	const adminSourceVitePath = adminSourcePath.replaceAll("\\", "/");
 
 	return {
 		name: "emdash-lingui-macro",
@@ -88,18 +94,20 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 			// Redirect relative locale catalog imports (e.g. ./de/messages.mjs) from
 			// within admin source to the compiled dist/locales/ directory, since
 			// lingui compile only runs during build — not in dev watch mode.
-			if (!importer?.startsWith(adminSourcePath)) return;
+			if (!importer?.startsWith(adminSourceVitePath)) return;
 			const match = id.match(LOCALE_MESSAGES_RE);
 			if (match?.[1]) {
 				return resolve(adminDistPath, "locales", match[1], "messages.mjs");
 			}
 		},
 		async transform(code, id) {
-			if (!id.startsWith(adminSourcePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(babelCorePath)) as typeof import("@babel/core");
+			if (!id.startsWith(adminSourceVitePath) || !code.includes("@lingui")) return;
+			const { transformAsync } = (await import(
+				pathToImportUrl(babelCorePath)
+			)) as typeof import("@babel/core");
 			const result = await transformAsync(code, {
 				filename: id,
-				plugins: ["@lingui/babel-plugin-lingui-macro"],
+				plugins: [linguiMacroPluginPath],
 				parserOpts: { plugins: ["jsx", "typescript"] },
 			});
 			if (!result?.code) return;
@@ -372,6 +380,27 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 	return astroConfig.adapter?.name === "@astrojs/cloudflare";
 }
 
+/**
+ * Workers built-ins that core imports dynamically behind a runtime fallback.
+ * Outside workerd nothing resolves them, and Rollup fails the server build on
+ * an unresolved import, so they are left to the runtime. List only core's own
+ * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
+ * still fail the build instead of failing at runtime.
+ */
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+
+function createWorkersBuiltinsExternalPlugin(): Plugin {
+	return {
+		name: "emdash-workers-builtins-external",
+		apply: "build",
+		resolveId(id) {
+			if (CORE_WORKERS_BUILTINS.has(id) && this.environment.config.consumer === "server") {
+				return { id, external: true };
+			}
+		},
+	};
+}
+
 function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
 	try {
 		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
@@ -464,6 +493,7 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options, command),
+			...(cloudflare ? [] : [createWorkersBuiltinsExternalPlugin()]),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
@@ -534,6 +564,7 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
 							// Registry routes are lazy, so their AT Protocol graph is not
 							// present during Vite's initial dependency scan.
+							"emdash > @atcute/identity-resolver",
 							"emdash > @emdash-cms/registry-lexicons > @atcute/atproto/types/label/defs",
 							"emdash > @emdash-cms/registry-client > @atcute/client",
 							"emdash > @emdash-cms/registry-client > @atcute/crypto",
@@ -608,14 +639,20 @@ export function createViteConfig(
 			// When using dist, pre-bundle to avoid re-optimization on first hydration.
 			// lowlight pulls in a CommonJS highlight.js entry, so the inline Portable
 			// Text editor requires these to be pre-bundled with ESM interop in dev.
+			// Bare ids would not resolve on pnpm sites, which have no top-level copy.
 			include: useSource
-				? ["@astrojs/react/client.js", "lowlight", "highlight.js", "highlight.js/lib/core"]
+				? [
+						"@astrojs/react/client.js",
+						"emdash > lowlight",
+						"emdash > highlight.js",
+						"emdash > highlight.js/lib/core",
+					]
 				: [
 						"@emdash-cms/admin",
 						"@astrojs/react/client.js",
-						"lowlight",
-						"highlight.js",
-						"highlight.js/lib/core",
+						"emdash > lowlight",
+						"emdash > highlight.js",
+						"emdash > highlight.js/lib/core",
 					],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
