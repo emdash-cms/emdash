@@ -2313,11 +2313,12 @@ export class EmDashRuntime {
 				try {
 					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
 				} catch (error) {
-					// Only a migration that failed, or a lock its holder left behind,
+					// Only a failed migration run, or a lock its holder left behind,
 					// backs off. Waiting behind a slow concurrent migrator, pending
-					// migrations, and errors reading migration state (a lost
-					// connection, an unavailable replica) stay retryable, so the next
-					// request tries again.
+					// migrations in check mode, and errors from the applied-migration
+					// check on an up-to-date database (a lost connection, an
+					// unavailable replica) stay retryable, so the next request tries
+					// again.
 					if (error instanceof MigrationFailedError || error instanceof MigrationLockHeldError) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
