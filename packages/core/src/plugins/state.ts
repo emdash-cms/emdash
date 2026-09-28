@@ -298,14 +298,11 @@ export class PluginStateRepository {
 }
 
 /**
- * Internal: map a `_plugin_state` row to the public `PluginState` shape.
- *
- * Kept at module scope so the three select paths (`get`, `getAll`,
- * `getMarketplacePlugins`, `getRegistryPlugins`) stay byte-identical in
- * their handling of nullable columns -- adding a new column to the table
- * means changing this function and nothing else.
+ * Map a `_plugin_state` row to the public `PluginState` shape. Every read
+ * path uses this, so adding a column to the table means changing this
+ * function and nothing else.
  */
-interface PluginStateRow {
+export interface PluginStateRow {
 	plugin_id: string;
 	status: string;
 	version: string;
@@ -322,7 +319,7 @@ interface PluginStateRow {
 	mcp_tools_consent: string | null;
 }
 
-function rowToPluginState(row: PluginStateRow): PluginState {
+export function rowToPluginState(row: PluginStateRow): PluginState {
 	return {
 		pluginId: row.plugin_id,
 		status: toPluginStatus(row.status),
