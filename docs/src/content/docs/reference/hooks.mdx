@@ -103,9 +103,12 @@ On an update, `content` holds only the submitted field values. Load the stored i
 ```ts
 "content:beforeSave": async (event, ctx) => {
 	if (event.collection !== "home" || !event.isNew || event.translationOf) return;
-	const existing = await ctx.content.list("home", { limit: 1 });
+	const existing = await ctx.content.list("home", {
+		limit: 1,
+		where: { locale: event.locale },
+	});
 	if (existing.items.length > 0) {
-		throw new ContentSaveRejectedError("Home already exists. Add a translation instead.");
+		throw new ContentSaveRejectedError("Home already exists in this locale. Add a translation instead.");
 	}
 },
 ```
