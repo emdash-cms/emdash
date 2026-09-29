@@ -249,7 +249,7 @@ describe("ImageUploadExtension", () => {
 		await vi.waitFor(() =>
 			expect(
 				document.querySelector("[data-image-upload-placeholder] [role='alert']")?.textContent,
-			).toContain("Only image files can be dropped here."),
+			).toContain("Only image files can be uploaded here."),
 		);
 		expect(upload).not.toHaveBeenCalled();
 		expect(blockTypes(editor)).toEqual(["First", "Second"]);

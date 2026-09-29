@@ -236,7 +236,7 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 				placeholders.push({
 					id: ++nextId,
 					pos,
-					error: i18n._(msg`Only image files can be dropped here.`),
+					error: i18n._(msg`Only image files can be uploaded here.`),
 				});
 			}
 			dispatchMeta(view, { add: placeholders });
