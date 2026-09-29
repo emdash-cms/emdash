@@ -93,7 +93,7 @@ Collections define content types. Each collection becomes a database table (`ec_
 
 Fields can have:
 
-- `slug` (required) -- field identifier
+- `slug` (required) -- field identifier; cannot use a system field name such as `published_at`. See the [reserved field slugs](https://docs.emdashcms.com/reference/field-types/#reserved-field-slugs) for the full list.
 - `label` (required) -- display label in admin
 - `type` (required) -- one of the types above
 - `required` -- validation
