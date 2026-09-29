@@ -39,6 +39,7 @@ import type {
 	PortableTextImageBlock,
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
+	PortableTextIframeBlock,
 } from "./types.js";
 
 function generateKey(): string {
@@ -223,6 +224,26 @@ function isGalleryBlock(block: PortableTextBlock): block is PortableTextGalleryB
 	return block._type === "gallery" && "images" in block && Array.isArray(block.images);
 }
 
+const IFRAME_BLOCK_FIELDS = new Set([
+	"_type",
+	"_key",
+	"src",
+	"title",
+	"width",
+	"height",
+	"allow",
+	"allowFullscreen",
+]);
+
+/** An `iframe` block with other fields belongs to a plugin and stays a generic block. */
+function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
+	return (
+		block._type === "iframe" &&
+		typeof block.src === "string" &&
+		Object.keys(block).every((key) => IFRAME_BLOCK_FIELDS.has(key))
+	);
+}
+
 /**
  * Type guard for code blocks
  */
@@ -269,6 +290,10 @@ function convertBlock(
 			type: "htmlBlock",
 			attrs: identityAttrs({ ...htmlBlockFields(block) }, block._key, preserveIdentity),
 		};
+	}
+	if (isIframeBlock(block)) {
+		const { _type, _key, ...attrs } = block;
+		return { type: "iframeBlock", attrs: identityAttrs(attrs, _key, preserveIdentity) };
 	}
 	if (block._type === "break") {
 		return {

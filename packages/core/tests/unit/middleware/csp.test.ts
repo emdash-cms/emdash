@@ -17,6 +17,13 @@ describe("buildEmDashCsp", () => {
 		expect(imgSrc).toContain("blob:");
 	});
 
+	it("allows the admin to frame its own pages and https pages", () => {
+		const csp = buildEmDashCsp();
+		const frameSrc = csp.split("; ").find((d) => d.startsWith("frame-src"));
+		expect(frameSrc).toBe("frame-src 'self' https:");
+		expect(csp).toContain("frame-ancestors 'none'");
+	});
+
 	it("keeps connect-src restricted to self", () => {
 		const csp = buildEmDashCsp();
 		const connectSrc = csp.split("; ").find((d) => d.startsWith("connect-src"));
