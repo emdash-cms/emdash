@@ -13,6 +13,7 @@ import type { APIRoute } from "astro";
 
 import { apiSuccess } from "#api/error.js";
 import { getAuthMode } from "#auth/mode.js";
+import { getAuthTurnstileKeys } from "#comments/turnstile.js";
 
 export const prerender = false;
 
@@ -41,9 +42,13 @@ export const GET: APIRoute = async ({ locals }) => {
 		label: p.label,
 	}));
 
+	const turnstileSiteKey =
+		authMode.type === "passkey" ? getAuthTurnstileKeys()?.siteKey : undefined;
+
 	return apiSuccess({
 		authMode: authMode.type === "external" ? authMode.providerType : "passkey",
 		signupEnabled,
 		providers,
+		...(turnstileSiteKey ? { turnstileSiteKey } : {}),
 	});
 };

@@ -4,7 +4,8 @@
  * Send a magic link email for passwordless authentication.
  * Always returns success to avoid revealing whether email exists.
  *
- * Rate limited: 3 requests per 5 minutes per IP.
+ * Rate limited: 3 requests per 5 minutes per IP. Requires a Turnstile token
+ * when `EMDASH_TURNSTILE_SITE_KEY` and a Turnstile secret key are set.
  */
 
 import type { APIRoute } from "astro";
@@ -22,6 +23,7 @@ import { magicLinkSendBody } from "#api/schemas.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
+import { getAuthTurnstileKeys, verifyTurnstileToken } from "#comments/turnstile.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -38,8 +40,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, magicLinkSendBody);
 		if (isParseError(body)) return body;
 
-		// Rate limit: 3 requests per 300 seconds (5 minutes) per IP
 		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
+
+		const turnstile = getAuthTurnstileKeys();
+		if (turnstile && !(await verifyTurnstileToken(body.turnstileToken, turnstile.secretKey, ip))) {
+			return apiError("TURNSTILE_FAILED", "CAPTCHA verification failed", 403);
+		}
+
+		// Rate limit: 3 requests per 300 seconds (5 minutes) per IP
 		const rateLimit = await checkRateLimit(emdash.db, ip, "magic-link/send", 3, 300);
 		if (!rateLimit.allowed) {
 			// Return success-shaped response to avoid revealing rate limit
