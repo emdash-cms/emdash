@@ -697,7 +697,7 @@ describe("Bubble Menu", () => {
 		expect(input).toBeTruthy();
 	});
 
-	it("applies link URL when Apply button is clicked", async () => {
+	it("keeps text typed after an applied link outside the link", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
 
@@ -732,6 +732,13 @@ describe("Bubble Menu", () => {
 			const link = pm.querySelector("a");
 			expect(link).toBeTruthy();
 			expect(link!.getAttribute("href")).toBe("https://example.com");
+		});
+
+		await userEvent.keyboard("{ArrowLeft}{End} for more information");
+
+		await vi.waitFor(() => {
+			expect(pm.textContent).toBe("Hello world for more information");
+			expect(pm.querySelector("a")?.textContent).toBe("Hello world");
 		});
 	});
 
