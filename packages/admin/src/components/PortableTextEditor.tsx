@@ -4477,8 +4477,12 @@ function ImageBubbleMenu({
 					shift: getCollisionOptions,
 					size: () => ({
 						...getCollisionOptions(),
-						apply: ({ availableWidth, elements }) => {
+						apply: ({ availableWidth, elements, placement }) => {
 							elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
+							elements.floating.style.setProperty(
+								"--transform-origin",
+								placement.startsWith("bottom") ? "top" : "bottom",
+							);
 						},
 					}),
 					onHide: () => {
@@ -4502,6 +4506,8 @@ function ImageBubbleMenu({
 				aria-label={t`Image controls`}
 				className={cn(
 					"z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg",
+					// Kumo's popup entrance, replayed each time TipTap attaches the toolbar.
+					"origin-[var(--transform-origin)] transition-[transform,scale,opacity] duration-150 starting:scale-90 starting:opacity-0 motion-reduce:transition-none",
 					mode === "controls" && "flex-wrap justify-center",
 				)}
 				onMouseDown={(event) => {
