@@ -7,6 +7,8 @@ The [object cache](/deployment/object-cache/) stores query results, but every re
 
 This guide uses [Astro's route caching](https://docs.astro.build/en/guides/caching/) with the Cloudflare cache provider, and applies to Cloudflare deployments only. The two caches are complementary: the edge cache serves repeat requests, the object cache makes the remaining renders cheap.
 
+EmDash versions before 1.0 shipped their own `cloudflareCache()` provider from `@emdash-cms/cloudflare`. It has been removed; if your config still imports it, see [Upgrade to EmDash 1.0](/upgrade-to-v1/#removed-cloudflarecache).
+
 ## Configure route caching
 
 Register the Cloudflare cache provider and declare which routes may be cached, for how long, and under which tags:
