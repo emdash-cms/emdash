@@ -95,7 +95,7 @@ import Superscript from "@tiptap/extension-superscript";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { AllSelection, NodeSelection, TextSelection } from "@tiptap/pm/state";
+import { AllSelection, NodeSelection, Plugin, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -361,6 +361,48 @@ function setSelectedImageLink(editor: Editor, href: string | null) {
 	const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
 	editor.chain().focus().updateAttributes("image", { link }).run();
 }
+
+function setSelectedTextLink(editor: Editor, href: string) {
+	const chain = editor.chain().focus().extendMarkRange("link").setLink({ href });
+	if (editor.state.selection.empty) {
+		chain.run();
+		return;
+	}
+	chain
+		.command(({ tr, state }) => {
+			const linkType = state.schema.marks.link;
+			if (!linkType) return false;
+			tr.setSelection(TextSelection.near(tr.doc.resolve(tr.selection.to), -1));
+			tr.removeStoredMark(linkType);
+			return true;
+		})
+		.run();
+}
+
+const LinkBoundaryExit = Extension.create({
+	name: "linkBoundaryExit",
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				appendTransaction(transactions, _oldState, newState) {
+					if (
+						!transactions.some((transaction) => transaction.selectionSet && !transaction.docChanged)
+					) {
+						return null;
+					}
+					const { selection } = newState;
+					if (!(selection instanceof TextSelection) || !selection.empty) return null;
+					const linkType = newState.schema.marks.link;
+					if (!linkType) return null;
+					const linkBefore = linkType.isInSet(selection.$from.nodeBefore?.marks ?? []);
+					const linkAfter = linkType.isInSet(selection.$from.nodeAfter?.marks ?? []);
+					if (!linkBefore || (linkAfter && linkBefore.eq(linkAfter))) return null;
+					return newState.tr.removeStoredMark(linkType);
+				},
+			}),
+		];
+	},
+});
 
 function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
 	return attrStr(attrs?.[PORTABLE_TEXT_KEY_ATTR]);
@@ -3147,6 +3189,7 @@ export function PortableTextEditor({
 		() => [
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
+			LinkBoundaryExit,
 			StarterKit.configure({
 				heading: {
 					levels: [1, 2, 3, 4, 5, 6],
@@ -4016,7 +4059,7 @@ function EditorBubbleMenu({
 		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
-			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
+			setSelectedTextLink(editor, linkUrl.trim());
 		}
 		closeLinkInput();
 	};
@@ -4025,7 +4068,7 @@ function EditorBubbleMenu({
 		if (editor.isActive("image")) {
 			setSelectedImageLink(editor, href);
 		} else {
-			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+			setSelectedTextLink(editor, href);
 		}
 		closeLinkInput();
 	};
@@ -4533,7 +4576,7 @@ function EditorToolbar({
 		if (editor.isActive("image")) {
 			setSelectedImageLink(editor, href);
 		} else {
-			editor.chain().focus().extendMarkRange("link").setLink({ href }).run();
+			setSelectedTextLink(editor, href);
 		}
 		setShowLinkPopover(false);
 		setLinkUrl("");
@@ -4545,7 +4588,7 @@ function EditorToolbar({
 		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
-			editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl.trim() }).run();
+			setSelectedTextLink(editor, linkUrl.trim());
 		}
 		setShowLinkPopover(false);
 		setLinkUrl("");

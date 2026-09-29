@@ -1708,7 +1708,7 @@ describe("Link Insertion", () => {
 	});
 
 	it("typing URL and clicking Apply sets the link", async () => {
-		const { screen, editor } = await renderEditor();
+		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
 
 		screen.getByRole("button", { name: "Insert Link" }).element().click();
@@ -1734,10 +1734,41 @@ describe("Link Insertion", () => {
 		screen.getByRole("button", { name: "Apply" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			const link = getToolbarButton(screen, "Insert Link").element();
-			expect(link.getAttribute("aria-pressed")).toBe("true");
-			expectVisibleActiveState(link);
+			const link = screen.container.querySelector("a");
+			expect(link?.getAttribute("href")).toBe("https://example.com");
+		});
+	});
+
+	it("applies a link to text typed after an empty caret", async () => {
+		const { screen, editor } = await renderEditor();
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(editor.state.doc.content.size - 1)
+			.run();
+
+		screen.getByRole("button", { name: "Insert Link" }).element().click();
+		await vi.waitFor(() => {
+			expect(document.querySelector('input[aria-label="Search or type a URL"]')).toBeTruthy();
+		});
+		const input = document.querySelector(
+			'input[aria-label="Search or type a URL"]',
+		) as HTMLInputElement;
+		const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+			HTMLInputElement.prototype,
+			"value",
+		)!.set!;
+		nativeInputValueSetter.call(input, "https://example.com");
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+
+		screen.getByRole("button", { name: "Apply" }).element().click();
+		await userEvent.keyboard("linked text");
+
+		await vi.waitFor(() => {
+			const link = screen.container.querySelector("a");
+			expect(link?.getAttribute("href")).toBe("https://example.com");
+			expect(link?.textContent).toBe("linked text");
 		});
 	});
 

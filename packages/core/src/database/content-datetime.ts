@@ -7,7 +7,7 @@ import {
 	type DatetimeFieldDescriptor,
 } from "../datetime-normalization.js";
 import { requestCached } from "../request-cache.js";
-import type { FieldType, RepeaterSubField } from "../schema/types.js";
+import { isStoragelessFieldRow, type FieldType, type RepeaterSubField } from "../schema/types.js";
 import { isSafeUrlFieldWriteValue } from "../utils/url.js";
 import { EmDashValidationError } from "./repositories/types.js";
 import type { Database } from "./types.js";
@@ -21,6 +21,7 @@ interface DatetimeContext {
 	timezone: string;
 	fields: DatetimeFieldDescriptor[];
 	urlFields: UrlFieldDescriptor[];
+	writableFieldSlugs: ReadonlySet<string>;
 }
 
 function repeaterSubFieldsOfType(validation: string | null, type: FieldType): string[] {
@@ -83,7 +84,6 @@ export class ContentDatetimeNormalizer {
 				.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
 				.select(["field.slug", "field.type", "field.validation"])
 				.where("collection.slug", "=", collection)
-				.where("field.type", "in", ["datetime", "repeater", "url"])
 				.execute(),
 			this.db
 				.selectFrom("options")
@@ -107,7 +107,7 @@ export class ContentDatetimeNormalizer {
 				fields.push({ slug: row.slug, type: "datetime" });
 			} else if (row.type === "url") {
 				urlFields.push({ slug: row.slug });
-			} else {
+			} else if (row.type === "repeater") {
 				fields.push({
 					slug: row.slug,
 					type: "repeater",
@@ -117,7 +117,14 @@ export class ContentDatetimeNormalizer {
 				if (urlSubFields.length > 0) urlFields.push({ slug: row.slug, urlSubFields });
 			}
 		}
-		return { timezone, fields, urlFields };
+		const writableFieldSlugs = new Set(
+			rows.filter((field) => !isStoragelessFieldRow(field)).map((field) => field.slug),
+		);
+		return { timezone, fields, urlFields, writableFieldSlugs };
+	}
+
+	async writableFieldSlugs(collection: string): Promise<ReadonlySet<string>> {
+		return (await this.context(collection)).writableFieldSlugs;
 	}
 
 	/**
