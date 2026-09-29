@@ -93,7 +93,7 @@ import {
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Extension, Mark, type EditorEvents, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
@@ -113,7 +113,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
-import { uploadMedia } from "../lib/api/media.js";
+import { fetchMediaItem, uploadMedia } from "../lib/api/media.js";
 import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
@@ -4310,9 +4310,22 @@ function ImageBubbleMenu({
 				alt: typeof attrs?.alt === "string" ? attrs.alt : "",
 				alignment: (attrs?.alignment as string | null | undefined) ?? null,
 				link: (attrs?.link as { href?: string } | null | undefined)?.href ?? "",
+				mediaId:
+					typeof attrs?.mediaId === "string" &&
+					attrs.mediaId &&
+					canonicalMediaProviderId(attrs.provider as string | undefined) === "local"
+						? attrs.mediaId
+						: null,
 			};
 		},
 	});
+	// Reads the image node view's cached media item; the toolbar never fetches it.
+	const { data: media } = useQuery({
+		queryKey: ["media", image.mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(image.mediaId!, { signal }),
+		enabled: false,
+	});
+	const altMissing = !image.alt.trim() || image.alt === media?.filename;
 
 	const getSelectedCaption = React.useCallback(() => {
 		const selection = getSelectedImage(editor.state);
@@ -4394,13 +4407,13 @@ function ImageBubbleMenu({
 		};
 	}, [editor, getSelectedCaption, updatePosition]);
 
-	// Switching rows changes the toolbar's width, so center it over the image again.
+	// A new row or label changes the toolbar's width, so center it over the image again.
+	React.useEffect(updatePosition, [mode, altMissing, updatePosition]);
 	React.useEffect(() => {
-		updatePosition();
 		if (mode !== "alt") return;
 		altInputRef.current?.focus();
 		altInputRef.current?.select();
-	}, [mode, updatePosition]);
+	}, [mode]);
 
 	const startEditing = (next: "alt" | "link") => {
 		editingPosRef.current = getSelectedImage(editor.state)?.from ?? null;
@@ -4557,7 +4570,10 @@ function ImageBubbleMenu({
 							icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
 							onClick={() => startEditing("alt")}
 						>
-							{t`Alt text`}
+							{altMissing ? t`Add alt text` : t`Alt text`}
+							{altMissing && (
+								<span aria-hidden="true" className="size-1.5 rounded-full bg-kumo-warning" />
+							)}
 						</Button>
 						{separator}
 						<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">

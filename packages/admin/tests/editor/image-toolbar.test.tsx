@@ -14,6 +14,7 @@ import {
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
 import type { MediaItem } from "../../src/lib/api";
+import { fetchMediaItem, type LocalMediaItem } from "../../src/lib/api/media.js";
 import { render } from "../utils/render.js";
 
 const REPLACEMENT: MediaItem = {
@@ -21,6 +22,7 @@ const REPLACEMENT: MediaItem = {
 	filename: "bike.jpg",
 	mimeType: "image/jpeg",
 	url: "/_emdash/api/media/file/bike.jpg",
+	provider: "cloudflare-images",
 	size: 100,
 	width: 800,
 	height: 600,
@@ -56,6 +58,13 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 		) : null,
 }));
 
+vi.mock("../../src/lib/api/media.js", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/api/media.js")>(
+		"../../src/lib/api/media.js",
+	);
+	return { ...actual, fetchMediaItem: vi.fn() };
+});
+
 vi.mock("../../src/components/SectionPickerModal", () => ({
 	SectionPickerModal: () => null,
 }));
@@ -74,6 +83,8 @@ function imageBlock(fields: Record<string, unknown> = {}): PortableTextBlock {
 		_key: "image-1",
 		asset: { _ref: "cf-1", url: "/img.jpg", provider: "cloudflare-images" },
 		alt: "Example",
+		width: 400,
+		height: 300,
 		...fields,
 	} as PortableTextBlock;
 }
@@ -451,5 +462,42 @@ describe("Image toolbar", () => {
 		expect($from.parent.type.name).toBe("paragraph");
 		expect($from.parent.textContent).toBe("");
 		expect(editor.state.doc.childBefore($from.before()).node?.type.name).toBe("image");
+	});
+
+	it.each(["", "   "])("asks for alt text when the alt is %j", async (alt) => {
+		const { img } = await setup({ image: { alt } });
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Add alt text"));
+		await userEvent.keyboard("A red bike{Enter}");
+
+		await vi.waitFor(() => expect(button(toolbar, "Alt text")).toBeVisible());
+	});
+
+	it("asks for alt text when the alt is the file name, without another media request", async () => {
+		vi.mocked(fetchMediaItem)
+			.mockReset()
+			.mockResolvedValue({
+				id: "local-1",
+				filename: "IMG_2041.jpg",
+				mimeType: "image/jpeg",
+				url: "/img.jpg",
+				storageKey: "IMG_2041.jpg",
+				size: 100,
+				status: "ready",
+				authorId: null,
+				folderId: null,
+				createdAt: "2026-09-29T00:00:00.000Z",
+			} satisfies LocalMediaItem);
+		const { img } = await setup({
+			image: { asset: { _ref: "local-1", url: "/img.jpg" }, alt: "IMG_2041.jpg" },
+		});
+		await vi.waitFor(() => expect(fetchMediaItem).toHaveBeenCalledOnce());
+		const toolbar = await selectImage(img);
+
+		await vi.waitFor(() => expect(button(toolbar, "Add alt text")).toBeVisible());
+		expect(fetchMediaItem).toHaveBeenCalledOnce();
+		await userEvent.click(button(toolbar, "Add alt text"));
+		await userEvent.keyboard("A red bike{Enter}");
+		await vi.waitFor(() => expect(button(toolbar, "Alt text")).toBeVisible());
 	});
 });

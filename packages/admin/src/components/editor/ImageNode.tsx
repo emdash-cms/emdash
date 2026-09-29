@@ -284,7 +284,7 @@ function ImageNodeView({
 					draggable={false}
 				/>
 
-				{/* Caption only — must mirror the published renderer (Image.astro) */}
+				{/* Show the caption, never the alt text, as the published renderer (Image.astro) does */}
 				{editor.isEditable ? (
 					// Inline-size containment keeps the placeholder from widening a small image.
 					<figcaption className="mt-2 [contain:inline-size]">
