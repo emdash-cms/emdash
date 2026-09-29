@@ -21,6 +21,7 @@ import virtualConfig from "virtual:emdash/config";
 
 import { handleSitemapData } from "#api/handlers/seo.js";
 import { getPublicOrigin } from "#api/public-url.js";
+import { isValidSchemaSlug } from "#schema/slug.js";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 import { getI18nConfig, isI18nEnabled } from "../../i18n/config.js";
@@ -40,7 +41,16 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 	const { emdash } = locals;
 	const collectionSlug = params.collection;
 
-	if (!emdash?.db || !collectionSlug) {
+	// The middleware skips runtime setup for names that fail the collection
+	// slug rule, so this check must run before the configuration check below.
+	if (!isValidSchemaSlug(collectionSlug)) {
+		return new Response("<!-- Collection not found or empty -->", {
+			status: 404,
+			headers: { "Content-Type": "application/xml" },
+		});
+	}
+
+	if (!emdash?.db) {
 		return new Response("<!-- EmDash not configured -->", {
 			status: 500,
 			headers: { "Content-Type": "application/xml" },
