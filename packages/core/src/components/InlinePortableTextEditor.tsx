@@ -1054,7 +1054,7 @@ const slashCommands: SlashCommandItem[] = [
 				.chain()
 				.focus()
 				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
+				.insertContent({ type: "htmlBlock", attrs: { html: "", isolated: true } })
 				.run();
 		},
 	},

@@ -13,21 +13,19 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { HtmlBlockExtension } from "../../src/components/editor/HtmlBlockNode";
+import { HtmlBlockExtension, TopBlockDocument } from "../../src/components/editor/HtmlBlockNode";
+
+const extensions = [
+	StarterKit.configure({ document: false }),
+	TopBlockDocument,
+	HtmlBlockExtension,
+];
 
 describe("HtmlBlockExtension", () => {
 	let editor: Editor;
 
 	beforeEach(() => {
-		editor = new Editor({
-			extensions: [
-				StarterKit.configure({
-					heading: { levels: [1, 2, 3] },
-				}),
-				HtmlBlockExtension,
-			],
-			content: "",
-		});
+		editor = new Editor({ extensions, content: "" });
 	});
 
 	afterEach(() => {
@@ -78,10 +76,7 @@ describe("HtmlBlockExtension", () => {
 		};
 		editor.commands.insertContent({ type: "htmlBlock", attrs });
 
-		const target = new Editor({
-			extensions: [StarterKit, HtmlBlockExtension],
-			content: editor.getHTML(),
-		});
+		const target = new Editor({ extensions, content: editor.getHTML() });
 
 		try {
 			const node = target.getJSON().content?.find((n) => n.type === "htmlBlock");

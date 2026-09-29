@@ -10,7 +10,7 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, it, expect } from "vitest";
 
-import { HtmlBlockExtension } from "../../src/components/editor/HtmlBlockNode";
+import { HtmlBlockExtension, TopBlockDocument } from "../../src/components/editor/HtmlBlockNode";
 import {
 	_prosemirrorToPortableText as prosemirrorToPortableText,
 	_portableTextToProsemirror as portableTextToProsemirror,
@@ -100,7 +100,7 @@ describe("HTML block round-trip (admin editor seam)", () => {
 	it("saves a legacy block unchanged after it loads into the editor", () => {
 		const block = { _type: "htmlBlock", _key: "html005", html: "<p>Legacy</p>" };
 		const editor = new Editor({
-			extensions: [StarterKit, HtmlBlockExtension],
+			extensions: [StarterKit.configure({ document: false }), TopBlockDocument, HtmlBlockExtension],
 			content: portableTextToProsemirror([block]),
 		});
 
