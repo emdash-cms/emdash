@@ -4400,8 +4400,15 @@ function ImageBubbleMenu({
 		};
 		const onFocusIn = (event: FocusEvent) => {
 			if (pickerRef.current === "open") return;
+			if (!isInside(event.target)) {
+				// A closing picker can park focus on its dialog before handing it back.
+				const inDialog = event.target instanceof Element && event.target.closest('[role="dialog"]');
+				if (pickerRef.current === "closing" && inDialog) return;
+				pickerRef.current = "idle";
+				hide();
+				return;
+			}
 			pickerRef.current = "idle";
-			if (!isInside(event.target)) return hide();
 			if (!menu.hidden) return;
 			menu.hidden = false;
 			updatePosition();
