@@ -646,6 +646,17 @@ export function createViteConfig(
 						"emdash > lowlight",
 						"emdash > highlight.js",
 						"emdash > highlight.js/lib/core",
+						// The HTML block's code editor loads these lazily. Discovering
+						// them on first use would re-optimize and reload the admin.
+						"emdash > @emdash-cms/admin > @codemirror/autocomplete",
+						"emdash > @emdash-cms/admin > @codemirror/commands",
+						"emdash > @emdash-cms/admin > @codemirror/lang-css",
+						"emdash > @emdash-cms/admin > @codemirror/lang-html",
+						"emdash > @emdash-cms/admin > @codemirror/lang-javascript",
+						"emdash > @emdash-cms/admin > @codemirror/language",
+						"emdash > @emdash-cms/admin > @codemirror/state",
+						"emdash > @emdash-cms/admin > @codemirror/view",
+						"emdash > @emdash-cms/admin > @lezer/highlight",
 					]
 				: [
 						"@emdash-cms/admin",
