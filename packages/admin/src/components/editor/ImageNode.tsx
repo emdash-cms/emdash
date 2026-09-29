@@ -273,7 +273,9 @@ function ImageNodeView({
 					title={node.attrs.title || ""}
 					className={cn(
 						"rounded-lg max-w-full h-auto object-cover",
-						selected && "ring-2 ring-kumo-brand ring-offset-2 ring-offset-kumo-base",
+						// Shown only while focus is inside this editor, as the toolbar is.
+						selected &&
+							"group-focus-within/editor:ring-2 ring-kumo-brand ring-offset-2 ring-offset-kumo-base",
 					)}
 					width={renderWidth}
 					height={renderHeight}

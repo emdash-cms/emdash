@@ -380,6 +380,20 @@ describe("Image toolbar", () => {
 		expect(imageAttrs(editor)?.alignment).toBe("right");
 	});
 
+	it("rings the selected image only while focus is in the editor", async () => {
+		const { img, caption } = await setup();
+		const ringed = () => getComputedStyle(img).boxShadow !== "none";
+		await selectImage(img);
+		expect(ringed()).toBe(true);
+		await userEvent.click(caption);
+		expect(ringed()).toBe(true);
+
+		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);
+		await vi.waitFor(() => expect(ringed()).toBe(false));
+		await userEvent.click(img);
+		await vi.waitFor(() => expect(ringed()).toBe(true));
+	});
+
 	it("hides when focus leaves a toolbar control for another field", async () => {
 		const { img } = await setup();
 		const toolbar = await selectImage(img);

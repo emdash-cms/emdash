@@ -3808,7 +3808,11 @@ export function PortableTextEditor({
 						: t`Table cells accept text, links, and formatting only.`;
 
 	return (
-		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+		<div
+			ref={floatingRootRef}
+			className="group/editor relative min-w-0"
+			data-emdash-editor-floating-root
+		>
 			<div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
 				{tableAnnouncement && <span key={tableAnnouncement.id}>{tableAnnouncement.text}</span>}
 			</div>
