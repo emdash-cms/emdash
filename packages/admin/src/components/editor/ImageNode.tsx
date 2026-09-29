@@ -55,6 +55,13 @@ function imageDimension(value: number | undefined): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+// Firefox can't select text by mouse inside a draggable element, and the image node view is one.
+function setNodeViewDraggable(event: React.PointerEvent<HTMLTextAreaElement>, draggable: boolean) {
+	if (event.pointerType !== "mouse") return;
+	const nodeView = event.currentTarget.closest<HTMLElement>("[draggable]");
+	if (nodeView) nodeView.draggable = draggable;
+}
+
 // React component for the image node view
 function ImageNodeView({
 	node,
@@ -302,6 +309,8 @@ function ImageNodeView({
 								if (editor.isEditable) updateAttributes({ caption: event.target.value });
 							}}
 							onFocus={selectImage}
+							onPointerEnter={(event) => setNodeViewDraggable(event, false)}
+							onPointerLeave={(event) => setNodeViewDraggable(event, true)}
 							onKeyDown={handleCaptionKeyDown}
 							className="block w-full resize-none field-sizing-content rounded-sm bg-transparent text-center text-sm text-kumo-subtle placeholder:text-kumo-placeholder focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-focus/50"
 						/>
