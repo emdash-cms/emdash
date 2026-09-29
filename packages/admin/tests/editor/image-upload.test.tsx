@@ -173,6 +173,18 @@ describe("ImageUploadExtension", () => {
 		expect(document.querySelector("[data-image-upload-placeholder]")).toBeNull();
 	});
 
+	it("uploads images the browser can't display without a broken preview", async () => {
+		const upload = vi.fn(() => new Promise<Record<string, unknown>>(() => {}));
+		await setup(upload);
+
+		dropFiles(paragraph("First"), [new File([PNG_BYTES], "photo.heic", { type: "image/heic" })]);
+
+		const placeholder = await waitForPlaceholder();
+		expect(placeholder.textContent).toContain("Uploading image…");
+		expect(placeholder.querySelector("img")).toBeNull();
+		expect(upload).toHaveBeenCalledTimes(1);
+	});
+
 	it("finishes an upload when another plugin registers while it is running", async () => {
 		const pending = deferred<Record<string, unknown>>();
 		const editor = await setup((_file, signal) => {

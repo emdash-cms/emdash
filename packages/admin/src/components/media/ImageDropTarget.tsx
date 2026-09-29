@@ -50,7 +50,7 @@ export function ImageDropTarget({
 		}
 		const file = files[0]!;
 		if (!matchesMimeAllowlist(file.type, ["image/"])) {
-			setError(t`Only image files can be dropped here.`);
+			setError(t`Only image files can be uploaded here.`);
 			return;
 		}
 		if (allowedMimeTypes?.length && !matchesMimeAllowlist(file.type, allowedMimeTypes)) {

@@ -186,7 +186,7 @@ describe("Editor image drop targets", () => {
 		{
 			files: [new File(["text"], "note.txt", { type: "text/plain" })],
 			allowed: undefined,
-			message: "Only image files can be dropped here.",
+			message: "Only image files can be uploaded here.",
 		},
 		{ files: [imageFile(), imageFile()], allowed: undefined, message: "Drop one image at a time." },
 		{

@@ -6,6 +6,7 @@ import type { Node } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
+import { createUploadPreviewUrl } from "../../lib/media-utils.js";
 import { matchesMimeAllowlist } from "../../lib/mime-utils.js";
 import { getMutationError } from "../DialogError.js";
 
@@ -227,8 +228,8 @@ export const ImageUploadExtension = Extension.create<ImageUploadOptions, ImageUp
 			const images = files.filter((file) => matchesMimeAllowlist(file.type, IMAGE_TYPES));
 			const uploads = images.map((file) => {
 				const id = ++nextId;
-				const previewUrl = URL.createObjectURL(file);
-				previewUrls.set(id, previewUrl);
+				const previewUrl = createUploadPreviewUrl(file);
+				if (previewUrl) previewUrls.set(id, previewUrl);
 				return { file, placeholder: { id, pos, previewUrl } };
 			});
 			const placeholders: Placeholder[] = uploads.map(({ placeholder }) => placeholder);
