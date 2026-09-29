@@ -37,6 +37,8 @@ interface CalendarMonthProps {
 	now: number;
 	display: CalendarDisplay;
 	loading?: boolean;
+	/** The last day with loaded entries, when the range has more entries than were loaded. */
+	loadedThrough?: string;
 	/** Phones get a date picker with the chosen day's entries below it. */
 	compact?: boolean;
 	onMonthChange: (month: string) => void;
@@ -289,6 +291,7 @@ function CalendarMonthPicker({
 	now,
 	display,
 	loading,
+	loadedThrough,
 	onMonthChange,
 }: CalendarMonthProps) {
 	const { t, i18n } = useLingui();
@@ -362,7 +365,11 @@ function CalendarMonthPicker({
 						nowAt={selected === today ? nowIndex(items, now) : undefined}
 					/>
 				) : (
-					<p className="px-2 py-3 text-sm text-kumo-subtle">{t`Nothing on this day.`}</p>
+					<p className="px-2 py-3 text-sm text-kumo-subtle">
+						{loadedThrough && selected >= loadedThrough
+							? t`This day wasn't loaded. The range has more entries than the calendar can show.`
+							: t`Nothing on this day.`}
+					</p>
 				)}
 			</section>
 		</div>

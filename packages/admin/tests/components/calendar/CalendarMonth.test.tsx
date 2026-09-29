@@ -61,11 +61,13 @@ function renderMonth({
 	compact = false,
 	today = "2026-10-15",
 	at = now,
+	loadedThrough,
 	onMonthChange = () => {},
 }: {
 	compact?: boolean;
 	today?: string;
 	at?: number;
+	loadedThrough?: string;
 	onMonthChange?: (month: string) => void;
 } = {}) {
 	return render(
@@ -77,6 +79,7 @@ function renderMonth({
 			now={at}
 			display={display}
 			compact={compact}
+			loadedThrough={loadedThrough}
 			onMonthChange={onMonthChange}
 		/>,
 	);
@@ -151,6 +154,23 @@ describe("CalendarMonth", () => {
 
 		const list = screen.getByRole("list", { name: "Tuesday, October 20, 2026" });
 		await expect.poll(() => list.getByRole("link").elements()).toHaveLength(6);
+	});
+
+	it("says a day past the loaded entries was not loaded instead of empty", async () => {
+		const screen = await renderMonth({
+			compact: true,
+			today: "2026-10-25",
+			loadedThrough: "2026-10-20",
+		});
+
+		await expect
+			.element(
+				screen.getByText(
+					"This day wasn't loaded. The range has more entries than the calendar can show.",
+				),
+			)
+			.toBeVisible();
+		await expect.element(screen.getByText("Nothing on this day.")).not.toBeInTheDocument();
 	});
 
 	it("moves to the next month when the arrow keys cross the last day", async () => {

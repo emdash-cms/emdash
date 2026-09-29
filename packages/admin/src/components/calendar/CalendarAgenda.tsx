@@ -15,6 +15,8 @@ interface CalendarAgendaProps {
 	now: number;
 	display: CalendarDisplay;
 	loading?: boolean;
+	/** The last day with loaded entries, when the range has more entries than were loaded. */
+	loadedThrough?: string;
 	/** Filters are hiding entries; the empty state offers to clear them. */
 	onClearFilters?: () => void;
 }
@@ -30,6 +32,7 @@ export function CalendarAgenda({
 	now,
 	display,
 	loading,
+	loadedThrough,
 	onClearFilters,
 }: CalendarAgendaProps) {
 	const { t } = useLingui();
@@ -76,7 +79,9 @@ export function CalendarAgenda({
 	const nowAt = todayItems && (firstUpcoming === -1 ? todayItems.length : firstUpcoming);
 	const nextDay = isCurrentMonth && !todayItems ? shown.find((day) => day > today) : undefined;
 	const nothingAfterNow =
-		isCurrentMonth && !keys.some((day) => days.get(day)?.some((item) => item.time > now));
+		isCurrentMonth &&
+		!loadedThrough &&
+		!keys.some((day) => days.get(day)?.some((item) => item.time > now));
 	const time = display.formatTime(now);
 	const standaloneNowLine = <CalendarNowLine label={t`Now · ${time}`} className="px-2" />;
 	const tomorrow = shiftDay(today, 1);

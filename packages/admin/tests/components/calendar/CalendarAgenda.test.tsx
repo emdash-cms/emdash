@@ -132,6 +132,31 @@ describe("CalendarAgenda", () => {
 		await expect.element(screen.getByText("Nothing else is scheduled this month.")).toBeVisible();
 	});
 
+	it("does not claim nothing else is scheduled when the range was cut off", async () => {
+		const past = groupByDay(
+			toCalendarItems([entry({ id: "early", title: "Early", at: "2026-10-14T09:00:00.000Z" })], {
+				timeZone: "UTC",
+				now,
+				collectionOrder: ["posts"],
+			}),
+		);
+		const screen = await render(
+			<CalendarAgenda
+				month="2026-10"
+				days={past}
+				today="2026-10-15"
+				now={now}
+				display={display}
+				loadedThrough="2026-10-14"
+			/>,
+		);
+
+		await expect.element(screen.getByText("Now · 12:00 PM")).toBeVisible();
+		await expect
+			.element(screen.getByText("Nothing else is scheduled this month."))
+			.not.toBeInTheDocument();
+	});
+
 	it("keeps earlier days open while one of them holds an overdue entry", async () => {
 		const missed = groupByDay(
 			toCalendarItems(

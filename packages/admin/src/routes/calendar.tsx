@@ -167,6 +167,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		[calendar.data, display.timeZone, now, collectionOrder],
 	);
 	const visibleItems = React.useMemo(() => filterItems(items, filters), [items, filters]);
+	// Pages load oldest first, so a truncated range is complete up to its last loaded day.
+	const loadedThrough = calendar.data?.truncated ? items.at(-1)?.day : undefined;
 	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
 	const counts = React.useMemo(() => {
 		if (!calendar.data) return undefined;
@@ -307,6 +309,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						now={now}
 						display={display}
 						loading={!calendar.data}
+						loadedThrough={loadedThrough}
 						compact={compact}
 						onMonthChange={goToMonth}
 					/>
@@ -319,6 +322,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 						now={now}
 						display={display}
 						loading={!calendar.data}
+						loadedThrough={loadedThrough}
 						onClearFilters={
 							filtered ? () => setFilters({ collections: [], locales: [], states: [] }) : undefined
 						}
