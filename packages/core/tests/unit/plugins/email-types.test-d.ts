@@ -2,7 +2,9 @@ import { expectTypeOf, it } from "vitest";
 
 import type {
 	EmailAfterSendEvent,
+	EmailAfterSendHandler,
 	EmailBeforeSendEvent,
+	EmailBeforeSendHandler,
 	EmailDeliverEvent,
 	EmailDeliverHandler,
 	EmailMessage,
@@ -18,4 +20,10 @@ it("exports the email hook types a transport plugin implements", () => {
 	expectTypeOf(deliver).returns.resolves.toBeVoid();
 	expectTypeOf<EmailBeforeSendEvent["message"]>().toEqualTypeOf<EmailMessage>();
 	expectTypeOf<EmailAfterSendEvent["message"]>().toEqualTypeOf<EmailMessage>();
+	expectTypeOf<EmailBeforeSendHandler>().parameters.toEqualTypeOf<
+		[EmailBeforeSendEvent, PluginContext]
+	>();
+	expectTypeOf<EmailAfterSendHandler>().parameters.toEqualTypeOf<
+		[EmailAfterSendEvent, PluginContext]
+	>();
 });
