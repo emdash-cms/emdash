@@ -99,8 +99,6 @@ export default defineConfig({
 	// adapter. Pair with `"cache": { "enabled": true }` in wrangler.jsonc (the
 	// adapter also injects that when this provider is detected). Invalidation is
 	// `cache.purge()` from cloudflare:workers — no CF_ZONE_ID / API token.
-	// Do NOT use cloudflareCache() from @emdash-cms/cloudflare here; that is the
-	// legacy Cache API + zone REST purge path.
 	cache: {
 		provider: cacheCloudflare(),
 	},

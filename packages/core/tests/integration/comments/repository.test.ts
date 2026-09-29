@@ -286,6 +286,20 @@ describe("CommentRepository", () => {
 			expect(new Set(allIds).size).toBe(5);
 		});
 
+		it("clamps a negative limit to a single-item page", async () => {
+			for (let i = 0; i < 5; i++) {
+				await repo.create(makeInput({ status: "approved", body: `Comment ${i}` }));
+			}
+
+			const byContent = await repo.findByContent("post", "content-1", { limit: -2 });
+			expect(byContent.items).toHaveLength(1);
+			expect(byContent.nextCursor).toBeTruthy();
+
+			const byStatus = await repo.findByStatus("approved", { limit: -2 });
+			expect(byStatus.items).toHaveLength(1);
+			expect(byStatus.nextCursor).toBeTruthy();
+		});
+
 		it("findByStatus paginates with cursor", async () => {
 			for (let i = 0; i < 4; i++) {
 				await repo.create(makeInput({ status: "approved", body: `Comment ${i}` }));

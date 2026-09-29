@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-marketplace-test
 
+## 0.2.1
+
+### Patch Changes
+
+- Hides the deliberately invalid editor-action fixture from normal content collections while retaining malformed-response coverage on a test-only collection.
+
 ## 0.2.0
 
 ### Minor Changes

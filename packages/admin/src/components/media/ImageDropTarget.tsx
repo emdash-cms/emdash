@@ -114,7 +114,7 @@ export function ImageDropTarget({
 				<Button
 					type="button"
 					variant="ghost"
-					className="h-auto min-h-32 w-full flex-col items-center justify-center gap-3 rounded-[10px] px-4 py-5 text-center text-sm text-kumo-subtle"
+					className="h-auto min-h-32 w-full flex-col items-center justify-center gap-3 rounded-[10px] px-4 py-5 text-center text-base text-kumo-subtle"
 					aria-label={t`Drop an image here or browse for ${label}`}
 					disabled={uploading}
 					onClick={() => {
@@ -145,7 +145,7 @@ export function ImageDropTarget({
 				{uploading ? t`Uploading image…` : ""}
 			</span>
 			{error && (
-				<p role="alert" className="text-sm text-kumo-danger">
+				<p role="alert" className="text-xs leading-4 text-kumo-danger">
 					{error}
 				</p>
 			)}

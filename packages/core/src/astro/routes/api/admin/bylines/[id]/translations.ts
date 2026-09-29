@@ -22,6 +22,8 @@ import { bylineTranslationCreateBody } from "#api/schemas.js";
 import { invalidateBylineCache } from "#bylines/index.js";
 import { BylineRepository } from "#db/repositories/byline.js";
 
+import { after } from "../../../../../../after.js";
+
 export const prerender = false;
 
 export const GET: APIRoute = async ({ params, locals }) => {
@@ -84,7 +86,11 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			translationOf: id,
 		});
 
-		if (result.success) invalidateBylineCache();
+		if (result.success) {
+			invalidateBylineCache();
+			const byline = result.data;
+			after(() => emdash.hooks.runBylineAfterSave(byline, true));
+		}
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(

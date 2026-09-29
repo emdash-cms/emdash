@@ -1117,6 +1117,11 @@ const sbomSchema = _sbomSchema;
 //#endregion
 //#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/releaseExtension.js
 var releaseExtension_exports = /* @__PURE__ */ __exportAll({
+	adminAccessSchema: () => adminAccessSchema,
+	adminEditorDraftPatchConstraintsSchema: () => adminEditorDraftPatchConstraintsSchema,
+	adminEditorDraftReadConstraintsSchema: () => adminEditorDraftReadConstraintsSchema,
+	bylinesAccessSchema: () => bylinesAccessSchema,
+	bylinesReadConstraintsSchema: () => bylinesReadConstraintsSchema,
 	commentsAccessSchema: () => commentsAccessSchema,
 	commentsModerateConstraintsSchema: () => commentsModerateConstraintsSchema,
 	commentsReadConstraintsSchema: () => commentsReadConstraintsSchema,
@@ -1154,6 +1159,24 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	usersAccessSchema: () => usersAccessSchema,
 	usersReadConstraintsSchema: () => usersReadConstraintsSchema
 });
+const _adminAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminAccess")),
+	get editorDraftPatch() {
+		return /* @__PURE__ */ optional$1(adminEditorDraftPatchConstraintsSchema);
+	},
+	get editorDraftRead() {
+		return /* @__PURE__ */ optional$1(adminEditorDraftReadConstraintsSchema);
+	}
+});
+const _adminEditorDraftPatchConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminEditorDraftPatchConstraints")) });
+const _adminEditorDraftReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#adminEditorDraftReadConstraints")) });
+const _bylinesAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#bylinesAccess")),
+	get read() {
+		return /* @__PURE__ */ optional$1(bylinesReadConstraintsSchema);
+	}
+});
+const _bylinesReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#bylinesReadConstraints")) });
 const _commentsAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsAccess")),
 	get moderate() {
@@ -1194,6 +1217,12 @@ const _contentRevisionsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type:
 const _contentWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
 const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
+	get admin() {
+		return /* @__PURE__ */ optional$1(adminAccessSchema);
+	},
+	get bylines() {
+		return /* @__PURE__ */ optional$1(bylinesAccessSchema);
+	},
 	get comments() {
 		return /* @__PURE__ */ optional$1(commentsAccessSchema);
 	},
@@ -1329,6 +1358,11 @@ const _usersAccessSchema = /* @__PURE__ */ object$1({
 	}
 });
 const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
+const adminAccessSchema = _adminAccessSchema;
+const adminEditorDraftPatchConstraintsSchema = _adminEditorDraftPatchConstraintsSchema;
+const adminEditorDraftReadConstraintsSchema = _adminEditorDraftReadConstraintsSchema;
+const bylinesAccessSchema = _bylinesAccessSchema;
+const bylinesReadConstraintsSchema = _bylinesReadConstraintsSchema;
 const commentsAccessSchema = _commentsAccessSchema;
 const commentsModerateConstraintsSchema = _commentsModerateConstraintsSchema;
 const commentsReadConstraintsSchema = _commentsReadConstraintsSchema;
@@ -7945,10 +7979,9 @@ function isJsonPostRouteContract(route) {
 * Zod schema for PluginManifest validation
 *
 * Used to validate manifest.json from plugin bundles at every parse site:
-* - Client-side download (marketplace.ts extractBundle)
-* - R2 load (api/handlers/marketplace.ts loadBundleFromR2)
-* - CLI publish preview (cli/commands/publish.ts readManifestFromTarball)
-* - Marketplace ingest extends this with publishing-specific fields
+* - client-side bundle download
+* - registry and legacy marketplace ingestion
+* - `emdash-plugin` build and publish validation
 */
 /**
 * Current capability names — the ones authors should use going forward.
@@ -7965,9 +7998,12 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"comments:read",
 	"comments:moderate",
 	"schema:read",
+	"admin.editor-draft:read",
+	"admin.editor-draft:patch",
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -8051,6 +8087,8 @@ const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments"
 ];
@@ -8151,13 +8189,26 @@ const dashboardWidgetSchema = object({
 	title: string().optional()
 });
 const editorExtensionIdPattern = /^[a-z][a-z0-9_-]*$/;
-const editorCollectionsSchema = array(string().max(63).regex(/^[a-z][a-z0-9_]*$/, "Invalid collection slug")).max(64).refine((collections) => new Set(collections).size === collections.length, { message: "Editor extension collections must be unique" });
+const collectionSlugPattern = /^[a-z][a-z0-9_]*$/;
+const editorCollectionsSchema = array(string().max(63).regex(collectionSlugPattern, "Invalid collection slug")).max(64).refine((collections) => new Set(collections).size === collections.length, { message: "Editor extension collections must be unique" });
+const editorDraftFieldSelectorSchema = object({
+	fields: array(string().max(63).regex(collectionSlugPattern, "Invalid field slug")).max(32).refine((fields) => new Set(fields).size === fields.length, { message: "Editor draft fields must be unique" }).optional(),
+	translatable: literal(true).optional()
+}).refine((selector) => (selector.fields?.length ?? 0) > 0 || selector.translatable === true, { message: "Editor draft selector must include fields or translatable" });
+const editorDraftAccessSchema = object({
+	read: editorDraftFieldSelectorSchema.optional(),
+	patch: editorDraftFieldSelectorSchema.optional()
+}).refine((access) => access.read !== void 0 || access.patch !== void 0, { message: "Editor draft access must include read or patch" });
 const editorPanelSchema = object({
 	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
 	title: string().min(1).max(128),
 	route: routeNameSchema.max(128),
 	collections: editorCollectionsSchema.optional(),
-	order: number().int().min(-1e3).max(1e3).optional()
+	order: number().int().min(-1e3).max(1e3).optional(),
+	draft: editorDraftAccessSchema.optional()
+}).refine((extension) => extension.draft === void 0 || (extension.collections?.length ?? 0) > 0, {
+	message: "Editor draft access requires explicit collection scope",
+	path: ["collections"]
 });
 const editorActionConfirmSchema = object({
 	title: string().min(1).max(128),
@@ -8173,10 +8224,14 @@ const editorActionSchema = object({
 	placement: _enum(["toolbar", "overflow"]),
 	collections: editorCollectionsSchema.optional(),
 	style: _enum(["default", "danger"]).optional(),
-	confirm: editorActionConfirmSchema.optional()
+	confirm: editorActionConfirmSchema.optional(),
+	draft: editorDraftAccessSchema.optional()
 }).refine((action) => action.style !== "danger" || action.confirm !== void 0, {
 	message: "Danger editor actions require confirmation",
 	path: ["confirm"]
+}).refine((extension) => extension.draft === void 0 || (extension.collections?.length ?? 0) > 0, {
+	message: "Editor draft access requires explicit collection scope",
+	path: ["collections"]
 });
 function uniqueExtensionIds(items, ctx, path) {
 	const seen = /* @__PURE__ */ new Set();
@@ -8239,10 +8294,15 @@ const declaredAccessSchema = object({
 		moderate: accessConstraints.optional()
 	}).optional(),
 	schema: object({ read: accessConstraints.optional() }).optional(),
+	admin: object({
+		editorDraftRead: accessConstraints.optional(),
+		editorDraftPatch: accessConstraints.optional()
+	}).optional(),
 	taxonomies: object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional()
 	}).optional(),
+	bylines: object({ read: accessConstraints.optional() }).optional(),
 	redirects: object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional()
@@ -8452,10 +8512,13 @@ function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 	}
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
+	if (caps.has("admin.editor-draft:read")) (out.admin ??= {}).editorDraftRead = {};
+	if (caps.has("admin.editor-draft:patch")) (out.admin ??= {}).editorDraftPatch = {};
 	if (caps.has("taxonomies:read") || caps.has("taxonomies:write")) {
 		out.taxonomies = { read: {} };
 		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
 	}
+	if (caps.has("bylines:read")) out.bylines = { read: {} };
 	if (caps.has("redirects:read") || caps.has("redirects:write")) {
 		out.redirects = { read: {} };
 		if (caps.has("redirects:write")) out.redirects.write = {};
@@ -8506,12 +8569,15 @@ function declaredAccessToCapabilities(declaredAccess) {
 		caps.add("comments:read");
 	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
+	if (declaredAccess.admin?.editorDraftRead) caps.add("admin.editor-draft:read");
+	if (declaredAccess.admin?.editorDraftPatch) caps.add("admin.editor-draft:patch");
 	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.taxonomies?.write) {
 		caps.add("taxonomies:write");
 		caps.add("taxonomies:read");
 	}
+	if (declaredAccess.bylines?.read) caps.add("bylines:read");
 	if (declaredAccess.redirects?.read) caps.add("redirects:read");
 	if (declaredAccess.redirects?.write) {
 		caps.add("redirects:write");
@@ -13039,7 +13105,7 @@ function encodeBase32(bytes) {
 //#region src/prepare.ts
 const MAX_PROVENANCE_BYTES = 5 * 1024 * 1024;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const WORKFLOW_REF_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+const WORKFLOW_REF_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9.@_/-]+$/;
 var ReleasePreparationError = class extends Error {
 	constructor(message) {
 		super(message);
@@ -13245,7 +13311,7 @@ async function runAction(runtime, dependencies = {}) {
 		const runnerTemp = runtime.getEnvironment("RUNNER_TEMP");
 		const repository = runtime.getEnvironment("GITHUB_REPOSITORY");
 		const workflowRef = runtime.getEnvironment("GITHUB_WORKFLOW_REF");
-		const repositoryVisibility = runtime.getEnvironment("GITHUB_REPOSITORY_VISIBILITY");
+		const repositoryVisibility = runtime.getInput("repository-visibility");
 		if (!runnerTemp || !repository || !workflowRef || !repositoryVisibility) throw new ActionConfigurationError("GitHub workflow identity is unavailable");
 		prepared = await (dependencies.prepareReleaseFiles ?? prepareReleaseFiles)({
 			workspace,

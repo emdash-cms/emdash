@@ -33,6 +33,26 @@ describe("CapabilityConsentDialog", () => {
 			.toBeInTheDocument();
 	});
 
+	it("states the combined unsaved-content and network egress boundary", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Translator"
+				capabilities={["admin.editor-draft:read", "network:request"]}
+				allowedHosts={["translate.example"]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+		await expect.element(screen.getByText("Unsaved content may leave your site")).toBeVisible();
+		await expect
+			.element(
+				screen.getByText(
+					"After you explicitly invoke this plugin, it can send selected unsaved editor content to: translate.example",
+				),
+			)
+			.toBeVisible();
+	});
+
 	it("shows 'Plugin Permissions' title for fresh install", async () => {
 		const screen = await render(
 			<CapabilityConsentDialog
@@ -259,7 +279,7 @@ describe("CapabilityConsentDialog", () => {
 		await expect.element(dialog).toBeInTheDocument();
 	});
 
-	it("shows verified provenance, exact record CIDs, and signed policy", async () => {
+	it("summarizes verified provenance and hides technical identifiers by default", async () => {
 		const screen = await render(
 			<CapabilityConsentDialog
 				pluginName="Test"
@@ -279,10 +299,15 @@ describe("CapabilityConsentDialog", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByText("Independent verification")).toBeInTheDocument();
+		await expect.element(screen.getByText("Build provenance verified")).toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Provenance is verified against the signed release and artifact."))
+			.element(screen.getByText("The build provenance matches this release and its package."))
 			.toBeInTheDocument();
+		expect(screen.getByText("bafy-profile").query()).toBeNull();
+		expect(screen.getByText("bafy-release").query()).toBeNull();
+
+		await screen.getByRole("button", { name: "Technical verification details" }).click();
+
 		await expect.element(screen.getByText("bafy-profile")).toBeInTheDocument();
 		await expect.element(screen.getByText("bafy-release")).toBeInTheDocument();
 		await expect.element(screen.getByText("Provenance required")).toBeInTheDocument();
@@ -292,7 +317,7 @@ describe("CapabilityConsentDialog", () => {
 		await expect.element(screen.getByText("did:plc:approver")).toBeInTheDocument();
 	});
 
-	it("explains when absent provenance is permitted by signed policy", async () => {
+	it("uses a neutral summary when provenance is absent", async () => {
 		const screen = await render(
 			<CapabilityConsentDialog
 				pluginName="Test"
@@ -312,15 +337,37 @@ describe("CapabilityConsentDialog", () => {
 			/>,
 		);
 
+		await expect.element(screen.getByText("Signed release verified")).toBeInTheDocument();
 		await expect
 			.element(
-				screen.getByText("No provenance was supplied; the signed publisher policy permits this."),
+				screen.getByText(
+					"The signed publisher records and package are valid. Build provenance was not provided.",
+				),
 			)
 			.toBeInTheDocument();
-		await expect.element(screen.getByText("Provenance optional")).toBeInTheDocument();
-		await expect
-			.element(screen.getByText("Publisher approval required only for permission escalation"))
-			.toBeInTheDocument();
+		expect(screen.getByText("Provenance optional").query()).toBeNull();
+		expect(screen.getByText("bafy-profile").query()).toBeNull();
+	});
+
+	it("shows the permission total and a scroll cue for long lists", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={[
+					"content:read",
+					"content:write",
+					"content:publish",
+					"content:restore",
+					"comments:read",
+					"comments:moderate",
+				]}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await expect.element(screen.getByText("6 permissions requested")).toBeInTheDocument();
+		await expect.element(screen.getByText("Scroll to review all")).toBeInTheDocument();
 	});
 
 	it("keeps CIDs and DIDs readable in Arabic RTL mode", async () => {
@@ -348,6 +395,7 @@ describe("CapabilityConsentDialog", () => {
 					/>
 				</div>,
 			);
+			await screen.getByRole("button", { name: "Technical verification details" }).click();
 
 			expect(screen.getByText("bafy-profile").element().getAttribute("dir")).toBe("ltr");
 			expect(screen.getByText("bafy-release").element().getAttribute("dir")).toBe("ltr");

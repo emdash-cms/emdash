@@ -25,3 +25,14 @@ export function requireScope(locals: { tokenScopes?: string[] }, scope: string):
 
 	return apiError("INSUFFICIENT_SCOPE", `Token lacks required scope: ${scope}`, 403);
 }
+
+/** Like {@link requireScope}, but satisfied by any of `scopes`. */
+export function requireAnyScope(
+	locals: { tokenScopes?: string[] },
+	scopes: readonly string[],
+): Response | null {
+	const tokenScopes = locals.tokenScopes;
+	if (!tokenScopes) return null;
+	if (scopes.some((scope) => hasScope(tokenScopes, scope))) return null;
+	return apiError("INSUFFICIENT_SCOPE", `Token lacks required scope: ${scopes.join(" or ")}`, 403);
+}

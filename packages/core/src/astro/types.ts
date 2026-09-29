@@ -20,6 +20,7 @@ import type {
 } from "../plugins/routes.js";
 import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
+import type { CollectionWithFields } from "../schema/types.js";
 
 // Re-export core types
 export type {
@@ -52,11 +53,15 @@ export interface ManifestCollection {
 	 * editor, and API keep working.
 	 */
 	hidden?: boolean;
+	/** Phosphor icon name for the sidebar entry (kebab-case, e.g. `calendar-blank`). */
+	icon?: string;
 	/**
 	 * Sidebar folder. Collections sharing a group render under one collapsible
 	 * entry labelled with the group.
 	 */
 	group?: string;
+	/** `false` omits the dashboard's "new entry" quick action. */
+	quickCreate?: boolean;
 	/** Valid custom field slugs to render in the admin content list. */
 	listColumns?: string[];
 	fields: Record<
@@ -65,6 +70,7 @@ export interface ManifestCollection {
 			kind: string;
 			label?: string;
 			required?: boolean;
+			translatable?: boolean;
 			widget?: string;
 			/**
 			 * Field options. Two shapes:
@@ -195,6 +201,8 @@ export interface EmDashManifest {
 	 * browse or install flows.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry configuration.
 	 *
@@ -235,6 +243,7 @@ export interface EmDashManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
 		favicon?: string;
 	};
 }
@@ -302,6 +311,7 @@ export interface EmDashHandlers {
 		collection: string,
 		id: string,
 		locale?: string,
+		referenceOptions?: { includeDrafts: boolean },
 	) => Promise<
 		HandlerResponse<{
 			item: {
@@ -324,8 +334,11 @@ export interface EmDashHandlers {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
@@ -348,8 +361,11 @@ export interface EmDashHandlers {
 				noIndex?: boolean;
 			};
 			taxonomies?: Record<string, string[]>;
+			references?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
+			migrateBlocks?: boolean;
+			replaceBlocks?: boolean;
 			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
@@ -442,6 +458,7 @@ export interface EmDashHandlers {
 		url?: string;
 		contentType?: string;
 		alt?: string;
+		caption?: string;
 		authorId?: string;
 		maxUploadSize?: number;
 	}) => Promise<HandlerResponse>;
@@ -458,6 +475,11 @@ export interface EmDashHandlers {
 		dominantColor?: string;
 		authorId?: string;
 		folderId?: string | null;
+	}) => Promise<HandlerResponse>;
+
+	handleMediaRegisterUpload: (input: {
+		storageKey: string;
+		authorId?: string;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaUpdate: (
@@ -519,6 +541,7 @@ export interface EmDashHandlers {
 		extensionId: string,
 		collection: string,
 	) => ResolvedPluginEditorExtension | null;
+	getPluginEditorDraftSchema: (collection: string) => Promise<CollectionWithFields | null>;
 
 	// Public-only plugin API route handler for SSR page components.
 	handlePublicPluginApiRoute: (
@@ -629,6 +652,12 @@ export interface EmDashHandlers {
 
 	// Sync registry plugin states (after install/update/uninstall)
 	syncRegistryPlugins: () => Promise<void>;
+	// Run install and activation hooks after the runtime loads a new plugin.
+	runPluginInstallLifecycle: (pluginId: string) => Promise<void>;
+	runPluginActivateLifecycle: (pluginId: string) => Promise<void>;
+	runPluginUninstallLifecycle: (pluginId: string, deleteData: boolean) => Promise<void>;
+	// Read settings metadata for runtime-installed plugins.
+	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;

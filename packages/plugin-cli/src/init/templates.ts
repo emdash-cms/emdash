@@ -433,6 +433,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Treat \`comments:read\` as personal-data access. It exposes author email, body, pseudonymous IP hash, user agent, and moderation metadata. Use \`comments:moderate\` for expected-status moderation; it implies read.
 - Use \`redirects:read\` for paginated redirect inspection. Add \`redirects:write\` only when the plugin must change visitor destinations, and pass redirect \`_rev\` values back unchanged for updates and deletes.
 - Use \`schema:read\` for \`ctx.schema.listCollections()\` and \`getCollection()\`.
+- Use \`bylines:read\` for public byline profiles and entry credits. \`ctx.bylines.getEntriesBylines()\` resolves up to 100 entries of one collection per call.
 - Use \`content:read\` for content identity fields, translations, and published public URLs. Public URL resolution never returns previews. Revision history requires the separate \`content:revisions:read\` capability and excludes revision author identity.
 - Create a translation with \`ctx.content.create(collection, data, { locale, translationOf })\`. The source must be an active row in the same collection. EmDash preserves its non-translatable fields, byline credits, taxonomy assignments, validation, and save hooks, and permits one active row per locale in the group.
 - With \`taxonomies:write\`, pass a taxonomy name and term fields to \`createTerm()\`. The method rejects \`parentId\` for a non-hierarchical taxonomy instead of ignoring it. Pass term IDs to \`addEntryTerms()\` and \`removeEntryTerms()\`; assignment methods apply deltas and do not replace existing terms.
@@ -442,7 +443,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Declare credentials as \`secret\` fields in \`admin.settingsSchema\`. The host encrypts them with \`EMDASH_ENCRYPTION_KEY\`; keep that key with operational backups.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
 - Use structured Block Kit links for navigation. Read \`routeCtx.ui\` for the host-attested admin locale and direction; external images require HTTPS plus a hostname in \`allowedHosts\` or \`network:request:unrestricted\`.
-- Declare saved-entry panels and actions under \`admin.editorPanels\` and \`admin.editorActions\`. Point each declaration at a private route. The host reloads and authorizes the saved entry before attaching identity to \`routeCtx.ui\`; read saved field data through capability-gated \`ctx.content\`.
+- Declare saved-entry panels and actions under \`admin.editorPanels\` and \`admin.editorActions\`. Point each declaration at a private route. The host reloads and authorizes the saved entry before attaching identity to \`routeCtx.ui\`. Ordinary panel load never includes draft data. Use \`admin.editor-draft:read\` or \`admin.editor-draft:patch\` with extension-level collection and field selectors for explicit draft interactions; patch does not imply read, accepted patches are previewed, and the host never saves them automatically. Read saved field data through capability-gated \`ctx.content\`.
 - Treat public routes as internet-facing and validate their inputs.
 - Routes without declarations use the legacy method-agnostic JSON/query envelope. Declare \`methods\` for host-enforced 405 responses.
 - Declare \`request.body\` as \`none\`, \`json\`, \`text\`, \`bytes\`, or \`form-data\` for bounded buffered parsing. The default is 1 MiB and the author maximum is 8 MiB. Use \`pluginRoute()\` for input inference.
@@ -454,7 +455,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 
 Use the package scripts in this repository. The default test script builds the plugin and runs it through Worker Loader, EmDash's production sandbox wrapper, and the host bridge.
 
-Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, cache behavior, or Block Kit response validation. Its \`admin\` helpers cover pages, widgets, saved-entry panels, confirmed editor actions, forms, and host-attested locale context. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, cache behavior, or Block Kit response validation. Its \`admin\` helpers cover pages, widgets, saved-entry panels, confirmed editor actions, forms, host-attested locale context, and editor draft capture and patch validation. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
 
 For generated secret settings, call \`actions.plugin.updateSettings()\` and verify \`inspect.settings.raw()\` contains an envelope without the plaintext.
 
@@ -466,7 +467,7 @@ For outbound HTTP tests, queue one response per call with \`await host.http.resp
 
 Dispose either host after each test so its bindings reset. Keep Node/workerd parity opt-in unless the plugin depends on runner-sensitive behavior.
 
-Read generated settings with \`ctx.settings.get("<key>")\`. Existing \`ctx.kv.get("settings:<key>")\` reads remain compatible through EmDash 0.x, but new code should use \`ctx.settings\`.
+Read generated settings with \`ctx.settings.get("<key>")\`. Existing \`ctx.kv.get("settings:<key>")\` reads remain compatible throughout EmDash 1.x, but new code should use \`ctx.settings\`.
 
 Before handing off a change, run validation, typecheck, tests, and build. A release also requires a version bump in \`package.json\` when runtime behavior or the trust contract changes.
 

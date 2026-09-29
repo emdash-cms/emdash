@@ -30,10 +30,21 @@ describe("plugin build metadata round trip", () => {
 				license: "MIT",
 				author: { name: "Example" },
 				security: { email: "security@example.com" },
-				capabilities: ["content:read", "redirects:write"],
+				capabilities: [
+					"content:read",
+					"redirects:write",
+					"admin.editor-draft:read",
+					"admin.editor-draft:patch",
+				],
 				admin: {
 					editorPanels: [
-						{ id: "health", title: "Health", route: "entry-health", collections: ["events"] },
+						{
+							id: "health",
+							title: "Health",
+							route: "entry-health",
+							collections: ["events"],
+							draft: { read: { translatable: true }, patch: { fields: ["title"] } },
+						},
 					],
 					editorActions: [
 						{
@@ -116,12 +127,15 @@ describe("plugin build metadata round trip", () => {
 		});
 		expect(persistedManifest.capabilities).toEqual([
 			"content:read",
+			"admin.editor-draft:read",
+			"admin.editor-draft:patch",
 			"redirects:read",
 			"redirects:write",
 		]);
 		expect(persistedManifest.admin.editorPanels[0]).toMatchObject({
 			id: "health",
 			route: "entry-health",
+			draft: { read: { translatable: true }, patch: { fields: ["title"] } },
 		});
 		expect(persistedManifest.admin.editorActions[0]).toMatchObject({
 			id: "repair",

@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { PUT as updateContentRoute } from "../../../src/astro/routes/api/content/[collection]/[id].js";
 import { POST as createContentRoute } from "../../../src/astro/routes/api/content/[collection]/index.js";
@@ -21,7 +22,7 @@ const rejection = {
 };
 const invokeHook = vi.fn<SandboxedPluginInstance["invokeHook"]>();
 
-function createDeps(sqlite: Database.Database): RuntimeDependencies {
+function createDeps(sqlite: Database): RuntimeDependencies {
 	const runner = {
 		isAvailable: () => true,
 		isHealthy: () => true,

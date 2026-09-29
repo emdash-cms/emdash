@@ -6,6 +6,8 @@ import type { Element } from "@emdash-cms/blocks";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
+import type { EditorDraftAccessDeclaration } from "../sandboxed-editor-extensions.js";
+
 export const API_BASE = "/_emdash/api";
 
 /**
@@ -149,8 +151,12 @@ export interface AdminManifest {
 			titleField?: string;
 			dateField?: string;
 			hidden?: boolean;
+			/** Phosphor icon name for the sidebar entry */
+			icon?: string;
 			/** Sidebar folder shared with other collections of the same group */
 			group?: string;
+			/** `false` omits the dashboard's "new entry" quick action */
+			quickCreate?: boolean;
 			listColumns?: string[];
 			fields: Record<
 				string,
@@ -160,6 +166,7 @@ export interface AdminManifest {
 					kind: string;
 					label?: string;
 					required?: boolean;
+					translatable?: boolean;
 					widget?: string;
 					/**
 					 * For `select` / `multiSelect`: the list of enum choices.
@@ -168,6 +175,8 @@ export interface AdminManifest {
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
 					unsupportedType?: { type: string; path: string };
+					blockTypes?: import("./schema.js").BlockType[];
+					blockTypeFingerprint?: string;
 				}
 			>;
 		}
@@ -204,6 +213,7 @@ export interface AdminManifest {
 				route: string;
 				collections?: string[];
 				order?: number;
+				draft?: EditorDraftAccessDeclaration;
 			}>;
 			editorActions?: Array<{
 				id: string;
@@ -213,6 +223,7 @@ export interface AdminManifest {
 				collections?: string[];
 				style?: "default" | "danger";
 				confirm?: import("@emdash-cms/blocks").ConfirmDialog;
+				draft?: EditorDraftAccessDeclaration;
 			}>;
 			fieldWidgets?: Array<{
 				name: string;
@@ -276,6 +287,8 @@ export interface AdminManifest {
 	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
 	marketplace?: boolean;
+	/** Whether a sandbox runner is enabled for installing and running sandboxed plugins. */
+	sandboxEnabled?: boolean;
 	/**
 	 * Decentralized plugin registry. Defaults to the hosted aggregator when
 	 * the plugin sandbox is enabled, or reflects an explicit registry config.
@@ -299,10 +312,7 @@ export interface AdminManifest {
 		field:
 			| "registry.aggregatorUrl"
 			| "registry.policy.minimumReleaseAge"
-			| "registry.policy.minimumReleaseAgeExclude"
-			| "experimental.registry.aggregatorUrl"
-			| "experimental.registry.policy.minimumReleaseAge"
-			| "experimental.registry.policy.minimumReleaseAgeExclude";
+			| "registry.policy.minimumReleaseAgeExclude";
 	};
 	/**
 	 * Admin branding overrides for white-labeling.
@@ -311,6 +321,7 @@ export interface AdminManifest {
 	admin?: {
 		logo?: string;
 		siteName?: string;
+		footerLabel?: string | false;
 		favicon?: string;
 	};
 }

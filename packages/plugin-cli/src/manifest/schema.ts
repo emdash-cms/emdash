@@ -71,6 +71,20 @@ import { z } from "zod";
 // that support `$schema`-driven completion (VS Code, IntelliJ).
 // ──────────────────────────────────────────────────────────────────────────
 
+/** Grapheme caps on the short profile fields, mirroring `profile.json`. */
+const NAME_MAX_GRAPHEMES = 100;
+const DESCRIPTION_MAX_GRAPHEMES = 140;
+const AUTHOR_NAME_MAX_GRAPHEMES = 64;
+const KEYWORD_MAX_GRAPHEMES = 64;
+
+function maxGraphemes(label: string, max: number) {
+	return (value: string, ctx: z.RefinementCtx<string>) => {
+		if (countGraphemes(value) > max) {
+			ctx.addIssue({ code: "custom", message: `${label} must be <= ${max} graphemes` });
+		}
+	};
+}
+
 /**
  * SPDX license expression. The lexicon caps this at 256 chars. We don't
  * validate the SPDX grammar here — the registry aggregator does that and
@@ -102,7 +116,8 @@ export const AuthorSchema = z
 			.string()
 			.min(1, "author.name cannot be empty")
 			.max(256, "author.name must be <= 256 characters")
-			.meta({ description: "Display name." }),
+			.superRefine(maxGraphemes("author.name", AUTHOR_NAME_MAX_GRAPHEMES))
+			.meta({ description: `Display name (<= ${AUTHOR_NAME_MAX_GRAPHEMES} graphemes).` }),
 		url: z
 			.url("author.url must be a valid URL")
 			.max(1024, "author.url must be <= 1024 characters")
@@ -192,10 +207,10 @@ export const NameSchema = z
 	.string()
 	.min(1, "name cannot be empty when set")
 	.max(1024, "name must be <= 1024 characters")
+	.superRefine(maxGraphemes("name", NAME_MAX_GRAPHEMES))
 	.meta({
 		title: "Display name",
-		description:
-			"Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted.",
+		description: `Human-readable name shown in directory listings (<= ${NAME_MAX_GRAPHEMES} graphemes). Defaults to the plugin's \`id\` when omitted.`,
 	});
 
 /** Short description. Mirrors `profile.json#description`. */
@@ -203,21 +218,25 @@ export const DescriptionSchema = z
 	.string()
 	.min(1, "description cannot be empty when set")
 	.max(1024, "description must be <= 1024 characters")
+	.superRefine(maxGraphemes("description", DESCRIPTION_MAX_GRAPHEMES))
 	.meta({
 		title: "Description",
-		description:
-			"Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists.",
+		description: `Short description (<= ${DESCRIPTION_MAX_GRAPHEMES} graphemes).`,
 	});
 
 /** Search keywords. Mirrors `profile.json#keywords`. */
 export const KeywordsSchema = z
 	.array(
-		z.string().min(1, "keyword cannot be empty").max(128, "each keyword must be <= 128 characters"),
+		z
+			.string()
+			.min(1, "keyword cannot be empty")
+			.max(128, "each keyword must be <= 128 characters")
+			.superRefine(maxGraphemes("each keyword", KEYWORD_MAX_GRAPHEMES)),
 	)
 	.max(5, "keywords array must have <= 5 entries (FAIR convention)")
 	.meta({
 		title: "Keywords",
-		description: "Search keywords (<= 5 entries, FAIR convention).",
+		description: `Search keywords (<= 5 entries, FAIR convention; each <= ${KEYWORD_MAX_GRAPHEMES} graphemes).`,
 	});
 
 /**
@@ -353,9 +372,12 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"comments:read",
 	"comments:moderate",
 	"schema:read",
+	"admin.editor-draft:read",
+	"admin.editor-draft:patch",
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -578,16 +600,65 @@ const editorCollectionsSchema = z
 	.refine((collections) => new Set(collections).size === collections.length, {
 		message: "editor extension collections must be unique",
 	});
+const editorDraftFieldsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "invalid editor draft field slug"),
+	)
+	.min(1)
+	.max(32)
+	.refine((fields) => new Set(fields).size === fields.length, {
+		message: "editor draft fields must be unique",
+	});
+const EditorDraftFieldSelectorSchema = z.union([
+	z.object({ fields: editorDraftFieldsSchema, translatable: z.literal(true).optional() }).strict(),
+	z.object({ fields: editorDraftFieldsSchema.optional(), translatable: z.literal(true) }).strict(),
+]);
+const EditorDraftAccessSchema = z.union([
+	z
+		.object({
+			read: EditorDraftFieldSelectorSchema,
+			patch: EditorDraftFieldSelectorSchema.optional(),
+		})
+		.strict(),
+	z
+		.object({
+			read: EditorDraftFieldSelectorSchema.optional(),
+			patch: EditorDraftFieldSelectorSchema,
+		})
+		.strict(),
+]);
+const editorDraftCollectionsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "editor extension collection must be a collection slug"),
+	)
+	.min(1)
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "editor extension collections must be unique",
+	});
+const editorPanelBase = {
+	id: editorExtensionIdSchema,
+	title: z.string().min(1).max(128),
+	route: editorRouteSchema,
+	order: z.number().int().min(-1_000).max(1_000).optional(),
+};
 
-export const EditorPanelSchema = z
-	.object({
-		id: editorExtensionIdSchema,
-		title: z.string().min(1).max(128),
-		route: editorRouteSchema,
-		collections: editorCollectionsSchema.optional(),
-		order: z.number().int().min(-1_000).max(1_000).optional(),
-	})
-	.strict();
+export const EditorPanelSchema = z.union([
+	z.object({ ...editorPanelBase, collections: editorCollectionsSchema.optional() }).strict(),
+	z
+		.object({
+			...editorPanelBase,
+			collections: editorDraftCollectionsSchema,
+			draft: EditorDraftAccessSchema,
+		})
+		.strict(),
+]);
 
 const EditorActionConfirmSchema = z
 	.object({
@@ -599,17 +670,26 @@ const EditorActionConfirmSchema = z
 	})
 	.strict();
 
+const editorActionBase = {
+	id: editorExtensionIdSchema,
+	label: z.string().min(1).max(128),
+	route: editorRouteSchema,
+	placement: z.enum(["toolbar", "overflow"]),
+	style: z.enum(["default", "danger"]).optional(),
+	confirm: EditorActionConfirmSchema.optional(),
+};
+
 export const EditorActionSchema = z
-	.object({
-		id: editorExtensionIdSchema,
-		label: z.string().min(1).max(128),
-		route: editorRouteSchema,
-		placement: z.enum(["toolbar", "overflow"]),
-		collections: editorCollectionsSchema.optional(),
-		style: z.enum(["default", "danger"]).optional(),
-		confirm: EditorActionConfirmSchema.optional(),
-	})
-	.strict()
+	.union([
+		z.object({ ...editorActionBase, collections: editorCollectionsSchema.optional() }).strict(),
+		z
+			.object({
+				...editorActionBase,
+				collections: editorDraftCollectionsSchema,
+				draft: EditorDraftAccessSchema,
+			})
+			.strict(),
+	])
 	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
 		message: "danger editor actions require confirmation",
 		path: ["confirm"],

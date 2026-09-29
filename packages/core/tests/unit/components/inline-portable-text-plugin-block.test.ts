@@ -190,6 +190,51 @@ describe("inline editor: round-trip preserves plugin block payloads", () => {
 		});
 	});
 
+	it("a url-identified embed keeps url and does not gain an id", () => {
+		const original = {
+			_type: "embed",
+			_key: "e1",
+			url: "https://www.youtube.com/watch?v=abc",
+			provider: "youtube",
+			html: "<iframe></iframe>",
+		};
+
+		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
+
+		expect(roundTripped).toMatchObject({
+			_type: "embed",
+			url: "https://www.youtube.com/watch?v=abc",
+			provider: "youtube",
+			html: "<iframe></iframe>",
+		});
+		expect(roundTripped).not.toHaveProperty("id");
+	});
+
+	it("a block with both id and url keeps both", () => {
+		const original = { _type: "embed", _key: "e1", id: "vid-1", url: "https://youtu.be/abc" };
+
+		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
+
+		expect(roundTripped).toMatchObject({ id: "vid-1", url: "https://youtu.be/abc" });
+	});
+
+	it("a non-string id is kept as data", () => {
+		const original = { _type: "embed", _key: "e1", id: 5, url: "https://youtu.be/abc" };
+
+		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
+
+		expect(roundTripped).toMatchObject({ id: 5, url: "https://youtu.be/abc" });
+	});
+
+	it("a block without id or url does not gain one", () => {
+		const original = { _type: "marketing.hero", _key: "hero", headline: "Hi" };
+
+		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
+
+		expect(roundTripped).not.toHaveProperty("id");
+		expect(roundTripped).not.toHaveProperty("url");
+	});
+
 	it("repeated round-trips are stable (no _-key leakage)", () => {
 		const original = {
 			_type: "marketing.faq",

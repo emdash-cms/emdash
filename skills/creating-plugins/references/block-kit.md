@@ -80,21 +80,22 @@ routes: {
 
 ## Element Types
 
-| Type           | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `button`       | Action button with optional confirmation dialog           |
-| `link`         | Host-resolved navigation that does not dispatch an action |
-| `text_input`   | Single-line or multiline text input                       |
-| `number_input` | Numeric input with min/max                                |
-| `select`       | Dropdown select                                           |
-| `toggle`       | On/off switch                                             |
-| `secret_input` | Masked input for API keys and tokens                      |
-| `checkbox`     | Multi-select checkboxes                                   |
-| `radio`        | Single-select radio buttons                               |
-| `date_input`   | Date picker                                               |
-| `combobox`     | Searchable dropdown select                                |
-| `repeater`     | Array of records with scalar sub-fields                   |
-| `media_picker` | Media-library picker that stores the asset URL            |
+| Type           | Description                                                                              |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| `button`       | Action button with optional confirmation dialog                                          |
+| `link`         | Host-resolved navigation that does not dispatch an action                                |
+| `menu`         | Button that opens a list of choices; each choice dispatches `action_id` with its `value` |
+| `text_input`   | Single-line or multiline text input                                                      |
+| `number_input` | Numeric input with min/max                                                               |
+| `select`       | Dropdown select                                                                          |
+| `toggle`       | On/off switch                                                                            |
+| `secret_input` | Masked input for API keys and tokens                                                     |
+| `checkbox`     | Multi-select checkboxes                                                                  |
+| `radio`        | Single-select radio buttons                                                              |
+| `date_input`   | Date picker                                                                              |
+| `combobox`     | Searchable dropdown select                                                               |
+| `repeater`     | Array of records with scalar sub-fields                                                  |
+| `media_picker` | Media-library picker that stores the asset URL                                           |
 
 ## Block Syntax
 
@@ -167,6 +168,34 @@ routes: {
 - `page_action_id` — required. The admin sends it as the `block_action` id when the user sorts a column or pages through results.
 - `empty_text` — shown in place of the table when `rows` is empty
 - `next_cursor` — set it to render a "Load more" control
+- `format` — per column: `text` (default), `badge`, `relative_time`, `number`, `code`, or `element`
+
+An `element` column holds a `button`, `link`, or `menu` per row, for row actions. A row without a value leaves the cell empty. Choosing a menu item sends a `block_action` with the menu's `action_id` and the item's `value`:
+
+```json
+{
+	"type": "table",
+	"columns": [
+		{ "key": "title", "label": "Entry" },
+		{ "key": "action", "label": "Actions", "format": "element" }
+	],
+	"rows": [
+		{
+			"title": "Hello world",
+			"action": {
+				"type": "menu",
+				"action_id": "translate",
+				"label": "Translate",
+				"items": [
+					{ "label": "French", "value": "fr:01K5POSTEXAMPLE" },
+					{ "label": "Italian", "value": "it:01K5POSTEXAMPLE" }
+				]
+			}
+		}
+	],
+	"page_action_id": "missing_page"
+}
+```
 
 ### Actions
 
@@ -509,6 +538,8 @@ return {
 };
 ```
 
+`elements.menu(actionId, label, items, { style })` builds a `menu` element for `actions` blocks, section accessories, empty-state actions, and table `element` columns.
+
 ## Button Confirmations
 
 ```json
@@ -535,12 +566,13 @@ return {
 	toast?: { message: string; type: "success" | "error" | "info" };
 	refresh?: true;
 	navigate?: LinkTarget;
+	patch?: EditorDraftPatchEffect;
 }
 ```
 
-Use either `refresh` or `navigate`, not both. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
+Use only one of `refresh`, `navigate`, or `patch`. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
 
-For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Saved field values and unsaved editor state are not included.
+For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Ordinary panel load contains no draft. An explicit interaction includes selected unsaved fields only when the plugin has `admin.editor-draft:read` and the extension declares bounded `draft.read` access. `admin.editor-draft:patch` separately permits atomic whole-field `set` and `clear` proposals for fields in `draft.patch`; the host previews accepted changes without saving them.
 
 ## Links and admin locale
 

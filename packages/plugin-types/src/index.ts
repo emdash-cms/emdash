@@ -24,10 +24,6 @@
  *   - The `@atcute/*` lexicon types for the registry's atproto records.
  *     Those live in `@emdash-cms/registry-lexicons` since they describe a
  *     different contract layer.
- *
- * EXPERIMENTAL: this package is published as part of the experimental plugin
- * registry roll-out. Pin to an exact version while RFC 0001 is in flight;
- * the manifest shape may evolve before the registry phase 1 cutover.
  */
 
 import type { ManifestRouteEntry } from "./routes.js";
@@ -58,10 +54,14 @@ export type PluginCapability =
 	| "comments:moderate"
 	// Schema
 	| "schema:read"
+	| "admin.editor-draft:read"
+	| "admin.editor-draft:patch"
 	| "hooks.content-policy:register"
 	// Taxonomies
 	| "taxonomies:read"
 	| "taxonomies:write"
+	// Bylines
+	| "bylines:read"
 	// Redirects
 	| "redirects:read"
 	| "redirects:write"
@@ -211,7 +211,9 @@ export interface DeclaredAccess {
 	};
 	comments?: { read?: AccessConstraints; moderate?: AccessConstraints };
 	schema?: { read?: AccessConstraints };
+	admin?: { editorDraftRead?: AccessConstraints; editorDraftPatch?: AccessConstraints };
 	taxonomies?: { read?: AccessConstraints; write?: AccessConstraints };
+	bylines?: { read?: AccessConstraints };
 	redirects?: { read?: AccessConstraints; write?: AccessConstraints };
 	media?: {
 		read?: AccessConstraints;
@@ -263,10 +265,13 @@ export function capabilitiesToDeclaredAccess(
 	}
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
+	if (caps.has("admin.editor-draft:read")) (out.admin ??= {}).editorDraftRead = {};
+	if (caps.has("admin.editor-draft:patch")) (out.admin ??= {}).editorDraftPatch = {};
 	if (caps.has("taxonomies:read") || caps.has("taxonomies:write")) {
 		out.taxonomies = { read: {} };
 		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
 	}
+	if (caps.has("bylines:read")) out.bylines = { read: {} };
 	if (caps.has("redirects:read") || caps.has("redirects:write")) {
 		out.redirects = { read: {} };
 		if (caps.has("redirects:write")) out.redirects.write = {};
@@ -331,12 +336,15 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("comments:read");
 	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
+	if (declaredAccess.admin?.editorDraftRead) caps.add("admin.editor-draft:read");
+	if (declaredAccess.admin?.editorDraftPatch) caps.add("admin.editor-draft:patch");
 	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.taxonomies?.write) {
 		caps.add("taxonomies:write");
 		caps.add("taxonomies:read");
 	}
+	if (declaredAccess.bylines?.read) caps.add("bylines:read");
 	if (declaredAccess.redirects?.read) caps.add("redirects:read");
 	if (declaredAccess.redirects?.write) {
 		caps.add("redirects:write");
@@ -475,12 +483,23 @@ export interface StorageCollectionConfig {
  */
 export type PluginStorageConfig = Record<string, StorageCollectionConfig>;
 
+export interface PluginEditorDraftFieldSelector {
+	fields?: string[];
+	translatable?: true;
+}
+
+export interface PluginEditorDraftAccess {
+	read?: PluginEditorDraftFieldSelector;
+	patch?: PluginEditorDraftFieldSelector;
+}
+
 export interface PluginEditorPanel {
 	id: string;
 	title: string;
 	route: string;
 	collections?: string[];
 	order?: number;
+	draft?: PluginEditorDraftAccess;
 }
 
 export interface PluginEditorActionConfirm {
@@ -499,6 +518,7 @@ export interface PluginEditorAction {
 	collections?: string[];
 	style?: "default" | "danger";
 	confirm?: PluginEditorActionConfirm;
+	draft?: PluginEditorDraftAccess;
 }
 
 /**

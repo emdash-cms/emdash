@@ -40,7 +40,7 @@ If you're customising this template, the work is to add design, not to subtract 
 
 1. Decide on one display + one body typeface, add them to `astro.config.mjs`, bind them to `--font-display` and `--font-body` CSS variables.
 2. Create `src/styles/theme.css` with your colour palette, type scale, and spacing tokens.
-3. Add it to `Base.astro` -- the layout already imports a small reset; add your theme above your page styles.
+3. Import it from `Base.astro`, then add any page-specific styles in the relevant Astro page.
 4. Build page-specific styles in each Astro page's `<style>` block, referencing the CSS variables.
 
 If you want a designed template instead, switch to `blog`, `portfolio`, or `marketing` -- each ships with a full visual system you can re-skin via `theme.css`.

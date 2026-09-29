@@ -11,6 +11,10 @@ export type CanonicalJsonValue =
 export type CanonicalAccessConstraints = Readonly<Record<string, CanonicalJsonValue>>;
 
 export interface CanonicalDeclaredAccess {
+	readonly admin?: Readonly<{
+		editorDraftPatch?: CanonicalAccessConstraints;
+		editorDraftRead?: CanonicalAccessConstraints;
+	}>;
 	readonly comments?: Readonly<{
 		moderate?: CanonicalAccessConstraints;
 		read?: CanonicalAccessConstraints;
@@ -28,6 +32,7 @@ export interface CanonicalDeclaredAccess {
 		read?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
+	readonly bylines?: Readonly<{ read?: CanonicalAccessConstraints }>;
 	readonly email?: Readonly<{
 		events?: CanonicalAccessConstraints;
 		send?: CanonicalAccessConstraints;

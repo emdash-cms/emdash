@@ -285,34 +285,6 @@ export async function handleCommentBulk(
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Anti-spam: Rate limiting
-// ---------------------------------------------------------------------------
-
-/**
- * Check if an IP has exceeded the comment rate limit.
- * Uses ip_hash in the comments table — no separate counter storage.
- */
-export async function checkRateLimit(
-	db: Kysely<Database>,
-	ipHash: string,
-	maxPerWindow: number = 5,
-	windowMinutes: number = 10,
-): Promise<boolean> {
-	const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
-
-	// Count recent comments from this IP
-	const result = await db
-		.selectFrom("_emdash_comments")
-		.select((eb) => eb.fn.count("id").as("count"))
-		.where("ip_hash", "=", ipHash)
-		.where("created_at", ">", cutoff)
-		.executeTakeFirst();
-
-	const count = Number(result?.count ?? 0);
-	return count >= maxPerWindow;
-}
-
 /**
  * Hash an IP address for storage (never store cleartext IPs).
  *

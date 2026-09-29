@@ -84,6 +84,10 @@ const sidebar = await getWidgetArea("sidebar");
 const results = await search("hello world", { collections: ["posts"] });
 ```
 
+## Internal entrypoints
+
+Subpaths under `emdash/internal/` are loaded by the EmDash Astro integration and by first-party packages such as `@emdash-cms/cloudflare`. They are not public API, and their exports can change or be removed in any release. Import from the documented entrypoints instead.
+
 ## Documentation
 
 See the [documentation site](https://docs.emdashcms.com) for guides, API reference, and plugin development.

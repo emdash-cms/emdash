@@ -35,7 +35,7 @@ Registry plugins run against a capability-gated host API, not the complete trust
 - `public: true` removes host authentication. It does not create a restricted public view; validate requests and return the minimum data.
 - Raw routes use `pluginResponse()`, an allowlisted set of representation/download/redirect headers, host-owned caching and security headers, and no active same-origin browser content. They cannot back MCP tools.
 - Credential, cookie, Cloudflare Access, proxy authorization, and EmDash CSRF headers never cross declared route-header boundaries.
-- Saved-entry panels and actions receive canonical saved identity and version, not field values or unsaved state. Use capability-gated APIs to read saved content.
+- Saved-entry panels and actions receive canonical saved identity and version. Ordinary panel load and typing never send unsaved state. An explicit interaction can receive only extension-selected draft fields with `admin.editor-draft:read`, and can propose an atomic whole-field patch with the independent `admin.editor-draft:patch` capability. The host validates and previews a patch but never saves it automatically. Use capability-gated APIs to read saved content.
 - `routeCtx.ui` carries host-attested admin locale, direction, and surface. Manifest labels remain static strings; the host does not consume plugin translation catalogs.
 
 ## Runner-only methods are not portable

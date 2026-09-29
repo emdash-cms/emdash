@@ -35,6 +35,8 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `comment:moderate`      | Decide comment approval status        | Status            | Yes       |
 | `comment:afterCreate`   | After comment is stored               | Nothing           | No        |
 | `comment:afterModerate` | After admin changes comment status    | Nothing           | No        |
+| `byline:afterSave`      | After a byline is created or updated  | Nothing           | No        |
+| `byline:afterDelete`    | After a byline is deleted             | Nothing           | No        |
 | `page:metadata`         | Rendering public page head            | Contribute tags   | No        |
 | `page:fragments`        | Rendering public page body            | Inject scripts    | No        |
 | `plugin:install`        | When plugin is first installed        | Nothing           | No        |
@@ -478,7 +480,7 @@ The uninstall hook has no return value.
 
 **Capability:** None required
 
-Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`.
+Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`. Cron expressions are evaluated in UTC on every host.
 
 ```ts
 hooks: {
@@ -531,7 +533,14 @@ hooks: {
 
 ```ts
 interface EmailBeforeSendEvent {
-	message: { to: string; subject: string; text: string; html?: string };
+	message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	};
 	source: string;
 }
 ```
@@ -562,12 +571,21 @@ hooks: {
 
 ```ts
 interface EmailDeliverEvent {
-	message: { to: string; subject: string; text: string; html?: string };
+	message: {
+		to: string;
+		cc?: string[];
+		replyTo?: string;
+		subject: string;
+		text: string;
+		html?: string;
+	};
 	source: string;
 }
 ```
 
 The hook has no return value. `source` is `"system"` for EmDash authentication messages and the plugin ID for messages sent by a plugin.
+
+Plugins can set `cc` (additional recipients) and `replyTo` on a message. Providers should deliver both when they are present; a provider that drops `cc` silently leaves those recipients without the message.
 
 ### `email:afterSend`
 
@@ -698,6 +716,10 @@ interface CommentModerateEvent {
 { status: "approved" | "pending" | "spam"; reason?: string }
 ```
 
+#### Active moderator
+
+EmDash includes a built-in moderator that applies the collection's comment settings. When exactly one plugin provides `comment:moderate`, EmDash selects that plugin instead of the built-in moderator and stores the choice. When several plugins provide it and no choice is stored, EmDash selects none of them and new comments wait for review. A stored choice, including one of the built-in moderator, stays in effect while the selected moderator is enabled.
+
 ### `comment:afterCreate`
 
 **Capability:** `users:read`
@@ -749,6 +771,59 @@ interface CommentAfterModerateEvent {
 	origin?:
 		| { source: "admin"; userId: string }
 		| { source: "plugin"; pluginId: string };
+}
+```
+
+The hook has no return value.
+
+## Byline hooks
+
+Byline hooks run after the admin API or an MCP tool changes a byline profile. They do not run for seeds or imports. Use them to keep an external copy of author data, such as a search index, current. Hook errors are logged and do not undo the change.
+
+Relinking a byline to a different user can change the credits inferred for that user's entries. No per-entry hook runs for that change.
+
+### `byline:afterSave`
+
+**Capability:** `bylines:read`
+
+Runs after a byline or a byline translation is created or updated.
+
+```ts
+hooks: {
+  "byline:afterSave": async (event, ctx) => {
+    await ctx.storage.authors.put(event.byline.id, {
+      name: event.byline.displayName,
+      slug: event.byline.slug,
+    });
+  },
+}
+```
+
+#### Event
+
+```ts
+interface BylineAfterSaveEvent {
+	byline: BylineInfo;
+	/** `true` when the byline was just created. */
+	isNew: boolean;
+}
+```
+
+`BylineInfo` has the same public fields that `ctx.bylines.get()` returns. It omits the linked user account, guest flag, and custom field values.
+
+The hook has no return value.
+
+### `byline:afterDelete`
+
+**Capability:** `bylines:read`
+
+Runs after a byline is deleted. The event carries the byline as it was before deletion.
+
+#### Event
+
+```ts
+interface BylineAfterDeleteEvent {
+	byline: BylineInfo;
 }
 ```
 

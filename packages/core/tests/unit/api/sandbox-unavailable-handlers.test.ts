@@ -1,8 +1,9 @@
 /** Pins what a refused install or update tells the operator about the sandbox runner. */
 
-import BetterSqlite3 from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { NodeSqliteCompatDatabase as BetterSqlite3 } from "#node-sqlite";
 
 import {
 	handleMarketplaceInstall,
@@ -35,7 +36,7 @@ function unavailableRunner(reason?: string): SandboxRunner {
 
 describe("install and update with an unavailable sandbox runner", () => {
 	let db: Kysely<DbSchema>;
-	let sqliteDb: BetterSqlite3.Database;
+	let sqliteDb: BetterSqlite3;
 
 	beforeEach(async () => {
 		sqliteDb = new BetterSqlite3(":memory:");

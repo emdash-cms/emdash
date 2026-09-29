@@ -17,11 +17,14 @@ import type {
 import { routeNameSchema } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
-import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
+import { SiteWriteBlockedError } from "../transfer/fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
+import { PluginRouteError } from "./route-error.js";
 import { parseDeclaredPluginRouteInput } from "./route-wire.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
+
+export { PluginRouteError };
 
 /**
  * Body-reading methods on `Request`. EmDash parses the request body once before
@@ -282,7 +285,7 @@ export class PluginRouteHandler {
 				status: 200,
 			};
 		} catch (error) {
-			if (error instanceof MediaUsageActivationWriteBlockedError) {
+			if (error instanceof SiteWriteBlockedError) {
 				return {
 					success: false,
 					error: { code: error.code, message: error.message },
@@ -337,64 +340,6 @@ export class PluginRouteHandler {
 		const route: PluginRoute | undefined = this.plugin.routes[name];
 		if (!route) return null;
 		return buildRouteMeta(route);
-	}
-}
-
-/**
- * Error class for plugin routes
- * Allows plugins to return structured errors with specific HTTP status codes
- */
-export class PluginRouteError extends Error {
-	constructor(
-		public code: string,
-		message: string,
-		public status: number = 400,
-		public details?: unknown,
-	) {
-		super(message);
-		this.name = "PluginRouteError";
-	}
-
-	/**
-	 * Create a bad request error (400)
-	 */
-	static badRequest(message: string, details?: unknown): PluginRouteError {
-		return new PluginRouteError("BAD_REQUEST", message, 400, details);
-	}
-
-	/**
-	 * Create an unauthorized error (401)
-	 */
-	static unauthorized(message: string = "Unauthorized"): PluginRouteError {
-		return new PluginRouteError("UNAUTHORIZED", message, 401);
-	}
-
-	/**
-	 * Create a forbidden error (403)
-	 */
-	static forbidden(message: string = "Forbidden"): PluginRouteError {
-		return new PluginRouteError("FORBIDDEN", message, 403);
-	}
-
-	/**
-	 * Create a not found error (404)
-	 */
-	static notFound(message: string = "Not found"): PluginRouteError {
-		return new PluginRouteError("NOT_FOUND", message, 404);
-	}
-
-	/**
-	 * Create a conflict error (409)
-	 */
-	static conflict(message: string, details?: unknown): PluginRouteError {
-		return new PluginRouteError("CONFLICT", message, 409, details);
-	}
-
-	/**
-	 * Create an internal error (500)
-	 */
-	static internal(message: string = "Internal error"): PluginRouteError {
-		return new PluginRouteError("INTERNAL_ERROR", message, 500);
 	}
 }
 

@@ -11,6 +11,10 @@ import {
 	type ResolvedSandboxedEditorAction,
 } from "../lib/sandboxed-editor-extensions.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
+import type {
+	BrowserEditorDraftRequest,
+	EditorDraftResponse,
+} from "./SandboxedContentEditorPanel.js";
 
 const MAX_TOOLBAR_ACTIONS = 3;
 
@@ -21,7 +25,15 @@ interface SandboxedContentEditorActionsProps {
 	locale?: string | null;
 	isMobile?: boolean;
 	disabled?: boolean;
+	hasUnsavedChanges?: boolean;
 	onEntryRefresh?: () => void | Promise<void>;
+	captureDraft?: (
+		access: NonNullable<ResolvedSandboxedEditorAction["extension"]["draft"]>,
+	) => BrowserEditorDraftRequest | null;
+	onDraftResponse?: (
+		access: NonNullable<ResolvedSandboxedEditorAction["extension"]["draft"]>,
+		response: EditorDraftResponse,
+	) => void;
 }
 
 export function SandboxedContentEditorActions({
@@ -31,7 +43,10 @@ export function SandboxedContentEditorActions({
 	locale,
 	isMobile = false,
 	disabled = false,
+	hasUnsavedChanges = false,
 	onEntryRefresh,
+	captureDraft,
+	onDraftResponse,
 }: SandboxedContentEditorActionsProps) {
 	const { t, i18n } = useLingui();
 	const toastManager = Toast.useToastManager();
@@ -71,7 +86,7 @@ export function SandboxedContentEditorActions({
 
 	const invoke = React.useCallback(
 		async (action: ResolvedSandboxedEditorAction) => {
-			if (disabled) return;
+			if (disabled || (hasUnsavedChanges && !action.extension.draft)) return;
 			const key = `${action.pluginId}:${action.extension.id}`;
 			if (pendingRef.current.has(key)) return;
 			pendingRef.current.add(key);
@@ -81,6 +96,7 @@ export function SandboxedContentEditorActions({
 			setPending((current) => new Set(current).add(key));
 			setConfirmError(null);
 			try {
+				const draft = action.extension.draft ? captureDraft?.(action.extension.draft) : null;
 				const response = await apiFetch(
 					editorExtensionUrl(
 						collection,
@@ -90,7 +106,11 @@ export function SandboxedContentEditorActions({
 						action.extension.id,
 						locale,
 					),
-					{ method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+					{
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(draft ? { draft } : {}),
+					},
 				);
 				if (
 					requestIdentity !== identityRef.current ||
@@ -99,7 +119,9 @@ export function SandboxedContentEditorActions({
 					return;
 				}
 				if (!response.ok) throw new Error(t`Plugin action failed`);
-				const body = (await response.json()) as { data: ContentEditorActionResponse };
+				const body = (await response.json()) as {
+					data: ContentEditorActionResponse & EditorDraftResponse;
+				};
 				if (
 					requestIdentity !== identityRef.current ||
 					generations.current.get(key) !== requestGeneration
@@ -115,6 +137,9 @@ export function SandboxedContentEditorActions({
 				}
 				if (body.data.toast) {
 					toastManager.add({ title: body.data.toast.message, type: body.data.toast.type });
+				}
+				if (action.extension.draft && (body.data.patch || body.data.editorInvocation)) {
+					onDraftResponse?.(action.extension.draft, body.data);
 				}
 				applyNavigation(action, body.data);
 				setConfirming(null);
@@ -140,12 +165,15 @@ export function SandboxedContentEditorActions({
 		},
 		[
 			applyNavigation,
+			captureDraft,
 			collection,
 			disabled,
+			hasUnsavedChanges,
 			entryId,
 			identity,
 			locale,
 			onEntryRefresh,
+			onDraftResponse,
 			t,
 			toastManager,
 		],
@@ -153,7 +181,7 @@ export function SandboxedContentEditorActions({
 
 	const choose = React.useCallback(
 		(action: ResolvedSandboxedEditorAction) => {
-			if (disabled) return;
+			if (disabled || (hasUnsavedChanges && !action.extension.draft)) return;
 			if (action.extension.confirm) {
 				setConfirmError(null);
 				setConfirming(action);
@@ -161,7 +189,7 @@ export function SandboxedContentEditorActions({
 			}
 			void invoke(action);
 		},
-		[disabled, invoke],
+		[disabled, hasUnsavedChanges, invoke],
 	);
 
 	const toolbarCandidates = isMobile
@@ -177,6 +205,9 @@ export function SandboxedContentEditorActions({
 	const actionLabel = (action: ResolvedSandboxedEditorAction) =>
 		i18n._({ id: action.extension.label, message: action.extension.label });
 	const confirmingKey = confirming ? `${confirming.pluginId}:${confirming.extension.id}` : null;
+	const isActionDisabled = (action: ResolvedSandboxedEditorAction) =>
+		disabled || (hasUnsavedChanges && !action.extension.draft);
+	const allActionsDisabled = actions.every(isActionDisabled);
 
 	if (actions.length === 0) return null;
 	return (
@@ -190,8 +221,10 @@ export function SandboxedContentEditorActions({
 						size="sm"
 						variant={action.extension.style === "danger" ? "destructive" : "secondary"}
 						loading={pending.has(key)}
-						disabled={disabled}
-						title={disabled ? t`Save changes before running plugin actions` : undefined}
+						disabled={isActionDisabled(action)}
+						title={
+							isActionDisabled(action) ? t`Save changes before running plugin actions` : undefined
+						}
 						onClick={() => choose(action)}
 					>
 						{actionLabel(action)}
@@ -207,8 +240,10 @@ export function SandboxedContentEditorActions({
 								variant="ghost"
 								shape="square"
 								aria-label={t`Plugin actions`}
-								disabled={disabled}
-								title={disabled ? t`Save changes before running plugin actions` : undefined}
+								disabled={allActionsDisabled}
+								title={
+									allActionsDisabled ? t`Save changes before running plugin actions` : undefined
+								}
 								icon={<DotsThree aria-hidden="true" />}
 							/>
 						}
@@ -220,7 +255,7 @@ export function SandboxedContentEditorActions({
 								<DropdownMenu.Item
 									key={key}
 									variant={action.extension.style === "danger" ? "danger" : "default"}
-									disabled={disabled || pending.has(key)}
+									disabled={isActionDisabled(action) || pending.has(key)}
 									onClick={() => choose(action)}
 								>
 									{actionLabel(action)}
@@ -247,7 +282,7 @@ export function SandboxedContentEditorActions({
 					pendingLabel={t`Working…`}
 					variant={confirming.extension.style === "danger" ? "destructive" : "primary"}
 					preventCloseWhilePending
-					confirmDisabled={disabled}
+					confirmDisabled={isActionDisabled(confirming)}
 					isPending={confirmingKey ? pending.has(confirmingKey) : false}
 					error={confirmError}
 					onConfirm={() => void invoke(confirming)}

@@ -35,6 +35,15 @@ export interface LinkElement {
 
 export type NavigationElement = LinkElement;
 
+/** A button that opens a list of choices; picking one dispatches `action_id` with the item's value. */
+export interface MenuElement {
+	type: "menu";
+	action_id: string;
+	label: string;
+	items: Array<{ label: string; value: string }>;
+	style?: "primary" | "secondary";
+}
+
 export interface TextInputElement {
 	type: "text_input";
 	action_id: string;
@@ -180,7 +189,7 @@ export type Element =
 	| RepeaterElement
 	| MediaPickerElement;
 
-export type ActionElement = Element | NavigationElement;
+export type ActionElement = Element | NavigationElement | MenuElement;
 
 // ── Form Fields (elements + optional condition) ──────────────────────────────
 
@@ -208,7 +217,8 @@ export type FormField = (
 export interface TableColumn {
 	key: string;
 	label: string;
-	format?: "text" | "badge" | "relative_time" | "number" | "code";
+	/** `element`: each row holds a button, link, or menu element under this column's key. */
+	format?: "text" | "badge" | "relative_time" | "number" | "code" | "element";
 	sortable?: boolean;
 }
 
@@ -461,11 +471,50 @@ export type BlockInteraction = BlockAction | FormSubmit | PageLoad;
 
 export type ContentEditorPanelInteraction =
 	| { type: "panel_load" }
-	| Omit<BlockAction, "page">
-	| Omit<FormSubmit, "page">;
+	| (Omit<BlockAction, "page"> & { draft?: EditorDraftSnapshot })
+	| (Omit<FormSubmit, "page"> & { draft?: EditorDraftSnapshot });
 
 export interface ContentEditorActionInvocation {
 	type: "editor_action";
+	draft?: EditorDraftSnapshot;
+}
+
+export interface EditorDraftFieldDefinition {
+	slug: string;
+	label: string;
+	type: string;
+	required: boolean;
+	translatable: boolean;
+	validation?: Record<string, unknown>;
+	options?: unknown;
+}
+
+export interface EditorDraftSnapshot {
+	collection: string;
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	invocationId: string;
+	fields: Record<string, unknown>;
+	fieldDefinitions: EditorDraftFieldDefinition[];
+}
+
+export type EditorDraftPatchOperation =
+	| { op: "set"; field: string; value: unknown }
+	| { op: "clear"; field: string };
+
+export interface EditorDraftPatchEffect {
+	type: "editor-draft-patch";
+	operations: EditorDraftPatchOperation[];
+}
+
+export interface EditorDraftInvocationReceipt {
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	generation: number;
+	invocationId: string;
+	fieldDefinitions: EditorDraftFieldDefinition[];
 }
 
 // ── Response ─────────────────────────────────────────────────────────────────
@@ -473,6 +522,9 @@ export interface ContentEditorActionInvocation {
 export interface BlockResponse {
 	blocks: Block[];
 	toast?: { message: string; type: "success" | "error" | "info" };
+	patch?: EditorDraftPatchEffect;
+	refresh?: true;
+	navigate?: LinkTarget;
 }
 
 /** Bounded host effects returned by a content-editor action route. */
@@ -480,4 +532,5 @@ export interface ContentEditorActionResponse {
 	toast?: { message: string; type: "success" | "error" | "info" };
 	refresh?: true;
 	navigate?: LinkTarget;
+	patch?: EditorDraftPatchEffect;
 }

@@ -42,7 +42,11 @@ function buildRequest(host: string, body: unknown): Request {
 	});
 }
 
-function buildContext(db: Kysely<Database>, request: Request): APIContext {
+function buildContext(
+	db: Kysely<Database>,
+	request: Request,
+	config: { siteUrl?: string } = {},
+): APIContext {
 	return {
 		params: {},
 		url: new URL(request.url),
@@ -50,7 +54,7 @@ function buildContext(db: Kysely<Database>, request: Request): APIContext {
 		locals: {
 			emdash: {
 				db,
-				config: {},
+				config,
 				storage: undefined,
 			},
 		},
@@ -66,20 +70,50 @@ describe("POST /setup — site_url write-once lock", () => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
 		await teardownTestDatabase(db);
 	});
 
-	it("stores site_url from the first request", async () => {
+	it("rejects setup on a public host without a configured site URL", async () => {
 		const res = await postSetup(
 			buildContext(
 				db,
 				buildRequest("real-site.example", { title: "My Site", includeContent: false }),
 			),
 		);
+		expect(res.status).toBe(500);
+		expect(await res.json()).toMatchObject({
+			error: { code: "SITE_URL_REQUIRED" },
+		});
+
+		const options = new OptionsRepository(db);
+		expect(await options.get("emdash:site_url")).toBeNull();
+	});
+
+	it("uses the request origin for loopback development", async () => {
+		vi.stubEnv("DEV", true);
+		const res = await postSetup(
+			buildContext(db, buildRequest("127.0.0.1:4321", { title: "My Site", includeContent: false })),
+		);
 		expect(res.status).toBe(200);
 
 		const options = new OptionsRepository(db);
-		expect(await options.get("emdash:site_url")).toBe("http://real-site.example");
+		expect(await options.get("emdash:site_url")).toBe("http://127.0.0.1:4321");
+	});
+
+	it("rejects a spoofed loopback Host in production", async () => {
+		vi.stubEnv("DEV", false);
+		const res = await postSetup(
+			buildContext(db, buildRequest("localhost:4321", { title: "My Site", includeContent: false })),
+		);
+
+		expect(res.status).toBe(500);
+		expect(await res.json()).toMatchObject({
+			error: { code: "SITE_URL_REQUIRED" },
+		});
+
+		const options = new OptionsRepository(db);
+		expect(await options.get("emdash:site_url")).toBeNull();
 	});
 
 	it("does not overwrite site_url when a later setup call arrives with a spoofed Host", async () => {
@@ -88,6 +122,7 @@ describe("POST /setup — site_url write-once lock", () => {
 			buildContext(
 				db,
 				buildRequest("real-site.example", { title: "My Site", includeContent: false }),
+				{ siteUrl: "https://real-site.example" },
 			),
 		);
 		expect(first.status).toBe(200);
@@ -99,12 +134,13 @@ describe("POST /setup — site_url write-once lock", () => {
 			buildContext(
 				db,
 				buildRequest("attacker.example", { title: "My Site", includeContent: false }),
+				{ siteUrl: "https://real-site.example" },
 			),
 		);
 		expect(second.status).toBe(200);
 
 		const options = new OptionsRepository(db);
-		expect(await options.get("emdash:site_url")).toBe("http://real-site.example");
+		expect(await options.get("emdash:site_url")).toBe("https://real-site.example");
 	});
 
 	it("is atomic under concurrent setup POSTs with different Hosts", async () => {
@@ -116,12 +152,14 @@ describe("POST /setup — site_url write-once lock", () => {
 				buildContext(
 					db,
 					buildRequest("real-site.example", { title: "My Site", includeContent: false }),
+					{ siteUrl: "https://real-site.example" },
 				),
 			),
 			postSetup(
 				buildContext(
 					db,
 					buildRequest("attacker.example", { title: "My Site", includeContent: false }),
+					{ siteUrl: "https://real-site.example" },
 				),
 			),
 		]);
@@ -132,10 +170,12 @@ describe("POST /setup — site_url write-once lock", () => {
 		const stored = await options.get("emdash:site_url");
 		// Whichever call won the race must now stick — a third caller must
 		// not be able to overwrite it.
-		expect(["http://real-site.example", "http://attacker.example"]).toContain(stored);
+		expect(stored).toBe("https://real-site.example");
 
 		const third = await postSetup(
-			buildContext(db, buildRequest("other.example", { title: "My Site", includeContent: false })),
+			buildContext(db, buildRequest("other.example", { title: "My Site", includeContent: false }), {
+				siteUrl: "https://real-site.example",
+			}),
 		);
 		expect(third.status).toBe(200);
 		expect(await options.get("emdash:site_url")).toBe(stored);
@@ -152,6 +192,7 @@ describe("POST /setup — site_url write-once lock", () => {
 			buildContext(
 				db,
 				buildRequest("attacker.example", { title: "My Site", includeContent: false }),
+				{ siteUrl: "https://real-site.example" },
 			),
 		);
 		expect(res.status).toBe(200);

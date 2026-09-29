@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Syncs shared files from base templates to their cloudflare variants.
-# Run this after making changes to template src/, seed/, or tsconfig.json.
+# Run this after making changes to shared template src/ or seed/ files.
 #
 # Usage: ./scripts/sync-cloudflare-templates.sh
 #
@@ -19,7 +19,6 @@ SYNC_ITEMS=(
 	"src"
 	"public"
 	"seed"
-	"tsconfig.json"
 	"emdash-env.d.ts"
 )
 

@@ -142,6 +142,19 @@ describe("RegistryBrowse listing safety", () => {
 		expect(link.getAttribute("href")).toBe("/plugins/registry/@example.com/unsafe");
 	});
 
+	it("marks registry packages already installed on this site", async () => {
+		const pkg = packageView("Installed Gallery");
+		mockSearchRegistryPackages.mockResolvedValue({ packages: [pkg] });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryBrowse config={CONFIG} installedRegistryUris={new Set([pkg.uri])} />
+			</QueryClientProvider>,
+		);
+
+		await expect.element(screen.getByText("Installed", { exact: true })).toBeInTheDocument();
+	});
+
 	it("shows a conspicuous invalid-handle state without rendering an unverified handle", async () => {
 		mockSearchRegistryPackages.mockResolvedValue({ packages: [packageView("Unsafe Publisher")] });
 		mockResolveDidToHandle.mockResolvedValue({ status: "invalid" });

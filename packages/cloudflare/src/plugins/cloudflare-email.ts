@@ -62,7 +62,8 @@ export interface CloudflareEmailConfig {
 
 	/**
 	 * Optional Reply-To address — useful when the sender is a
-	 * no-reply style subdomain address.
+	 * no-reply style subdomain address. A message's own `replyTo` takes
+	 * precedence.
 	 */
 	replyTo?: string;
 }
@@ -71,6 +72,7 @@ export interface CloudflareEmailConfig {
 interface SendEmailBinding {
 	send(message: {
 		to: string | string[];
+		cc?: string[];
 		from: { email: string; name?: string };
 		subject: string;
 		text?: string;
@@ -86,12 +88,18 @@ interface SendEmailBinding {
  * `Astro.locals.runtime`. The `cloudflare:workers` module exposes the
  * same env to any code bundled into the Worker — including in `astro dev`
  * when the Cloudflare Vite plugin provides the workerd runtime.
+ *
+ * The env is imported through `cloudflare-email-env.ts` rather than directly,
+ * so the built-in module is referenced via a static import in a dedicated
+ * helper. This avoids relying on a direct dynamic import of `cloudflare:workers`
+ * in the bundled Worker, which some Astro Cloudflare builds do not resolve
+ * correctly.
  */
 async function loadWorkerEnv(): Promise<Record<string, unknown>> {
 	try {
-		const mod = await import("cloudflare:workers");
+		const { env } = await import("./cloudflare-email-env.js");
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Env is deployment-specific; the binding lookup validates the shape
-		return mod.env as unknown as Record<string, unknown>;
+		return env as unknown as Record<string, unknown>;
 	} catch {
 		throw new Error(
 			"[cloudflare-email] cloudflare:workers is not available — this provider " +
@@ -127,13 +135,15 @@ export function createCloudflareEmailDeliver(
 			);
 		}
 
+		const replyTo = message.replyTo ?? config.replyTo;
 		const result = await binding.send({
 			from,
 			to: message.to,
 			subject: message.subject,
 			text: message.text,
 			...(message.html ? { html: message.html } : {}),
-			...(config.replyTo ? { replyTo: config.replyTo } : {}),
+			...(message.cc?.length ? { cc: message.cc } : {}),
+			...(replyTo ? { replyTo } : {}),
 		});
 
 		ctx.log.info("email delivered via Cloudflare Email Sending", {

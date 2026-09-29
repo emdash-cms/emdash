@@ -186,6 +186,12 @@ describe("normalizeCapabilities", () => {
 });
 
 describe("normalizePluginCapabilities", () => {
+	it("does not make editor draft patch imply read", () => {
+		expect(normalizePluginCapabilities(["admin.editor-draft:patch"])).toEqual([
+			"admin.editor-draft:patch",
+		]);
+	});
+
 	it.each(PLUGIN_CAPABILITY_IMPLICATIONS)("implies %s -> %s", (granted, implied) => {
 		expect(normalizePluginCapabilities([granted])).toEqual([granted, implied]);
 	});

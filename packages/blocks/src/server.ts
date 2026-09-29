@@ -9,12 +9,14 @@
 export { blocks, elements } from "./builders.js";
 export {
 	BLOCK_RESPONSE_LIMITS,
+	isEditorDraftPatchEffect,
 	isSafePluginPagePath,
 	normalizePluginPagePath,
 	validateBlockResponse,
 	validateBlocks,
 	validateContentEditorActionResponse,
 	validateContentEditorPanelInteraction,
+	validateEditorDraftPatchEffect,
 } from "./validation.js";
 export type { BlockValidationPolicy, ValidationError } from "./validation.js";
 
@@ -26,6 +28,7 @@ export type {
 	LinkElement,
 	LinkTarget,
 	NavigationElement,
+	MenuElement,
 	ActionElement,
 	TextInputElement,
 	NumberInputElement,
@@ -61,6 +64,11 @@ export type {
 	ContentEditorActionInvocation,
 	PluginUiContext,
 	ContentEditorActionResponse,
+	EditorDraftFieldDefinition,
+	EditorDraftInvocationReceipt,
+	EditorDraftPatchEffect,
+	EditorDraftPatchOperation,
+	EditorDraftSnapshot,
 	// Response
 	BlockResponse,
 } from "./types.js";

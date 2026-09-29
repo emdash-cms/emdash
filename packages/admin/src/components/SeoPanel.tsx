@@ -211,7 +211,7 @@ export function SeoPanel({
 					rows={3}
 					dir="auto"
 				/>
-				<p id={`${descriptionId}-count`} className="text-sm leading-snug text-kumo-subtle">
+				<p id={`${descriptionId}-count`} className="text-xs leading-4 text-kumo-subtle">
 					{t`${draft.description.length}/160 characters`}
 				</p>
 			</div>

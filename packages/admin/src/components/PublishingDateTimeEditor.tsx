@@ -604,12 +604,18 @@ export function PublicationDateDialog({
 				}
 			>
 				<span className="flex w-full min-w-0 items-center gap-2">
-					<Text as="span" variant="secondary" truncate DANGEROUS_className="flex-1 text-start">
+					<Text
+						as="span"
+						variant="secondary"
+						size="xs"
+						truncate
+						DANGEROUS_className="flex-1 text-start"
+					>
 						{label}
 					</Text>
 					<span className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap text-end">
 						<time dateTime={publishedAt}>
-							<Text as="span" variant="secondary" size="sm">
+							<Text as="span" variant="secondary" size="xs">
 								{formattedValue}
 							</Text>
 						</time>

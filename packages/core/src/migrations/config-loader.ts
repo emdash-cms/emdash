@@ -121,11 +121,16 @@ async function loadProjectConfig(projectRoot: string, configFile: string): Promi
 			"The Vite installation used by project-local Astro does not export loadConfigFromFile",
 		);
 	}
+	// The runner transforms dependencies that publish TypeScript source. The
+	// default bundle loader leaves them to Node, which refuses to strip types
+	// under node_modules.
 	const loaded: unknown = await Reflect.apply(loadConfigFromFile, undefined, [
 		{ command: "build", mode: "production" },
 		configFile,
 		projectRoot,
 		"silent",
+		undefined,
+		"runner",
 	]);
 	if (!isRecord(loaded) || !Object.hasOwn(loaded, "config")) {
 		throw new MigrationConfigLoaderError(`Vite could not load Astro config: ${configFile}`);

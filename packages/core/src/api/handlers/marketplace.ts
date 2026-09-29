@@ -25,11 +25,12 @@ import {
 import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import type { PluginState } from "../../plugins/state.js";
 import {
 	removeAllPluginIndexes,
 	syncDeclaredStorageIndexes,
 } from "../../plugins/storage-indexes.js";
-import { normalizeCapabilities } from "../../plugins/types.js";
+import { normalizeCapabilities, warnDeprecatedPluginCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
@@ -54,6 +55,11 @@ export interface MarketplaceUpdateResult {
 	routeVisibilityChanges?: {
 		newlyPublic: string[];
 	};
+}
+
+export interface PluginUpdateRollbackResult {
+	pluginId: string;
+	version: string;
 }
 
 export interface MarketplaceUpdateCheck {
@@ -169,6 +175,23 @@ async function resolveVersionMetadata(
 	return versions.find((v) => v.version === version) ?? null;
 }
 
+/** A null verdict means no audit ran, which is allowed; "fail" and "warn" are not. */
+function checkAuditVerdict(versionMetadata: MarketplaceVersionSummary): ApiResult<never> | null {
+	if (versionMetadata.auditVerdict !== "fail" && versionMetadata.auditVerdict !== "warn") {
+		return null;
+	}
+	return {
+		success: false,
+		error: {
+			code: "AUDIT_FAILED",
+			message:
+				versionMetadata.auditVerdict === "fail"
+					? "Plugin failed security audit and cannot be installed or updated"
+					: "Plugin audit was inconclusive and cannot be installed or updated until reviewed",
+		},
+	};
+}
+
 function validateBundleIdentity(
 	bundle: PluginBundle,
 	pluginId: string,
@@ -277,6 +300,7 @@ export async function loadBundleFromR2(
 		const result = pluginManifestSchema.safeParse(parsed);
 		if (!result.success) return null;
 		const manifest = reconcileManifestAccess(result.data);
+		warnDeprecatedPluginCapabilities(manifest.id, manifest.capabilities);
 
 		// Try to load admin code (optional)
 		let adminCode: string | undefined;
@@ -311,6 +335,55 @@ export async function deleteBundleFromR2(
 		} catch {
 			// Ignore missing files
 		}
+	}
+}
+
+export async function rollbackPluginUpdate(
+	db: Kysely<Database>,
+	storage: Storage | null,
+	previousState: PluginState,
+	failedVersion: string,
+	source: PluginBundleSource,
+): Promise<ApiResult<PluginUpdateRollbackResult>> {
+	if (!storage) {
+		return {
+			success: false,
+			error: { code: "STORAGE_NOT_CONFIGURED", message: "Storage is required" },
+		};
+	}
+	if (previousState.source !== source) {
+		return {
+			success: false,
+			error: { code: "UPDATE_ROLLBACK_CONFLICT", message: "Plugin source changed during update" },
+		};
+	}
+
+	try {
+		const restored = await new PluginStateRepository(db).restoreIfVersion(
+			failedVersion,
+			previousState,
+		);
+		if (!restored) {
+			return {
+				success: false,
+				error: {
+					code: "UPDATE_ROLLBACK_CONFLICT",
+					message: "Plugin state changed before the failed update could be rolled back",
+				},
+			};
+		}
+
+		await deleteBundleFromR2(storage, previousState.pluginId, failedVersion, source);
+		return {
+			success: true,
+			data: { pluginId: previousState.pluginId, version: previousState.version },
+		};
+	} catch (error) {
+		console.error("Failed to roll back plugin update:", error);
+		return {
+			success: false,
+			error: { code: "UPDATE_ROLLBACK_FAILED", message: "Failed to roll back plugin update" },
+		};
 	}
 }
 
@@ -424,22 +497,8 @@ export async function handleMarketplaceInstall(
 			};
 		}
 
-		// Block installation of plugins that haven't passed audit.
-		// Both "fail" (explicitly malicious) and "warn" (audit error or
-		// inconclusive) are non-installable — only "pass" or null (no audit
-		// ran) are allowed through.
-		if (versionMetadata.auditVerdict === "fail" || versionMetadata.auditVerdict === "warn") {
-			return {
-				success: false,
-				error: {
-					code: "AUDIT_FAILED",
-					message:
-						versionMetadata.auditVerdict === "fail"
-							? "Plugin failed security audit and cannot be installed"
-							: "Plugin audit was inconclusive and cannot be installed until reviewed",
-				},
-			};
-		}
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
 
 		// Download and extract bundle
 		const bundle = await client.downloadBundle(pluginId, version);
@@ -665,6 +724,9 @@ export async function handleMarketplaceUpdate(
 			};
 		}
 
+		const auditError = checkAuditVerdict(versionMetadata);
+		if (auditError) return auditError;
+
 		// Download new bundle
 		const bundle = await client.downloadBundle(pluginId, newVersion);
 
@@ -814,11 +876,6 @@ export async function handleMarketplaceUninstall(
 		const version = existing.marketplaceVersion ?? existing.version;
 		await opts?.beforeDelete?.();
 
-		// Delete bundle from site R2
-		if (storage) {
-			await deleteBundleFromR2(storage, pluginId, version);
-		}
-
 		// Optionally delete plugin storage data
 		let dataDeleted = false;
 		if (opts?.deleteData) {
@@ -838,6 +895,12 @@ export async function handleMarketplaceUninstall(
 
 		// Delete state row
 		await stateRepo.delete(pluginId);
+
+		// Delete the bundle after database state. A failed external cleanup can
+		// leave an inert orphan, but never an active row pointing at missing bytes.
+		if (storage) {
+			await deleteBundleFromR2(storage, pluginId, version);
+		}
 
 		return {
 			success: true,

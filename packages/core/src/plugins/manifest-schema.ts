@@ -4,7 +4,7 @@
  * Used to validate manifest.json from plugin bundles at every parse site:
  * - Client-side download (marketplace.ts extractBundle)
  * - R2 load (api/handlers/marketplace.ts loadBundleFromR2)
- * - CLI publish preview (cli/commands/publish.ts readManifestFromTarball)
+ * - marketplace and registry bundle validation
  * - Marketplace ingest extends this with publishing-specific fields
  */
 
@@ -38,9 +38,12 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"comments:read",
 	"comments:moderate",
 	"schema:read",
+	"admin.editor-draft:read",
+	"admin.editor-draft:patch",
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
+	"bylines:read",
 	"redirects:read",
 	"redirects:write",
 	"media:read",
@@ -102,6 +105,7 @@ const FIELD_TYPES = [
 	"json",
 	"slug",
 	"repeater",
+	"blocks",
 ] as const;
 
 export const HOOK_NAMES = [
@@ -131,6 +135,8 @@ export const HOOK_NAMES = [
 	"comment:moderate",
 	"comment:afterCreate",
 	"comment:afterModerate",
+	"byline:afterSave",
+	"byline:afterDelete",
 	"page:metadata",
 	"page:fragments",
 ] as const;
@@ -247,13 +253,44 @@ const editorCollectionsSchema = z
 	.refine((collections) => new Set(collections).size === collections.length, {
 		message: "Editor extension collections must be unique",
 	});
-const editorPanelSchema = z.object({
-	id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
-	title: z.string().min(1).max(128),
-	route: routeNameSchema.max(128),
-	collections: editorCollectionsSchema.optional(),
-	order: z.number().int().min(-1_000).max(1_000).optional(),
-});
+const editorDraftFieldSelectorSchema = z
+	.object({
+		fields: z
+			.array(z.string().max(63).regex(collectionSlugPattern, "Invalid field slug"))
+			.max(32)
+			.refine((fields) => new Set(fields).size === fields.length, {
+				message: "Editor draft fields must be unique",
+			})
+			.optional(),
+		translatable: z.literal(true).optional(),
+	})
+	.refine((selector) => (selector.fields?.length ?? 0) > 0 || selector.translatable === true, {
+		message: "Editor draft selector must include fields or translatable",
+	});
+const editorDraftAccessSchema = z
+	.object({
+		read: editorDraftFieldSelectorSchema.optional(),
+		patch: editorDraftFieldSelectorSchema.optional(),
+	})
+	.refine((access) => access.read !== undefined || access.patch !== undefined, {
+		message: "Editor draft access must include read or patch",
+	});
+const editorPanelSchema = z
+	.object({
+		id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
+		title: z.string().min(1).max(128),
+		route: routeNameSchema.max(128),
+		collections: editorCollectionsSchema.optional(),
+		order: z.number().int().min(-1_000).max(1_000).optional(),
+		draft: editorDraftAccessSchema.optional(),
+	})
+	.refine(
+		(extension) => extension.draft === undefined || (extension.collections?.length ?? 0) > 0,
+		{
+			message: "Editor draft access requires explicit collection scope",
+			path: ["collections"],
+		},
+	);
 const editorActionConfirmSchema = z.object({
 	title: z.string().min(1).max(128),
 	text: z.string().min(1).max(1_024),
@@ -270,11 +307,19 @@ const editorActionSchema = z
 		collections: editorCollectionsSchema.optional(),
 		style: z.enum(["default", "danger"]).optional(),
 		confirm: editorActionConfirmSchema.optional(),
+		draft: editorDraftAccessSchema.optional(),
 	})
 	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
 		message: "Danger editor actions require confirmation",
 		path: ["confirm"],
-	});
+	})
+	.refine(
+		(extension) => extension.draft === undefined || (extension.collections?.length ?? 0) > 0,
+		{
+			message: "Editor draft access requires explicit collection scope",
+			path: ["collections"],
+		},
+	);
 
 function uniqueExtensionIds(
 	items: readonly { id: string }[] | undefined,
@@ -350,9 +395,16 @@ const declaredAccessSchema = z.object({
 		})
 		.optional(),
 	schema: z.object({ read: accessConstraints.optional() }).optional(),
+	admin: z
+		.object({
+			editorDraftRead: accessConstraints.optional(),
+			editorDraftPatch: accessConstraints.optional(),
+		})
+		.optional(),
 	taxonomies: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),
+	bylines: z.object({ read: accessConstraints.optional() }).optional(),
 	redirects: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
 		.optional(),

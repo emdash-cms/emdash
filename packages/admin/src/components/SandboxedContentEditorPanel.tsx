@@ -1,17 +1,37 @@
-import { Button, Collapsible, SkeletonLine, Toast } from "@cloudflare/kumo";
+import { Button, Collapsible, SkeletonLine, Text, Toast } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type {
 	Block,
 	BlockInteraction,
 	BlockResponse,
 	ContentEditorPanelInteraction,
+	EditorDraftInvocationReceipt,
+	EditorDraftPatchEffect,
 } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
+import { CaretDown } from "@phosphor-icons/react";
 import * as React from "react";
 
 import { apiFetch } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
 import { editorExtensionUrl } from "../lib/sandboxed-editor-extensions.js";
+import type { EditorDraftAccessDeclaration } from "../lib/sandboxed-editor-extensions.js";
+import { cn } from "../lib/utils.js";
+
+export interface BrowserEditorDraftRequest {
+	collection: string;
+	entryId: string;
+	locale: string | null;
+	baseRevision: string;
+	generation: number;
+	invocationId: string;
+	fields: Record<string, unknown>;
+}
+
+export interface EditorDraftResponse {
+	patch?: EditorDraftPatchEffect;
+	editorInvocation?: EditorDraftInvocationReceipt;
+}
 
 interface SandboxedContentEditorPanelProps {
 	pluginId: string;
@@ -21,6 +41,12 @@ interface SandboxedContentEditorPanelProps {
 	entryId: string;
 	locale?: string | null;
 	versionToken?: string;
+	draftAccess?: EditorDraftAccessDeclaration;
+	captureDraft?: (access: EditorDraftAccessDeclaration) => BrowserEditorDraftRequest | null;
+	onDraftResponse?: (access: EditorDraftAccessDeclaration, response: EditorDraftResponse) => void;
+	onEntryRefresh?: () => void | Promise<void>;
+	/** Reserve the inline end of the disclosure header for an external control. */
+	reserveHeaderEnd?: boolean;
 }
 
 export function SandboxedContentEditorPanel({
@@ -31,6 +57,11 @@ export function SandboxedContentEditorPanel({
 	entryId,
 	locale,
 	versionToken,
+	draftAccess,
+	captureDraft,
+	onDraftResponse,
+	onEntryRefresh,
+	reserveHeaderEnd = false,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
 	const toastManager = Toast.useToastManager();
@@ -46,6 +77,22 @@ export function SandboxedContentEditorPanel({
 	const identityRef = React.useRef(requestIdentity);
 	identityRef.current = requestIdentity;
 	const previousVersion = React.useRef({ panelIdentity, versionToken });
+	const applyNavigation = React.useCallback(
+		(response: BlockResponse) => {
+			if (!response.navigate) return;
+			const href = resolvePluginLinkTarget(pluginId, response.navigate);
+			if (!href) return;
+			if (response.navigate.kind === "external") {
+				const protocol = new URL(href).protocol;
+				if (protocol === "http:" || protocol === "https:") {
+					window.open(href, "_blank", "noopener,noreferrer");
+					return;
+				}
+			}
+			window.location.assign(href);
+		},
+		[pluginId],
+	);
 
 	React.useEffect(() => {
 		setOpen(false);
@@ -71,25 +118,33 @@ export function SandboxedContentEditorPanel({
 			setLoading(true);
 			setError(false);
 			try {
+				const draft =
+					interaction.type === "panel_load" || !draftAccess ? null : captureDraft?.(draftAccess);
+				const requestInteraction = draft ? { ...interaction, draft } : interaction;
 				const response = await apiFetch(
 					editorExtensionUrl(collection, entryId, pluginId, "panel", panelId, locale),
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify(interaction),
+						body: JSON.stringify(requestInteraction),
 						signal: controller.signal,
 					},
 				);
 				if (interactionIdentity !== identityRef.current || requestGeneration !== generation.current)
 					return;
 				if (!response.ok) throw new Error("Plugin panel request failed");
-				const body = (await response.json()) as { data: BlockResponse };
+				const body = (await response.json()) as { data: BlockResponse & EditorDraftResponse };
 				if (interactionIdentity !== identityRef.current || requestGeneration !== generation.current)
 					return;
 				setBlocks(body.data.blocks);
 				setLoaded(true);
 				if (body.data.toast) {
 					toastManager.add({ title: body.data.toast.message, type: body.data.toast.type });
+				}
+				if (body.data.refresh) await onEntryRefresh?.();
+				applyNavigation(body.data);
+				if (draftAccess && (body.data.patch || body.data.editorInvocation)) {
+					onDraftResponse?.(draftAccess, body.data);
 				}
 			} catch {
 				if (
@@ -109,7 +164,20 @@ export function SandboxedContentEditorPanel({
 				}
 			}
 		},
-		[collection, entryId, locale, panelId, pluginId, requestIdentity, toastManager],
+		[
+			applyNavigation,
+			captureDraft,
+			collection,
+			draftAccess,
+			entryId,
+			locale,
+			onDraftResponse,
+			onEntryRefresh,
+			panelId,
+			pluginId,
+			requestIdentity,
+			toastManager,
+		],
 	);
 
 	React.useEffect(() => {
@@ -153,16 +221,47 @@ export function SandboxedContentEditorPanel({
 
 	return (
 		<Collapsible.Root open={open} onOpenChange={handleOpenChange}>
-			<Collapsible.DefaultTrigger>{title}</Collapsible.DefaultTrigger>
-			<Collapsible.DefaultPanel>
-				<div className="min-w-0 px-4 pb-4">
+			<Collapsible.Trigger
+				render={
+					<Button
+						type="button"
+						variant="ghost"
+						className="relative justify-between"
+						style={{
+							width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+							insetInlineStart: "-0.75rem",
+						}}
+					/>
+				}
+			>
+				<Text as="span" truncate title={title} DANGEROUS_className="font-semibold">
+					{title}
+				</Text>
+				<CaretDown
+					className={cn(
+						"h-4 w-4 shrink-0 text-kumo-subtle transition-transform duration-150 ease-out motion-reduce:transition-none",
+						open && "rotate-180",
+					)}
+				/>
+			</Collapsible.Trigger>
+			<Collapsible.Panel
+				className="-mx-2 overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+				style={({ transitionStatus }) => ({
+					height:
+						transitionStatus === "starting" || transitionStatus === "ending"
+							? 0
+							: "var(--collapsible-panel-height)",
+					transitionProperty: "height",
+				})}
+			>
+				<div className="min-w-0 px-2 pt-2 pb-1">
 					{loading && !loaded ? (
 						<div className="space-y-2 py-2" aria-label={t`Loading plugin panel`}>
 							<SkeletonLine blockHeight={20} minWidth={60} maxWidth={95} />
 							<SkeletonLine blockHeight={20} minWidth={35} maxWidth={80} />
 						</div>
 					) : error ? (
-						<div role="alert" className="py-2 text-sm text-kumo-subtle">
+						<div role="alert" className="py-2 text-xs leading-4 text-kumo-subtle">
 							<p>{t`Plugin panel unavailable.`}</p>
 							<Button
 								type="button"
@@ -182,7 +281,7 @@ export function SandboxedContentEditorPanel({
 						/>
 					) : null}
 				</div>
-			</Collapsible.DefaultPanel>
+			</Collapsible.Panel>
 		</Collapsible.Root>
 	);
 }

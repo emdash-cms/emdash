@@ -28,7 +28,7 @@ editor or administrator may see:
 | Comments | Review and moderate comments when a collection enables them |
 | Content Types | Create collections and fields and change their settings |
 | Plugins | Install, configure, and open plugin-provided pages |
-| Settings | Configure the site, authentication, backups, email, search, and other services |
+| Settings | Configure the site, authentication, backups, [site transfer](/guides/site-transfer/), email, search, and other services |
 
 This interface manages data and configuration. Astro pages and components still define the public
 layout. Adding a menu item or widget in the admin only changes the public site when an Astro
@@ -70,8 +70,8 @@ Authors can edit and publish their own entries, while Editors can do so for any 
 Administrative areas have separate permission checks:
 
 - Editors can manage taxonomies, menus, bylines, widgets, sections, and content from other authors.
-- Admins can change the content model, users, plugins, redirects, backups, and settings, and can
-  permanently delete trashed content.
+- Admins can change the content model, users, plugins, redirects, backups, and settings, can
+  export or import the whole site, and can permanently delete trashed content.
 - The server checks permissions for each action. Hiding a navigation item is not the security
   boundary.
 

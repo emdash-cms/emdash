@@ -18,7 +18,7 @@ EmDash runs migrations automatically on first request — no manual migration or
 
 ## Edge HTML cache (Workers Caching)
 
-This demo uses **native Workers Caching**, not the legacy EmDash `cloudflareCache()` helper:
+This demo uses **native Workers Caching**:
 
 | Piece                | Where                                                              |
 | -------------------- | ------------------------------------------------------------------ |
@@ -26,8 +26,6 @@ This demo uses **native Workers Caching**, not the legacy EmDash `cloudflareCach
 | Astro cache provider | `cacheCloudflare()` from `@astrojs/cloudflare/cache`               |
 | Public page TTLs     | `routeRules` in `astro.config.mjs`                                 |
 | Purge                | `cache.purge()` from `cloudflare:workers` (no zone ID / API token) |
-
-Do **not** copy `cloudflareCache()` from `@emdash-cms/cloudflare` for new sites. That path stores responses in the Cache API and invalidates via the zone REST purge API (`CF_ZONE_ID` + `CF_CACHE_PURGE_TOKEN`). It is a legacy stopgap; see [Deploy to Cloudflare → Workers Cache](https://docs.emdashcms.com/deployment/cloudflare#workers-cache).
 
 Object/query caching (`objectCache: kvCache({ binding: "CACHE" })`) is a separate layer and is optional.
 

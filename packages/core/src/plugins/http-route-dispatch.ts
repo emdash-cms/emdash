@@ -6,15 +6,40 @@ import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
 import { requireScope } from "../auth/scopes.js";
 import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
+import {
+	validateEditorDraftPatch,
+	validateEditorDraftRequest,
+	type ValidatedEditorDraftRequest,
+} from "./editor-draft.js";
 import { pluginRouteResponseFromWire, pluginRouteResponseToWire } from "./route-wire.js";
+import { parseDeclaredPluginRouteInput, PluginRouteRequestError } from "./route-wire.js";
 import type { PluginContentCacheInvalidator, RouteMeta } from "./routes.js";
 import type { UserInfo } from "./types.js";
+
+function editorDraftErrorResponse(error: { code: string; message: string }): Response {
+	const status =
+		error.code === "EDITOR_DRAFT_STALE"
+			? 409
+			: error.code === "EDITOR_DRAFT_FIELD_FORBIDDEN" ||
+				  error.code === "EDITOR_DRAFT_CAPABILITY_REQUIRED"
+				? 403
+				: error.code === "EDITOR_DRAFT_TOO_LARGE"
+					? 413
+					: error.code === "EDITOR_DRAFT_UNSUPPORTED_FIELD_TYPE"
+						? 422
+						: 400;
+	return apiError(error.code, error.message, status);
+}
 
 function toRoleLevel(value: number): RoleLevel | null {
 	if (value === 10 || value === 20 || value === 30 || value === 40 || value === 50) {
 		return value;
 	}
 	return null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isPermission(value: string): value is Permission {
@@ -152,6 +177,8 @@ export interface PluginEditorExtensionApiRequestContext {
 	invalidateContentCache?: PluginContentCacheInvalidator;
 }
 
+const EDITOR_EXTENSION_REQUEST_MAX_BYTES = 256 * 1024;
+
 /** Dispatch a saved-entry extension through ownership, route, and isolate policy. */
 export async function dispatchPluginEditorExtensionApiRequest({
 	runtime,
@@ -215,23 +242,79 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	const canonicalId = "id" in item && typeof item.id === "string" ? item.id : null;
 	const canonicalLocale = "locale" in item && typeof item.locale === "string" ? item.locale : null;
 	const version = "version" in item && typeof item.version === "number" ? item.version : null;
+	const baseRevision =
+		typeof contentData === "object" &&
+		contentData !== null &&
+		"_rev" in contentData &&
+		typeof contentData._rev === "string"
+			? contentData._rev
+			: null;
 	if (!canonicalId || version === null) {
 		return apiError("CONTENT_GET_ERROR", "Content item has invalid identity", 500);
 	}
 
-	let input: unknown;
-	if (kind === "panel") {
-		try {
-			input = await request.json();
-		} catch {
-			return apiError("INVALID_REQUEST", "Editor panel interaction must be JSON", 400);
+	let input: Record<string, unknown>;
+	let editorBody: unknown;
+	try {
+		editorBody = await parseDeclaredPluginRouteInput(request, {
+			body: "json",
+			maxBytes: EDITOR_EXTENSION_REQUEST_MAX_BYTES,
+		});
+	} catch (error) {
+		if (error instanceof PluginRouteRequestError) {
+			return apiError(
+				error.status === 413 ? "EDITOR_DRAFT_TOO_LARGE" : "INVALID_REQUEST",
+				error.status === 413
+					? "Editor interaction exceeds the size limit"
+					: "Invalid editor interaction",
+				error.status,
+			);
 		}
+		return apiError("INVALID_REQUEST", "Editor interaction could not be read", 400);
+	}
+	if (kind === "panel") {
+		if (!isRecord(editorBody)) {
+			return apiError("INVALID_REQUEST", "Editor panel interaction must be an object", 400);
+		}
+		input = editorBody;
 		const validation = validateContentEditorPanelInteraction(input);
 		if (!validation.valid) {
 			return apiError("INVALID_PLUGIN_UI_CONTEXT", "Invalid editor panel interaction", 400);
 		}
 	} else {
-		input = { type: "editor_action" };
+		if (!isRecord(editorBody)) {
+			return apiError("INVALID_REQUEST", "Invalid editor action interaction", 400);
+		}
+		input = {
+			type: "editor_action",
+			...(Object.hasOwn(editorBody, "draft") ? { draft: editorBody.draft } : {}),
+		};
+	}
+
+	let validatedDraft: ValidatedEditorDraftRequest | null = null;
+	if (input.draft !== undefined) {
+		if (!baseRevision) {
+			return apiError("EDITOR_DRAFT_INVALID", "Content item has no draft revision identity", 409);
+		}
+		const collectionSchema = await runtime.getPluginEditorDraftSchema(collection);
+		if (!collectionSchema) return apiError("NOT_FOUND", "Collection not found", 404);
+		const draft = validateEditorDraftRequest({
+			request: input.draft,
+			collection: collectionSchema,
+			entry: { id: canonicalId, locale: canonicalLocale, revision: baseRevision },
+			readSelector: definition.extension.draft?.read,
+			patchSelector: definition.extension.draft?.patch,
+			canRead: definition.capabilities.includes("admin.editor-draft:read"),
+			canPatch: definition.capabilities.includes("admin.editor-draft:patch"),
+		});
+		if ("code" in draft) {
+			console.warn(
+				`[plugin:${pluginId}] Editor draft ${kind}/${extensionId} rejected: ${draft.code}`,
+			);
+			return editorDraftErrorResponse(draft);
+		}
+		validatedDraft = draft;
+		input = { ...input, draft: draft.snapshot };
 	}
 
 	const headers = new Headers(request.headers);
@@ -244,7 +327,7 @@ export async function dispatchPluginEditorExtensionApiRequest({
 		body: JSON.stringify(input),
 	});
 	const locale = resolveLocale(request);
-	return dispatchPluginApiRequest({
+	const response = await dispatchPluginApiRequest({
 		runtime,
 		pluginId,
 		path: definition.extension.route,
@@ -270,4 +353,37 @@ export async function dispatchPluginEditorExtensionApiRequest({
 			},
 		},
 	});
+	if (!response.ok) return response;
+	const envelope: unknown = await response.clone().json();
+	if (!isRecord(envelope) || !isRecord(envelope.data)) {
+		return apiError("INVALID_PLUGIN_RESPONSE", "Plugin returned an invalid response", 502);
+	}
+	const data = envelope.data;
+	if (data.patch === undefined && !validatedDraft) return response;
+	if (data.patch !== undefined && !validatedDraft) {
+		return apiError(
+			"EDITOR_DRAFT_INVALID",
+			"Plugin returned an editor draft patch without a draft invocation",
+			400,
+		);
+	}
+	if (data.patch !== undefined) {
+		const collectionSchema = await runtime.getPluginEditorDraftSchema(collection);
+		if (!collectionSchema) return apiError("NOT_FOUND", "Collection not found", 404);
+		const patch = validateEditorDraftPatch({
+			patch: data.patch,
+			collection: collectionSchema,
+			allowedFields: validatedDraft?.patchFields ?? new Set(),
+		});
+		if ("code" in patch) {
+			console.warn(
+				`[plugin:${pluginId}] Editor draft ${kind}/${extensionId} rejected: ${patch.code}`,
+			);
+			return editorDraftErrorResponse(patch);
+		}
+		data.patch = patch;
+	}
+	const finalResponse = apiSuccess({ ...data, editorInvocation: validatedDraft?.receipt });
+	finalResponse.headers.set("Cache-Control", "private, no-store");
+	return finalResponse;
 }

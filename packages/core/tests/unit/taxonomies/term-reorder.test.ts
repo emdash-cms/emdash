@@ -421,6 +421,86 @@ describeEachDialect("taxonomy term reorder", (dialect) => {
 		expect(k1.sortOrder).toBe(1);
 	});
 
+	it("gives a translation created without a parent the parent and position of its term", async () => {
+		const [alpha] = await createCategories(["Alpha"]);
+		const alphaGroup = alpha!.translationGroup ?? alpha!.id;
+		await repo.create({ name: "category", slug: "k0", label: "K0", parentId: alphaGroup });
+		const k1 = await repo.create({
+			name: "category",
+			slug: "k1",
+			label: "K1",
+			parentId: alphaGroup,
+		});
+
+		const created = await handleTermCreate(ctx.db, "category", {
+			slug: "k1-es",
+			label: "K1 ES",
+			locale: "es",
+			translationOf: k1.id,
+		});
+		if (!created.success) throw new Error(created.error.message);
+
+		const row = await repo.findById(created.data.term.id);
+		expect(row).toMatchObject({ parentId: alphaGroup, sortOrder: k1.sortOrder });
+	});
+
+	it("moves every locale of a term translated under a parent the source is not in", async () => {
+		const [alpha, beta] = await createCategories(["Alpha", "Beta"]);
+		const alphaGroup = alpha!.translationGroup ?? alpha!.id;
+
+		const created = await handleTermCreate(ctx.db, "category", {
+			slug: "beta-es",
+			label: "Beta ES",
+			locale: "es",
+			parentId: alphaGroup,
+			translationOf: beta!.id,
+		});
+		if (!created.success) throw new Error(created.error.message);
+
+		const rows = await repo.findTranslations(beta!.translationGroup!);
+		expect(rows.map((row) => row.parentId)).toEqual([alphaGroup, alphaGroup]);
+		expect(new Set(rows.map((row) => row.sortOrder)).size).toBe(1);
+	});
+
+	it("brings every locale to the parent an update names when the addressed row already has it", async () => {
+		const [alpha, beta] = await createCategories(["Alpha", "Beta"]);
+		const alphaGroup = alpha!.translationGroup ?? alpha!.id;
+		const esId = await translate(beta!, "es", "Beta ES");
+		// One locale under another parent than the rest, as earlier versions could write.
+		await ctx.db
+			.updateTable("taxonomies")
+			.set({ parent_id: alphaGroup, sort_order: 0 })
+			.where("id", "=", esId)
+			.execute();
+
+		await repo.update(esId, { parentId: alphaGroup });
+
+		const rows = await repo.findTranslations(beta!.translationGroup!);
+		expect(rows.map((row) => row.parentId)).toEqual([alphaGroup, alphaGroup]);
+		expect(new Set(rows.map((row) => row.sortOrder)).size).toBe(1);
+	});
+
+	it("rejects a translation under a child of the term it translates", async () => {
+		const [alpha] = await createCategories(["Alpha"]);
+		const child = await repo.create({
+			name: "category",
+			slug: "child",
+			label: "Child",
+			parentId: alpha!.translationGroup ?? alpha!.id,
+		});
+
+		const created = await handleTermCreate(ctx.db, "category", {
+			slug: "alpha-es",
+			label: "Alpha ES",
+			locale: "es",
+			parentId: child.translationGroup ?? child.id,
+			translationOf: alpha!.id,
+		});
+
+		expect(created.success).toBe(false);
+		expect(await repo.findById(alpha!.id)).toMatchObject({ parentId: null });
+	});
+
 	it("renumbers a group whose stored positions tie", async () => {
 		const [alpha, beta] = await createCategories(["Alpha", "Beta"]);
 		// Positions that tie have no distinct order to permute into. Only a

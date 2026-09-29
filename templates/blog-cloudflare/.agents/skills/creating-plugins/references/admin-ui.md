@@ -89,7 +89,7 @@ Validate interactions before production side effects; `routeCtx.input` is `unkno
 
 The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. Both sandbox bridges route `ctx.settings` through the same options records as that form. Read a generated setting with `ctx.settings.get("<key>")`; writes, deletes, list operations, and revision-based operations use the same namespace on Cloudflare and Node/workerd.
 
-The `secret` settings field is write-only in the admin response and encrypted before persistence. The site must provide `EMDASH_ENCRYPTION_KEY`; missing, wrong, or tampered key material fails closed. Keep the encryption-key list with database backups. Existing `ctx.kv.get("settings:<key>")` reads remain compatible through EmDash 0.x.
+The `secret` settings field is write-only in the admin response and encrypted before persistence. The site must provide `EMDASH_ENCRYPTION_KEY`; missing, wrong, or tampered key material fails closed. Keep the encryption-key list with database backups. Existing `ctx.kv.get("settings:<key>")` reads remain compatible throughout EmDash 1.x.
 
 ## Sandboxed saved-entry extensions
 
@@ -104,6 +104,10 @@ Declare saved-entry panels and actions in `emdash-plugin.jsonc`:
 				"title": "Content health",
 				"route": "editor/health",
 				"collections": ["posts"],
+				"draft": {
+					"read": { "translatable": true },
+					"patch": { "fields": ["title", "excerpt"] },
+				},
 			},
 		],
 		"editorActions": [
@@ -125,11 +129,13 @@ Declare saved-entry panels and actions in `emdash-plugin.jsonc`:
 }
 ```
 
-Every referenced route must be private. EmDash reloads the saved entry and checks ownership plus the route permission before invoking it. `routeCtx.ui.entry` contains only the canonical collection, ID, locale, and version. The host does not send field values or unsaved editor state.
+Every referenced route must be private. EmDash reloads the saved entry and checks ownership plus the route permission before invoking it. `routeCtx.ui.entry` contains only the canonical collection, ID, locale, and version.
 
-Panels start collapsed. They receive `panel_load`, then ordinary `block_action` and `form_submit` interactions, and return `BlockResponse`. Actions are disabled while the editor has unsaved changes. They receive `editor_action` and return an optional toast plus either `refresh: true` or a structured `navigate` target. Action responses cannot request refresh and navigation together.
+Panels start collapsed. `panel_load` never includes draft values. After an explicit `block_action`, `form_submit`, or `editor_action`, `admin.editor-draft:read` can attach only the fields selected by the extension's `draft.read` declaration. `fields` selects explicit slugs and `translatable: true` selects current schema fields marked translatable. Draft declarations require explicit collection scope.
 
-Use `createPluginRuntimeTestHost().admin` to exercise this boundary with `loadEditorPanel()`, `actEditorPanel()`, `submitEditorPanel()`, and `invokeEditorAction()`.
+`admin.editor-draft:patch` permits a separate `draft.patch` field selector and does not imply read. Return `patch: { type: "editor-draft-patch", operations }` with whole-field `set` or `clear` operations. The host rejects the complete patch on an unknown, forbidden, invalid, unsupported, oversized, or stale operation. Accepted patches receive a host-rendered preview, update the form atomically, mark it dirty, and remain unsaved. A response may contain a toast and one terminal effect: patch, refresh, or navigation.
+
+Use `createPluginRuntimeTestHost().admin` to exercise this boundary. `captureEditorDraft()` creates a saved-entry draft request, the existing panel/action helpers invoke the production route, and `applyEditorDraftPatch()` applies only a current response through the host validator.
 
 ## Sandboxed declarative field widgets
 

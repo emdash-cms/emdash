@@ -1,0 +1,66 @@
+---
+title: Agent Skills
+description: Install EmDash agent skills so AI coding assistants use current EmDash APIs when they build sites, write plugins, and port WordPress projects.
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+
+EmDash publishes [agent skills](https://agentskills.io) for AI coding assistants. A skill is a folder of instructions and reference material that an assistant loads when a task needs it. With the EmDash skills installed, an assistant follows current EmDash patterns for schema, queries, plugins, and the CLI.
+
+| Skill                        | Use it for                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `building-emdash-site`       | Schema and seed files, content queries, Portable Text, menus, taxonomies, deployment |
+| `creating-plugins`           | Sandboxed and native plugins: hooks, routes, storage, admin UI                |
+| `emdash-cli`                 | Managing an EmDash site from the command line                                 |
+| `wordpress-theme-to-emdash`  | Porting a WordPress theme to an EmDash site                                   |
+| `wordpress-plugin-to-emdash` | Porting WordPress plugin behavior to EmDash                                   |
+
+The skills are published in the [emdash-cms/skills](https://github.com/emdash-cms/skills) repository with each EmDash release.
+
+## Skills in EmDash templates
+
+A project created with `npm create emdash` includes `building-emdash-site`, `creating-plugins`, and `emdash-cli` in `.agents/skills/`, with a `.claude/skills` link to the same folder. A plugin scaffolded with the [plugin CLI's `init` command](/plugins/creating-plugins/cli#init) includes `creating-plugins`. Assistants that read those folders load the skills without further setup.
+
+These copies stay at the version the project was created with. Install the skills from the repository to update them or to add the WordPress porting skills.
+
+## Install the skills
+
+<Tabs>
+<TabItem label="Any assistant">
+
+The [`skills`](https://github.com/vercel-labs/skills) command installs into Claude Code, Codex, Cursor, GitHub Copilot, Gemini CLI, OpenCode, and many other assistants. Run it in your project:
+
+```sh
+npx skills add emdash-cms/skills
+```
+
+It asks which skills and assistants to install for. Add `--skill <name>` to choose skills up front, or `-g` to install for your user account instead of the current project.
+
+</TabItem>
+<TabItem label="Claude Code">
+
+Add the repository as a plugin marketplace, then install the `emdash` plugin:
+
+```sh
+/plugin marketplace add emdash-cms/skills
+/plugin install emdash@emdash
+```
+
+Claude Code names the installed skills with an `emdash:` prefix, for example `emdash:building-emdash-site`.
+
+</TabItem>
+</Tabs>
+
+Codex, GitHub Copilot, Cursor, and Factory Droid can also install the repository as a plugin. The [skills repository README](https://github.com/emdash-cms/skills#install) lists the command for each one.
+
+<Aside>
+	The WordPress porting skills link to `building-emdash-site` and `creating-plugins`. Install those two alongside them.
+</Aside>
+
+## Update the skills
+
+In Claude Code, run `/plugin marketplace update emdash`, or turn on auto-update for the `emdash` marketplace in `/plugin`. With other assistants, run the install command again.
+
+## Report a problem
+
+The skills are maintained in the [`skills/` folder of the EmDash repository](https://github.com/emdash-cms/emdash/tree/main/skills). Open issues and pull requests there. The emdash-cms/skills repository does not accept them.

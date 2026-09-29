@@ -86,6 +86,7 @@ function usageResponse(
 ): MediaUsageDetailsResponse {
 	return {
 		items,
+		siteSettings: [],
 		coverage: { scope: "all_content_collections", status: "complete" },
 		...overrides,
 	};
@@ -163,6 +164,24 @@ describe("MediaUsedIn", () => {
 		expect(screen.getByText("Archived notes").element().closest("a")).toBeNull();
 	});
 
+	it("lists site settings that use the file as a static row", async () => {
+		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(
+			usageResponse([], {
+				siteSettings: [{ setting: "favicon" }, { setting: "seo.defaultOgImage" }],
+			}),
+		);
+
+		const screen = await renderUsedIn();
+
+		const row = screen.getByRole("listitem").filter({ hasText: "Site Settings" });
+		await expect.element(row).toBeVisible();
+		await expect.element(row.getByText("Favicon & Default Social Image")).toBeVisible();
+		expect(row.element().querySelector("a")).toBeNull();
+		await expect
+			.element(screen.getByText("No tracked references found"), { timeout: 100 })
+			.not.toBeInTheDocument();
+	});
+
 	it("leaves enough scroll clearance for the first usage card ring", async () => {
 		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
 
@@ -234,10 +253,22 @@ describe("MediaUsedIn", () => {
 
 	it("distinguishes trustworthy and incomplete empty results", async () => {
 		const completeScreen = await renderUsedIn();
-		await expect.element(completeScreen.getByText("No usage", { exact: true })).toBeVisible();
 		await expect
-			.element(completeScreen.getByText("This file isn’t used in any content."))
+			.element(completeScreen.getByText("No tracked references found", { exact: true }))
 			.toBeVisible();
+		await expect
+			.element(
+				completeScreen.getByText(
+					"Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked.",
+				),
+			)
+			.toBeVisible();
+		await expect
+			.element(completeScreen.getByRole("link", { name: "What’s tracked" }))
+			.toHaveAttribute(
+				"href",
+				"https://docs.emdashcms.com/guides/media-library/#see-where-a-file-is-used",
+			);
 		await expect
 			.element(completeScreen.getByRole("region", { name: "Used in" }).getByRole("button"), {
 				timeout: 100,

@@ -12,6 +12,7 @@ node_modules/
 data.db
 data.db-journal
 uploads/
+.wrangler/
 
 # logs
 npm-debug.log*

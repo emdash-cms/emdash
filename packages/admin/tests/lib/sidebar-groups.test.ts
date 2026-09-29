@@ -50,6 +50,16 @@ describe("groupNavItems", () => {
 		expect(entries[0]?.kind === "folder" && entries[0].items.map((i) => i.id)).toEqual(["a", "b"]);
 		expect(entries[1]?.kind).toBe("item");
 	});
+
+	it("inherits the first declared member icon for the folder", () => {
+		const [folder] = groupNavItems([
+			{ id: "a", group: "Calendar" },
+			{ id: "b", group: "Calendar", iconName: "calendar" },
+			{ id: "c", group: "Calendar", iconName: "trophy" },
+		]);
+
+		expect(folder?.kind === "folder" && folder.iconName).toBe("calendar");
+	});
 });
 
 describe("taxonomyGroup", () => {

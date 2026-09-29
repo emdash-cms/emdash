@@ -11,6 +11,7 @@ import {
 	githubRateLimitGate,
 	GitHubRateLimitError,
 	postReview,
+	POST_MODEL_PERMIT_WAIT_MS,
 	removePullRequestLabel,
 	updateReviewCheck,
 } from "../.flue/lib/github.js";
@@ -773,6 +774,145 @@ describe("GitHub review checks", () => {
 			),
 		).rejects.toThrow("review marker inspection exceeded 10 pages");
 		expect(fetchMock).toHaveBeenCalledTimes(10);
+	});
+
+	describe("coordinator permit handling", () => {
+		it("fast-fails when the coordinator denies a permit beyond the default 5 s window", async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date("2026-09-21T20:43:47.000Z"));
+			const permit = vi.fn().mockResolvedValue({ allowed: false, retryAt: Date.now() + 30_000 });
+			const gate = {
+				permit,
+				getInstallationToken: vi.fn(),
+				record: vi.fn(),
+			};
+			const token = { token: TOKEN, gate, consumer: "review-setup:attempt-1" };
+			vi.stubGlobal(
+				"fetch",
+				vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 201 })),
+			);
+
+			const error = await createReviewCheck(token, "emdash-cms", "emdash", {
+				headSha: "head-sha",
+				attemptId: "attempt-1",
+				prNumber: 42,
+			}).catch((caught: unknown) => caught);
+
+			expect(error).toBeInstanceOf(GitHubRateLimitError);
+			expect(error).toMatchObject({
+				message: expect.stringContaining("GitHub request suppressed until"),
+			});
+			expect(permit).toHaveBeenCalledTimes(1);
+		});
+
+		it("waits up to POST_MODEL_PERMIT_WAIT_MS for a post-model coordinator permit", async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date("2026-09-21T20:43:47.000Z"));
+			const permit = vi
+				.fn()
+				.mockResolvedValueOnce({ allowed: false, retryAt: Date.now() + 2_500 })
+				.mockResolvedValueOnce({ allowed: true, retryAt: 0 });
+			const gate = {
+				permit,
+				getInstallationToken: vi.fn(),
+				record: vi.fn(),
+			};
+			const token = {
+				token: TOKEN,
+				gate,
+				consumer: "review-workflow:attempt-1",
+				maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS,
+			};
+			vi.stubGlobal(
+				"fetch",
+				vi
+					.fn<typeof fetch>()
+					.mockResolvedValue(
+						Response.json({ head: { sha: "head-sha" }, base: { sha: "base-sha" } }),
+					),
+			);
+
+			const revision = fetchPullRequestRevision(token, "emdash-cms", "emdash", 42);
+			await vi.advanceTimersByTimeAsync(2_500);
+			await expect(revision).resolves.toEqual({
+				headSha: "head-sha",
+				baseSha: "base-sha",
+			});
+			expect(permit).toHaveBeenCalledTimes(2);
+		});
+
+		it("waits through a post-model coordinator denial longer than 5 minutes", async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date("2026-09-21T20:43:47.000Z"));
+			const permit = vi
+				.fn()
+				.mockResolvedValueOnce({ allowed: false, retryAt: Date.now() + 6 * 60_000 })
+				.mockResolvedValueOnce({ allowed: true, retryAt: 0 });
+			const gate = {
+				permit,
+				getInstallationToken: vi.fn(),
+				record: vi.fn(),
+			};
+			const token = {
+				token: TOKEN,
+				gate,
+				consumer: "review-workflow:attempt-1",
+				maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS,
+			};
+			vi.stubGlobal(
+				"fetch",
+				vi
+					.fn<typeof fetch>()
+					.mockResolvedValue(
+						Response.json({ head: { sha: "head-sha" }, base: { sha: "base-sha" } }),
+					),
+			);
+
+			const revision = fetchPullRequestRevision(token, "emdash-cms", "emdash", 42);
+			await vi.advanceTimersByTimeAsync(6 * 60_000);
+			await expect(revision).resolves.toEqual({
+				headSha: "head-sha",
+				baseSha: "base-sha",
+			});
+			expect(permit).toHaveBeenCalledTimes(2);
+		});
+
+		it("fast-fails when a post-model coordinator denial exceeds the 60-minute cap", async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date("2026-09-21T20:43:47.000Z"));
+			const permit = vi
+				.fn()
+				.mockResolvedValue({ allowed: false, retryAt: Date.now() + 61 * 60_000 });
+			const gate = {
+				permit,
+				getInstallationToken: vi.fn(),
+				record: vi.fn(),
+			};
+			const token = {
+				token: TOKEN,
+				gate,
+				consumer: "review-workflow:attempt-1",
+				maxPermitWaitMs: POST_MODEL_PERMIT_WAIT_MS,
+			};
+			vi.stubGlobal(
+				"fetch",
+				vi
+					.fn<typeof fetch>()
+					.mockResolvedValue(
+						Response.json({ head: { sha: "head-sha" }, base: { sha: "base-sha" } }),
+					),
+			);
+
+			const error = await fetchPullRequestRevision(token, "emdash-cms", "emdash", 42).catch(
+				(caught: unknown) => caught,
+			);
+
+			expect(error).toBeInstanceOf(GitHubRateLimitError);
+			expect(error).toMatchObject({
+				message: expect.stringContaining("GitHub request suppressed until"),
+			});
+			expect(permit).toHaveBeenCalledTimes(1);
+		});
 	});
 });
 
