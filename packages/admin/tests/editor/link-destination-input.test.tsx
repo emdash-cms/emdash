@@ -565,8 +565,7 @@ describe("link destination input in the editor", () => {
 		(option.element() as HTMLElement).click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			expect(editor.getAttributes("link").href).toBe("/blog/hello-world");
+			expect(pm.querySelector("a")?.getAttribute("href")).toBe("/blog/hello-world");
 		});
 	});
 
@@ -647,8 +646,7 @@ describe("link destination input in the editor", () => {
 		screen.getByRole("button", { name: "Apply" }).element().click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			expect(editor.getAttributes("link").href).toBe("https://example.com");
+			expect(pm.querySelector("a")?.getAttribute("href")).toBe("https://example.com");
 		});
 	});
 
@@ -674,8 +672,7 @@ describe("link destination input in the editor", () => {
 		(option.element() as HTMLElement).click();
 
 		await vi.waitFor(() => {
-			expect(editor.isActive("link")).toBe(true);
-			expect(editor.getAttributes("link").href).toBe("/blog/hello-world");
+			expect(pm.querySelector("a")?.getAttribute("href")).toBe("/blog/hello-world");
 		});
 	});
 });

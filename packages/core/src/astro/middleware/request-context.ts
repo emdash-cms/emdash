@@ -64,6 +64,10 @@ function optOutOfRouteCache(cache: RouteCache): void {
 	cache?.set(false);
 }
 
+function isHtmlResponse(response: Response): boolean {
+	return response.headers.get("content-type")?.includes("text/html") ?? false;
+}
+
 /**
  * Inject HTML before `</body>` if the response is an HTML page with a body
  * end tag. Does not touch cache headers — callers decide whether the result
@@ -73,8 +77,7 @@ async function injectBeforeBodyEnd(
 	response: Response,
 	htmlToInject: string,
 ): Promise<{ response: Response; injected: boolean }> {
-	const contentType = response.headers.get("content-type");
-	if (!contentType?.includes("text/html")) return { response, injected: false };
+	if (!isHtmlResponse(response)) return { response, injected: false };
 
 	const html = await response.text();
 	if (!html.includes("</body>")) {
@@ -94,14 +97,17 @@ async function injectBeforeBodyEnd(
 
 /**
  * Inject toolbar HTML into a response if it's an HTML page.
- * Returns the original response if not HTML.
+ * Returns the original response if not HTML, without calling
+ * `renderToolbarHtml`, which loads labels and, for an editor, resolves the
+ * preview secret.
  */
 async function injectToolbar(
 	response: Response,
-	toolbarHtml: string,
+	renderToolbarHtml: () => Promise<string>,
 	routeCache: RouteCache,
 ): Promise<Response> {
-	const result = await injectBeforeBodyEnd(response, toolbarHtml);
+	if (!isHtmlResponse(response)) return response;
+	const result = await injectBeforeBodyEnd(response, await renderToolbarHtml());
 	if (result.injected) {
 		// Toolbar-injected HTML is session-specific (its presence reveals an
 		// active editor session); it must never be stored in a shared CDN cache
@@ -177,14 +183,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				if (!hasEditCookie || toolbarMode === false) return response;
 				// The Playground shows its own bar, so the editor toolbar is hidden and
 				// only provides inline editing.
-				const labels = await loadVisualEditingToolbarLabels(context.request);
-				const toolbarHtml = renderToolbar({
-					editMode: true,
-					isPreview: false,
-					labels,
-					hidden: true,
-				});
-				return injectToolbar(response, toolbarHtml, context.cache);
+				return injectToolbar(
+					response,
+					async () =>
+						renderToolbar({
+							editMode: true,
+							isPreview: false,
+							labels: await loadVisualEditingToolbarLabels(context.request),
+							hidden: true,
+						}),
+					context.cache,
+				);
 			},
 		);
 	}
@@ -289,11 +298,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// opt-out) in every toolbar mode, so the server toolbar is safe to
 			// inject here even in client mode.
 			if (isEditor && toolbarMode !== false) {
-				const toolbarHtml = await renderEditorToolbar(context, {
-					editMode,
-					isPreview: !!preview,
-				});
-				return injectToolbar(response, toolbarHtml, routeCache);
+				return injectToolbar(
+					response,
+					() => renderEditorToolbar(context, { editMode, isPreview: !!preview }),
+					routeCache,
+				);
 			}
 
 			// Stale edit cookie without a session (client mode): still serve the
@@ -324,11 +333,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// toolbar (response becomes `private, no-store` and route-cache
 		// opted out).
 		const response = await next();
-		const toolbarHtml = await renderEditorToolbar(context, {
-			editMode: false,
-			isPreview: false,
-		});
-		return injectToolbar(response, toolbarHtml, routeCache);
+		return injectToolbar(
+			response,
+			() => renderEditorToolbar(context, { editMode: false, isPreview: false }),
+			routeCache,
+		);
 	}
 
 	return next();
