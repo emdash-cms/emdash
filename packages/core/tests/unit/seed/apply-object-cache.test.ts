@@ -114,4 +114,30 @@ describe("applySeed with an object cache", () => {
 		expect(after).toBe("seeded");
 		expect(load).not.toHaveBeenCalled();
 	});
+
+	it("invalidates cached widget areas only when the seed writes them", async () => {
+		const { backend, writes } = countingBackend();
+		__setObjectCacheBackendForTests(backend, CACHE_CONFIG);
+
+		await applySeed(db, { version: "1", settings: { title: "Site" } }, { onConflict: "skip" });
+		await waitForDeferredTasks();
+		expect(writes.has("em:epoch:widgets")).toBe(false);
+
+		await applySeed(
+			db,
+			{
+				version: "1",
+				widgetAreas: [
+					{
+						name: "sidebar",
+						label: "Sidebar",
+						widgets: [{ type: "component", componentId: "core:search" }],
+					},
+				],
+			},
+			{ onConflict: "skip" },
+		);
+		await waitForDeferredTasks();
+		expect(writes.get("em:epoch:widgets")).toBe(1);
+	});
 });

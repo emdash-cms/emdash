@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { widgetAreaTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
+import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 import { getWidgetComponents as getComponentRegistry } from "./components.js";
@@ -19,6 +20,7 @@ export type {
 	UpdateWidgetInput,
 	ReorderWidgetsInput,
 } from "./types.js";
+export { invalidateWidgetObjectCache } from "../object-cache/index.js";
 
 /**
  * Get a widget area by name, with all its widgets.
@@ -35,12 +37,18 @@ export async function getWidgetArea(name: string): Promise<WidgetArea | null> {
 			}
 		}
 
-		const db = await getDb();
-		const rows = await selectAreasWithWidgets(db)
-			.where("a.name", "=", name)
-			.orderBy("w.sort_order", "asc")
-			.execute();
-		return groupAreaRows(rows)[0] ?? null;
+		return cachedQuery({
+			namespace: CacheNamespace.WIDGETS,
+			key: `area:${name}`,
+			load: async () => {
+				const db = await getDb();
+				const rows = await selectAreasWithWidgets(db)
+					.where("a.name", "=", name)
+					.orderBy("w.sort_order", "asc")
+					.execute();
+				return groupAreaRows(rows)[0] ?? null;
+			},
+		});
 	});
 }
 
@@ -127,13 +135,19 @@ export async function getWidgetAreaWithCacheHint(name: string): Promise<{
  * Get all widget areas with their widgets
  */
 export async function getWidgetAreas(): Promise<WidgetArea[]> {
-	const db = await getDb();
-	const rows = await selectAreasWithWidgets(db)
-		.orderBy("a.created_at", "asc")
-		.orderBy("a.id", "asc")
-		.orderBy("w.sort_order", "asc")
-		.execute();
-	return groupAreaRows(rows);
+	return cachedQuery({
+		namespace: CacheNamespace.WIDGETS,
+		key: "areas",
+		load: async () => {
+			const db = await getDb();
+			const rows = await selectAreasWithWidgets(db)
+				.orderBy("a.created_at", "asc")
+				.orderBy("a.id", "asc")
+				.orderBy("w.sort_order", "asc")
+				.execute();
+			return groupAreaRows(rows);
+		},
+	});
 }
 
 /**
