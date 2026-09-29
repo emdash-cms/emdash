@@ -1058,6 +1058,9 @@ importers:
       '@bruits/satteri-wasm32-wasi':
         specifier: 0.10.5
         version: 0.10.5
+      '@cloudflare/ai-search-snippet':
+        specifier: ^0.0.43
+        version: 0.0.43
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.5.4)
@@ -1519,9 +1522,6 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
       '@lingui/core':
         specifier: 'catalog:'
         version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))
@@ -1624,6 +1624,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       dompurify:
         specifier: ^3.3.2
         version: 3.3.2
@@ -4328,6 +4331,10 @@ packages:
 
   '@cloudflare/ai-search-snippet@0.0.42':
     resolution: {integrity: sha512-LSNCvszcgEb+hgH1jpKCGaBrXScbahpjFVoXuDGiUyC9Td7hDR57+YdMMcBbhDa7S4GYaoCO1aziJYjvC0fwnw==}
+    engines: {node: '>=16.0.0'}
+
+  '@cloudflare/ai-search-snippet@0.0.43':
+    resolution: {integrity: sha512-NWT/0wULeX1YLQRDFm6rs8NAJz4YDYWbED628F0GpXF1w5PT09glR4CilIdGiovL9jflGneCD7/uLTrxWMkerQ==}
     engines: {node: '>=16.0.0'}
 
   '@cloudflare/codemode@0.3.8':
@@ -14805,6 +14812,8 @@ snapshots:
   '@cloudflare/ai-search-snippet@0.0.40': {}
 
   '@cloudflare/ai-search-snippet@0.0.42': {}
+
+  '@cloudflare/ai-search-snippet@0.0.43': {}
 
   '@cloudflare/codemode@0.3.8(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.5.4))(ai@6.0.172(zod@4.6.5))(zod@4.5.4)':
     dependencies:
