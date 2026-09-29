@@ -1,4 +1,4 @@
-import { Badge } from "@cloudflare/kumo";
+import { Badge, Tooltip } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -154,13 +154,13 @@ export function CalendarEntryRow({ item, display, now }: CalendarEntryRowProps) 
 			className={cn(
 				"grid scroll-mt-12 grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 transition-colors hover:bg-kumo-tint focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-kumo-brand motion-reduce:transition-none",
 				display.viewerZoneDiffers
-					? "sm:grid-cols-[8.5rem_minmax(0,1fr)_auto]"
-					: "sm:grid-cols-[5rem_minmax(0,1fr)_auto]",
+					? "@lg:grid-cols-[8.5rem_minmax(0,1fr)_auto]"
+					: "@lg:grid-cols-[5rem_minmax(0,1fr)_auto]",
 			)}
 		>
-			<span className="row-span-2 self-start text-sm leading-5 text-kumo-subtle tabular-nums sm:row-span-1 sm:self-center">
+			<span className="row-span-2 self-start text-sm leading-5 text-kumo-subtle tabular-nums @lg:row-span-1 @lg:self-center">
 				{display.formatTime(item.time)}
-				{viewerTime && <span className="hidden text-xs leading-4 sm:block">{viewerTime}</span>}
+				{viewerTime && <span className="hidden text-xs leading-4 @lg:block">{viewerTime}</span>}
 			</span>
 			<span className="flex min-w-0 items-center gap-2">
 				<CalendarStateIcon state={item.state} />
@@ -188,14 +188,119 @@ export function CalendarEntryRow({ item, display, now }: CalendarEntryRowProps) 
 					</span>
 				)}
 			</span>
-			<span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:col-start-auto sm:justify-end">
+			<span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 @lg:col-start-auto @lg:justify-end">
 				{viewerTime && (
-					<span className="text-xs text-kumo-subtle tabular-nums sm:hidden">{viewerTime}</span>
+					<span className="text-xs text-kumo-subtle tabular-nums @lg:hidden">{viewerTime}</span>
 				)}
 				<CalendarCollectionTag slug={item.collection} display={display} />
 				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
 			</span>
 		</Link>
+	);
+}
+
+function CalendarEntryDetails({ item, display }: { item: CalendarItem; display: CalendarDisplay }) {
+	const { t } = useLingui();
+	const { label, color } = display.collection(item.collection);
+	const state = t(CALENDAR_STATE_LABELS[item.state]);
+	const when = display.formatDateTime(item.time);
+	const viewerTime = display.formatViewerTime(item.time);
+
+	return (
+		<span className="grid max-w-64 gap-1 py-0.5 text-xs text-kumo-subtle">
+			<span dir="auto" className="text-sm font-medium text-kumo-default">
+				{item.title}
+			</span>
+			<span className="flex items-center gap-1.5 text-kumo-default">
+				<CalendarStateIcon state={item.state} className="size-3.5" />
+				{t`${state} · ${when}`}
+			</span>
+			{display.viewerZoneDiffers && <span>{t`Your time: ${viewerTime}`}</span>}
+			<span className="flex items-center gap-1.5">
+				<CalendarCollectionDot color={color} />
+				{label}
+				{display.showLocale && <CalendarLocaleChip locale={item.locale} />}
+			</span>
+		</span>
+	);
+}
+
+/**
+ * A month-cell entry linking to the editor. Published entries lie flat;
+ * scheduled ones are raised cards, and overdue cards turn warning-tinted.
+ */
+export function CalendarEntryChip({
+	item,
+	display,
+}: {
+	item: CalendarItem;
+	display: CalendarDisplay;
+}) {
+	const { t } = useLingui();
+	const { label, color } = display.collection(item.collection);
+	const state = t(CALENDAR_STATE_LABELS[item.state]);
+	const time = display.formatTime(item.time);
+	const flat = item.state === "published";
+	const overdue = item.state === "overdue";
+
+	const link = (
+		<Link
+			to="/content/$collection/$id"
+			params={{ collection: item.collection, id: item.id }}
+			search={{ locale: item.locale }}
+			className={cn(
+				"min-w-0 text-xs transition-[background-color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-kumo-brand motion-reduce:transition-none",
+				flat
+					? "flex items-center gap-1.5 rounded px-1.5 py-0.5 text-kumo-subtle hover:bg-kumo-tint"
+					: "grid gap-0.5 overflow-hidden rounded-md px-2 py-1.5 shadow-xs ring-1 hover:shadow-sm",
+				!flat &&
+					(overdue
+						? "bg-kumo-warning-tint ring-kumo-warning/30 hover:ring-kumo-warning/50"
+						: "bg-kumo-base ring-kumo-line hover:ring-kumo-interact"),
+			)}
+		>
+			{flat ? (
+				<>
+					<CalendarStateIcon state={item.state} className="size-3.5" />
+					<span className="sr-only">{t`${state}, ${time}:`}</span>
+					<span dir="auto" className="truncate">
+						{item.title}
+					</span>
+				</>
+			) : (
+				<>
+					<span dir="auto" className="truncate font-medium text-kumo-default">
+						{item.title}
+					</span>
+					<span className="flex min-w-0 items-center gap-1 text-kumo-subtle">
+						<CalendarStateIcon state={item.state} className="size-3.5" />
+						<span className="shrink-0 tabular-nums">{time}</span>
+						{overdue ? (
+							<span className="truncate font-medium text-kumo-warning">{state}</span>
+						) : (
+							<>
+								<span className="sr-only">{state}</span>
+								<CalendarCollectionDot color={color} className="ms-0.5" />
+								<span className="hidden truncate @min-[8.5rem]:inline">{label}</span>
+							</>
+						)}
+						{display.showLocale && (
+							<span className="ms-auto">
+								<CalendarLocaleChip locale={item.locale} />
+							</span>
+						)}
+					</span>
+				</>
+			)}
+		</Link>
+	);
+
+	return (
+		<Tooltip
+			content={<CalendarEntryDetails item={item} display={display} />}
+			render={link}
+			className="cursor-pointer"
+		/>
 	);
 }
 
@@ -227,7 +332,7 @@ export function CalendarDayList({
 		);
 
 	return (
-		<ul aria-label={label} className={cn("grid gap-px", className)}>
+		<ul aria-label={label} className={cn("@container grid gap-px", className)}>
 			{items.map((item, index) => (
 				<React.Fragment key={item.key}>
 					{index === nowAt && nowLine}

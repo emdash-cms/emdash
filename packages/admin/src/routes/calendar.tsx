@@ -7,12 +7,14 @@
 
 import { Banner, Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ListBullets, WarningCircle } from "@phosphor-icons/react";
+import { GridFour, ListBullets, WarningCircle } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { CalendarAgenda } from "../components/calendar/CalendarAgenda.js";
+import { CalendarFilters } from "../components/calendar/CalendarFilters.js";
+import { CalendarMonth } from "../components/calendar/CalendarMonth.js";
 import { CalendarToolbar } from "../components/calendar/CalendarToolbar.js";
 import { PageHeader } from "../components/PageHeader.js";
 import { visibleCollectionEntries } from "../components/Sidebar.js";
@@ -22,16 +24,50 @@ import {
 	createCalendarDisplay,
 	dayKeyInZone,
 	fetchRange,
+	filterItems,
 	groupByDay,
+	isCalendarState,
 	isMonthKey,
 	monthGridDays,
+	readList,
 	shiftMonth,
 	toCalendarItems,
+	toListParam,
+	type CalendarFilterValues,
+	type CalendarSearch,
 	type CalendarState,
+	type CalendarView,
 } from "../lib/calendar.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 
 const REFRESH_MS = 60_000;
+/** Below this width the month grid's cells get too narrow, so the calendar uses its compact layout. */
+const COMPACT_WIDTH = 640;
+/**
+ * Extra room needed to leave the compact layout. A scrollbar that appears
+ * with the taller grid narrows the page, which would otherwise flip it back.
+ */
+const COMPACT_SLACK = 24;
+const NO_LOCALES: string[] = [];
+
+/**
+ * Whether the element is narrower than `width`. The sidebar takes part of the
+ * viewport, so the calendar measures itself; the measurement runs before paint.
+ */
+function useNarrow(ref: React.RefObject<HTMLElement | null>, width: number): boolean {
+	const [narrow, setNarrow] = React.useState(() => window.innerWidth < width);
+	React.useLayoutEffect(() => {
+		const element = ref.current;
+		if (!element) return;
+		const measure = () =>
+			setNarrow((wasNarrow) => element.clientWidth < width + (wasNarrow ? COMPACT_SLACK : 0));
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(element);
+		return () => observer.disconnect();
+	}, [ref, width]);
+	return narrow;
+}
 
 /** The current time, updated at each minute boundary. */
 function useNow(): number {
@@ -65,6 +101,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const now = useNow();
+	const containerRef = React.useRef<HTMLDivElement>(null);
+	const compact = useNarrow(containerRef, COMPACT_WIDTH);
 
 	const collections = React.useMemo(
 		() =>
@@ -78,7 +116,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 		() => collections.map((collection) => collection.slug),
 		[collections],
 	);
-	const showLocale = (manifest.i18n?.locales.length ?? 0) > 1;
+	const locales = manifest.i18n?.locales ?? NO_LOCALES;
+	const showLocale = locales.length > 1;
 	const display = React.useMemo(
 		() =>
 			createCalendarDisplay({
@@ -92,11 +131,21 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 
 	const today = dayKeyInZone(now, display.timeZone);
 	const month = search.month ?? today.slice(0, 7);
+	const view: CalendarView = search.view ?? (compact ? "agenda" : "month");
 	const weekStartsOn = getDayPickerLocale(i18n.locale).options?.weekStartsOn ?? 0;
-	const range = React.useMemo(
-		() => fetchRange(monthGridDays(month, weekStartsOn)),
-		[month, weekStartsOn],
+	const gridDays = React.useMemo(() => monthGridDays(month, weekStartsOn), [month, weekStartsOn]);
+	const range = React.useMemo(() => fetchRange(gridDays), [gridDays]);
+
+	// Values that match no current option (a deleted collection in a shared link) are ignored.
+	const filters: CalendarFilterValues = React.useMemo(
+		() => ({
+			collections: readList(search.collections).filter((slug) => collectionOrder.includes(slug)),
+			locales: readList(search.locales).filter((locale) => locales.includes(locale)),
+			states: readList(search.states).filter(isCalendarState),
+		}),
+		[search.collections, search.locales, search.states, collectionOrder, locales],
 	);
+	const filtered = filters.collections.length + filters.locales.length + filters.states.length > 0;
 	const rangeHasNow = now >= Date.parse(range.from) && now < Date.parse(range.to);
 
 	const calendar = useQuery({
@@ -117,7 +166,8 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				: [],
 		[calendar.data, display.timeZone, now, collectionOrder],
 	);
-	const days = React.useMemo(() => groupByDay(items), [items]);
+	const visibleItems = React.useMemo(() => filterItems(items, filters), [items, filters]);
+	const days = React.useMemo(() => groupByDay(visibleItems), [visibleItems]);
 	const counts = React.useMemo(() => {
 		if (!calendar.data) return undefined;
 		const result: Record<CalendarState, number> = {
@@ -126,16 +176,25 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 			update: 0,
 			overdue: 0,
 		};
-		for (const item of items) if (item.day.startsWith(month)) result[item.state] += 1;
+		for (const item of visibleItems) if (item.day.startsWith(month)) result[item.state] += 1;
 		return result;
-	}, [calendar.data, items, month]);
+	}, [calendar.data, visibleItems, month]);
 
-	const goToMonth = (next: string | undefined) => {
-		if (next !== undefined && !isMonthKey(next)) return;
+	const updateSearch = (patch: Partial<CalendarSearch>) => {
 		void navigate({
 			to: "/calendar",
-			search: (previous) => ({ ...previous, month: next }),
+			search: (previous) => ({ ...previous, ...patch }),
 			replace: true,
+		});
+	};
+	const goToMonth = (next: string | undefined) => {
+		if (next === undefined || isMonthKey(next)) updateSearch({ month: next });
+	};
+	const setFilters = (patch: Partial<CalendarFilterValues>) => {
+		updateSearch({
+			...(patch.collections && { collections: toListParam(patch.collections) }),
+			...(patch.locales && { locales: toListParam(patch.locales) }),
+			...(patch.states && { states: toListParam(patch.states) }),
 		});
 	};
 	const prefetchMonth = (target: string) => {
@@ -157,24 +216,53 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 	const maxEntries = new Intl.NumberFormat(i18n.locale).format(CALENDAR_MAX_ENTRIES);
 
 	return (
-		<div className="grid min-w-0 gap-6">
+		<div ref={containerRef} className="grid min-w-0 gap-6">
 			<PageHeader
 				title={t`Calendar`}
 				description={t`Published and scheduled entries across collections, in the site's time zone.`}
-				value="agenda"
-				onValueChange={() => {}}
+				value={view}
+				onValueChange={(value) => {
+					if (value === "month" || value === "agenda") updateSearch({ view: value });
+				}}
 				tabs={[
+					{
+						value: "month",
+						className: "flex-1 justify-center text-sm sm:flex-none",
+						label: (
+							<span className="flex items-center gap-1.5">
+								<GridFour
+									className="size-4 shrink-0"
+									weight={view === "month" ? "fill" : "regular"}
+									aria-hidden="true"
+								/>
+								{t`Month`}
+							</span>
+						),
+					},
 					{
 						value: "agenda",
 						className: "flex-1 justify-center text-sm sm:flex-none",
 						label: (
 							<span className="flex items-center gap-1.5">
-								<ListBullets className="size-4 shrink-0" weight="fill" aria-hidden="true" />
+								<ListBullets
+									className="size-4 shrink-0"
+									weight={view === "agenda" ? "fill" : "regular"}
+									aria-hidden="true"
+								/>
 								{t`Agenda`}
 							</span>
 						),
 					},
 				]}
+				tools={
+					<CalendarFilters
+						display={display}
+						collections={collections}
+						locales={locales}
+						value={filters}
+						onChange={setFilters}
+					/>
+				}
 			/>
 
 			<CalendarToolbar
@@ -209,17 +297,33 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 				/>
 			)}
 
-			{!(error && !calendar.data) && (
-				<CalendarAgenda
-					key={month}
-					month={month}
-					days={days}
-					today={today}
-					now={now}
-					display={display}
-					loading={!calendar.data}
-				/>
-			)}
+			{!(error && !calendar.data) &&
+				(view === "month" ? (
+					<CalendarMonth
+						month={month}
+						gridDays={gridDays}
+						days={days}
+						today={today}
+						now={now}
+						display={display}
+						loading={!calendar.data}
+						compact={compact}
+						onMonthChange={goToMonth}
+					/>
+				) : (
+					<CalendarAgenda
+						key={month}
+						month={month}
+						days={days}
+						today={today}
+						now={now}
+						display={display}
+						loading={!calendar.data}
+						onClearFilters={
+							filtered ? () => setFilters({ collections: [], locales: [], states: [] }) : undefined
+						}
+					/>
+				))}
 		</div>
 	);
 }

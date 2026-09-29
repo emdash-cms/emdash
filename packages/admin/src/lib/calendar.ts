@@ -19,9 +19,19 @@ export const CALENDAR_STATES: readonly CalendarState[] = [
 ];
 export type CalendarView = "month" | "agenda";
 
+/** Search params; list values are comma-separated. */
 export interface CalendarSearch {
 	view?: CalendarView;
 	month?: string;
+	collections?: string;
+	locales?: string;
+	states?: string;
+}
+
+export interface CalendarFilterValues {
+	collections: readonly string[];
+	locales: readonly string[];
+	states: readonly CalendarState[];
 }
 
 export interface CalendarItem extends CalendarEntry {
@@ -40,6 +50,8 @@ const ZONE_MARGIN_MS = 14 * 3_600_000;
 /** The last instant the API accepts: its datetimes have four-digit years. */
 const MAX_TIME = Date.UTC(9999, 11, 31, 23, 59, 59, 999);
 const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
+const MAX_LIST_VALUES = 50;
+const MAX_LIST_VALUE_LENGTH = 64;
 
 function pad(value: number, length = 2): string {
 	return String(value).padStart(length, "0");
@@ -176,11 +188,47 @@ export function formatLateness(ms: number, locale: string): string {
 	return format.format(-Math.round(ms / DAY_MS), "day");
 }
 
+export function isCalendarState(value: string): value is CalendarState {
+	return (CALENDAR_STATES as readonly string[]).includes(value);
+}
+
+/** Distinct, trimmed values of a comma-separated search param, bounded in count and length. */
+export function readList(value: unknown): string[] {
+	if (typeof value !== "string") return [];
+	const values = new Set<string>();
+	for (const part of value.split(",")) {
+		const item = part.trim();
+		if (item && item.length <= MAX_LIST_VALUE_LENGTH) values.add(item);
+		if (values.size === MAX_LIST_VALUES) break;
+	}
+	return [...values];
+}
+
+export function toListParam(values: readonly string[]): string | undefined {
+	return values.length > 0 ? values.join(",") : undefined;
+}
+
 export function parseCalendarSearch(search: Record<string, unknown>): CalendarSearch {
 	return {
 		view: search.view === "month" || search.view === "agenda" ? search.view : undefined,
 		month: isMonthKey(search.month) ? search.month : undefined,
+		collections: toListParam(readList(search.collections)),
+		locales: toListParam(readList(search.locales)),
+		states: toListParam(readList(search.states).filter(isCalendarState)),
 	};
+}
+
+/** Keeps items matching every filter; an empty filter matches everything. */
+export function filterItems(
+	items: readonly CalendarItem[],
+	filters: CalendarFilterValues,
+): CalendarItem[] {
+	return items.filter(
+		(item) =>
+			(filters.collections.length === 0 || filters.collections.includes(item.collection)) &&
+			(filters.locales.length === 0 || filters.locales.includes(item.locale)) &&
+			(filters.states.length === 0 || filters.states.includes(item.state)),
+	);
 }
 
 const COLLECTION_COLORS = ["blue", "purple", "teal", "green", "neutral"] as const;
@@ -201,6 +249,7 @@ export interface CalendarDisplay {
 	weekday(day: string): string;
 	weekdayShort(day: string): string;
 	monthDay(day: string): string;
+	monthDayShort(day: string): string;
 	fullDate(day: string): string;
 	dayNumber(day: string): string;
 	collection(slug: string): { label: string; color: CollectionColor };
@@ -316,6 +365,7 @@ export function createCalendarDisplay(options: CalendarDisplayOptions): Calendar
 		weekday: dayFormatter(locale, { weekday: "long" }),
 		weekdayShort: dayFormatter(locale, { weekday: "short" }),
 		monthDay: dayFormatter(locale, { month: "long", day: "numeric" }),
+		monthDayShort: dayFormatter(locale, { month: "short", day: "numeric" }),
 		fullDate: dayFormatter(locale, {
 			weekday: "long",
 			month: "long",

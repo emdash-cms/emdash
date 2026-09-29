@@ -6,8 +6,10 @@ import {
 	createCalendarDisplay,
 	dayKeyInZone,
 	fetchRange,
+	filterItems,
 	monthGridDays,
 	parseCalendarSearch,
+	toCalendarItems,
 } from "../../src/lib/calendar";
 
 describe("monthGridDays", () => {
@@ -107,6 +109,23 @@ describe("parseCalendarSearch", () => {
 		});
 	});
 
+	it("splits, de-duplicates, and bounds list params, keeping only known states", () => {
+		const many = Array.from({ length: 60 }, (_, index) => `c${index}`).join(",");
+
+		expect(
+			parseCalendarSearch({
+				collections: " posts, pages,posts,,",
+				locales: `en,${"x".repeat(65)}`,
+				states: "overdue,bogus,published",
+			}),
+		).toMatchObject({ collections: "posts,pages", locales: "en", states: "overdue,published" });
+		expect(parseCalendarSearch({ collections: many }).collections?.split(",")).toHaveLength(50);
+		expect(parseCalendarSearch({ states: "bogus", collections: 42 })).toMatchObject({
+			states: undefined,
+			collections: undefined,
+		});
+	});
+
 	it("drops unknown views and invalid months", () => {
 		for (const month of ["2026-13", "2026-00", "1969-12", "0099-01", "2026-1", 202610]) {
 			expect(parseCalendarSearch({ view: "week", month })).toMatchObject({
@@ -114,6 +133,57 @@ describe("parseCalendarSearch", () => {
 				month: undefined,
 			});
 		}
+	});
+});
+
+describe("filterItems", () => {
+	const now = Date.parse("2026-10-15T12:00:00.000Z");
+	const items = toCalendarItems(
+		[
+			{
+				collection: "posts",
+				id: "a",
+				locale: "en",
+				title: "A",
+				status: "published",
+				kind: "published",
+				at: "2026-10-01T09:00:00.000Z",
+			},
+			{
+				collection: "posts",
+				id: "b",
+				locale: "fr",
+				title: "B",
+				status: "scheduled",
+				kind: "scheduled",
+				at: "2026-10-20T09:00:00.000Z",
+			},
+			{
+				collection: "pages",
+				id: "c",
+				locale: "fr",
+				title: "C",
+				status: "published",
+				kind: "published",
+				at: "2026-10-02T09:00:00.000Z",
+			},
+		],
+		{ timeZone: "UTC", now, collectionOrder: ["posts", "pages"] },
+	);
+	const ids = (list: typeof items) => list.map((item) => item.id);
+
+	it("combines filters and treats an empty filter as all", () => {
+		expect(ids(filterItems(items, { collections: [], locales: [], states: [] }))).toEqual([
+			"a",
+			"c",
+			"b",
+		]);
+		expect(
+			ids(filterItems(items, { collections: ["posts"], locales: ["fr"], states: [] })),
+		).toEqual(["b"]);
+		expect(
+			ids(filterItems(items, { collections: [], locales: ["fr"], states: ["published"] })),
+		).toEqual(["c"]);
 	});
 });
 
