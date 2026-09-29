@@ -174,6 +174,28 @@ describe("SeoSettings", () => {
 		for (const button of savedButtons) await expect.element(button).toBeDisabled();
 	});
 
+	it("saves the AI training opt-out", async () => {
+		const screen = await renderSeoSettings();
+		const toggle = screen.getByRole("switch", { name: "Disallow AI training" });
+		await expect.element(toggle).not.toBeChecked();
+		await expect
+			.element(toggle)
+			.toHaveAccessibleDescription(
+				"Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.",
+			);
+
+		await userEvent.click(toggle);
+		await expect.element(toggle).toBeChecked();
+		await userEvent.click(screen.getByRole("button", { name: "Save", exact: true }).all()[0]);
+
+		await vi.waitFor(() => {
+			expect(mockUpdateSettings).toHaveBeenCalledWith({
+				...defaultSettings,
+				seo: { ...defaultSettings.seo, disallowAiTraining: true },
+			});
+		});
+	});
+
 	it("keeps cached SEO settings visible when the post-save refetch fails", async () => {
 		mockUpdateSettings.mockImplementation(async (settings) => {
 			mockFetchSettings.mockRejectedValue(new Error("Settings refetch failed"));

@@ -177,6 +177,10 @@ const settingsSeoSchema = z.object({
 		.max(5000)
 		.optional()
 		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+	disallowAiTraining: z
+		.boolean()
+		.optional()
+		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
 	googleVerification: z
 		.string()
 		.max(100)
