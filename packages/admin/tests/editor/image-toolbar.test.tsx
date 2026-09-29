@@ -487,8 +487,15 @@ describe("Image toolbar", () => {
 	});
 
 	it.each(["", "   "])("asks for alt text when the alt is %j", async (alt) => {
-		const { img } = await setup({ image: { alt } });
-		const toolbar = await selectImage(img);
+		const { editor, img } = await setup({ image: { alt } });
+		const hint = "This image has no description for screen readers";
+		let toolbar = await selectImage(img);
+		await userEvent.hover(button(toolbar, "Add alt text"));
+		await vi.waitFor(() => expect(document.body).toHaveTextContent(hint));
+		editor.commands.setTextSelection(1);
+		await vi.waitFor(() => expect(document.body).not.toHaveTextContent(hint));
+
+		toolbar = await selectImage(img);
 		await userEvent.click(button(toolbar, "Add alt text"));
 		await userEvent.keyboard("A red bike{Enter}");
 

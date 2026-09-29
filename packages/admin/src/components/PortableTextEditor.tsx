@@ -4296,6 +4296,8 @@ function ImageBubbleMenu({
 	const [mode, setMode] = React.useState<"controls" | "alt" | "link">("controls");
 	const [draft, setDraft] = React.useState("");
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	// Remounting the controls when the toolbar hides closes any hint left open on them.
+	const [controlsKey, setControlsKey] = React.useState(0);
 	// Holds the toolbar in place while the Replace picker has focus and until it
 	// hands focus back, so its focus return can land on the Replace button.
 	const pickerRef = React.useRef<"idle" | "open" | "closing">("idle");
@@ -4376,6 +4378,7 @@ function ImageBubbleMenu({
 			// Switching windows returns focus to the same place afterwards.
 			if (!event.relatedTarget && !document.hasFocus()) return;
 			menu.hidden = true;
+			setControlsKey((key) => key + 1);
 		};
 		// Tab moves image -> caption -> toolbar; Shift+Tab and Escape go back.
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -4478,7 +4481,10 @@ function ImageBubbleMenu({
 							elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						},
 					}),
-					onHide: showControls,
+					onHide: () => {
+						showControls();
+						setControlsKey((key) => key + 1);
+					},
 				}}
 				shouldShow={({ editor: activeEditor, element, state, view }) => {
 					const selection = getSelectedImage(state);
@@ -4516,113 +4522,116 @@ function ImageBubbleMenu({
 					}
 				}}
 			>
-				{mode === "alt" ? (
-					<>
-						<Input
-							ref={altInputRef}
-							aria-label={t`Alt text`}
-							placeholder={t`Describe the image`}
-							value={draft}
-							onChange={(event) => setDraft(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-								if (event.keyCode === 229) return;
-								event.preventDefault();
-								saveAlt();
-							}}
-							className="h-8 w-72 min-w-0 text-sm"
-						/>
-						<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
-							<X className="h-4 w-4" aria-hidden="true" />
-						</BubbleButton>
-						<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
-							<Check className="h-4 w-4" aria-hidden="true" />
-						</BubbleButton>
-					</>
-				) : mode === "link" ? (
-					<div className="flex min-w-0 items-start gap-0.5">
-						<LinkDestinationInput
-							className="w-72 min-w-0"
-							value={draft}
-							onValueChange={setDraft}
-							onSubmit={() => applyLink(draft)}
-							onPick={(href) => applyLink(href, editSession)}
-							onEscape={returnToEditor}
-						/>
-						<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
-							<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
-						</BubbleButton>
-						{image.link && (
-							<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
-								<LinkBreak className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
+				<TooltipProvider key={controlsKey} delay={200}>
+					{mode === "alt" ? (
+						<>
+							<Input
+								ref={altInputRef}
+								aria-label={t`Alt text`}
+								placeholder={t`Describe the image`}
+								value={draft}
+								onChange={(event) => setDraft(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+									if (event.keyCode === 229) return;
+									event.preventDefault();
+									saveAlt();
+								}}
+								className="h-8 w-72 min-w-0 text-sm"
+							/>
+							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+								<X className="h-4 w-4" aria-hidden="true" />
 							</BubbleButton>
-						)}
-					</div>
-				) : (
-					<>
-						<Button
-							variant="ghost"
-							className={textButtonClass}
-							icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
-							onClick={() => {
-								pickerRef.current = "open";
-								setPickerOpen(true);
-							}}
-						>
-							<span className="max-sm:sr-only">{t`Replace`}</span>
-						</Button>
-						<Button
-							variant="ghost"
-							className={textButtonClass}
-							icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
-							onClick={() => startEditing("alt")}
-						>
-							<span className="max-sm:sr-only">{altMissing ? t`Add alt text` : t`Alt text`}</span>
-							{altMissing && (
-								<span
-									aria-hidden="true"
-									className="size-1.5 rounded-full bg-kumo-warning max-sm:absolute max-sm:end-1 max-sm:top-1"
-								/>
-							)}
-						</Button>
-						{separator}
-						<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
-							{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
-								<BubbleButton
-									key={value ?? "none"}
-									active={image.alignment === value}
-									title={t(label)}
-									onClick={() => {
-										if (image.alignment === value) return;
-										editor.chain().updateAttributes("image", { alignment: value }).run();
-									}}
-								>
-									<Icon className="h-4 w-4" aria-hidden="true" />
+							<BubbleButton onClick={saveAlt} title={t`Save alt text`}>
+								<Check className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+						</>
+					) : mode === "link" ? (
+						<div className="flex min-w-0 items-start gap-0.5">
+							<LinkDestinationInput
+								className="w-72 min-w-0"
+								value={draft}
+								onValueChange={setDraft}
+								onSubmit={() => applyLink(draft)}
+								onPick={(href) => applyLink(href, editSession)}
+								onEscape={returnToEditor}
+							/>
+							<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
+								<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+							{image.link && (
+								<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
+									<LinkBreak className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
 								</BubbleButton>
-							))}
+							)}
 						</div>
-						{rowBreak}
-						<BubbleButton
-							onClick={() => startEditing("link")}
-							active={Boolean(image.link)}
-							title={image.link ? t`Edit link` : t`Add link`}
-						>
-							<LinkIcon className="h-4 w-4" aria-hidden="true" />
-						</BubbleButton>
-						{canOpenSettings && (
-							<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
-								<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+					) : (
+						<>
+							<Button
+								variant="ghost"
+								className={textButtonClass}
+								icon={<ImageSquare className="h-4 w-4" aria-hidden="true" />}
+								onClick={() => {
+									pickerRef.current = "open";
+									setPickerOpen(true);
+								}}
+							>
+								<span className="max-sm:sr-only">{t`Replace`}</span>
+							</Button>
+							<Button
+								variant="ghost"
+								className={textButtonClass}
+								icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
+								title={altMissing ? t`This image has no description for screen readers` : undefined}
+								onClick={() => startEditing("alt")}
+							>
+								<span className="max-sm:sr-only">{altMissing ? t`Add alt text` : t`Alt text`}</span>
+								{altMissing && (
+									<span
+										aria-hidden="true"
+										className="size-1.5 rounded-full bg-kumo-warning max-sm:absolute max-sm:end-1 max-sm:top-1"
+									/>
+								)}
+							</Button>
+							{separator}
+							<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
+								{IMAGE_ALIGNMENTS.map(({ value, label, Icon }) => (
+									<BubbleButton
+										key={value ?? "none"}
+										active={image.alignment === value}
+										title={t(label)}
+										onClick={() => {
+											if (image.alignment === value) return;
+											editor.chain().updateAttributes("image", { alignment: value }).run();
+										}}
+									>
+										<Icon className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								))}
+							</div>
+							{rowBreak}
+							<BubbleButton
+								onClick={() => startEditing("link")}
+								active={Boolean(image.link)}
+								title={image.link ? t`Edit link` : t`Add link`}
+							>
+								<LinkIcon className="h-4 w-4" aria-hidden="true" />
 							</BubbleButton>
-						)}
-						{separator}
-						<BubbleButton
-							onClick={() => editor.chain().focus().deleteSelection().run()}
-							title={t`Delete image`}
-						>
-							<Trash className="h-4 w-4" aria-hidden="true" />
-						</BubbleButton>
-					</>
-				)}
+							{canOpenSettings && (
+								<BubbleButton onClick={toggleSettings} title={t`Image settings`}>
+									<SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+								</BubbleButton>
+							)}
+							{separator}
+							<BubbleButton
+								onClick={() => editor.chain().focus().deleteSelection().run()}
+								title={t`Delete image`}
+							>
+								<Trash className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+						</>
+					)}
+				</TooltipProvider>
 			</BubbleMenu>
 			<MediaPickerModal
 				open={pickerOpen}
