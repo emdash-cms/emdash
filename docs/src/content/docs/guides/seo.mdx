@@ -150,7 +150,7 @@ To replace the default, enter custom content in **Settings > SEO > robots.txt**.
 
 ### AI training
 
-Turn on **Settings > SEO > Disallow AI training** to ask AI crawlers not to use the site for training. EmDash adds a block of rules to the default `robots.txt` before its `Sitemap:` line, and to the end of a custom `robots.txt`. A `Sitemap:` line applies to the whole file wherever it appears, so a custom file keeps its own. The block starts like this, with one `Disallow: /` group per crawler:
+Turn on **Settings > SEO > Disallow AI training** to ask AI crawlers not to use the site for training. EmDash adds a block of rules before the `Sitemap:` line of the default `robots.txt`. In a custom `robots.txt`, the block goes after your content: if your file has no `Sitemap:` line, EmDash appends one after the block; if it has one, the file keeps it, since a `Sitemap:` line applies to the whole file wherever it appears. The block starts like this, with one `Disallow: /` group per crawler:
 
 ```txt title="/robots.txt"
 # Disallow AI training
