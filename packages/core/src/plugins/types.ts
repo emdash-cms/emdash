@@ -1421,6 +1421,22 @@ export interface ContentHookEvent {
 	 * who made the change.
 	 */
 	actor?: ActorInfo;
+	/**
+	 * Locale of the entry being saved: the resolved target locale on a create,
+	 * the stored entry's locale on an update.
+	 */
+	locale?: string;
+	/**
+	 * ID of the source entry when a create comes from the translation flow.
+	 * Absent on updates and on creates that start a new translation group.
+	 */
+	translationOf?: string;
+}
+
+/** Locale details a save passes to its `content:beforeSave` and `content:afterSave` hooks. */
+export interface ContentSaveHookDetails {
+	locale?: string;
+	translationOf?: string;
 }
 
 /**
