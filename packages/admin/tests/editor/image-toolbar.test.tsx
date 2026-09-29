@@ -455,6 +455,26 @@ describe("Image toolbar", () => {
 		expectFocus(pm);
 	});
 
+	it("opens the alt text and link rows from the keyboard", async () => {
+		const { pm, img } = await setup();
+		const toolbar = await selectImage(img);
+
+		await userEvent.keyboard("{Tab}{Tab}{Tab}{Enter}");
+		await vi.waitFor(() =>
+			expect(document.activeElement).toBe(toolbar.querySelector('input[aria-label="Alt text"]')),
+		);
+		expect(toolbar).toBeVisible();
+
+		await userEvent.keyboard("{Escape}");
+		expect(document.activeElement).toBe(pm);
+		button(toolbar, "Add link").focus();
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() =>
+			expect(document.activeElement).toBe(toolbar.querySelector('[role="combobox"]')),
+		);
+		expect(toolbar).toBeVisible();
+	});
+
 	it("saves a caption typed under the image and keeps the toolbar showing", async () => {
 		const { editor, img, caption, getSaved } = await setup({ image: { caption: "Red bike" } });
 		const toolbar = await selectImage(img);

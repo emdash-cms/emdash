@@ -4449,6 +4449,10 @@ function ImageBubbleMenu({
 	const startEditing = (next: "alt" | "link") => {
 		editingPosRef.current = getSelectedImage(editor.state)?.from ?? null;
 		if (editingPosRef.current === null) return;
+		// Hold focus in the toolbar while the focused button unmounts, or the focus gate hides it.
+		if (menuRef.current?.contains(document.activeElement)) {
+			menuRef.current.focus({ preventScroll: true });
+		}
 		editSessionRef.current += 1;
 		setDraft(next === "alt" ? image.alt : image.link);
 		setMode(next);
