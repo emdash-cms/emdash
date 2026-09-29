@@ -107,7 +107,7 @@ export class ContentDatetimeNormalizer {
 				fields.push({ slug: row.slug, type: "datetime" });
 			} else if (row.type === "url") {
 				urlFields.push({ slug: row.slug });
-			} else {
+			} else if (row.type === "repeater") {
 				fields.push({
 					slug: row.slug,
 					type: "repeater",
