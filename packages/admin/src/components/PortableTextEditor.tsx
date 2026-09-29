@@ -128,10 +128,11 @@ import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { TopBlockDocument } from "./editor/EmbedBlockShell";
 import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
-import { HtmlBlockExtension, TopBlockDocument } from "./editor/HtmlBlockNode";
+import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { LinkDestinationInput } from "./editor/LinkDestinationInput";
@@ -1686,17 +1687,21 @@ interface SlashCommandItem {
 }
 
 /**
- * Insert an HTML block at the top level: at `position` when given, in place
- * of an empty top-level paragraph, before the top-level block whose start
- * holds the cursor, and otherwise after it. The new block's node view takes
- * focus itself.
+ * Insert a top-level block: at `position` when given, in place of an empty
+ * top-level paragraph, before the top-level block whose start holds the
+ * cursor, and otherwise after it. The new block is node-selected; its node
+ * view takes focus itself.
  */
-function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
+function insertTopLevelBlock(
+	editor: Editor,
+	block: ProseMirrorNode,
+	range?: Range,
+	position?: number,
+) {
 	const tr = closeHistory(editor.state.tr);
 	if (range) tr.delete(range.from, range.to);
 	const { selection } = tr;
 	const { $from } = selection;
-	const block = editor.schema.nodes.htmlBlock!.create({ isolated: true });
 	const atBlockStart =
 		$from.parentOffset === 0 &&
 		Array.from({ length: $from.depth - 1 }, (_, depth) => $from.index(depth + 1)).every(
@@ -1719,6 +1724,15 @@ function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
 	}
 	tr.setSelection(NodeSelection.create(tr.doc, at));
 	editor.view.dispatch(tr.scrollIntoView());
+}
+
+function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
+	insertTopLevelBlock(
+		editor,
+		editor.schema.nodes.htmlBlock!.create({ isolated: true }),
+		range,
+		position,
+	);
 }
 
 /**
