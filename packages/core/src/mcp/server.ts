@@ -2015,8 +2015,10 @@ export function createMcpServer(
 			description:
 				"Create a new byline (author/contributor credit). The slug must be unique " +
 				"and contain only lowercase letters, digits, and hyphens. Link the byline " +
-				"to a CMS user via userId, or leave it as a standalone guest credit. The " +
-				"returned id can then be passed to content_create/content_update bylines.",
+				"to a CMS user via userId, or leave it as a standalone guest credit. A " +
+				"translation created with translationOf keeps the source's userId unless " +
+				"you pass one; pass null to leave it unlinked. The returned id can then be " +
+				"passed to content_create/content_update bylines.",
 			inputSchema: z.object({ ...bylineCreateBody.shape }),
 			annotations: { destructiveHint: false },
 		},

@@ -108,6 +108,7 @@ import type {
 import type {
 	ActorInfo,
 	ContentActionOrigin,
+	ContentSaveHookDetails,
 	ContentItem as PluginContentItem,
 	ResolvedPlugin,
 	MediaItem,
@@ -3395,6 +3396,11 @@ export class EmDashRuntime {
 			}
 		}
 
+		const saveHookDetails = {
+			locale,
+			...(body.translationOf ? { translationOf: body.translationOf } : {}),
+		};
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
@@ -3405,6 +3411,7 @@ export class EmDashRuntime {
 					true,
 					undefined,
 					actor,
+					saveHookDetails,
 				);
 				processedData = hookResult.content;
 			} catch (error) {
@@ -3500,6 +3507,7 @@ export class EmDashRuntime {
 				true,
 				actor,
 				options.excludeAfterSavePluginId,
+				{ ...saveHookDetails, locale: result.data.item.locale ?? locale },
 			);
 		}
 
@@ -3610,6 +3618,7 @@ export class EmDashRuntime {
 						false,
 						resolvedItem?.id,
 						actor,
+						resolvedItem?.locale ? { locale: resolvedItem.locale } : {},
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3921,7 +3930,15 @@ export class EmDashRuntime {
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
-			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false, actor);
+			const savedLocale = hydrated.data.item.locale;
+			this.runAfterSaveHooks(
+				contentItemToRecord(hydrated.data.item),
+				collection,
+				false,
+				actor,
+				undefined,
+				savedLocale ? { locale: savedLocale } : {},
+			);
 		}
 
 		if (hydrated.success) {
@@ -5942,12 +5959,20 @@ export class EmDashRuntime {
 		isNew: boolean,
 		actor?: ActorInfo,
 		excludePluginId?: string,
+		details?: ContentSaveHookDetails,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew, actor, excludePluginId);
+					await this.hooks.runContentAfterSave(
+						content,
+						collection,
+						isNew,
+						actor,
+						excludePluginId,
+						details,
+					);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}

@@ -91,10 +91,27 @@ interface ContentHookEvent {
 	isNew: boolean; // True for creates, false for updates
 	id?: string; // ID of the existing item on updates; absent on creates
 	actor?: ActorInfo; // Authenticated user that initiated the save
+	locale?: string; // Locale of the entry being saved
+	translationOf?: string; // Source entry ID when a create adds a translation
 }
 ```
 
 On an update, `content` holds only the submitted field values. Load the stored item with `ctx.content.get(event.collection, event.id)` when the hook needs to compare against it. Authenticated REST, visual editing, and MCP saves include `actor`. Internal writes without an authenticated user omit it.
+
+`locale` is the locale the entry is saved in: on a create, the requested locale resolved against the configured locales, or the default locale when the request names none; on an update, the stored entry's locale. `translationOf` is set only when a create comes from the translation flow, and holds the ID of the entry being translated. Use the two together to tell a new entry from a new translation of an existing one, for example to allow one entry per locale in a collection:
+
+```ts
+"content:beforeSave": async (event, ctx) => {
+	if (event.collection !== "home" || !event.isNew || event.translationOf) return;
+	const existing = await ctx.content.list("home", {
+		limit: 1,
+		where: { locale: event.locale },
+	});
+	if (existing.items.length > 0) {
+		throw new ContentSaveRejectedError("Home already exists in this locale. Add a translation instead.");
+	}
+},
+```
 
 #### Return value
 
@@ -141,7 +158,7 @@ hooks: {
 
 #### Event
 
-`content:afterSave` receives `content`, `collection`, `isNew`, and the optional authenticated `actor`. `content` is the complete saved entry, with its database ID in `content.id` and collection fields under `content.data`. The separate optional `id` used by `content:beforeSave` updates is absent after the save.
+`content:afterSave` receives `content`, `collection`, `isNew`, the optional authenticated `actor`, and the same `locale` and `translationOf` as `content:beforeSave`. `content` is the complete saved entry, with its database ID in `content.id` and collection fields under `content.data`. The separate optional `id` used by `content:beforeSave` updates is absent after the save.
 
 #### Return value
 
