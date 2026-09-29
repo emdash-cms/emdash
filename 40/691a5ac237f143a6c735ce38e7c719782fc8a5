@@ -1,0 +1,31 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_d8021c569e4ef0::t_3f1ac04df769c5 365-406,3192,4062,4071,4579,4591
+  s_d8021c569e4ef0::t_9cca24dd0469be 98
+packages/admin/tests/editor/toolbar.test.tsx
+  s_d8021c569e4ef0::t_97941f1ffbbb73 1711,1737-1738,1769-1770
+  s_d8021c569e4ef0::t_cc5fec7b82875a 1739-1768,1771
+.changeset/plain-text-after-links.md
+  s_d8021c569e4ef0::t_09e5f21ea71169 1-5
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_d8021c569e4ef0::t_e653aa97aa846b 700,736-742
+packages/admin/tests/editor/link-destination-input.test.tsx
+  s_d8021c569e4ef0::t_2bceb029cafdb4 568,621,647
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_d8021c569e4ef0::t_86d1335182cb28 1006-1029
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "40691a5ac237f143a6c735ce38e7c719782fc8a5",
+  "prompts": {},
+  "sessions": {
+    "s_d8021c569e4ef0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ed3f-6811-71d0-b810-8f5b89fefd3d",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
