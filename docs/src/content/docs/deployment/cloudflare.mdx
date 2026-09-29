@@ -332,11 +332,11 @@ The preview HMAC secret and commenter-IP salt are generated and stored in the da
 
 ## Preview deployments
 
-A preview can run as a [Worker Preview](https://developers.cloudflare.com/workers/previews/), which gives each branch its own URL on the production Worker, or as a separate Worker in a named Wrangler environment. Both need their own database and bucket. Never point a preview binding at a production database or bucket.
+A preview can run as a [Worker Preview](https://developers.cloudflare.com/workers/previews/), which gives each branch its own URL on the production Worker, or as a separate Worker in a named Wrangler environment. Either way, the preview needs a database and bucket separate from production. Never point a preview binding at a production database or bucket.
 
 ### Worker Previews
 
-Worker Previews require Wrangler 4.135.0 or later in the project's dependencies. Previews do not inherit bindings or `vars` from the top-level configuration; list every binding the preview uses in a `previews` block.
+Worker Previews require Wrangler 4.135.0 or later in the project's dependencies. Projects created from an older EmDash template may pin an earlier version; upgrade it with `pnpm add -D wrangler@latest`. Previews do not inherit bindings or `vars` from the top-level configuration; list every binding the preview uses in a `previews` block.
 
 The Astro Cloudflare adapter adds a `SESSION` KV binding. `wrangler deploy` provisions it automatically, but `wrangler preview` rejects it without a namespace ID. Create the preview resources, including a KV namespace for sessions:
 
@@ -386,10 +386,10 @@ Set a secret for one preview with `pnpm wrangler preview secret put <NAME> --nam
 
 Keep these differences from production in mind:
 
-- **Every preview shares the resources in the `previews` block.** The first request to a preview applies pending core migrations, so a branch that upgrades EmDash also migrates the database the other previews use. Give a branch that upgrades EmDash its own preview database.
+- **Previews share the resources in the `previews` block.** `wrangler preview` reads the `previews` block of the branch it deploys, so every branch that keeps the base branch's configuration uses the same database. The first request to a preview applies pending core migrations, so a branch that upgrades EmDash also migrates the database the other previews use. To [isolate a branch](https://developers.cloudflare.com/workers/previews/resources/#d1-migrations), create another D1 database and change `database_name` and `database_id` in that branch's `previews` block before deploying it.
 - **An empty preview database shows the setup wizard.** Preview URLs are public, and the first visitor to finish the wizard becomes the administrator. Finish setup immediately after creating the preview, or protect preview URLs with [Cloudflare Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/).
 - **Cron Triggers do not run.** Scheduled posts are not published, and plugin cron tasks and scheduled backups do not run on a preview.
-- **Passkeys work only on the hostname that registered them.** Production passkeys do not work on a preview, and the administrator created on the first preview can sign in with a passkey only on that preview URL. On another preview that shares the database, sign in with a magic link, which needs an email provider and its binding in the `previews` block, and add a passkey there. Alternatively, give the branch its own preview database and run setup on it.
+- **Passkeys work only on the hostname that registered them.** Production passkeys do not work on a preview, and the administrator created on the first preview can sign in with a passkey only on that preview URL. On another preview that shares the database, sign in with a magic link, which needs an email provider and its binding in the `previews` block, and add a passkey there. Alternatively, isolate the branch with its own database as described above and run setup on it.
 
 ### Named environments
 
