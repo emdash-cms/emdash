@@ -42,6 +42,15 @@ describe("HtmlBlock rendering", () => {
 		);
 	});
 
+	it("escapes the frame document so middleware that edits the page can't reach it", async () => {
+		// Middleware such as the editor toolbar inserts HTML by searching the
+		// page's text for `</body>`.
+		const html = await render({ html: "<p>Hello</p>", js: "console.log(1);", isolated: true });
+
+		expect(html.match(/\ssrcdoc="([^"]*)"/)?.[1]).not.toContain("<");
+		expect(html).not.toContain("</body>");
+	});
+
 	it("renders nothing for an isolated block with no code", async () => {
 		const html = await render({ html: " ", css: "", js: "\n", isolated: true });
 

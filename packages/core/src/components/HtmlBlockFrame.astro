@@ -10,15 +10,17 @@ export interface Props {
 	js: string;
 }
 
-const srcdoc = buildHtmlBlockFrame(Astro.props);
+const MARKUP_RE = /[&"<>]/g;
+const ENTITIES: Record<string, string> = { "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" };
+
+// Astro leaves `<` and `>` unescaped in attributes. Middleware that finds
+// `</body>` by searching the page's text could then match one inside `srcdoc`
+// and break the tag, dropping its sandbox.
+const srcdoc = buildHtmlBlockFrame(Astro.props).replace(MARKUP_RE, (char) => ENTITIES[char] ?? char);
+const frame = `<iframe class="emdash-html-block" data-emdash-html-block srcdoc="${srcdoc}" sandbox="${HTML_BLOCK_FRAME_SANDBOX}" title="Embedded HTML"></iframe>`;
 ---
 
-<iframe
-	class="emdash-html-block"
-	data-emdash-html-block
-	srcdoc={srcdoc}
-	sandbox={HTML_BLOCK_FRAME_SANDBOX}
-	title="Embedded HTML"></iframe>
+<Fragment set:html={frame} />
 
 <script>
 	import {
@@ -26,7 +28,8 @@ const srcdoc = buildHtmlBlockFrame(Astro.props);
 		HTML_BLOCK_FRAME_MESSAGE,
 	} from "@emdash-cms/admin/html-block";
 
-	const frames = () => document.querySelectorAll<HTMLIFrameElement>("iframe[data-emdash-html-block]");
+	const frames = () =>
+		document.querySelectorAll<HTMLIFrameElement>("iframe[data-emdash-html-block]");
 
 	window.addEventListener("message", (event) => {
 		const data: unknown = event.data;
@@ -50,8 +53,8 @@ const srcdoc = buildHtmlBlockFrame(Astro.props);
 	}
 </script>
 
-<style>
-	.emdash-html-block {
+<style is:global>
+	iframe[data-emdash-html-block] {
 		display: block;
 		width: 100%;
 		border: 0;
