@@ -2,7 +2,9 @@ import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
+
+import "../../dist/styles.css";
 
 import {
 	ImageDetailPanel,
@@ -376,6 +378,26 @@ describe("Image toolbar", () => {
 
 		await userEvent.click(img);
 		await waitForToolbar();
+	});
+
+	it("fits every control on a narrow screen without scrolling", async () => {
+		await page.viewport(334, 800);
+		try {
+			const { img } = await setup();
+			const toolbar = await selectImage(img);
+			const menu = toolbar.parentElement!;
+			expect(menu.scrollWidth).toBeLessThanOrEqual(menu.clientWidth);
+			for (const control of toolbar.querySelectorAll("button")) {
+				const box = control.getBoundingClientRect();
+				expect(box.left).toBeGreaterThanOrEqual(0);
+				expect(box.right).toBeLessThanOrEqual(window.innerWidth);
+			}
+			const top = (label: string) => button(toolbar, label).getBoundingClientRect().top;
+			expect(top("Right")).toBe(top("Replace"));
+			expect(top("Add link")).toBeGreaterThan(top("Replace"));
+		} finally {
+			await page.viewport(1280, 800);
+		}
 	});
 
 	it("moves focus image, caption, toolbar with Tab, and back with Shift+Tab and Escape", async () => {

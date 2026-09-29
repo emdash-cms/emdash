@@ -4450,7 +4450,13 @@ function ImageBubbleMenu({
 
 	const editSession = editSessionRef.current;
 	const separator = <div className="w-px h-6 bg-kumo-line mx-1" />;
-	const textButtonClass = "h-8 gap-1.5 px-2 text-sm pointer-coarse:h-11";
+	// On phones the controls wrap onto two rows, breaking here.
+	const rowBreak = (
+		<div className="w-px h-6 bg-kumo-line mx-1 max-[30rem]:mx-0 max-[30rem]:h-0 max-[30rem]:basis-full" />
+	);
+	// Below the sm breakpoint these buttons show only their icons.
+	const textButtonClass =
+		"relative h-8 gap-1.5 px-2 text-sm pointer-coarse:h-11 max-sm:w-8 max-sm:justify-center max-sm:px-0 max-sm:pointer-coarse:w-11";
 
 	return (
 		<>
@@ -4470,8 +4476,6 @@ function ImageBubbleMenu({
 						...getCollisionOptions(),
 						apply: ({ availableWidth, elements }) => {
 							elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
-							elements.floating.style.overflowX = "auto";
-							elements.floating.style.borderRadius = "var(--radius-lg)";
 						},
 					}),
 					onHide: showControls,
@@ -4490,7 +4494,10 @@ function ImageBubbleMenu({
 				data-emdash-image-bubble-menu
 				role="group"
 				aria-label={t`Image controls`}
-				className="z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg"
+				className={cn(
+					"z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg",
+					mode === "controls" && "flex-wrap justify-center",
+				)}
 				onMouseDown={(event) => {
 					if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
 				}}
@@ -4523,7 +4530,7 @@ function ImageBubbleMenu({
 								event.preventDefault();
 								saveAlt();
 							}}
-							className="h-8 w-72 max-w-full text-sm"
+							className="h-8 w-72 min-w-0 text-sm"
 						/>
 						<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
 							<X className="h-4 w-4" aria-hidden="true" />
@@ -4533,9 +4540,9 @@ function ImageBubbleMenu({
 						</BubbleButton>
 					</>
 				) : mode === "link" ? (
-					<div className="flex items-start gap-0.5">
+					<div className="flex min-w-0 items-start gap-0.5">
 						<LinkDestinationInput
-							className="w-72"
+							className="w-72 min-w-0"
 							value={draft}
 							onValueChange={setDraft}
 							onSubmit={() => applyLink(draft)}
@@ -4562,7 +4569,7 @@ function ImageBubbleMenu({
 								setPickerOpen(true);
 							}}
 						>
-							{t`Replace`}
+							<span className="max-sm:sr-only">{t`Replace`}</span>
 						</Button>
 						<Button
 							variant="ghost"
@@ -4570,9 +4577,12 @@ function ImageBubbleMenu({
 							icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
 							onClick={() => startEditing("alt")}
 						>
-							{altMissing ? t`Add alt text` : t`Alt text`}
+							<span className="max-sm:sr-only">{altMissing ? t`Add alt text` : t`Alt text`}</span>
 							{altMissing && (
-								<span aria-hidden="true" className="size-1.5 rounded-full bg-kumo-warning" />
+								<span
+									aria-hidden="true"
+									className="size-1.5 rounded-full bg-kumo-warning max-sm:absolute max-sm:end-1 max-sm:top-1"
+								/>
 							)}
 						</Button>
 						{separator}
@@ -4591,7 +4601,7 @@ function ImageBubbleMenu({
 								</BubbleButton>
 							))}
 						</div>
-						{separator}
+						{rowBreak}
 						<BubbleButton
 							onClick={() => startEditing("link")}
 							active={Boolean(image.link)}
