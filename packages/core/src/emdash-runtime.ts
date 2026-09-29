@@ -266,6 +266,7 @@ import {
 	getActiveContentSaveHookName,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
+	type HookResult,
 } from "./plugins/hooks.js";
 import { disableRuntimePlugin, enableRuntimePlugin } from "./plugins/lifecycle.js";
 import { HOOK_NAMES, normalizeManifestRoute } from "./plugins/manifest-schema.js";
@@ -730,6 +731,16 @@ function allowedBrowserImageHosts(
 /**
  * EmDashRuntime - singleton per worker
  */
+/**
+ * The hook pipeline records a throwing lifecycle hook as a failed result
+ * rather than rejecting. Surface that failure to the caller.
+ */
+function throwOnLifecycleHookFailure(results: HookResult<void>[]): void {
+	const failed = results.find((result) => !result.success);
+	if (!failed) return;
+	throw failed.error ?? new Error(`Plugin ${failed.pluginId} lifecycle hook did not complete`);
+}
+
 export class EmDashRuntime {
 	/**
 	 * The singleton database instance (worker-lifetime cached).
@@ -1086,13 +1097,19 @@ export class EmDashRuntime {
 		}
 	}
 
+	/**
+	 * Run `plugin:install` then `plugin:activate` for a newly installed plugin.
+	 * Rejects with the hook's error when either hook fails, so install flows
+	 * can roll back instead of reporting a plugin whose setup did not run.
+	 */
 	async runPluginInstallLifecycle(pluginId: string): Promise<void> {
-		await this._hooks.runPluginInstall(pluginId);
-		await this._hooks.runPluginActivate(pluginId);
+		throwOnLifecycleHookFailure(await this._hooks.runPluginInstall(pluginId));
+		throwOnLifecycleHookFailure(await this._hooks.runPluginActivate(pluginId));
 	}
 
+	/** Run `plugin:activate`, rejecting with the hook's error when it fails. */
 	async runPluginActivateLifecycle(pluginId: string): Promise<void> {
-		await this._hooks.runPluginActivate(pluginId);
+		throwOnLifecycleHookFailure(await this._hooks.runPluginActivate(pluginId));
 	}
 
 	/**
