@@ -13,12 +13,12 @@ import {
 } from "../../../lib/registry.js";
 
 const publisherParam = Astro.params.publisher;
-if (!publisherParam) return Astro.redirect("/404");
+if (!publisherParam) return Astro.rewrite("/404");
 
 const identifier = publisherParam.startsWith("@")
 	? publisherParam.slice(1)
 	: publisherParam;
-if (!isDid(identifier) && !isHandle(identifier)) return Astro.redirect("/404");
+if (!isDid(identifier) && !isHandle(identifier)) return Astro.rewrite("/404");
 const result = await getLiveCollection("plugins", {
 	q: identifier,
 	limit: 100,
@@ -29,7 +29,7 @@ const entries = (result.entries ?? []).filter(({ data }) =>
 		? data.package.did === identifier
 		: publisherHandle(data.package) === identifier,
 );
-if (entries.length === 0) return Astro.redirect("/404");
+if (entries.length === 0) return Astro.rewrite("/404");
 
 const handle = entries
 	.map(({ data }) => publisherHandle(data.package))
