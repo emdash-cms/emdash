@@ -68,4 +68,26 @@ describe("HtmlBlockExtension", () => {
 		expect(node).toBeDefined();
 		expect((node as { attrs?: { html?: string } }).attrs?.html).toBe("<p>Round trip</p>");
 	});
+
+	it("carries css, js and isolated through clipboard HTML", () => {
+		const attrs = {
+			html: '<button id="go">Go</button>',
+			css: "button { color: red; }",
+			js: "document.getElementById('go').addEventListener('click', () => {});",
+			isolated: true,
+		};
+		editor.commands.insertContent({ type: "htmlBlock", attrs });
+
+		const target = new Editor({
+			extensions: [StarterKit, HtmlBlockExtension],
+			content: editor.getHTML(),
+		});
+
+		try {
+			const node = target.getJSON().content?.find((n) => n.type === "htmlBlock");
+			expect(node?.attrs).toMatchObject(attrs);
+		} finally {
+			target.destroy();
+		}
+	});
 });

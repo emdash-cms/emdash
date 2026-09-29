@@ -37,6 +37,10 @@
     "./portable-text-table": {
       "types": "./dist/portable-text-table.d.ts",
       "default": "./dist/portable-text-table.js"
+    },
+    "./html-block": {
+      "types": "./dist/html-block.d.ts",
+      "default": "./dist/html-block.js"
     }
   },
   "scripts": {

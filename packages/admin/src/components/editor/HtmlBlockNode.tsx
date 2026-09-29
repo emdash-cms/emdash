@@ -184,6 +184,28 @@ export const HtmlBlockExtension = Node.create({
 					return { "data-html-content": html };
 				},
 			},
+			css: {
+				default: "",
+				parseHTML: (element) => element.getAttribute("data-html-css") ?? "",
+				renderHTML: (attributes) =>
+					typeof attributes.css === "string" && attributes.css
+						? { "data-html-css": attributes.css }
+						: {},
+			},
+			js: {
+				default: "",
+				parseHTML: (element) => element.getAttribute("data-html-js") ?? "",
+				renderHTML: (attributes) =>
+					typeof attributes.js === "string" && attributes.js
+						? { "data-html-js": attributes.js }
+						: {},
+			},
+			isolated: {
+				default: false,
+				parseHTML: (element) => element.getAttribute("data-html-isolated") === "true",
+				renderHTML: (attributes) =>
+					attributes.isolated === true ? { "data-html-isolated": "true" } : {},
+			},
 		};
 	},
 

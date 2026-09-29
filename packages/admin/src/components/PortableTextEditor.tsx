@@ -103,6 +103,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Suggestion, { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
 
+import { htmlBlockFields } from "../html-block";
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
 import { uploadMedia } from "../lib/api/media.js";
@@ -234,6 +235,9 @@ interface PortableTextHtmlBlock {
 	_type: "htmlBlock";
 	_key: string;
 	html: string;
+	css?: string;
+	js?: string;
+	isolated?: boolean;
 }
 
 type PortableTextBlock =
@@ -834,14 +838,12 @@ function convertPMNode(
 			};
 		}
 
-		case "htmlBlock": {
-			const rawHtml = node.attrs?.html;
+		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
 				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
-				html: typeof rawHtml === "string" ? rawHtml : "",
+				...htmlBlockFields(node.attrs ?? {}),
 			};
-		}
 
 		case "image": {
 			const attrs = node.attrs ?? {};
@@ -1415,13 +1417,11 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 			};
 		}
 
-		case "htmlBlock": {
-			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
+		case "htmlBlock":
 			return {
 				type: "htmlBlock",
-				attrs: attrsWithPortableTextKey({ html: htmlBlock.html || "" }, htmlBlock._key),
+				attrs: attrsWithPortableTextKey({ ...htmlBlockFields(block) }, block._key),
 			};
-		}
 
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
