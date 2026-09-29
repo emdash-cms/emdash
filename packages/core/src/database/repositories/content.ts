@@ -80,7 +80,7 @@ function sameStoredValue(left: unknown, right: unknown): boolean {
 function matchesPublication(
 	observed: ContentItem,
 	existing: ContentItem,
-	revision: { data: Record<string, unknown> },
+	revisionData: Record<string, unknown>,
 	revisionId: string,
 	slug: string | null,
 	publishedAt: string,
@@ -99,7 +99,7 @@ function matchesPublication(
 		return false;
 	}
 
-	return Object.entries(revision.data).every(
+	return Object.entries(revisionData).every(
 		([key, value]) =>
 			SYSTEM_COLUMNS.has(key) || key.startsWith("_") || sameStoredValue(observed.data[key], value),
 	);
@@ -2526,6 +2526,9 @@ export class ContentRepository {
 				throw new EmDashValidationError("Revision does not belong to the specified content item");
 			}
 
+			const writableFieldSlugs = await this.datetimes.writableFieldSlugs(type);
+			const revisionData = keepKnownFields(revision.data, writableFieldSlugs);
+
 			const stagedSlug = typeof revision.data._slug === "string" ? revision.data._slug : null;
 			const intendedSlug = stagedSlug ?? existing.slug;
 			if (requireSlug && !intendedSlug?.trim()) {
@@ -2545,7 +2548,7 @@ export class ContentRepository {
 
 			const assignments: ReturnType<typeof sql>[] = [];
 			if (stagedSlug !== null) assignments.push(sql`slug = ${stagedSlug}`);
-			for (const [key, value] of Object.entries(revision.data)) {
+			for (const [key, value] of Object.entries(revisionData)) {
 				if (SYSTEM_COLUMNS.has(key) || key.startsWith("_")) continue;
 				validateIdentifier(key, "content field name");
 				assignments.push(sql`${sql.ref(key)} = ${serializeValue(value)}`);
@@ -2603,7 +2606,7 @@ export class ContentRepository {
 				promoted = matchesPublication(
 					observed,
 					existing,
-					revision,
+					revisionData,
 					revisionToPublish,
 					intendedSlug,
 					intendedPublishedAt,
