@@ -78,8 +78,9 @@ function renderPlaceholder(placeholder: Placeholder, onDismiss: () => void) {
 	const root = document.createElement("div");
 	root.dataset.imageUploadPlaceholder = "";
 	root.contentEditable = "false";
-	root.className =
-		"relative my-4 flex min-h-24 w-fit min-w-72 max-w-full overflow-hidden rounded-md bg-kumo-tint";
+	root.className = `relative my-4 flex min-h-24 max-w-full overflow-hidden rounded-md bg-kumo-tint ${
+		placeholder.previewUrl ? "w-fit min-w-72" : "w-full"
+	}`;
 
 	if (placeholder.previewUrl) {
 		const preview = document.createElement("img");
