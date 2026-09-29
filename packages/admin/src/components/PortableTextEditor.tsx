@@ -73,6 +73,7 @@ import {
 	LinkBreak,
 	ArrowSquareOut,
 	BracketsAngle,
+	FrameCorners,
 	CodeBlock,
 	Stack,
 	Table as TableIcon,
@@ -133,6 +134,8 @@ import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
 import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
+import { iframeEmbedFromAttrs } from "./editor/iframe-embed";
+import { IframeBlockExtension } from "./editor/IframeBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { ImageUploadExtension } from "./editor/ImageUploadExtension.js";
 import { LinkDestinationInput } from "./editor/LinkDestinationInput";
@@ -242,11 +245,23 @@ interface PortableTextHtmlBlock {
 	isolated?: boolean;
 }
 
+interface PortableTextIframeBlock {
+	_type: "iframe";
+	_key: string;
+	src: string;
+	title?: string;
+	width?: number;
+	height?: number;
+	allow?: string;
+	allowFullscreen?: boolean;
+}
+
 type PortableTextBlock =
 	| PortableTextTextBlock
 	| PortableTextImageBlock
 	| PortableTextCodeBlock
 	| PortableTextHtmlBlock
+	| PortableTextIframeBlock
 	| { _type: string; _key: string; [key: string]: unknown };
 
 // Generate unique key
@@ -500,6 +515,7 @@ const PortableTextIdentityExtension = Extension.create({
 					"blockquote",
 					"codeBlock",
 					"htmlBlock",
+					"iframeBlock",
 					"image",
 					"horizontalRule",
 					"gallery",
@@ -847,6 +863,13 @@ function convertPMNode(
 				...htmlBlockFields(node.attrs ?? {}),
 			};
 
+		case "iframeBlock":
+			return {
+				_type: "iframe",
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
+				...iframeEmbedFromAttrs(node.attrs ?? {}),
+			};
+
 		case "image": {
 			const attrs = node.attrs ?? {};
 			const provider = attrStr(attrs.provider);
@@ -1178,6 +1201,27 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 	return block._type === "block";
 }
 
+const IFRAME_BLOCK_FIELDS = new Set([
+	"_type",
+	"_key",
+	"src",
+	"title",
+	"width",
+	"height",
+	"allow",
+	"allowFullscreen",
+]);
+
+/** An `iframe` block with other fields belongs to a plugin and stays a plugin block. */
+function isIframeBlock(block: PortableTextBlock): block is PortableTextIframeBlock {
+	return (
+		block._type === "iframe" &&
+		"src" in block &&
+		typeof block.src === "string" &&
+		Object.keys(block).every((key) => IFRAME_BLOCK_FIELDS.has(key))
+	);
+}
+
 function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {
 	const asset = "asset" in block ? block.asset : undefined;
 	return block._type === "image" && typeof asset === "object" && asset !== null;
@@ -1424,6 +1468,14 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 				type: "htmlBlock",
 				attrs: attrsWithPortableTextKey({ ...htmlBlockFields(block) }, block._key),
 			};
+
+		case "iframe":
+			return isIframeBlock(block)
+				? {
+						type: "iframeBlock",
+						attrs: attrsWithPortableTextKey({ ...iframeEmbedFromAttrs(block) }, block._key),
+					}
+				: convertCustomBlock(block);
 
 		case "table": {
 			const result = portableTextTableToProseMirror(block, {
@@ -1726,6 +1778,10 @@ function insertTopLevelBlock(
 	editor.view.dispatch(tr.scrollIntoView());
 }
 
+function insertIframeBlock(editor: Editor, range?: Range, position?: number) {
+	insertTopLevelBlock(editor, editor.schema.nodes.iframeBlock!.create(), range, position);
+}
+
 function insertHtmlBlock(editor: Editor, range?: Range, position?: number) {
 	insertTopLevelBlock(
 		editor,
@@ -1846,6 +1902,14 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
 		command: ({ editor, range }) => insertHtmlBlock(editor, range),
+	},
+	{
+		id: "iframe",
+		title: msg`Iframe`,
+		description: msg`Embed a page from another site`,
+		icon: FrameCorners,
+		aliases: ["embed", "youtube", "vimeo", "video", "map"],
+		command: ({ editor, range }) => insertIframeBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -3107,21 +3171,25 @@ export function PortableTextEditor({
 
 	// Build slash commands
 	const slashCommands = React.useMemo(() => {
-		const cmds: SlashCommandItem[] = defaultSlashCommands.map((item) =>
-			item.id === "htmlBlock"
-				? {
-						...item,
-						// From the gutter, insert at its position in the same undo step.
-						deferInsertion: true,
-						command: ({ editor, range }) => {
-							const position = pendingBlockInsertPosRef.current;
-							pendingBlockInsertPosRef.current = null;
-							if (position === null) insertHtmlBlock(editor, range);
-							else insertHtmlBlock(editor, undefined, position);
-						},
-					}
-				: item,
-		);
+		const topLevelInserts: Record<string, typeof insertHtmlBlock> = {
+			htmlBlock: insertHtmlBlock,
+			iframe: insertIframeBlock,
+		};
+		const cmds: SlashCommandItem[] = defaultSlashCommands.map((item) => {
+			const insert = topLevelInserts[item.id];
+			if (!insert) return item;
+			return {
+				...item,
+				// From the gutter, insert at its position in the same undo step.
+				deferInsertion: true,
+				command: ({ editor, range }) => {
+					const position = pendingBlockInsertPosRef.current;
+					pendingBlockInsertPosRef.current = null;
+					if (position === null) insert(editor, range);
+					else insert(editor, undefined, position);
+				},
+			};
+		});
 
 		// Add image command
 		cmds.push({
@@ -3280,6 +3348,7 @@ export function PortableTextEditor({
 			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			IframeBlockExtension,
 			GalleryExtension,
 			ImageExtension,
 			ImageUploadExtension.configure({

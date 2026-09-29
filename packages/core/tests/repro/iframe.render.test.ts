@@ -51,6 +51,15 @@ describe("Iframe rendering", () => {
 		expect(attribute(html, "iframe", "allow")).toBe("autoplay; fullscreen");
 	});
 
+	it("drops a permission whose allowlist is 'none'", async () => {
+		const html = await render({
+			src: "https://example.com/",
+			allow: "autoplay 'none'; fullscreen",
+		});
+
+		expect(attribute(html, "iframe", "allow")).toBe("fullscreen");
+	});
+
 	it("renders nothing for an iframe block with other fields, which belongs to a plugin", async () => {
 		expect(await render({ src: "https://example.com/", theme: "dark" })).not.toContain("<iframe");
 	});

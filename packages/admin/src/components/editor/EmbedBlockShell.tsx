@@ -233,6 +233,27 @@ export function useEmbedBlockFocus({
 	return { autoFocus, cardRef, panelRef, onFocusChange, onEscape, deleteBlock, onPanelBlur };
 }
 
+/**
+ * Whether something is being dragged. Frames swallow drag events, so previews
+ * stop taking pointer events while a block is dragged over them.
+ */
+export function useDocumentDragging(): boolean {
+	const [dragging, setDragging] = React.useState(false);
+	React.useEffect(() => {
+		const start = () => setDragging(true);
+		const end = () => setDragging(false);
+		document.addEventListener("dragstart", start);
+		document.addEventListener("dragend", end);
+		document.addEventListener("drop", end);
+		return () => {
+			document.removeEventListener("dragstart", start);
+			document.removeEventListener("dragend", end);
+			document.removeEventListener("drop", end);
+		};
+	}, []);
+	return dragging;
+}
+
 export interface EmbedBlockTab {
 	value: string;
 	label: MessageDescriptor;

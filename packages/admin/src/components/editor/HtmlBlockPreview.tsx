@@ -19,6 +19,7 @@ import {
 	buildHtmlBlockFrame,
 } from "../../html-block";
 import { cn } from "../../lib/utils";
+import { useDocumentDragging } from "./EmbedBlockShell";
 
 // Decides only whether a saved block waits for a click before it runs; the
 // sandbox is the security boundary. Frames count because their documents can
@@ -144,7 +145,7 @@ function PreviewFrame({
 	const frameRef = React.useRef<HTMLIFrameElement>(null);
 	const [visible, setVisible] = React.useState(false);
 	const [height, setHeight] = React.useState(lastHeight.current);
-	const [dragging, setDragging] = React.useState(false);
+	const dragging = useDocumentDragging();
 
 	// Posts with many HTML blocks don't create every frame at load.
 	React.useEffect(() => {
@@ -180,20 +181,6 @@ function PreviewFrame({
 		window.addEventListener("message", onMessage);
 		return () => window.removeEventListener("message", onMessage);
 	}, [visible, lastHeight]);
-
-	// A frame swallows drag events, so blocks couldn't be dropped over it.
-	React.useEffect(() => {
-		const start = () => setDragging(true);
-		const end = () => setDragging(false);
-		document.addEventListener("dragstart", start);
-		document.addEventListener("dragend", end);
-		document.addEventListener("drop", end);
-		return () => {
-			document.removeEventListener("dragstart", start);
-			document.removeEventListener("dragend", end);
-			document.removeEventListener("drop", end);
-		};
-	}, []);
 
 	return (
 		<>

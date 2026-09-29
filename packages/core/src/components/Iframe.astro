@@ -79,10 +79,13 @@ const sandbox = SANDBOX.filter(
 	(token) => token !== "allow-same-origin" || !ownHosts.has(src.host),
 ).join(" ");
 
+// Granted to the embedded page's own origin. A directive whose allowlist is
+// `'none'` grants nothing, so it's dropped.
 const allow = (typeof node.allow === "string" ? node.allow : "")
 	.split(";")
-	.map((directive) => directive.trim().split(WHITESPACE_RE)[0] ?? "")
-	.filter((feature) => ALLOWED_FEATURES.has(feature))
+	.map((directive) => directive.trim().split(WHITESPACE_RE))
+	.filter(([feature = "", ...origins]) => ALLOWED_FEATURES.has(feature) && !origins.includes("'none'"))
+	.map(([feature]) => feature)
 	.join("; ");
 
 // Astro leaves `<` and `>` unescaped in attributes. Middleware that finds
