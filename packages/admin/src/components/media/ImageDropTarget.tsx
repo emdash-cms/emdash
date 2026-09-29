@@ -123,7 +123,9 @@ export function ImageDropTarget({
 					}}
 				>
 					{uploading ? (
-						<Loader size="sm" aria-hidden="true" />
+						<span aria-hidden="true" className="flex shrink-0">
+							<Loader size="sm" />
+						</span>
 					) : (
 						<UploadSimple className="h-8 w-8 shrink-0" aria-hidden="true" />
 					)}
