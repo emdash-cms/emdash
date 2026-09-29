@@ -4342,21 +4342,43 @@ function ImageBubbleMenu({
 		if (editor.isDestroyed) return;
 		editor.view.dispatch(editor.state.tr.setMeta(IMAGE_BUBBLE_MENU_KEY, "updatePosition"));
 	}, [editor]);
+	// A quick fade and scale in, played when the toolbar appears or moves to another image.
+	const playEntrance = React.useCallback(() => {
+		const menu = menuRef.current;
+		const toolbar = menu?.firstElementChild;
+		if (!menu?.isConnected || menu.hidden || !(toolbar instanceof HTMLElement)) return;
+		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		for (const animation of toolbar.getAnimations()) animation.cancel();
+		toolbar.animate(
+			reduceMotion
+				? [{ opacity: 0 }, { opacity: 1 }]
+				: [
+						{ opacity: 0, transform: "scale(0.97)" },
+						{ opacity: 1, transform: "none" },
+					],
+			{ duration: 150, easing: "cubic-bezier(0.23, 1, 0.32, 1)" },
+		);
+	}, []);
 
-	// Drop a draft once its image is no longer the selection.
+	// Replay the entrance when the selection moves to another image, and drop a
+	// draft once its image is no longer the selection.
 	React.useEffect(() => {
+		let selectedPos = getSelectedImage(editor.state)?.from ?? null;
 		const onTransaction = ({ transaction, appendedTransactions }: EditorEvents["transaction"]) => {
-			let position = editingPosRef.current;
-			if (position === null) return;
-			for (const tr of [transaction, ...appendedTransactions]) position = tr.mapping.map(position);
-			editingPosRef.current = position;
-			if (getSelectedImage(editor.state)?.from !== position) showControls();
+			const map = (position: number) =>
+				[transaction, ...appendedTransactions].reduce((pos, tr) => tr.mapping.map(pos), position);
+			const current = getSelectedImage(editor.state)?.from ?? null;
+			if (current !== null && selectedPos !== null && current !== map(selectedPos)) playEntrance();
+			selectedPos = current;
+			if (editingPosRef.current === null) return;
+			editingPosRef.current = map(editingPosRef.current);
+			if (current !== editingPosRef.current) showControls();
 		};
 		editor.on("transaction", onTransaction);
 		return () => {
 			editor.off("transaction", onTransaction);
 		};
-	}, [editor, showControls]);
+	}, [editor, playEntrance, showControls]);
 
 	React.useEffect(() => {
 		const menu = menuRef.current;
@@ -4372,6 +4394,7 @@ function ImageBubbleMenu({
 			if (!menu.hidden || !isInside(event.target)) return;
 			menu.hidden = false;
 			updatePosition();
+			playEntrance();
 		};
 		const onFocusOut = (event: FocusEvent) => {
 			if (pickerRef.current !== "idle" || isInside(event.relatedTarget)) return;
@@ -4408,7 +4431,7 @@ function ImageBubbleMenu({
 			document.removeEventListener("focusout", onFocusOut);
 			dom.removeEventListener("keydown", onKeyDown);
 		};
-	}, [editor, getSelectedCaption, updatePosition]);
+	}, [editor, getSelectedCaption, playEntrance, updatePosition]);
 
 	// A new row or label changes the toolbar's width, so center it over the image again.
 	React.useEffect(updatePosition, [mode, altMissing, updatePosition]);
@@ -4485,6 +4508,7 @@ function ImageBubbleMenu({
 							);
 						},
 					}),
+					onShow: playEntrance,
 					onHide: () => {
 						showControls();
 						setControlsKey((key) => key + 1);
@@ -4506,8 +4530,7 @@ function ImageBubbleMenu({
 				aria-label={t`Image controls`}
 				className={cn(
 					"z-[100] flex items-center gap-0.5 rounded-lg border bg-kumo-base p-1 shadow-lg",
-					// Kumo's popup entrance, replayed each time TipTap attaches the toolbar.
-					"origin-[var(--transform-origin)] transition-[transform,scale,opacity] duration-150 starting:scale-90 starting:opacity-0 motion-reduce:transition-none",
+					"origin-[var(--transform-origin)]",
 					mode === "controls" && "flex-wrap justify-center",
 				)}
 				onMouseDown={(event) => {
