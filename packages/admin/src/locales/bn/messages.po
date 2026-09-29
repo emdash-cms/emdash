@@ -203,7 +203,7 @@ msgstr ""
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:210
 #: packages/admin/src/components/editor/TableControls.tsx:243
-#: packages/admin/src/components/PortableTextEditor.tsx:4253
+#: packages/admin/src/components/PortableTextEditor.tsx:4296
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# সারি} other {# সারি}} × {1, plural, one {# কলাম} other {# কলাম}} নির্বাচিত"
 
@@ -472,7 +472,7 @@ msgstr "{base} (গন্তব্য: {0})"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {পরবর্তী রিভিশন থেকে #টি পরিবর্তন} other {পরবর্তী রিভিশন থেকে #টি পরিবর্তন}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2807
+#: packages/admin/src/components/PortableTextEditor.tsx:2849
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# অক্ষর} other {# অক্ষর}}"
 
@@ -665,7 +665,7 @@ msgstr "{total}-এর মধ্যে {position}"
 msgid "{previewRows} × {previewColumns} table"
 msgstr "{previewRows} × {previewColumns} টেবিল"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2808
+#: packages/admin/src/components/PortableTextEditor.tsx:2850
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr "{readingTime, plural, one {পড়তে # মিনিট} other {পড়তে # মিনিট}}"
 
@@ -694,7 +694,7 @@ msgstr "{row} × {column} টেবিল"
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr "{rows, plural, one {সারি মুছে ফেলা হয়েছে} other {#টি সারি মুছে ফেলা হয়েছে}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2953
+#: packages/admin/src/components/PortableTextEditor.tsx:2995
 msgid "{rows} × {columns} table pasted"
 msgstr "{rows} × {columns} টেবিল পেস্ট করা হয়েছে"
 
@@ -734,7 +734,7 @@ msgstr "{unchangedCount, plural, one {# অপরিবর্তিত দেখ
 msgid "{widgetType} in {areaName}"
 msgstr "{areaName}-এ {widgetType}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2806
+#: packages/admin/src/components/PortableTextEditor.tsx:2848
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# শব্দ} other {# শব্দ}}"
 
@@ -1079,7 +1079,7 @@ msgstr "যোগ করুন"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:503
 #: packages/admin/src/components/ContentList.tsx:554
-#: packages/admin/src/components/PortableTextEditor.tsx:2417
+#: packages/admin/src/components/PortableTextEditor.tsx:2459
 #: packages/admin/src/components/TaxonomyManager.tsx:756
 #: packages/admin/src/components/TaxonomyManager.tsx:1330
 msgid "Add {0}"
@@ -1126,7 +1126,7 @@ msgid "Add byline"
 msgstr "বাইলাইন যোগ করুন"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
-#: packages/admin/src/components/PortableTextEditor.tsx:4266
+#: packages/admin/src/components/PortableTextEditor.tsx:4309
 msgid "Add column after"
 msgstr "পরে কলাম যোগ করুন"
 
@@ -1188,7 +1188,7 @@ msgstr "ছবি যোগ করুন"
 msgid "Add images to gallery"
 msgstr "গ্যালারিতে ছবি যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2417
+#: packages/admin/src/components/PortableTextEditor.tsx:2459
 msgid "Add item"
 msgstr "আইটেম যোগ করুন"
 
@@ -1196,7 +1196,7 @@ msgstr "আইটেম যোগ করুন"
 msgid "Add Item"
 msgstr "আইটেম যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4178
+#: packages/admin/src/components/PortableTextEditor.tsx:4221
 msgid "Add link"
 msgstr "লিঙ্ক যোগ করুন"
 
@@ -1240,7 +1240,7 @@ msgid "Add row above"
 msgstr "উপরে সারি যোগ করুন"
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
-#: packages/admin/src/components/PortableTextEditor.tsx:4259
+#: packages/admin/src/components/PortableTextEditor.tsx:4302
 msgid "Add row below"
 msgstr "নিচে সারি যোগ করুন"
 
@@ -1350,15 +1350,15 @@ msgstr "{0}-এর এজেন্ট অ্যাক্সেস আপডে�
 msgid "Agent-callable MCP tools"
 msgstr "এজেন্ট যেসব MCP টুল কল করতে পারে"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4779
+#: packages/admin/src/components/PortableTextEditor.tsx:4822
 msgid "Align Center"
 msgstr "মাঝে সারিবদ্ধ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4771
+#: packages/admin/src/components/PortableTextEditor.tsx:4814
 msgid "Align Left"
 msgstr "বাঁয়ে সারিবদ্ধ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4787
+#: packages/admin/src/components/PortableTextEditor.tsx:4830
 msgid "Align Right"
 msgstr "ডানে সারিবদ্ধ করুন"
 
@@ -1631,7 +1631,7 @@ msgid "Application Password"
 msgstr "অ্যাপ্লিকেশন পাসওয়ার্ড"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:607
-#: packages/admin/src/components/PortableTextEditor.tsx:4866
+#: packages/admin/src/components/PortableTextEditor.tsx:4909
 msgid "Apply"
 msgstr "প্রয়োগ করুন"
 
@@ -1639,8 +1639,8 @@ msgstr "প্রয়োগ করুন"
 msgid "Apply changes"
 msgstr "পরিবর্তন প্রয়োগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4099
-#: packages/admin/src/components/PortableTextEditor.tsx:4100
+#: packages/admin/src/components/PortableTextEditor.tsx:4142
+#: packages/admin/src/components/PortableTextEditor.tsx:4143
 msgid "Apply link"
 msgstr "লিঙ্ক প্রয়োগ করুন"
 
@@ -2049,8 +2049,8 @@ msgstr "বাধা"
 msgid "Blocks"
 msgstr "ব্লক"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4126
-#: packages/admin/src/components/PortableTextEditor.tsx:4647
+#: packages/admin/src/components/PortableTextEditor.tsx:4169
+#: packages/admin/src/components/PortableTextEditor.tsx:4690
 msgid "Bold"
 msgstr "বোল্ড"
 
@@ -2106,8 +2106,8 @@ msgid "Build provenance verified"
 msgstr "বিল্ডের উৎস-প্রমাণ যাচাই করা হয়েছে"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1717
-#: packages/admin/src/components/PortableTextEditor.tsx:4696
+#: packages/admin/src/components/PortableTextEditor.tsx:1759
+#: packages/admin/src/components/PortableTextEditor.tsx:4739
 msgid "Bullet List"
 msgstr "বুলেট তালিকা"
 
@@ -2230,7 +2230,7 @@ msgstr "কনটেন্ট দেখতে পারেন"
 #: packages/admin/src/components/MenuEditor.tsx:629
 #: packages/admin/src/components/MenuList.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:802
-#: packages/admin/src/components/PortableTextEditor.tsx:4850
+#: packages/admin/src/components/PortableTextEditor.tsx:4893
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:185
 #: packages/admin/src/components/RelationDialog.tsx:60
@@ -2659,9 +2659,9 @@ msgstr "{siteName}-এ সাইন ইন করতে এই লিঙ্ক�
 #: packages/admin/src/components/MenuEditor.tsx:588
 #: packages/admin/src/components/MenuEditor.tsx:592
 #: packages/admin/src/components/MenuList.tsx:145
-#: packages/admin/src/components/PortableTextEditor.tsx:2192
-#: packages/admin/src/components/PortableTextEditor.tsx:2198
-#: packages/admin/src/components/PortableTextEditor.tsx:2202
+#: packages/admin/src/components/PortableTextEditor.tsx:2234
+#: packages/admin/src/components/PortableTextEditor.tsx:2240
+#: packages/admin/src/components/PortableTextEditor.tsx:2244
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
 #: packages/admin/src/components/Redirects.tsx:117
 #: packages/admin/src/components/Redirects.tsx:123
@@ -2717,14 +2717,14 @@ msgid "Close settings"
 msgstr "সেটিংস বন্ধ করুন"
 
 #: packages/admin/src/components/ContentTypeList.tsx:388
-#: packages/admin/src/components/PortableTextEditor.tsx:4168
+#: packages/admin/src/components/PortableTextEditor.tsx:4211
 #: packages/admin/src/components/Redirects.tsx:487
 msgid "Code"
 msgstr "কোড"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1747
-#: packages/admin/src/components/PortableTextEditor.tsx:4738
+#: packages/admin/src/components/PortableTextEditor.tsx:1789
+#: packages/admin/src/components/PortableTextEditor.tsx:4781
 msgid "Code Block"
 msgstr "কোড ব্লক"
 
@@ -2777,7 +2777,7 @@ msgid "Collections created:"
 msgstr "তৈরি হওয়া কালেকশন:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:30
-#: packages/admin/src/components/PortableTextEditor.tsx:4264
+#: packages/admin/src/components/PortableTextEditor.tsx:4307
 msgid "Column added after"
 msgstr "পরে কলাম যোগ করা হয়েছে"
 
@@ -2793,7 +2793,7 @@ msgstr "কলামের প্রস্থ কমানো হয়েছে
 msgid "Column width increased"
 msgstr "কলামের প্রস্থ বাড়ানো হয়েছে"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2953
+#: packages/admin/src/components/PortableTextEditor.tsx:2995
 msgid "Column width resized"
 msgstr "কলামের প্রস্থ পরিবর্তন করা হয়েছে"
 
@@ -2922,7 +2922,7 @@ msgstr "কনটেন্ট"
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:331
 #: packages/admin/src/components/Dashboard.tsx:449
-#: packages/admin/src/components/PortableTextEditor.tsx:3062
+#: packages/admin/src/components/PortableTextEditor.tsx:3104
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:591
 #: packages/admin/src/components/Widgets.tsx:899
@@ -3044,7 +3044,7 @@ msgstr "চালিয়ে যান →"
 msgid "Continue Import"
 msgstr "ইমপোর্ট চালিয়ে যান"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4713
+#: packages/admin/src/components/PortableTextEditor.tsx:4756
 msgid "Continue numbering"
 msgstr "নম্বর চালিয়ে যান"
 
@@ -3145,7 +3145,7 @@ msgstr "স্বয়ংক্রিয়ভাবে কপি করা য
 msgid "Could not create {singularLower}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3829
+#: packages/admin/src/components/PortableTextEditor.tsx:3872
 msgid "Could not insert section"
 msgstr "সেকশন যোগ করা যায়নি"
 
@@ -3300,7 +3300,7 @@ msgstr ""
 msgid "Create a block type before adding a blocks field."
 msgstr "ব্লকস ফিল্ড যোগ করার আগে একটি ব্লক টাইপ তৈরি করুন।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1718
+#: packages/admin/src/components/PortableTextEditor.tsx:1760
 msgid "Create a bullet list"
 msgstr "একটি বুলেট তালিকা তৈরি করুন"
 
@@ -3313,7 +3313,7 @@ msgstr "নতুন {0} তৈরি করুন"
 msgid "Create a new {singularLabel}"
 msgstr "নতুন {singularLabel} তৈরি করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1728
+#: packages/admin/src/components/PortableTextEditor.tsx:1770
 msgid "Create a numbered list"
 msgstr "একটি নম্বরযুক্ত তালিকা তৈরি করুন"
 
@@ -4121,11 +4121,11 @@ msgstr "সম্পন্ন {0} সরিয়ে দিন"
 msgid "Dismiss import suggestion"
 msgstr "ইমপোর্টের পরামর্শ সরিয়ে দিন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3850
+#: packages/admin/src/components/PortableTextEditor.tsx:3893
 msgid "Dismiss section error"
 msgstr "সেকশনের ত্রুটি সরিয়ে দিন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3817
+#: packages/admin/src/components/PortableTextEditor.tsx:3860
 msgid "Dismiss table paste error"
 msgstr "টেবিল পেস্টের ত্রুটি সরিয়ে দিন"
 
@@ -4170,7 +4170,7 @@ msgstr "মনোযোগ-কেন্দ্রিক মোড (⌘⇧\\)"
 msgid "Distribute columns evenly"
 msgstr "কলামগুলো সমানভাবে বণ্টন করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1765
+#: packages/admin/src/components/PortableTextEditor.tsx:1807
 msgid "Divider"
 msgstr "বিভাজক"
 
@@ -4322,7 +4322,7 @@ msgstr "টেনে এনে ছাড়ুন অথবা ব্রাউ�
 msgid "Drag here to add"
 msgstr "যোগ করতে এখানে টেনে আনুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2593
+#: packages/admin/src/components/PortableTextEditor.tsx:2635
 msgid "Drag to reorder"
 msgstr "ক্রম পরিবর্তন করতে টানুন"
 
@@ -4433,7 +4433,7 @@ msgstr "সম্পাদনা করুন"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:364
-#: packages/admin/src/components/PortableTextEditor.tsx:2189
+#: packages/admin/src/components/PortableTextEditor.tsx:2231
 #: packages/admin/src/components/RelationFormPanel.tsx:83
 #: packages/admin/src/components/RelationList.tsx:221
 #: packages/admin/src/components/RelationsPanel.tsx:201
@@ -4514,7 +4514,7 @@ msgstr "ছবি সম্পাদনা করুন"
 msgid "Edit image {0}"
 msgstr "ছবি {0} সম্পাদনা করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4178
+#: packages/admin/src/components/PortableTextEditor.tsx:4221
 msgid "Edit link"
 msgstr "লিঙ্ক সম্পাদনা করুন"
 
@@ -4650,11 +4650,11 @@ msgid "Email verified!"
 msgstr "ইমেইল যাচাই করা হয়েছে!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:3076
+#: packages/admin/src/components/PortableTextEditor.tsx:3118
 msgid "Embed a {0}"
 msgstr "একটি {0} এমবেড করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3079
+#: packages/admin/src/components/PortableTextEditor.tsx:3121
 msgid "Embeds"
 msgstr "এমবেড"
 
@@ -5995,7 +5995,7 @@ msgid "Full admin access"
 msgstr "সম্পূর্ণ অ্যাডমিন অ্যাক্সেস"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:3043
+#: packages/admin/src/components/PortableTextEditor.tsx:3085
 msgid "Gallery"
 msgstr "গ্যালারি"
 
@@ -6113,37 +6113,37 @@ msgstr "হেডার"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1657
+#: packages/admin/src/components/PortableTextEditor.tsx:1699
 msgid "Heading 1"
 msgstr "হেডিং 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1667
+#: packages/admin/src/components/PortableTextEditor.tsx:1709
 msgid "Heading 2"
 msgstr "হেডিং 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1677
+#: packages/admin/src/components/PortableTextEditor.tsx:1719
 msgid "Heading 3"
 msgstr "হেডিং 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1687
+#: packages/admin/src/components/PortableTextEditor.tsx:1729
 msgid "Heading 4"
 msgstr "হেডিং 4"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1697
+#: packages/admin/src/components/PortableTextEditor.tsx:1739
 msgid "Heading 5"
 msgstr "হেডিং 5"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:1707
+#: packages/admin/src/components/PortableTextEditor.tsx:1749
 msgid "Heading 6"
 msgstr "হেডিং 6"
 
@@ -6245,7 +6245,7 @@ msgstr "কীভাবে একটি Application Password তৈরি কর
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1757
+#: packages/admin/src/components/PortableTextEditor.tsx:1799
 msgid "HTML"
 msgstr "HTML"
 
@@ -6305,7 +6305,7 @@ msgstr "আপনি যদি এটির অনুরোধ না করে 
 
 #: packages/admin/src/components/FieldEditor.tsx:437
 #: packages/admin/src/components/FieldEditor.tsx:1240
-#: packages/admin/src/components/PortableTextEditor.tsx:3028
+#: packages/admin/src/components/PortableTextEditor.tsx:3070
 msgid "Image"
 msgstr "ছবি"
 
@@ -6328,8 +6328,8 @@ msgstr "ছবির অ্যাকশন"
 msgid "Image from media library"
 msgstr "মিডিয়া লাইব্রেরি থেকে ছবি"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4805
-#: packages/admin/src/components/PortableTextEditor.tsx:4820
+#: packages/admin/src/components/PortableTextEditor.tsx:4848
+#: packages/admin/src/components/PortableTextEditor.tsx:4863
 msgid "Image link"
 msgstr "ছবির লিঙ্ক"
 
@@ -6560,49 +6560,49 @@ msgstr "ইনডেক্স করা হচ্ছে"
 msgid "Indexing existing content"
 msgstr "বিদ্যমান কনটেন্ট ইনডেক্স করা হচ্ছে"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4675
+#: packages/admin/src/components/PortableTextEditor.tsx:4718
 msgid "Inline Code"
 msgstr "ইনলাইন কোড"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:2189
+#: packages/admin/src/components/PortableTextEditor.tsx:2231
 msgid "Insert {0}"
 msgstr "{0} যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1738
+#: packages/admin/src/components/PortableTextEditor.tsx:1780
 msgid "Insert a blockquote"
 msgstr "একটি ব্লককোট যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1748
+#: packages/admin/src/components/PortableTextEditor.tsx:1790
 msgid "Insert a code block"
 msgstr "একটি কোড ব্লক যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1766
+#: packages/admin/src/components/PortableTextEditor.tsx:1808
 msgid "Insert a horizontal rule"
 msgstr "একটি অনুভূমিক রেখা যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3059
+#: packages/admin/src/components/PortableTextEditor.tsx:3101
 msgid "Insert a reusable section"
 msgstr "একটি পুনঃব্যবহারযোগ্য সেকশন যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1776
+#: packages/admin/src/components/PortableTextEditor.tsx:1818
 msgid "Insert a table"
 msgstr "একটি টেবিল যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3029
+#: packages/admin/src/components/PortableTextEditor.tsx:3071
 msgid "Insert an image"
 msgstr "একটি ছবি যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3044
+#: packages/admin/src/components/PortableTextEditor.tsx:3086
 msgid "Insert an image gallery"
 msgstr "একটি ছবির গ্যালারি যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2020
+#: packages/admin/src/components/PortableTextEditor.tsx:2062
 msgid "Insert block"
 msgstr "ব্লক যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4627
-#: packages/admin/src/components/PortableTextEditor.tsx:4637
+#: packages/admin/src/components/PortableTextEditor.tsx:4670
+#: packages/admin/src/components/PortableTextEditor.tsx:4680
 msgid "Insert block after current block"
 msgstr "বর্তমান ব্লকের পরে ব্লক যোগ করুন"
 
@@ -6610,20 +6610,20 @@ msgstr "বর্তমান ব্লকের পরে ব্লক যো�
 msgid "Insert block below"
 msgstr "নিচে ব্লক যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4752
+#: packages/admin/src/components/PortableTextEditor.tsx:4795
 msgid "Insert HTML"
 msgstr "HTML যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3922
+#: packages/admin/src/components/PortableTextEditor.tsx:3965
 msgid "Insert image"
 msgstr "ছবি যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4745
+#: packages/admin/src/components/PortableTextEditor.tsx:4788
 msgid "Insert Image"
 msgstr "ছবি যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4805
-#: packages/admin/src/components/PortableTextEditor.tsx:4820
+#: packages/admin/src/components/PortableTextEditor.tsx:4848
+#: packages/admin/src/components/PortableTextEditor.tsx:4863
 msgid "Insert Link"
 msgstr "লিঙ্ক যোগ করুন"
 
@@ -6639,7 +6639,7 @@ msgstr "পরে অনুচ্ছেদ যোগ করুন"
 msgid "Insert paragraph before"
 msgstr "আগে অনুচ্ছেদ যোগ করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1758
+#: packages/admin/src/components/PortableTextEditor.tsx:1800
 msgid "Insert raw HTML"
 msgstr "র (raw) HTML যোগ করুন"
 
@@ -6763,13 +6763,13 @@ msgstr "নিরাপদ সিস্টেম প্রম্পটে আপ
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "এটি অন্য কোথাও শুরু করা হয়েছে, তাই এর পরিকল্পনা আর পরিবর্তন করা যাবে না। এর অগ্রগতি এখানে দেখা যাবে।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4133
-#: packages/admin/src/components/PortableTextEditor.tsx:4654
+#: packages/admin/src/components/PortableTextEditor.tsx:4176
+#: packages/admin/src/components/PortableTextEditor.tsx:4697
 msgid "Italic"
 msgstr "ইটালিক"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2579
+#: packages/admin/src/components/PortableTextEditor.tsx:2621
 #: packages/admin/src/components/RepeaterField.tsx:247
 msgid "Item {0}"
 msgstr "আইটেম {0}"
@@ -6908,7 +6908,7 @@ msgstr "ল্যান্ডস্কেপ"
 msgid "Language"
 msgstr "ভাষা"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1658
+#: packages/admin/src/components/PortableTextEditor.tsx:1700
 msgid "Large section heading"
 msgstr "বড় সেকশন হেডিং"
 
@@ -6980,7 +6980,7 @@ msgstr "লাইসেন্স"
 msgid "Limit"
 msgstr "সীমা"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4831
+#: packages/admin/src/components/PortableTextEditor.tsx:4874
 msgid "Link"
 msgstr "লিঙ্ক"
 
@@ -7139,7 +7139,7 @@ msgstr "কনফিগারেশন লোড হচ্ছে..."
 msgid "Loading content..."
 msgstr "কনটেন্ট লোড হচ্ছে..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3784
+#: packages/admin/src/components/PortableTextEditor.tsx:3827
 msgid "Loading editor..."
 msgstr "এডিটর লোড হচ্ছে..."
 
@@ -7247,7 +7247,7 @@ msgstr "উইজেট লোড হচ্ছে..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1729
 #: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:2706
+#: packages/admin/src/components/PortableTextEditor.tsx:2748
 #: packages/admin/src/components/Redirects.tsx:569
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
@@ -7479,8 +7479,8 @@ msgstr "সর্বোচ্চ ট্যাগ"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3032
-#: packages/admin/src/components/PortableTextEditor.tsx:3047
+#: packages/admin/src/components/PortableTextEditor.tsx:3074
+#: packages/admin/src/components/PortableTextEditor.tsx:3089
 #: packages/admin/src/components/Settings.tsx:72
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
@@ -7573,7 +7573,7 @@ msgstr "মিডিয়া ব্যবহার ট্র্যাকিং�
 msgid "Media Write"
 msgstr "মিডিয়া লেখা"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1668
+#: packages/admin/src/components/PortableTextEditor.tsx:1710
 msgid "Medium section heading"
 msgstr "মাঝারি সেকশন হেডিং"
 
@@ -7688,7 +7688,7 @@ msgstr "সর্বনিম্ন মান"
 msgid "Minimum blocks"
 msgstr "সর্বনিম্ন ব্লক"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1698
+#: packages/admin/src/components/PortableTextEditor.tsx:1740
 msgid "Minor section heading"
 msgstr "ছোট সেকশন হেডিং"
 
@@ -8283,7 +8283,7 @@ msgstr "ইনস্টলযোগ্য কোনো রিলিজ নেই
 msgid "No invite token provided"
 msgstr "কোনো আমন্ত্রণ টোকেন দেওয়া হয়নি"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2502
+#: packages/admin/src/components/PortableTextEditor.tsx:2544
 #: packages/admin/src/components/RepeaterField.tsx:167
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -8425,7 +8425,7 @@ msgstr ""
 msgid "No relations yet."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2049
+#: packages/admin/src/components/PortableTextEditor.tsx:2091
 #: packages/admin/src/components/RepeaterField.tsx:398
 msgid "No results"
 msgstr "কোনো ফলাফল নেই"
@@ -8538,8 +8538,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "তালিকা ভিউতে প্রতি পেজে কতগুলো পোস্ট দেখানো হবে"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1727
-#: packages/admin/src/components/PortableTextEditor.tsx:4704
+#: packages/admin/src/components/PortableTextEditor.tsx:1769
+#: packages/admin/src/components/PortableTextEditor.tsx:4747
 msgid "Numbered List"
 msgstr "সংখ্যাযুক্ত তালিকা"
 
@@ -9414,8 +9414,8 @@ msgid "Quick edit alt text"
 msgstr "বিকল্প টেক্সট দ্রুত সম্পাদনা করুন"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1737
-#: packages/admin/src/components/PortableTextEditor.tsx:4730
+#: packages/admin/src/components/PortableTextEditor.tsx:1779
+#: packages/admin/src/components/PortableTextEditor.tsx:4773
 msgid "Quote"
 msgstr "উদ্ধৃতি"
 
@@ -9583,7 +9583,7 @@ msgstr "রিডাইরেক্ট"
 msgid "Redirects that loop will be imported turned off"
 msgstr "লুপ তৈরি করা রিডাইরেক্টগুলো বন্ধ অবস্থায় ইমপোর্ট করা হবে"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4889
+#: packages/admin/src/components/PortableTextEditor.tsx:4932
 msgid "Redo"
 msgstr "পুনরায় করুন"
 
@@ -9696,7 +9696,7 @@ msgstr "প্ল্যান রিলোড করা হচ্ছে…"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:368
 #: packages/admin/src/components/ImageFieldRenderer.tsx:439
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/PortableTextEditor.tsx:4862
+#: packages/admin/src/components/PortableTextEditor.tsx:4905
 #: packages/admin/src/components/settings/GeneralSettings.tsx:325
 #: packages/admin/src/components/settings/GeneralSettings.tsx:385
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -9765,13 +9765,13 @@ msgid "Remove image?"
 msgstr "ছবি সরাবেন?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2618
+#: packages/admin/src/components/PortableTextEditor.tsx:2660
 #: packages/admin/src/components/RepeaterField.tsx:283
 msgid "Remove item {0}"
 msgstr "আইটেম {0} সরান"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4111
-#: packages/admin/src/components/PortableTextEditor.tsx:4112
+#: packages/admin/src/components/PortableTextEditor.tsx:4154
+#: packages/admin/src/components/PortableTextEditor.tsx:4155
 msgid "Remove link"
 msgstr "লিঙ্ক সরান"
 
@@ -10030,7 +10030,7 @@ msgstr "চালিয়ে যেতে বাধাগুলো সমাধ
 msgid "Resolving publisher handle..."
 msgstr "প্রকাশকের হ্যান্ডেল খোঁজা হচ্ছে..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4720
+#: packages/admin/src/components/PortableTextEditor.tsx:4763
 msgid "Restart numbering"
 msgstr "নম্বর আবার শুরু করুন"
 
@@ -10286,7 +10286,7 @@ msgid "Row added above"
 msgstr "উপরে সারি যোগ করা হয়েছে"
 
 #: packages/admin/src/components/editor/TableControls.tsx:29
-#: packages/admin/src/components/PortableTextEditor.tsx:4257
+#: packages/admin/src/components/PortableTextEditor.tsx:4300
 msgid "Row added below"
 msgstr "নিচে সারি যোগ করা হয়েছে"
 
@@ -10715,7 +10715,7 @@ msgstr "অনুসন্ধানযোগ্য"
 msgid "Searching…"
 msgstr "অনুসন্ধান করা হচ্ছে…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3058
+#: packages/admin/src/components/PortableTextEditor.tsx:3100
 msgid "Section"
 msgstr "সেকশন"
 
@@ -10903,13 +10903,13 @@ msgstr "ফেভিকন নির্বাচন করুন"
 msgid "Select file"
 msgstr "ফাইল নির্বাচন করুন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3936
+#: packages/admin/src/components/PortableTextEditor.tsx:3979
 msgid "Select gallery images"
 msgstr "গ্যালারির ছবি নির্বাচন করুন"
 
 #: packages/admin/src/components/ImageFieldRenderer.tsx:558
 #: packages/admin/src/components/MediaPickerModal.tsx:228
-#: packages/admin/src/components/PortableTextEditor.tsx:3921
+#: packages/admin/src/components/PortableTextEditor.tsx:3964
 msgid "Select image"
 msgstr "ছবি নির্বাচন করুন"
 
@@ -10950,7 +10950,7 @@ msgid "Select which content types to import."
 msgstr "কোন কনটেন্ট টাইপগুলো ইমপোর্ট করবেন তা নির্বাচন করুন।"
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2713
+#: packages/admin/src/components/PortableTextEditor.tsx:2755
 #: packages/admin/src/components/RepeaterField.tsx:396
 msgid "Select..."
 msgstr "নির্বাচন করুন..."
@@ -10959,7 +10959,7 @@ msgstr "নির্বাচন করুন..."
 msgid "Selected {label}"
 msgstr "নির্বাচিত {label}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2040
+#: packages/admin/src/components/PortableTextEditor.tsx:2082
 msgid "Selected {selectedItemTitle}"
 msgstr "নির্বাচিত {selectedItemTitle}"
 
@@ -11385,15 +11385,15 @@ msgstr "স্লাগ ক্লিপবোর্ডে কপি করা �
 msgid "Slugs cannot be changed after the field is created."
 msgstr "ফিল্ড তৈরি হওয়ার পর স্লাগ পরিবর্তন করা যায় না।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1678
+#: packages/admin/src/components/PortableTextEditor.tsx:1720
 msgid "Small section heading"
 msgstr "ছোট সেকশন হেডিং"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1688
+#: packages/admin/src/components/PortableTextEditor.tsx:1730
 msgid "Smaller section heading"
 msgstr "আরও ছোট সেকশন হেডিং"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1708
+#: packages/admin/src/components/PortableTextEditor.tsx:1750
 msgid "Smallest section heading"
 msgstr "সবচেয়ে ছোট সেকশন হেডিং"
 
@@ -11544,8 +11544,8 @@ msgid "Start with the template’s example posts and pages. Recommended for new 
 msgstr "টেমপ্লেটের উদাহরণ পোস্ট ও পেজ দিয়ে শুরু করুন। নতুন সাইটের জন্য প্রস্তাবিত।"
 
 #: packages/admin/src/components/ContentEditor.tsx:2258
-#: packages/admin/src/components/PortableTextEditor.tsx:2888
-#: packages/admin/src/components/PortableTextEditor.tsx:2889
+#: packages/admin/src/components/PortableTextEditor.tsx:2930
+#: packages/admin/src/components/PortableTextEditor.tsx:2931
 msgid "Start writing, or type '/' for commands"
 msgstr "লেখা শুরু করুন, অথবা কমান্ডের জন্য '/' টাইপ করুন"
 
@@ -11605,8 +11605,8 @@ msgstr "সংরক্ষিত ব্যাকআপ"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "প্রতিটি লোকেলের জন্য আলাদাভাবে সংরক্ষিত — একটি বাইলাইনের প্রতিটি অনুবাদের নিজস্ব মান থাকে।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4147
-#: packages/admin/src/components/PortableTextEditor.tsx:4668
+#: packages/admin/src/components/PortableTextEditor.tsx:4190
+#: packages/admin/src/components/PortableTextEditor.tsx:4711
 msgid "Strikethrough"
 msgstr "স্ট্রাইকথ্রু"
 
@@ -11627,11 +11627,11 @@ msgstr "সাব-ফিল্ড"
 msgid "Subscriber"
 msgstr "সাবস্ক্রাইবার"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4154
+#: packages/admin/src/components/PortableTextEditor.tsx:4197
 msgid "Subscript"
 msgstr "সাবস্ক্রিপ্ট"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4161
+#: packages/admin/src/components/PortableTextEditor.tsx:4204
 msgid "Superscript"
 msgstr "সুপারস্ক্রিপ্ট"
 
@@ -11669,15 +11669,15 @@ msgstr "সিস্টেম ফিল্ড"
 
 #: packages/admin/src/components/editor/TableControls.tsx:35
 #: packages/admin/src/components/editor/TableControls.tsx:388
-#: packages/admin/src/components/PortableTextEditor.tsx:1775
+#: packages/admin/src/components/PortableTextEditor.tsx:1817
 msgid "Table"
 msgstr "টেবিল"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3798
+#: packages/admin/src/components/PortableTextEditor.tsx:3841
 msgid "Table cells accept text, links, and formatting only."
 msgstr "টেবিলের সেলে শুধু টেক্সট, লিঙ্ক ও ফরম্যাটিং ব্যবহার করা যায়।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4248
+#: packages/admin/src/components/PortableTextEditor.tsx:4291
 msgid "Table controls"
 msgstr "টেবিল নিয়ন্ত্রণ"
 
@@ -11686,7 +11686,7 @@ msgid "Table deleted"
 msgstr "টেবিল মুছে ফেলা হয়েছে"
 
 #: packages/admin/src/components/editor/TableControls.tsx:421
-#: packages/admin/src/components/PortableTextEditor.tsx:3681
+#: packages/admin/src/components/PortableTextEditor.tsx:3724
 msgid "Table inserted"
 msgstr "টেবিল যোগ করা হয়েছে"
 
@@ -11694,7 +11694,7 @@ msgstr "টেবিল যোগ করা হয়েছে"
 msgid "Table size"
 msgstr "টেবিলের আকার"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3795
+#: packages/admin/src/components/PortableTextEditor.tsx:3838
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "তালিকা বা উদ্ধৃতির ভেতরে টেবিল পেস্ট করা যায় না। টেবিলটি একটি আলাদা অনুচ্ছেদে পেস্ট করে আবার চেষ্টা করুন।"
 
@@ -11818,7 +11818,7 @@ msgstr "টার্ম"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4619
+#: packages/admin/src/components/PortableTextEditor.tsx:4662
 msgid "Text formatting"
 msgstr "টেক্সট ফরম্যাটিং"
 
@@ -12242,7 +12242,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "এই কালেকশনটি কোডে সংজ্ঞায়িত। কিছু সেটিংস এখানে পরিবর্তন করা যাবে না। স্কিমা পরিবর্তন করতে আপনার live.config.ts ফাইলটি সম্পাদনা করুন।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3770
+#: packages/admin/src/components/PortableTextEditor.tsx:3813
 msgid "This content cannot be edited safely"
 msgstr "এই কনটেন্ট নিরাপদে সম্পাদনা করা যাবে না"
 
@@ -12287,11 +12287,11 @@ msgstr "এই এক্সপোর্টটি বড়"
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "EmDash-এর এই সংস্করণ দিয়ে এই ফিল্ডটি সম্পাদনা করা যাবে না।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3753
+#: packages/admin/src/components/PortableTextEditor.tsx:3796
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "এই ফিল্ডে এমন টেবিল কনটেন্ট আছে যা এডিটর সংরক্ষণ করতে পারে না। এই কনটেন্ট সম্পাদনা বা সংরক্ষণ করার আগে API-এর মাধ্যমে এটি আপডেট করুন।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3772
+#: packages/admin/src/components/PortableTextEditor.tsx:3815
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "এই ফিল্ডে অসমর্থিত Portable Text মার্ক আছে: <0>{markList}</0>। এই কনটেন্ট সম্পাদনা বা সংরক্ষণ করার আগে API-এর মাধ্যমে সেগুলো সরান।"
 
@@ -12412,7 +12412,7 @@ msgstr "এই প্যাকেজটি EmDash-এর নতুন বা ভ
 msgid "This passkey is already registered on this device."
 msgstr "এই পাসকিটি এই ডিভাইসে ইতিমধ্যে নিবন্ধিত আছে।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3791
+#: packages/admin/src/components/PortableTextEditor.tsx:3834
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "এই পেস্টটি অনেক বড়। একবারে কম সেল বা কম টেক্সট পেস্ট করুন।"
 
@@ -12481,12 +12481,12 @@ msgstr "এটি নির্ধারিত সময়সূচি সরি
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3832
+#: packages/admin/src/components/PortableTextEditor.tsx:3875
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "এই সেকশনে এমন টেবিল কনটেন্ট আছে যা এডিটর সংরক্ষণ করতে পারে না। ইনসার্ট করার আগে সেকশনটি আপডেট করুন।"
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3834
+#: packages/admin/src/components/PortableTextEditor.tsx:3877
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "এই সেকশনে অসমর্থিত Portable Text মার্ক আছে: <0>{0}</0>। ইনসার্ট করার আগে সেকশনটি আপডেট করুন।"
 
@@ -12539,15 +12539,15 @@ msgstr "এই সাইটে আগের একটি ইমপোর্ট�
 msgid "This site was set up with starter content. It has no entries of its own, and the import deletes it before adding the package’s content."
 msgstr "এই সাইটটি স্টার্টার কনটেন্ট দিয়ে সেট আপ করা হয়েছিল। এর নিজস্ব কোনো এন্ট্রি নেই, এবং ইমপোর্ট প্যাকেজের কনটেন্ট যোগ করার আগে সেগুলো মুছে ফেলবে।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3793
+#: packages/admin/src/components/PortableTextEditor.tsx:3836
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "এই স্প্রেডশিট ডেটায় অবৈধ উদ্ধৃতিযুক্ত সেল আছে। উদ্ধৃতিচিহ্নগুলো ঠিক করুন বা ট্যাব বিভাজকগুলো সরিয়ে আবার চেষ্টা করুন।"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3751
+#: packages/admin/src/components/PortableTextEditor.tsx:3794
 msgid "This table cannot be edited safely"
 msgstr "এই টেবিলটি নিরাপদে সম্পাদনা করা যাবে না"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3797
+#: packages/admin/src/components/PortableTextEditor.tsx:3840
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "এই টেবিলে অসমর্থিত সেল ফরম্যাটিং, মার্জ করা সেল বা কলামের প্রস্থ আছে। এটি সাধারণ টেক্সট হিসেবে পেস্ট করুন অথবা টেবিলটি সরল করে আবার চেষ্টা করুন।"
 
@@ -12876,12 +12876,12 @@ msgstr "মার্কেটপ্লেসে সংযোগ করা যা
 msgid "Unassigned"
 msgstr "নির্ধারিত নয়"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4140
-#: packages/admin/src/components/PortableTextEditor.tsx:4661
+#: packages/admin/src/components/PortableTextEditor.tsx:4183
+#: packages/admin/src/components/PortableTextEditor.tsx:4704
 msgid "Underline"
 msgstr "আন্ডারলাইন"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4882
+#: packages/admin/src/components/PortableTextEditor.tsx:4925
 msgid "Undo"
 msgstr "পূর্বাবস্থায় ফেরান"
 

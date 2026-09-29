@@ -41,6 +41,7 @@ const RUNTIME_COUPLED = new Set([
 	"./ui/comments", // src/ui-comments.ts -- re-exports Astro <Comments>/<CommentForm>
 	"./auth/providers/github-admin", // .tsx -- admin React + @cloudflare/kumo
 	"./auth/providers/google-admin", // .tsx -- admin React + @cloudflare/kumo
+	"./auth/providers/microsoft-admin", // .tsx -- admin React + @cloudflare/kumo
 ]);
 
 // `.ts`/`.tsx` source, but NOT `.d.ts` declarations (those are the desired
