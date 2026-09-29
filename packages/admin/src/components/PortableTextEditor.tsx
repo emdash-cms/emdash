@@ -4393,10 +4393,16 @@ function ImageBubbleMenu({
 			target instanceof Node && (dom.contains(target) || menu.contains(target));
 		// TipTap re-checks visibility only on editor events, so it misses focus
 		// leaving the toolbar itself for another field.
+		const hide = () => {
+			if (menu.hidden || !menu.isConnected) return;
+			menu.hidden = true;
+			setControlsKey((key) => key + 1);
+		};
 		const onFocusIn = (event: FocusEvent) => {
 			if (pickerRef.current === "open") return;
 			pickerRef.current = "idle";
-			if (!menu.hidden || !isInside(event.target)) return;
+			if (!isInside(event.target)) return hide();
+			if (!menu.hidden) return;
 			menu.hidden = false;
 			updatePosition();
 			playEntrance();
@@ -4405,8 +4411,9 @@ function ImageBubbleMenu({
 			if (pickerRef.current !== "idle" || isInside(event.relatedTarget)) return;
 			// Switching windows returns focus to the same place afterwards.
 			if (!event.relatedTarget && !document.hasFocus()) return;
-			menu.hidden = true;
-			setControlsKey((key) => key + 1);
+			// A link search pick disables its input while it resolves.
+			if (event.target instanceof HTMLInputElement && event.target.disabled) return;
+			hide();
 		};
 		// Tab moves image -> caption -> toolbar; Shift+Tab and Escape go back.
 		const onKeyDown = (event: KeyboardEvent) => {
