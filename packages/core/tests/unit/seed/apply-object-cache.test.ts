@@ -116,14 +116,18 @@ describe("applySeed with an object cache", () => {
 		expect(load).not.toHaveBeenCalled();
 	});
 
-	it("invalidates cached menus when the seed creates one", async () => {
-		const { backend } = countingBackend();
+	it("invalidates cached menus only when the seed writes them", async () => {
+		const { backend, writes } = countingBackend();
 		__setObjectCacheBackendForTests(backend, CACHE_CONFIG);
 		const readNames = (load: () => Promise<string[]>) =>
 			cachedQuery({ namespace: CacheNamespace.MENUS, key: "names", load });
 
 		await readNames(async () => []);
 		await waitForDeferredTasks();
+
+		await applySeed(db, { version: "1", settings: { title: "Site" } }, { onConflict: "skip" });
+		await waitForDeferredTasks();
+		expect(writes.has("em:epoch:menus")).toBe(false);
 
 		await applySeed(
 			db,

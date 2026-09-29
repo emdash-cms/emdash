@@ -1086,64 +1086,68 @@ async function applySeedWrites(
 		// Shared across menus: translated items reference anchor items in sibling menus.
 		const itemSeedIdMap = new Map<string, { id: string; translationGroup: string }>();
 
-		for (const menu of seed.menus) {
-			const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
-			let lookup = db
-				.selectFrom("_emdash_menus")
-				.selectAll()
-				.where("name", "=", menu.name)
-				.where("locale", "=", locale);
-			const existingMenu = await lookup.executeTakeFirst();
+		try {
+			for (const menu of seed.menus) {
+				const locale = resolveConfiguredLocale(menu.locale ?? defaultLocale);
+				let lookup = db
+					.selectFrom("_emdash_menus")
+					.selectAll()
+					.where("name", "=", menu.name)
+					.where("locale", "=", locale);
+				const existingMenu = await lookup.executeTakeFirst();
 
-			let menuId: string;
-			let translationGroup: string;
+				let menuId: string;
+				let translationGroup: string;
 
-			if (existingMenu) {
-				menuId = existingMenu.id;
-				translationGroup = existingMenu.translation_group ?? existingMenu.id;
-				// Clear existing items (menus are recreated)
-				await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
-			} else {
-				menuId = ulid();
-				// Resolve translationOf to the source menu's translation_group.
-				translationGroup = menuId;
-				if (menu.translationOf) {
-					const source = menuSeedIdMap.get(menu.translationOf);
-					if (source) translationGroup = source.translationGroup;
-					else
-						console.warn(
-							`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
-						);
+				if (existingMenu) {
+					menuId = existingMenu.id;
+					translationGroup = existingMenu.translation_group ?? existingMenu.id;
+					// Clear existing items (menus are recreated)
+					await db.deleteFrom("_emdash_menu_items").where("menu_id", "=", menuId).execute();
+				} else {
+					menuId = ulid();
+					// Resolve translationOf to the source menu's translation_group.
+					translationGroup = menuId;
+					if (menu.translationOf) {
+						const source = menuSeedIdMap.get(menu.translationOf);
+						if (source) translationGroup = source.translationGroup;
+						else
+							console.warn(
+								`menu "${menu.name}" (${locale}): translationOf "${menu.translationOf}" not found yet; minting a fresh group.`,
+							);
+					}
+					await db
+						.insertInto("_emdash_menus")
+						.values({
+							id: menuId,
+							name: menu.name,
+							label: menu.label,
+							created_at: new Date().toISOString(),
+							updated_at: new Date().toISOString(),
+							locale,
+							translation_group: translationGroup,
+						})
+						.execute();
+					result.menus.created++;
 				}
-				await db
-					.insertInto("_emdash_menus")
-					.values({
-						id: menuId,
-						name: menu.name,
-						label: menu.label,
-						created_at: new Date().toISOString(),
-						updated_at: new Date().toISOString(),
-						locale,
-						translation_group: translationGroup,
-					})
-					.execute();
-				result.menus.created++;
+
+				if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
+
+				// Create menu items
+				const itemCount = await applyMenuItems(
+					db,
+					menuId,
+					locale,
+					menu.items,
+					null, // parent_id
+					0, // sort_order
+					seedIdMap,
+					itemSeedIdMap,
+				);
+				result.menus.items += itemCount;
 			}
-
-			if (menu.id) menuSeedIdMap.set(menu.id, { id: menuId, translationGroup });
-
-			// Create menu items
-			const itemCount = await applyMenuItems(
-				db,
-				menuId,
-				locale,
-				menu.items,
-				null, // parent_id
-				0, // sort_order
-				seedIdMap,
-				itemSeedIdMap,
-			);
-			result.menus.items += itemCount;
+		} finally {
+			invalidateMenuObjectCache();
 		}
 	}
 
@@ -1386,7 +1390,6 @@ async function invalidateSeedCaches(): Promise<void> {
 	invalidateBylineCache();
 	invalidateRedirectCache();
 	invalidateUrlPatternCache();
-	invalidateMenuObjectCache();
 }
 
 function seedEntryIdentity(

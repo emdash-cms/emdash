@@ -45,16 +45,22 @@ export async function clearScaffold(
 ): Promise<ScaffoldProgress> {
 	const items = declaredScaffold(context);
 	let next = step;
-	while (next < items.length) {
-		const item = items[next];
-		if (!item) break;
-		if (!context.budget.canStart({ queries: ITEM_STATEMENTS })) {
-			return { state: "continue", step: next };
+	let removedMenus = false;
+	try {
+		while (next < items.length) {
+			const item = items[next];
+			if (!item) break;
+			if (!context.budget.canStart({ queries: ITEM_STATEMENTS })) {
+				return { state: "continue", step: next };
+			}
+			context.budget.start();
+			await removeItem(context, item);
+			if (item.type === "menu" || item.type === "menu_item") removedMenus = true;
+			next++;
+			await checkpoint(next);
 		}
-		context.budget.start();
-		await removeItem(context, item);
-		next++;
-		await checkpoint(next);
+	} finally {
+		if (removedMenus) invalidateMenuObjectCache();
 	}
 
 	const collectionIds = items.flatMap((item) => (item.type === "collection" ? [item.id] : []));
@@ -135,7 +141,6 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 			return;
 		case "menu_item":
 			await db.deleteFrom("_emdash_menu_items").where("id", "=", item.id).execute();
-			invalidateMenuObjectCache();
 			return;
 		case "widget":
 			await db.deleteFrom("_emdash_widgets").where("id", "=", item.id).execute();
@@ -171,7 +176,6 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 					),
 				)
 				.execute();
-			invalidateMenuObjectCache();
 			return;
 		case "widget_area":
 			await db
