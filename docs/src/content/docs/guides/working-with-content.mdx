@@ -137,6 +137,45 @@ Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare
 Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
 [Scheduled publishing](/deployment/cloudflare/#scheduled-publishing) to verify the trigger.
 
+## Review the publishing calendar
+
+The calendar shows what was published and what is scheduled across your collections. Contributors
+and higher roles can open **Calendar** from the sidebar or the command palette. When something is
+scheduled, the dashboard's **Scheduled** count also links to it.
+
+The calendar has two views:
+
+- **Month** shows a grid of days. Published entries appear as plain lines and scheduled entries as
+  cards. Hover over or focus an entry to see its full title, state, time, and collection. When a day
+  has more entries than fit, select **+N more** to list them all.
+- **Agenda** lists the month by day, with each entry's time. In the current month, days before today
+  start collapsed unless one of them has an overdue entry, and a red line marks the present.
+
+On a phone or another narrow screen, the calendar opens in **Agenda**, and **Month** shows a date
+picker with dots on the days that have entries. Select a day to list its entries.
+
+Select an entry to open it in the editor. The collection and state menus, and the locale menu on
+multilingual sites, narrow both views. The filters, the view, and the month are kept in the page URL,
+so you can bookmark or share it.
+
+Entries are placed on days in the site's time zone, which the calendar names above the view. If your
+browser uses a different time zone, the calendar says so, and entry times also appear in your own
+time zone.
+
+The calendar shows:
+
+- published entries on the date they were published;
+- scheduled entries on their scheduled date; and
+- scheduled changes to a published entry on their scheduled date, marked **Update**. Once the changes
+  go live, the entry appears only on its original publication date.
+
+A schedule that is more than two minutes past its time is marked **Overdue**. This usually means the
+scheduled-publishing sweep is not running; see [Publish or schedule changes](#publish-or-schedule-changes).
+
+The calendar leaves out drafts without a schedule, entries in Trash, and collections hidden from the
+sidebar. The dashboard's **Scheduled** count covers every month and includes hidden collections, so
+it can be higher than what the calendar shows for one month.
+
 ## Restore a revision
 
 Collections with revision support show **Revisions** in the settings panel. Expand it to see saved

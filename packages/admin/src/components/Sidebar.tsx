@@ -37,6 +37,7 @@ export { resolveNavIcon, toPhosphorIconName };
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const ROLE_EDITOR = 40;
+const ROLE_CONTRIBUTOR = 20;
 
 /**
  * Static invariants for nav entries that have AC-level visibility
@@ -582,6 +583,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 							item={{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard }}
 							isActive={isItemActive("/", currentPath)}
 						/>
+						{userRole >= ROLE_CONTRIBUTOR && (
+							<NavMenuLink
+								item={{ to: "/calendar", label: t`Calendar`, icon: ADMIN_NAV_ICONS.calendar }}
+								isActive={isItemActive("/calendar", currentPath)}
+							/>
+						)}
 					</KumoSidebar.Menu>
 				</KumoSidebar.Group>
 
