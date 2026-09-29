@@ -222,11 +222,11 @@ import { PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
 if (error) return new Response("Could not load the post", { status: 500 });
-if (!post) return Astro.redirect("/404");
+if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
 
@@ -320,10 +320,10 @@ import PageFullWidth from "../../layouts/PageFullWidth.astro";
 import PageLanding from "../../layouts/PageLanding.astro";
 
 const slug = decodeSlug(Astro.params.slug);
-if (!slug) return Astro.redirect("/404");
+if (!slug) return Astro.rewrite("/404");
 
 const { entry: page } = await getEmDashEntry("pages", slug);
-if (!page) return Astro.redirect("/404");
+if (!page) return Astro.rewrite("/404");
 
 const layouts = {
   default: PageDefault,
