@@ -4556,14 +4556,17 @@ function ImageBubbleMenu({
 								onPick={(href) => applyLink(href, editSession)}
 								onEscape={returnToEditor}
 							/>
-							<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
-								<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
-							</BubbleButton>
 							{image.link && (
 								<BubbleButton onClick={() => applyLink(null)} title={t`Remove link`}>
 									<LinkBreak className="h-4 w-4 text-kumo-danger" aria-hidden="true" />
 								</BubbleButton>
 							)}
+							<BubbleButton onClick={returnToEditor} title={t`Cancel`}>
+								<X className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
+							<BubbleButton onClick={() => applyLink(draft)} title={t`Apply link`}>
+								<Check className="h-4 w-4" aria-hidden="true" />
+							</BubbleButton>
 						</div>
 					) : (
 						<>

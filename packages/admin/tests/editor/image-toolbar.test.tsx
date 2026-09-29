@@ -294,6 +294,19 @@ describe("Image toolbar", () => {
 		await vi.waitFor(() => expect(getPanel()).toBeNull());
 	});
 
+	it("cancels link editing without changing the link", async () => {
+		const { editor, pm, img } = await setup({ image: { link: { href: "/old" } } });
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Edit link"));
+		await vi.waitFor(() => expect(toolbar.querySelector('[role="combobox"]')).toHaveFocus());
+		await userEvent.keyboard("/new");
+		await userEvent.click(button(toolbar, "Cancel"));
+
+		expect(imageAttrs(editor)?.link).toEqual({ href: "/old" });
+		expect(button(toolbar, "Edit link")).toBeVisible();
+		expect(document.activeElement).toBe(pm);
+	});
+
 	it("replaces the image like the settings panel and returns focus to Replace", async () => {
 		const { editor, img } = await setup({
 			image: { caption: "Old caption", title: "Old title", alignment: "center" },
