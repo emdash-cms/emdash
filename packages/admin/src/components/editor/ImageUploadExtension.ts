@@ -1,10 +1,12 @@
-import { buttonVariants } from "@cloudflare/kumo";
+import { buttonVariants, Loader } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Extension } from "@tiptap/core";
 import type { Node } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
+import { createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 
 import { createUploadPreviewUrl } from "../../lib/media-utils.js";
 import { matchesMimeAllowlist } from "../../lib/mime-utils.js";
@@ -46,61 +48,30 @@ function placeholderWidget(placeholder: Placeholder, onDismiss: DismissHandler) 
 			ignoreSelection: true,
 			// Drops reach the editor, so a file dropped on a placeholder isn't opened by the browser.
 			stopEvent: (event) => !DROP_EVENTS.has(event.type),
+			destroy: (node) => unmountSpinner(node),
 		},
 	);
 }
 
-const SVG_NS = "http://www.w3.org/2000/svg";
+const spinnerRoots = new WeakMap<globalThis.Node, Root>();
 
-function svgElement(tag: string, attributes: Record<string, string>) {
-	const element = document.createElementNS(SVG_NS, tag);
-	for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
-	return element;
+function renderSpinner(placeholder: HTMLElement) {
+	const container = document.createElement("span");
+	// The text beside the spinner is the status announcement.
+	container.setAttribute("aria-hidden", "true");
+	container.className = "flex shrink-0 text-kumo-subtle";
+	const root = createRoot(container);
+	root.render(createElement(Loader, { size: "sm" }));
+	spinnerRoots.set(placeholder, root);
+	return container;
 }
 
-/** Mirrors Kumo's `<Loader size="sm" />`, which can't render inside a ProseMirror widget. */
-function renderSpinner() {
-	const ring = {
-		cx: "12",
-		cy: "12",
-		r: "9.5",
-		fill: "none",
-		"stroke-width": "2",
-		"stroke-linecap": "round",
-	};
-	const svg = svgElement("svg", {
-		viewBox: "0 0 24 24",
-		stroke: "currentColor",
-		"aria-hidden": "true",
-		class: "size-4 shrink-0 text-kumo-subtle",
-	});
-	const arc = svgElement("circle", ring);
-	arc.append(
-		svgElement("animateTransform", {
-			attributeName: "transform",
-			type: "rotate",
-			from: "0 12 12",
-			to: "360 12 12",
-			dur: "2s",
-			repeatCount: "indefinite",
-		}),
-		svgElement("animate", {
-			attributeName: "stroke-dasharray",
-			values: "0 150;42 150;42 150",
-			keyTimes: "0;0.5;1",
-			dur: "1.5s",
-			repeatCount: "indefinite",
-		}),
-		svgElement("animate", {
-			attributeName: "stroke-dashoffset",
-			values: "0;-16;-59",
-			keyTimes: "0;0.5;1",
-			dur: "1.5s",
-			repeatCount: "indefinite",
-		}),
-	);
-	svg.append(arc, svgElement("circle", { ...ring, opacity: "0.1" }));
-	return svg;
+function unmountSpinner(placeholder: globalThis.Node) {
+	const root = spinnerRoots.get(placeholder);
+	if (!root) return;
+	spinnerRoots.delete(placeholder);
+	// ProseMirror can destroy widgets while React is rendering the editor.
+	queueMicrotask(() => root.unmount());
 }
 
 function renderPlaceholder(placeholder: Placeholder, onDismiss: () => void) {
@@ -140,7 +111,7 @@ function renderPlaceholder(placeholder: Placeholder, onDismiss: () => void) {
 		label.setAttribute("role", "status");
 		label.className = "text-kumo-subtle";
 		label.textContent = i18n._(msg`Uploading image…`);
-		status.append(renderSpinner(), label);
+		status.append(renderSpinner(root), label);
 	}
 	root.append(status);
 	return root;

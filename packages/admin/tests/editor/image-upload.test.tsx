@@ -173,6 +173,29 @@ describe("ImageUploadExtension", () => {
 		expect(document.querySelector("[data-image-upload-placeholder]")).toBeNull();
 	});
 
+	it("shows a spinner hidden from screen readers and unmounts it with the placeholder", async () => {
+		const pending = deferred<Record<string, unknown>>();
+		const editor = await setup(() => pending.promise);
+
+		dropFiles(paragraph("First"), [imageFile("cat.png")]);
+		const placeholder = await waitForPlaceholder();
+		const spinner = await vi.waitFor(() => {
+			const element = placeholder.querySelector<HTMLElement>("[aria-hidden='true']:has(svg)");
+			expect(element).not.toBeNull();
+			return element!;
+		});
+		expect(
+			placeholder.querySelector("[role='status']:not([aria-hidden='true'] *)")?.textContent,
+		).toBe("Uploading image…");
+
+		pending.resolve(attrsFor(imageFile("cat.png")));
+
+		await vi.waitFor(() =>
+			expect(blockTypes(editor)).toEqual(["First", "image:media-cat.png", "Second"]),
+		);
+		await vi.waitFor(() => expect(spinner.childElementCount).toBe(0));
+	});
+
 	it("uploads images the browser can't display without a broken preview", async () => {
 		const upload = vi.fn(() => new Promise<Record<string, unknown>>(() => {}));
 		await setup(upload);
