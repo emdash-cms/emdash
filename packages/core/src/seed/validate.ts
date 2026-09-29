@@ -14,6 +14,8 @@ import {
 	MAX_COLLECTION_GROUP_LENGTH,
 	MAX_COLLECTION_ICON_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
+	RESERVED_COLLECTION_SLUGS,
+	RESERVED_FIELD_SLUGS,
 } from "../schema/types.js";
 import { compileUrlPattern } from "../schema/url-pattern.js";
 import type { SeedFile, SeedMenuItem, SeedTaxonomy, ValidationResult } from "./types.js";
@@ -187,6 +189,11 @@ export function validateSeed(data: unknown): ValidationResult {
 						);
 					}
 
+					// Reserved slugs pass the format check but are rejected by the schema registry on apply
+					if (RESERVED_COLLECTION_SLUGS.includes(collection.slug)) {
+						errors.push(`${prefix}.slug: collection slug "${collection.slug}" is reserved`);
+					}
+
 					// Check for duplicate slugs
 					if (collectionSlugs.has(collection.slug)) {
 						errors.push(`${prefix}.slug: duplicate collection slug "${collection.slug}"`);
@@ -292,6 +299,11 @@ export function validateSeed(data: unknown): ValidationResult {
 								errors.push(
 									`${fieldPrefix}.slug: must start with a letter and contain only lowercase letters, numbers, and underscores`,
 								);
+							}
+
+							// Reserved slugs pass the format check but are rejected by the schema registry on apply
+							if (RESERVED_FIELD_SLUGS.includes(field.slug)) {
+								errors.push(`${fieldPrefix}.slug: field slug "${field.slug}" is reserved`);
 							}
 
 							// Check for duplicate field slugs
