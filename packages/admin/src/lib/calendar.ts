@@ -311,6 +311,7 @@ export function createCalendarDisplay(options: CalendarDisplayOptions): Calendar
 	const time = new Intl.DateTimeFormat(locale, { timeZone, hour: "numeric", minute: "2-digit" });
 	const dateTime = new Intl.DateTimeFormat(locale, {
 		timeZone,
+		calendar: "gregory",
 		weekday: "short",
 		month: "short",
 		day: "numeric",

@@ -62,6 +62,14 @@ describe("createCalendarDisplay", () => {
 		expect(display.formatViewerTime(lateEvening)).toMatch(/^Fri,? 8:00 AM/);
 	});
 
+	it("formats entry dates on the Gregorian calendar the grid uses", () => {
+		const display = createCalendarDisplay({ ...options, locale: "fa", timeZone: "UTC" });
+		const when = display.formatDateTime(Date.parse("2026-10-15T15:00:00.000Z"));
+
+		expect(when).toContain("اکتبر");
+		expect(when).not.toContain("مهر");
+	});
+
 	it("treats zones with the same name as the same, and falls back to UTC", () => {
 		expect(
 			createCalendarDisplay({
