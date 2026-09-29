@@ -4314,6 +4314,11 @@ function ImageBubbleMenu({
 		},
 	});
 
+	const getSelectedCaption = React.useCallback(() => {
+		const selection = getSelectedImage(editor.state);
+		const node = selection && editor.view.nodeDOM(selection.from);
+		return node instanceof HTMLElement ? node.querySelector("textarea") : null;
+	}, [editor]);
 	const showControls = React.useCallback(() => {
 		editingPosRef.current = null;
 		setMode("controls");
@@ -4359,13 +4364,25 @@ function ImageBubbleMenu({
 			if (!event.relatedTarget && !document.hasFocus()) return;
 			menu.hidden = true;
 		};
+		// Tab moves image -> caption -> toolbar; Shift+Tab and Escape go back.
 		const onKeyDown = (event: KeyboardEvent) => {
-			const plainTab = event.key === "Tab" && !event.shiftKey && !event.altKey && !event.metaKey;
-			if (!plainTab || event.defaultPrevented || event.isComposing || !editor.isEditable) return;
-			const showing = menu.isConnected && !menu.hidden;
-			if (event.target !== dom || !getSelectedImage(editor.state) || !showing) return;
+			if ((event.key !== "Tab" && event.key !== "Escape") || event.altKey || event.metaKey) return;
+			if (event.defaultPrevented || event.isComposing || !editor.isEditable) return;
+			const caption = getSelectedCaption();
+			const forward = event.key === "Tab" && !event.shiftKey;
+			let next: HTMLElement | null = null;
+			if (event.target === dom && forward) {
+				next = caption;
+			} else if (event.target === caption && forward) {
+				if (menu.isConnected && !menu.hidden) next = menu.querySelector("button, input");
+			} else if (event.target === caption) {
+				next = dom;
+				event.stopPropagation();
+			}
+			if (!next) return;
 			event.preventDefault();
-			menu.querySelector<HTMLElement>("button, input")?.focus();
+			if (next === dom) editor.view.focus();
+			else next.focus();
 		};
 		document.addEventListener("focusin", onFocusIn);
 		document.addEventListener("focusout", onFocusOut);
@@ -4375,7 +4392,7 @@ function ImageBubbleMenu({
 			document.removeEventListener("focusout", onFocusOut);
 			dom.removeEventListener("keydown", onKeyDown);
 		};
-	}, [editor, updatePosition]);
+	}, [editor, getSelectedCaption, updatePosition]);
 
 	// Switching rows changes the toolbar's width, so center it over the image again.
 	React.useEffect(() => {
@@ -4446,13 +4463,17 @@ function ImageBubbleMenu({
 					}),
 					onHide: showControls,
 				}}
-				shouldShow={({ editor: activeEditor, element, state, view }) =>
-					activeEditor.isEditable &&
-					getSelectedImage(state) !== null &&
-					(pickerRef.current !== "idle" ||
-						view.hasFocus() ||
-						element.contains(document.activeElement))
-				}
+				shouldShow={({ editor: activeEditor, element, state, view }) => {
+					const selection = getSelectedImage(state);
+					return (
+						activeEditor.isEditable &&
+						selection !== null &&
+						(pickerRef.current !== "idle" ||
+							view.hasFocus() ||
+							element.contains(document.activeElement) ||
+							Boolean(view.nodeDOM(selection.from)?.contains(document.activeElement)))
+					);
+				}}
 				data-emdash-image-bubble-menu
 				role="group"
 				aria-label={t`Image controls`}
@@ -4471,7 +4492,7 @@ function ImageBubbleMenu({
 						event.target === menuRef.current?.querySelector("button, input")
 					) {
 						event.preventDefault();
-						editor.view.focus();
+						(getSelectedCaption() ?? editor.view).focus();
 					}
 				}}
 			>

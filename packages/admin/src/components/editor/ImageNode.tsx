@@ -1,11 +1,12 @@
 /**
  * Custom Image Node for TipTap
  *
- * Provides a selectable image with a visual selection indicator and a detail
- * panel for advanced settings. The toolbar for a selected image lives in
- * PortableTextEditor.
+ * Provides a selectable image with a visual selection indicator, a caption
+ * field, and a detail panel for advanced settings. The toolbar for a selected
+ * image lives in PortableTextEditor.
  */
 
+import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
@@ -63,6 +64,7 @@ function ImageNodeView({
 	editor,
 	getPos,
 }: NodeViewProps) {
+	const { t } = useLingui();
 	const mediaId =
 		typeof node.attrs.mediaId === "string" &&
 		node.attrs.mediaId &&
@@ -83,12 +85,47 @@ function ImageNodeView({
 	/** The attrs object the open panel last wrote or saw; any other value is an outside change. */
 	const panelAttrsRef = React.useRef<unknown>(null);
 
-	const handlePointerDown = (event: React.PointerEvent) => {
-		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+	const selectImage = () => {
 		const position = getPos();
 		if (typeof position === "number") {
 			editor.commands.setNodeSelection(position);
 		}
+	};
+
+	const handlePointerDown = (event: React.PointerEvent) => {
+		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+		// The caption selects the image once it has focus, so the toolbar sees that focus.
+		if ((event.target as HTMLElement).closest("figcaption")) return;
+		selectImage();
+	};
+
+	const caption = typeof node.attrs.caption === "string" ? node.attrs.caption : "";
+	const captionRef = React.useRef<HTMLTextAreaElement>(null);
+	// ProseMirror would take text dragged over or dropped on the caption into the document.
+	React.useEffect(() => {
+		const textarea = captionRef.current;
+		if (!textarea) return;
+		const keepTextDrag = (event: DragEvent) => {
+			if (!event.dataTransfer?.types.includes("Files")) event.stopPropagation();
+		};
+		textarea.addEventListener("dragover", keepTextDrag);
+		textarea.addEventListener("drop", keepTextDrag);
+		return () => {
+			textarea.removeEventListener("dragover", keepTextDrag);
+			textarea.removeEventListener("drop", keepTextDrag);
+		};
+	}, [editor.isEditable]);
+	const handleCaptionKeyDown = (event: React.KeyboardEvent) => {
+		if (event.key !== "Enter" || event.nativeEvent.isComposing || event.keyCode === 229) return;
+		event.preventDefault();
+		const position = getPos();
+		if (typeof position !== "number") return;
+		const after = position + node.nodeSize;
+		editor
+			.chain()
+			.insertContentAt(after, { type: "paragraph" })
+			.focus(after + 1)
+			.run();
 	};
 
 	const getImageAttrs = (): ImagePanelAttributes => ({
@@ -227,7 +264,6 @@ function ImageNodeView({
 					"w-full min-[641px]:w-fit min-[641px]:max-w-1/2",
 				alignment === "left" && "min-[641px]:[float:left] min-[641px]:me-6",
 				alignment === "right" && "min-[641px]:[float:right] min-[641px]:ms-6",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
 			)}
 		>
 			<figure className="relative my-0!">
@@ -235,7 +271,10 @@ function ImageNodeView({
 					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className="rounded-lg max-w-full h-auto object-cover"
+					className={cn(
+						"rounded-lg max-w-full h-auto object-cover",
+						selected && "ring-2 ring-kumo-brand ring-offset-2 ring-offset-kumo-base",
+					)}
 					width={renderWidth}
 					height={renderHeight}
 					style={{
@@ -246,10 +285,29 @@ function ImageNodeView({
 				/>
 
 				{/* Caption only — must mirror the published renderer (Image.astro) */}
-				{node.attrs.caption && (
-					<figcaption className="text-center text-sm text-kumo-subtle mt-2">
-						{node.attrs.caption}
+				{editor.isEditable ? (
+					// Inline-size containment keeps the placeholder from widening a small image.
+					<figcaption className="mt-2 [contain:inline-size]">
+						<textarea
+							ref={captionRef}
+							aria-label={t`Caption`}
+							placeholder={t`Type caption for image (optional)`}
+							rows={1}
+							tabIndex={-1}
+							dir="auto"
+							value={caption}
+							onChange={(event) => {
+								if (editor.isEditable) updateAttributes({ caption: event.target.value });
+							}}
+							onFocus={selectImage}
+							onKeyDown={handleCaptionKeyDown}
+							className="block w-full resize-none field-sizing-content rounded-sm bg-transparent text-center text-sm text-kumo-subtle placeholder:text-kumo-placeholder focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-focus/50"
+						/>
 					</figcaption>
+				) : (
+					caption && (
+						<figcaption className="text-center text-sm text-kumo-subtle mt-2">{caption}</figcaption>
+					)
 				)}
 			</figure>
 		</NodeViewWrapper>

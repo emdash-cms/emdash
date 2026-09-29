@@ -92,11 +92,13 @@ function Host({
 	withSettings,
 	onReady,
 	onPanel,
+	onChange,
 }: {
 	value: PortableTextBlock[];
 	withSettings: boolean;
 	onReady: (editor: Editor | null) => void;
 	onPanel: (panel: BlockSidebarPanel | null) => void;
+	onChange: (value: PortableTextBlock[]) => void;
 }) {
 	const [panel, setPanel] = React.useState<BlockSidebarPanel | null>(null);
 	React.useEffect(() => onPanel(panel), [onPanel, panel]);
@@ -111,6 +113,7 @@ function Host({
 			<input aria-label="Title" />
 			<PortableTextEditor
 				value={value}
+				onChange={onChange}
 				onEditorReady={onReady}
 				onBlockSidebarOpen={withSettings ? setPanel : undefined}
 				onBlockSidebarClose={withSettings ? close : undefined}
@@ -135,6 +138,7 @@ async function setup({
 }: { image?: Record<string, unknown>; withSettings?: boolean; extraImage?: boolean } = {}) {
 	let editor: Editor | null = null;
 	let panel: BlockSidebarPanel | null = null;
+	let saved: PortableTextBlock[] = [];
 	await render(
 		<Host
 			value={[
@@ -150,6 +154,9 @@ async function setup({
 			onPanel={(value) => {
 				panel = value;
 			}}
+			onChange={(value) => {
+				saved = value;
+			}}
 		/>,
 	);
 	await vi.waitFor(() => expect(editor).toBeTruthy());
@@ -159,6 +166,10 @@ async function setup({
 		pm: editor!.view.dom as HTMLElement,
 		img,
 		getPanel: () => panel,
+		getSaved: () => saved,
+		caption: document.querySelector<HTMLTextAreaElement>(
+			'.ProseMirror textarea[aria-label="Caption"]',
+		)!,
 	};
 }
 
@@ -346,7 +357,7 @@ describe("Image toolbar", () => {
 	it("hides when focus leaves a toolbar control for another field", async () => {
 		const { img } = await setup();
 		const toolbar = await selectImage(img);
-		await userEvent.keyboard("{Tab}");
+		await userEvent.keyboard("{Tab}{Tab}");
 		expect(document.activeElement).toBe(button(toolbar, "Replace"));
 
 		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);
@@ -356,21 +367,89 @@ describe("Image toolbar", () => {
 		await waitForToolbar();
 	});
 
-	it("moves focus between the image and the toolbar with Tab, Shift+Tab and Escape", async () => {
-		const { editor, pm, img } = await setup();
-		const toolbar = await selectImage(img);
-
+	it("moves focus image, caption, toolbar with Tab, and back with Shift+Tab and Escape", async () => {
+		const { editor, pm, img, caption } = await setup();
+		editor.chain().focus().setTextSelection(3).run();
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
 		await userEvent.keyboard("{Tab}");
-		expect(document.activeElement).toBe(button(toolbar, "Replace"));
-		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
-		expect(document.activeElement).toBe(pm);
-		expectImageSelected(editor);
+		expect(document.activeElement).not.toBe(caption);
 
-		await userEvent.keyboard("{Tab}{Tab}");
-		expect(document.activeElement).toBe(button(toolbar, "Alt text"));
-		await userEvent.keyboard("{Escape}");
-		expect(document.activeElement).toBe(pm);
-		expectImageSelected(editor);
+		const toolbar = await selectImage(img);
+		const expectFocus = (element: Element) => {
+			expect(document.activeElement).toBe(element);
+			expect(toolbar).toBeVisible();
+			expectImageSelected(editor);
+		};
+		await userEvent.keyboard("{Tab}");
+		expectFocus(caption);
+		await userEvent.keyboard("{Tab}");
+		expectFocus(button(toolbar, "Replace"));
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+		expectFocus(caption);
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+		expectFocus(pm);
+
+		await userEvent.keyboard("{Tab}{Escape}");
+		expectFocus(pm);
+		await userEvent.keyboard("{Tab}{Tab}{Tab}{Escape}");
+		expectFocus(pm);
+	});
+
+	it("saves a caption typed under the image and keeps the toolbar showing", async () => {
+		const { editor, img, caption, getSaved } = await setup({ image: { caption: "Red bike" } });
+		const toolbar = await selectImage(img);
+		await userEvent.click(caption);
+		caption.setSelectionRange(3, 3);
+		await userEvent.keyboard("dish");
+
+		expect(caption).toHaveValue("Reddish bike");
+		expect(caption.selectionStart).toBe(7);
+		expect(imageAttrs(editor)?.caption).toBe("Reddish bike");
+		await vi.waitFor(() =>
+			expect(getSaved().find((block) => block._type === "image")).toMatchObject({
+				caption: "Reddish bike",
+			}),
+		);
+		await pastTextBubbleDelay();
 		expect(toolbar).toBeVisible();
+	});
+
+	it("shows the toolbar when a caption is clicked from another field", async () => {
+		const { editor, caption } = await setup();
+		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);
+		await userEvent.click(caption);
+
+		expect(document.activeElement).toBe(caption);
+		expectImageSelected(editor);
+		await waitForToolbar();
+	});
+
+	it("keeps text dropped on a caption out of the document", async () => {
+		const { editor, caption } = await setup();
+		const data = new DataTransfer();
+		data.setData("text/plain", "Dropped words");
+		const box = caption.getBoundingClientRect();
+		const at = { clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+		for (const type of ["dragover", "drop"]) {
+			caption.dispatchEvent(
+				new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: data, ...at }),
+			);
+		}
+
+		expect(editor.state.doc.textContent).not.toContain("Dropped words");
+	});
+
+	it("starts a new paragraph after the image when Enter is pressed in the caption", async () => {
+		const { editor, pm, img, caption } = await setup({ image: { caption: "Kept" } });
+		await selectImage(img);
+		await userEvent.click(caption);
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+		expect(caption).toHaveValue("Kept");
+		const { $from } = editor.state.selection;
+		expect($from.parent.type.name).toBe("paragraph");
+		expect($from.parent.textContent).toBe("");
+		expect(editor.state.doc.childBefore($from.before()).node?.type.name).toBe("image");
 	});
 });
