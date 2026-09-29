@@ -18,7 +18,7 @@ A site goes through four distinct workflows. Each one touches a different layer:
 | First-time bootstrap           | Everything, from empty             | Migrations + seed file + setup wizard, automatic on first boot         |
 | Schema evolution               | Collections, fields, taxonomies    | Admin panel or `emdash schema` against the live site (this page)       |
 
-The seed file only participates in the third row. It is applied once, when the database is empty and the setup wizard has not been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
+The seed file only participates in the third row. Its schema and structure are applied once, on the first request before the setup wizard has been completed. Deploying a changed seed file against an existing database does nothing — evolving a live site's schema always happens through the admin panel or the API.
 
 <Aside type="note">
 	Core migrations update EmDash's internal tables and the physical layout of collection tables. Runtime
