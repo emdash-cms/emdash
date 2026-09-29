@@ -222,17 +222,15 @@ describe("GeneralSettings", () => {
 		}
 	});
 
-	it("suggests valid timezones without rejecting custom values", async () => {
+	it("suggests valid timezones and rejects new unrecognized values", async () => {
 		const screen = await renderGeneralSettings();
 		await screen.getByRole("combobox", { name: "Timezone" }).fill("London");
 		await expect.element(screen.getByText("Europe/London", { exact: true })).toBeInTheDocument();
-		await expect.element(screen.getByText(/isn't recognized/)).toBeInTheDocument();
 		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
-		await vi.waitFor(() =>
-			expect(mockUpdateSettings).toHaveBeenCalledWith(
-				expect.objectContaining({ timezone: "London" }),
-			),
-		);
+		expect(mockUpdateSettings).not.toHaveBeenCalled();
+		await expect
+			.element(screen.getByText("Enter a recognized timezone to save"))
+			.toBeInTheDocument();
 		await screen.getByRole("combobox", { name: "Timezone" }).fill("Lond");
 		await userEvent.click(screen.getByText("Europe/London", { exact: true }));
 		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
@@ -251,6 +249,17 @@ describe("GeneralSettings", () => {
 		await vi.waitFor(() =>
 			expect(mockUpdateSettings).toHaveBeenCalledWith(
 				expect.objectContaining({ timezone: "Legacy/Local", tagline: "Updated tagline" }),
+			),
+		);
+	});
+
+	it("accepts a recognized timezone alias that is not in the suggestion list", async () => {
+		const screen = await renderGeneralSettings();
+		await screen.getByRole("combobox", { name: "Timezone" }).fill("Etc/GMT");
+		await screen.getByRole("button", { name: "Save", exact: true }).first().click();
+		await vi.waitFor(() =>
+			expect(mockUpdateSettings).toHaveBeenCalledWith(
+				expect.objectContaining({ timezone: "Etc/GMT" }),
 			),
 		);
 	});

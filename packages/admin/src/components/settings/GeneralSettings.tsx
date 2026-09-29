@@ -106,6 +106,7 @@ export function GeneralSettings() {
 	const [savedFormData, setSavedFormData] = React.useState<SiteSettingsUpdate>({});
 	const [logoPickerOpen, setLogoPickerOpen] = React.useState(false);
 	const [faviconPickerOpen, setFaviconPickerOpen] = React.useState(false);
+	const [showTimezoneError, setShowTimezoneError] = React.useState(false);
 	const [previewLocale, setPreviewLocale] = React.useState<{ code: string; value: Locale | null }>({
 		code: "en",
 		value: enUS,
@@ -171,9 +172,14 @@ export function GeneralSettings() {
 	const preview =
 		previewLoading || !previewLocale.value ? null : datePreview(pattern, previewLocale.value);
 	const timezone = formData.timezone ?? "UTC";
+	const recognizedTimezone = isValidTimezone(timezone);
+	const savedTimezoneUnchanged = timezone === savedFormData.timezone;
+	const canSaveTimezone = recognizedTimezone || savedTimezoneUnchanged;
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		setShowTimezoneError(true);
+		if (!canSaveTimezone) return;
 		saveMutation.mutate(formData);
 	};
 
@@ -430,9 +436,16 @@ export function GeneralSettings() {
 							value={timezone}
 							onValueChange={(value: string) => handleChange("timezone", value)}
 							description={
-								isValidTimezone(timezone)
+								recognizedTimezone
 									? t`Search for an IANA timezone (e.g., Europe/London)`
-									: t`This timezone isn't recognized. Choose a suggestion for reliable date display; you can still save this value.`
+									: savedTimezoneUnchanged
+										? t`This saved timezone isn't recognized. Choose a suggestion for reliable date display.`
+										: t`Choose a recognized timezone for reliable date display.`
+							}
+							error={
+								showTimezoneError && !canSaveTimezone
+									? t`Enter a recognized timezone to save`
+									: undefined
 							}
 						>
 							<Autocomplete.InputGroup placeholder={t`Search timezones…`} />
