@@ -1,17 +1,11 @@
 /**
  * Custom Image Node for TipTap
  *
- * Provides a selectable, editable image with:
- * - Click to select
- * - Visual selection indicator
- * - Quick inline alt text editing
- * - Full detail panel for advanced settings
- * - Delete/replace options
+ * Provides a selectable image with a visual selection indicator and a detail
+ * panel for advanced settings. The toolbar for a selected image lives in
+ * PortableTextEditor.
  */
 
-import { Button, Input } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
-import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
@@ -19,6 +13,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
 import { fetchMediaItem } from "../../lib/api/media.js";
+import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
@@ -50,6 +45,11 @@ declare module "@tiptap/react" {
 	}
 }
 
+export interface ImageSettingsHandle {
+	getPos: () => number | undefined;
+	toggle: () => void;
+}
+
 function imageDimension(value: number | undefined): number | undefined {
 	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
 }
@@ -63,9 +63,6 @@ function ImageNodeView({
 	editor,
 	getPos,
 }: NodeViewProps) {
-	const { t } = useLingui();
-	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
-	const [altText, setAltText] = React.useState(node.attrs.alt || "");
 	const mediaId =
 		typeof node.attrs.mediaId === "string" &&
 		node.attrs.mediaId &&
@@ -83,26 +80,8 @@ function ImageNodeView({
 	/** Whether this node currently has its sidebar panel open */
 	const sidebarOpenRef = React.useRef(false);
 	const nodeKeyRef = React.useRef({});
-
-	const handleSaveAlt = () => {
-		updateAttributes({ alt: altText });
-		setIsEditingAlt(false);
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleSaveAlt();
-		} else if (e.key === "Escape") {
-			setAltText(node.attrs.alt || "");
-			setIsEditingAlt(false);
-		}
-	};
-
-	// Sync local alt text state when node attributes change
-	React.useEffect(() => {
-		setAltText(node.attrs.alt || "");
-	}, [node.attrs.alt]);
+	/** The attrs object the open panel last wrote or saw; any other value is an outside change. */
+	const panelAttrsRef = React.useRef<unknown>(null);
 
 	const handlePointerDown = (event: React.PointerEvent) => {
 		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
@@ -143,12 +122,20 @@ function ImageNodeView({
 			  }) => void)
 			| null;
 		if (onOpen) {
+			const updateFromPanel = (attrs: Partial<ImageAttributes>) => {
+				updateAttributes(attrs);
+				const position = getPos();
+				if (typeof position === "number") {
+					panelAttrsRef.current = editor.state.doc.nodeAt(position)?.attrs;
+				}
+			};
 			sidebarOpenRef.current = true;
+			panelAttrsRef.current = node.attrs;
 			onOpen({
 				type: "image",
 				attrs: getImageAttrs(),
-				onUpdate: (attrs: Partial<ImageAttributes>) => updateAttributes(attrs),
-				onReplace: (attrs: ImageAttributes) => updateAttributes(attrs),
+				onUpdate: updateFromPanel,
+				onReplace: updateFromPanel,
 				onDelete: () => deleteNode(),
 				onClose: () => {
 					sidebarOpenRef.current = false;
@@ -181,6 +168,24 @@ function ImageNodeView({
 			closeSidebar();
 		}
 	}, [selected]);
+
+	// The panel stages its fields and writes them all back on Apply, so it must
+	// not outlive a change made outside it, or the node itself.
+	React.useEffect(() => {
+		if (sidebarOpenRef.current && node.attrs !== panelAttrsRef.current) closeSidebar();
+	}, [node.attrs]);
+	React.useEffect(() => closeSidebar, []);
+
+	const toggleSettings = useStableCallback(toggleSidebar);
+	React.useEffect(() => {
+		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
+		const handles = storage?.settingsHandles as Set<ImageSettingsHandle> | undefined;
+		const handle = { getPos, toggle: toggleSettings };
+		handles?.add(handle);
+		return () => {
+			handles?.delete(handle);
+		};
+	}, [editor, getPos, toggleSettings]);
 
 	const alignment = node.attrs.alignment as
 		| "left"
@@ -240,95 +245,8 @@ function ImageNodeView({
 					draggable={false}
 				/>
 
-				{/* Selection overlay with actions */}
-				{selected && (
-					<div className="absolute top-2 end-2 flex gap-1">
-						<Button
-							type="button"
-							variant="secondary"
-							shape="square"
-							className="h-8 w-8"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={() => setIsEditingAlt(true)}
-							title={t`Quick edit alt text`}
-							aria-label={t`Quick edit alt text`}
-						>
-							<Pencil className="h-4 w-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="secondary"
-							shape="square"
-							className="h-8 w-8"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={toggleSidebar}
-							title={t`Image settings`}
-							aria-label={t`Image settings`}
-						>
-							<SlidersHorizontal className="h-4 w-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							shape="square"
-							className="h-8 w-8"
-							onMouseDown={(e) => e.preventDefault()}
-							onClick={() => deleteNode()}
-							title={t`Delete image`}
-							aria-label={t`Delete image`}
-						>
-							<Trash className="h-4 w-4" />
-						</Button>
-					</div>
-				)}
-
-				{/* Quick alt text editor (inline) */}
-				{isEditingAlt && (
-					<div className="absolute bottom-0 start-0 end-0 bg-kumo-base/95 backdrop-blur p-3 rounded-b-lg border-t">
-						<label className="text-xs font-medium text-kumo-subtle mb-1 block">{t`Alt text`}</label>
-						<div className="flex gap-2">
-							<Input
-								type="text"
-								value={altText}
-								onChange={(e) => setAltText(e.target.value)}
-								onKeyDown={handleKeyDown}
-								placeholder={t`Describe the image...`}
-								className="flex-1 h-8 text-sm"
-								autoFocus
-							/>
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className="h-8 w-8"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={() => {
-									setAltText(node.attrs.alt || "");
-									setIsEditingAlt(false);
-								}}
-								title={t`Cancel`}
-								aria-label={t`Cancel`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-							<Button
-								type="button"
-								variant="primary"
-								shape="square"
-								className="h-8 w-8"
-								onMouseDown={(e) => e.preventDefault()}
-								onClick={handleSaveAlt}
-								title={t`Save`}
-								aria-label={t`Save alt text`}
-							>
-								<Check className="h-4 w-4" />
-							</Button>
-						</div>
-					</div>
-				)}
-
 				{/* Caption only — must mirror the published renderer (Image.astro) */}
-				{!isEditingAlt && node.attrs.caption && (
+				{node.attrs.caption && (
 					<figcaption className="text-center text-sm text-kumo-subtle mt-2">
 						{node.attrs.caption}
 					</figcaption>
@@ -365,6 +283,8 @@ export const ImageExtension = Node.create({
 				| null,
 			/** Callback set by PortableTextEditor to close the sidebar */
 			onCloseBlockSidebar: null as (() => void) | null,
+			/** One per mounted image node view, so the toolbar can toggle a given image's settings */
+			settingsHandles: new Set<ImageSettingsHandle>(),
 		};
 	},
 

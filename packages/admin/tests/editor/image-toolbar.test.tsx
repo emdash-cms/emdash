@@ -1,0 +1,376 @@
+import { NodeSelection } from "@tiptap/pm/state";
+import type { Editor } from "@tiptap/react";
+import * as React from "react";
+import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
+
+import {
+	ImageDetailPanel,
+	type ImagePanelAttributes,
+} from "../../src/components/editor/ImageDetailPanel";
+import {
+	PortableTextEditor,
+	type BlockSidebarPanel,
+	type PortableTextEditorProps,
+} from "../../src/components/PortableTextEditor";
+import type { MediaItem } from "../../src/lib/api";
+import { render } from "../utils/render.js";
+
+const REPLACEMENT: MediaItem = {
+	id: "new-media",
+	filename: "bike.jpg",
+	mimeType: "image/jpeg",
+	url: "/_emdash/api/media/file/bike.jpg",
+	size: 100,
+	width: 800,
+	height: 600,
+	alt: "A red bike",
+	createdAt: "2026-09-29T00:00:00.000Z",
+};
+
+type PortableTextBlock = NonNullable<PortableTextEditorProps["value"]>[number];
+
+vi.mock("../../src/components/MediaPickerModal", () => ({
+	MediaPickerModal: ({
+		open,
+		onOpenChange,
+		onSelect,
+	}: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+		onSelect: (item: MediaItem) => void;
+	}) =>
+		open ? (
+			<div role="dialog" aria-label="Media picker">
+				<button
+					type="button"
+					autoFocus
+					onClick={() => {
+						onSelect(REPLACEMENT);
+						onOpenChange(false);
+					}}
+				>
+					Choose replacement
+				</button>
+			</div>
+		) : null,
+}));
+
+vi.mock("../../src/components/SectionPickerModal", () => ({
+	SectionPickerModal: () => null,
+}));
+
+vi.mock("../../src/components/editor/DragHandleWrapper", () => ({
+	DragHandleWrapper: () => null,
+}));
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({ data: { id: "editor-1", role: 40 } }),
+}));
+
+function imageBlock(fields: Record<string, unknown> = {}): PortableTextBlock {
+	return {
+		_type: "image",
+		_key: "image-1",
+		asset: { _ref: "cf-1", url: "/img.jpg", provider: "cloudflare-images" },
+		alt: "Example",
+		...fields,
+	} as PortableTextBlock;
+}
+
+function paragraph(key: string, text: string): PortableTextBlock {
+	return {
+		_type: "block",
+		_key: key,
+		style: "normal",
+		children: [{ _type: "span", _key: `${key}-span`, text }],
+	} as PortableTextBlock;
+}
+
+function Host({
+	value,
+	withSettings,
+	onReady,
+	onPanel,
+}: {
+	value: PortableTextBlock[];
+	withSettings: boolean;
+	onReady: (editor: Editor | null) => void;
+	onPanel: (panel: BlockSidebarPanel | null) => void;
+}) {
+	const [panel, setPanel] = React.useState<BlockSidebarPanel | null>(null);
+	React.useEffect(() => onPanel(panel), [onPanel, panel]);
+	const close = React.useCallback(() => {
+		setPanel((previous) => {
+			previous?.onClose();
+			return null;
+		});
+	}, []);
+	return (
+		<>
+			<input aria-label="Title" />
+			<PortableTextEditor
+				value={value}
+				onEditorReady={onReady}
+				onBlockSidebarOpen={withSettings ? setPanel : undefined}
+				onBlockSidebarClose={withSettings ? close : undefined}
+			/>
+			{panel && (
+				<ImageDetailPanel
+					attributes={panel.attrs as ImagePanelAttributes}
+					onUpdate={panel.onUpdate}
+					onReplace={panel.onReplace}
+					onDelete={panel.onDelete}
+					onClose={close}
+				/>
+			)}
+		</>
+	);
+}
+
+async function setup({
+	image = {},
+	withSettings = true,
+	extraImage = false,
+}: { image?: Record<string, unknown>; withSettings?: boolean; extraImage?: boolean } = {}) {
+	let editor: Editor | null = null;
+	let panel: BlockSidebarPanel | null = null;
+	await render(
+		<Host
+			value={[
+				paragraph("p1", "Before"),
+				imageBlock(image),
+				paragraph("p2", "After"),
+				...(extraImage ? [imageBlock({ _key: "image-2", alt: "Second" })] : []),
+			]}
+			withSettings={withSettings}
+			onReady={(instance) => {
+				editor = instance;
+			}}
+			onPanel={(value) => {
+				panel = value;
+			}}
+		/>,
+	);
+	await vi.waitFor(() => expect(editor).toBeTruthy());
+	const img = document.querySelector<HTMLImageElement>(".ProseMirror img")!;
+	return {
+		editor: editor!,
+		pm: editor!.view.dom as HTMLElement,
+		img,
+		getPanel: () => panel,
+	};
+}
+
+function toolbarElement() {
+	return document.querySelector<HTMLElement>("[data-emdash-image-bubble-menu]");
+}
+
+async function selectImage(img: HTMLElement) {
+	await userEvent.click(img);
+	return waitForToolbar();
+}
+
+async function waitForToolbar() {
+	await vi.waitFor(() => expect(toolbarElement()).toBeVisible());
+	return toolbarElement()!;
+}
+
+/** The text formatting bubble shows 250 ms after a non-empty selection. */
+function pastTextBubbleDelay() {
+	return new Promise((resolve) => setTimeout(resolve, 300));
+}
+
+function button(toolbar: HTMLElement, label: string) {
+	const found = toolbar.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+	if (found) return found;
+	const byText = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+		(candidate) => candidate.textContent === label,
+	);
+	if (!byText) throw new Error(`No "${label}" button in the image toolbar`);
+	return byText;
+}
+
+function imageAttrs(editor: Editor) {
+	let attrs: Record<string, unknown> | undefined;
+	editor.state.doc.descendants((node) => {
+		if (node.type.name === "image") attrs = node.attrs;
+		return !attrs;
+	});
+	return attrs;
+}
+
+function expectImageSelected(editor: Editor) {
+	const { selection } = editor.state;
+	expect(selection instanceof NodeSelection && selection.node.type.name === "image").toBe(true);
+}
+
+describe("Image toolbar", () => {
+	it("shows the image toolbar instead of the text formatting bubble for a clicked image", async () => {
+		const { img } = await setup({ withSettings: false });
+		const toolbar = await selectImage(img);
+
+		for (const label of ["Replace", "Alt text", "Add link", "Delete image"]) {
+			expect(button(toolbar, label)).toBeVisible();
+		}
+		expect(toolbar.querySelector('[aria-label="Image settings"]')).toBeNull();
+		await pastTextBubbleDelay();
+		expect(document.querySelector("[data-emdash-inline-bubble-menu]")).toBeNull();
+	});
+
+	it("keeps exactly one alignment pressed", async () => {
+		const { editor, img } = await setup();
+		const toolbar = await selectImage(img);
+		const group = toolbar.querySelector<HTMLElement>('[role="group"][aria-label="Alignment"]')!;
+		const pressed = () =>
+			Array.from(group.querySelectorAll('[aria-pressed="true"]'), (el) =>
+				el.getAttribute("aria-label"),
+			);
+
+		expect(pressed()).toEqual(["None"]);
+		await userEvent.click(button(group, "Left"));
+		await vi.waitFor(() => expect(pressed()).toEqual(["Left"]));
+		expect(imageAttrs(editor)?.alignment).toBe("left");
+
+		await userEvent.click(button(group, "Left"));
+		expect(imageAttrs(editor)?.alignment).toBe("left");
+		expect(pressed()).toEqual(["Left"]);
+
+		await userEvent.click(button(group, "None"));
+		await vi.waitFor(() => expect(pressed()).toEqual(["None"]));
+		expect(imageAttrs(editor)?.alignment).toBeNull();
+	});
+
+	it("edits alt text in the toolbar", async () => {
+		const { editor, pm, img, getPanel } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Image settings"));
+		await vi.waitFor(() => expect(getPanel()).not.toBeNull());
+
+		await userEvent.click(button(toolbar, "Alt text"));
+		const input = toolbar.querySelector<HTMLInputElement>('input[aria-label="Alt text"]')!;
+		await vi.waitFor(() => expect(document.activeElement).toBe(input));
+		expect(input.value).toBe("Example");
+		await userEvent.keyboard("Discarded{Escape}");
+
+		expect(document.activeElement).toBe(pm);
+		expectImageSelected(editor);
+		expect(imageAttrs(editor)?.alt).toBe("Example");
+		expect(getPanel()).not.toBeNull();
+
+		await userEvent.click(button(toolbar, "Alt text"));
+		await vi.waitFor(() =>
+			expect(document.activeElement).toBe(toolbar.querySelector('input[aria-label="Alt text"]')),
+		);
+		await userEvent.keyboard("  A red bike  {Enter}");
+
+		await vi.waitFor(() => expect(imageAttrs(editor)?.alt).toBe("A red bike"));
+		expect(document.activeElement).toBe(pm);
+		expectImageSelected(editor);
+		await vi.waitFor(() => expect(getPanel()).toBeNull());
+	});
+
+	it("replaces the image like the settings panel and returns focus to Replace", async () => {
+		const { editor, img } = await setup({
+			image: { caption: "Old caption", title: "Old title", alignment: "center" },
+		});
+		const toolbar = await selectImage(img);
+		button(toolbar, "Replace").focus();
+		await userEvent.keyboard("{Enter}");
+
+		const choose = document.querySelector<HTMLButtonElement>('[aria-label="Media picker"] button')!;
+		await vi.waitFor(() => expect(document.activeElement).toBe(choose));
+		expect(toolbar.parentElement!.hidden).toBe(false);
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(imageAttrs(editor)?.mediaId).toBe("new-media"));
+		expect(imageAttrs(editor)).toMatchObject({
+			src: REPLACEMENT.url,
+			alt: "A red bike",
+			mediaId: "new-media",
+			alignment: "center",
+		});
+		expect(imageAttrs(editor)?.caption ?? null).toBeNull();
+		expect(imageAttrs(editor)?.title ?? null).toBeNull();
+
+		button(toolbar, "Replace").focus();
+		expect(document.activeElement).toBe(button(toolbar, "Replace"));
+		expect(toolbar).toBeVisible();
+	});
+
+	it("deletes the image and closes its settings", async () => {
+		const { editor, img, getPanel } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Image settings"));
+		await vi.waitFor(() => expect(getPanel()).not.toBeNull());
+
+		await userEvent.click(button(toolbar, "Delete image"));
+
+		await vi.waitFor(() => expect(imageAttrs(editor)).toBeUndefined());
+		await vi.waitFor(() => expect(getPanel()).toBeNull());
+	});
+
+	it("opens and closes the image's settings, also after selecting everything", async () => {
+		const { editor, img, getPanel } = await setup({ extraImage: true });
+		editor.commands.selectAll();
+		await vi.waitFor(() =>
+			expect(document.querySelectorAll(".ProseMirror .ProseMirror-selectednode")).toHaveLength(2),
+		);
+		const toolbar = await selectImage(img);
+
+		await userEvent.click(button(toolbar, "Image settings"));
+		await vi.waitFor(() =>
+			expect(getPanel()?.attrs).toMatchObject({ alt: "Example", provider: "cloudflare-images" }),
+		);
+
+		await userEvent.click(button(toolbar, "Image settings"));
+		await vi.waitFor(() => expect(getPanel()).toBeNull());
+	});
+
+	it("closes the settings only for changes made outside them", async () => {
+		const { editor, img, getPanel } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Image settings"));
+		await vi.waitFor(() => expect(getPanel()).not.toBeNull());
+
+		getPanel()!.onUpdate({ src: "/edited.jpg" });
+		await vi.waitFor(() => expect(img).toHaveAttribute("src", "/edited.jpg"));
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(getPanel()).not.toBeNull();
+
+		await userEvent.click(button(toolbar, "Right"));
+		await vi.waitFor(() => expect(getPanel()).toBeNull());
+		expect(imageAttrs(editor)?.alignment).toBe("right");
+	});
+
+	it("hides when focus leaves a toolbar control for another field", async () => {
+		const { img } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.keyboard("{Tab}");
+		expect(document.activeElement).toBe(button(toolbar, "Replace"));
+
+		await userEvent.click(document.querySelector<HTMLInputElement>('input[aria-label="Title"]')!);
+		await vi.waitFor(() => expect(toolbar).not.toBeVisible());
+
+		await userEvent.click(img);
+		await waitForToolbar();
+	});
+
+	it("moves focus between the image and the toolbar with Tab, Shift+Tab and Escape", async () => {
+		const { editor, pm, img } = await setup();
+		const toolbar = await selectImage(img);
+
+		await userEvent.keyboard("{Tab}");
+		expect(document.activeElement).toBe(button(toolbar, "Replace"));
+		await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+		expect(document.activeElement).toBe(pm);
+		expectImageSelected(editor);
+
+		await userEvent.keyboard("{Tab}{Tab}");
+		expect(document.activeElement).toBe(button(toolbar, "Alt text"));
+		await userEvent.keyboard("{Escape}");
+		expect(document.activeElement).toBe(pm);
+		expectImageSelected(editor);
+		expect(toolbar).toBeVisible();
+	});
+});
