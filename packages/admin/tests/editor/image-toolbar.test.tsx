@@ -24,7 +24,6 @@ const REPLACEMENT: MediaItem = {
 	filename: "bike.jpg",
 	mimeType: "image/jpeg",
 	url: "/_emdash/api/media/file/bike.jpg",
-	provider: "cloudflare-images",
 	size: 100,
 	width: 800,
 	height: 600,
@@ -64,7 +63,8 @@ vi.mock("../../src/lib/api/media.js", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/media.js")>(
 		"../../src/lib/api/media.js",
 	);
-	return { ...actual, fetchMediaItem: vi.fn() };
+	// Media items stay loading unless a test resolves them.
+	return { ...actual, fetchMediaItem: vi.fn(() => new Promise<never>(() => {})) };
 });
 
 vi.mock("../../src/components/SectionPickerModal", () => ({
@@ -556,35 +556,48 @@ describe("Image toolbar", () => {
 		},
 	);
 
-	it("treats a file name as no description, without another media request", async () => {
+	it("treats a file name as no description, also while the media item loads", async () => {
+		let resolveMedia: (item: LocalMediaItem) => void = () => {};
 		vi.mocked(fetchMediaItem)
 			.mockReset()
-			.mockResolvedValue({
-				id: "local-1",
-				filename: "IMG_2041.jpg",
-				mimeType: "image/jpeg",
-				url: "/img.jpg",
-				storageKey: "IMG_2041.jpg",
-				size: 100,
-				status: "ready",
-				authorId: null,
-				folderId: null,
-				createdAt: "2026-09-29T00:00:00.000Z",
-			} satisfies LocalMediaItem);
+			.mockReturnValue(new Promise((resolve) => (resolveMedia = resolve)));
 		const { img } = await setup({
 			image: { asset: { _ref: "local-1", url: "/img.jpg" }, alt: "IMG_2041.jpg" },
 		});
-		await vi.waitFor(() => expect(fetchMediaItem).toHaveBeenCalledOnce());
 		const toolbar = await selectImage(img);
+		expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "false");
 
-		await vi.waitFor(() =>
-			expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "false"),
-		);
+		resolveMedia({
+			id: "local-1",
+			filename: "IMG_2041.jpg",
+			mimeType: "image/jpeg",
+			url: "/img-current.jpg",
+			storageKey: "IMG_2041.jpg",
+			size: 100,
+			status: "ready",
+			authorId: null,
+			folderId: null,
+			createdAt: "2026-09-29T00:00:00.000Z",
+		} satisfies LocalMediaItem);
+		await vi.waitFor(() => expect(img.getAttribute("src")).toContain("/img-current.jpg"));
+		expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "false");
 		expect(fetchMediaItem).toHaveBeenCalledOnce();
+
 		await userEvent.click(button(toolbar, "Alt text"));
 		await userEvent.keyboard("A red bike{Enter}");
 		await vi.waitFor(() =>
 			expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "true"),
 		);
+	});
+
+	it("knows a replacement image's description before its media item loads", async () => {
+		vi.mocked(fetchMediaItem).mockReset();
+		const { editor, img } = await setup();
+		const toolbar = await selectImage(img);
+		await userEvent.click(button(toolbar, "Replace"));
+		await userEvent.click(page.getByRole("button", { name: "Choose replacement" }));
+
+		await vi.waitFor(() => expect(imageAttrs(editor)?.mediaId).toBe("new-media"));
+		expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "true");
 	});
 });

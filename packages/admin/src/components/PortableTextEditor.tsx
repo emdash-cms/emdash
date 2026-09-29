@@ -4374,14 +4374,18 @@ function ImageBubbleMenu({
 			};
 		},
 	});
+	const queryClient = useQueryClient();
 	// Reads the image node view's cached media item; the toolbar never fetches it.
 	const { data: media } = useQuery({
 		queryKey: ["media", image.mediaId],
 		queryFn: ({ signal }) => fetchMediaItem(image.mediaId!, { signal }),
 		enabled: false,
 	});
-	// A file name is what uploads fall back to, so it doesn't count as a description.
-	const described = Boolean(image.alt.trim()) && image.alt !== media?.filename;
+	// A file name is what uploads fall back to, so it doesn't count as a description,
+	// and a Media Library image can't be checked until its media item has loaded.
+	const described =
+		Boolean(image.alt.trim()) &&
+		(image.mediaId === null || (media !== undefined && image.alt !== media.filename));
 
 	const getSelectedCaption = React.useCallback(() => {
 		const selection = getSelectedImage(editor.state);
@@ -4743,6 +4747,9 @@ function ImageBubbleMenu({
 				}}
 				onSelect={(item) => {
 					if (!getSelectedImage(editor.state)) return;
+					if (canonicalMediaProviderId(item.provider) === "local") {
+						queryClient.setQueryData(["media", item.id], item);
+					}
 					const attrs = { ...mediaItemToImageAttrs(item), caption: undefined, title: undefined };
 					editor.chain().updateAttributes("image", attrs).run();
 				}}
