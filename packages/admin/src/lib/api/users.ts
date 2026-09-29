@@ -360,11 +360,14 @@ export interface SignupVerifyResult {
  * Request signup - send verification email
  * Always returns success to prevent enumeration
  */
-export async function requestSignup(email: string): Promise<{ success: true; message: string }> {
+export async function requestSignup(
+	email: string,
+	turnstileToken?: string,
+): Promise<{ success: true; message: string }> {
 	const response = await apiFetch(`${API_BASE}/auth/signup/request`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ email }),
+		body: JSON.stringify({ email, turnstileToken }),
 	});
 	return parseApiResponse<{ success: true; message: string }>(response, "Signup request failed");
 }

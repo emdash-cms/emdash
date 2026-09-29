@@ -365,11 +365,13 @@ export async function fetchAuthMode(): Promise<{
 	authMode: string;
 	signupEnabled?: boolean;
 	providers?: Array<{ id: string; label: string }>;
+	turnstileSiteKey?: string;
 }> {
 	const response = await apiFetch(`${API_BASE}/auth/mode`);
 	return parseApiResponse<{
 		authMode: string;
 		signupEnabled?: boolean;
 		providers?: Array<{ id: string; label: string }>;
+		turnstileSiteKey?: string;
 	}>(response, i18n._(msg`Failed to fetch auth mode`));
 }
