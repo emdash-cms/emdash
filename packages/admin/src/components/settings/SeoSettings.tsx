@@ -11,6 +11,7 @@ import {
 	Field,
 	Input,
 	InputArea,
+	Label,
 	Loader,
 	Switch,
 	useKumoToastManager,
@@ -270,24 +271,21 @@ export function SeoSettings() {
 							description={t`Custom robots.txt content. Leave empty to use the default.`}
 						/>
 					</SettingRow>
-					<SettingRow>
-						<Switch.Group
-							controlFirst={false}
-							description={
-								<span id="seo-disallow-ai-training-description">
-									{t`Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.`}
-								</span>
-							}
-						>
-							<Switch
-								label={t`Disallow AI training`}
-								controlFirst={false}
-								className="ms-auto"
-								checked={formData.seo?.disallowAiTraining === true}
-								onCheckedChange={(checked) => handleSeoChange("disallowAiTraining", checked)}
-								aria-describedby="seo-disallow-ai-training-description"
-							/>
-						</Switch.Group>
+					<SettingRow className="flex items-start justify-between gap-6">
+						<div className="grid gap-1">
+							<Label htmlFor="seo-disallow-ai-training">{t`Disallow AI training`}</Label>
+							<p id="seo-disallow-ai-training-description" className="text-sm text-kumo-subtle">
+								{t`Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it.`}
+							</p>
+						</div>
+						<Switch
+							id="seo-disallow-ai-training"
+							className="shrink-0"
+							checked={formData.seo?.disallowAiTraining === true}
+							onCheckedChange={(checked) => handleSeoChange("disallowAiTraining", checked)}
+							aria-label={t`Disallow AI training`}
+							aria-describedby="seo-disallow-ai-training-description"
+						/>
 					</SettingRow>
 				</SettingsSection>
 
