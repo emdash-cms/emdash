@@ -1519,9 +1519,6 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
       '@lingui/core':
         specifier: 'catalog:'
         version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))
@@ -1624,6 +1621,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       dompurify:
         specifier: ^3.3.2
         version: 3.3.2
@@ -2522,9 +2522,6 @@ importers:
 
   packages/plugins/ai-moderation:
     dependencies:
-      '@cloudflare/kumo':
-        specifier: 'catalog:'
-        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.5.4)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2535,6 +2532,9 @@ importers:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
     devDependencies:
+      '@cloudflare/kumo':
+        specifier: 'catalog:'
+        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.5.4)
       '@cloudflare/workers-types':
         specifier: ^4.20250224.0
         version: 4.20260305.1
@@ -2638,9 +2638,6 @@ importers:
 
   packages/plugins/field-kit:
     dependencies:
-      '@cloudflare/kumo':
-        specifier: 'catalog:'
-        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.5.4)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2648,6 +2645,9 @@ importers:
         specifier: workspace:>=0.9.0
         version: link:../../core
     devDependencies:
+      '@cloudflare/kumo':
+        specifier: 'catalog:'
+        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.5.4)
       '@testing-library/react':
         specifier: ^16.3.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2675,9 +2675,6 @@ importers:
 
   packages/plugins/forms:
     dependencies:
-      '@cloudflare/kumo':
-        specifier: 'catalog:'
-        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.5.4)
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -2691,6 +2688,9 @@ importers:
         specifier: ^2.4.1
         version: 2.4.1
     devDependencies:
+      '@cloudflare/kumo':
+        specifier: 'catalog:'
+        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.5.4)
       astro:
         specifier: 'catalog:'
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@26.1.1)(aws4fetch@1.0.20)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1)
