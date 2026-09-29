@@ -8,6 +8,7 @@
 import { sql } from "kysely";
 
 import { processDueMediaUsageCollectionDeletions } from "../../media/usage/collection-deletion-processor.js";
+import { invalidateMenuObjectCache } from "../../object-cache/index.js";
 import { SchemaError, SchemaRegistry } from "../../schema/registry.js";
 import { TransferError } from "../errors.js";
 import type { ImportTransformation } from "../format/transformations.js";
@@ -134,6 +135,7 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 			return;
 		case "menu_item":
 			await db.deleteFrom("_emdash_menu_items").where("id", "=", item.id).execute();
+			invalidateMenuObjectCache();
 			return;
 		case "widget":
 			await db.deleteFrom("_emdash_widgets").where("id", "=", item.id).execute();
@@ -169,6 +171,7 @@ async function removeItem(context: ImportContext, item: ScaffoldItemRef): Promis
 					),
 				)
 				.execute();
+			invalidateMenuObjectCache();
 			return;
 		case "widget_area":
 			await db

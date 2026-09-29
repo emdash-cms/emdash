@@ -40,7 +40,7 @@ import type { MediaValue } from "../fields/types.js";
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
 import { ssrfSafeFetch, validateExternalUrl } from "../import/ssrf.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
-import { coalesceObjectCacheWrites } from "../object-cache/index.js";
+import { coalesceObjectCacheWrites, invalidateMenuObjectCache } from "../object-cache/index.js";
 import { BlockTypeRegistry } from "../schema/block-type-registry.js";
 import { normalizeBlocksData, resolveBlockTypes } from "../schema/block-values.js";
 import { SchemaError, SchemaRegistry } from "../schema/registry.js";
@@ -1386,6 +1386,7 @@ async function invalidateSeedCaches(): Promise<void> {
 	invalidateBylineCache();
 	invalidateRedirectCache();
 	invalidateUrlPatternCache();
+	invalidateMenuObjectCache();
 }
 
 function seedEntryIdentity(

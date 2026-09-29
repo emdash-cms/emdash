@@ -7,6 +7,7 @@ import type { Database } from "../../../src/database/types.js";
 import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import {
 	__setObjectCacheBackendForTests,
+	CacheNamespace,
 	cachedQuery,
 	contentCacheNamespaces,
 	getLastContentWriteAt,
@@ -113,5 +114,27 @@ describe("applySeed with an object cache", () => {
 		expect(before).toBe("fresh");
 		expect(after).toBe("seeded");
 		expect(load).not.toHaveBeenCalled();
+	});
+
+	it("invalidates cached menus when the seed creates one", async () => {
+		const { backend } = countingBackend();
+		__setObjectCacheBackendForTests(backend, CACHE_CONFIG);
+		const readNames = (load: () => Promise<string[]>) =>
+			cachedQuery({ namespace: CacheNamespace.MENUS, key: "names", load });
+
+		await readNames(async () => []);
+		await waitForDeferredTasks();
+
+		await applySeed(
+			db,
+			{
+				version: "1",
+				menus: [{ name: "primary", label: "Primary", items: [] }],
+			},
+			{ onConflict: "skip" },
+		);
+		await waitForDeferredTasks();
+
+		expect(await readNames(async () => ["primary"])).toEqual(["primary"]);
 	});
 });
