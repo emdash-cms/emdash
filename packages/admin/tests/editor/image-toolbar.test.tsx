@@ -499,23 +499,30 @@ describe("Image toolbar", () => {
 		expect(editor.state.doc.childBefore($from.before()).node?.type.name).toBe("image");
 	});
 
-	it.each(["", "   "])("asks for alt text when the alt is %j", async (alt) => {
-		const { editor, img } = await setup({ image: { alt } });
-		const hint = "This image has no description for screen readers";
-		let toolbar = await selectImage(img);
-		await userEvent.hover(button(toolbar, "Add alt text"));
-		await vi.waitFor(() => expect(document.body).toHaveTextContent(hint));
-		editor.commands.setTextSelection(1);
-		await vi.waitFor(() => expect(document.body).not.toHaveTextContent(hint));
+	it.each(["", "   "])(
+		"lights Alt text only once an image with alt %j is described",
+		async (alt) => {
+			const { editor, img } = await setup({ image: { alt } });
+			let toolbar = await selectImage(img);
+			expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "false");
+			await userEvent.hover(button(toolbar, "Alt text"));
+			await vi.waitFor(() => expect(document.body).toHaveTextContent("No description yet"));
+			editor.commands.setTextSelection(1);
+			await vi.waitFor(() => expect(document.body).not.toHaveTextContent("No description yet"));
 
-		toolbar = await selectImage(img);
-		await userEvent.click(button(toolbar, "Add alt text"));
-		await userEvent.keyboard("A red bike{Enter}");
+			toolbar = await selectImage(img);
+			await userEvent.click(button(toolbar, "Alt text"));
+			await userEvent.keyboard("A red bike{Enter}");
 
-		await vi.waitFor(() => expect(button(toolbar, "Alt text")).toBeVisible());
-	});
+			await vi.waitFor(() =>
+				expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "true"),
+			);
+			await userEvent.hover(button(toolbar, "Alt text"));
+			await vi.waitFor(() => expect(document.body).toHaveTextContent("A red bike"));
+		},
+	);
 
-	it("asks for alt text when the alt is the file name, without another media request", async () => {
+	it("treats a file name as no description, without another media request", async () => {
 		vi.mocked(fetchMediaItem)
 			.mockReset()
 			.mockResolvedValue({
@@ -536,10 +543,14 @@ describe("Image toolbar", () => {
 		await vi.waitFor(() => expect(fetchMediaItem).toHaveBeenCalledOnce());
 		const toolbar = await selectImage(img);
 
-		await vi.waitFor(() => expect(button(toolbar, "Add alt text")).toBeVisible());
+		await vi.waitFor(() =>
+			expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "false"),
+		);
 		expect(fetchMediaItem).toHaveBeenCalledOnce();
-		await userEvent.click(button(toolbar, "Add alt text"));
+		await userEvent.click(button(toolbar, "Alt text"));
 		await userEvent.keyboard("A red bike{Enter}");
-		await vi.waitFor(() => expect(button(toolbar, "Alt text")).toBeVisible());
+		await vi.waitFor(() =>
+			expect(button(toolbar, "Alt text")).toHaveAttribute("aria-pressed", "true"),
+		);
 	});
 });

@@ -4327,7 +4327,8 @@ function ImageBubbleMenu({
 		queryFn: ({ signal }) => fetchMediaItem(image.mediaId!, { signal }),
 		enabled: false,
 	});
-	const altMissing = !image.alt.trim() || image.alt === media?.filename;
+	// A file name is what uploads fall back to, so it doesn't count as a description.
+	const described = Boolean(image.alt.trim()) && image.alt !== media?.filename;
 
 	const getSelectedCaption = React.useCallback(() => {
 		const selection = getSelectedImage(editor.state);
@@ -4434,7 +4435,7 @@ function ImageBubbleMenu({
 	}, [editor, getSelectedCaption, playEntrance, updatePosition]);
 
 	// A new row or label changes the toolbar's width, so center it over the image again.
-	React.useEffect(updatePosition, [mode, altMissing, updatePosition]);
+	React.useEffect(updatePosition, [mode, updatePosition]);
 	React.useEffect(() => {
 		if (mode !== "alt") return;
 		altInputRef.current?.focus();
@@ -4482,7 +4483,7 @@ function ImageBubbleMenu({
 	);
 	// Below the sm breakpoint these buttons show only their icons.
 	const textButtonClass =
-		"relative h-8 gap-1.5 px-2 text-sm pointer-coarse:h-11 max-sm:w-8 max-sm:justify-center max-sm:px-0 max-sm:pointer-coarse:w-11";
+		"h-8 gap-1.5 px-2 text-sm pointer-coarse:h-11 max-sm:w-8 max-sm:justify-center max-sm:px-0 max-sm:pointer-coarse:w-11";
 
 	return (
 		<>
@@ -4536,12 +4537,15 @@ function ImageBubbleMenu({
 				onMouseDown={(event) => {
 					if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
 				}}
+				// Capture, so an open hint can't stop Escape before the toolbar sees it.
+				onKeyDownCapture={(event) => {
+					if (event.key !== "Escape" || event.nativeEvent.isComposing) return;
+					event.stopPropagation();
+					returnToEditor();
+				}}
 				onKeyDown={(event) => {
 					if (event.nativeEvent.isComposing) return;
-					if (event.key === "Escape") {
-						event.stopPropagation();
-						if (!event.defaultPrevented) returnToEditor();
-					} else if (
+					if (
 						event.key === "Tab" &&
 						event.shiftKey &&
 						event.target === menuRef.current?.querySelector("button, input")
@@ -4612,18 +4616,13 @@ function ImageBubbleMenu({
 							</Button>
 							<Button
 								variant="ghost"
-								className={textButtonClass}
+								className={cn(textButtonClass, described && "bg-kumo-tint text-kumo-default")}
 								icon={<TextAa className="h-4 w-4" aria-hidden="true" />}
-								title={altMissing ? t`This image has no description for screen readers` : undefined}
+								title={described ? image.alt : t`No description yet`}
+								aria-pressed={described}
 								onClick={() => startEditing("alt")}
 							>
-								<span className="max-sm:sr-only">{altMissing ? t`Add alt text` : t`Alt text`}</span>
-								{altMissing && (
-									<span
-										aria-hidden="true"
-										className="size-1.5 rounded-full bg-kumo-warning max-sm:absolute max-sm:end-1 max-sm:top-1"
-									/>
-								)}
+								<span className="max-sm:sr-only">{t`Alt text`}</span>
 							</Button>
 							{separator}
 							<div role="group" aria-label={t`Alignment`} className="flex items-center gap-0.5">
