@@ -288,6 +288,7 @@ describe("HTML block editor", () => {
 	it("shows read-only code and no menu when the editor is read-only", async () => {
 		const block: Block = { _type: "htmlBlock", _key: "saved", html: "<p>Saved</p>" };
 		const { screen } = await renderEditor({ value: [block], editable: false });
+		await screen.getByRole("tab", { name: "HTML" }).click();
 
 		await vi.waitFor(() => expect(codeEditors()[0]?.textContent).toBe("<p>Saved</p>"));
 		expect(codeEditors()[0]?.getAttribute("contenteditable")).toBe("false");
@@ -368,5 +369,143 @@ describe("HTML block editor", () => {
 		await userEvent.keyboard("{ControlOrMeta>}z{/ControlOrMeta}");
 
 		expect(editor.getJSON()).toEqual(before);
+	});
+});
+
+function previewFrame(): HTMLIFrameElement | null {
+	return document.querySelector<HTMLIFrameElement>("iframe[title='HTML block preview']");
+}
+
+function nextMessageFrom(frame: () => HTMLIFrameElement | null, data: unknown): Promise<void> {
+	return new Promise((resolve) => {
+		const onMessage = (event: MessageEvent) => {
+			if (event.source !== frame()?.contentWindow || event.data !== data) return;
+			window.removeEventListener("message", onMessage);
+			resolve();
+		};
+		window.addEventListener("message", onMessage);
+	});
+}
+
+describe("HTML block preview", () => {
+	it("opens a saved block on Preview, sized to its content", async () => {
+		const block: Block = {
+			_type: "htmlBlock",
+			_key: "saved",
+			html: '<div style="height: 240px">Tall</div>',
+			isolated: true,
+		};
+		const { screen } = await renderEditor({ value: [block] });
+
+		await expect
+			.element(screen.getByRole("tab", { name: "Preview" }))
+			.toHaveAttribute("aria-selected", "true");
+		await vi.waitFor(() =>
+			expect(Math.round(previewFrame()!.getBoundingClientRect().height)).toBe(240),
+		);
+	});
+
+	it("runs a saved block's JavaScript after Run preview, and edited code right away", async () => {
+		const block: Block = {
+			_type: "htmlBlock",
+			_key: "saved",
+			html: "<p>Script</p>",
+			js: 'parent.postMessage("ran", "*");',
+			isolated: true,
+		};
+		const { screen } = await renderEditor({ value: [block] });
+		await expect.element(screen.getByRole("button", { name: "Run preview" })).toBeVisible();
+		expect(previewFrame()).toBeNull();
+
+		const ran = nextMessageFrom(previewFrame, "ran");
+		await screen.getByRole("button", { name: "Run preview" }).click();
+		await ran;
+
+		await screen.getByRole("tab", { name: "JS" }).click();
+		await userEvent.click(codeEditors()[0]!);
+		await userEvent.keyboard("{End} ");
+		const ranAgain = nextMessageFrom(previewFrame, "ran");
+		await screen.getByRole("tab", { name: "Preview" }).click();
+
+		await ranAgain;
+		expect(screen.getByRole("button", { name: "Run preview" }).query()).toBeNull();
+	});
+
+	it("waits for Run preview when a saved block's HTML holds a script or a frame", async () => {
+		const block: Block = {
+			_type: "htmlBlock",
+			_key: "saved",
+			html: "<iframe srcdoc=\"&lt;script&gt;parent.parent.postMessage(1, '*')&lt;/script&gt;\"></iframe>",
+			isolated: true,
+		};
+		const { screen } = await renderEditor({ value: [block] });
+
+		await expect.element(screen.getByRole("button", { name: "Run preview" })).toBeVisible();
+		expect(previewFrame()).toBeNull();
+	});
+
+	it("keeps and removes the same markup in an inline preview as the site", async () => {
+		const block: Block = {
+			_type: "htmlBlock",
+			_key: "inline",
+			html: '<img src="data:image/png;base64,AA" alt="x"><iframe src="//www.youtube.com/embed/abc"></iframe><table width="100%"><tbody><tr><td width="50">Cell</td></tr></tbody></table><video>Fallback</video><textarea>Hidden</textarea><a href="javascript:alert(1)">Link</a>',
+		};
+		const site =
+			'<img alt="x" /><iframe src="//www.youtube.com/embed/abc"></iframe><table><tbody><tr><td>Cell</td></tr></tbody></table>Fallback<a>Link</a>';
+		await renderEditor({ value: [block] });
+
+		await vi.waitFor(() => expect(previewFrame()).not.toBeNull());
+		const parse = (html: string) => new DOMParser().parseFromString(html, "text/html").body;
+		expect(parse(previewFrame()!.srcdoc).innerHTML).toBe(parse(site).innerHTML);
+	});
+
+	it("cleans an inline block's preview the way the site does", async () => {
+		const block: Block = {
+			_type: "htmlBlock",
+			_key: "inline",
+			html: '<style>p { color: red; }</style><p style="color: red" onclick="steal()">Kept</p><script>steal()</script>',
+		};
+		const { screen } = await renderEditor({ value: [block] });
+
+		await vi.waitFor(() => expect(previewFrame()).not.toBeNull());
+		const body = new DOMParser().parseFromString(previewFrame()!.srcdoc, "text/html").body;
+		expect(body.querySelector("script, style")).toBeNull();
+		expect(body.querySelector("p")?.getAttributeNames()).toEqual([]);
+		expect(body.textContent).toBe("Kept");
+		await expect.element(screen.getByText(/^Inline blocks use your site's styles/)).toBeVisible();
+	});
+
+	it("says there is nothing to preview for a new block", async () => {
+		const { screen, pm } = await renderEditor();
+		await insertFromSlashMenu(pm);
+
+		await screen.getByRole("tab", { name: "Preview" }).click();
+
+		await expect.element(screen.getByText("Nothing to preview yet.")).toBeVisible();
+	});
+
+	it("notes resources the security policy blocked", async () => {
+		const block: Block = {
+			_type: "htmlBlock",
+			_key: "saved",
+			html: "<p>Blocked</p>",
+			js: [
+				'const policy = document.createElement("meta");',
+				'policy.httpEquiv = "Content-Security-Policy";',
+				"policy.content = \"img-src 'none'\";",
+				"document.head.append(policy);",
+				"const image = new Image();",
+				'image.src = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";',
+				"document.body.append(image);",
+			].join("\n"),
+			isolated: true,
+		};
+		const { screen } = await renderEditor({ value: [block] });
+
+		await screen.getByRole("button", { name: "Run preview" }).click();
+
+		await expect
+			.element(screen.getByText(/^The admin's security policy blocked some resources/))
+			.toBeVisible();
 	});
 });

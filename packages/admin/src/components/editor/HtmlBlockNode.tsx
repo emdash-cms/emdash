@@ -11,7 +11,7 @@ import { Button, DropdownMenu, Tabs } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { DotsThreeVertical, FileCss, FileHtml, FileJs, Trash } from "@phosphor-icons/react";
+import { DotsThreeVertical, Eye, FileCss, FileHtml, FileJs, Trash } from "@phosphor-icons/react";
 import { Node, mergeAttributes, type Editor } from "@tiptap/core";
 import { GapCursor } from "@tiptap/pm/gapcursor";
 import type { NodeType } from "@tiptap/pm/model";
@@ -22,12 +22,15 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 import type { CodeEditorLanguage } from "./CodeEditor";
+import { HtmlBlockPreview } from "./HtmlBlockPreview";
 
 const CodeEditor = React.lazy(() => import("./CodeEditor"));
 
 type Field = "html" | "css" | "js";
+type Tab = Field | "preview";
 
 const FIELDS: readonly Field[] = ["html", "css", "js"];
+const PREVIEW_LABEL = msg`Preview`;
 const WRITE_DELAY_MS = 250;
 
 const TABS: Record<
@@ -63,8 +66,8 @@ const TABS: Record<
 	},
 };
 
-function isField(value: string): value is Field {
-	return (FIELDS as readonly string[]).includes(value);
+function isTab(value: string): value is Tab {
+	return value === "preview" || (FIELDS as readonly string[]).includes(value);
 }
 
 function fieldValue(attrs: Record<string, unknown>, field: Field): string {
@@ -147,8 +150,16 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 		js: fieldValue(node.attrs, "js"),
 	};
 
-	const [tab, setTab] = React.useState<Field>("html");
-	const activeTab = isolated ? tab : "html";
+	// New blocks open on HTML and saved blocks on Preview. A saved block with
+	// scripts waits for Run preview, so a broken script can't freeze the editor.
+	const [tab, setTab] = React.useState<Tab>(() =>
+		FIELDS.some((field) => values[field]) ? "preview" : "html",
+	);
+	const activeTab: Tab = isolated || tab === "html" ? tab : "preview";
+	const [allowScripts, setAllowScripts] = React.useState(() =>
+		FIELDS.every((field) => !values[field]),
+	);
+	const previewHeight = React.useRef(128);
 	const [revisions, setRevisions] = React.useState<Record<Field, number>>({
 		html: 0,
 		css: 0,
@@ -226,6 +237,7 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 	}, [editor, getPos]);
 
 	const handleChange = (field: Field, value: string) => {
+		setAllowScripts(true);
 		pending.current[field] = value;
 		window.clearTimeout(timer.current);
 		timer.current = window.setTimeout(flush, WRITE_DELAY_MS);
@@ -275,7 +287,7 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 	};
 
 	const handleTabChange = (value: string) => {
-		if (!isField(value)) return;
+		if (!isTab(value)) return;
 		flush();
 		setTab(value);
 	};
@@ -293,8 +305,7 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 		editor.chain().setNodeSelection(pos).deleteSelection().run();
 	};
 
-	const fields = isolated ? FIELDS : (["html"] as const);
-	const { editorLabel, placeholder, language } = TABS[activeTab];
+	const tabs: readonly Tab[] = isolated ? [...FIELDS, "preview"] : ["html", "preview"];
 
 	return (
 		<NodeViewWrapper className="html-block not-prose my-3" contentEditable={false}>
@@ -312,10 +323,11 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 						activateOnFocus
 						value={activeTab}
 						onValueChange={handleTabChange}
-						tabs={fields.map((field) => {
-							const { label, Icon } = TABS[field];
+						tabs={tabs.map((value) => {
+							const { label, Icon } =
+								value === "preview" ? { label: PREVIEW_LABEL, Icon: Eye } : TABS[value];
 							return {
-								value: field,
+								value,
 								label: (
 									<span className="flex items-center gap-1">
 										<Icon className="size-3.5" aria-hidden="true" />
@@ -381,29 +393,42 @@ function HtmlBlockNodeView({ editor, node, getPos, updateAttributes, selected }:
 				<div
 					ref={panelRef}
 					role="tabpanel"
-					aria-label={t(TABS[activeTab].label)}
+					aria-label={t(activeTab === "preview" ? PREVIEW_LABEL : TABS[activeTab].label)}
 					tabIndex={-1}
 					className="border-t border-kumo-line outline-none"
 					onBlur={(event) => {
 						if (!event.currentTarget.contains(event.relatedTarget)) setAutoFocus(false);
 					}}
 				>
-					<CodeEditorBoundary fallback={<CodeEditorLoadError />}>
-						<React.Suspense fallback={<div className="h-40" />}>
-							<CodeEditor
-								key={`${activeTab}-${revisions[activeTab]}`}
-								language={language}
-								value={values[activeTab]}
-								onChange={(value) => handleChange(activeTab, value)}
-								onFocusChange={handleFocusChange}
-								onEscape={handleEscape}
-								editable={editable}
-								autoFocus={autoFocus}
-								ariaLabel={t(editorLabel)}
-								placeholder={t(placeholder)}
-							/>
-						</React.Suspense>
-					</CodeEditorBoundary>
+					{activeTab === "preview" ? (
+						<HtmlBlockPreview
+							{...values}
+							isolated={isolated}
+							allowScripts={allowScripts}
+							onRun={() => {
+								setAllowScripts(true);
+								panelRef.current?.focus();
+							}}
+							lastHeight={previewHeight}
+						/>
+					) : (
+						<CodeEditorBoundary fallback={<CodeEditorLoadError />}>
+							<React.Suspense fallback={<div className="h-40" />}>
+								<CodeEditor
+									key={`${activeTab}-${revisions[activeTab]}`}
+									language={TABS[activeTab].language}
+									value={values[activeTab]}
+									onChange={(value) => handleChange(activeTab, value)}
+									onFocusChange={handleFocusChange}
+									onEscape={handleEscape}
+									editable={editable}
+									autoFocus={autoFocus}
+									ariaLabel={t(TABS[activeTab].editorLabel)}
+									placeholder={t(TABS[activeTab].placeholder)}
+								/>
+							</React.Suspense>
+						</CodeEditorBoundary>
+					)}
 				</div>
 			</div>
 		</NodeViewWrapper>

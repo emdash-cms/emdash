@@ -69,10 +69,31 @@ its display size, alignment, alt text, caption, and optional tooltip. **Edit ass
 underlying Media Library item, where changing or replacing the asset can affect other entries that
 use it. See [Media Library](/guides/media-library/#edit-an-image-used-in-content) for that distinction.
 
-<Aside type="caution">
-	The standard Portable Text renderer sanitizes HTML blocks. It permits iframe content only from
-	YouTube and Vimeo. A custom HTML-block renderer must apply its own sanitization and provider
-	allowlist before inserting HTML into a page.
+### Add HTML, CSS and JavaScript
+
+An HTML block holds code the other blocks can't express, such as an embed, a signup form or a small
+widget. Its tabs are **HTML**, **CSS**, **JS** and **Preview**. Each code tab is a code editor where
+Tab indents; press Escape to return to the surrounding text.
+
+**Preview** shows the block as your site renders it. When you open an entry, a block that runs
+JavaScript waits until you select **Run preview**, so a broken script can't freeze the editor.
+
+The block's menu sets how your site renders it:
+
+- **Isolated frame** runs the block's HTML, CSS and JavaScript in a sandboxed frame that grows with
+  its content. The frame can't read your site's cookies, storage or pages, and your site's styles
+  don't reach it. New HTML blocks use this mode.
+- **Inline** puts the HTML into the page, where it uses your site's styles. Your site removes
+  scripts, `<style>` elements and `style` attributes, and empties iframes from sites other than
+  YouTube and Vimeo, so an inline block has no **CSS** or **JS** tab.
+
+Search engines may not treat text inside an isolated frame as part of the page. Put text that
+matters for search in paragraphs or an inline block.
+
+<Aside>
+	In a deployed admin, previews follow the admin's security policy, which blocks scripts, styles,
+	fonts, frames and requests from other sites. A note below the preview says when this happens. Your
+	site can still load them.
 </Aside>
 
 ## Save draft changes

@@ -244,9 +244,17 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
 `PortableText` supplies renderers for EmDash's standard blocks, including images, galleries, code,
-tables, and sanitized HTML blocks. Pass custom components when a site adds its own Portable Text
-blocks. If you replace the `htmlBlock` renderer, sanitize the HTML and allow only the iframe hosts
-the site intends to trust.
+tables, and HTML blocks. Pass custom components when a site adds its own Portable Text blocks.
+
+An HTML block with `isolated: true` renders its `html`, `css` and `js` in a sandboxed iframe that
+sizes itself to its content. Other HTML blocks render their `html` in the page, sanitized. If you
+replace the `htmlBlock` renderer, pass isolated blocks to `HtmlBlock` from `emdash/ui` or render
+them in an iframe whose `sandbox` omits `allow-same-origin`. Sanitize inline HTML yourself and
+allow only the iframe hosts the site intends to trust.
+
+With [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp)
+turned on, the browser blocks the styles and scripts inside isolated HTML blocks, so they render
+without their CSS, JavaScript or automatic height.
 
 `PortableText` shows tables as read-only placeholders in edit mode. To localize their initial label, pass `tablePlaceholder={translatedLabel}`. It defaults to `"Table (edit in admin)"` and does not affect published table content.
 

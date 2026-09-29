@@ -40,6 +40,104 @@ export function htmlBlockFields(source: object): HtmlBlockFields {
 	return fields;
 }
 
+/**
+ * What the site's sanitizer keeps in inline HTML blocks. The admin's inline
+ * preview removes the same things, so it shows what the site renders.
+ */
+export const SITE_HTML_ALLOWED_TAGS: readonly string[] = [
+	"address",
+	"article",
+	"aside",
+	"footer",
+	"header",
+	"h1",
+	"h2",
+	"h3",
+	"h4",
+	"h5",
+	"h6",
+	"hgroup",
+	"main",
+	"nav",
+	"section",
+	"blockquote",
+	"dd",
+	"div",
+	"dl",
+	"dt",
+	"figcaption",
+	"figure",
+	"hr",
+	"li",
+	"menu",
+	"ol",
+	"p",
+	"pre",
+	"ul",
+	"a",
+	"abbr",
+	"b",
+	"bdi",
+	"bdo",
+	"br",
+	"cite",
+	"code",
+	"data",
+	"dfn",
+	"em",
+	"i",
+	"kbd",
+	"mark",
+	"q",
+	"rb",
+	"rp",
+	"rt",
+	"rtc",
+	"ruby",
+	"s",
+	"samp",
+	"small",
+	"span",
+	"strong",
+	"sub",
+	"sup",
+	"time",
+	"u",
+	"var",
+	"wbr",
+	"caption",
+	"col",
+	"colgroup",
+	"table",
+	"tbody",
+	"td",
+	"tfoot",
+	"th",
+	"thead",
+	"tr",
+	"img",
+	"iframe",
+];
+
+export const SITE_HTML_ALLOWED_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+	"*": ["class", "id", "data-*"],
+	a: ["href", "name", "target"],
+	img: ["src", "srcset", "alt", "title", "width", "height", "loading"],
+	iframe: ["src", "width", "height", "frameborder", "allow", "allowfullscreen"],
+};
+
+/** URL schemes allowed in `href`, `src` and `cite`. Relative URLs are always allowed. */
+export const SITE_HTML_ALLOWED_SCHEMES: readonly string[] = [
+	"http",
+	"https",
+	"ftp",
+	"mailto",
+	"tel",
+];
+
+/** Hosts whose iframes keep their `src`; other iframes lose it. */
+export const SITE_HTML_IFRAME_HOSTS: readonly string[] = ["www.youtube.com", "player.vimeo.com"];
+
 const BASE_STYLE = "body{margin:0;font-family:system-ui,sans-serif;line-height:1.5}";
 
 // Runs before the author's markup so an unclosed comment or tag can't swallow it.
