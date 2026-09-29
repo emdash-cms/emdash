@@ -734,7 +734,23 @@ describe("Bubble Menu", () => {
 			expect(link!.getAttribute("href")).toBe("https://example.com");
 		});
 
-		await userEvent.keyboard("{ArrowLeft}{End} for more information");
+		// Applying the link returns focus to the editor asynchronously, and ProseMirror
+		// only picks up native caret moves on a later selectionchange event. Wait for
+		// each step to reach the editor before sending the next key.
+		const linkEnd = getTextPosition(editor, "Hello world") + "Hello world".length;
+		await vi.waitFor(() => {
+			expect(document.activeElement).toBe(pm);
+			expect(editor.state.selection.empty).toBe(true);
+			expect(editor.state.selection.from).toBe(linkEnd);
+		});
+
+		await userEvent.keyboard("{ArrowLeft}");
+		await vi.waitFor(() => expect(editor.state.selection.from).toBe(linkEnd - 1));
+
+		await userEvent.keyboard("{End}");
+		await vi.waitFor(() => expect(editor.state.selection.from).toBe(linkEnd));
+
+		await userEvent.keyboard(" for more information");
 
 		await vi.waitFor(() => {
 			expect(pm.textContent).toBe("Hello world for more information");
