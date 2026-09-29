@@ -104,7 +104,7 @@ pnpm wrangler deploy
 
 With the default `auto` migration mode, EmDash applies pending core migrations when the deployed Worker receives its first request. Use [Manage core database migrations](/deployment/core-migrations/) when a deployment pipeline must apply migrations before new code receives traffic or when you need to inspect, check, or recover a migration.
 
-If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
+Until the setup wizard has been completed, EmDash also applies the schema and structure of a seed file once, on the first request. Sample content from the seed is applied only when an administrator chooses it in the setup wizard. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 

@@ -13,7 +13,7 @@ Open **Settings** in the EmDash admin, then choose the page for the values you n
 
 - **General** contains the site title, tagline, logo, favicon, public URL, posts per page, date format, and timezone.
 - **Social** contains profile handles for the supported social services.
-- **SEO** contains the title separator, default social image, verification values, and `robots.txt` content.
+- **SEO** contains the title separator, default social image, verification values, and `robots.txt` content. See [Built-in SEO Features](/guides/seo/) for what each one does.
 
 <Steps>
 
@@ -95,7 +95,7 @@ const page = createPublicPageContext({
 
 `EmDashHead` also calls `getSiteSettings()`. Request caching makes that call reuse the layout's result rather than run another settings query.
 
-On a server-rendered content page, pass the content reference to `createPublicPageContext()` and fetch the entry with `getEmDashEntry()`. `EmDashHead` then applies the entry's SEO panel values over site defaults. See [Rendering SEO panel data](/guides/querying-content/#rendering-seo-panel-data) for the complete content-page pattern.
+On a server-rendered content page, pass the content reference to `createPublicPageContext()` and fetch the entry with `getEmDashEntry()`. `EmDashHead` then applies the entry's SEO panel values over site defaults. See [Render SEO metadata on a content page](/guides/seo/#render-seo-metadata-on-a-content-page) for the complete content-page pattern.
 
 ## Read one setting
 
